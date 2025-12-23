@@ -330,3 +330,11 @@ v172 – Multi-Screen Edition
 ## Contact
 
 For support or feature requests, contact Fearless Wanderer Productions.
+
+## License
+
+This project is dual-licensed:
+
+- **Open Source:** You may use, modify, and distribute the software under the terms of the [MIT License](./LICENSE-OPEN.txt).
+
+- **Commercial Use:** For redistribution, resale, or commercial use beyond the MIT terms, a commercial license is required. Please contact [gablabrecque@gmail.com](mailto:gablabrecque@gmail.com) for licensing options and fees.

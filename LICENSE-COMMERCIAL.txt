@@ -1,0 +1,29 @@
+LED Calculator Commercial License Agreement
+
+Copyright (c) 2025 Gabriel Labrecque. All rights reserved.
+
+1. Ownership
+Gabriel Labrecque retains all ownership, copyright, and intellectual property rights in the software ("the Software").
+
+2. Grant of License
+Subject to the terms of this Agreement and payment of applicable fees, Gabriel Labrecque grants the Licensee a non-exclusive, non-transferable license to use, modify, distribute, and sell the Software.
+
+3. Restrictions
+Licensee shall NOT:
+- Redistribute, sublicense, or sell the Software except as expressly permitted by this Agreement.
+- Remove or alter any copyright, trademark, or proprietary notices.
+- Reverse engineer, decompile, or disassemble the Software.
+
+4. Payment and Royalties
+Use, distribution, or sale of the Software under this commercial license requires payment of fees or royalties to Gabriel Labrecque as agreed in a separate written agreement.
+
+5. Termination
+This license is effective until terminated. Violation of any term will result in automatic termination.
+
+6. Warranty Disclaimer
+The Software is provided "as is" without warranty of any kind.
+
+Contact Information:  
+Gabriel Labrecque  
+gablabrecque@gmail.com  
+2025

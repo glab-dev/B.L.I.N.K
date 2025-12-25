@@ -3011,7 +3011,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.62';
+const APP_VERSION = '2.0.63';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Check for updates on app load
@@ -10123,8 +10123,29 @@ function showCanvasView(){
       ctx.fillStyle = '#FFFF00';
       ctx.fillText(resText, resTextX, resTextY);
     }
+
+    // Draw X crosshair if enabled for this screen (default: on)
+    if(screen.showCrosshair !== false) {
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 5]); // Dashed line for visibility
+
+      // Line from top-left to bottom-right
+      ctx.beginPath();
+      ctx.moveTo(offsetX, offsetY);
+      ctx.lineTo(offsetX + wallResX, offsetY + wallResY);
+      ctx.stroke();
+
+      // Line from top-right to bottom-left
+      ctx.beginPath();
+      ctx.moveTo(offsetX + wallResX, offsetY);
+      ctx.lineTo(offsetX, offsetY + wallResY);
+      ctx.stroke();
+
+      ctx.setLineDash([]); // Reset to solid line
+    }
   });
-  
+
   // Update info display
   let totalWalls = 0;
   let totalPanels = 0;
@@ -15014,11 +15035,12 @@ function updateCanvasScreenToggles() {
     const screen = screens[screenId];
     const showCoords = screen.showCoordinates !== false;
     const showPixels = screen.showPixelDimensions !== false;
-    
+    const showCrosshair = screen.showCrosshair !== false;
+
     html += `
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 4px 6px; background: #333; border-radius: 4px;">
         <label class="inline-label" style="margin-bottom: 0; display: flex; align-items: center; flex: 1;">
-          <input type="checkbox" ${screen.visible ? 'checked' : ''} 
+          <input type="checkbox" ${screen.visible ? 'checked' : ''}
                  onchange="toggleScreenVisibility('${screenId}', this.checked)">
           <span style="margin-left: 6px; display: inline-flex; align-items: center;">
             <span style="display: inline-block; width: 12px; height: 12px; background: ${screen.color}; margin-right: 6px; border: 1px solid #666;"></span>
@@ -15026,12 +15048,15 @@ function updateCanvasScreenToggles() {
           </span>
         </label>
         <div style="display: flex; gap: 4px;">
-          <button type="button" class="toggle-btn ${showCoords ? 'active' : ''}" 
-                  style="padding: 2px 6px; font-size: 10px;" 
+          <button type="button" class="toggle-btn ${showCoords ? 'active' : ''}"
+                  style="padding: 2px 6px; font-size: 10px;"
                   onclick="toggleScreenCoordinates('${screenId}')">X/Y</button>
-          <button type="button" class="toggle-btn ${showPixels ? 'active' : ''}" 
-                  style="padding: 2px 6px; font-size: 10px;" 
+          <button type="button" class="toggle-btn ${showPixels ? 'active' : ''}"
+                  style="padding: 2px 6px; font-size: 10px;"
                   onclick="toggleScreenPixelDimensions('${screenId}')">Pixels</button>
+          <button type="button" class="toggle-btn ${showCrosshair ? 'active' : ''}"
+                  style="padding: 2px 6px; font-size: 10px;"
+                  onclick="toggleScreenCrosshair('${screenId}')" title="Show X crosshair">X</button>
         </div>
       </div>
     `;
@@ -15061,6 +15086,15 @@ function toggleScreenPixelDimensions(screenId) {
   if(screens[screenId]) {
     // Toggle - default is true (shown), so undefined or true becomes false, false becomes true
     screens[screenId].showPixelDimensions = screens[screenId].showPixelDimensions === false ? true : false;
+    updateCanvasScreenToggles();
+    showCanvasView();
+  }
+}
+
+function toggleScreenCrosshair(screenId) {
+  if(screens[screenId]) {
+    // Toggle - default is true (shown), so undefined or true becomes false, false becomes true
+    screens[screenId].showCrosshair = screens[screenId].showCrosshair === false ? true : false;
     updateCanvasScreenToggles();
     showCanvasView();
   }

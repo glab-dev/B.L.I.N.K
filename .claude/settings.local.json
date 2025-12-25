@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd X crosshair overlay for screens in canvas view \\(v2.0.63\\)\n\n- Add diagonal X crosshair from corner to corner on each screen\n- White dashed lines matching panel outline style\n- New \"X\" toggle button in Visible Screens section \\(next to Pixels\\)\n- Crosshair enabled by default for all screens\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}

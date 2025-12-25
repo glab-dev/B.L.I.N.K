@@ -205,6 +205,86 @@
       color: #34d399;
     }
 
+    /* Update Available Banner */
+    .update-banner {
+      position: fixed;
+      top: calc(var(--header-height) + var(--safe-area-top));
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      border-bottom: 3px solid #000;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      z-index: 999;
+      transform: translateY(-100%);
+      opacity: 0;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .update-banner.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .update-banner-text {
+      font-family: 'Bangers', cursive;
+      font-size: 16px;
+      color: white;
+      text-shadow: 1px 1px 0 #000;
+      letter-spacing: 1px;
+    }
+
+    .update-banner-btn {
+      background: #fff;
+      color: #059669;
+      border: 2px solid #000;
+      border-radius: 4px;
+      padding: 6px 14px;
+      font-family: 'Bangers', cursive;
+      font-size: 14px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      box-shadow: 2px 2px 0 #000;
+      transition: all 0.1s;
+      white-space: nowrap;
+    }
+
+    .update-banner-btn:active {
+      box-shadow: none;
+      transform: translate(2px, 2px);
+    }
+
+    .update-banner-close {
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+      text-shadow: 1px 1px 0 #000;
+    }
+
+    /* Refresh button glow when update available */
+    .mobile-menu-refresh.update-available {
+      animation: updatePulse 1.5s ease-in-out infinite;
+      color: #10b981 !important;
+    }
+
+    @keyframes updatePulse {
+      0%, 100% {
+        box-shadow: 0 0 5px #10b981, 0 0 10px #10b981;
+      }
+      50% {
+        box-shadow: 0 0 15px #10b981, 0 0 25px #10b981;
+      }
+    }
+
     /* Bottom Navigation - Comic Style */
     .bottom-nav {
       position: fixed;
@@ -2296,6 +2376,13 @@
   </div>
 </header>
 
+<!-- Update Available Banner -->
+<div id="updateBanner" class="update-banner">
+  <span class="update-banner-text">New version <span id="updateVersionText"></span></span>
+  <button class="update-banner-btn" onclick="hardRefreshApp()">Tap to Update</button>
+  <button class="update-banner-close" onclick="hideUpdateBanner()">&times;</button>
+</div>
+
 <!-- Mobile Menu Overlay -->
 <div id="mobileMenuOverlay" class="mobile-menu-overlay" onclick="closeMobileMenu()">
   <div class="mobile-menu" onclick="event.stopPropagation()">
@@ -2923,7 +3010,60 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
-console.log('JavaScript loaded - v61');
+// ==================== APP VERSION & UPDATE CHECK ====================
+const APP_VERSION = '2.0.62';
+console.log('JavaScript loaded - v' + APP_VERSION);
+
+// Check for updates on app load
+async function checkForUpdates() {
+  try {
+    // Fetch version.json with cache-busting
+    const response = await fetch('version.json?_=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+
+    if (!response.ok) {
+      console.log('Version check: Could not fetch version.json');
+      return;
+    }
+
+    const data = await response.json();
+    const latestVersion = data.version;
+
+    console.log('Version check: Current=' + APP_VERSION + ', Latest=' + latestVersion);
+
+    if (latestVersion && latestVersion !== APP_VERSION) {
+      showUpdateBanner(latestVersion);
+    }
+  } catch (e) {
+    console.log('Version check failed:', e.message);
+  }
+}
+
+// Show update available banner
+function showUpdateBanner(newVersion) {
+  const banner = document.getElementById('updateBanner');
+  const versionText = document.getElementById('updateVersionText');
+  if (banner && versionText) {
+    versionText.textContent = 'v' + newVersion + ' available';
+    banner.classList.add('visible');
+
+    // Also highlight the refresh button in the menu
+    const refreshBtn = document.querySelector('.mobile-menu-refresh');
+    if (refreshBtn) {
+      refreshBtn.classList.add('update-available');
+    }
+  }
+}
+
+// Hide update banner
+function hideUpdateBanner() {
+  const banner = document.getElementById('updateBanner');
+  if (banner) {
+    banner.classList.remove('visible');
+  }
+}
 
 // Global unit settings
 let displayLengthUnit = 'ft'; // 'ft' or 'm'
@@ -15315,6 +15455,9 @@ function initMobileUI() {
   if(typeof calculate === 'function') {
     setTimeout(calculate, 100);
   }
+
+  // Check for updates after UI loads
+  setTimeout(checkForUpdates, 500);
 
   console.log('Mobile UI initialized');
 }

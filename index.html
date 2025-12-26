@@ -1987,7 +1987,7 @@
       color: #ff6b6b;
       font-size: 24px;
       cursor: pointer;
-      border-radius: 2px;
+      border-radius: 0; /* Removed to fix diagonal line artifacts on Windows */
       box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
       display: flex;
       align-items: center;
@@ -2007,7 +2007,7 @@
       color: var(--primary);
       font-size: 28px;
       cursor: pointer;
-      border-radius: 2px;
+      border-radius: 0; /* Removed to fix diagonal line artifacts on Windows */
       box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
       margin-left: auto;
       display: flex;
@@ -3014,7 +3014,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.73';
+const APP_VERSION = '2.0.74';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready

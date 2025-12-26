@@ -2770,7 +2770,7 @@
         
         <!-- Cabling Section -->
         <div class="section-box" id="cablingSection">
-          <div class="section-title">Cabling</div>
+          <div class="section-title">Cabling <span style="color: #ff4444; font-size: 11px; font-weight: normal;">(in development)</span></div>
           
           <div class="compact-row" style="margin-bottom: 8px;">
             <label style="flex: 0 0 90px;">
@@ -2998,7 +2998,7 @@
           <select id="canvasExportFormat" style="flex: 1; padding: 10px 8px; height: 48px; box-sizing: border-box;">
             <option value="png" selected="">PNG</option>
             <option value="jpeg">JPEG</option>
-            <option value="pdf">PDF</option>
+            <option value="resolume">Resolume (.xml)</option>
           </select>
           <button id="btnExportCanvas" class="config-btn" style="background: var(--primary); border-color: var(--primary); flex: 1; height: 48px; padding: 0; box-sizing: border-box;">Export</button>
         </div>
@@ -3014,7 +3014,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.65';
+const APP_VERSION = '2.0.66';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -5830,7 +5830,6 @@ function calculate(){
     html += `<div class="result-row"><strong>Estimated data lines:</strong> ${dataLinesFinal}</div>`;
     html += `<div class="result-row"><strong>Frame Rate:</strong> ${frameRate} Hz</div>`;
     html += `<div class="result-row"><strong>Bit Depth:</strong> ${bitDepth}-bit</div>`;
-    html += `<div class="result-row"><strong>Screen resolution:</strong> ${resX} × ${resY}</div>`;
     html += `<div class="result-row"><strong>Redundancy:</strong> ${redundancy ? 'Yes' : 'No'}</div>`;
   }
 
@@ -10158,6 +10157,24 @@ function showCanvasView(){
 
       ctx.setLineDash([]); // Reset to solid line
     }
+
+    // Add GLAB logo in bottom right corner
+    const logoFontSize = Math.max(12, Math.min(wallResX, wallResY) * 0.05);
+    ctx.font = `bold ${logoFontSize}px Arial`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+
+    const logoTextX = offsetX + wallResX - 10;
+    const logoTextY = offsetY + wallResY - 10;
+    const logoText = 'GLAB';
+
+    // Simple shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillText(logoText, logoTextX + 2, logoTextY + 2);
+
+    // White text for logo
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(logoText, logoTextX, logoTextY);
   });
 
   // Update info display
@@ -10171,11 +10188,9 @@ function showCanvasView(){
     }
   });
   
-  document.getElementById('canvasInfo').innerHTML = 
-    `Canvas Resolution: ${canvasResX} × ${canvasResY} px<br>` +
-    `Visible Screens: ${totalWalls}<br>` +
-    `Total Panels: ${totalPanels}`;
-  
+  // Update canvas info display (includes selected screen coordinates if any)
+  updateCanvasInfoDisplay();
+
   // Cache the canvas state for quick selection highlighting
   cachedCanvasImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   
@@ -13191,26 +13206,8 @@ function exportPDF(){
         // Use blob approach for better iOS compatibility
         const pdfBlob = pdf.output('blob');
 
-        // Try native share API first (iOS/mobile - allows "Save to Files")
-        if(navigator.share && navigator.canShare) {
-          const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-          if(navigator.canShare({ files: [file] })) {
-            navigator.share({
-              files: [file],
-              title: filename
-            }).then(() => {
-              removeOverlay();
-            }).catch((err) => {
-              // User cancelled or share failed - fall back to download
-              console.log('Share cancelled or failed:', err);
-              fallbackDownload();
-            });
-            return;
-          }
-        }
-
-        // Fallback download method
-        function fallbackDownload() {
+        // Download function
+        function downloadPDF() {
           const blobUrl = URL.createObjectURL(pdfBlob);
           const link = document.createElement('a');
           link.href = blobUrl;
@@ -13227,7 +13224,26 @@ function exportPDF(){
           setTimeout(removeOverlay, 100);
         }
 
-        fallbackDownload();
+        // Try native share API first (iOS/mobile - allows "Save to Files")
+        if(navigator.share && navigator.canShare) {
+          const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+          if(navigator.canShare({ files: [file] })) {
+            navigator.share({
+              files: [file],
+              title: filename
+            }).then(() => {
+              removeOverlay();
+            }).catch((err) => {
+              // User cancelled or share failed - fall back to download
+              console.log('Share cancelled or failed:', err);
+              downloadPDF();
+            });
+            return;
+          }
+        }
+
+        // Share API not available - use direct download
+        downloadPDF();
       }, 150);
     }
     
@@ -13297,12 +13313,13 @@ function exportCanvas(){
       exportCtx.drawImage(canvas, 0, 0);
     }
     
-    // Export the clean canvas using blob for better mobile compatibility
-    if(format === 'pdf'){
-      alert('PDF export requires external libraries. Please select PNG or JPEG format instead.');
+    // Handle Resolume XML export
+    if(format === 'resolume') {
+      exportResolumeXML(filename);
       return;
     }
 
+    // Export the clean canvas using blob for better mobile compatibility
     const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
     const extension = format === 'jpeg' ? '.jpg' : '.png';
     const quality = format === 'jpeg' ? 0.95 : undefined;
@@ -13330,6 +13347,177 @@ function exportCanvas(){
   } catch(err) {
     alert('Error exporting canvas: ' + err.message);
     console.error('Export error:', err);
+  }
+}
+
+// Export Resolume Arena XML file
+function exportResolumeXML(filename) {
+  try {
+    const screenKeys = Object.keys(screens);
+    if(screenKeys.length === 0) {
+      alert('No screens to export. Please add at least one screen.');
+      return;
+    }
+
+    // Get canvas dimensions
+    const canvas = document.getElementById('canvasPreview');
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+
+    // Generate unique IDs for Resolume
+    function generateId() {
+      return Math.floor(Math.random() * 900000000) + 100000000;
+    }
+
+    // Build slices XML for each screen
+    let slicesXml = '';
+    let sliceIndex = 0;
+
+    screenKeys.forEach(key => {
+      const screen = screens[key];
+      const panel = allPanels[screen.panelType];
+      if(!panel) return;
+
+      // Calculate screen dimensions in pixels
+      const panelResX = panel.res_x || 1;
+      const panelResY = panel.res_y || 1;
+      const screenResX = screen.panelsWide * panelResX;
+      const screenResY = screen.panelsHigh * panelResY;
+
+      // Get screen position (default to 0,0 if not set)
+      const screenX = screen.canvasX || 0;
+      const screenY = screen.canvasY || 0;
+
+      // Generate IDs for this slice
+      const sliceId = generateId();
+      const inputRectId = generateId();
+      const outputRectId = generateId();
+      const warperId = generateId();
+
+      // Create bezier warper points (4x4 grid)
+      let bezierPointsXml = '';
+      for(let row = 0; row < 4; row++) {
+        for(let col = 0; col < 4; col++) {
+          const pointId = generateId();
+          const x = col / 3;
+          const y = row / 3;
+          bezierPointsXml += `
+              <BezierPoint id="${pointId}">
+                <Params>
+                  <x>${x.toFixed(6)}</x>
+                  <y>${y.toFixed(6)}</y>
+                </Params>
+              </BezierPoint>`;
+        }
+      }
+
+      slicesXml += `
+      <Slice id="${sliceId}">
+        <Params>
+          <name>${screen.name || 'Screen ' + (sliceIndex + 1)}</name>
+          <enabled>true</enabled>
+          <selected>false</selected>
+          <locked>false</locked>
+          <InputRect id="${inputRectId}">
+            <Params>
+              <left>0</left>
+              <top>0</top>
+              <right>${screenResX}</right>
+              <bottom>${screenResY}</bottom>
+            </Params>
+          </InputRect>
+          <OutputRect id="${outputRectId}">
+            <Params>
+              <left>${screenX}</left>
+              <top>${screenY}</top>
+              <right>${screenX + screenResX}</right>
+              <bottom>${screenY + screenResY}</bottom>
+            </Params>
+          </OutputRect>
+          <BezierWarper id="${warperId}">
+            <Params>
+              <enabled>false</enabled>
+              <linear>true</linear>
+              <rows>4</rows>
+              <columns>4</columns>${bezierPointsXml}
+            </Params>
+          </BezierWarper>
+        </Params>
+      </Slice>`;
+
+      sliceIndex++;
+    });
+
+    // Calculate total canvas resolution (max extent of all screens)
+    let totalWidth = canvasWidth;
+    let totalHeight = canvasHeight;
+
+    screenKeys.forEach(key => {
+      const screen = screens[key];
+      const panel = allPanels[screen.panelType];
+      if(!panel) return;
+
+      const screenResX = screen.panelsWide * (panel.res_x || 1);
+      const screenResY = screen.panelsHigh * (panel.res_y || 1);
+      const screenX = screen.canvasX || 0;
+      const screenY = screen.canvasY || 0;
+
+      totalWidth = Math.max(totalWidth, screenX + screenResX);
+      totalHeight = Math.max(totalHeight, screenY + screenResY);
+    });
+
+    // Generate main IDs
+    const screenSetupId = generateId();
+    const outputDeviceId = generateId();
+    const screenId = generateId();
+
+    // Build complete XML
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<XmlState>
+  <versionInfo version="30602" buildDate="Jan 17 2025, 17:00:00"/>
+  <ScreenSetup id="${screenSetupId}">
+    <Params>
+      <OutputDevice id="${outputDeviceId}">
+        <Params>
+          <name>Output 1</name>
+          <enabled>true</enabled>
+          <width>${totalWidth}</width>
+          <height>${totalHeight}</height>
+          <left>0</left>
+          <top>0</top>
+          <Screen id="${screenId}">
+            <Params>
+              <name>Screen 1</name>
+              <enabled>true</enabled>
+              <selected>false</selected>
+              <locked>false</locked>${slicesXml}
+            </Params>
+          </Screen>
+        </Params>
+      </OutputDevice>
+    </Params>
+  </ScreenSetup>
+</XmlState>`;
+
+    // Create blob and download
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename + '.xml';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+
+    // Cleanup
+    setTimeout(function() {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 100);
+
+  } catch(err) {
+    alert('Error exporting Resolume XML: ' + err.message);
+    console.error('Resolume export error:', err);
   }
 }
 

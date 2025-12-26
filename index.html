@@ -3014,7 +3014,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.69';
+const APP_VERSION = '2.0.70';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -13371,14 +13371,13 @@ function exportResolumeXML(filename) {
     // Get all panels (built-in + custom)
     const allPanels = getAllPanels();
 
-    // Generate unique IDs for Resolume
-    function generateId() {
-      return Math.floor(Math.random() * 900000000) + 100000000;
+    // Generate unique ID for Resolume
+    function generateUniqueId() {
+      return Math.floor(Math.random() * 9000000000000000) + 1000000000000000;
     }
 
     // Build slices XML for each screen
     let slicesXml = '';
-    let sliceIndex = 0;
 
     screenKeys.forEach(key => {
       const screen = screens[key];
@@ -13387,74 +13386,66 @@ function exportResolumeXML(filename) {
       const panel = allPanels[panelType];
       if(!panel) return;
 
+      // Skip non-visible screens
+      if(screen.visible === false) return;
+
       // Calculate screen dimensions in pixels
       const panelResX = panel.res_x || 1;
       const panelResY = panel.res_y || 1;
       const screenResX = (screenData.panelsWide || 0) * panelResX;
       const screenResY = (screenData.panelsHigh || 0) * panelResY;
 
+      if(screenResX === 0 || screenResY === 0) return;
+
       // Get screen position (default to 0,0 if not set)
       const screenX = screenData.canvasX || 0;
       const screenY = screenData.canvasY || 0;
 
-      // Generate IDs for this slice
-      const sliceId = generateId();
-      const inputRectId = generateId();
-      const outputRectId = generateId();
-      const warperId = generateId();
-
-      // Create bezier warper points (4x4 grid)
-      let bezierPointsXml = '';
+      // Create bezier warper vertices (4x4 grid) - uses actual pixel positions
+      let verticesXml = '';
       for(let row = 0; row < 4; row++) {
         for(let col = 0; col < 4; col++) {
-          const pointId = generateId();
-          const x = col / 3;
-          const y = row / 3;
-          bezierPointsXml += `
-              <BezierPoint id="${pointId}">
-                <Params>
-                  <x>${x.toFixed(6)}</x>
-                  <y>${y.toFixed(6)}</y>
-                </Params>
-              </BezierPoint>`;
+          const x = screenX + Math.round((col / 3) * screenResX);
+          const y = screenY + Math.round((row / 3) * screenResY);
+          verticesXml += `
+                  <v x="${x}" y="${y}"/>`;
         }
       }
 
-      slicesXml += `
-      <Slice id="${sliceId}">
-        <Params>
-          <name>${screen.name || 'Screen ' + (sliceIndex + 1)}</name>
-          <enabled>true</enabled>
-          <selected>false</selected>
-          <locked>false</locked>
-          <InputRect id="${inputRectId}">
-            <Params>
-              <left>0</left>
-              <top>0</top>
-              <right>${screenResX}</right>
-              <bottom>${screenResY}</bottom>
-            </Params>
-          </InputRect>
-          <OutputRect id="${outputRectId}">
-            <Params>
-              <left>${screenX}</left>
-              <top>${screenY}</top>
-              <right>${screenX + screenResX}</right>
-              <bottom>${screenY + screenResY}</bottom>
-            </Params>
-          </OutputRect>
-          <BezierWarper id="${warperId}">
-            <Params>
-              <enabled>false</enabled>
-              <linear>true</linear>
-              <rows>4</rows>
-              <columns>4</columns>${bezierPointsXml}
-            </Params>
-          </BezierWarper>
-        </Params>
-      </Slice>`;
+      // InputRect vertices (source rectangle - starts at 0,0)
+      const inputVertices = `
+              <v x="0" y="0"/>
+              <v x="${screenResX}" y="0"/>
+              <v x="${screenResX}" y="${screenResY}"/>
+              <v x="0" y="${screenResY}"/>`;
 
-      sliceIndex++;
+      // OutputRect vertices (destination rectangle - at canvas position)
+      const outputVertices = `
+              <v x="${screenX}" y="${screenY}"/>
+              <v x="${screenX + screenResX}" y="${screenY}"/>
+              <v x="${screenX + screenResX}" y="${screenY + screenResY}"/>
+              <v x="${screenX}" y="${screenY + screenResY}"/>`;
+
+      slicesXml += `
+          <Slice>
+            <Params name="Common">
+              <Param name="Name" default="Layer" value="${screen.name || 'Screen'}"/>
+            </Params>
+            <InputRect orientation="0">${inputVertices}
+            </InputRect>
+            <OutputRect orientation="0">${outputVertices}
+            </OutputRect>
+            <Warper>
+              <Params name="Warper">
+                <ParamChoice name="Point Mode" default="PM_LINEAR" value="PM_LINEAR" storeChoices="0"/>
+                <Param name="Flip" default="0" value="0"/>
+              </Params>
+              <BezierWarper controlWidth="4" controlHeight="4">
+                <vertices>${verticesXml}
+                </vertices>
+              </BezierWarper>
+            </Warper>
+          </Slice>`;
     });
 
     // Calculate total canvas resolution (max extent of all screens)
@@ -13463,6 +13454,7 @@ function exportResolumeXML(filename) {
 
     screenKeys.forEach(key => {
       const screen = screens[key];
+      if(screen.visible === false) return;
       const screenData = screen.data || screen;
       const panelType = screenData.panelType || 'CB5_MKII';
       const panel = allPanels[panelType];
@@ -13477,36 +13469,33 @@ function exportResolumeXML(filename) {
       totalHeight = Math.max(totalHeight, screenY + screenResY);
     });
 
-    // Generate main IDs
-    const screenSetupId = generateId();
-    const outputDeviceId = generateId();
-    const screenId = generateId();
+    // Generate unique ID for screen
+    const screenUniqueId = generateUniqueId();
 
-    // Build complete XML
+    // Build complete XML matching Resolume Arena 7 format
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<XmlState>
-  <versionInfo version="30602" buildDate="Jan 17 2025, 17:00:00"/>
-  <ScreenSetup id="${screenSetupId}">
-    <Params>
-      <OutputDevice id="${outputDeviceId}">
-        <Params>
-          <name>Output 1</name>
-          <enabled>true</enabled>
-          <width>${totalWidth}</width>
-          <height>${totalHeight}</height>
-          <left>0</left>
-          <top>0</top>
-          <Screen id="${screenId}">
-            <Params>
-              <name>Screen 1</name>
-              <enabled>true</enabled>
-              <selected>false</selected>
-              <locked>false</locked>${slicesXml}
+
+<XmlState name="${filename}">
+  <versionInfo name="Resolume Arena" majorVersion="7" minorVersion="23" microVersion="2"
+               revision="51094"/>
+  <ScreenSetup name="ScreenSetup">
+    <Params name="ScreenSetupParams"/>
+    <screens>
+      <Screen name="Screen 1" uniqueId="${screenUniqueId}">
+        <layers>${slicesXml}
+        </layers>
+        <OutputDevice>
+          <OutputDeviceVirtual name="Screen 1" deviceId="VirtualScreen 1" idHash="${generateUniqueId()}"
+                               width="${totalWidth}" height="${totalHeight}">
+            <Params name="Params">
+              <ParamRange name="Width" default="${totalWidth}" value="${totalWidth}"/>
+              <ValueRange name="defaultRange" min="1" max="16384"/>
+              <ParamRange name="Height" default="${totalHeight}" value="${totalHeight}"/>
             </Params>
-          </Screen>
-        </Params>
-      </OutputDevice>
-    </Params>
+          </OutputDeviceVirtual>
+        </OutputDevice>
+      </Screen>
+    </screens>
   </ScreenSetup>
 </XmlState>`;
 

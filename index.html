@@ -860,14 +860,10 @@
       padding-top: 24px;
       background: var(--comic-panel);
       border: 4px solid #000;
-      border-radius: 2px;
+      border-radius: 0; /* Removed to fix diagonal line artifacts on Windows */
       box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
       position: relative;
       overflow: visible;
-      /* Fix diagonal line rendering artifacts on Windows */
-      -webkit-backface-visibility: hidden;
-      backface-visibility: hidden;
-      transform: translateZ(0);
     }
 
     .layout-title {
@@ -2048,7 +2044,7 @@
       margin-bottom: 8px;
       background: #333;
       border: 2px solid #000;
-      border-radius: 2px;
+      border-radius: 0; /* Removed to fix diagonal line artifacts on Windows */
       color: var(--primary);
       font-size: 14px;
       font-family: 'Permanent Marker', cursive;
@@ -2056,9 +2052,6 @@
       cursor: pointer;
       box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
       transition: all 0.1s;
-      /* Fix diagonal line rendering artifacts on Windows */
-      -webkit-backface-visibility: hidden;
-      backface-visibility: hidden;
     }
 
     .mobile-menu-btn:active {
@@ -2176,14 +2169,10 @@
       padding: 10px 16px;
       background: rgba(16, 185, 129, 0.15);
       border: 2px solid var(--primary);
-      border-radius: 2px;
+      border-radius: 0; /* Removed to fix diagonal line artifacts on Windows */
       margin-bottom: 12px;
       font-size: 12px;
       color: var(--primary);
-      /* Fix diagonal line rendering artifacts on Windows */
-      -webkit-backface-visibility: hidden;
-      backface-visibility: hidden;
-      transform: translateZ(0);
     }
 
     /* Hide desktop hints, show mobile hints */
@@ -3025,7 +3014,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.72';
+const APP_VERSION = '2.0.73';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -6638,7 +6627,15 @@ function generateLayout(mode){
     // Fill label area with white background (for PDF export - JPEG doesn't support transparency)
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, socaLabelHeight);
-    
+
+    // Draw black border at bottom of SOCA label area (ensures visibility across all browsers)
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, socaLabelHeight);
+    ctx.lineTo(canvas.width, socaLabelHeight);
+    ctx.stroke();
+
     // Build column-by-column circuit assignments
     const columnCircuits = []; // Array of circuit segments per column
     let globalCircuitIndex = 0;

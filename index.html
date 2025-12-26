@@ -2387,7 +2387,10 @@
 <div id="mobileMenuOverlay" class="mobile-menu-overlay" onclick="closeMobileMenu()">
   <div class="mobile-menu" onclick="event.stopPropagation()">
     <div class="mobile-menu-header">
-      <span>Settings</span>
+      <div style="display: flex; flex-direction: column; align-items: flex-start;">
+        <span>Settings</span>
+        <span id="menuVersionNumber" style="font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 2px;"></span>
+      </div>
       <button class="mobile-menu-refresh" onclick="hardRefreshApp();" title="Refresh App">&#x21bb;</button>
       <button class="mobile-menu-close" onclick="closeMobileMenu()">&times;</button>
     </div>
@@ -2810,8 +2813,8 @@
       <div class="layout-title">
         <span>Standard Layout</span>
         <div class="undo-redo-buttons">
-          <button class="undo-redo-btn" id="undoBtn" onclick="undo()" title="Undo">↶ Undo</button>
-          <button class="undo-redo-btn" id="redoBtn" onclick="redo()" title="Redo">↷ Redo</button>
+          <button class="undo-redo-btn" id="undoBtn" onclick="undo()" title="Undo">Undo</button>
+          <button class="undo-redo-btn" id="redoBtn" onclick="redo()" title="Redo">Redo</button>
         </div>
       </div>
       <div class="mobile-hint">Tap panels to select • Long-press for options (delete, assign circuit/data)</div>
@@ -2839,8 +2842,8 @@
           Manually Distribute Bumpers
         </button>
         <div class="undo-redo-buttons" id="structureUndoRedo" style="display: none;">
-          <button class="undo-redo-btn" id="structureUndoBtn" onclick="structureUndo()" title="Undo (Ctrl+Z)">↶ Undo</button>
-          <button class="undo-redo-btn" id="structureRedoBtn" onclick="structureRedo()" title="Redo (Ctrl+Y)">↷ Redo</button>
+          <button class="undo-redo-btn" id="structureUndoBtn" onclick="structureUndo()" title="Undo (Ctrl+Z)">Undo</button>
+          <button class="undo-redo-btn" id="structureRedoBtn" onclick="structureRedo()" title="Redo (Ctrl+Y)">Redo</button>
         </div>
         <span class="structure-mode-hint" id="structureModeHint">Auto-distribution active</span>
       </div>
@@ -2980,7 +2983,7 @@
             <button type="button" class="toggle-btn active" id="snapModeBtn" onclick="toggleSnapMode()" style="width: 100%; padding: 10px 8px; min-height: 48px; box-sizing: border-box;">Snap</button>
           </div>
           <label style="margin-bottom: 0; flex: 1;">
-            <span>Fine</span>
+            <span>Fine(px)</span>
             <input type="number" id="arrowKeyIncrement" value="10" min="1" max="100" style="width: 100%; padding: 10px 8px; min-height: 48px; box-sizing: border-box;">
           </label>
         </div>
@@ -3011,8 +3014,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.63';
+const APP_VERSION = '2.0.64';
 console.log('JavaScript loaded - v' + APP_VERSION);
+
+// Set version number in menu when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+  const menuVersion = document.getElementById('menuVersionNumber');
+  if(menuVersion) menuVersion.textContent = 'v' + APP_VERSION;
+});
 
 // Check for updates on app load
 async function checkForUpdates() {
@@ -5750,7 +5759,7 @@ function calculate(){
     html += `<div class="result-row"><strong>Dimensions:</strong> ${wallWidthDisplay} ${lenUnit} × ${wallHeightDisplay} ${lenUnit} (${pw} × ${ph} panels)</div>`;
     html += `<div class="result-row"><strong>Panel count:</strong> ${totalPanels}</div>`;
     html += `<div class="result-row"><strong>Aspect ratio:</strong> ${ar.label}</div>`;
-    html += `<div class="result-row"><strong>Wall weight:</strong> ${totalWeightDisplay} ${wtUnit}</div>`;
+    html += `<div class="result-row"><strong>Wall weight:</strong> ${panelOnlyWeightDisplay} ${wtUnit}</div>`;
     html += `<div class="result-row"><strong>Pixel count:</strong> ${totalPixels.toLocaleString()} px</div>`;
     html += `<div class="result-row"><strong>Resolution:</strong> ${resX} × ${resY}</div>`;
 
@@ -5837,17 +5846,22 @@ function calculate(){
       distributionBoxName: distributionBoxName,
       panelCount: totalPanels,
       activePanels: totalPanels, // Same as totalPanels (deletedPanels already accounted for)
-      
+
+      // Weight (panel-only and bumper weight)
+      panelWeightOnlyKg: panelWeightOnly,
+      bumperWeightKg: bumperWeight,
+
       // Rigging
       bumper1wCount: bumpers.filter(b => b.type === '1w').length,
       bumper2wCount: bumpers.filter(b => b.type === '2w').length,
       bumper4wCount: bumpers.filter(b => b.type === '4w').length,
-      
+
       // Data
       dataLines: dataLines,
       portsNeeded: portsNeeded,
       portsNeededFinal: portsNeededFinal,
-      
+      panelsPerDataLine: panelsPerDataLine,
+
       // Power
       circuitsNeeded: circuitsByColumns,
       socaCount: Math.ceil(circuitsByColumns / 6),
@@ -10222,6 +10236,41 @@ let isSecondRenderPass = false; // Flag to prevent infinite recursion
 let draggedScreenId = null; // Track which screen is being dragged
 let selectedCanvasScreenId = null; // Track which screen is selected (highlighted)
 
+// Update canvas info display with selected screen coordinates
+function updateCanvasInfoDisplay() {
+  const infoEl = document.getElementById('canvasInfo');
+  if(!infoEl) return;
+
+  const canvas = document.getElementById('canvasView');
+  const canvasResX = canvas ? canvas.width : 0;
+  const canvasResY = canvas ? canvas.height : 0;
+
+  // Count visible screens and panels
+  let totalWalls = 0;
+  let totalPanels = 0;
+  Object.keys(screens).forEach(screenId => {
+    const screen = screens[screenId];
+    if(screen.visible && screen.data.panelsWide > 0 && screen.data.panelsHigh > 0) {
+      totalWalls++;
+      totalPanels += screen.data.panelsWide * screen.data.panelsHigh;
+    }
+  });
+
+  let html = `Canvas Resolution: ${canvasResX} × ${canvasResY} px<br>` +
+             `Visible Screens: ${totalWalls}<br>` +
+             `Total Panels: ${totalPanels}`;
+
+  // Add selected screen info if one is selected
+  if(selectedCanvasScreenId && screens[selectedCanvasScreenId]) {
+    const screen = screens[selectedCanvasScreenId];
+    const x = screen.data.canvasX || 0;
+    const y = screen.data.canvasY || 0;
+    html += `<br><span style="color: var(--primary);">Selected: ${screen.name} (X: ${x}, Y: ${y})</span>`;
+  }
+
+  infoEl.innerHTML = html;
+}
+
 // Draw selection highlight on canvas without full redraw
 function drawSelectionHighlight() {
   if(!selectedCanvasScreenId || !screens[selectedCanvasScreenId]) return;
@@ -10641,16 +10690,18 @@ function setupCanvasViewInteractivity() {
         ctx.putImageData(cachedCanvasImageData, 0, 0);
       }
       drawSelectionHighlight();
-      
+      updateCanvasInfoDisplay();
+
       // Save this state (with highlight) for drag preview
       canvasViewOriginalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      
+
       canvas.style.cursor = 'grabbing';
       e.preventDefault();
     } else {
       // Clicked on empty area - deselect
       if(selectedCanvasScreenId) {
         selectedCanvasScreenId = null;
+        updateCanvasInfoDisplay();
         // Restore cached image without highlight
         const ctx = canvas.getContext('2d');
         if(cachedCanvasImageData) {
@@ -11056,17 +11107,18 @@ function setupCanvasViewInteractivity() {
       
       // Full redraw with actual content
       showCanvasView();
-      
+
       // Re-draw selection highlight if there's a selected screen
       if(selectedCanvasScreenId) {
         drawSelectionHighlight();
+        updateCanvasInfoDisplay();
       }
-      
+
       // Save state after drag completes
       saveCanvasMoveState();
     }
   });
-  
+
   canvas.addEventListener('mouseleave', function(e) {
     if(canvasViewDragging) {
       const wasDraggingCurrentScreen = (draggedScreenId === currentScreenId);
@@ -11130,10 +11182,12 @@ function setupCanvasViewInteractivity() {
         ctx.putImageData(cachedCanvasImageData, 0, 0);
       }
       drawSelectionHighlight();
+      updateCanvasInfoDisplay();
 
       e.preventDefault();
     } else if(selectedCanvasScreenId) {
       selectedCanvasScreenId = null;
+      updateCanvasInfoDisplay();
       const ctx = canvas.getContext('2d');
       if(cachedCanvasImageData) {
         ctx.putImageData(cachedCanvasImageData, 0, 0);
@@ -11308,6 +11362,7 @@ function setupCanvasViewInteractivity() {
       showCanvasView();
       if(selectedCanvasScreenId) {
         drawSelectionHighlight();
+        updateCanvasInfoDisplay();
       }
       saveCanvasMoveState();
     }
@@ -11322,6 +11377,7 @@ function setupCanvasViewInteractivity() {
       showCanvasView();
       if(selectedCanvasScreenId) {
         drawSelectionHighlight();
+        updateCanvasInfoDisplay();
       }
       saveCanvasMoveState();
     }
@@ -11748,58 +11804,197 @@ function exportPDF(){
         let col1Y = yOffset;
         let col2Y = yOffset;
 
-        // ========== LEFT COLUMN: SPECS ==========
-        const resultsEl = document.getElementById('results');
-        if(resultsEl && resultsEl.innerText && resultsEl.innerText.trim() !== '') {
-          const resultsText = resultsEl.innerText;
-          const lines = resultsText.split('\n');
+        // ========== LEFT COLUMN: SPECS (from screen data) ==========
+        const data = screen.data;
+        const calcData = screen.calculatedData || {};
+        const panelType = data.panelType || 'CB5_MKII';
+        const p = panels[panelType];
+        const pw = parseInt(data.panelsWide) || 0;
+        const ph = parseInt(data.panelsHigh) || 0;
+        const pr = processors[data.processor] || processors['Brompton_SX40'];
 
-          lines.forEach(line => {
-            const trimmedLine = line.trim();
-            if(!trimmedLine) {
-              col1Y += 2;
-              return;
-            }
-
-            // Skip the "Specs" header
-            if(trimmedLine.toUpperCase() === 'SPECS') {
-              return;
-            }
-
-            // Section titles
-            if(trimmedLine === 'WALL' || trimmedLine === 'POWER (MAX)' || trimmedLine === 'POWER (AVG)' || trimmedLine === 'DATA') {
-              col1Y += 2;
-              pdf.setFontSize(9);
-              pdf.setFont(undefined, 'bold');
-              pdf.text(trimmedLine, col1X, col1Y);
-              const textWidth = pdf.getTextWidth(trimmedLine);
-              pdf.line(col1X, col1Y + 0.5, col1X + textWidth, col1Y + 0.5);
-              pdf.setFont(undefined, 'normal');
-              col1Y += 4.5;
-            } else {
-              pdf.setFontSize(8);
-              const colonIndex = trimmedLine.indexOf(':');
-              if(colonIndex > 0) {
-                const label = trimmedLine.substring(0, colonIndex + 1);
-                const value = trimmedLine.substring(colonIndex + 1);
-                pdf.setFont(undefined, 'bold');
-                pdf.text(label, col1X, col1Y);
-                const labelWidth = pdf.getTextWidth(label);
-                pdf.setFont(undefined, 'normal');
-                pdf.text(value, col1X + labelWidth, col1Y);
-              } else {
-                pdf.text(trimmedLine, col1X, col1Y);
-              }
-              col1Y += lineHeight;
-            }
-          });
+        function addSpecLine(label, value) {
+          if(value === undefined || value === null || value === '') return;
+          pdf.setFontSize(8);
+          pdf.setFont(undefined, 'bold');
+          pdf.text(label, col1X, col1Y);
+          const labelWidth = pdf.getTextWidth(label);
+          pdf.setFont(undefined, 'normal');
+          pdf.text(' ' + String(value), col1X + labelWidth, col1Y);
+          col1Y += lineHeight;
         }
 
-        // ========== RIGHT COLUMN: GEAR LIST ==========
-        addGearListToColumn(screenId, screen.name, col2X, col2Y, colWidth, lineHeight, processorGroups);
+        function addSpecHeader(title) {
+          col1Y += 2;
+          pdf.setFontSize(9);
+          pdf.setFont(undefined, 'bold');
+          pdf.text(title, col1X, col1Y);
+          const textWidth = pdf.getTextWidth(title);
+          pdf.line(col1X, col1Y + 0.5, col1X + textWidth, col1Y + 0.5);
+          pdf.setFont(undefined, 'normal');
+          col1Y += 4.5;
+        }
 
-        // Move to Page 2 for layouts
-        addScreenLayouts(screenId, screen.name);
+        // Calculate wall dimensions
+        if(p && pw > 0 && ph > 0) {
+          const wallResX = pw * p.res_x;
+          const wallResY = ph * p.res_y;
+          // Panel dimensions are stored in meters (width_m, height_m)
+          const panelWidthMm = (p.width_m || 0) * 1000;
+          const panelHeightMm = (p.height_m || 0) * 1000;
+          const wallWidthMm = pw * panelWidthMm;
+          const wallHeightMm = ph * panelHeightMm;
+          const wallWidthFt = wallWidthMm > 0 ? (wallWidthMm / 304.8).toFixed(2) : '0';
+          const wallHeightFt = wallHeightMm > 0 ? (wallHeightMm / 304.8).toFixed(2) : '0';
+          const wallWidthM = wallWidthMm > 0 ? (wallWidthMm / 1000).toFixed(2) : '0';
+          const wallHeightM = wallHeightMm > 0 ? (wallHeightMm / 1000).toFixed(2) : '0';
+          const activePanels = calcData.activePanels || (pw * ph);
+          const totalPixels = wallResX * wallResY;
+
+          // Use stored panel-only weight (already calculated without bumpers)
+          const panelOnlyWeightKg = calcData.panelWeightOnlyKg || (activePanels * (p.weight_kg || 0));
+          const panelOnlyWeightLbs = (panelOnlyWeightKg * 2.20462).toFixed(1);
+
+          // Calculate power (stored as power_max_w, power_avg_w in panels object)
+          const powerType = data.powerType || 'max';
+          const powerPerPanel = powerType === 'max' ? (p.power_max_w || 0) : (p.power_avg_w || 0);
+          const totalPowerW = activePanels * powerPerPanel;
+          const voltage = parseInt(data.voltage) || 208;
+          const breaker = parseInt(data.breaker) || 20;
+          const phase = parseInt(data.phase) || 3;
+          const ampsSingle = voltage > 0 ? totalPowerW / voltage : 0;
+          const ampsPerPhase = phase === 3 ? ampsSingle / 1.732 : ampsSingle;
+
+          // Calculate max panels per circuit
+          const derate = 1.0;
+          const circuitW = voltage * breaker * derate;
+          const maxPanelsPerCircuit = powerPerPanel > 0 ? Math.floor(circuitW / powerPerPanel) : 0;
+
+          // Panel dimensions for display
+          const panelWidthFt = (p.width_m * 3.28084).toFixed(3);
+          const panelHeightFt = (p.height_m * 3.28084).toFixed(3);
+          const panelWidthM = p.width_m.toFixed(3);
+          const panelHeightM = p.height_m.toFixed(3);
+          const panelWeightLbs = (p.weight_kg * 2.20462).toFixed(2);
+
+          // PANEL section
+          addSpecHeader('PANEL');
+          addSpecLine('Panel:', `${p.brand || ''} ${p.name || panelType}`);
+          addSpecLine('Pixel Pitch:', `${p.pixel_pitch_mm} mm`);
+          addSpecLine('Panel Size:', `${panelWidthFt}' × ${panelHeightFt}' (${panelWidthM} × ${panelHeightM} m)`);
+          addSpecLine('Panel Res:', `${p.res_x} × ${p.res_y}`);
+
+          if(currentAppMode === 'complex') {
+            // Complex mode: show additional panel specs
+            if(p.brightness_nits) addSpecLine('Brightness:', `${p.brightness_nits} nits`);
+            if(p.weight_kg) addSpecLine('Weight/Panel:', `${panelWeightLbs} lbs (${p.weight_kg.toFixed(2)} kg)`);
+            addSpecLine('Panel Power:', `${p.power_max_w} W / ${p.power_avg_w} W (Max/Avg)`);
+            if(p.max_hanging !== null && p.max_hanging !== undefined) addSpecLine('Max Hanging:', `${p.max_hanging} panels`);
+            if(p.max_stacking !== null && p.max_stacking !== undefined) addSpecLine('Max Stacking:', `${p.max_stacking} panels`);
+            if(p.bumper_1w_lbs !== null && p.bumper_1w_lbs !== undefined) {
+              addSpecLine('Bumper Weights:', `1W=${p.bumper_1w_lbs.toFixed(1)} lbs, 2W=${p.bumper_2w_lbs.toFixed(1)} lbs`);
+            }
+          } else {
+            // Simple mode: just weight per panel
+            if(p.weight_kg) addSpecLine('Weight/Panel:', `${panelWeightLbs} lbs (${p.weight_kg.toFixed(2)} kg)`);
+          }
+
+          // WALL section
+          addSpecHeader('WALL');
+          addSpecLine('Dimensions:', `${wallWidthFt}' × ${wallHeightFt}' (${pw} × ${ph} panels)`);
+          addSpecLine('Total Panels:', activePanels.toString());
+          addSpecLine('Resolution:', `${wallResX} × ${wallResY} px`);
+          addSpecLine('Total Pixels:', totalPixels.toLocaleString() + ' px');
+
+          // Weight display depends on mode
+          if(currentAppMode === 'complex') {
+            // Complex mode: show total weight with breakdown (use stored bumper weight from app)
+            const bumperWeightKg = calcData.bumperWeightKg || 0;
+            const totalWeightKg = panelOnlyWeightKg + bumperWeightKg;
+            const totalWeightLbs = (totalWeightKg * 2.20462).toFixed(1);
+            addSpecLine('Total Weight:', `${totalWeightLbs} lbs (${totalWeightKg.toFixed(1)} kg)`);
+            if(bumperWeightKg > 0) {
+              addSpecLine('  Panels:', `${panelOnlyWeightLbs} lbs (${panelOnlyWeightKg.toFixed(1)} kg)`);
+              const bumperWeightLbs = (bumperWeightKg * 2.20462).toFixed(1);
+              addSpecLine('  Bumpers:', `${bumperWeightLbs} lbs (${bumperWeightKg.toFixed(1)} kg)`);
+            }
+          } else {
+            // Simple mode: show panel-only weight
+            addSpecLine('Wall Weight:', `${panelOnlyWeightLbs} lbs (${panelOnlyWeightKg.toFixed(1)} kg)`);
+          }
+
+          // POWER section
+          const powerHeader = powerType === 'max' ? 'POWER (MAX)' : 'POWER (AVG)';
+          addSpecHeader(powerHeader);
+          addSpecLine('Total Power:', totalPowerW.toLocaleString() + ' W');
+          addSpecLine('Total Amps:', `${ampsSingle.toFixed(2)} A @ ${voltage}V`);
+          if(phase === 3) {
+            addSpecLine('Amps/Phase:', `${ampsPerPhase.toFixed(2)} A @ ${voltage}V`);
+          }
+          const circuitsNeeded = calcData.circuitsNeeded || 0;
+          addSpecLine('Circuits:', circuitsNeeded.toString());
+          addSpecLine('Max Panels/Circuit:', maxPanelsPerCircuit.toString());
+
+          // DATA section
+          addSpecHeader('DATA');
+          const portCapacity = pr.base_pixels_1g || 0;
+          const maxPanelsPerData = p.max_panels_per_data || calcData.panelsPerDataLine || 0;
+
+          if(currentAppMode === 'complex') {
+            // Complex mode: show all data specs
+            addSpecLine('Processor:', pr.name || data.processor);
+            const dataLines = calcData.dataLines || 0;
+            const portsNeeded = calcData.portsNeededFinal || calcData.portsNeeded || 0;
+            addSpecLine('Data Lines:', dataLines.toString());
+            addSpecLine('Ports Needed:', portsNeeded.toString());
+            addSpecLine('Port Capacity:', portCapacity.toLocaleString() + ' px');
+            addSpecLine('Max Panels/Data:', maxPanelsPerData.toString());
+            const frameRate = data.frameRate || '60';
+            const bitDepth = data.bitDepth || '8';
+            addSpecLine('Frame Rate:', frameRate + ' Hz');
+            addSpecLine('Bit Depth:', bitDepth + '-bit');
+            const redundancy = data.redundancy ? 'Yes' : 'No';
+            addSpecLine('Redundancy:', redundancy);
+          } else {
+            // Simple mode: only show port capacity and max panels per data line
+            addSpecLine('Port Capacity:', portCapacity.toLocaleString() + ' px');
+            addSpecLine('Max Panels/Data:', maxPanelsPerData.toString());
+          }
+        }
+
+        // ========== RIGHT COLUMN: GEAR LIST (complex mode only) ==========
+        if(currentAppMode === 'complex') {
+          addGearListToColumn(screenId, screen.name, col2X, col2Y, colWidth, lineHeight, processorGroups);
+        }
+
+        // Only include layouts in complex mode
+        if(currentAppMode === 'complex') {
+          // Force show all layout containers before capturing
+          const standardContainer = document.getElementById('standardContainer');
+          const powerContainer = document.getElementById('powerContainer');
+          const dataContainer = document.getElementById('dataContainer');
+          const structureContainer = document.getElementById('structureContainer');
+
+          if(standardContainer) standardContainer.style.display = 'block';
+          if(powerContainer) powerContainer.style.display = 'block';
+          if(dataContainer) dataContainer.style.display = 'block';
+          if(structureContainer) structureContainer.style.display = 'block';
+
+          // Explicitly regenerate all layouts for this screen
+          generateLayout('standard');
+          generateLayout('power');
+          generateLayout('data');
+          generateStructureLayout();
+
+          // Wait a bit for layouts to render, then capture them
+          setTimeout(() => {
+            addScreenLayouts(screenId, screen.name);
+          }, 150);
+        } else {
+          // Simple mode: skip layouts, move to next screen
+          screenIndex++;
+          setTimeout(processNextScreen, 50);
+        }
       }, 50);
     }
 
@@ -13097,25 +13292,36 @@ function exportCanvas(){
       exportCtx.drawImage(canvas, 0, 0);
     }
     
-    // Export the clean canvas
+    // Export the clean canvas using blob for better mobile compatibility
     if(format === 'pdf'){
       alert('PDF export requires external libraries. Please select PNG or JPEG format instead.');
       return;
-    } else if(format === 'jpeg'){
-      const link = document.createElement('a');
-      link.download = filename + '.jpg';
-      link.href = exportCanvas.toDataURL('image/jpeg', 0.95);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else if(format === 'png'){
-      const link = document.createElement('a');
-      link.download = filename + '.png';
-      link.href = exportCanvas.toDataURL('image/png');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
     }
+
+    const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const extension = format === 'jpeg' ? '.jpg' : '.png';
+    const quality = format === 'jpeg' ? 0.95 : undefined;
+
+    exportCanvas.toBlob(function(blob) {
+      if(!blob) {
+        alert('Failed to create image. Please try again.');
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename + extension;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      setTimeout(function() {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+    }, mimeType, quality);
   } catch(err) {
     alert('Error exporting canvas: ' + err.message);
     console.error('Export error:', err);
@@ -13814,7 +14020,12 @@ function loadConfiguration(event) {
         
         // Recalculate
         calculate();
-        
+
+        // Ensure visible screens toggles are updated after all screens are loaded
+        setTimeout(function() {
+          updateCanvasScreenToggles();
+        }, 100);
+
         alert(`Configuration "${config.name}" loaded successfully! (${Object.keys(screens).length} screens)`);
       } else {
         // Legacy v1.0 single-screen config - load into current screen
@@ -15038,24 +15249,24 @@ function updateCanvasScreenToggles() {
     const showCrosshair = screen.showCrosshair !== false;
 
     html += `
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 4px 6px; background: #333; border-radius: 4px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; padding: 4px 6px; background: #333; border-radius: 4px;">
         <label class="inline-label" style="margin-bottom: 0; display: flex; align-items: center; flex: 1;">
-          <input type="checkbox" ${screen.visible ? 'checked' : ''}
+          <input type="checkbox" ${screen.visible ? 'checked' : ''} style="width: 16px; height: 16px;"
                  onchange="toggleScreenVisibility('${screenId}', this.checked)">
-          <span style="margin-left: 6px; display: inline-flex; align-items: center;">
-            <span style="display: inline-block; width: 12px; height: 12px; background: ${screen.color}; margin-right: 6px; border: 1px solid #666;"></span>
+          <span style="margin-left: 6px; display: inline-flex; align-items: center; font-size: 13px;">
+            <span style="display: inline-block; width: 12px; height: 12px; background: ${screen.color}; margin-right: 5px; border: 1px solid #666;"></span>
             ${screen.name}
           </span>
         </label>
         <div style="display: flex; gap: 4px;">
           <button type="button" class="toggle-btn ${showCoords ? 'active' : ''}"
-                  style="padding: 2px 6px; font-size: 10px;"
+                  style="padding: 3px 6px; font-size: 10px; min-width: 28px; min-height: 24px; line-height: 1;"
                   onclick="toggleScreenCoordinates('${screenId}')">X/Y</button>
           <button type="button" class="toggle-btn ${showPixels ? 'active' : ''}"
-                  style="padding: 2px 6px; font-size: 10px;"
+                  style="padding: 3px 6px; font-size: 10px; min-width: 38px; min-height: 24px; line-height: 1;"
                   onclick="toggleScreenPixelDimensions('${screenId}')">Pixels</button>
           <button type="button" class="toggle-btn ${showCrosshair ? 'active' : ''}"
-                  style="padding: 2px 6px; font-size: 10px;"
+                  style="padding: 3px 6px; font-size: 10px; min-width: 24px; min-height: 24px; line-height: 1;"
                   onclick="toggleScreenCrosshair('${screenId}')" title="Show X crosshair">X</button>
         </div>
       </div>
@@ -15235,8 +15446,8 @@ async function hardRefreshApp() {
 }
 
 // Mobile View Switching
-let currentMobileView = 'complex';
-let currentAppMode = 'complex'; // Track complex vs simple mode
+let currentMobileView = 'simple';
+let currentAppMode = 'simple'; // Track complex vs simple mode
 let currentMobileLayout = 'standard'; // Track which layout is showing in layouts view
 
 // Switch between Complex and Simple app modes
@@ -15482,8 +15693,8 @@ function initMobileUI() {
     }
   });
 
-  // Initialize on complex view (default mode)
-  switchMobileView('complex');
+  // Initialize on simple view (default mode)
+  switchMobileView('simple');
 
   // Make sure calculate runs
   if(typeof calculate === 'function') {

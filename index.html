@@ -3014,7 +3014,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.70';
+const APP_VERSION = '2.0.71';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -13412,12 +13412,12 @@ function exportResolumeXML(filename) {
         }
       }
 
-      // InputRect vertices (source rectangle - starts at 0,0)
+      // InputRect vertices (source rectangle - at canvas position, same as output)
       const inputVertices = `
-              <v x="0" y="0"/>
-              <v x="${screenResX}" y="0"/>
-              <v x="${screenResX}" y="${screenResY}"/>
-              <v x="0" y="${screenResY}"/>`;
+              <v x="${screenX}" y="${screenY}"/>
+              <v x="${screenX + screenResX}" y="${screenY}"/>
+              <v x="${screenX + screenResX}" y="${screenY + screenResY}"/>
+              <v x="${screenX}" y="${screenY + screenResY}"/>`;
 
       // OutputRect vertices (destination rectangle - at canvas position)
       const outputVertices = `

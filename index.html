@@ -3140,6 +3140,9 @@ async function checkForUpdates() {
 
     if (latestVersion && latestVersion !== APP_VERSION) {
       showUpdateBanner(latestVersion);
+    } else if (latestVersion === APP_VERSION) {
+      // App is up to date - clear any dismissed version tracking
+      localStorage.removeItem('dismissedUpdateVersion');
     }
   } catch (e) {
     console.log('Version check failed:', e.message);
@@ -15898,8 +15901,14 @@ function closeMobileMenu() {
 // Hard refresh - clears all caches and reloads the app
 async function hardRefreshApp() {
   try {
-    // Clear dismissed update version so banner logic is fresh after update
-    localStorage.removeItem('dismissedUpdateVersion');
+    // Get the version we're updating to from the banner
+    const banner = document.getElementById('updateBanner');
+    const targetVersion = banner && banner.dataset.version;
+
+    // Set dismissed version to target so banner won't reappear during refresh cycle
+    if (targetVersion) {
+      localStorage.setItem('dismissedUpdateVersion', targetVersion);
+    }
 
     // Clear all caches if Cache API is available
     if ('caches' in window) {

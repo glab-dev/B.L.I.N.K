@@ -2945,7 +2945,13 @@
             <div class="structure-info-title ground-support">Ground Support Hardware</div>
             <div id="structureGroundSupportContent"></div>
           </div>
-          
+
+          <!-- Floor Frames -->
+          <div class="structure-info-box floor-frames" id="structureFloorFramesBox" style="display: none; border-left: 3px solid #4ecdc4;">
+            <div class="structure-info-title floor-frames" style="color: #4ecdc4;">Floor Frames</div>
+            <div id="structureFloorFramesContent"></div>
+          </div>
+
           <!-- Total Structure Weight -->
           <div class="structure-info-box" id="structureTotalWeightBox" style="display: none; border-left: 3px solid #FFD700;">
             <div class="structure-info-title" style="color: #FFD700;">Total Structure Weight</div>
@@ -3111,7 +3117,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.87';
+const APP_VERSION = '2.0.90';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3946,21 +3952,25 @@ function showSpecWarningIfNeeded(){
 // Structure functions
 function updateBumpersFromStructureType() {
   const structureType = document.getElementById('structureType').value;
-  
+
   if(structureType === 'hanging') {
     showTopBumper = true;
+    showBottomBumper = false;
+  } else if(structureType === 'floor') {
+    // Floor panels don't use bumpers - they use floor frames
+    showTopBumper = false;
     showBottomBumper = false;
   } else { // ground
     showTopBumper = false;
     showBottomBumper = true;
   }
-  
-  // Re-initialize bumpers when structure type changes
+
+  // Re-initialize bumpers when structure type changes (not for floor)
   const pw = parseInt(document.getElementById('panelsWide').value) || 0;
-  if(pw > 0) {
+  if(pw > 0 && structureType !== 'floor') {
     initializeBumpers();
   }
-  
+
   updateStructureVisualization();
   updateWeightDisplay();
 }
@@ -5846,7 +5856,20 @@ function calculate(){
 
   // Calculate weight breakdown
   const bumperWeight = calculateTotalBumperWeight(pw, ph);
-  const panelWeightOnly = totalWeight - bumperWeight;
+
+  // Calculate actual panel weight (not derived from totalWeight which includes plates)
+  const useConnectingPlatesForWeight = shouldUseConnectingPlates(panelType);
+  let panelWeightOnly = 0;
+  if(hasCB5HalfRow) {
+    const mainPanelWeightKg = getPanelWeight('CB5_MKII', useConnectingPlatesForWeight);
+    const halfPanelWeightKg = getPanelWeight('CB5_MKII_HALF', useConnectingPlatesForWeight);
+    const mainPanelCount = activePanelsCount;
+    const halfPanelCount = pw;
+    panelWeightOnly = (mainPanelCount * mainPanelWeightKg) + (halfPanelCount * halfPanelWeightKg);
+  } else {
+    const panelWeightKg = getPanelWeight(panelType, useConnectingPlatesForWeight);
+    panelWeightOnly = totalPanels * panelWeightKg;
+  }
   
   // AUTOMATIC DISTRIBUTION CALCULATION
   const processorId = document.getElementById('processor').value;
@@ -5951,10 +5974,56 @@ function calculate(){
     html += `<div class="result-row"><strong>Resolution:</strong> ${resX} × ${resY}</div>`;
     html += `<div class="result-row"><strong>Total pixel count:</strong> (${totalPixels.toLocaleString()} px)</div>`;
     html += `<div class="result-row"><strong>Aspect ratio:</strong> ${ar.label}</div>`;
-    html += `<div class="result-row"><strong>Total weight:</strong> ${totalWeightDisplay} ${wtUnit}</div>`;
-    if(bumperWeight > 0) {
+    // Weight display with breakdown - Structure includes all structural components
+    const currentStructureType = document.getElementById('structureType')?.value || 'hanging';
+
+    // Calculate all structure weight components
+    let structureWeightKg = 0;
+
+    if(currentStructureType === 'floor' && p.is_floor_panel && p.floor_frames) {
+      // Floor mode: Structure = Floor Frames
+      const floorFramesArray = calculateFloorFrames(pw, ph, deletedPanels);
+      const frameCounts = getFloorFrameCounts(floorFramesArray);
+      if(frameCounts.frame_1x1 > 0) structureWeightKg += frameCounts.frame_1x1 * p.floor_frames.frame_1x1.weight_lbs / KG_TO_LBS;
+      if(frameCounts.frame_2x1 > 0) structureWeightKg += frameCounts.frame_2x1 * p.floor_frames.frame_2x1.weight_lbs / KG_TO_LBS;
+      if(frameCounts.frame_2x2 > 0) structureWeightKg += frameCounts.frame_2x2 * p.floor_frames.frame_2x2.weight_lbs / KG_TO_LBS;
+      if(frameCounts.frame_3x2 > 0) structureWeightKg += frameCounts.frame_3x2 * p.floor_frames.frame_3x2.weight_lbs / KG_TO_LBS;
+    } else {
+      // Hanging or Ground Stack mode: Structure = Bumpers + Connecting Plates + Ground Support Hardware
+
+      // Add bumper weight
+      structureWeightKg += bumperWeight;
+
+      // Add connecting plates weight if applicable
+      const useConnectingPlatesForDisplay = shouldUseConnectingPlates(panelType);
+      if(useConnectingPlatesForDisplay) {
+        const plate2wayKg = 0.141;
+        const plate4wayKg = 0.249;
+        // Account for half panel row if CB5 with half row enabled
+        const effectivePhForPlates = hasCB5HalfRow ? ph + 1 : ph;
+        const plates = calculateConnectingPlates(pw, effectivePhForPlates, plate2wayKg, plate4wayKg);
+        structureWeightKg += plates.totalPlateWeight;
+      }
+
+      // Add ground support hardware weight for ground stack mode
+      if(currentStructureType === 'ground') {
+        const groundHardware = calculateGroundSupportHardware(pw, ph);
+        if(groundHardware && groundHardware.totalWeightKg) {
+          structureWeightKg += groundHardware.totalWeightKg;
+        }
+      }
+    }
+
+    const adjustedTotalWeightKg = panelWeightOnly + structureWeightKg;
+    const adjustedTotalWeightDisplay = displayWeightUnit === 'lbs' ? (adjustedTotalWeightKg * KG_TO_LBS).toFixed(2) : adjustedTotalWeightKg.toFixed(2);
+    const structureWeightDisplay = displayWeightUnit === 'lbs' ? (structureWeightKg * KG_TO_LBS).toFixed(2) : structureWeightKg.toFixed(2);
+
+    html += `<div class="result-row"><strong>Total weight:</strong> ${adjustedTotalWeightDisplay} ${wtUnit}</div>`;
+    // Show weight breakdown if there's any structure weight
+    const isFloorPanel = p.is_floor_panel === true;
+    if(structureWeightKg > 0 || (currentStructureType === 'floor' && isFloorPanel)) {
       html += `<div class="result-row result-indent"><strong>Panels:</strong> ${panelOnlyWeightDisplay} ${wtUnit}</div>`;
-      html += `<div class="result-row result-indent"><strong>Bumpers:</strong> ${bumperWeightDisplay} ${wtUnit}</div>`;
+      html += `<div class="result-row result-indent"><strong>Structure:</strong> ${structureWeightDisplay} ${wtUnit}</div>`;
     }
 
     // POWER Section
@@ -5998,6 +6067,8 @@ function calculate(){
       // Weight (panel-only and bumper weight)
       panelWeightOnlyKg: panelWeightOnly,
       bumperWeightKg: bumperWeight,
+      // Note: platesWeightKg is updated by updatePlatesDisplay()
+      // Note: groundSupportWeightKg is updated by generateStructureLayout()
 
       // Rigging
       bumper1wCount: bumpers.filter(b => b.type === '1w').length,
@@ -7081,6 +7152,9 @@ function generateLayout(mode){
           // This column will cause a split - need to add partial column
           const panelsWeCanAdd = panelsPerDataLine - panelsInCurrentDataLine;
           
+          // Track the actual row position where we stopped (not just the count)
+          let lastRowProcessed = -1;
+
           if(panelsWeCanAdd > 0) {
             // Add partial column to current data line
             if(serpentineGoingDown) {
@@ -7091,6 +7165,7 @@ function generateLayout(mode){
                 if(!deletedPanels.has(panelKey)) {
                   serp.push({c: currentColumn, r: r});
                   added++;
+                  lastRowProcessed = r;
                 }
               }
               // Data line ends mid-column, not at boundary
@@ -7103,17 +7178,18 @@ function generateLayout(mode){
                 if(!deletedPanels.has(panelKey)) {
                   serp.push({c: currentColumn, r: r});
                   added++;
+                  lastRowProcessed = r;
                 }
               }
               // Data line ends mid-column, not at boundary
               lastDataLineEndedAtBoundary = false;
             }
           }
-          
+
           // Start new data line
           currentDataLine++;
           panelsInCurrentDataLine = 0;
-          
+
           // If previous data line ended mid-column, continue serpentine in same direction
           // If it ended at boundary, start fresh serpentine
           if(!lastDataLineEndedAtBoundary) {
@@ -7122,11 +7198,11 @@ function generateLayout(mode){
             // The remaining panels in this column will be added in next iteration
             // But we need to continue adding panels from this column
             const remainingPanels = panelsInColumn - panelsWeCanAdd;
-            
+
             if(serpentineGoingDown) {
-              // Continue going down from where we left off
+              // Continue going down from where we left off (next row after lastRowProcessed)
               let added = 0;
-              for(let r=panelsWeCanAdd; r<ph && added<Math.min(remainingPanels, panelsPerDataLine); r++) {
+              for(let r=lastRowProcessed+1; r<ph && added<Math.min(remainingPanels, panelsPerDataLine); r++) {
                 const panelKey = `${currentColumn},${r}`;
                 if(!deletedPanels.has(panelKey)) {
                   serp.push({c: currentColumn, r: r});
@@ -7135,9 +7211,9 @@ function generateLayout(mode){
                 }
               }
             } else {
-              // Continue going up from where we left off
+              // Continue going up from where we left off (previous row before lastRowProcessed)
               let added = 0;
-              for(let r=ph-1-panelsWeCanAdd; r>=0 && added<Math.min(remainingPanels, panelsPerDataLine); r--) {
+              for(let r=lastRowProcessed-1; r>=0 && added<Math.min(remainingPanels, panelsPerDataLine); r--) {
                 const panelKey = `${currentColumn},${r}`;
                 if(!deletedPanels.has(panelKey)) {
                   serp.push({c: currentColumn, r: r});
@@ -7146,13 +7222,13 @@ function generateLayout(mode){
                 }
               }
             }
-            
+
             // Check if we finished this column
             if(panelsInCurrentDataLine >= remainingPanels) {
               // Finished column, move to next and toggle direction
               currentColumn++;
               serpentineGoingDown = !serpentineGoingDown;
-              
+
               // Check if this column ended at a boundary
               if(serpentineGoingDown) {
                 // Was going up, now going down - ended at top (boundary)
@@ -7440,6 +7516,103 @@ function drawArrowPath(ctx, points, colorHex){
   ctx.restore();
 }
 
+// Floor frame calculation for floor panels (like BM4)
+// Returns array of frame objects with position, size, and type
+function calculateFloorFrames(pw, ph, deletedPanelsSet) {
+  const frames = [];
+
+  // Create a grid to track which panels are covered
+  // true = panel exists and needs frame, false = no panel or already covered
+  const needsCoverage = [];
+  for(let r = 0; r < ph; r++) {
+    needsCoverage[r] = [];
+    for(let c = 0; c < pw; c++) {
+      const panelKey = `${c},${r}`;
+      needsCoverage[r][c] = !deletedPanelsSet.has(panelKey);
+    }
+  }
+
+  // Frame definitions: [width, height, type name]
+  // Order matters - try larger frames first
+  const frameTypes = [
+    { w: 3, h: 2, type: 'frame_3x2', name: '3x2' },
+    { w: 2, h: 3, type: 'frame_3x2', name: '3x2' }, // rotated 3x2
+    { w: 2, h: 2, type: 'frame_2x2', name: '2x2' },
+    { w: 2, h: 1, type: 'frame_2x1', name: '2x1' },
+    { w: 1, h: 2, type: 'frame_2x1', name: '2x1' }, // rotated 2x1
+    { w: 1, h: 1, type: 'frame_1x1', name: '1x1' }
+  ];
+
+  // Helper to check if a frame can fit at position
+  function canPlaceFrame(startC, startR, frameW, frameH) {
+    if(startC + frameW > pw || startR + frameH > ph) return false;
+    for(let r = startR; r < startR + frameH; r++) {
+      for(let c = startC; c < startC + frameW; c++) {
+        if(!needsCoverage[r][c]) return false;
+      }
+    }
+    return true;
+  }
+
+  // Helper to mark panels as covered
+  function markCovered(startC, startR, frameW, frameH) {
+    for(let r = startR; r < startR + frameH; r++) {
+      for(let c = startC; c < startC + frameW; c++) {
+        needsCoverage[r][c] = false;
+      }
+    }
+  }
+
+  // Greedy algorithm: scan grid and place largest possible frame at each uncovered position
+  for(let r = 0; r < ph; r++) {
+    for(let c = 0; c < pw; c++) {
+      if(!needsCoverage[r][c]) continue;
+
+      // Try each frame type from largest to smallest
+      for(const frameType of frameTypes) {
+        if(canPlaceFrame(c, r, frameType.w, frameType.h)) {
+          frames.push({
+            col: c,
+            row: r,
+            width: frameType.w,
+            height: frameType.h,
+            type: frameType.type,
+            name: frameType.name
+          });
+          markCovered(c, r, frameType.w, frameType.h);
+          break;
+        }
+      }
+    }
+  }
+
+  return frames;
+}
+
+// Get frame counts from calculated frames
+function getFloorFrameCounts(frames) {
+  const counts = {
+    frame_1x1: 0,
+    frame_2x1: 0,
+    frame_2x2: 0,
+    frame_3x2: 0
+  };
+
+  frames.forEach(frame => {
+    counts[frame.type]++;
+  });
+
+  return counts;
+}
+
+// Colors for different frame types
+const floorFrameColors = {
+  frame_1x1: '#ff6b6b', // Red
+  frame_2x1: '#4ecdc4', // Teal
+  frame_2x2: '#ffe66d', // Yellow
+  frame_3x2: '#b794f4'  // Purple
+};
+
 // Structure View generation
 function generateStructureLayout(){
   const allPanels = getAllPanels();
@@ -7543,7 +7716,67 @@ function generateStructureLayout(){
       ctx.fillText(`${c+1}.${r+1}`, x+size/2, y+size/2);
     }
   }
-  
+
+  // Draw floor frames if this is a floor configuration
+  const structureType = document.getElementById('structureType').value;
+  if(structureType === 'floor' && p.is_floor_panel && p.floor_frames) {
+    const frames = calculateFloorFrames(pw, ph, deletedPanels);
+    const frameLineWidth = 4;
+
+    // Draw each frame's outline
+    frames.forEach(frame => {
+      const frameX = frame.col * size;
+      const frameY = panelYOffset + frame.row * size;
+      const frameW = frame.width * size;
+      const frameH = frame.height * size;
+
+      // Get color for this frame type
+      const color = floorFrameColors[frame.type] || '#ffffff';
+
+      // Draw thick colored outline
+      ctx.strokeStyle = color;
+      ctx.lineWidth = frameLineWidth;
+      ctx.strokeRect(frameX + frameLineWidth/2, frameY + frameLineWidth/2,
+                     frameW - frameLineWidth, frameH - frameLineWidth);
+
+      // Draw black outline around the colored one for visibility
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(frameX + 1, frameY + 1, frameW - 2, frameH - 2);
+      ctx.strokeRect(frameX + frameLineWidth + 1, frameY + frameLineWidth + 1,
+                     frameW - frameLineWidth * 2 - 2, frameH - frameLineWidth * 2 - 2);
+
+      // Draw frame label in center
+      const labelX = frameX + frameW / 2;
+      const labelY = frameY + frameH / 2;
+      const labelFontSize = Math.max(12, Math.floor(size * 0.3));
+
+      // Draw label background
+      ctx.font = `bold ${labelFontSize}px Arial`;
+      const labelText = frame.name;
+      const textMetrics = ctx.measureText(labelText);
+      const labelPadding = 4;
+      const bgWidth = textMetrics.width + labelPadding * 2;
+      const bgHeight = labelFontSize + labelPadding * 2;
+
+      ctx.fillStyle = color;
+      ctx.fillRect(labelX - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(labelX - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+
+      // Draw label text
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(labelText, labelX, labelY);
+    });
+
+    // Reset text alignment
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+  }
+
   // Draw connecting plates if enabled (reusing panelType from above)
   const useConnectingPlates = shouldUseConnectingPlates(panelType);
   
@@ -7946,15 +8179,26 @@ function updatePickupWeightSummary() {
   const infoPanel = document.getElementById('structureInfoPanel');
   const weightsBox = document.getElementById('structureWeightsBox');
   const weightsContent = document.getElementById('structureWeightsContent');
-  
+  const structureType = document.getElementById('structureType').value;
+
   if(!infoPanel || !weightsContent) return;
-  
+
+  // For floor mode, skip bumper display but still show floor frames
+  if(structureType === 'floor') {
+    weightsBox.style.display = 'none';
+    infoPanel.style.display = 'grid';
+    // Update floor frames display (will also update plates and ground support)
+    updateStructurePlatesDisplay();
+    return;
+  }
+
   if(bumpers.length === 0) {
     infoPanel.style.display = 'none';
     return;
   }
-  
-  // Show the info panel
+
+  // Show the info panel and weights box
+  weightsBox.style.display = 'block';
   infoPanel.style.display = 'grid';
   
   // Group bumpers by position
@@ -8156,8 +8400,9 @@ function updateGroundSupportDisplay() {
         screens[currentScreenId].calculatedData = {};
       }
       screens[currentScreenId].calculatedData.groundSupport = groundSupportData;
+      screens[currentScreenId].calculatedData.groundSupportWeightKg = 0;
     }
-    updateTotalStructureWeight(); // Still update total even when ground support hidden
+    updateFloorFramesDisplay(); // Continue chain to floor frames then total weight
     return;
   }
   
@@ -8171,11 +8416,12 @@ function updateGroundSupportDisplay() {
       screens[currentScreenId].calculatedData = {};
     }
     screens[currentScreenId].calculatedData.groundSupport = groundSupportData;
+    screens[currentScreenId].calculatedData.groundSupportWeightKg = hardware.totalWeightKg || 0;
   }
-  
+
   if(hardware.totalRearTruss === 0 && hardware.totalBridgeClamps === 0 && hardware.totalBaseTruss === 0) {
     groundSupportBox.style.display = 'none';
-    updateTotalStructureWeight(); // Still update total even when ground support hidden
+    updateFloorFramesDisplay(); // Continue chain to floor frames then total weight
     return;
   }
   
@@ -8238,7 +8484,129 @@ function updateGroundSupportDisplay() {
   
   groundSupportContent.innerHTML = html;
   groundSupportBox.style.display = 'block';
-  
+
+  // Update floor frames display
+  updateFloorFramesDisplay();
+}
+
+// Update the floor frames display
+function updateFloorFramesDisplay() {
+  const floorFramesBox = document.getElementById('structureFloorFramesBox');
+  const floorFramesContent = document.getElementById('structureFloorFramesContent');
+  const structureType = document.getElementById('structureType').value;
+
+  if(!floorFramesBox || !floorFramesContent) {
+    updateTotalStructureWeight();
+    return;
+  }
+
+  const panelType = document.getElementById('panelType').value;
+  const allPanels = getAllPanels();
+  const p = allPanels[panelType];
+  const {pw, ph} = getEffectivePanelCountsForLayout();
+
+  // Initialize floor frames data for storage
+  let floorFramesData = {
+    frame_1x1: 0,
+    frame_2x1: 0,
+    frame_2x2: 0,
+    frame_3x2: 0,
+    totalWeightLbs: 0,
+    totalWeightKg: 0
+  };
+
+  // Only show for floor mode with floor panels
+  if(structureType !== 'floor' || !p || !p.is_floor_panel || !p.floor_frames || pw === 0 || ph === 0) {
+    floorFramesBox.style.display = 'none';
+    // Store empty floor frames data
+    if(screens[currentScreenId]) {
+      if(!screens[currentScreenId].calculatedData) {
+        screens[currentScreenId].calculatedData = {};
+      }
+      screens[currentScreenId].calculatedData.floorFrames = floorFramesData;
+    }
+    updateTotalStructureWeight();
+    return;
+  }
+
+  // Calculate floor frames
+  const frames = calculateFloorFrames(pw, ph, deletedPanels);
+  const frameCounts = getFloorFrameCounts(frames);
+
+  // Calculate total weight
+  let totalWeightLbs = 0;
+  if(frameCounts.frame_1x1 > 0 && p.floor_frames.frame_1x1) {
+    totalWeightLbs += frameCounts.frame_1x1 * p.floor_frames.frame_1x1.weight_lbs;
+  }
+  if(frameCounts.frame_2x1 > 0 && p.floor_frames.frame_2x1) {
+    totalWeightLbs += frameCounts.frame_2x1 * p.floor_frames.frame_2x1.weight_lbs;
+  }
+  if(frameCounts.frame_2x2 > 0 && p.floor_frames.frame_2x2) {
+    totalWeightLbs += frameCounts.frame_2x2 * p.floor_frames.frame_2x2.weight_lbs;
+  }
+  if(frameCounts.frame_3x2 > 0 && p.floor_frames.frame_3x2) {
+    totalWeightLbs += frameCounts.frame_3x2 * p.floor_frames.frame_3x2.weight_lbs;
+  }
+
+  const totalWeightKg = totalWeightLbs / KG_TO_LBS;
+
+  // Store floor frames data
+  floorFramesData = {
+    ...frameCounts,
+    totalWeightLbs: totalWeightLbs,
+    totalWeightKg: totalWeightKg
+  };
+
+  if(screens[currentScreenId]) {
+    if(!screens[currentScreenId].calculatedData) {
+      screens[currentScreenId].calculatedData = {};
+    }
+    screens[currentScreenId].calculatedData.floorFrames = floorFramesData;
+  }
+
+  // Build display HTML
+  const wtUnit = getWeightUnitLabel();
+  let html = '';
+
+  // Show counts for each frame type with their colors
+  if(frameCounts.frame_3x2 > 0) {
+    html += `<div class="plates-row">
+      <span class="plates-label" style="color: ${floorFrameColors.frame_3x2};">3×2 Frame</span>
+      <span class="plates-value">${frameCounts.frame_3x2}</span>
+    </div>`;
+  }
+  if(frameCounts.frame_2x2 > 0) {
+    html += `<div class="plates-row">
+      <span class="plates-label" style="color: ${floorFrameColors.frame_2x2};">2×2 Frame</span>
+      <span class="plates-value">${frameCounts.frame_2x2}</span>
+    </div>`;
+  }
+  if(frameCounts.frame_2x1 > 0) {
+    html += `<div class="plates-row">
+      <span class="plates-label" style="color: ${floorFrameColors.frame_2x1};">2×1 Frame</span>
+      <span class="plates-value">${frameCounts.frame_2x1}</span>
+    </div>`;
+  }
+  if(frameCounts.frame_1x1 > 0) {
+    html += `<div class="plates-row">
+      <span class="plates-label" style="color: ${floorFrameColors.frame_1x1};">1×1 Frame</span>
+      <span class="plates-value">${frameCounts.frame_1x1}</span>
+    </div>`;
+  }
+
+  // Add total weight
+  const totalWeightDisplay = displayWeightUnit === 'lbs'
+    ? totalWeightLbs.toFixed(1)
+    : totalWeightKg.toFixed(1);
+
+  html += `<div class="plates-row plates-total" style="border-top: 1px solid #4ecdc4; margin-top: 6px; padding-top: 6px;">
+    <span class="plates-label" style="color: #fff;">Total Weight</span>
+    <span class="plates-value" style="color: #4ecdc4;">${totalWeightDisplay} ${wtUnit}</span>
+  </div>`;
+
+  floorFramesContent.innerHTML = html;
+  floorFramesBox.style.display = 'block';
+
   // Update total structure weight
   updateTotalStructureWeight();
 }
@@ -8263,22 +8631,14 @@ function updateTotalStructureWeight() {
     return false;
   }
   
-  // Calculate pickup weights total (excluding 2W bumpers under 4W bumpers)
-  let pickupWeightKg = 0;
-  bumpers.forEach(bumper => {
-    // Skip 2W bumpers that are under a 4W bumper
-    if(bumper.type === '2w' && is2wUnder4w(bumper)) {
-      return;
-    }
-    const weight = calculateBumperPickupWeight(bumper);
-    pickupWeightKg += weight.kg;
-  });
-  
   // Calculate connecting plates weight
   let platesWeightKg = 0;
   const panelType = document.getElementById('panelType').value;
   const useConnectingPlates = shouldUseConnectingPlates(panelType);
   const {pw, ph} = getEffectivePanelCountsForLayout();
+
+  // Calculate bumper hardware weight (the actual weight of bumper hardware, not load being supported)
+  const bumperHardwareWeightKg = calculateTotalBumperWeight(pw, ph);
   
   if(useConnectingPlates && pw > 0 && ph > 0) {
     const plate2wayKg = 0.141;
@@ -8290,58 +8650,96 @@ function updateTotalStructureWeight() {
   // Calculate ground support hardware weight
   let groundSupportWeightKg = 0;
   const isGroundStacking = showBottomBumper;
-  
+
   if(isGroundStacking && pw > 0 && ph > 0) {
     const hardware = calculateGroundSupportHardware(pw, ph);
     groundSupportWeightKg = hardware.totalWeightKg || 0;
   }
-  
-  // Calculate total
-  const totalWeightKg = pickupWeightKg + platesWeightKg + groundSupportWeightKg;
-  
+
+  // Calculate floor frames weight
+  let floorFramesWeightKg = 0;
+  const structureType = document.getElementById('structureType').value;
+  const allPanels = getAllPanels();
+  const p = allPanels[panelType];
+
+  if(structureType === 'floor' && p && p.is_floor_panel && p.floor_frames && pw > 0 && ph > 0) {
+    const frames = calculateFloorFrames(pw, ph, deletedPanels);
+    const frameCounts = getFloorFrameCounts(frames);
+    let totalWeightLbs = 0;
+    if(frameCounts.frame_1x1 > 0 && p.floor_frames.frame_1x1) {
+      totalWeightLbs += frameCounts.frame_1x1 * p.floor_frames.frame_1x1.weight_lbs;
+    }
+    if(frameCounts.frame_2x1 > 0 && p.floor_frames.frame_2x1) {
+      totalWeightLbs += frameCounts.frame_2x1 * p.floor_frames.frame_2x1.weight_lbs;
+    }
+    if(frameCounts.frame_2x2 > 0 && p.floor_frames.frame_2x2) {
+      totalWeightLbs += frameCounts.frame_2x2 * p.floor_frames.frame_2x2.weight_lbs;
+    }
+    if(frameCounts.frame_3x2 > 0 && p.floor_frames.frame_3x2) {
+      totalWeightLbs += frameCounts.frame_3x2 * p.floor_frames.frame_3x2.weight_lbs;
+    }
+    floorFramesWeightKg = totalWeightLbs / KG_TO_LBS;
+  }
+
+  // Calculate total structure hardware weight
+  const totalWeightKg = bumperHardwareWeightKg + platesWeightKg + groundSupportWeightKg + floorFramesWeightKg;
+
   // Only show if there's something to display
-  if(totalWeightKg === 0 && bumpers.length === 0) {
+  const isFloorMode = structureType === 'floor';
+  if(totalWeightKg === 0 && bumpers.length === 0 && !isFloorMode) {
     totalWeightBox.style.display = 'none';
     return;
   }
   
   const wtUnit = getWeightUnitLabel();
   const totalWeightLbs = totalWeightKg * KG_TO_LBS;
-  
+
   let html = '';
-  
-  // Show breakdown
-  const pickupDisplay = displayWeightUnit === 'lbs' 
-    ? (pickupWeightKg * KG_TO_LBS).toFixed(0) 
-    : pickupWeightKg.toFixed(0);
-  html += `<div class="weight-row">
-    <span class="weight-label" style="color: #4a9eff;">Pickup Points</span>
-    <span class="weight-value">${pickupDisplay} ${wtUnit}</span>
-  </div>`;
-  
+
+  // Show breakdown - skip bumpers for floor mode
+  if(!isFloorMode && bumperHardwareWeightKg > 0) {
+    const bumperDisplay = displayWeightUnit === 'lbs'
+      ? (bumperHardwareWeightKg * KG_TO_LBS).toFixed(1)
+      : bumperHardwareWeightKg.toFixed(1);
+    html += `<div class="weight-row">
+      <span class="weight-label" style="color: #4a9eff;">Bumpers</span>
+      <span class="weight-value">${bumperDisplay} ${wtUnit}</span>
+    </div>`;
+  }
+
   if(platesWeightKg > 0) {
-    const platesDisplay = displayWeightUnit === 'lbs' 
-      ? (platesWeightKg * KG_TO_LBS).toFixed(1) 
+    const platesDisplay = displayWeightUnit === 'lbs'
+      ? (platesWeightKg * KG_TO_LBS).toFixed(1)
       : platesWeightKg.toFixed(1);
     html += `<div class="weight-row">
       <span class="weight-label" style="color: #6fc276;">Connecting Plates</span>
       <span class="weight-value">${platesDisplay} ${wtUnit}</span>
     </div>`;
   }
-  
+
   if(groundSupportWeightKg > 0) {
-    const gsDisplay = displayWeightUnit === 'lbs' 
-      ? (groundSupportWeightKg * KG_TO_LBS).toFixed(1) 
+    const gsDisplay = displayWeightUnit === 'lbs'
+      ? (groundSupportWeightKg * KG_TO_LBS).toFixed(1)
       : groundSupportWeightKg.toFixed(1);
     html += `<div class="weight-row">
       <span class="weight-label" style="color: #00CED1;">Ground Support</span>
       <span class="weight-value">${gsDisplay} ${wtUnit}</span>
     </div>`;
   }
-  
+
+  if(floorFramesWeightKg > 0) {
+    const floorDisplay = displayWeightUnit === 'lbs'
+      ? (floorFramesWeightKg * KG_TO_LBS).toFixed(1)
+      : floorFramesWeightKg.toFixed(1);
+    html += `<div class="weight-row">
+      <span class="weight-label" style="color: #4ecdc4;">Floor Frames</span>
+      <span class="weight-value">${floorDisplay} ${wtUnit}</span>
+    </div>`;
+  }
+
   // Total
-  const totalDisplay = displayWeightUnit === 'lbs' 
-    ? totalWeightLbs.toFixed(0) 
+  const totalDisplay = displayWeightUnit === 'lbs'
+    ? totalWeightLbs.toFixed(0)
     : totalWeightKg.toFixed(0);
   html += `<div class="weight-row" style="border-top: 1px solid #FFD700; margin-top: 6px; padding-top: 6px;">
     <span class="weight-label" style="color: #fff; font-weight: bold;">TOTAL</span>
@@ -12120,15 +12518,43 @@ function exportPDF(){
 
           // Weight display depends on mode
           if(currentAppMode === 'complex') {
-            // Complex mode: show total weight with breakdown (use stored bumper weight from app)
-            const bumperWeightKg = calcData.bumperWeightKg || 0;
-            const totalWeightKg = panelOnlyWeightKg + bumperWeightKg;
+            // Complex mode: show total weight with breakdown
+            // Structure = Bumpers + Connecting Plates + Ground Support Hardware (or Floor Frames for floor mode)
+            const structureType = data.structureType || 'hanging';
+            let structureWeightKg = 0;
+
+            if(structureType === 'floor' && p && p.is_floor_panel && p.floor_frames) {
+              // Floor mode: Structure = Floor Frames
+              const floorFrames = calcData.floorFrames || {};
+              if(floorFrames.totalWeightLbs) {
+                structureWeightKg = floorFrames.totalWeightLbs / 2.20462;
+              } else if(floorFrames.totalWeightKg) {
+                structureWeightKg = floorFrames.totalWeightKg;
+              }
+            } else {
+              // Hanging or Ground Stack: Structure = Bumpers + Plates + Ground Support
+              const bumperWeightKg = calcData.bumperWeightKg || 0;
+              structureWeightKg += bumperWeightKg;
+
+              // Add connecting plates weight
+              const platesWeightKg = calcData.platesWeightKg || 0;
+              structureWeightKg += platesWeightKg;
+
+              // Add ground support hardware weight for ground stack mode
+              if(structureType === 'ground') {
+                const groundSupportWeightKg = calcData.groundSupportWeightKg || 0;
+                structureWeightKg += groundSupportWeightKg;
+              }
+            }
+
+            const totalWeightKg = panelOnlyWeightKg + structureWeightKg;
             const totalWeightLbs = (totalWeightKg * 2.20462).toFixed(1);
+
             addSpecLine('Total Weight:', `${totalWeightLbs} lbs (${totalWeightKg.toFixed(1)} kg)`);
-            if(bumperWeightKg > 0) {
+            if(structureWeightKg > 0 || structureType === 'floor') {
               addSpecLine('  Panels:', `${panelOnlyWeightLbs} lbs (${panelOnlyWeightKg.toFixed(1)} kg)`);
-              const bumperWeightLbs = (bumperWeightKg * 2.20462).toFixed(1);
-              addSpecLine('  Bumpers:', `${bumperWeightLbs} lbs (${bumperWeightKg.toFixed(1)} kg)`);
+              const structureWeightLbs = (structureWeightKg * 2.20462).toFixed(1);
+              addSpecLine('  Structure:', `${structureWeightLbs} lbs (${structureWeightKg.toFixed(1)} kg)`);
             }
           } else {
             // Simple mode: show panel-only weight
@@ -12424,6 +12850,23 @@ function exportPDF(){
       addGearLine('Swivel Cheeseborough:', groundSupport.totalSwivelCheeseboroughs.toString());
       addGearLine('Pipe' + pipeLengthStr + ':', groundSupport.totalPipes.toString());
 
+      // Floor Hardware - calculate fresh since it might not be in calculatedData yet
+      const structureType = data.structureType || 'hanging';
+      if(structureType === 'floor' && p && p.is_floor_panel && p.floor_frames && pw > 0 && ph > 0) {
+        const deletedPanelsSet = data.deletedPanels || new Set();
+        const frames = calculateFloorFrames(pw, ph, deletedPanelsSet);
+        const frameCounts = getFloorFrameCounts(frames);
+        const hasFloorFrames = frameCounts.frame_1x1 > 0 || frameCounts.frame_2x1 > 0 ||
+                               frameCounts.frame_2x2 > 0 || frameCounts.frame_3x2 > 0;
+        if(hasFloorFrames) {
+          addGearHeader('Floor Hardware');
+          if(frameCounts.frame_3x2 > 0) addGearLine('3×2 Frame:', frameCounts.frame_3x2.toString());
+          if(frameCounts.frame_2x2 > 0) addGearLine('2×2 Frame:', frameCounts.frame_2x2.toString());
+          if(frameCounts.frame_2x1 > 0) addGearLine('2×1 Frame:', frameCounts.frame_2x1.toString());
+          if(frameCounts.frame_1x1 > 0) addGearLine('1×1 Frame:', frameCounts.frame_1x1.toString());
+        }
+      }
+
       // Data Cables
       addGearHeader('Data Cables');
       const dataJumperLen = p && p.data_jumper_ft ? p.data_jumper_ft : '';
@@ -12616,7 +13059,7 @@ function exportPDF(){
         pdf.setFontSize(14);
         pdf.setFont(undefined, 'bold');
         pdf.setTextColor(0, 0, 0);
-        pdf.text('Structure View', margin, yOffset);
+        pdf.text('Structure Layout', margin, yOffset);
         yOffset += 8;
         
         // Add structure canvas image - use JPEG with 0.92 quality for good balance of size and clarity
@@ -12808,9 +13251,70 @@ function exportPDF(){
             col1Y += 6;
           }
         }
-        
+
+        // Floor Frames (in column 1, below ground support)
+        let floorFramesWeightKg = 0;
+        const structureType = document.getElementById('structureType').value;
+        const allPanelsForFloor = getAllPanels();
+        const pFloor = allPanelsForFloor[panelType];
+
+        if(structureType === 'floor' && pFloor && pFloor.is_floor_panel && pFloor.floor_frames && pw > 0 && ph > 0) {
+          const frames = calculateFloorFrames(pw, ph, deletedPanels);
+          const frameCounts = getFloorFrameCounts(frames);
+
+          if(frameCounts.frame_1x1 > 0 || frameCounts.frame_2x1 > 0 || frameCounts.frame_2x2 > 0 || frameCounts.frame_3x2 > 0) {
+            pdf.setFontSize(10);
+            pdf.setFont(undefined, 'bold');
+            pdf.text('Floor Frames', col1X, col1Y);
+            col1Y += 5;
+
+            pdf.setFontSize(9);
+            pdf.setFont(undefined, 'normal');
+
+            let totalWeightLbs = 0;
+
+            if(frameCounts.frame_3x2 > 0) {
+              pdf.text('3×2 Frame', col1X + colLabelX, col1Y);
+              pdf.text(frameCounts.frame_3x2.toString(), col1X + colValueX, col1Y, { align: 'right' });
+              col1Y += 3.5;
+              if(pFloor.floor_frames.frame_3x2) totalWeightLbs += frameCounts.frame_3x2 * pFloor.floor_frames.frame_3x2.weight_lbs;
+            }
+            if(frameCounts.frame_2x2 > 0) {
+              pdf.text('2×2 Frame', col1X + colLabelX, col1Y);
+              pdf.text(frameCounts.frame_2x2.toString(), col1X + colValueX, col1Y, { align: 'right' });
+              col1Y += 3.5;
+              if(pFloor.floor_frames.frame_2x2) totalWeightLbs += frameCounts.frame_2x2 * pFloor.floor_frames.frame_2x2.weight_lbs;
+            }
+            if(frameCounts.frame_2x1 > 0) {
+              pdf.text('2×1 Frame', col1X + colLabelX, col1Y);
+              pdf.text(frameCounts.frame_2x1.toString(), col1X + colValueX, col1Y, { align: 'right' });
+              col1Y += 3.5;
+              if(pFloor.floor_frames.frame_2x1) totalWeightLbs += frameCounts.frame_2x1 * pFloor.floor_frames.frame_2x1.weight_lbs;
+            }
+            if(frameCounts.frame_1x1 > 0) {
+              pdf.text('1×1 Frame', col1X + colLabelX, col1Y);
+              pdf.text(frameCounts.frame_1x1.toString(), col1X + colValueX, col1Y, { align: 'right' });
+              col1Y += 3.5;
+              if(pFloor.floor_frames.frame_1x1) totalWeightLbs += frameCounts.frame_1x1 * pFloor.floor_frames.frame_1x1.weight_lbs;
+            }
+
+            floorFramesWeightKg = totalWeightLbs / KG_TO_LBS;
+
+            // Total weight
+            pdf.setDrawColor(100, 100, 100);
+            pdf.line(col1X + colLabelX, col1Y, col1X + colValueX, col1Y);
+            col1Y += 3;
+            pdf.setFont(undefined, 'bold');
+            pdf.text('Total Weight', col1X + colLabelX, col1Y);
+            const floorWeightDisplay = displayWeightUnit === 'lbs' ? totalWeightLbs.toFixed(1) : floorFramesWeightKg.toFixed(1);
+            pdf.text(`${floorWeightDisplay} ${wtUnit}`, col1X + colValueX, col1Y, { align: 'right' });
+            pdf.setFont(undefined, 'normal');
+            col1Y += 6;
+          }
+        }
+
         // ========== COLUMN 2 ==========
-        
+
         // Connecting Plates
         let platesWeightKg = 0;
         if(hasConnectingPlates && pw > 0 && ph > 0) {
@@ -12849,21 +13353,25 @@ function exportPDF(){
           col2Y += 6;
         }
         
+        // Calculate bumper hardware weight (the actual weight of bumper hardware, not load being supported)
+        const bumperHardwareWeightKg = calculateTotalBumperWeight(pw, ph);
+
         // Total Structure Weight (in column 2, below connecting plates)
-        const totalStructureWeightKg = pickupWeightKg + platesWeightKg + groundSupportWeightKg;
-        if(totalStructureWeightKg > 0) {
+        const totalStructureWeightKg = bumperHardwareWeightKg + platesWeightKg + groundSupportWeightKg + floorFramesWeightKg;
+        const isFloorMode = structureType === 'floor';
+        if(totalStructureWeightKg > 0 || isFloorMode) {
           pdf.setFontSize(10);
           pdf.setFont(undefined, 'bold');
           pdf.text('Total Structure Weight', col2X, col2Y);
           col2Y += 5;
-          
+
           pdf.setFontSize(9);
           pdf.setFont(undefined, 'normal');
-          
-          if(pickupWeightKg > 0) {
-            pdf.text('Pickup Points', col2X + colLabelX, col2Y);
-            const pickupDisplay = displayWeightUnit === 'lbs' ? (pickupWeightKg * KG_TO_LBS).toFixed(0) : pickupWeightKg.toFixed(0);
-            pdf.text(`${pickupDisplay} ${wtUnit}`, col2X + colValueX, col2Y, { align: 'right' });
+
+          if(bumperHardwareWeightKg > 0 && !isFloorMode) {
+            pdf.text('Bumpers', col2X + colLabelX, col2Y);
+            const bumperDisplay = displayWeightUnit === 'lbs' ? (bumperHardwareWeightKg * KG_TO_LBS).toFixed(1) : bumperHardwareWeightKg.toFixed(1);
+            pdf.text(`${bumperDisplay} ${wtUnit}`, col2X + colValueX, col2Y, { align: 'right' });
             col2Y += 3.5;
           }
           if(platesWeightKg > 0) {
@@ -12878,7 +13386,13 @@ function exportPDF(){
             pdf.text(`${gsDisplay} ${wtUnit}`, col2X + colValueX, col2Y, { align: 'right' });
             col2Y += 3.5;
           }
-          
+          if(floorFramesWeightKg > 0) {
+            pdf.text('Floor Frames', col2X + colLabelX, col2Y);
+            const floorDisplay = displayWeightUnit === 'lbs' ? (floorFramesWeightKg * KG_TO_LBS).toFixed(1) : floorFramesWeightKg.toFixed(1);
+            pdf.text(`${floorDisplay} ${wtUnit}`, col2X + colValueX, col2Y, { align: 'right' });
+            col2Y += 3.5;
+          }
+
           pdf.setDrawColor(100, 100, 100);
           pdf.line(col2X + colLabelX, col2Y, col2X + colValueX, col2Y);
           col2Y += 3;
@@ -13249,7 +13763,25 @@ function exportPDF(){
         addLine('Sandbags:', groundSupport.totalSandbags.toString());
         addLine('Swivel Cheeseborough:', groundSupport.totalSwivelCheeseboroughs.toString());
         addLine('Pipe' + pipeLengthStr + ':', groundSupport.totalPipes.toString());
-        
+
+        // === FLOOR HARDWARE SECTION ===
+        const floorFrames = calcData.floorFrames || {
+          frame_1x1: 0,
+          frame_2x1: 0,
+          frame_2x2: 0,
+          frame_3x2: 0,
+          totalWeightLbs: 0
+        };
+        const hasFloorFrames = floorFrames.frame_1x1 > 0 || floorFrames.frame_2x1 > 0 ||
+                               floorFrames.frame_2x2 > 0 || floorFrames.frame_3x2 > 0;
+        if(hasFloorFrames) {
+          addSectionHeader('Floor Hardware');
+          if(floorFrames.frame_3x2 > 0) addLine('3×2 Frame:', floorFrames.frame_3x2.toString());
+          if(floorFrames.frame_2x2 > 0) addLine('2×2 Frame:', floorFrames.frame_2x2.toString());
+          if(floorFrames.frame_2x1 > 0) addLine('2×1 Frame:', floorFrames.frame_2x1.toString());
+          if(floorFrames.frame_1x1 > 0) addLine('1×1 Frame:', floorFrames.frame_1x1.toString());
+        }
+
         // === DATA CABLES SECTION (now includes Cat6) ===
         addSectionHeader('Data Cables');
         // Get cable lengths from panel specs
@@ -14897,6 +15429,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if(structureTypeSelect) {
       structureTypeSelect.addEventListener('change', function() {
         updateBumpersBasedOnStructureType();
+        // Recalculate to update weight breakdown in specs (panels vs structure)
+        calculate();
       });
       // Initialize on load
       updateBumpersBasedOnStructureType();
@@ -15857,6 +16391,22 @@ function generateGearList() {
     html += `<div><strong>Panels:</strong> ${W * H} × ${p.brand} ${p.name}</div>`;
     html += `<div><strong>Dimensions:</strong> ${(W * p.width_m).toFixed(2)}m × ${(H * p.height_m).toFixed(2)}m</div>`;
     html += `<div><strong>Resolution:</strong> ${W * p.res_x} × ${H * p.res_y} px</div>`;
+
+    // Show floor frames if this screen has them calculated
+    if(screen.calculatedData && screen.calculatedData.floorFrames) {
+      const ff = screen.calculatedData.floorFrames;
+      if(ff.frame_1x1 > 0 || ff.frame_2x1 > 0 || ff.frame_2x2 > 0 || ff.frame_3x2 > 0) {
+        html += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #444;"><strong style="color: #4ecdc4;">Floor Frames:</strong></div>`;
+        if(ff.frame_3x2 > 0) html += `<div style="margin-left: 12px;">3×2 Frame: ${ff.frame_3x2}</div>`;
+        if(ff.frame_2x2 > 0) html += `<div style="margin-left: 12px;">2×2 Frame: ${ff.frame_2x2}</div>`;
+        if(ff.frame_2x1 > 0) html += `<div style="margin-left: 12px;">2×1 Frame: ${ff.frame_2x1}</div>`;
+        if(ff.frame_1x1 > 0) html += `<div style="margin-left: 12px;">1×1 Frame: ${ff.frame_1x1}</div>`;
+        const wtUnit = getWeightUnitLabel();
+        const wtDisplay = displayWeightUnit === 'lbs' ? ff.totalWeightLbs.toFixed(1) : ff.totalWeightKg.toFixed(1);
+        html += `<div style="margin-left: 12px; color: #4ecdc4;"><strong>Frame Weight:</strong> ${wtDisplay} ${wtUnit}</div>`;
+      }
+    }
+
     html += `</div>`;
   });
   

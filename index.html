@@ -3148,11 +3148,20 @@ async function checkForUpdates() {
 
 // Show update available banner
 function showUpdateBanner(newVersion) {
+  // Check if user already dismissed this specific version
+  const dismissedVersion = localStorage.getItem('dismissedUpdateVersion');
+  if (dismissedVersion === newVersion) {
+    console.log('Version check: Update banner already dismissed for v' + newVersion);
+    return;
+  }
+
   const banner = document.getElementById('updateBanner');
   const versionText = document.getElementById('updateVersionText');
   if (banner && versionText) {
     versionText.textContent = 'v' + newVersion + ' available';
     banner.classList.add('visible');
+    // Store the version being shown so we can track dismissal
+    banner.dataset.version = newVersion;
 
     // Also highlight the refresh button in the menu
     const refreshBtn = document.querySelector('.mobile-menu-refresh');
@@ -3166,6 +3175,11 @@ function showUpdateBanner(newVersion) {
 function hideUpdateBanner() {
   const banner = document.getElementById('updateBanner');
   if (banner) {
+    // Remember that user dismissed this version
+    if (banner.dataset.version) {
+      localStorage.setItem('dismissedUpdateVersion', banner.dataset.version);
+      console.log('Update banner dismissed for v' + banner.dataset.version);
+    }
     banner.classList.remove('visible');
   }
 }
@@ -15884,6 +15898,9 @@ function closeMobileMenu() {
 // Hard refresh - clears all caches and reloads the app
 async function hardRefreshApp() {
   try {
+    // Clear dismissed update version so banner logic is fresh after update
+    localStorage.removeItem('dismissedUpdateVersion');
+
     // Clear all caches if Cache API is available
     if ('caches' in window) {
       const cacheNames = await caches.keys();

@@ -59,27 +59,27 @@ A professional LED wall calculator PWA (Progressive Web App) for planning LED vi
 
 ## Mobile vs Desktop
 
-The app automatically adapts to your screen size with two distinct modes:
+The app works on both mobile and desktop devices. Both platforms support Simple and Complex modes.
 
-### Mobile Version (Simple Mode)
+### Simple Mode vs Complex Mode
+- **Simple Mode** - Condensed specs display, streamlined interface
+- **Complex Mode** - Full specifications with all data, detailed results
+
+Toggle between modes using the Simple/Complex switch in the app.
+
+### Mobile (Touch)
+- **Touch gestures** - Tap, drag, long-press for interactions
 - **Hamburger menu** - Access all options from the menu icon
-- **Condensed results** - Streamlined specs display
-- **Touch-optimized** - Large buttons, swipe gestures
-- **Collapsible sections** - Tap section headers to expand/collapse
-- **Bottom navigation** - Quick access to main functions
-- **Single layout view** - One layout visible at a time
+- **Long-press** - Right-click equivalent (e.g., bumper options)
+- **Drag** - Move screens in canvas view, reposition bumpers
+- **Pinch zoom** - Zoom in/out on canvas (where supported)
 
-### Desktop Version (Complex Mode)
-- **Full interface** - All controls visible simultaneously
-- **Detailed results** - Complete specifications with all data
-- **Side-by-side layouts** - Multiple layout views visible
+### Desktop (Mouse)
+- **Mouse controls** - Click, drag, right-click for interactions
+- **Right-click menus** - Context menus for bumpers and panels
+- **Scroll wheel** - Ctrl+scroll to zoom canvas
 - **Keyboard shortcuts** - Full keyboard navigation support
-- **Larger canvas** - More workspace for multi-screen setups
-- **Advanced structure controls** - Full bumper management tools
-
-### Switching Modes
-- Mode automatically switches based on screen width
-- Reload page after resizing to ensure proper mode detection
+- **Hover tooltips** - Additional info on hover
 
 ---
 

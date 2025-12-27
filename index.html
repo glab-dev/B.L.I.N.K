@@ -15910,24 +15910,31 @@ async function hardRefreshApp() {
       localStorage.setItem('dismissedUpdateVersion', targetVersion);
     }
 
+    // Unregister all service workers FIRST (before clearing caches)
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const reg of registrations) {
+        await reg.unregister();
+      }
+      // Wait a moment for unregistration to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
     // Clear all caches if Cache API is available
     if ('caches' in window) {
       const cacheNames = await caches.keys();
-      await Promise.all(cacheNames.map(name => caches.delete(name)));
-    }
-
-    // Unregister all service workers
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map(reg => reg.unregister()));
+      for (const name of cacheNames) {
+        await caches.delete(name);
+      }
     }
 
     // Force reload from server (bypass cache)
-    // Add timestamp to URL to ensure fresh fetch
-    const url = new URL(window.location.href);
-    url.searchParams.set('_refresh', Date.now());
-    window.location.replace(url.toString());
+    // Use cache-busting URL and location.href assignment for hard refresh
+    const url = new URL(window.location.origin + window.location.pathname);
+    url.searchParams.set('_v', Date.now());
+    window.location.href = url.toString();
   } catch (e) {
+    console.error('Hard refresh error:', e);
     // Fallback: simple hard reload
     window.location.reload(true);
   }
@@ -16125,22 +16132,44 @@ function installPwa() {
 // Service Worker Registration (inline)
 if('serviceWorker' in navigator) {
   // Create a simple service worker for offline capability
+  // Use network-first for HTML to ensure updates work properly
   const swCode = `
-    const CACHE_NAME = 'led-calc-mobile-v1';
+    const CACHE_NAME = 'led-calc-mobile-v${APP_VERSION}';
     const urlsToCache = [self.location.href];
 
     self.addEventListener('install', event => {
+      // Skip waiting to activate immediately
+      self.skipWaiting();
       event.waitUntil(
         caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
       );
     });
 
-    self.addEventListener('fetch', event => {
-      event.respondWith(
-        caches.match(event.request).then(response => {
-          return response || fetch(event.request);
-        })
+    self.addEventListener('activate', event => {
+      // Clean up old caches
+      event.waitUntil(
+        caches.keys().then(cacheNames => {
+          return Promise.all(
+            cacheNames.filter(name => name.startsWith('led-calc-mobile-') && name !== CACHE_NAME)
+              .map(name => caches.delete(name))
+          );
+        }).then(() => self.clients.claim())
       );
+    });
+
+    self.addEventListener('fetch', event => {
+      // Network-first for HTML pages, cache-first for other assets
+      if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+        event.respondWith(
+          fetch(event.request).catch(() => caches.match(event.request))
+        );
+      } else {
+        event.respondWith(
+          caches.match(event.request).then(response => {
+            return response || fetch(event.request);
+          })
+        );
+      }
     });
   `;
 

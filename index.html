@@ -2809,6 +2809,7 @@
               <select id="structureType" style="width: 100%; max-width: 180px;">
                 <option value="hanging">Hanging</option>
                 <option value="ground">Ground Stack</option>
+                <option value="floor">Floor</option>
               </select>
             </label>
             <!-- Bumper Toggles Row -->
@@ -3110,7 +3111,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.86';
+const APP_VERSION = '2.0.87';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3714,7 +3715,7 @@ const panels = {
   "CB5_MKII_HALF": {brand:"ROE Visual", name:"Carbon CB5 MKII Half Panel", pixel_pitch_mm:5.77, width_m:0.6, height_m:0.6, depth_mm:79, res_x:104, res_y:104, weight_kg:6.69, power_max_w:250, power_avg_w:125, brightness_nits:6000, max_hanging:24, max_stacking:10, bumper_1w_lbs:13.9, bumper_2w_lbs:27.5, bumper_4w_lbs:66.15, max_panels_per_circuit:6, max_panels_per_data:48, power_jumper_ft:null, data_jumper_ft:null, data_cross_jumper_ft:"3'", jumpers_builtin:true},
   "MC7H": {brand:"ROE Visual", name:"MC7H", pixel_pitch_mm:7.5, width_m:0.6, height_m:0.6, depth_mm:90, res_x:80, res_y:80, weight_kg:14.8, power_max_w:420, power_avg_w:210, brightness_nits:5000, max_hanging:20, max_stacking:8, bumper_1w_lbs:15.44, bumper_2w_lbs:28.22, max_panels_per_circuit:4, max_panels_per_data:82, power_jumper_ft:null, data_jumper_ft:null, data_cross_jumper_ft:"3'", jumpers_builtin:true},
   "BO3": {brand:"ROE Visual", name:"Black Onyx BO3", pixel_pitch_mm:3.47, width_m:0.5, height_m:0.5, depth_mm:90, res_x:144, res_y:144, weight_kg:9.35, power_max_w:170, power_avg_w:85, brightness_nits:1500, max_hanging:20, max_stacking:8, bumper_1w_lbs:7.38, bumper_2w_lbs:17.1, max_panels_per_circuit:9, max_panels_per_data:25, power_jumper_ft:"1'", data_jumper_ft:"1'", data_cross_jumper_ft:"2'", jumpers_builtin:false},
-  "BM4_MATTE": {brand:"ROE Visual", name:"Black Marble BM4 (Matte)", pixel_pitch_mm:4.76, width_m:0.61, height_m:0.61, depth_mm:140, res_x:128, res_y:128, weight_kg:16.0, power_max_w:280, power_avg_w:140, brightness_nits:2000, max_hanging:null, max_stacking:null, bumper_1w_lbs:null, bumper_2w_lbs:null, max_panels_per_circuit:5, max_panels_per_data:32, power_jumper_ft:"4'", data_jumper_ft:"4'", data_cross_jumper_ft:"4'", jumpers_builtin:false, uses_bumpers:false},
+  "BM4_MATTE": {brand:"ROE Visual", name:"Black Marble BM4 (Matte)", pixel_pitch_mm:4.76, width_m:0.61, height_m:0.61, depth_mm:140, res_x:128, res_y:128, weight_kg:17.5, power_max_w:280, power_avg_w:140, brightness_nits:2000, max_hanging:null, max_stacking:null, bumper_1w_lbs:null, bumper_2w_lbs:null, max_panels_per_circuit:5, max_panels_per_data:32, power_jumper_ft:"4'", data_jumper_ft:"4'", data_cross_jumper_ft:"4'", jumpers_builtin:false, uses_bumpers:false, is_floor_panel:true, floor_frames:{frame_1x1:{name:"1x1 (1 panel)", panels:1, weight_lbs:26.5}, frame_2x1:{name:"2x1 (2 panels)", panels:2, weight_lbs:41.9}, frame_2x2:{name:"2x2 (4 panels)", panels:4, weight_lbs:62.8}, frame_3x2:{name:"3x2 (6 panels)", panels:6, weight_lbs:80.5}}},
   "DM2_6": {brand:"ROE Visual", name:"DM2.6", pixel_pitch_mm:2.6, width_m:0.5, height_m:0.5, depth_mm:80, res_x:192, res_y:192, weight_kg:5.76, power_max_w:180, power_avg_w:90, brightness_nits:1500, max_hanging:20, max_stacking:12, bumper_1w_lbs:7.38, bumper_2w_lbs:17.1, max_panels_per_circuit:8, max_panels_per_data:14, power_jumper_ft:"1.5'", data_jumper_ft:"1.5'", data_cross_jumper_ft:"3'", jumpers_builtin:false},
   "INFILED_AMT8_3": {brand:"INFiLED", name:"AMT 8.3", pixel_pitch_mm:8.33, width_m:1.0, height_m:1.0, depth_mm:107, res_x:120, res_y:120, weight_kg:15.8, power_max_w:720, power_avg_w:360, brightness_nits:5000, max_hanging:18, max_stacking:18, bumper_1w_lbs:null, bumper_2w_lbs:null, max_panels_per_circuit:2, max_panels_per_data:36, power_jumper_ft:"1.5'", data_jumper_ft:"1.5'", data_cross_jumper_ft:"4'", jumpers_builtin:false}
 };
@@ -14842,7 +14843,22 @@ document.addEventListener('DOMContentLoaded', function() {
         if(this.value === '__ADD_CUSTOM__') return;
         updateBumpersForPanelType(this.value);
       });
-      
+
+      // Auto-switch to Floor structure for floor panels (like BM4)
+      panelTypeSelect.addEventListener('change', function() {
+        if(this.value === '__ADD_CUSTOM__') return;
+        const allPanels = getAllPanels();
+        const p = allPanels[this.value];
+        if(p && p.is_floor_panel) {
+          const structureSelect = document.getElementById('structureType');
+          if(structureSelect) {
+            structureSelect.value = 'floor';
+            // Trigger change event to update UI
+            structureSelect.dispatchEvent(new Event('change'));
+          }
+        }
+      });
+
       // Initial update for connecting plates
       updateConnectingPlatesVisibility(panelTypeSelect.value);
       

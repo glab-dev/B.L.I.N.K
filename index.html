@@ -3117,7 +3117,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.98';
+const APP_VERSION = '2.0.99';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -11891,6 +11891,12 @@ function setupCanvasViewInteractivity() {
         // Update position
         screens[draggedScreenId].data.canvasX = newOffsetX;
         screens[draggedScreenId].data.canvasY = newOffsetY;
+
+        // If this is the current screen, also update global variables
+        if(draggedScreenId === currentScreenId) {
+          canvasOffsetX = newOffsetX;
+          canvasOffsetY = newOffsetY;
+        }
 
         // Update coordinate display during drag
         updateCanvasInfoDisplay();

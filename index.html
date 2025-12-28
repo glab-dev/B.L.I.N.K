@@ -3127,7 +3127,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.111';
+const APP_VERSION = '2.0.112';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -6147,7 +6147,11 @@ function calculate(){
     // DATA Section
     html += `<br>`;
     html += `<div class="result-section-title">DATA</div>`;
-    html += `<div class="result-row"><strong>Processor:</strong> ${pr.name}</div>`;
+    let processorDisplayName = pr.name;
+    if(pr.in_development) {
+      processorDisplayName = processorDisplayName.replace('(in development)', '<span style="color: #d47a7a;">(in development)</span>');
+    }
+    html += `<div class="result-row"><strong>Processor:</strong> ${processorDisplayName}</div>`;
     if(distributionBoxName) {
       html += `<div class="result-row"><strong>Distribution box:</strong> ${distributionBoxName}${distributionCount > 0 ? ` (${distributionCount})` : ''}</div>`;
     }

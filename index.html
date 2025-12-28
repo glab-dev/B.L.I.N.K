@@ -3118,7 +3118,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.107';
+const APP_VERSION = '2.0.108';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3815,37 +3815,57 @@ function getCurrentProcessor() {
 function updatePanelDropdowns() {
   const panelSelect = document.getElementById('panelType');
   if(!panelSelect) return;
-  
+
   const currentValue = panelSelect.value;
   const allPanels = getAllPanels();
-  
+
   // Clear and rebuild
   panelSelect.innerHTML = '';
-  
-  // Add built-in panels first
-  const builtInGroup = document.createElement('optgroup');
-  builtInGroup.label = 'Built-in Panels';
+
+  // Group built-in panels by brand
+  const builtInByBrand = {};
   Object.keys(panels).forEach(key => {
-    const option = document.createElement('option');
-    option.value = key;
-    option.textContent = `${panels[key].brand} ${panels[key].name}`;
-    builtInGroup.appendChild(option);
+    const brand = panels[key].brand || 'Other';
+    if(!builtInByBrand[brand]) builtInByBrand[brand] = [];
+    builtInByBrand[brand].push({key, panel: panels[key]});
   });
-  panelSelect.appendChild(builtInGroup);
-  
-  // Add custom panels
-  if(Object.keys(customPanels).length > 0) {
-    const customGroup = document.createElement('optgroup');
-    customGroup.label = 'Custom Panels';
-    Object.keys(customPanels).forEach(key => {
+
+  // Add built-in panels grouped by brand
+  Object.keys(builtInByBrand).sort().forEach(brand => {
+    const brandGroup = document.createElement('optgroup');
+    brandGroup.label = brand;
+    builtInByBrand[brand].forEach(({key, panel}) => {
       const option = document.createElement('option');
       option.value = key;
-      option.textContent = `${customPanels[key].brand} ${customPanels[key].name} (Custom)`;
-      customGroup.appendChild(option);
+      option.textContent = panel.name;
+      brandGroup.appendChild(option);
     });
-    panelSelect.appendChild(customGroup);
+    panelSelect.appendChild(brandGroup);
+  });
+
+  // Group custom panels by brand
+  if(Object.keys(customPanels).length > 0) {
+    const customByBrand = {};
+    Object.keys(customPanels).forEach(key => {
+      const brand = customPanels[key].brand || 'Custom';
+      if(!customByBrand[brand]) customByBrand[brand] = [];
+      customByBrand[brand].push({key, panel: customPanels[key]});
+    });
+
+    // Add custom panels grouped by brand
+    Object.keys(customByBrand).sort().forEach(brand => {
+      const brandGroup = document.createElement('optgroup');
+      brandGroup.label = `${brand} (Custom)`;
+      customByBrand[brand].forEach(({key, panel}) => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = panel.name;
+        brandGroup.appendChild(option);
+      });
+      panelSelect.appendChild(brandGroup);
+    });
   }
-  
+
   // Add "Add Custom Panel" option
   const addOption = document.createElement('option');
   addOption.value = '__ADD_CUSTOM__';
@@ -3853,7 +3873,7 @@ function updatePanelDropdowns() {
   addOption.style.fontWeight = 'bold';
   addOption.style.color = '#4a9eff';
   panelSelect.appendChild(addOption);
-  
+
   // Restore selection
   if(currentValue && allPanels[currentValue]) {
     panelSelect.value = currentValue;
@@ -3864,37 +3884,79 @@ function updatePanelDropdowns() {
 function updateProcessorDropdowns() {
   const processorSelect = document.getElementById('processor');
   if(!processorSelect) return;
-  
+
   const currentValue = processorSelect.value;
   const allProcessors = getAllProcessors();
-  
+
   // Clear and rebuild
   processorSelect.innerHTML = '';
-  
-  // Add built-in processors first
-  const builtInGroup = document.createElement('optgroup');
-  builtInGroup.label = 'Built-in Processors';
+
+  // Helper to extract brand from processor key or name
+  function getProcessorBrand(key, proc) {
+    if(proc.brand) return proc.brand;
+    // Extract brand from key (e.g., "Brompton_SX40" -> "Brompton")
+    if(key.startsWith('Brompton')) return 'Brompton';
+    if(key.startsWith('NovaStar')) return 'NovaStar';
+    // Try to extract from name
+    if(proc.name && proc.name.startsWith('Brompton')) return 'Brompton';
+    if(proc.name && proc.name.startsWith('NovaStar')) return 'NovaStar';
+    return 'Other';
+  }
+
+  // Helper to get display name (without brand prefix)
+  function getProcessorDisplayName(proc, brand) {
+    let name = proc.name;
+    // Remove brand prefix from name if present
+    if(name.startsWith(brand + ' ')) {
+      name = name.substring(brand.length + 1);
+    }
+    return name;
+  }
+
+  // Group built-in processors by brand
+  const builtInByBrand = {};
   Object.keys(processors).forEach(key => {
-    const option = document.createElement('option');
-    option.value = key;
-    option.textContent = processors[key].name;
-    builtInGroup.appendChild(option);
+    const brand = getProcessorBrand(key, processors[key]);
+    if(!builtInByBrand[brand]) builtInByBrand[brand] = [];
+    builtInByBrand[brand].push({key, proc: processors[key], brand});
   });
-  processorSelect.appendChild(builtInGroup);
-  
-  // Add custom processors
-  if(Object.keys(customProcessors).length > 0) {
-    const customGroup = document.createElement('optgroup');
-    customGroup.label = 'Custom Processors';
-    Object.keys(customProcessors).forEach(key => {
+
+  // Add built-in processors grouped by brand
+  Object.keys(builtInByBrand).sort().forEach(brand => {
+    const brandGroup = document.createElement('optgroup');
+    brandGroup.label = brand;
+    builtInByBrand[brand].forEach(({key, proc, brand}) => {
       const option = document.createElement('option');
       option.value = key;
-      option.textContent = `${customProcessors[key].name} (Custom)`;
-      customGroup.appendChild(option);
+      option.textContent = getProcessorDisplayName(proc, brand);
+      brandGroup.appendChild(option);
     });
-    processorSelect.appendChild(customGroup);
+    processorSelect.appendChild(brandGroup);
+  });
+
+  // Group custom processors by brand
+  if(Object.keys(customProcessors).length > 0) {
+    const customByBrand = {};
+    Object.keys(customProcessors).forEach(key => {
+      const brand = customProcessors[key].brand || 'Custom';
+      if(!customByBrand[brand]) customByBrand[brand] = [];
+      customByBrand[brand].push({key, proc: customProcessors[key]});
+    });
+
+    // Add custom processors grouped by brand
+    Object.keys(customByBrand).sort().forEach(brand => {
+      const brandGroup = document.createElement('optgroup');
+      brandGroup.label = `${brand} (Custom)`;
+      customByBrand[brand].forEach(({key, proc}) => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = proc.name;
+        brandGroup.appendChild(option);
+      });
+      processorSelect.appendChild(brandGroup);
+    });
   }
-  
+
   // Add "Add Custom Processor" option
   const addOption = document.createElement('option');
   addOption.value = '__ADD_CUSTOM__';
@@ -3902,7 +3964,7 @@ function updateProcessorDropdowns() {
   addOption.style.fontWeight = 'bold';
   addOption.style.color = '#4a9eff';
   processorSelect.appendChild(addOption);
-  
+
   // Restore selection
   if(currentValue && allProcessors[currentValue]) {
     processorSelect.value = currentValue;

@@ -3117,7 +3117,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.99';
+const APP_VERSION = '2.0.100';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -10174,19 +10174,123 @@ function setupStandardCanvasInteractivity() {
   // Right click - context menu
   canvas.addEventListener('contextmenu', function(e) {
     e.preventDefault();
-    
+
     const panel = getPanelAtPosition(canvas, e.clientX, e.clientY);
     if(!panel) return;
-    
+
     // If clicked panel is not selected, select only it
     if(!selectedPanels.has(panel.key)) {
       selectedPanels.clear();
       selectedPanels.add(panel.key);
       generateLayout('standard');
     }
-    
+
     // Show context menu
     showContextMenu(e.clientX, e.clientY);
+  });
+
+  // Touch support for panel selection
+  let touchSelectStart = null;
+  let isTouchSelecting = false;
+  let touchLongPressTimer = null;
+  let touchStartPanel = null;
+
+  canvas.addEventListener('touchstart', function(e) {
+    if(e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    touchSelectStart = { x: touch.clientX, y: touch.clientY };
+    isTouchSelecting = false;
+
+    const panel = getPanelAtPosition(canvas, touch.clientX, touch.clientY);
+    touchStartPanel = panel;
+
+    if(panel) {
+      // Start long press timer for context menu
+      touchLongPressTimer = setTimeout(() => {
+        if(touchStartPanel && !isTouchSelecting) {
+          // Long press - show context menu
+          vibrate(50);
+          if(!selectedPanels.has(touchStartPanel.key)) {
+            selectedPanels.clear();
+            selectedPanels.add(touchStartPanel.key);
+            generateLayout('standard');
+          }
+          showContextMenu(touch.clientX, touch.clientY);
+          touchLongPressTimer = null;
+        }
+      }, 600);
+    }
+  }, {passive: true});
+
+  canvas.addEventListener('touchmove', function(e) {
+    if(!touchSelectStart) return;
+    if(e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    const dx = Math.abs(touch.clientX - touchSelectStart.x);
+    const dy = Math.abs(touch.clientY - touchSelectStart.y);
+
+    // Start drag selection after moving enough
+    if(dx > 10 || dy > 10) {
+      // Cancel long press
+      if(touchLongPressTimer) {
+        clearTimeout(touchLongPressTimer);
+        touchLongPressTimer = null;
+      }
+
+      if(!isTouchSelecting) {
+        // First move - clear selection and start fresh
+        isTouchSelecting = true;
+        selectedPanels.clear();
+        if(touchStartPanel) {
+          selectedPanels.add(touchStartPanel.key);
+        }
+      }
+
+      e.preventDefault();
+
+      // Get panel at current touch position
+      const panel = getPanelAtPosition(canvas, touch.clientX, touch.clientY);
+      if(panel && !selectedPanels.has(panel.key)) {
+        selectedPanels.add(panel.key);
+        vibrate(10); // Light haptic feedback
+        generateLayout('standard');
+      }
+    }
+  }, {passive: false});
+
+  canvas.addEventListener('touchend', function(e) {
+    // Cancel long press timer
+    if(touchLongPressTimer) {
+      clearTimeout(touchLongPressTimer);
+      touchLongPressTimer = null;
+    }
+
+    // If not dragging and had a start panel, toggle its selection
+    if(!isTouchSelecting && touchStartPanel) {
+      if(selectedPanels.has(touchStartPanel.key)) {
+        selectedPanels.delete(touchStartPanel.key);
+      } else {
+        selectedPanels.clear();
+        selectedPanels.add(touchStartPanel.key);
+      }
+      generateLayout('standard');
+    }
+
+    touchSelectStart = null;
+    isTouchSelecting = false;
+    touchStartPanel = null;
+  });
+
+  canvas.addEventListener('touchcancel', function(e) {
+    if(touchLongPressTimer) {
+      clearTimeout(touchLongPressTimer);
+      touchLongPressTimer = null;
+    }
+    touchSelectStart = null;
+    isTouchSelecting = false;
+    touchStartPanel = null;
   });
 }
 
@@ -16941,6 +17045,123 @@ function setupMobileLongPress() {
 
     console.log('Structure canvas long-press enabled');
   }
+
+  // Setup bumper touch drag support for manual mode
+  setupBumperTouchDrag();
+}
+
+// Touch drag support for bumpers in structure layout manual mode
+function setupBumperTouchDrag() {
+  const canvas = document.getElementById('structureCanvas');
+  if(!canvas || canvas._bumperTouchSetup) return;
+  canvas._bumperTouchSetup = true;
+
+  let touchDragBumper = null;
+  let touchDragStartCol = -1;
+  let touchDragOffsetX = 0;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let isTouchDragging = false;
+
+  canvas.addEventListener('touchstart', function(e) {
+    if(e.touches.length !== 1) return;
+    if(!manualBumperMode) return;
+
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+
+    // Check if touching a bumper
+    const bumper = getBumperAtMouse(canvas, touch.clientX, touch.clientY);
+    if(bumper) {
+      // Select the bumper
+      if(!selectedBumpers.has(bumper.id)) {
+        selectedBumpers.clear();
+        selectedBumpers.add(bumper.id);
+        updateStructureSelectionInfo();
+      }
+
+      // Prepare for potential drag
+      touchDragBumper = bumper;
+      touchDragStartCol = bumper.startCol;
+
+      // Calculate drag offset
+      const rect = canvas.getBoundingClientRect();
+      const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+      touchDragOffsetX = touchX - (bumper.startCol * panelSize);
+
+      generateStructureLayout();
+    }
+  }, {passive: true});
+
+  canvas.addEventListener('touchmove', function(e) {
+    if(!touchDragBumper || !manualBumperMode) return;
+    if(e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    const dx = Math.abs(touch.clientX - touchStartX);
+    const dy = Math.abs(touch.clientY - touchStartY);
+
+    // Start dragging after moving a bit
+    if(dx > 10 || dy > 10) {
+      isTouchDragging = true;
+      e.preventDefault();
+
+      // Cancel long press if active
+      if(longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+
+      const newCol = Math.floor((touchX - touchDragOffsetX) / panelSize);
+      const pw = parseInt(document.getElementById('panelsWide').value) || 0;
+
+      // Constrain to valid columns
+      if(newCol >= 0 && newCol < pw) {
+        const bumperWidth = touchDragBumper.endCol - touchDragBumper.startCol;
+        const maxStartCol = Math.max(0, pw - 1 - bumperWidth);
+        const constrainedCol = Math.max(0, Math.min(newCol, maxStartCol));
+
+        if(constrainedCol !== touchDragBumper.startCol) {
+          const colDelta = constrainedCol - touchDragBumper.startCol;
+          touchDragBumper.startCol = constrainedCol;
+          touchDragBumper.endCol = touchDragBumper.endCol + colDelta;
+
+          generateStructureLayout();
+        }
+      }
+    }
+  }, {passive: false});
+
+  canvas.addEventListener('touchend', function(e) {
+    if(touchDragBumper && manualBumperMode) {
+      // Check if bumper was actually moved
+      if(isTouchDragging && touchDragStartCol !== -1 && touchDragStartCol !== touchDragBumper.startCol) {
+        saveStructureState();
+        vibrate(30);
+      }
+
+      // Update weight and calculations
+      updateWeightDisplay();
+      calculate();
+      updateStructureUndoRedoButtons();
+    }
+
+    touchDragBumper = null;
+    touchDragStartCol = -1;
+    isTouchDragging = false;
+  });
+
+  canvas.addEventListener('touchcancel', function(e) {
+    touchDragBumper = null;
+    touchDragStartCol = -1;
+    isTouchDragging = false;
+  });
+
+  console.log('Bumper touch drag enabled');
 }
 
 // Haptic feedback helper

@@ -2885,7 +2885,7 @@
           <button class="undo-redo-btn" id="redoBtn" onclick="redo()" title="Redo">Redo</button>
         </div>
       </div>
-      <div class="mobile-hint">Tap panels to select • Long-press for options (delete, assign circuit/data)</div>
+      <div class="mobile-hint" id="standardLayoutHint">Tap to select • Tap again for options • Drag to multi-select</div>
       <canvas id="standardCanvas"></canvas>
     </div>
     
@@ -2918,7 +2918,7 @@
       
       <!-- Selection Info (shown in manual mode) -->
       <div class="structure-selection-info" id="structureSelectionInfo">
-        <strong>Manual Mode:</strong> Tap to select bumpers. Long-press for options.
+        <strong>Manual Mode:</strong> <span id="structureHintText">Tap to select • Tap again for options • Hold to drag</span>
       </div>
       
       <!-- Structure layout with canvas and info panel side by side -->
@@ -3118,14 +3118,44 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.108';
+const APP_VERSION = '2.0.109';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
   const menuVersion = document.getElementById('menuVersionNumber');
   if(menuVersion) menuVersion.textContent = 'v' + APP_VERSION;
+
+  // Update layout hints based on device type
+  updateLayoutHints();
+  window.addEventListener('resize', updateLayoutHints);
 });
+
+// Update hint text based on mobile vs desktop
+function updateLayoutHints() {
+  const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  const isMobile = window.innerWidth <= 768;
+
+  // Standard layout hint
+  const standardHint = document.getElementById('standardLayoutHint');
+  if(standardHint) {
+    if(isTouchDevice || isMobile) {
+      standardHint.textContent = 'Tap to select • Tap again for options • Drag to multi-select';
+    } else {
+      standardHint.textContent = 'Click to select • Right-click for options • Drag to multi-select';
+    }
+  }
+
+  // Structure layout hint
+  const structureHint = document.getElementById('structureHintText');
+  if(structureHint) {
+    if(isTouchDevice || isMobile) {
+      structureHint.textContent = 'Tap to select • Tap again for options • Hold to drag';
+    } else {
+      structureHint.textContent = 'Click to select • Right-click for options • Drag to move';
+    }
+  }
+}
 
 // Check for updates on app load
 async function checkForUpdates() {
@@ -4870,11 +4900,17 @@ function updateStructureSelectionInfo() {
   let text = '<strong>Manual Mode:</strong> ';
   
   if(bumperCount === 0) {
-    text += 'Tap to select bumpers. Long-press for options.';
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const isMobile = window.innerWidth <= 768;
+    if(isTouchDevice || isMobile) {
+      text += '<span id="structureHintText">Tap to select • Tap again for options • Hold to drag</span>';
+    } else {
+      text += '<span id="structureHintText">Click to select • Right-click for options • Drag to move</span>';
+    }
   } else {
     text += `Selected: ${bumperCount} bumper${bumperCount > 1 ? 's' : ''}`;
   }
-  
+
   infoDiv.innerHTML = text;
   infoDiv.classList.add('visible');
 }

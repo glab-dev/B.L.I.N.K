@@ -2738,6 +2738,15 @@
             </label>
           </div>
 
+          <!-- CVT Box Toggle (MX40 Pro only) -->
+          <div id="cvtBoxToggleRow" style="display: none; margin-bottom: 8px;">
+            <label class="toggle-switch-label" style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="cvtBoxEnabled" onchange="calculate()">
+              <span class="toggle-switch"></span>
+              <span>CVT Box</span>
+            </label>
+          </div>
+
           <!-- Row 2: Frame Rate, Bit Depth, Max/Data -->
           <div class="compact-row" style="margin-bottom: 8px; flex-wrap: nowrap; gap: 8px;">
             <div style="flex: 1; min-width: 0;">
@@ -3118,7 +3127,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.110';
+const APP_VERSION = '2.0.111';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3964,7 +3973,9 @@ function updateProcessorDropdowns() {
     builtInByBrand[brand].forEach(({key, proc, brand}) => {
       const option = document.createElement('option');
       option.value = key;
-      option.textContent = getProcessorDisplayName(proc, brand);
+      let displayName = getProcessorDisplayName(proc, brand);
+      // Keep "(in development)" in the name for development processors
+      option.textContent = displayName;
       brandGroup.appendChild(option);
     });
     processorSelect.appendChild(brandGroup);
@@ -5981,7 +5992,7 @@ function calculate(){
   } else if(processorId === 'NovaStar_MX40_Pro' && portsNeeded > 0) {
     const baseDistributionCount = Math.ceil(portsNeeded / 10);
     distributionCount = redundancy ? baseDistributionCount * 2 : baseDistributionCount;
-    distributionBoxName = 'NovaStar CVT';
+    distributionBoxName = 'NovaStar CVT-10 Pro';
   } else if(pr.uses_distribution_box && pr.distribution_box_name && portsNeeded > 0) {
     // Custom processor with distribution box
     const portsPerBox = pr.distribution_box_ports || 10;
@@ -12549,7 +12560,7 @@ function exportPDF(){
         const mainCVTs = totalMainPorts > 0 ? Math.ceil(totalMainPorts / 10) : 0;
         distBoxCount = hasRedundancy ? mainCVTs * 2 : mainCVTs;
         processorCount = distBoxCount > 0 ? Math.ceil(distBoxCount / 2) : 0;
-        distBoxName = 'CVT';
+        distBoxName = 'CVT-10 Pro';
       } else {
         // Default/custom processor - use per-screen calculation
         const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
@@ -12790,7 +12801,11 @@ function exportPDF(){
 
           if(currentAppMode === 'complex') {
             // Complex mode: show all data specs
-            addSpecLine('Processor:', pr.name || data.processor);
+            let processorName = pr.name || data.processor;
+            if(pr.in_development) {
+              processorName = processorName.replace(' (in development)', '') + ' <span style="color: #d47a7a;">(in development)</span>';
+            }
+            addSpecLine('Processor:', processorName);
             const dataLines = calcData.dataLines || 0;
             const portsNeeded = calcData.portsNeededFinal || calcData.portsNeeded || 0;
             addSpecLine('Data Lines:', dataLines.toString());
@@ -15779,8 +15794,22 @@ document.addEventListener('DOMContentLoaded', function() {
             this.value = options[0].value;
           }
         }
+        // Show/hide CVT toggle for MX40 Pro
+        updateCvtToggleVisibility();
       });
+      // Initial check on page load
+      updateCvtToggleVisibility();
     }
+
+// Show/hide CVT toggle based on processor selection
+function updateCvtToggleVisibility() {
+  const processorSelect = document.getElementById('processor');
+  const cvtToggleRow = document.getElementById('cvtBoxToggleRow');
+  if(processorSelect && cvtToggleRow) {
+    const isMX40Pro = processorSelect.value === 'NovaStar_MX40_Pro';
+    cvtToggleRow.style.display = isMX40Pro ? 'block' : 'none';
+  }
+}
     
     // Add keyboard listeners for panel selection
     document.addEventListener('keydown', function(e) {

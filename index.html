@@ -2464,15 +2464,15 @@
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Configuration</div>
         <input type="text" id="configName" placeholder="Config name..." style="margin-bottom: 12px;">
-        <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">⬇ Save Configuration</button>
-        <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">⬆ Load Configuration</button>
+        <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save Configuration</button>
+        <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load Configuration</button>
         <input type="file" id="loadConfigInput" accept=".ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
-        <button id="btnExportPDF" class="mobile-menu-btn" onclick="closeMobileMenu();">▤ Export PDF</button>
+        <button id="btnExportPDF" class="mobile-menu-btn" onclick="closeMobileMenu();">Export PDF</button>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Custom Items</div>
-        <button class="mobile-menu-btn" onclick="openCustomPanelModal(); closeMobileMenu();">+ Add Custom Panel</button>
-        <button class="mobile-menu-btn" onclick="openCustomProcessorModal(); closeMobileMenu();">+ Add Custom Processor<br><span style="color: #ff4444; font-size: 11px; font-weight: normal;">(in development)</span></button>
+        <button class="mobile-menu-btn" onclick="openCustomPanelModal(); closeMobileMenu();">Add Custom Panel</button>
+        <button class="mobile-menu-btn" onclick="openCustomProcessorModal(); closeMobileMenu();">Add Custom Processor<br><span style="color: #ff4444; font-size: 11px; font-weight: normal;">(in development)</span></button>
         <button class="mobile-menu-btn" onclick="openManageCustomModal(); closeMobileMenu();">Manage Custom Items</button>
       </div>
       <div class="mobile-menu-section">
@@ -3117,7 +3117,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.102';
+const APP_VERSION = '2.0.103';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready

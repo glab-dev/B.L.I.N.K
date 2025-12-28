@@ -3118,7 +3118,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.105';
+const APP_VERSION = '2.0.106';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -10199,37 +10199,24 @@ function setupStandardCanvasInteractivity() {
   });
 
   // Touch support for panel selection
+  // Behavior: 1 tap = select panel, 2nd tap on selected = menu, drag = multi-select
   let touchSelectStart = null;
   let isTouchSelecting = false;
-  let touchLongPressTimer = null;
   let touchStartPanel = null;
+  let touchEndX = 0;
+  let touchEndY = 0;
 
   canvas.addEventListener('touchstart', function(e) {
     if(e.touches.length !== 1) return;
 
     const touch = e.touches[0];
     touchSelectStart = { x: touch.clientX, y: touch.clientY };
+    touchEndX = touch.clientX;
+    touchEndY = touch.clientY;
     isTouchSelecting = false;
 
     const panel = getPanelAtPosition(canvas, touch.clientX, touch.clientY);
     touchStartPanel = panel;
-
-    if(panel) {
-      // Start long press timer for context menu
-      touchLongPressTimer = setTimeout(() => {
-        if(touchStartPanel && !isTouchSelecting) {
-          // Long press - show context menu
-          vibrate(50);
-          if(!selectedPanels.has(touchStartPanel.key)) {
-            selectedPanels.clear();
-            selectedPanels.add(touchStartPanel.key);
-            generateLayout('standard');
-          }
-          showContextMenu(touch.clientX, touch.clientY);
-          touchLongPressTimer = null;
-        }
-      }, 600);
-    }
   }, {passive: true});
 
   canvas.addEventListener('touchmove', function(e) {
@@ -10237,17 +10224,13 @@ function setupStandardCanvasInteractivity() {
     if(e.touches.length !== 1) return;
 
     const touch = e.touches[0];
+    touchEndX = touch.clientX;
+    touchEndY = touch.clientY;
     const dx = Math.abs(touch.clientX - touchSelectStart.x);
     const dy = Math.abs(touch.clientY - touchSelectStart.y);
 
     // Start drag selection after moving enough
     if(dx > 10 || dy > 10) {
-      // Cancel long press
-      if(touchLongPressTimer) {
-        clearTimeout(touchLongPressTimer);
-        touchLongPressTimer = null;
-      }
-
       if(!isTouchSelecting) {
         // First move - clear selection and start fresh
         isTouchSelecting = true;
@@ -10270,21 +10253,29 @@ function setupStandardCanvasInteractivity() {
   }, {passive: false});
 
   canvas.addEventListener('touchend', function(e) {
-    // Cancel long press timer
-    if(touchLongPressTimer) {
-      clearTimeout(touchLongPressTimer);
-      touchLongPressTimer = null;
+    // If dragging across panels, tapping on selected panel shows menu
+    if(isTouchSelecting) {
+      // Multi-select drag ended - don't show menu automatically
+      touchSelectStart = null;
+      isTouchSelecting = false;
+      touchStartPanel = null;
+      return;
     }
 
-    // If not dragging and had a start panel, toggle its selection
-    if(!isTouchSelecting && touchStartPanel) {
-      if(selectedPanels.has(touchStartPanel.key)) {
-        selectedPanels.delete(touchStartPanel.key);
+    // Single tap behavior
+    if(touchStartPanel) {
+      const wasAlreadySelected = selectedPanels.has(touchStartPanel.key);
+
+      if(wasAlreadySelected) {
+        // Panel was already selected - show context menu
+        vibrate(30);
+        showContextMenu(touchEndX, touchEndY);
       } else {
+        // Panel not selected - select it (clear others first)
         selectedPanels.clear();
         selectedPanels.add(touchStartPanel.key);
+        generateLayout('standard');
       }
-      generateLayout('standard');
     }
 
     touchSelectStart = null;
@@ -10293,10 +10284,6 @@ function setupStandardCanvasInteractivity() {
   });
 
   canvas.addEventListener('touchcancel', function(e) {
-    if(touchLongPressTimer) {
-      clearTimeout(touchLongPressTimer);
-      touchLongPressTimer = null;
-    }
     touchSelectStart = null;
     isTouchSelecting = false;
     touchStartPanel = null;
@@ -17060,6 +17047,7 @@ function setupBumperTouchDrag() {
   if(!canvas || canvas._bumperTouchSetup) return;
   canvas._bumperTouchSetup = true;
 
+  // Behavior: 1 tap = select bumper, 2nd tap on selected = menu, hold+drag = move
   let touchDragBumper = null;
   let touchDragStartCol = -1;
   let touchDragOffsetX = 0;
@@ -17069,6 +17057,7 @@ function setupBumperTouchDrag() {
   let isDragEnabled = false; // Only allow drag after hold delay
   let holdTimer = null;
   let touchedBumper = null;
+  let wasAlreadySelected = false;
 
   canvas.addEventListener('touchstart', function(e) {
     if(e.touches.length !== 1) return;
@@ -17083,13 +17072,8 @@ function setupBumperTouchDrag() {
     touchedBumper = bumper;
 
     if(bumper) {
-      // Select the bumper
-      if(!selectedBumpers.has(bumper.id)) {
-        selectedBumpers.clear();
-        selectedBumpers.add(bumper.id);
-        updateStructureSelectionInfo();
-        generateStructureLayout();
-      }
+      // Check if bumper was already selected BEFORE we potentially select it
+      wasAlreadySelected = selectedBumpers.has(bumper.id);
 
       // Start hold timer - after 300ms, enable dragging
       holdTimer = setTimeout(() => {
@@ -17177,9 +17161,18 @@ function setupBumperTouchDrag() {
         calculate();
         updateStructureUndoRedoButtons();
       } else if(!isDragEnabled && touchedBumper) {
-        // Quick tap (no drag) - show context menu
-        vibrate(20);
-        showBumperContextMenu(touchedBumper, touchStartX, touchStartY);
+        // Quick tap (no drag) - check if bumper was already selected
+        if(wasAlreadySelected) {
+          // 2nd tap on selected bumper - show context menu
+          vibrate(20);
+          showBumperContextMenu(touchedBumper, touchStartX, touchStartY);
+        } else {
+          // 1st tap - select the bumper
+          selectedBumpers.clear();
+          selectedBumpers.add(touchedBumper.id);
+          updateStructureSelectionInfo();
+          generateStructureLayout();
+        }
       }
     }
 
@@ -17189,6 +17182,7 @@ function setupBumperTouchDrag() {
     isTouchDragging = false;
     isDragEnabled = false;
     touchedBumper = null;
+    wasAlreadySelected = false;
   });
 
   canvas.addEventListener('touchcancel', function(e) {
@@ -17201,9 +17195,10 @@ function setupBumperTouchDrag() {
     isTouchDragging = false;
     isDragEnabled = false;
     touchedBumper = null;
+    wasAlreadySelected = false;
   });
 
-  console.log('Bumper touch drag enabled (tap=menu, hold+drag=move)');
+  console.log('Bumper touch drag enabled (tap=select, 2nd tap=menu, hold+drag=move)');
 }
 
 // Haptic feedback helper

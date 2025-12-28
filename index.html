@@ -2239,23 +2239,23 @@
       </div>
       
       <div class="modal-input-group">
-        <label>Pixel Pitch (mm)</label>
+        <label id="labelPixelPitch">Pixel Pitch (mm)</label>
         <input type="number" id="customPanelPixelPitch" step="0.01" placeholder="e.g., 2.84">
       </div>
-      
+
       <div class="modal-input-row">
         <div class="modal-input-group">
-          <label>Panel Width (mm)</label>
+          <label id="labelPanelWidth">Panel Width (mm)</label>
           <input type="number" id="customPanelWidth" step="0.1" placeholder="e.g., 500">
         </div>
         <div class="modal-input-group">
-          <label>Panel Height (mm)</label>
+          <label id="labelPanelHeight">Panel Height (mm)</label>
           <input type="number" id="customPanelHeight" step="0.1" placeholder="e.g., 500">
         </div>
       </div>
-      
+
       <div class="modal-input-group">
-        <label>Panel Depth (mm)</label>
+        <label id="labelPanelDepth">Panel Depth (mm)</label>
         <input type="number" id="customPanelDepth" step="0.1" placeholder="e.g., 90">
       </div>
       
@@ -2298,35 +2298,35 @@
       </div>
 
       <div class="modal-input-group">
-        <label>Panel Weight (kg)</label>
+        <label id="labelPanelWeight">Panel Weight (kg)</label>
         <input type="number" id="customPanelWeight" step="0.1" placeholder="e.g., 8.5">
       </div>
-      
+
       <div class="checkbox-group">
         <input type="checkbox" id="customPanelRemovableFrame" onchange="updateFrameWeightFields()">
         <label for="customPanelRemovableFrame">Has Removable Frame</label>
       </div>
-      
+
       <div id="frameWeightFields" style="display: none;">
         <div class="modal-input-row">
           <div class="modal-input-group">
-            <label>Frame Weight (kg)</label>
+            <label id="labelFrameWeight">Frame Weight (kg)</label>
             <input type="number" id="customPanelFrameWeight" step="0.1" placeholder="e.g., 1.2">
           </div>
           <div class="modal-input-group">
-            <label>Weight Without Frame (kg)</label>
+            <label id="labelWeightNoFrame">Weight Without Frame (kg)</label>
             <input type="number" id="customPanelWeightNoFrame" step="0.1" placeholder="e.g., 7.3">
           </div>
         </div>
       </div>
-      
+
       <div class="modal-input-row">
         <div class="modal-input-group">
-          <label>1W Bumper Weight (lbs)</label>
+          <label id="label1wBumper">1W Bumper Weight (lbs)</label>
           <input type="number" id="customPanel1wBumper" step="0.1" placeholder="e.g., 5.5">
         </div>
         <div class="modal-input-group">
-          <label>2W Bumper Weight (lbs)</label>
+          <label id="label2wBumper">2W Bumper Weight (lbs)</label>
           <input type="number" id="customPanel2wBumper" step="0.1" placeholder="e.g., 8.8">
         </div>
       </div>
@@ -3118,7 +3118,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.106';
+const APP_VERSION = '2.0.107';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -14423,16 +14423,51 @@ function setupLive(){
 function openCustomPanelModal(editKey = null) {
   const modal = document.getElementById('customPanelModal');
   const title = document.getElementById('customPanelModalTitle');
-  
+
+  // Update labels based on current unit system
+  const isMetric = displayLengthUnit === 'm';
+  const lengthUnit = isMetric ? 'mm' : 'in';
+  const weightUnit = isMetric ? 'kg' : 'lbs';
+
+  // Update dimension labels
+  document.getElementById('labelPixelPitch').textContent = 'Pixel Pitch (mm)'; // Always mm
+  document.getElementById('labelPanelWidth').textContent = `Panel Width (${lengthUnit})`;
+  document.getElementById('labelPanelHeight').textContent = `Panel Height (${lengthUnit})`;
+  document.getElementById('labelPanelDepth').textContent = `Panel Depth (${lengthUnit})`;
+
+  // Update weight labels
+  document.getElementById('labelPanelWeight').textContent = `Panel Weight (${weightUnit})`;
+  document.getElementById('labelFrameWeight').textContent = `Frame Weight (${weightUnit})`;
+  document.getElementById('labelWeightNoFrame').textContent = `Weight Without Frame (${weightUnit})`;
+  document.getElementById('label1wBumper').textContent = `1W Bumper Weight (${weightUnit})`;
+  document.getElementById('label2wBumper').textContent = `2W Bumper Weight (${weightUnit})`;
+
+  // Conversion constants
+  const MM_TO_IN = 0.0393701;
+  const IN_TO_MM = 25.4;
+
   if(editKey) {
     title.textContent = 'Edit Custom Panel';
     const panel = customPanels[editKey];
     document.getElementById('customPanelBrand').value = panel.brand || '';
     document.getElementById('customPanelName').value = panel.name || '';
     document.getElementById('customPanelPixelPitch').value = panel.pixel_pitch_mm || '';
-    document.getElementById('customPanelWidth').value = (panel.width_m * 1000) || '';
-    document.getElementById('customPanelHeight').value = (panel.height_m * 1000) || '';
-    document.getElementById('customPanelDepth').value = panel.depth_mm || '';
+
+    // Convert dimensions based on unit system (stored in mm internally)
+    const widthMm = (panel.width_m * 1000) || '';
+    const heightMm = (panel.height_m * 1000) || '';
+    const depthMm = panel.depth_mm || '';
+
+    if(isMetric) {
+      document.getElementById('customPanelWidth').value = widthMm;
+      document.getElementById('customPanelHeight').value = heightMm;
+      document.getElementById('customPanelDepth').value = depthMm;
+    } else {
+      document.getElementById('customPanelWidth').value = widthMm ? (widthMm * MM_TO_IN).toFixed(2) : '';
+      document.getElementById('customPanelHeight').value = heightMm ? (heightMm * MM_TO_IN).toFixed(2) : '';
+      document.getElementById('customPanelDepth').value = depthMm ? (depthMm * MM_TO_IN).toFixed(2) : '';
+    }
+
     document.getElementById('customPanelResX').value = panel.res_x || '';
     document.getElementById('customPanelResY').value = panel.res_y || '';
     document.getElementById('customPanelPowerMax').value = panel.power_max_w || '';
@@ -14440,13 +14475,26 @@ function openCustomPanelModal(editKey = null) {
     document.getElementById('customPanelBrightness').value = panel.brightness_nits || '';
     document.getElementById('customPanelMaxHanging').value = panel.max_hanging || '';
     document.getElementById('customPanelMaxStacking').value = panel.max_stacking || '';
-    document.getElementById('customPanelWeight').value = panel.weight_kg || '';
+
+    // Convert weights based on unit system (stored in kg internally, bumpers in lbs)
+    if(isMetric) {
+      document.getElementById('customPanelWeight').value = panel.weight_kg || '';
+      document.getElementById('customPanelFrameWeight').value = panel.frame_weight_kg || '';
+      document.getElementById('customPanelWeightNoFrame').value = panel.weight_no_frame_kg || '';
+      // Convert bumper weights from lbs to kg for display
+      document.getElementById('customPanel1wBumper').value = panel.bumper_1w_lbs ? (panel.bumper_1w_lbs * LBS_TO_KG).toFixed(2) : '';
+      document.getElementById('customPanel2wBumper').value = panel.bumper_2w_lbs ? (panel.bumper_2w_lbs * LBS_TO_KG).toFixed(2) : '';
+    } else {
+      // Convert kg to lbs for display
+      document.getElementById('customPanelWeight').value = panel.weight_kg ? (panel.weight_kg * KG_TO_LBS).toFixed(2) : '';
+      document.getElementById('customPanelFrameWeight').value = panel.frame_weight_kg ? (panel.frame_weight_kg * KG_TO_LBS).toFixed(2) : '';
+      document.getElementById('customPanelWeightNoFrame').value = panel.weight_no_frame_kg ? (panel.weight_no_frame_kg * KG_TO_LBS).toFixed(2) : '';
+      // Bumper weights already stored in lbs
+      document.getElementById('customPanel1wBumper').value = panel.bumper_1w_lbs || '';
+      document.getElementById('customPanel2wBumper').value = panel.bumper_2w_lbs || '';
+    }
+
     document.getElementById('customPanelRemovableFrame').checked = panel.removable_frame || false;
-    document.getElementById('customPanelFrameWeight').value = panel.frame_weight_kg || '';
-    document.getElementById('customPanelWeightNoFrame').value = panel.weight_no_frame_kg || '';
-    document.getElementById('customPanel1wBumper').value = panel.bumper_1w_lbs || '';
-    document.getElementById('customPanel2wBumper').value = panel.bumper_2w_lbs || '';
-    
     modal.dataset.editKey = editKey;
   } else {
     title.textContent = 'Add Custom Panel';
@@ -14470,10 +14518,10 @@ function openCustomPanelModal(editKey = null) {
     document.getElementById('customPanelWeightNoFrame').value = '';
     document.getElementById('customPanel1wBumper').value = '';
     document.getElementById('customPanel2wBumper').value = '';
-    
+
     delete modal.dataset.editKey;
   }
-  
+
   modal.classList.add('active');
   updateFrameWeightFields();
 }
@@ -14492,23 +14540,71 @@ function updateFrameWeightFields() {
 function saveCustomPanel() {
   const brand = document.getElementById('customPanelBrand').value.trim();
   const name = document.getElementById('customPanelName').value.trim();
-  
+
   if(!brand || !name) {
     alert('Please enter brand and name');
     return;
   }
-  
+
   const modal = document.getElementById('customPanelModal');
   const editKey = modal.dataset.editKey;
   const key = editKey || `CUSTOM_${brand.replace(/\s+/g, '_')}_${name.replace(/\s+/g, '_')}`;
-  
+
+  // Check current unit system for conversion
+  const isMetric = displayLengthUnit === 'm';
+  const IN_TO_MM = 25.4;
+
+  // Get raw input values
+  const widthInput = parseFloat(document.getElementById('customPanelWidth').value) || null;
+  const heightInput = parseFloat(document.getElementById('customPanelHeight').value) || null;
+  const depthInput = parseFloat(document.getElementById('customPanelDepth').value) || null;
+  const weightInput = parseFloat(document.getElementById('customPanelWeight').value) || null;
+  const frameWeightInput = parseFloat(document.getElementById('customPanelFrameWeight').value) || null;
+  const weightNoFrameInput = parseFloat(document.getElementById('customPanelWeightNoFrame').value) || null;
+  const bumper1wInput = parseFloat(document.getElementById('customPanel1wBumper').value) || null;
+  const bumper2wInput = parseFloat(document.getElementById('customPanel2wBumper').value) || null;
+
+  // Convert dimensions to mm (stored as meters for width/height)
+  let widthMm, heightMm, depthMm;
+  if(isMetric) {
+    // Input is in mm
+    widthMm = widthInput;
+    heightMm = heightInput;
+    depthMm = depthInput;
+  } else {
+    // Input is in inches, convert to mm
+    widthMm = widthInput ? widthInput * IN_TO_MM : null;
+    heightMm = heightInput ? heightInput * IN_TO_MM : null;
+    depthMm = depthInput ? depthInput * IN_TO_MM : null;
+  }
+
+  // Convert weights to kg (panel weights) and lbs (bumper weights)
+  let weightKg, frameWeightKg, weightNoFrameKg, bumper1wLbs, bumper2wLbs;
+  if(isMetric) {
+    // Input is in kg
+    weightKg = weightInput;
+    frameWeightKg = frameWeightInput;
+    weightNoFrameKg = weightNoFrameInput;
+    // Bumper input is in kg, convert to lbs for storage
+    bumper1wLbs = bumper1wInput ? bumper1wInput * KG_TO_LBS : null;
+    bumper2wLbs = bumper2wInput ? bumper2wInput * KG_TO_LBS : null;
+  } else {
+    // Input is in lbs, convert to kg for panel weights
+    weightKg = weightInput ? weightInput * LBS_TO_KG : null;
+    frameWeightKg = frameWeightInput ? frameWeightInput * LBS_TO_KG : null;
+    weightNoFrameKg = weightNoFrameInput ? weightNoFrameInput * LBS_TO_KG : null;
+    // Bumper weights stay in lbs
+    bumper1wLbs = bumper1wInput;
+    bumper2wLbs = bumper2wInput;
+  }
+
   const panel = {
     brand: brand,
     name: name,
     pixel_pitch_mm: parseFloat(document.getElementById('customPanelPixelPitch').value) || null,
-    width_m: parseFloat(document.getElementById('customPanelWidth').value) / 1000 || null,
-    height_m: parseFloat(document.getElementById('customPanelHeight').value) / 1000 || null,
-    depth_mm: parseFloat(document.getElementById('customPanelDepth').value) || null,
+    width_m: widthMm ? widthMm / 1000 : null,
+    height_m: heightMm ? heightMm / 1000 : null,
+    depth_mm: depthMm,
     res_x: parseInt(document.getElementById('customPanelResX').value) || null,
     res_y: parseInt(document.getElementById('customPanelResY').value) || null,
     power_max_w: parseFloat(document.getElementById('customPanelPowerMax').value) || null,
@@ -14516,26 +14612,26 @@ function saveCustomPanel() {
     brightness_nits: parseInt(document.getElementById('customPanelBrightness').value) || null,
     max_hanging: parseInt(document.getElementById('customPanelMaxHanging').value) || null,
     max_stacking: parseInt(document.getElementById('customPanelMaxStacking').value) || null,
-    weight_kg: parseFloat(document.getElementById('customPanelWeight').value) || null,
+    weight_kg: weightKg,
     removable_frame: document.getElementById('customPanelRemovableFrame').checked,
-    frame_weight_kg: parseFloat(document.getElementById('customPanelFrameWeight').value) || null,
-    weight_no_frame_kg: parseFloat(document.getElementById('customPanelWeightNoFrame').value) || null,
-    bumper_1w_lbs: parseFloat(document.getElementById('customPanel1wBumper').value) || null,
-    bumper_2w_lbs: parseFloat(document.getElementById('customPanel2wBumper').value) || null,
+    frame_weight_kg: frameWeightKg,
+    weight_no_frame_kg: weightNoFrameKg,
+    bumper_1w_lbs: bumper1wLbs,
+    bumper_2w_lbs: bumper2wLbs,
     bumper_4w_lbs: 66.15, // Default 4W bumper weight
     custom: true
   };
-  
+
   customPanels[key] = panel;
   saveCustomPanels();
   updatePanelDropdowns();
-  
+
   // Select the new/edited panel
   const panelSelect = document.getElementById('panelType');
   if(panelSelect) {
     panelSelect.value = key;
   }
-  
+
   closeCustomPanelModal();
   alert(`Custom panel "${brand} ${name}" saved successfully!`);
 }

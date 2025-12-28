@@ -3117,7 +3117,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.100';
+const APP_VERSION = '2.0.101';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -9057,17 +9057,32 @@ function drawAllBumpers(ctx, pw, ph, size, bumperHeight, fourWayHeight, fourWayG
     
     // Calculate weight at center point of this bumper
     const pickupWeight = calculateBumperPickupWeight(bumper);
-    
+
     // Draw label with weight
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 10px Arial';
-    ctx.fillText(label, x + width/2, y + height/2 - 6);
-    
-    // Draw weight below label using selected unit
-    ctx.font = '9px Arial';
-    const weightValue = displayWeightUnit === 'lbs' ? pickupWeight.lbs.toFixed(0) : pickupWeight.kg.toFixed(0);
-    const weightText = `${weightValue}${displayWeightUnit}`;
-    ctx.fillText(weightText, x + width/2, y + height/2 + 6);
+
+    // For small bumpers (especially 4W on mobile), only show weight
+    // Check if height is too small for both label and weight
+    const isMobile = window.innerWidth <= 768;
+    const isSmallBumper = height < 25;
+
+    if(isSmallBumper || (isMobile && bumper.type === '4w')) {
+      // Only show weight (centered)
+      ctx.font = 'bold 9px Arial';
+      const weightValue = displayWeightUnit === 'lbs' ? pickupWeight.lbs.toFixed(0) : pickupWeight.kg.toFixed(0);
+      const weightText = `${weightValue}${displayWeightUnit}`;
+      ctx.fillText(weightText, x + width/2, y + height/2);
+    } else {
+      // Show both label and weight
+      ctx.font = 'bold 10px Arial';
+      ctx.fillText(label, x + width/2, y + height/2 - 6);
+
+      // Draw weight below label using selected unit
+      ctx.font = '9px Arial';
+      const weightValue = displayWeightUnit === 'lbs' ? pickupWeight.lbs.toFixed(0) : pickupWeight.kg.toFixed(0);
+      const weightText = `${weightValue}${displayWeightUnit}`;
+      ctx.fillText(weightText, x + width/2, y + height/2 + 6);
+    }
   });
 }
 
@@ -16965,7 +16980,8 @@ function setupMobileLongPress() {
     console.log('Standard canvas long-press enabled');
   }
 
-  // Structure Canvas - long press for bumper context menu
+  // Structure Canvas - long press for empty area context menu (to add bumpers)
+  // Note: Bumper tap/drag is handled by setupBumperTouchDrag()
   const structureCanvas = document.getElementById('structureCanvas');
   if(structureCanvas) {
     structureCanvas.addEventListener('touchstart', function(e) {
@@ -16974,6 +16990,13 @@ function setupMobileLongPress() {
       longPressTriggered = false;
       longPressTouchStart.x = e.touches[0].clientX;
       longPressTouchStart.y = e.touches[0].clientY;
+
+      // Check if touching a bumper - if so, let setupBumperTouchDrag handle it
+      const bumper = getBumperAtMouse(structureCanvas, longPressTouchStart.x, longPressTouchStart.y);
+      if(bumper && manualBumperMode) {
+        // Bumper touch is handled by setupBumperTouchDrag
+        return;
+      }
 
       longPressTimer = setTimeout(() => {
         longPressTriggered = true;
@@ -16984,38 +17007,24 @@ function setupMobileLongPress() {
           toggleManualBumperMode();
         }
 
-        // Get bumper at touch position
-        const bumper = getBumperAtMouse(structureCanvas, longPressTouchStart.x, longPressTouchStart.y);
-        if(bumper) {
-          // Select the bumper
-          if(!selectedBumpers.has(bumper.id)) {
-            selectedBumpers.clear();
-            selectedBumpers.add(bumper.id);
-            updateStructureSelectionInfo();
-            generateStructureLayout();
-          }
-          // Show bumper context menu
-          showBumperContextMenu(bumper, longPressTouchStart.x, longPressTouchStart.y);
-        } else {
-          // Check if in bumper area for adding
-          const rect = structureCanvas.getBoundingClientRect();
-          const y = (longPressTouchStart.y - rect.top) * (structureCanvas.height / rect.height);
-          const x = (longPressTouchStart.x - rect.left) * (structureCanvas.width / rect.width);
+        // Check if in bumper area for adding (empty space, not on a bumper)
+        const rect = structureCanvas.getBoundingClientRect();
+        const y = (longPressTouchStart.y - rect.top) * (structureCanvas.height / rect.height);
+        const x = (longPressTouchStart.x - rect.left) * (structureCanvas.width / rect.width);
 
-          const pw = parseInt(document.getElementById('panelsWide').value) || 0;
-          const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
-          const size = panelSize; // Use global panelSize for consistent sizing
-          const bumperHeight = Math.max(30, size * 0.8);
+        const pw = parseInt(document.getElementById('panelsWide').value) || 0;
+        const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
+        const size = panelSize; // Use global panelSize for consistent sizing
+        const bumperHeight = Math.max(30, size * 0.8);
 
-          const column = Math.floor(x / size);
+        const column = Math.floor(x / size);
 
-          if(showTopBumper && y < bumperHeight && column >= 0 && column < pw) {
-            showEmptyAreaContextMenu('top', column, longPressTouchStart.x, longPressTouchStart.y);
-          } else if(showBottomBumper) {
-            const bottomStart = (showTopBumper ? bumperHeight : 0) + (ph * size);
-            if(y >= bottomStart && column >= 0 && column < pw) {
-              showEmptyAreaContextMenu('bottom', column, longPressTouchStart.x, longPressTouchStart.y);
-            }
+        if(showTopBumper && y < bumperHeight && column >= 0 && column < pw) {
+          showEmptyAreaContextMenu('top', column, longPressTouchStart.x, longPressTouchStart.y);
+        } else if(showBottomBumper) {
+          const bottomStart = (showTopBumper ? bumperHeight : 0) + (ph * size);
+          if(y >= bottomStart && column >= 0 && column < pw) {
+            showEmptyAreaContextMenu('bottom', column, longPressTouchStart.x, longPressTouchStart.y);
           }
         }
       }, 600);
@@ -17051,6 +17060,7 @@ function setupMobileLongPress() {
 }
 
 // Touch drag support for bumpers in structure layout manual mode
+// Behavior: TAP = show context menu, HOLD then drag = move bumper
 function setupBumperTouchDrag() {
   const canvas = document.getElementById('structureCanvas');
   if(!canvas || canvas._bumperTouchSetup) return;
@@ -17062,6 +17072,9 @@ function setupBumperTouchDrag() {
   let touchStartX = 0;
   let touchStartY = 0;
   let isTouchDragging = false;
+  let isDragEnabled = false; // Only allow drag after hold delay
+  let holdTimer = null;
+  let touchedBumper = null;
 
   canvas.addEventListener('touchstart', function(e) {
     if(e.touches.length !== 1) return;
@@ -17073,95 +17086,130 @@ function setupBumperTouchDrag() {
 
     // Check if touching a bumper
     const bumper = getBumperAtMouse(canvas, touch.clientX, touch.clientY);
+    touchedBumper = bumper;
+
     if(bumper) {
       // Select the bumper
       if(!selectedBumpers.has(bumper.id)) {
         selectedBumpers.clear();
         selectedBumpers.add(bumper.id);
         updateStructureSelectionInfo();
+        generateStructureLayout();
       }
 
-      // Prepare for potential drag
-      touchDragBumper = bumper;
-      touchDragStartCol = bumper.startCol;
+      // Start hold timer - after 300ms, enable dragging
+      holdTimer = setTimeout(() => {
+        isDragEnabled = true;
+        vibrate(30); // Haptic feedback to indicate drag mode enabled
 
-      // Calculate drag offset
-      const rect = canvas.getBoundingClientRect();
-      const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
-      touchDragOffsetX = touchX - (bumper.startCol * panelSize);
+        // Prepare for drag
+        touchDragBumper = bumper;
+        touchDragStartCol = bumper.startCol;
 
-      generateStructureLayout();
+        // Calculate drag offset
+        const rect = canvas.getBoundingClientRect();
+        const touchX = (touchStartX - rect.left) * (canvas.width / rect.width);
+        touchDragOffsetX = touchX - (bumper.startCol * panelSize);
+      }, 300);
     }
   }, {passive: true});
 
   canvas.addEventListener('touchmove', function(e) {
-    if(!touchDragBumper || !manualBumperMode) return;
+    if(!manualBumperMode) return;
     if(e.touches.length !== 1) return;
 
     const touch = e.touches[0];
     const dx = Math.abs(touch.clientX - touchStartX);
     const dy = Math.abs(touch.clientY - touchStartY);
 
-    // Start dragging after moving a bit
-    if(dx > 10 || dy > 10) {
-      isTouchDragging = true;
-      e.preventDefault();
-
-      // Cancel long press if active
+    // If moved before hold timer, cancel the hold (this was a scroll/swipe)
+    if(!isDragEnabled && (dx > 10 || dy > 10)) {
+      if(holdTimer) {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+      // Cancel long press timer too
       if(longPressTimer) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
       }
+      return;
+    }
 
-      const rect = canvas.getBoundingClientRect();
-      const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+    // Only drag if hold delay passed and we have a bumper
+    if(!isDragEnabled || !touchDragBumper) return;
 
-      const newCol = Math.floor((touchX - touchDragOffsetX) / panelSize);
-      const pw = parseInt(document.getElementById('panelsWide').value) || 0;
+    isTouchDragging = true;
+    e.preventDefault();
 
-      // Constrain to valid columns
-      if(newCol >= 0 && newCol < pw) {
-        const bumperWidth = touchDragBumper.endCol - touchDragBumper.startCol;
-        const maxStartCol = Math.max(0, pw - 1 - bumperWidth);
-        const constrainedCol = Math.max(0, Math.min(newCol, maxStartCol));
+    const rect = canvas.getBoundingClientRect();
+    const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
 
-        if(constrainedCol !== touchDragBumper.startCol) {
-          const colDelta = constrainedCol - touchDragBumper.startCol;
-          touchDragBumper.startCol = constrainedCol;
-          touchDragBumper.endCol = touchDragBumper.endCol + colDelta;
+    const newCol = Math.floor((touchX - touchDragOffsetX) / panelSize);
+    const pw = parseInt(document.getElementById('panelsWide').value) || 0;
 
-          generateStructureLayout();
-        }
+    // Constrain to valid columns
+    if(newCol >= 0 && newCol < pw) {
+      const bumperWidth = touchDragBumper.endCol - touchDragBumper.startCol;
+      const maxStartCol = Math.max(0, pw - 1 - bumperWidth);
+      const constrainedCol = Math.max(0, Math.min(newCol, maxStartCol));
+
+      if(constrainedCol !== touchDragBumper.startCol) {
+        const colDelta = constrainedCol - touchDragBumper.startCol;
+        touchDragBumper.startCol = constrainedCol;
+        touchDragBumper.endCol = touchDragBumper.endCol + colDelta;
+
+        generateStructureLayout();
       }
     }
   }, {passive: false});
 
   canvas.addEventListener('touchend', function(e) {
-    if(touchDragBumper && manualBumperMode) {
-      // Check if bumper was actually moved
-      if(isTouchDragging && touchDragStartCol !== -1 && touchDragStartCol !== touchDragBumper.startCol) {
-        saveStructureState();
-        vibrate(30);
-      }
-
-      // Update weight and calculations
-      updateWeightDisplay();
-      calculate();
-      updateStructureUndoRedoButtons();
+    // Cancel hold timer
+    if(holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
     }
 
+    if(manualBumperMode) {
+      if(isTouchDragging && touchDragBumper) {
+        // Bumper was dragged - save state if moved
+        if(touchDragStartCol !== -1 && touchDragStartCol !== touchDragBumper.startCol) {
+          saveStructureState();
+          vibrate(30);
+        }
+        // Update weight and calculations
+        updateWeightDisplay();
+        calculate();
+        updateStructureUndoRedoButtons();
+      } else if(!isDragEnabled && touchedBumper) {
+        // Quick tap (no drag) - show context menu
+        vibrate(20);
+        showBumperContextMenu(touchedBumper, touchStartX, touchStartY);
+      }
+    }
+
+    // Reset all state
     touchDragBumper = null;
     touchDragStartCol = -1;
     isTouchDragging = false;
+    isDragEnabled = false;
+    touchedBumper = null;
   });
 
   canvas.addEventListener('touchcancel', function(e) {
+    if(holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
     touchDragBumper = null;
     touchDragStartCol = -1;
     isTouchDragging = false;
+    isDragEnabled = false;
+    touchedBumper = null;
   });
 
-  console.log('Bumper touch drag enabled');
+  console.log('Bumper touch drag enabled (tap=menu, hold+drag=move)');
 }
 
 // Haptic feedback helper

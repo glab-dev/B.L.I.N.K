@@ -2467,17 +2467,18 @@
         <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save Configuration</button>
         <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load Configuration</button>
         <input type="file" id="loadConfigInput" accept=".ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
-        <button id="btnExportPDF" class="mobile-menu-btn" onclick="closeMobileMenu();">Export PDF</button>
+        <button id="btnExportPDF" class="mobile-menu-btn" style="color: #9b59b6;" onclick="closeMobileMenu();">Export PDF</button>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Custom Items</div>
         <button class="mobile-menu-btn" onclick="openCustomPanelModal(); closeMobileMenu();">Add Custom Panel</button>
         <button class="mobile-menu-btn" onclick="openCustomProcessorModal(); closeMobileMenu();">Add Custom Processor<br><span style="color: #ff4444; font-size: 11px; font-weight: normal;">(in development)</span></button>
-        <button class="mobile-menu-btn" onclick="openManageCustomModal(); closeMobileMenu();">Manage Custom Items</button>
+        <button class="mobile-menu-btn" style="color: #9b59b6;" onclick="openManageCustomModal(); closeMobileMenu();">Manage Custom Items</button>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">App Info</div>
         <div class="mobile-menu-info">A professional LED wall calculator for planning LED video wall installations. Calculate equipment needs, visualize layouts, generate gear lists, and export detailed PDF reports.</div>
+        <div class="mobile-menu-info" style="color: #ff4444; font-size: 10px;">The calculations provided by this app are approximations intended for planning and estimation purposes only. They do not constitute professional structural analysis or engineering certification. Users are responsible for verifying all specifications and consulting qualified professionals before implementation. The developer assumes no liability for any damages, injuries, or losses arising from the use of this application.</div>
         <div class="mobile-menu-info">© 2025 Gabriel Labrecque<br>Fearless Wanderer Productions</div>
         <button class="mobile-menu-btn install-btn" id="installPwaBtn" style="display: none;" onclick="installPwa()">📲 Install App</button>
       </div>

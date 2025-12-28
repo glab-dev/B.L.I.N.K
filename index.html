@@ -3117,7 +3117,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.101';
+const APP_VERSION = '2.0.102';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -4581,13 +4581,6 @@ function showBumperContextMenu(bumper, x, y) {
     options.push({
       label: `Replace with 2W Bumper`,
       action: () => replaceBumperType(bumper.id, '2w')
-    });
-  }
-  
-  if(bumper.type !== '4w') {
-    options.push({
-      label: `Move Bumper...`,
-      action: () => startMovingBumper(bumper.id)
     });
   }
   

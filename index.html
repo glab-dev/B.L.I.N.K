@@ -2477,7 +2477,7 @@
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label" style="color: var(--accent-color);">App Info</div>
-        <div class="mobile-menu-info">A professional LED wall calculator for planning LED video wall installations. Calculate equipment needs, visualize layouts, generate gear lists, and export detailed PDF reports.</div>
+        <div class="mobile-menu-info">An LED wall calculator for planning LED video wall installations. Calculate equipment needs, visualize layouts, generate gear lists, and export detailed PDF reports.</div>
         <div class="mobile-menu-info" style="color: #d47a7a; font-size: 10px;">The calculations provided by this app are approximations intended for planning and estimation purposes only. They do not constitute professional structural analysis or engineering certification. Users are responsible for verifying all specifications and consulting qualified professionals before implementation. The developer assumes no liability for any damages, injuries, or losses arising from the use of this application.</div>
         <div class="mobile-menu-info">© 2025 Gabriel Labrecque<br>Fearless Wanderer Productions</div>
         <button class="mobile-menu-btn install-btn" id="installPwaBtn" style="display: none;" onclick="installPwa()">📲 Install App</button>
@@ -2738,13 +2738,13 @@
             </label>
           </div>
 
-          <!-- CVT Box Toggle (MX40 Pro only) -->
-          <div id="cvtBoxToggleRow" style="display: none; margin-bottom: 8px;">
-            <label class="toggle-switch-label" style="display: flex; align-items: center; gap: 8px;">
-              <input type="checkbox" id="cvtBoxEnabled" onchange="calculate()">
-              <span class="toggle-switch"></span>
-              <span>CVT Box</span>
-            </label>
+          <!-- Direct/Indirect Mode Toggle (MX40 Pro only) -->
+          <div id="mx40ModeToggleRow" style="display: none; margin-bottom: 8px;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Connection Mode</span>
+            <div class="slider-toggle" style="display: inline-flex;">
+              <button type="button" class="slider-toggle-btn active" id="mx40DirectBtn" onclick="setMX40Mode('direct')" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Direct</button>
+              <button type="button" class="slider-toggle-btn" id="mx40IndirectBtn" onclick="setMX40Mode('indirect')" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Indirect</button>
+            </div>
           </div>
 
           <!-- Row 2: Frame Rate, Bit Depth, Max/Data -->
@@ -3127,7 +3127,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.113';
+const APP_VERSION = '2.0.115';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3368,6 +3368,16 @@ function setPowerType(type) {
   document.getElementById('powerType').value = type;
   document.getElementById('powerMaxBtn').classList.toggle('active', type === 'max');
   document.getElementById('powerAvgBtn').classList.toggle('active', type === 'avg');
+  calculate();
+}
+
+// MX40 Pro connection mode toggle (Direct/Indirect)
+let mx40ConnectionMode = 'direct'; // Global state for MX40 mode
+
+function setMX40Mode(mode) {
+  mx40ConnectionMode = mode;
+  document.getElementById('mx40DirectBtn').classList.toggle('active', mode === 'direct');
+  document.getElementById('mx40IndirectBtn').classList.toggle('active', mode === 'indirect');
   calculate();
 }
 
@@ -3773,7 +3783,7 @@ const processors = {
   "Brompton_S4": {name:"Brompton S4", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, total_pixels:2070000, outputs:"4 × 1G"},
   "Brompton_T1": {name:"Brompton T1", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, total_pixels:525000, outputs:"1 × 1G"},
   "Brompton_SQ200": {name:"Brompton SQ200", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, total_pixels:36000000, outputs:"Dual 100G QSFP28"},
-  "NovaStar_MX40_Pro": {name:"NovaStar MX40 Pro (in development)", base_pixels_1g:650000, base_framerate:60, base_bitdepth:8, total_pixels:9000000, outputs:"20 × 1G + 4 × 10G", in_development:true},
+  "NovaStar_MX40_Pro": {name:"NovaStar MX40 Pro (in development)", base_pixels_1g:659722, base_framerate:60, base_bitdepth:8, total_pixels:9000000, outputs:"20 × 1G + 4 × 10G", in_development:true, pixels_1g_by_bitdepth:{8:659722, 10:494792, 12:329861}, ports_1g:20, ports_10g:4},
   "Megapixel_HELIOS": {name:"Megapixel HELIOS (in development)", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, pixels_per_10g:5000000, total_pixels:40000000, outputs:"8 × 10G SFP+", in_development:true},
   "ROE_eV4": {name:"ROE Visual eV4 (in development)", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, pixels_per_10g:4000000, total_pixels:16000000, outputs:"4 × 10G fiber (via eVX10)", in_development:true}
 };
@@ -4028,7 +4038,18 @@ const bumperWeights = {
 };
 
 function calculateAdjustedPixelCapacity(processor, frameRate, bitDepth){
-  const baseCapacity = processor.base_pixels_1g || 525000;
+  // Check if processor has bit-depth specific capacity values (e.g., MX40 Pro)
+  let baseCapacity;
+  if(processor.pixels_1g_by_bitdepth && processor.pixels_1g_by_bitdepth[bitDepth]) {
+    // Use exact capacity for this bit depth (already accounts for bit depth)
+    baseCapacity = processor.pixels_1g_by_bitdepth[bitDepth];
+    const baseFR = processor.base_framerate || 60;
+    const frameRateScale = baseFR / frameRate;
+    return Math.floor(baseCapacity * frameRateScale);
+  }
+
+  // Standard calculation for other processors
+  baseCapacity = processor.base_pixels_1g || 525000;
   const baseFR = processor.base_framerate || 60;
   const frameRateScale = baseFR / frameRate;
   let bitDepthScale = 1.0;
@@ -5990,9 +6011,12 @@ function calculate(){
     distributionCount = redundancy ? baseDistributionCount * 2 : baseDistributionCount;
     distributionBoxName = 'Brompton XD';
   } else if(processorId === 'NovaStar_MX40_Pro' && portsNeeded > 0) {
-    const baseDistributionCount = Math.ceil(portsNeeded / 10);
-    distributionCount = redundancy ? baseDistributionCount * 2 : baseDistributionCount;
-    distributionBoxName = 'NovaStar CVT-10 Pro';
+    // Indirect mode uses CVT boxes, Direct mode does not
+    if(mx40ConnectionMode === 'indirect') {
+      const baseDistributionCount = Math.ceil(portsNeeded / 10);
+      distributionCount = redundancy ? baseDistributionCount * 2 : baseDistributionCount;
+      distributionBoxName = 'NovaStar CVT-10 Pro';
+    }
   } else if(pr.uses_distribution_box && pr.distribution_box_name && portsNeeded > 0) {
     // Custom processor with distribution box
     const portsPerBox = pr.distribution_box_ports || 10;
@@ -6193,6 +6217,7 @@ function calculate(){
       portsNeeded: portsNeeded,
       portsNeededFinal: portsNeededFinal,
       panelsPerDataLine: panelsPerDataLine,
+      totalPixels: totalPixels,
 
       // Power
       circuitsNeeded: circuitsByColumns,
@@ -12495,30 +12520,40 @@ function exportPDF(){
       const dataLines = calcData.dataLines || 0;
       const hasRedundancy = screen.data.redundancy || false;
       const hasProcessorRedundancy = screen.data.processorRedundancy || false;
-      
+      const isIndirectMode = screen.data.mx40ConnectionMode === 'indirect';
+
       if(!processorGroups[processorType]) {
         processorGroups[processorType] = {
           screens: [],
           totalMainPorts: 0,
+          totalPixels: 0,
           hasAnyRedundancy: false,
           hasAnyProcessorRedundancy: false,
+          hasAnyIndirectMode: false,
           firstScreenId: screenId,
           firstScreenName: screen.name
         };
       }
-      
+
+      const screenPixels = calcData.totalPixels || 0;
+
       processorGroups[processorType].screens.push({
         screenId: screenId,
         screenName: screen.name,
         mainPorts: dataLines,
-        hasRedundancy: hasRedundancy
+        hasRedundancy: hasRedundancy,
+        totalPixels: screenPixels
       });
       processorGroups[processorType].totalMainPorts += dataLines;
+      processorGroups[processorType].totalPixels += screenPixels;
       if(hasRedundancy) {
         processorGroups[processorType].hasAnyRedundancy = true;
       }
       if(hasProcessorRedundancy) {
         processorGroups[processorType].hasAnyProcessorRedundancy = true;
+      }
+      if(isIndirectMode) {
+        processorGroups[processorType].hasAnyIndirectMode = true;
       }
     });
     
@@ -12560,11 +12595,15 @@ function exportPDF(){
         processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 4) : 0;
         distBoxCount = 0;
       } else if(processorType === 'NovaStar_MX40_Pro') {
-        // MX40 Pro: 20 ports per processor, uses CVT distribution
-        const mainCVTs = totalMainPorts > 0 ? Math.ceil(totalMainPorts / 10) : 0;
-        distBoxCount = hasRedundancy ? mainCVTs * 2 : mainCVTs;
-        processorCount = distBoxCount > 0 ? Math.ceil(distBoxCount / 2) : 0;
-        distBoxName = 'CVT-10 Pro';
+        // MX40 Pro: Processor count based on total pixels (9M capacity)
+        // CVT-10 Pro: 10 ports per box (only in Indirect mode)
+        const groupTotalPixels = group.totalPixels || 0;
+        processorCount = groupTotalPixels > 0 ? Math.ceil(groupTotalPixels / 9000000) : 0;
+        if(group.hasAnyIndirectMode) {
+          const mainCVTs = totalMainPorts > 0 ? Math.ceil(totalMainPorts / 10) : 0;
+          distBoxCount = hasRedundancy ? mainCVTs * 2 : mainCVTs;
+          distBoxName = 'CVT-10 Pro';
+        }
       } else {
         // Default/custom processor - use per-screen calculation
         const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
@@ -15798,20 +15837,20 @@ document.addEventListener('DOMContentLoaded', function() {
             this.value = options[0].value;
           }
         }
-        // Show/hide CVT toggle for MX40 Pro
-        updateCvtToggleVisibility();
+        // Show/hide MX40 mode toggle for MX40 Pro
+        updateMX40ModeToggleVisibility();
       });
       // Initial check on page load
-      updateCvtToggleVisibility();
+      updateMX40ModeToggleVisibility();
     }
 
-// Show/hide CVT toggle based on processor selection
-function updateCvtToggleVisibility() {
+// Show/hide MX40 mode toggle based on processor selection
+function updateMX40ModeToggleVisibility() {
   const processorSelect = document.getElementById('processor');
-  const cvtToggleRow = document.getElementById('cvtBoxToggleRow');
-  if(processorSelect && cvtToggleRow) {
+  const mx40ModeToggleRow = document.getElementById('mx40ModeToggleRow');
+  if(processorSelect && mx40ModeToggleRow) {
     const isMX40Pro = processorSelect.value === 'NovaStar_MX40_Pro';
-    cvtToggleRow.style.display = isMX40Pro ? 'block' : 'none';
+    mx40ModeToggleRow.style.display = isMX40Pro ? 'block' : 'none';
   }
 }
     
@@ -16146,7 +16185,8 @@ function saveCurrentScreenData() {
   data.showArrows = showArrowsEnabled;
   data.redundancy = redundancyEnabled;
   data.processorRedundancy = processorRedundancyEnabled;
-  
+  data.mx40ConnectionMode = mx40ConnectionMode;
+
   // Structure
   data.structureType = document.getElementById('structureType').value;
   data.useBumpers = useBumpers; // Save bumper toggle state
@@ -16274,7 +16314,16 @@ function loadScreenData(screenId) {
   if(processorRedundancyBtn) {
     processorRedundancyBtn.classList.toggle('active', processorRedundancyEnabled);
   }
-  
+
+  // Restore MX40 connection mode toggle state
+  mx40ConnectionMode = data.mx40ConnectionMode || 'direct';
+  const mx40DirectBtn = document.getElementById('mx40DirectBtn');
+  const mx40IndirectBtn = document.getElementById('mx40IndirectBtn');
+  if(mx40DirectBtn && mx40IndirectBtn) {
+    mx40DirectBtn.classList.toggle('active', mx40ConnectionMode === 'direct');
+    mx40IndirectBtn.classList.toggle('active', mx40ConnectionMode === 'indirect');
+  }
+
   // Update show arrows button visual state
   const showArrowsBtn = document.getElementById('showArrowsBtn');
   if(showArrowsBtn) {

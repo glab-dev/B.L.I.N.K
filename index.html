@@ -3127,7 +3127,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.126';
+const APP_VERSION = '2.0.128';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -12569,57 +12569,6 @@ function initCanvasTouchPanZoom() {
   wrapper.addEventListener('touchcancel', function(e) {
     isTouchPanning = false;
     initialPinchDistance = 0;
-  });
-
-  // ===== MIDDLE MOUSE BUTTON PAN (Desktop) =====
-  let isMiddleMousePanning = false;
-  let middlePanStartX = 0;
-  let middlePanStartY = 0;
-  let middlePanStartPanX = 0;
-  let middlePanStartPanY = 0;
-
-  wrapper.addEventListener('mousedown', function(e) {
-    // Middle mouse button (button === 1)
-    if(e.button === 1) {
-      e.preventDefault();
-      isMiddleMousePanning = true;
-      middlePanStartX = e.clientX;
-      middlePanStartY = e.clientY;
-      middlePanStartPanX = canvasPanX;
-      middlePanStartPanY = canvasPanY;
-      wrapper.style.cursor = 'grabbing';
-    }
-  });
-
-  wrapper.addEventListener('mousemove', function(e) {
-    if(isMiddleMousePanning) {
-      e.preventDefault();
-      canvasPanX = middlePanStartPanX + (e.clientX - middlePanStartX);
-      canvasPanY = middlePanStartPanY + (e.clientY - middlePanStartY);
-      constrainCanvasPan();
-      updateCanvasViewport();
-    }
-  });
-
-  wrapper.addEventListener('mouseup', function(e) {
-    if(e.button === 1 && isMiddleMousePanning) {
-      isMiddleMousePanning = false;
-      wrapper.style.cursor = '';
-    }
-  });
-
-  wrapper.addEventListener('mouseleave', function(e) {
-    if(isMiddleMousePanning) {
-      isMiddleMousePanning = false;
-      wrapper.style.cursor = '';
-    }
-  });
-
-  // Prevent default middle-click behavior (auto-scroll)
-  wrapper.addEventListener('auxclick', function(e) {
-    if(e.button === 1) {
-      e.preventDefault();
-    }
   });
 }
 

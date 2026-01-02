@@ -3151,7 +3151,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.132';
+const APP_VERSION = '2.0.133';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3434,8 +3434,29 @@ function applyAspectRatioFromWidth() {
     const totalPixelsWide = pw * p.res_x;
     // Calculate pixels high for target aspect ratio
     const targetPixelsHigh = totalPixelsWide / aspectRatio;
-    // Convert to panels - use floor to get closest without exceeding aspect ratio
-    const ph = Math.max(1, Math.round(targetPixelsHigh / p.res_y));
+
+    // Try floor, round, ceil and find the height that maps back to this width
+    const phFloor = Math.max(1, Math.floor(targetPixelsHigh / p.res_y));
+    const phRound = Math.max(1, Math.round(targetPixelsHigh / p.res_y));
+    const phCeil = Math.max(1, Math.ceil(targetPixelsHigh / p.res_y));
+
+    // For each candidate height, calculate what width it would produce
+    const pwFromFloor = Math.max(1, Math.round((phFloor * p.res_y * aspectRatio) / p.res_x));
+    const pwFromRound = Math.max(1, Math.round((phRound * p.res_y * aspectRatio) / p.res_x));
+    const pwFromCeil = Math.max(1, Math.round((phCeil * p.res_y * aspectRatio) / p.res_x));
+
+    // Pick the height that gives us back the same width (prefer round, then floor, then ceil)
+    let ph;
+    if(pwFromRound === pw) {
+      ph = phRound;
+    } else if(pwFromFloor === pw) {
+      ph = phFloor;
+    } else if(pwFromCeil === pw) {
+      ph = phCeil;
+    } else {
+      // None match exactly, use rounded
+      ph = phRound;
+    }
 
     document.getElementById('panelsHigh').value = ph;
     syncFromPanels();

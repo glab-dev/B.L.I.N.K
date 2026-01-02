@@ -3137,7 +3137,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.148';
+const APP_VERSION = '2.0.150';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3885,7 +3885,7 @@ const processors = {
   "Brompton_S4": {name:"Brompton S4", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, total_pixels:2070000, outputs:"4 × 1G"},
   "Brompton_T1": {name:"Brompton T1", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, total_pixels:525000, outputs:"1 × 1G"},
   "Brompton_SQ200": {name:"Brompton SQ200", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, total_pixels:36000000, outputs:"Dual 100G QSFP28"},
-  "NovaStar_MX40_Pro": {name:"NovaStar MX40 Pro (in development)", base_pixels_1g:659722, base_framerate:60, base_bitdepth:8, total_pixels:9000000, outputs:"20 × 1G + 4 × 10G", in_development:true, pixels_1g_by_bitdepth:{8:659722, 10:494792, 12:329861}, ports_1g:20, ports_10g:4},
+  "NovaStar_MX40_Pro": {name:"NovaStar MX40 Pro", base_pixels_1g:659722, base_framerate:60, base_bitdepth:8, total_pixels:9000000, outputs:"20 × 1G + 4 × 10G", pixels_1g_by_bitdepth:{8:659722, 10:494792, 12:329861}, ports_1g:20, ports_10g:4},
 };
 
 // ==================== CUSTOM PANELS AND PROCESSORS SYSTEM v24 ====================
@@ -6047,7 +6047,11 @@ function calculate(){
   } else {
     capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
   }
-  
+
+  // Cap at 500 panels per port (Brompton Tessera hardware limit)
+  const MAX_PANELS_PER_PORT = 500;
+  capacityBasedPanelsPerData = Math.min(capacityBasedPanelsPerData, MAX_PANELS_PER_PORT);
+
   // Use the panel-specific limit if available, otherwise use capacity-based calculation
   // The auto value is the MINIMUM of capacity-based calculation and panel-specific limit
   // Apply panel's max_panels_per_data limit even when mixing with half panels
@@ -6975,7 +6979,11 @@ function generateLayout(mode){
   } else {
     capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
   }
-  
+
+  // Cap at 500 panels per port (Brompton Tessera hardware limit)
+  const MAX_PANELS_PER_PORT = 500;
+  capacityBasedPanelsPerData = Math.min(capacityBasedPanelsPerData, MAX_PANELS_PER_PORT);
+
   // Apply panel-specific max_panels_per_data limit (same logic as calculate())
   // Apply panel's max_panels_per_data limit even when mixing with half panels
   const panelSpecificDataLimit = p.max_panels_per_data || null;
@@ -10770,6 +10778,10 @@ function updateSuggestedDataLimit(){
     capacityBasedLimit = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
   }
 
+  // Cap at 500 panels per port (Brompton Tessera hardware limit)
+  const MAX_PANELS_PER_PORT = 500;
+  capacityBasedLimit = Math.min(capacityBasedLimit, MAX_PANELS_PER_PORT);
+
   // Use the panel-specific limit if available, otherwise use capacity-based calculation
   // Apply panel's max_panels_per_data limit even when mixing with half panels
   const panelSpecificLimit = p.max_panels_per_data || null;
@@ -13247,7 +13259,9 @@ function exportPDF(){
         if(bitDepth > 8) adjustedCapacity = Math.floor(adjustedCapacity * (8 / bitDepth));
 
         const pixelsPerPanel = p ? (p.res_x * p.res_y) : 1;
-        const capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
+        let capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
+        // Cap at 500 panels per port (Brompton Tessera hardware limit)
+        capacityBasedPanelsPerData = Math.min(capacityBasedPanelsPerData, 500);
         const panelSpecificDataLimit = p ? p.max_panels_per_data : null;
         const suggestedPanelsPerData = panelSpecificDataLimit
           ? Math.min(capacityBasedPanelsPerData, panelSpecificDataLimit)
@@ -14062,9 +14076,11 @@ function exportPDF(){
           
           // Calculate panels per data line
           const pixelsPerPanel = p ? (p.res_x * p.res_y) : 1;
-          const capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
+          let capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
+          // Cap at 500 panels per port (Brompton Tessera hardware limit)
+          capacityBasedPanelsPerData = Math.min(capacityBasedPanelsPerData, 500);
           const panelSpecificDataLimit = p ? p.max_panels_per_data : null;
-          const suggestedPanelsPerData = panelSpecificDataLimit 
+          const suggestedPanelsPerData = panelSpecificDataLimit
             ? Math.min(capacityBasedPanelsPerData, panelSpecificDataLimit)
             : capacityBasedPanelsPerData;
           const userMaxPanelsPerData = parseInt(data.maxPanelsPerData) || 0;

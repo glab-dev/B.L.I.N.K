@@ -3127,7 +3127,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.116';
+const APP_VERSION = '2.0.117';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -12850,9 +12850,7 @@ function exportPDF(){
           if(currentAppMode === 'complex') {
             // Complex mode: show all data specs
             let processorName = pr.name || data.processor;
-            if(pr.in_development) {
-              processorName = processorName.replace(' (in development)', '') + ' <span style="color: #d47a7a;">(in development)</span>';
-            }
+            // For PDF, just use plain text without HTML tags
             addSpecLine('Processor:', processorName);
             const dataLines = calcData.dataLines || 0;
             const portsNeeded = calcData.portsNeededFinal || calcData.portsNeeded || 0;

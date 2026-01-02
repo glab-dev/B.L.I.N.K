@@ -3127,7 +3127,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.117';
+const APP_VERSION = '2.0.118';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -10994,6 +10994,12 @@ function showCanvasView(){
     ctx.fillText(logoText, logoTextX, logoTextY);
   });
 
+  // Draw canvas boundary border (so users can see canvas edges when zoomed)
+  ctx.strokeStyle = '#666666';
+  ctx.lineWidth = 4;
+  ctx.setLineDash([]);
+  ctx.strokeRect(2, 2, canvasResX - 4, canvasResY - 4);
+
   // Update info display
   let totalWalls = 0;
   let totalPanels = 0;
@@ -12413,6 +12419,145 @@ function initCanvasPanning() {
       isPanningCanvas = false;
       viewport.style.cursor = 'grab';
     }
+  });
+}
+
+// Touch panning and pinch-to-zoom for mobile
+function initCanvasTouchPanZoom() {
+  const wrapper = document.getElementById('canvasViewWrapper');
+  const viewport = document.getElementById('canvasViewport');
+  if(!wrapper || !viewport) return;
+
+  let touchPanStartX = 0;
+  let touchPanStartY = 0;
+  let touchPanStartPanX = 0;
+  let touchPanStartPanY = 0;
+  let isTouchPanning = false;
+  let initialPinchDistance = 0;
+  let initialPinchZoom = 1;
+
+  // Get distance between two touch points
+  function getTouchDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  wrapper.addEventListener('touchstart', function(e) {
+    // Two-finger touch: prepare for pinch-zoom or pan
+    if(e.touches.length === 2) {
+      e.preventDefault();
+      initialPinchDistance = getTouchDistance(e.touches);
+      initialPinchZoom = canvasZoomLevel;
+
+      // Also prepare for two-finger pan
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      touchPanStartX = midX;
+      touchPanStartY = midY;
+      touchPanStartPanX = canvasPanX;
+      touchPanStartPanY = canvasPanY;
+      isTouchPanning = true;
+    }
+    // Single finger when zoomed: check if we should pan (not over a screen)
+    else if(e.touches.length === 1 && canvasZoomLevel > 1) {
+      const canvas = document.getElementById('canvasView');
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const touchX = (e.touches[0].clientX - rect.left) * scaleX;
+      const touchY = (e.touches[0].clientY - rect.top) * scaleY;
+
+      // Check if touch is over any screen
+      let overScreen = false;
+      Object.keys(screens).forEach(screenId => {
+        const screen = screens[screenId];
+        if(!screen.visible) return;
+        const screenData = screen.data;
+        const allPanelsPan = getAllPanels();
+        const p = allPanelsPan[screenData.panelType || 'CB5_MKII'];
+        if(!p) return;
+
+        const pw = screenData.panelsWide || 0;
+        const ph = screenData.panelsHigh || 0;
+        const canvasX = screenData.canvasX || 0;
+        const canvasY = screenData.canvasY || 0;
+
+        let wallResX = pw * p.res_x;
+        let wallResY = ph * p.res_y;
+        if(screenData.addCB5HalfRow && screenData.panelType === 'CB5_MKII') {
+          wallResY += allPanelsPan['CB5_MKII_HALF'].res_y;
+        }
+
+        if(touchX >= canvasX && touchX <= canvasX + wallResX &&
+           touchY >= canvasY && touchY <= canvasY + wallResY) {
+          overScreen = true;
+        }
+      });
+
+      // If not over a screen, start panning
+      if(!overScreen) {
+        isTouchPanning = true;
+        touchPanStartX = e.touches[0].clientX;
+        touchPanStartY = e.touches[0].clientY;
+        touchPanStartPanX = canvasPanX;
+        touchPanStartPanY = canvasPanY;
+        e.preventDefault();
+      }
+    }
+  }, { passive: false });
+
+  wrapper.addEventListener('touchmove', function(e) {
+    // Two-finger: pinch-zoom and pan
+    if(e.touches.length === 2) {
+      e.preventDefault();
+
+      // Pinch zoom
+      const currentDistance = getTouchDistance(e.touches);
+      const scale = currentDistance / initialPinchDistance;
+      const newZoom = Math.max(0.5, Math.min(5.0, initialPinchZoom * scale));
+
+      if(newZoom !== canvasZoomLevel) {
+        canvasZoomLevel = newZoom;
+        constrainCanvasPan();
+        updateCanvasViewport();
+      }
+
+      // Two-finger pan
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      canvasPanX = touchPanStartPanX + (midX - touchPanStartX);
+      canvasPanY = touchPanStartPanY + (midY - touchPanStartY);
+      constrainCanvasPan();
+      updateCanvasViewport();
+    }
+    // Single finger pan when zoomed
+    else if(e.touches.length === 1 && isTouchPanning && canvasZoomLevel > 1) {
+      e.preventDefault();
+      canvasPanX = touchPanStartPanX + (e.touches[0].clientX - touchPanStartX);
+      canvasPanY = touchPanStartPanY + (e.touches[0].clientY - touchPanStartY);
+      constrainCanvasPan();
+      updateCanvasViewport();
+    }
+  }, { passive: false });
+
+  wrapper.addEventListener('touchend', function(e) {
+    if(e.touches.length === 0) {
+      isTouchPanning = false;
+      initialPinchDistance = 0;
+    }
+    // If one finger left after two-finger gesture, reset for potential single-finger pan
+    else if(e.touches.length === 1 && canvasZoomLevel > 1) {
+      touchPanStartX = e.touches[0].clientX;
+      touchPanStartY = e.touches[0].clientY;
+      touchPanStartPanX = canvasPanX;
+      touchPanStartPanY = canvasPanY;
+    }
+  });
+
+  wrapper.addEventListener('touchcancel', function(e) {
+    isTouchPanning = false;
+    initialPinchDistance = 0;
   });
 }
 
@@ -15943,6 +16088,7 @@ function updateMX40ModeToggleVisibility() {
     // Initialize canvas wheel zoom
     initCanvasWheelZoom();
     initCanvasPanning();
+    initCanvasTouchPanZoom();
 
     console.log('Initialization complete - v55.6 Multi-Screen');
   } catch(err) {

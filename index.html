@@ -2602,7 +2602,7 @@
         <!-- Dimensions Section -->
         <div class="section-box">
           <div class="section-title">Dimensions</div>
-          
+
           <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="dimModePanelsBtn" onclick="setDimensionMode('panels')">Panels</button>
@@ -2611,6 +2611,30 @@
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="unitImperial" onclick="setUnitSystem('imperial')">Imperial</button>
               <button type="button" class="slider-toggle-btn" id="unitMetric" onclick="setUnitSystem('metric')">Metric</button>
+            </div>
+          </div>
+
+          <!-- Aspect Ratio Lock -->
+          <div style="margin-bottom: 12px;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Aspect Ratio Lock</span>
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active" id="arNoneBtn" onclick="setAspectRatio('none')" style="padding: 8px 10px; font-size: 12px;">None</button>
+              <button type="button" class="slider-toggle-btn" id="ar169Btn" onclick="setAspectRatio('16:9')" style="padding: 8px 10px; font-size: 12px;">16:9</button>
+              <button type="button" class="slider-toggle-btn" id="ar43Btn" onclick="setAspectRatio('4:3')" style="padding: 8px 10px; font-size: 12px;">4:3</button>
+              <button type="button" class="slider-toggle-btn" id="arCustomBtn" onclick="setAspectRatio('custom')" style="padding: 8px 10px; font-size: 12px;">Custom</button>
+            </div>
+            <!-- Custom Aspect Ratio Inputs (hidden by default) -->
+            <div id="customAspectRatioInputs" style="display: none; margin-top: 8px;">
+              <div class="two-inputs" style="max-width: 160px;">
+                <label>
+                  <span>Width</span>
+                  <input type="number" id="customARWidth" min="1" value="16" style="width: 60px;">
+                </label>
+                <label>
+                  <span>Height</span>
+                  <input type="number" id="customARHeight" min="1" value="9" style="width: 60px;">
+                </label>
+              </div>
             </div>
           </div>
 
@@ -3127,7 +3151,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.128';
+const APP_VERSION = '2.0.129';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3353,6 +3377,43 @@ function setDimensionMode(mode) {
     syncFromSize();
   }
   calculate();
+}
+
+// Aspect Ratio Lock
+let currentAspectRatio = 'none';
+let customARWidth = 16;
+let customARHeight = 9;
+
+function setAspectRatio(ratio) {
+  currentAspectRatio = ratio;
+
+  // Update toggle button states
+  document.getElementById('arNoneBtn').classList.toggle('active', ratio === 'none');
+  document.getElementById('ar169Btn').classList.toggle('active', ratio === '16:9');
+  document.getElementById('ar43Btn').classList.toggle('active', ratio === '4:3');
+  document.getElementById('arCustomBtn').classList.toggle('active', ratio === 'custom');
+
+  // Show/hide custom inputs
+  document.getElementById('customAspectRatioInputs').style.display = ratio === 'custom' ? 'block' : 'none';
+
+  // Store custom values if switching to custom
+  if(ratio === 'custom') {
+    customARWidth = parseInt(document.getElementById('customARWidth').value) || 16;
+    customARHeight = parseInt(document.getElementById('customARHeight').value) || 9;
+  }
+}
+
+function getAspectRatioValue() {
+  // Returns the aspect ratio as width/height
+  switch(currentAspectRatio) {
+    case '16:9': return 16 / 9;
+    case '4:3': return 4 / 3;
+    case 'custom':
+      customARWidth = parseInt(document.getElementById('customARWidth').value) || 16;
+      customARHeight = parseInt(document.getElementById('customARHeight').value) || 9;
+      return customARWidth / customARHeight;
+    default: return null; // 'none' - no aspect ratio lock
+  }
 }
 
 // Phase toggle

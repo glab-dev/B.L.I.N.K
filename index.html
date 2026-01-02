@@ -3151,7 +3151,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.130';
+const APP_VERSION = '2.0.131';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3434,7 +3434,7 @@ function applyAspectRatioFromWidth() {
     const totalPixelsWide = pw * p.res_x;
     // Calculate pixels high for target aspect ratio
     const targetPixelsHigh = totalPixelsWide / aspectRatio;
-    // Convert to panels (round to nearest whole panel)
+    // Convert to panels - use floor to get closest without exceeding aspect ratio
     const ph = Math.max(1, Math.round(targetPixelsHigh / p.res_y));
 
     document.getElementById('panelsHigh').value = ph;
@@ -3460,16 +3460,34 @@ function applyAspectRatioFromHeight() {
   if(!p || !p.res_x || !p.res_y) return;
 
   if(currentDimensionMode === 'panels') {
-    // Panels mode: calculate panels wide based on panels high and pixel aspect ratio
+    // Panels mode: find the width that would produce this height
     const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
     if(ph <= 0) return;
 
-    // Total pixels high
+    // Find the panels wide that would round to this panels high
+    // We need to find pw such that: round((pw * res_x / aspectRatio) / res_y) = ph
+    // Start with the ideal and check both directions
     const totalPixelsHigh = ph * p.res_y;
-    // Calculate pixels wide for target aspect ratio
     const targetPixelsWide = totalPixelsHigh * aspectRatio;
-    // Convert to panels (round to nearest whole panel)
-    const pw = Math.max(1, Math.round(targetPixelsWide / p.res_x));
+    const idealPw = targetPixelsWide / p.res_x;
+
+    // Try floor and ceil, pick the one that gives us back the same height
+    const pwFloor = Math.max(1, Math.floor(idealPw));
+    const pwCeil = Math.max(1, Math.ceil(idealPw));
+
+    // Check which one produces the current height
+    const phFromFloor = Math.max(1, Math.round((pwFloor * p.res_x / aspectRatio) / p.res_y));
+    const phFromCeil = Math.max(1, Math.round((pwCeil * p.res_x / aspectRatio) / p.res_y));
+
+    let pw;
+    if(phFromFloor === ph) {
+      pw = pwFloor;
+    } else if(phFromCeil === ph) {
+      pw = pwCeil;
+    } else {
+      // Neither matches exactly, use the closest
+      pw = Math.max(1, Math.round(idealPw));
+    }
 
     document.getElementById('panelsWide').value = pw;
     syncFromPanels();

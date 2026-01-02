@@ -3151,7 +3151,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.137';
+const APP_VERSION = '2.0.138';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3430,7 +3430,16 @@ function applyAspectRatioFromWidth() {
 
   if(currentDimensionMode === 'panels') {
     // Panels mode: calculate panels high based on panels wide and pixel aspect ratio
-    const pw = parseInt(document.getElementById('panelsWide').value) || 0;
+    const pwInput = document.getElementById('panelsWide').value;
+
+    // If width is empty, clear height too
+    if(pwInput === '' || pwInput === null) {
+      document.getElementById('panelsHigh').value = '';
+      syncFromPanels();
+      return;
+    }
+
+    const pw = parseInt(pwInput) || 0;
     if(pw <= 0) return;
 
     // Total pixels wide
@@ -3444,7 +3453,16 @@ function applyAspectRatioFromWidth() {
     syncFromPanels();
   } else {
     // Size mode: calculate wall height based on wall width
-    const wallWidth = parseFloat(document.getElementById('wallWidth').value) || 0;
+    const wallWidthInput = document.getElementById('wallWidth').value;
+
+    // If width is empty, clear height too
+    if(wallWidthInput === '' || wallWidthInput === null) {
+      document.getElementById('wallHeight').value = '';
+      syncFromSize();
+      return;
+    }
+
+    const wallWidth = parseFloat(wallWidthInput) || 0;
     if(wallWidth <= 0) return;
 
     const wallHeight = wallWidth / aspectRatio;

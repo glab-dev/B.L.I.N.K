@@ -2628,11 +2628,11 @@
               <div class="two-inputs" style="max-width: 160px;">
                 <label>
                   <span>Width</span>
-                  <input type="number" id="customARWidth" min="1" value="16" style="width: 60px;">
+                  <input type="number" id="customARWidth" min="1" placeholder="16" style="width: 60px; color: #6b7280;" onfocus="this.style.color='#fff'" onblur="if(!this.value)this.style.color='#6b7280'">
                 </label>
                 <label>
                   <span>Height</span>
-                  <input type="number" id="customARHeight" min="1" value="9" style="width: 60px;">
+                  <input type="number" id="customARHeight" min="1" placeholder="10" style="width: 60px; color: #6b7280;" onfocus="this.style.color='#fff'" onblur="if(!this.value)this.style.color='#6b7280'">
                 </label>
               </div>
             </div>
@@ -3151,7 +3151,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.138';
+const APP_VERSION = '2.0.139';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3382,7 +3382,7 @@ function setDimensionMode(mode) {
 // Aspect Ratio Lock
 let currentAspectRatio = 'none';
 let customARWidth = 16;
-let customARHeight = 9;
+let customARHeight = 10;
 
 function setAspectRatio(ratio) {
   currentAspectRatio = ratio;
@@ -3402,7 +3402,7 @@ function setAspectRatio(ratio) {
   // Store custom values if switching to custom
   if(ratio === 'custom') {
     customARWidth = parseInt(document.getElementById('customARWidth').value) || 16;
-    customARHeight = parseInt(document.getElementById('customARHeight').value) || 9;
+    customARHeight = parseInt(document.getElementById('customARHeight').value) || 10;
   }
 }
 
@@ -3413,7 +3413,7 @@ function getAspectRatioValue() {
     case '4:3': return 4 / 3;
     case 'custom':
       customARWidth = parseInt(document.getElementById('customARWidth').value) || 16;
-      customARHeight = parseInt(document.getElementById('customARHeight').value) || 9;
+      customARHeight = parseInt(document.getElementById('customARHeight').value) || 10;
       return customARWidth / customARHeight;
     default: return null; // 'none' - no aspect ratio lock
   }

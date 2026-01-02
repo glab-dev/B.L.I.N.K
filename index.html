@@ -12008,6 +12008,19 @@ function setupCanvasViewInteractivity() {
     if(e.touches.length !== 1) return;
 
     const touch = e.touches[0];
+
+    // If zoomed in, let the wrapper handle panning via hold gesture
+    // Don't intercept the touch here - just let it bubble up
+    if(canvasZoomLevel > 1) {
+      // Don't start screen dragging when zoomed
+      isViewportPanning = false;
+      canvasViewDragging = false;
+      draggedScreenId = null;
+      // Don't preventDefault - let wrapper handle it
+      return;
+    }
+
+    // At 100% zoom, handle screen selection/dragging
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -12043,24 +12056,13 @@ function setupCanvasViewInteractivity() {
       updateCanvasInfoDisplay();
 
       e.preventDefault();
-    } else {
-      // No screen clicked - if zoomed in, start viewport panning
-      if(canvasZoomLevel > 1) {
-        isViewportPanning = true;
-        canvasViewDragging = false;
-        viewportPanStartX = touch.clientX;
-        viewportPanStartY = touch.clientY;
-        viewportPanStartPanX = canvasPanX;
-        viewportPanStartPanY = canvasPanY;
-        e.preventDefault();
-      } else if(selectedCanvasScreenId) {
-        // Not zoomed, just deselect
-        selectedCanvasScreenId = null;
-        updateCanvasInfoDisplay();
-        const ctx = canvas.getContext('2d');
-        if(cachedCanvasImageData) {
-          ctx.putImageData(cachedCanvasImageData, 0, 0);
-        }
+    } else if(selectedCanvasScreenId) {
+      // Tapped empty area at 100% zoom - just deselect
+      selectedCanvasScreenId = null;
+      updateCanvasInfoDisplay();
+      const ctx = canvas.getContext('2d');
+      if(cachedCanvasImageData) {
+        ctx.putImageData(cachedCanvasImageData, 0, 0);
       }
     }
   }, {passive: false});
@@ -12488,9 +12490,17 @@ function initCanvasTouchPanZoom() {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
+  let holdTimer = null;
+  let isHoldActivated = false;
+  const HOLD_DELAY = 250; // ms to hold before panning activates
+
   wrapper.addEventListener('touchstart', function(e) {
     // Two-finger touch: prepare for pinch-zoom or pan
     if(e.touches.length === 2) {
+      // Cancel any pending hold timer
+      if(holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+      isHoldActivated = false;
+
       e.preventDefault();
       initialPinchDistance = getTouchDistance(e.touches);
       initialPinchZoom = canvasZoomLevel;
@@ -12504,14 +12514,21 @@ function initCanvasTouchPanZoom() {
       touchPanStartPanY = canvasPanY;
       isTouchPanning = true;
     }
-    // Single finger when zoomed: allow panning anywhere on canvas
+    // Single finger when zoomed: use hold-to-pan
     else if(e.touches.length === 1 && canvasZoomLevel > 1) {
-      isTouchPanning = true;
+      // Store touch start position
       touchPanStartX = e.touches[0].clientX;
       touchPanStartY = e.touches[0].clientY;
       touchPanStartPanX = canvasPanX;
       touchPanStartPanY = canvasPanY;
-      e.preventDefault();
+
+      // Start hold timer - after HOLD_DELAY ms, activate panning
+      holdTimer = setTimeout(function() {
+        isHoldActivated = true;
+        isTouchPanning = true;
+        // Visual feedback - could vibrate on supported devices
+        if(navigator.vibrate) navigator.vibrate(50);
+      }, HOLD_DELAY);
     }
   }, { passive: false });
 
@@ -12539,32 +12556,48 @@ function initCanvasTouchPanZoom() {
       constrainCanvasPan();
       updateCanvasViewport();
     }
-    // Single finger pan when zoomed
-    else if(e.touches.length === 1 && isTouchPanning && canvasZoomLevel > 1) {
+    // Single finger pan when zoomed - only if hold was activated
+    else if(e.touches.length === 1 && isHoldActivated && canvasZoomLevel > 1) {
       e.preventDefault();
       canvasPanX = touchPanStartPanX + (e.touches[0].clientX - touchPanStartX);
       canvasPanY = touchPanStartPanY + (e.touches[0].clientY - touchPanStartY);
       constrainCanvasPan();
       updateCanvasViewport();
     }
+    // If user moves finger before hold timer fires, cancel the hold
+    else if(e.touches.length === 1 && holdTimer && !isHoldActivated) {
+      // Check if finger moved too much - cancel the hold if so
+      const moveThreshold = 10;
+      const dx = Math.abs(e.touches[0].clientX - touchPanStartX);
+      const dy = Math.abs(e.touches[0].clientY - touchPanStartY);
+      if(dx > moveThreshold || dy > moveThreshold) {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+    }
   }, { passive: false });
 
   wrapper.addEventListener('touchend', function(e) {
+    // Clear hold timer
+    if(holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+
     if(e.touches.length === 0) {
       isTouchPanning = false;
+      isHoldActivated = false;
       initialPinchDistance = 0;
     }
-    // If one finger left after two-finger gesture, reset for potential single-finger pan
+    // If one finger left after two-finger gesture, don't auto-enable panning
+    // User must do a new hold gesture
     else if(e.touches.length === 1 && canvasZoomLevel > 1) {
-      touchPanStartX = e.touches[0].clientX;
-      touchPanStartY = e.touches[0].clientY;
-      touchPanStartPanX = canvasPanX;
-      touchPanStartPanY = canvasPanY;
+      isHoldActivated = false;
+      isTouchPanning = false;
     }
   });
 
   wrapper.addEventListener('touchcancel', function(e) {
+    if(holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
     isTouchPanning = false;
+    isHoldActivated = false;
     initialPinchDistance = 0;
   });
 }

@@ -3137,7 +3137,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.146';
+const APP_VERSION = '2.0.147';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -15094,16 +15094,19 @@ function sendItemRequest() {
   const typeLabel = currentRequestType === 'panel' ? 'Panel' : 'Processor';
   const subject = encodeURIComponent(`LED Calculator - ${typeLabel} Request: ${brand} ${model}`);
 
-  let body = `Hi Gabriel,\n\nI'd like to request adding a new ${typeLabel.toLowerCase()} to the LED Calculator app.\n\n`;
-  body += `Type: ${typeLabel}\n`;
-  body += `Brand: ${brand}\n`;
-  body += `Model: ${model}\n`;
+  // Use %0D%0A for line breaks (works better on mobile email clients)
+  const nl = '%0D%0A';
+  let body = `Hi Gabriel,${nl}${nl}`;
+  body += `I'd like to request adding a new ${typeLabel.toLowerCase()} to the LED Calculator app.${nl}${nl}`;
+  body += `Type: ${typeLabel}${nl}`;
+  body += `Brand: ${brand}${nl}`;
+  body += `Model: ${model}${nl}`;
   if(notes) {
-    body += `\nAdditional Info:\n${notes}\n`;
+    body += `${nl}Additional Info:${nl}${encodeURIComponent(notes)}${nl}`;
   }
-  body += `\nThank you!`;
+  body += `${nl}Thank you!`;
 
-  const mailtoLink = `mailto:fearlesswandererproductions@gmail.com?subject=${subject}&body=${encodeURIComponent(body)}`;
+  const mailtoLink = `mailto:fearlesswandererproductions@gmail.com?subject=${subject}&body=${body}`;
   window.location.href = mailtoLink;
 
   closeRequestItemModal();

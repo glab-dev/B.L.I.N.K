@@ -1253,10 +1253,21 @@
       border-right: 2px solid #000;
       cursor: pointer;
       transition: all 0.15s;
+      flex: 1;
       min-height: 44px;
       text-align: center;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
+    }
+
+    /* Desktop: constrain toggle width */
+    @media (min-width: 769px) {
+      .slider-toggle {
+        display: inline-flex;
+      }
+      .slider-toggle-btn {
+        flex: none;
+      }
     }
 
     .slider-toggle-btn:last-child {
@@ -3126,7 +3137,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.144';
+const APP_VERSION = '2.0.146';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready

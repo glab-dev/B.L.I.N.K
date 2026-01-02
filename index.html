@@ -2616,7 +2616,7 @@
 
           <!-- Aspect Ratio Lock -->
           <div style="margin-bottom: 12px;">
-            <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Aspect Ratio Lock</span>
+            <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Aspect Ratio Lock <span id="arHint" style="color: #9ca3af; font-style: italic; display: none;">(input width for auto height)</span></span>
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="arNoneBtn" onclick="setAspectRatio('none')" style="padding: 8px 10px; font-size: 12px;">None</button>
               <button type="button" class="slider-toggle-btn" id="ar169Btn" onclick="setAspectRatio('16:9')" style="padding: 8px 10px; font-size: 12px;">16:9</button>
@@ -3151,7 +3151,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.136';
+const APP_VERSION = '2.0.137';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3396,6 +3396,9 @@ function setAspectRatio(ratio) {
   // Show/hide custom inputs
   document.getElementById('customAspectRatioInputs').style.display = ratio === 'custom' ? 'block' : 'none';
 
+  // Show/hide hint
+  document.getElementById('arHint').style.display = ratio === 'none' ? 'none' : 'inline';
+
   // Store custom values if switching to custom
   if(ratio === 'custom') {
     customARWidth = parseInt(document.getElementById('customARWidth').value) || 16;
@@ -3434,32 +3437,8 @@ function applyAspectRatioFromWidth() {
     const totalPixelsWide = pw * p.res_x;
     // Calculate pixels high for target aspect ratio
     const targetPixelsHigh = totalPixelsWide / aspectRatio;
-
-    // Try floor, round, ceil and find the height that maps back to this width
-    const idealPh = targetPixelsHigh / p.res_y;
-    const phFloor = Math.max(1, Math.floor(idealPh));
-    const phRound = Math.max(1, Math.round(idealPh));
-    const phCeil = Math.max(1, Math.ceil(idealPh));
-
-    // For each candidate height, calculate what width it would produce
-    const pwFromFloor = Math.max(1, Math.round((phFloor * p.res_y * aspectRatio) / p.res_x));
-    const pwFromRound = Math.max(1, Math.round((phRound * p.res_y * aspectRatio) / p.res_x));
-    const pwFromCeil = Math.max(1, Math.round((phCeil * p.res_y * aspectRatio) / p.res_x));
-
-    // Find all heights that produce the correct width, pick smallest (most conservative)
-    const candidates = [];
-    if(pwFromFloor === pw) candidates.push(phFloor);
-    if(pwFromRound === pw) candidates.push(phRound);
-    if(pwFromCeil === pw) candidates.push(phCeil);
-
-    let ph;
-    if(candidates.length > 0) {
-      // Pick the smallest valid height for consistency
-      ph = Math.min(...candidates);
-    } else {
-      // None match exactly, use rounded
-      ph = phRound;
-    }
+    // Round to nearest panel count
+    const ph = Math.max(1, Math.round(targetPixelsHigh / p.res_y));
 
     document.getElementById('panelsHigh').value = ph;
     syncFromPanels();
@@ -3470,65 +3449,6 @@ function applyAspectRatioFromWidth() {
 
     const wallHeight = wallWidth / aspectRatio;
     document.getElementById('wallHeight').value = wallHeight.toFixed(2);
-    syncFromSize();
-  }
-}
-
-// Apply aspect ratio lock when height changes - calculates width
-function applyAspectRatioFromHeight() {
-  const aspectRatio = getAspectRatioValue();
-  if(!aspectRatio) return; // No aspect ratio lock
-
-  const allPanels = getAllPanels();
-  const p = allPanels[document.getElementById('panelType').value];
-  if(!p || !p.res_x || !p.res_y) return;
-
-  if(currentDimensionMode === 'panels') {
-    // Panels mode: find the width that would produce this height
-    const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
-    if(ph <= 0) return;
-
-    // Find the panels wide that would round to this panels high
-    // We need to find pw such that: round((pw * res_x / aspectRatio) / res_y) = ph
-    // Start with the ideal and check both directions
-    const totalPixelsHigh = ph * p.res_y;
-    const targetPixelsWide = totalPixelsHigh * aspectRatio;
-    const idealPw = targetPixelsWide / p.res_x;
-
-    // Try floor, round, and ceil - pick the smallest one that gives us back the same height
-    const pwFloor = Math.max(1, Math.floor(idealPw));
-    const pwRound = Math.max(1, Math.round(idealPw));
-    const pwCeil = Math.max(1, Math.ceil(idealPw));
-
-    // Check which one produces the current height
-    const phFromFloor = Math.max(1, Math.round((pwFloor * p.res_x / aspectRatio) / p.res_y));
-    const phFromRound = Math.max(1, Math.round((pwRound * p.res_x / aspectRatio) / p.res_y));
-    const phFromCeil = Math.max(1, Math.round((pwCeil * p.res_x / aspectRatio) / p.res_y));
-
-    // Find all widths that produce the correct height, pick smallest (most conservative)
-    const candidates = [];
-    if(phFromFloor === ph) candidates.push(pwFloor);
-    if(phFromRound === ph) candidates.push(pwRound);
-    if(phFromCeil === ph) candidates.push(pwCeil);
-
-    let pw;
-    if(candidates.length > 0) {
-      // Pick the smallest valid width for consistency
-      pw = Math.min(...candidates);
-    } else {
-      // None match exactly, use rounded value
-      pw = pwRound;
-    }
-
-    document.getElementById('panelsWide').value = pw;
-    syncFromPanels();
-  } else {
-    // Size mode: calculate wall width based on wall height
-    const wallHeight = parseFloat(document.getElementById('wallHeight').value) || 0;
-    if(wallHeight <= 0) return;
-
-    const wallWidth = wallHeight * aspectRatio;
-    document.getElementById('wallWidth').value = wallWidth.toFixed(2);
     syncFromSize();
   }
 }
@@ -16152,7 +16072,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if(panelsHighInput) {
       panelsHighInput.addEventListener('input', function() {
-        applyAspectRatioFromHeight(); // Apply aspect ratio lock
+        // No aspect ratio from height - only width triggers auto-calculation
         initializeBumpers(); // Reinitialize when height changes
         updateWeightDisplay();
       });
@@ -16164,7 +16084,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if(wallHeightInput) {
       wallHeightInput.addEventListener('input', function() {
-        applyAspectRatioFromHeight(); // Apply aspect ratio lock
+        // No aspect ratio from height - only width triggers auto-calculation
       });
     }
 

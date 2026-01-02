@@ -3127,7 +3127,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.118';
+const APP_VERSION = '2.0.119';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -10995,10 +10995,10 @@ function showCanvasView(){
   });
 
   // Draw canvas boundary border (so users can see canvas edges when zoomed)
-  ctx.strokeStyle = '#666666';
-  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#10b981';
+  ctx.lineWidth = 6;
   ctx.setLineDash([]);
-  ctx.strokeRect(2, 2, canvasResX - 4, canvasResY - 4);
+  ctx.strokeRect(3, 3, canvasResX - 6, canvasResY - 6);
 
   // Update info display
   let totalWalls = 0;

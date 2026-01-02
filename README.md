@@ -16,7 +16,7 @@ A professional LED wall calculator PWA (Progressive Web App) for planning LED vi
 5. [Screen Tabs](#screen-tabs)
 6. [Panel Type](#panel-type)
 7. [Custom Panels](#custom-panels)
-8. [Custom Processors](#custom-processors)
+8. [Request Custom Processors or Panels](#request-custom-processors-or-panels)
 9. [Dimensions](#dimensions)
 10. [Power](#power)
 11. [Data](#data)
@@ -47,12 +47,13 @@ A professional LED wall calculator PWA (Progressive Web App) for planning LED vi
 - **PDF export** - Professional multi-page reports with all specifications and layouts
 - **Save/Load configurations** - Export and import .ledconfig files
 - **Unit conversion** - Toggle between Imperial (ft/lbs) and Metric (m/kg)
+- **Aspect ratio lock** - Auto-calculate dimensions for 16:9, 4:3, or custom ratios
+- **Request new items** - Email request system for new panels and processors
 - **Automatic updates** - Version checking with update notifications
 - **Offline capable** - Works without internet after initial load (PWA)
 - **Installable** - Add to home screen on mobile devices
 
 ### In Development
-- **Custom processors** - Add your own video processors (UI exists, calculations pending)
 - **Cabling calculations** - Cable length estimates based on distances
 
 ---
@@ -174,22 +175,18 @@ Custom panels work with all built-in processors for power and data calculations.
 
 ---
 
-## Custom Processors
+## Request Custom Processors or Panels
 
-*(In Development)*
+Want a panel or processor added to the app? You can request it directly:
 
-Add your own video processors with custom specifications:
+### How to Request
+1. Open the hamburger menu
+2. Tap "Request Custom Processor" or
+3. Go to "Manage Custom Panels" and tap "Request New Item"
+4. Fill in the brand, model name, and any additional info (spec sheet links, etc.)
+5. Tap "Send Request" - this opens your email app with a pre-filled message
 
-### Available Fields
-- **Processor Name** - Display name
-- **10G Ports** - Number of 10G output ports
-- **1G Ports** - Number of 1G output ports
-- **Pixels per 1G Port** - Pixel capacity per 1G port
-- **Pixels per 10G Port** - Pixel capacity per 10G port
-- **Max Input Resolution** - Maximum supported input resolution
-- **Distribution Box** - Optional distribution box configuration
-
-Note: Custom processor calculations are still in development.
+Your request will be sent to the developer for review and potential inclusion in a future update.
 
 ---
 
@@ -210,6 +207,15 @@ Note: Custom processor calculations are still in development.
 - **Wall Height** - Target height (in Size mode)
 
 Size mode automatically snaps to valid panel counts.
+
+### Aspect Ratio Lock
+Lock the aspect ratio to automatically calculate panels high based on panels wide:
+- **None** - No aspect ratio lock (manual entry)
+- **16:9** - Standard widescreen ratio
+- **4:3** - Traditional video ratio
+- **Custom** - Enter your own width:height ratio
+
+When an aspect ratio is selected, entering panels wide will automatically calculate panels high based on the panel's pixel dimensions to best match the target ratio.
 
 ---
 
@@ -242,7 +248,7 @@ Size mode automatically snaps to valid panel counts.
 - NovaStar MX40 Pro (with CVT distribution)
 
 ### Settings
-- **Frame Rate** - 24Hz, 25Hz, 30Hz, 50Hz, 60Hz
+- **Frame Rate** - 24Hz, 25Hz, 30Hz, 50Hz, 60Hz, 120Hz
 - **Bit Depth** - 8-bit, 10-bit, 12-bit
 - **Max/Data** - Override maximum panels per data line (leave blank for auto)
 
@@ -256,6 +262,27 @@ Size mode automatically snaps to valid panel counts.
 - **Arrows** - Show/hide data routing arrows on layouts
 - **Data Redundancy** - Enable redundant data routing (doubles ports needed)
 - **Processor Redundancy** - Double the processor count for backup
+
+### NovaStar MX40 Pro Connection Modes
+
+The MX40 Pro supports two connection modes:
+
+**Direct Mode:**
+- 20 outputs directly on the processor
+- Without redundancy: 20 main data lines
+- With redundancy: 10 main + 10 backup (max 10 data lines with backup)
+- No CVT distribution boxes needed
+
+**Indirect Mode (CVT Boxes):**
+- Uses CVT-10 Pro distribution boxes
+- Each CVT box has 10 outputs
+- Without redundancy: 10 main data lines per CVT
+- With redundancy: 5 main + 5 backup per CVT
+- Each MX40 Pro can drive up to 4 CVT boxes (40 total outputs, or 20 with redundancy)
+
+Processor count is automatically calculated based on:
+- Total pixel count (9M pixels per MX40 Pro)
+- Port requirements (whichever requires more processors)
 
 ---
 
@@ -457,7 +484,7 @@ Generate a professional multi-page PDF report containing:
 
 ## Version
 
-v2.0.85 - PWA Edition with Custom Panels
+v2.0.150 - PWA Edition with Aspect Ratio Lock and NovaStar MX40 Pro Support
 
 ---
 

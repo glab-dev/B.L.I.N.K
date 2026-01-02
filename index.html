@@ -3127,7 +3127,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.120';
+const APP_VERSION = '2.0.121';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -11997,6 +11997,13 @@ function setupCanvasViewInteractivity() {
   let touchLastX = 0;
   let touchLastY = 0;
 
+  // Track if we're panning the viewport (vs dragging a screen)
+  let isViewportPanning = false;
+  let viewportPanStartX = 0;
+  let viewportPanStartY = 0;
+  let viewportPanStartPanX = 0;
+  let viewportPanStartPanY = 0;
+
   canvas.addEventListener('touchstart', function(e) {
     if(e.touches.length !== 1) return;
 
@@ -12017,6 +12024,7 @@ function setupCanvasViewInteractivity() {
       selectedCanvasScreenId = clickedScreenId;
       draggedScreenId = clickedScreenId;
       canvasViewDragging = true;
+      isViewportPanning = false;
       canvasViewDragStartX = touchX;
       canvasViewDragStartY = touchY;
       canvasViewStartOffsetX = offsetX;
@@ -12035,23 +12043,48 @@ function setupCanvasViewInteractivity() {
       updateCanvasInfoDisplay();
 
       e.preventDefault();
-    } else if(selectedCanvasScreenId) {
-      selectedCanvasScreenId = null;
-      updateCanvasInfoDisplay();
-      const ctx = canvas.getContext('2d');
-      if(cachedCanvasImageData) {
-        ctx.putImageData(cachedCanvasImageData, 0, 0);
+    } else {
+      // No screen clicked - if zoomed in, start viewport panning
+      if(canvasZoomLevel > 1) {
+        isViewportPanning = true;
+        canvasViewDragging = false;
+        viewportPanStartX = touch.clientX;
+        viewportPanStartY = touch.clientY;
+        viewportPanStartPanX = canvasPanX;
+        viewportPanStartPanY = canvasPanY;
+        e.preventDefault();
+      } else if(selectedCanvasScreenId) {
+        // Not zoomed, just deselect
+        selectedCanvasScreenId = null;
+        updateCanvasInfoDisplay();
+        const ctx = canvas.getContext('2d');
+        if(cachedCanvasImageData) {
+          ctx.putImageData(cachedCanvasImageData, 0, 0);
+        }
       }
     }
   }, {passive: false});
 
   canvas.addEventListener('touchmove', function(e) {
-    if(!canvasViewDragging || !draggedScreenId) return;
     if(e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+
+    // Handle viewport panning when zoomed
+    if(isViewportPanning && canvasZoomLevel > 1) {
+      e.preventDefault();
+      canvasPanX = viewportPanStartPanX + (touch.clientX - viewportPanStartX);
+      canvasPanY = viewportPanStartPanY + (touch.clientY - viewportPanStartY);
+      constrainCanvasPan();
+      updateCanvasViewport();
+      return;
+    }
+
+    // Handle screen dragging
+    if(!canvasViewDragging || !draggedScreenId) return;
 
     e.preventDefault();
 
-    const touch = e.touches[0];
     touchLastX = touch.clientX;
     touchLastY = touch.clientY;
 
@@ -12211,11 +12244,20 @@ function setupCanvasViewInteractivity() {
             ctx.setLineDash([]);
           }
         }
+
+        // Draw canvas boundary border
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 6;
+        ctx.setLineDash([]);
+        ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
       });
     }
   }, {passive: false});
 
   canvas.addEventListener('touchend', function(e) {
+    // Reset viewport panning
+    isViewportPanning = false;
+
     if(canvasViewDragging) {
       canvasViewDragging = false;
       draggedScreenId = null;
@@ -12232,6 +12274,9 @@ function setupCanvasViewInteractivity() {
   });
 
   canvas.addEventListener('touchcancel', function(e) {
+    // Reset viewport panning
+    isViewportPanning = false;
+
     if(canvasViewDragging) {
       canvasViewDragging = false;
       draggedScreenId = null;

@@ -3127,7 +3127,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.127';
+const APP_VERSION = '2.0.126';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -11494,15 +11494,12 @@ function setupCanvasViewInteractivity() {
   }
   
   canvas.addEventListener('mousedown', function(e) {
-    // Middle mouse button (button === 1) is for viewport panning - let it bubble up
-    if(e.button === 1) return;
-
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const mouseX = (e.clientX - rect.left) * scaleX;
     const mouseY = (e.clientY - rect.top) * scaleY;
-
+    
     // Detect which screen was clicked
     const clickedScreenId = getScreenAtPosition(mouseX, mouseY);
     

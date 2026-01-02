@@ -3137,7 +3137,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.147';
+const APP_VERSION = '2.0.148';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -6097,23 +6097,39 @@ function calculate(){
   const processorId = document.getElementById('processor').value;
   let distributionBoxName = '';
   let distributionCount = 0;
+  let mx40ProcessorCount = 0;
 
   if(processorId === 'Brompton_SX40' && portsNeeded > 0) {
+    // SX40 uses XD boxes: 10 ports per XD
+    // Calculate XDs needed for main lines, then double if redundancy (separate XDs for backup)
     const baseDistributionCount = Math.ceil(portsNeeded / 10);
     distributionCount = redundancy ? baseDistributionCount * 2 : baseDistributionCount;
     distributionBoxName = 'Brompton XD';
   } else if(processorId === 'NovaStar_MX40_Pro' && portsNeeded > 0) {
-    // Indirect mode uses CVT boxes, Direct mode does not
-    if(mx40ConnectionMode === 'indirect') {
-      const baseDistributionCount = Math.ceil(portsNeeded / 10);
-      distributionCount = redundancy ? baseDistributionCount * 2 : baseDistributionCount;
+    // MX40 Pro logic:
+    // Direct mode: 20 ports per processor
+    // Indirect mode: 10 ports per CVT box, 4 CVTs per processor max
+
+    if(mx40ConnectionMode === 'direct') {
+      // Direct mode: no CVT boxes, processor count based on ports AND pixels
+      const portsPerProcessor = 20;
+      const processorsByPorts = Math.ceil(portsNeededFinal / portsPerProcessor);
+      const processorsByPixels = Math.ceil(totalPixels / 9000000);
+      mx40ProcessorCount = Math.max(processorsByPorts, processorsByPixels);
+    } else {
+      // Indirect mode: CVT boxes needed
+      const portsPerCVT = 10;
+      distributionCount = Math.ceil(portsNeededFinal / portsPerCVT);
       distributionBoxName = 'NovaStar CVT-10 Pro';
+      // Processor count: max of pixels needed OR CVT boxes needed (4 CVTs per processor)
+      const processorsByPixels = Math.ceil(totalPixels / 9000000);
+      const processorsByCVTs = Math.ceil(distributionCount / 4);
+      mx40ProcessorCount = Math.max(processorsByPixels, processorsByCVTs);
     }
   } else if(pr.uses_distribution_box && pr.distribution_box_name && portsNeeded > 0) {
     // Custom processor with distribution box
     const portsPerBox = pr.distribution_box_ports || 10;
-    const baseDistributionCount = Math.ceil(portsNeeded / portsPerBox);
-    distributionCount = redundancy ? baseDistributionCount * 2 : baseDistributionCount;
+    distributionCount = Math.ceil(portsNeededFinal / portsPerBox);
     distributionBoxName = pr.distribution_box_name;
   }
 
@@ -6290,6 +6306,7 @@ function calculate(){
       processorCount: 1,
       distributionBoxCount: distributionCount,
       distributionBoxName: distributionBoxName,
+      mx40ProcessorCount: mx40ProcessorCount, // MX40-specific processor count (accounts for ports + pixels)
       panelCount: totalPanels,
       activePanels: totalPanels, // Same as totalPanels (deletedPanels already accounted for)
 
@@ -12848,14 +12865,24 @@ function exportPDF(){
         processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 4) : 0;
         distBoxCount = 0;
       } else if(processorType === 'NovaStar_MX40_Pro') {
-        // MX40 Pro: Processor count based on total pixels (9M capacity)
-        // CVT-10 Pro: 10 ports per box (only in Indirect mode)
+        // MX40 Pro logic:
+        // Direct mode: 20 ports per processor
+        // Indirect mode: 10 ports per CVT box, 4 CVTs per processor max
         const groupTotalPixels = group.totalPixels || 0;
-        processorCount = groupTotalPixels > 0 ? Math.ceil(groupTotalPixels / 9000000) : 0;
+        const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
+        const processorsByPixels = groupTotalPixels > 0 ? Math.ceil(groupTotalPixels / 9000000) : 0;
+
         if(group.hasAnyIndirectMode) {
-          const mainCVTs = totalMainPorts > 0 ? Math.ceil(totalMainPorts / 10) : 0;
-          distBoxCount = hasRedundancy ? mainCVTs * 2 : mainCVTs;
+          // Indirect mode: CVT boxes needed
+          distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 10) : 0;
           distBoxName = 'CVT-10 Pro';
+          // Processor count: max of pixels needed OR CVT boxes needed (4 CVTs per processor)
+          const processorsByCVTs = Math.ceil(distBoxCount / 4);
+          processorCount = Math.max(processorsByPixels, processorsByCVTs);
+        } else {
+          // Direct mode: no CVT boxes, processor count based on ports AND pixels
+          const processorsByPorts = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 20) : 0;
+          processorCount = Math.max(processorsByPixels, processorsByPorts);
         }
       } else {
         // Default/custom processor - use per-screen calculation

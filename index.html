@@ -837,6 +837,11 @@
     /* Canvas view wrapper responsive on mobile */
     #canvasViewWrapper {
       max-width: 100%;
+      touch-action: none; /* Disable browser touch handling for pan/zoom */
+    }
+
+    #canvasViewport {
+      touch-action: none; /* Disable browser touch handling */
     }
 
     #canvasContainer {
@@ -3127,7 +3132,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.123';
+const APP_VERSION = '2.0.124';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -12469,106 +12474,145 @@ function initCanvasPanning() {
   });
 }
 
-// Touch panning and pinch-to-zoom for mobile
+// Touch panning and pinch-to-zoom for mobile using pointer events
 function initCanvasTouchPanZoom() {
   const wrapper = document.getElementById('canvasViewWrapper');
   const viewport = document.getElementById('canvasViewport');
   if(!wrapper || !viewport) return;
 
-  let touchPanStartX = 0;
-  let touchPanStartY = 0;
-  let touchPanStartPanX = 0;
-  let touchPanStartPanY = 0;
-  let isTouchPanning = false;
+  // Track active pointers for multi-touch
+  const pointers = new Map();
+  let panStartX = 0;
+  let panStartY = 0;
+  let panStartPanX = 0;
+  let panStartPanY = 0;
+  let isPanning = false;
   let initialPinchDistance = 0;
   let initialPinchZoom = 1;
 
-  // Get distance between two touch points
-  function getTouchDistance(touches) {
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
+  // Get distance between two pointers
+  function getPointerDistance(p1, p2) {
+    const dx = p1.clientX - p2.clientX;
+    const dy = p1.clientY - p2.clientY;
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  wrapper.addEventListener('touchstart', function(e) {
-    // Two-finger touch: prepare for pinch-zoom or pan
-    if(e.touches.length === 2) {
-      e.preventDefault();
-      initialPinchDistance = getTouchDistance(e.touches);
+  // Get midpoint between two pointers
+  function getPointerMidpoint(p1, p2) {
+    return {
+      x: (p1.clientX + p2.clientX) / 2,
+      y: (p1.clientY + p2.clientY) / 2
+    };
+  }
+
+  wrapper.addEventListener('pointerdown', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Track this pointer
+    pointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
+
+    // Capture pointer to receive events even if it leaves the element
+    wrapper.setPointerCapture(e.pointerId);
+
+    if(pointers.size === 1) {
+      // Single pointer - start panning if zoomed
+      if(canvasZoomLevel > 1) {
+        isPanning = true;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        panStartPanX = canvasPanX;
+        panStartPanY = canvasPanY;
+      }
+    } else if(pointers.size === 2) {
+      // Two pointers - prepare for pinch-zoom
+      const pts = Array.from(pointers.values());
+      initialPinchDistance = getPointerDistance(pts[0], pts[1]);
       initialPinchZoom = canvasZoomLevel;
 
-      // Also prepare for two-finger pan
-      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      touchPanStartX = midX;
-      touchPanStartY = midY;
-      touchPanStartPanX = canvasPanX;
-      touchPanStartPanY = canvasPanY;
-      isTouchPanning = true;
-    }
-    // Single finger when zoomed: instant panning
-    else if(e.touches.length === 1 && canvasZoomLevel > 1) {
-      e.preventDefault(); // Prevent text selection/blue highlight
-      touchPanStartX = e.touches[0].clientX;
-      touchPanStartY = e.touches[0].clientY;
-      touchPanStartPanX = canvasPanX;
-      touchPanStartPanY = canvasPanY;
-      isTouchPanning = true;
-    }
-  }, { passive: false });
-
-  wrapper.addEventListener('touchmove', function(e) {
-    // Two-finger: pinch-zoom and pan
-    if(e.touches.length === 2) {
-      e.preventDefault();
-
-      // Pinch zoom
-      const currentDistance = getTouchDistance(e.touches);
-      const scale = currentDistance / initialPinchDistance;
-      const newZoom = Math.max(0.5, Math.min(5.0, initialPinchZoom * scale));
-
-      if(newZoom !== canvasZoomLevel) {
-        canvasZoomLevel = newZoom;
-        constrainCanvasPan();
-        updateCanvasViewport();
-      }
-
-      // Two-finger pan
-      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      canvasPanX = touchPanStartPanX + (midX - touchPanStartX);
-      canvasPanY = touchPanStartPanY + (midY - touchPanStartY);
-      constrainCanvasPan();
-      updateCanvasViewport();
-    }
-    // Single finger pan when zoomed
-    else if(e.touches.length === 1 && isTouchPanning && canvasZoomLevel > 1) {
-      e.preventDefault();
-      canvasPanX = touchPanStartPanX + (e.touches[0].clientX - touchPanStartX);
-      canvasPanY = touchPanStartPanY + (e.touches[0].clientY - touchPanStartY);
-      constrainCanvasPan();
-      updateCanvasViewport();
-    }
-  }, { passive: false });
-
-  wrapper.addEventListener('touchend', function(e) {
-    if(e.touches.length === 0) {
-      isTouchPanning = false;
-      initialPinchDistance = 0;
-    }
-    // If one finger left after two-finger gesture, reset for single-finger pan
-    else if(e.touches.length === 1 && canvasZoomLevel > 1) {
-      touchPanStartX = e.touches[0].clientX;
-      touchPanStartY = e.touches[0].clientY;
-      touchPanStartPanX = canvasPanX;
-      touchPanStartPanY = canvasPanY;
-      isTouchPanning = true;
+      const mid = getPointerMidpoint(pts[0], pts[1]);
+      panStartX = mid.x;
+      panStartY = mid.y;
+      panStartPanX = canvasPanX;
+      panStartPanY = canvasPanY;
+      isPanning = true;
     }
   });
 
-  wrapper.addEventListener('touchcancel', function(e) {
-    isTouchPanning = false;
-    initialPinchDistance = 0;
+  wrapper.addEventListener('pointermove', function(e) {
+    if(!pointers.has(e.pointerId)) return;
+
+    e.preventDefault();
+
+    // Update tracked pointer position
+    pointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
+
+    if(pointers.size === 2) {
+      // Two pointers - pinch zoom and pan
+      const pts = Array.from(pointers.values());
+
+      // Pinch zoom
+      const currentDistance = getPointerDistance(pts[0], pts[1]);
+      if(initialPinchDistance > 0) {
+        const scale = currentDistance / initialPinchDistance;
+        const newZoom = Math.max(0.5, Math.min(5.0, initialPinchZoom * scale));
+
+        if(newZoom !== canvasZoomLevel) {
+          canvasZoomLevel = newZoom;
+          constrainCanvasPan();
+          updateCanvasViewport();
+        }
+      }
+
+      // Two-finger pan
+      const mid = getPointerMidpoint(pts[0], pts[1]);
+      canvasPanX = panStartPanX + (mid.x - panStartX);
+      canvasPanY = panStartPanY + (mid.y - panStartY);
+      constrainCanvasPan();
+      updateCanvasViewport();
+    } else if(pointers.size === 1 && isPanning && canvasZoomLevel > 1) {
+      // Single pointer pan when zoomed
+      canvasPanX = panStartPanX + (e.clientX - panStartX);
+      canvasPanY = panStartPanY + (e.clientY - panStartY);
+      constrainCanvasPan();
+      updateCanvasViewport();
+    }
+  });
+
+  wrapper.addEventListener('pointerup', function(e) {
+    pointers.delete(e.pointerId);
+    wrapper.releasePointerCapture(e.pointerId);
+
+    if(pointers.size === 0) {
+      isPanning = false;
+      initialPinchDistance = 0;
+    } else if(pointers.size === 1 && canvasZoomLevel > 1) {
+      // One pointer left - reset for single-finger pan
+      const remaining = Array.from(pointers.values())[0];
+      panStartX = remaining.clientX;
+      panStartY = remaining.clientY;
+      panStartPanX = canvasPanX;
+      panStartPanY = canvasPanY;
+      isPanning = true;
+      initialPinchDistance = 0;
+    }
+  });
+
+  wrapper.addEventListener('pointercancel', function(e) {
+    pointers.delete(e.pointerId);
+    wrapper.releasePointerCapture(e.pointerId);
+
+    if(pointers.size === 0) {
+      isPanning = false;
+      initialPinchDistance = 0;
+    }
+  });
+
+  // Prevent context menu on long press
+  wrapper.addEventListener('contextmenu', function(e) {
+    if(canvasZoomLevel > 1) {
+      e.preventDefault();
+    }
   });
 }
 

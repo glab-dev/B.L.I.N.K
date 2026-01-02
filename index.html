@@ -3151,7 +3151,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.134';
+const APP_VERSION = '2.0.135';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3436,23 +3436,28 @@ function applyAspectRatioFromWidth() {
     const targetPixelsHigh = totalPixelsWide / aspectRatio;
 
     // Try floor, round, ceil and find the height that maps back to this width
-    const phFloor = Math.max(1, Math.floor(targetPixelsHigh / p.res_y));
-    const phRound = Math.max(1, Math.round(targetPixelsHigh / p.res_y));
-    const phCeil = Math.max(1, Math.ceil(targetPixelsHigh / p.res_y));
+    const idealPh = targetPixelsHigh / p.res_y;
+    const phFloor = Math.max(1, Math.floor(idealPh));
+    const phRound = Math.max(1, Math.round(idealPh));
+    const phCeil = Math.max(1, Math.ceil(idealPh));
 
     // For each candidate height, calculate what width it would produce
     const pwFromFloor = Math.max(1, Math.round((phFloor * p.res_y * aspectRatio) / p.res_x));
     const pwFromRound = Math.max(1, Math.round((phRound * p.res_y * aspectRatio) / p.res_x));
     const pwFromCeil = Math.max(1, Math.round((phCeil * p.res_y * aspectRatio) / p.res_x));
 
-    // Pick the height that gives us back the same width (prefer round, then floor, then ceil)
+    // Find all heights that produce the correct width, pick closest to ideal
+    const candidates = [];
+    if(pwFromFloor === pw) candidates.push(phFloor);
+    if(pwFromRound === pw) candidates.push(phRound);
+    if(pwFromCeil === pw) candidates.push(phCeil);
+
     let ph;
-    if(pwFromRound === pw) {
-      ph = phRound;
-    } else if(pwFromFloor === pw) {
-      ph = phFloor;
-    } else if(pwFromCeil === pw) {
-      ph = phCeil;
+    if(candidates.length > 0) {
+      // Pick the candidate closest to idealPh
+      ph = candidates.reduce((best, curr) =>
+        Math.abs(curr - idealPh) < Math.abs(best - idealPh) ? curr : best
+      );
     } else {
       // None match exactly, use rounded
       ph = phRound;
@@ -3502,14 +3507,18 @@ function applyAspectRatioFromHeight() {
     const phFromRound = Math.max(1, Math.round((pwRound * p.res_x / aspectRatio) / p.res_y));
     const phFromCeil = Math.max(1, Math.round((pwCeil * p.res_x / aspectRatio) / p.res_y));
 
-    // Pick width that produces correct height - prefer round over floor/ceil for consistency
+    // Find all widths that produce the correct height, pick closest to ideal
+    const candidates = [];
+    if(phFromFloor === ph) candidates.push(pwFloor);
+    if(phFromRound === ph) candidates.push(pwRound);
+    if(phFromCeil === ph) candidates.push(pwCeil);
+
     let pw;
-    if(phFromRound === ph) {
-      pw = pwRound;
-    } else if(phFromCeil === ph) {
-      pw = pwCeil;
-    } else if(phFromFloor === ph) {
-      pw = pwFloor;
+    if(candidates.length > 0) {
+      // Pick the candidate closest to idealPw
+      pw = candidates.reduce((best, curr) =>
+        Math.abs(curr - idealPw) < Math.abs(best - idealPw) ? curr : best
+      );
     } else {
       // None match exactly, use rounded value
       pw = pwRound;

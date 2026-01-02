@@ -3127,7 +3127,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.115';
+const APP_VERSION = '2.0.116';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -12427,7 +12427,12 @@ function exportPDF(){
     }
     
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdf = new jsPDF({
+      orientation: 'p',
+      unit: 'mm',
+      format: 'a4',
+      compress: true
+    });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = 10;
@@ -13263,7 +13268,7 @@ function exportPDF(){
         
         if(container && container.style.display !== 'none' && canvas && canvas.width > 0) {
           // Use JPEG with 0.92 quality for good balance of size and clarity
-          const canvasImg = canvas.toDataURL('image/jpeg', 0.92);
+          const canvasImg = canvas.toDataURL('image/jpeg', 0.85);
 
           // Fixed WIDTH for all layouts, height scales proportionally
           const fixedWidth = 114; // mm - same width for all layouts
@@ -13330,8 +13335,8 @@ function exportPDF(){
         pdf.text('Structure Layout', margin, yOffset);
         yOffset += 8;
         
-        // Add structure canvas image - use JPEG with 0.92 quality for good balance of size and clarity
-        const canvasImg = canvas.toDataURL('image/jpeg', 0.92);
+        // Add structure canvas image - use JPEG with 0.85 quality for good balance of size and clarity
+        const canvasImg = canvas.toDataURL('image/jpeg', 0.85);
         const fixedWidth = 160; // Wider for structure view page
         const maxHeight = 80;
 
@@ -14227,9 +14232,9 @@ function exportPDF(){
         if(isMobileDevice && navigator.share && navigator.canShare) {
           const file = new File([pdfBlob], filename, { type: 'application/pdf' });
           if(navigator.canShare({ files: [file] })) {
+            // Only pass files - do NOT include title/text as they create separate text files
             navigator.share({
-              files: [file],
-              title: filename
+              files: [file]
             }).then(() => {
               removeOverlay();
             }).catch((err) => {

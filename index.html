@@ -3127,7 +3127,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.119';
+const APP_VERSION = '2.0.120';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -12459,51 +12459,14 @@ function initCanvasTouchPanZoom() {
       touchPanStartPanY = canvasPanY;
       isTouchPanning = true;
     }
-    // Single finger when zoomed: check if we should pan (not over a screen)
+    // Single finger when zoomed: allow panning anywhere on canvas
     else if(e.touches.length === 1 && canvasZoomLevel > 1) {
-      const canvas = document.getElementById('canvasView');
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const touchX = (e.touches[0].clientX - rect.left) * scaleX;
-      const touchY = (e.touches[0].clientY - rect.top) * scaleY;
-
-      // Check if touch is over any screen
-      let overScreen = false;
-      Object.keys(screens).forEach(screenId => {
-        const screen = screens[screenId];
-        if(!screen.visible) return;
-        const screenData = screen.data;
-        const allPanelsPan = getAllPanels();
-        const p = allPanelsPan[screenData.panelType || 'CB5_MKII'];
-        if(!p) return;
-
-        const pw = screenData.panelsWide || 0;
-        const ph = screenData.panelsHigh || 0;
-        const canvasX = screenData.canvasX || 0;
-        const canvasY = screenData.canvasY || 0;
-
-        let wallResX = pw * p.res_x;
-        let wallResY = ph * p.res_y;
-        if(screenData.addCB5HalfRow && screenData.panelType === 'CB5_MKII') {
-          wallResY += allPanelsPan['CB5_MKII_HALF'].res_y;
-        }
-
-        if(touchX >= canvasX && touchX <= canvasX + wallResX &&
-           touchY >= canvasY && touchY <= canvasY + wallResY) {
-          overScreen = true;
-        }
-      });
-
-      // If not over a screen, start panning
-      if(!overScreen) {
-        isTouchPanning = true;
-        touchPanStartX = e.touches[0].clientX;
-        touchPanStartY = e.touches[0].clientY;
-        touchPanStartPanX = canvasPanX;
-        touchPanStartPanY = canvasPanY;
-        e.preventDefault();
-      }
+      isTouchPanning = true;
+      touchPanStartX = e.touches[0].clientX;
+      touchPanStartY = e.touches[0].clientY;
+      touchPanStartPanX = canvasPanX;
+      touchPanStartPanY = canvasPanY;
+      e.preventDefault();
     }
   }, { passive: false });
 

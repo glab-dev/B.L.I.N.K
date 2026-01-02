@@ -3151,7 +3151,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.133';
+const APP_VERSION = '2.0.134';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3502,14 +3502,14 @@ function applyAspectRatioFromHeight() {
     const phFromRound = Math.max(1, Math.round((pwRound * p.res_x / aspectRatio) / p.res_y));
     const phFromCeil = Math.max(1, Math.round((pwCeil * p.res_x / aspectRatio) / p.res_y));
 
-    // Pick the smallest width that produces the correct height
+    // Pick width that produces correct height - prefer round over floor/ceil for consistency
     let pw;
-    if(phFromFloor === ph) {
-      pw = pwFloor;
-    } else if(phFromRound === ph) {
+    if(phFromRound === ph) {
       pw = pwRound;
     } else if(phFromCeil === ph) {
       pw = pwCeil;
+    } else if(phFromFloor === ph) {
+      pw = pwFloor;
     } else {
       // None match exactly, use rounded value
       pw = pwRound;

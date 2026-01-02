@@ -3151,7 +3151,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.129';
+const APP_VERSION = '2.0.130';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3413,6 +3413,74 @@ function getAspectRatioValue() {
       customARHeight = parseInt(document.getElementById('customARHeight').value) || 9;
       return customARWidth / customARHeight;
     default: return null; // 'none' - no aspect ratio lock
+  }
+}
+
+// Apply aspect ratio lock when width changes - calculates height
+function applyAspectRatioFromWidth() {
+  const aspectRatio = getAspectRatioValue();
+  if(!aspectRatio) return; // No aspect ratio lock
+
+  const allPanels = getAllPanels();
+  const p = allPanels[document.getElementById('panelType').value];
+  if(!p || !p.res_x || !p.res_y) return;
+
+  if(currentDimensionMode === 'panels') {
+    // Panels mode: calculate panels high based on panels wide and pixel aspect ratio
+    const pw = parseInt(document.getElementById('panelsWide').value) || 0;
+    if(pw <= 0) return;
+
+    // Total pixels wide
+    const totalPixelsWide = pw * p.res_x;
+    // Calculate pixels high for target aspect ratio
+    const targetPixelsHigh = totalPixelsWide / aspectRatio;
+    // Convert to panels (round to nearest whole panel)
+    const ph = Math.max(1, Math.round(targetPixelsHigh / p.res_y));
+
+    document.getElementById('panelsHigh').value = ph;
+    syncFromPanels();
+  } else {
+    // Size mode: calculate wall height based on wall width
+    const wallWidth = parseFloat(document.getElementById('wallWidth').value) || 0;
+    if(wallWidth <= 0) return;
+
+    const wallHeight = wallWidth / aspectRatio;
+    document.getElementById('wallHeight').value = wallHeight.toFixed(2);
+    syncFromSize();
+  }
+}
+
+// Apply aspect ratio lock when height changes - calculates width
+function applyAspectRatioFromHeight() {
+  const aspectRatio = getAspectRatioValue();
+  if(!aspectRatio) return; // No aspect ratio lock
+
+  const allPanels = getAllPanels();
+  const p = allPanels[document.getElementById('panelType').value];
+  if(!p || !p.res_x || !p.res_y) return;
+
+  if(currentDimensionMode === 'panels') {
+    // Panels mode: calculate panels wide based on panels high and pixel aspect ratio
+    const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
+    if(ph <= 0) return;
+
+    // Total pixels high
+    const totalPixelsHigh = ph * p.res_y;
+    // Calculate pixels wide for target aspect ratio
+    const targetPixelsWide = totalPixelsHigh * aspectRatio;
+    // Convert to panels (round to nearest whole panel)
+    const pw = Math.max(1, Math.round(targetPixelsWide / p.res_x));
+
+    document.getElementById('panelsWide').value = pw;
+    syncFromPanels();
+  } else {
+    // Size mode: calculate wall width based on wall height
+    const wallHeight = parseFloat(document.getElementById('wallHeight').value) || 0;
+    if(wallHeight <= 0) return;
+
+    const wallWidth = wallHeight * aspectRatio;
+    document.getElementById('wallWidth').value = wallWidth.toFixed(2);
+    syncFromSize();
   }
 }
 
@@ -16020,19 +16088,54 @@ document.addEventListener('DOMContentLoaded', function() {
       updateBumpersBasedOnStructureType();
     }
     
-    // Listen to panel dimension changes to update weight display and reinitialize bumpers
+    // Listen to panel dimension changes to update weight display, reinitialize bumpers, and apply aspect ratio
     const panelsWideInput = document.getElementById('panelsWide');
     const panelsHighInput = document.getElementById('panelsHigh');
+    const wallWidthInput = document.getElementById('wallWidth');
+    const wallHeightInput = document.getElementById('wallHeight');
+
     if(panelsWideInput) {
       panelsWideInput.addEventListener('input', function() {
+        applyAspectRatioFromWidth(); // Apply aspect ratio lock
         initializeBumpers(); // Reinitialize when width changes
         updateWeightDisplay();
       });
     }
     if(panelsHighInput) {
       panelsHighInput.addEventListener('input', function() {
+        applyAspectRatioFromHeight(); // Apply aspect ratio lock
         initializeBumpers(); // Reinitialize when height changes
         updateWeightDisplay();
+      });
+    }
+    if(wallWidthInput) {
+      wallWidthInput.addEventListener('input', function() {
+        applyAspectRatioFromWidth(); // Apply aspect ratio lock
+      });
+    }
+    if(wallHeightInput) {
+      wallHeightInput.addEventListener('input', function() {
+        applyAspectRatioFromHeight(); // Apply aspect ratio lock
+      });
+    }
+
+    // Listen to custom aspect ratio input changes
+    const customARWidthInput = document.getElementById('customARWidth');
+    const customARHeightInput = document.getElementById('customARHeight');
+    if(customARWidthInput) {
+      customARWidthInput.addEventListener('input', function() {
+        if(currentAspectRatio === 'custom') {
+          applyAspectRatioFromWidth(); // Re-apply with new ratio
+          calculate();
+        }
+      });
+    }
+    if(customARHeightInput) {
+      customARHeightInput.addEventListener('input', function() {
+        if(currentAspectRatio === 'custom') {
+          applyAspectRatioFromWidth(); // Re-apply with new ratio
+          calculate();
+        }
       });
     }
     

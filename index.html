@@ -3151,7 +3151,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.135';
+const APP_VERSION = '2.0.136';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3446,7 +3446,7 @@ function applyAspectRatioFromWidth() {
     const pwFromRound = Math.max(1, Math.round((phRound * p.res_y * aspectRatio) / p.res_x));
     const pwFromCeil = Math.max(1, Math.round((phCeil * p.res_y * aspectRatio) / p.res_x));
 
-    // Find all heights that produce the correct width, pick closest to ideal
+    // Find all heights that produce the correct width, pick smallest (most conservative)
     const candidates = [];
     if(pwFromFloor === pw) candidates.push(phFloor);
     if(pwFromRound === pw) candidates.push(phRound);
@@ -3454,10 +3454,8 @@ function applyAspectRatioFromWidth() {
 
     let ph;
     if(candidates.length > 0) {
-      // Pick the candidate closest to idealPh
-      ph = candidates.reduce((best, curr) =>
-        Math.abs(curr - idealPh) < Math.abs(best - idealPh) ? curr : best
-      );
+      // Pick the smallest valid height for consistency
+      ph = Math.min(...candidates);
     } else {
       // None match exactly, use rounded
       ph = phRound;
@@ -3507,7 +3505,7 @@ function applyAspectRatioFromHeight() {
     const phFromRound = Math.max(1, Math.round((pwRound * p.res_x / aspectRatio) / p.res_y));
     const phFromCeil = Math.max(1, Math.round((pwCeil * p.res_x / aspectRatio) / p.res_y));
 
-    // Find all widths that produce the correct height, pick closest to ideal
+    // Find all widths that produce the correct height, pick smallest (most conservative)
     const candidates = [];
     if(phFromFloor === ph) candidates.push(pwFloor);
     if(phFromRound === ph) candidates.push(pwRound);
@@ -3515,10 +3513,8 @@ function applyAspectRatioFromHeight() {
 
     let pw;
     if(candidates.length > 0) {
-      // Pick the candidate closest to idealPw
-      pw = candidates.reduce((best, curr) =>
-        Math.abs(curr - idealPw) < Math.abs(best - idealPw) ? curr : best
-      );
+      // Pick the smallest valid width for consistency
+      pw = Math.min(...candidates);
     } else {
       // None match exactly, use rounded value
       pw = pwRound;

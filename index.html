@@ -3137,7 +3137,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.152';
+const APP_VERSION = '2.0.153';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3446,6 +3446,7 @@ function applyAspectRatioFromWidth() {
 
     document.getElementById('panelsHigh').value = ph;
     syncFromPanels();
+    saveCurrentScreenData(); // Save to screen data before calculate
     calculate(); // Trigger calculation to populate wall on canvas
   } else {
     // Size mode: calculate wall height based on wall width
@@ -3464,6 +3465,7 @@ function applyAspectRatioFromWidth() {
     const wallHeight = wallWidth / aspectRatio;
     document.getElementById('wallHeight').value = wallHeight.toFixed(2);
     syncFromSize();
+    saveCurrentScreenData(); // Save to screen data before calculate
     calculate(); // Trigger calculation to populate wall on canvas
   }
 }
@@ -10821,17 +10823,6 @@ function showCanvasView(){
   // Clear any cached canvas image to ensure fresh render
   cachedCanvasImageData = null;
 
-  // Check if we have valid dimensions before showing canvas
-  const panelsWideInput = document.getElementById('panelsWide');
-  const panelsHighInput = document.getElementById('panelsHigh');
-  const wallWidthInput = document.getElementById('wallWidth');
-  const wallHeightInput = document.getElementById('wallHeight');
-
-  const panelsWideVal = panelsWideInput ? panelsWideInput.value.trim() : '';
-  const panelsHighVal = panelsHighInput ? panelsHighInput.value.trim() : '';
-  const wallWidthVal = wallWidthInput ? wallWidthInput.value.trim() : '';
-  const wallHeightVal = wallHeightInput ? wallHeightInput.value.trim() : '';
-
   // Only show canvas container when on canvas page
   const container = document.getElementById('canvasContainer');
   const isCanvasPage = typeof currentMobileView !== 'undefined' && currentMobileView === 'canvas';
@@ -10839,8 +10830,24 @@ function showCanvasView(){
     container.style.display = 'block';
   }
 
-  // Don't draw canvas if no dimensions are entered, but still show container
-  if(!panelsWideVal && !panelsHighVal && !wallWidthVal && !wallHeightVal) {
+  // Check if ANY screen has valid dimensions (not just current screen)
+  let anyScreenHasDimensions = false;
+  Object.values(screens).forEach(screen => {
+    const data = screen.data;
+    if((data.panelsWide && data.panelsWide > 0) || (data.panelsHigh && data.panelsHigh > 0)) {
+      anyScreenHasDimensions = true;
+    }
+  });
+
+  // Don't draw canvas if no screens have dimensions, but still show container
+  if(!anyScreenHasDimensions) {
+    // Clear the canvas to black when no screens have dimensions
+    const canvas = document.getElementById('canvasView');
+    if(canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
     return;
   }
 

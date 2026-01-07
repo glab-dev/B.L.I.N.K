@@ -3137,7 +3137,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.151';
+const APP_VERSION = '2.0.152';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3371,6 +3371,7 @@ let customARWidth = 16;
 let customARHeight = 10;
 
 function setAspectRatio(ratio) {
+  const previousRatio = currentAspectRatio;
   currentAspectRatio = ratio;
 
   // Update toggle button states
@@ -3389,6 +3390,14 @@ function setAspectRatio(ratio) {
   if(ratio === 'custom') {
     customARWidth = parseInt(document.getElementById('customARWidth').value) || 16;
     customARHeight = parseInt(document.getElementById('customARHeight').value) || 10;
+  }
+
+  // Clear dimension inputs when switching between different aspect ratios (not from 'none')
+  if(previousRatio !== 'none' && previousRatio !== ratio) {
+    document.getElementById('panelsWide').value = '';
+    document.getElementById('panelsHigh').value = '';
+    document.getElementById('wallWidth').value = '';
+    document.getElementById('wallHeight').value = '';
   }
 }
 
@@ -3437,6 +3446,7 @@ function applyAspectRatioFromWidth() {
 
     document.getElementById('panelsHigh').value = ph;
     syncFromPanels();
+    calculate(); // Trigger calculation to populate wall on canvas
   } else {
     // Size mode: calculate wall height based on wall width
     const wallWidthInput = document.getElementById('wallWidth').value;
@@ -3454,6 +3464,7 @@ function applyAspectRatioFromWidth() {
     const wallHeight = wallWidth / aspectRatio;
     document.getElementById('wallHeight').value = wallHeight.toFixed(2);
     syncFromSize();
+    calculate(); // Trigger calculation to populate wall on canvas
   }
 }
 
@@ -10259,9 +10270,19 @@ function getBumperAtPosition(canvas, clientX, clientY) {
 
 function updateBumpersBasedOnStructureType() {
   const structureType = document.getElementById('structureType').value;
-  
-  // Only set bumper flags if bumpers are enabled
-  if(useBumpers) {
+
+  // Floor structure type - automatically disable bumpers
+  if(structureType === 'floor') {
+    if(useBumpers) {
+      useBumpers = false;
+      document.getElementById('useBumpersBtn').classList.remove('active');
+      const bumperControls = document.getElementById('bumperControls');
+      if(bumperControls) bumperControls.style.display = 'none';
+    }
+    showTopBumper = false;
+    showBottomBumper = false;
+  } else if(useBumpers) {
+    // Only set bumper flags if bumpers are enabled
     if(structureType === 'hanging') {
       showTopBumper = true;
       showBottomBumper = false;
@@ -10274,10 +10295,10 @@ function updateBumpersBasedOnStructureType() {
     showTopBumper = false;
     showBottomBumper = false;
   }
-  
+
   // Reinitialize bumpers when structure type changes
   initializeBumpers();
-  
+
   updateStructureVisualization();
   updateWeightDisplay();
 }
@@ -16799,15 +16820,23 @@ function deleteScreen(screenId) {
   }
 
   delete screens[screenId];
-  
+
+  // Clear canvas selection if the deleted screen was selected
+  if(selectedCanvasScreenId === screenId) {
+    selectedCanvasScreenId = null;
+  }
+
   if(currentScreenId === screenId) {
     currentScreenId = Object.keys(screens)[0];
     loadScreenData(currentScreenId);
   }
-  
+
   renderScreenTabs();
   updateCanvasScreenToggles();
   calculate();
+
+  // Explicitly redraw canvas to remove deleted screen
+  showCanvasView();
 }
 
 let screenToRename = null;

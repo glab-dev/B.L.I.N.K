@@ -3137,7 +3137,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.156';
+const APP_VERSION = '2.0.157';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -11752,7 +11752,10 @@ function setupCanvasViewInteractivity() {
     // Get snap mode (checkbox)
     const snapEnabled = snapModeEnabled;
     const snapMode = snapEnabled ? 'markers' : 'none';
-    const snapThreshold = 20; // Reduced from 30 to be less sticky
+    // Snap threshold in canvas pixels - larger on mobile for better feel
+    // On a 4K canvas (3840px), 50px is about 1.3% of width - feels firm but not too sticky
+    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const snapThreshold = isMobile ? 50 : 30;
     
     if(snapMode === 'markers') {
       // Snap to canvas position markers - now snaps edges and center only
@@ -11930,7 +11933,7 @@ function setupCanvasViewInteractivity() {
     
     // Screen-to-screen snapping - snap to other visible screens' edges
     if(snapEnabled) {
-      const screenSnapThreshold = 25; // Pixels threshold for screen snapping
+      const screenSnapThreshold = isMobile ? 60 : 35; // Larger on mobile for better feel
       
       // Calculate current wall bounds
       const wallLeft = newOffsetX;
@@ -12253,7 +12256,8 @@ function setupCanvasViewInteractivity() {
             const ph = screenData.panelsHigh || 0;
             const wallResX = pw * p.res_x;
             const wallResY = ph * p.res_y;
-            const snapThreshold = 20;
+            // Touch is always mobile, use larger threshold for firm snapping
+            const snapThreshold = 50;
 
             // Canvas edge and center snapping
             const canvasW = canvas.width;

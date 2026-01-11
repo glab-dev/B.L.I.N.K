@@ -3137,7 +3137,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.153';
+const APP_VERSION = '2.0.154';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -12509,24 +12509,30 @@ function constrainCanvasPan() {
   const canvas = document.getElementById('canvasView');
   const wrapper = document.getElementById('canvasViewWrapper');
   if(!canvas || !wrapper) return;
-  
-  const wrapperWidth = 800;
-  const wrapperHeight = 450;
-  
-  // Get canvas display size
-  const canvasWidth = parseFloat(canvas.style.width) || wrapperWidth;
-  const canvasHeight = parseFloat(canvas.style.height) || wrapperHeight;
-  
-  // Calculate scaled size
-  const scaledWidth = canvasWidth * canvasZoomLevel;
-  const scaledHeight = canvasHeight * canvasZoomLevel;
-  
+
+  // Get actual wrapper dimensions from DOM
+  const wrapperRect = wrapper.getBoundingClientRect();
+  const wrapperWidth = wrapperRect.width || 800;
+  const wrapperHeight = wrapperRect.height || 450;
+
+  // Get actual canvas display size from DOM
+  const canvasRect = canvas.getBoundingClientRect();
+  // At zoom 1.0, the canvas display size equals the wrapper size (due to object-fit)
+  // We need the base display size before zoom is applied
+  const baseDisplayWidth = wrapperWidth;
+  const baseDisplayHeight = wrapperHeight;
+
+  // Calculate scaled size (how big the canvas appears with zoom)
+  const scaledWidth = baseDisplayWidth * canvasZoomLevel;
+  const scaledHeight = baseDisplayHeight * canvasZoomLevel;
+
   // Calculate pan limits
+  // When zoomed in, we can pan to see the entire scaled canvas
   const minPanX = Math.min(0, wrapperWidth - scaledWidth);
   const minPanY = Math.min(0, wrapperHeight - scaledHeight);
   const maxPanX = 0;
   const maxPanY = 0;
-  
+
   // Constrain pan
   canvasPanX = Math.max(minPanX, Math.min(maxPanX, canvasPanX));
   canvasPanY = Math.max(minPanY, Math.min(maxPanY, canvasPanY));
@@ -12552,10 +12558,29 @@ function initCanvasPanning() {
   const wrapper = document.getElementById('canvasViewWrapper');
   const viewport = document.getElementById('canvasViewport');
   if(!wrapper || !viewport) return;
-  
+
+  // Prevent default middle-click behavior (auto-scroll) on the wrapper
   wrapper.addEventListener('mousedown', function(e) {
-    // Only pan if zoomed in and not dragging a screen
-    if(canvasZoomLevel > 1 && !canvasViewDragging) {
+    if(e.button === 1) {
+      e.preventDefault();
+    }
+  });
+
+  // Use auxclick to handle middle mouse button (button === 1)
+  // But we need mousedown to capture the start of the drag
+  wrapper.addEventListener('mousedown', function(e) {
+    // Middle mouse button (button === 1) - pan regardless of zoom level
+    if(e.button === 1) {
+      isPanningCanvas = true;
+      panStartX = e.clientX - canvasPanX;
+      panStartY = e.clientY - canvasPanY;
+      viewport.style.cursor = 'grabbing';
+      e.preventDefault();
+      return;
+    }
+
+    // Left click - only pan if zoomed in and not dragging a screen
+    if(e.button === 0 && canvasZoomLevel > 1 && !canvasViewDragging) {
       // Check if we clicked on a screen (let screen dragging take priority)
       const canvas = document.getElementById('canvasView');
       const rect = canvas.getBoundingClientRect();
@@ -12563,7 +12588,7 @@ function initCanvasPanning() {
       const scaleY = canvas.height / rect.height;
       const mouseX = (e.clientX - rect.left) * scaleX;
       const mouseY = (e.clientY - rect.top) * scaleY;
-      
+
       // Check if mouse is over any screen
       let overScreen = false;
       Object.keys(screens).forEach(screenId => {
@@ -12584,13 +12609,13 @@ function initCanvasPanning() {
         if(screenData.addCB5HalfRow && screenData.panelType === 'CB5_MKII') {
           wallResY += allPanelsPan['CB5_MKII_HALF'].res_y;
         }
-        
+
         if(mouseX >= canvasX && mouseX <= canvasX + wallResX &&
            mouseY >= canvasY && mouseY <= canvasY + wallResY) {
           overScreen = true;
         }
       });
-      
+
       if(!overScreen) {
         isPanningCanvas = true;
         panStartX = e.clientX - canvasPanX;
@@ -12600,7 +12625,7 @@ function initCanvasPanning() {
       }
     }
   });
-  
+
   document.addEventListener('mousemove', function(e) {
     if(isPanningCanvas) {
       canvasPanX = e.clientX - panStartX;
@@ -12609,7 +12634,7 @@ function initCanvasPanning() {
       updateCanvasViewport();
     }
   });
-  
+
   document.addEventListener('mouseup', function(e) {
     if(isPanningCanvas) {
       isPanningCanvas = false;

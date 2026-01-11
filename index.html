@@ -3137,7 +3137,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.155';
+const APP_VERSION = '2.0.156';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -12146,34 +12146,20 @@ function setupCanvasViewInteractivity() {
   });
 
   // ===== TOUCH EVENT HANDLERS FOR MOBILE =====
+  // Single finger = select/drag screens
+  // Two-finger = pan and zoom (handled by initCanvasTouchPanZoom)
   let touchDragPending = false;
   let touchLastX = 0;
   let touchLastY = 0;
 
-  // Track if we're panning the viewport (vs dragging a screen)
-  let isViewportPanning = false;
-  let viewportPanStartX = 0;
-  let viewportPanStartY = 0;
-  let viewportPanStartPanX = 0;
-  let viewportPanStartPanY = 0;
-
   canvas.addEventListener('touchstart', function(e) {
+    // Only handle single-finger touch for screen selection/dragging
+    // Two-finger gestures are handled by initCanvasTouchPanZoom for panning/zooming
     if(e.touches.length !== 1) return;
 
     const touch = e.touches[0];
 
-    // If zoomed in, let the wrapper handle panning via hold gesture
-    // Don't intercept the touch here - just let it bubble up
-    if(canvasZoomLevel > 1) {
-      // Don't start screen dragging when zoomed
-      isViewportPanning = false;
-      canvasViewDragging = false;
-      draggedScreenId = null;
-      // Don't preventDefault - let wrapper handle it
-      return;
-    }
-
-    // At 100% zoom, handle screen selection/dragging
+    // Single finger always handles screen selection/dragging (at any zoom level)
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -12190,7 +12176,6 @@ function setupCanvasViewInteractivity() {
       selectedCanvasScreenId = clickedScreenId;
       draggedScreenId = clickedScreenId;
       canvasViewDragging = true;
-      isViewportPanning = false;
       canvasViewDragStartX = touchX;
       canvasViewDragStartY = touchY;
       canvasViewStartOffsetX = offsetX;
@@ -12210,7 +12195,7 @@ function setupCanvasViewInteractivity() {
 
       e.preventDefault();
     } else if(selectedCanvasScreenId) {
-      // Tapped empty area at 100% zoom - just deselect
+      // Tapped empty area - deselect
       selectedCanvasScreenId = null;
       updateCanvasInfoDisplay();
       const ctx = canvas.getContext('2d');
@@ -12221,22 +12206,14 @@ function setupCanvasViewInteractivity() {
   }, {passive: false});
 
   canvas.addEventListener('touchmove', function(e) {
+    // Only handle single-finger for screen dragging
+    // Two-finger panning is handled by initCanvasTouchPanZoom
     if(e.touches.length !== 1) return;
-
-    const touch = e.touches[0];
-
-    // Handle viewport panning when zoomed
-    if(isViewportPanning && canvasZoomLevel > 1) {
-      e.preventDefault();
-      canvasPanX = viewportPanStartPanX + (touch.clientX - viewportPanStartX);
-      canvasPanY = viewportPanStartPanY + (touch.clientY - viewportPanStartY);
-      constrainCanvasPan();
-      updateCanvasViewport();
-      return;
-    }
 
     // Handle screen dragging
     if(!canvasViewDragging || !draggedScreenId) return;
+
+    const touch = e.touches[0];
 
     e.preventDefault();
 
@@ -12410,9 +12387,6 @@ function setupCanvasViewInteractivity() {
   }, {passive: false});
 
   canvas.addEventListener('touchend', function(e) {
-    // Reset viewport panning
-    isViewportPanning = false;
-
     if(canvasViewDragging) {
       canvasViewDragging = false;
       draggedScreenId = null;
@@ -12429,9 +12403,6 @@ function setupCanvasViewInteractivity() {
   });
 
   canvas.addEventListener('touchcancel', function(e) {
-    // Reset viewport panning
-    isViewportPanning = false;
-
     if(canvasViewDragging) {
       canvasViewDragging = false;
       draggedScreenId = null;
@@ -12599,6 +12570,9 @@ function initCanvasPanning() {
 }
 
 // Touch panning and pinch-to-zoom for mobile
+// Two-finger drag = pan (like middle mouse on desktop)
+// Pinch = zoom
+// Single finger = select/drag screens (handled by canvas touch events)
 function initCanvasTouchPanZoom() {
   const wrapper = document.getElementById('canvasViewWrapper');
   const viewport = document.getElementById('canvasViewport');
@@ -12608,7 +12582,7 @@ function initCanvasTouchPanZoom() {
   let touchPanStartY = 0;
   let touchPanStartPanX = 0;
   let touchPanStartPanY = 0;
-  let isTouchPanning = false;
+  let isTwoFingerPanning = false;
   let initialPinchDistance = 0;
   let initialPinchZoom = 1;
 
@@ -12620,35 +12594,27 @@ function initCanvasTouchPanZoom() {
   }
 
   wrapper.addEventListener('touchstart', function(e) {
-    // Two-finger touch: prepare for pinch-zoom or pan
+    // Two-finger touch: prepare for pinch-zoom and pan
     if(e.touches.length === 2) {
       e.preventDefault();
       initialPinchDistance = getTouchDistance(e.touches);
       initialPinchZoom = canvasZoomLevel;
 
-      // Also prepare for two-finger pan
+      // Prepare for two-finger pan (works at any zoom level)
       const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       touchPanStartX = midX;
       touchPanStartY = midY;
       touchPanStartPanX = canvasPanX;
       touchPanStartPanY = canvasPanY;
-      isTouchPanning = true;
+      isTwoFingerPanning = true;
     }
-    // Single finger when zoomed: instant panning
-    else if(e.touches.length === 1 && canvasZoomLevel > 1) {
-      e.preventDefault(); // Prevent text selection/blue highlight
-      touchPanStartX = e.touches[0].clientX;
-      touchPanStartY = e.touches[0].clientY;
-      touchPanStartPanX = canvasPanX;
-      touchPanStartPanY = canvasPanY;
-      isTouchPanning = true;
-    }
+    // Single finger: let canvas handle screen selection/dragging (don't prevent default)
   }, { passive: false });
 
   wrapper.addEventListener('touchmove', function(e) {
     // Two-finger: pinch-zoom and pan
-    if(e.touches.length === 2) {
+    if(e.touches.length === 2 && isTwoFingerPanning) {
       e.preventDefault();
 
       // Pinch zoom
@@ -12662,7 +12628,7 @@ function initCanvasTouchPanZoom() {
         updateCanvasViewport();
       }
 
-      // Two-finger pan
+      // Two-finger pan (works at any zoom level)
       const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       canvasPanX = touchPanStartPanX + (midX - touchPanStartX);
@@ -12670,33 +12636,18 @@ function initCanvasTouchPanZoom() {
       constrainCanvasPan();
       updateCanvasViewport();
     }
-    // Single finger pan when zoomed
-    else if(e.touches.length === 1 && isTouchPanning && canvasZoomLevel > 1) {
-      e.preventDefault();
-      canvasPanX = touchPanStartPanX + (e.touches[0].clientX - touchPanStartX);
-      canvasPanY = touchPanStartPanY + (e.touches[0].clientY - touchPanStartY);
-      constrainCanvasPan();
-      updateCanvasViewport();
-    }
+    // Single finger: let canvas handle screen dragging
   }, { passive: false });
 
   wrapper.addEventListener('touchend', function(e) {
-    if(e.touches.length === 0) {
-      isTouchPanning = false;
+    if(e.touches.length < 2) {
+      isTwoFingerPanning = false;
       initialPinchDistance = 0;
-    }
-    // If one finger left after two-finger gesture, reset for single-finger pan
-    else if(e.touches.length === 1 && canvasZoomLevel > 1) {
-      touchPanStartX = e.touches[0].clientX;
-      touchPanStartY = e.touches[0].clientY;
-      touchPanStartPanX = canvasPanX;
-      touchPanStartPanY = canvasPanY;
-      isTouchPanning = true;
     }
   });
 
   wrapper.addEventListener('touchcancel', function(e) {
-    isTouchPanning = false;
+    isTwoFingerPanning = false;
     initialPinchDistance = 0;
   });
 }

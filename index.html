@@ -3137,7 +3137,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.154';
+const APP_VERSION = '2.0.155';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -11643,12 +11643,16 @@ function setupCanvasViewInteractivity() {
   }
   
   canvas.addEventListener('mousedown', function(e) {
+    // Only handle left mouse button (button === 0) for screen selection/dragging
+    // Middle mouse button (button === 1) is handled by initCanvasPanning for panning
+    if(e.button !== 0) return;
+
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const mouseX = (e.clientX - rect.left) * scaleX;
     const mouseY = (e.clientY - rect.top) * scaleY;
-    
+
     // Detect which screen was clicked
     const clickedScreenId = getScreenAtPosition(mouseX, mouseY);
     
@@ -12553,7 +12557,7 @@ function initCanvasWheelZoom() {
   }, { passive: false });
 }
 
-// Initialize canvas panning
+// Initialize canvas panning (middle mouse button only)
 function initCanvasPanning() {
   const wrapper = document.getElementById('canvasViewWrapper');
   const viewport = document.getElementById('canvasViewport');
@@ -12566,63 +12570,14 @@ function initCanvasPanning() {
     }
   });
 
-  // Use auxclick to handle middle mouse button (button === 1)
-  // But we need mousedown to capture the start of the drag
+  // Middle mouse button (button === 1) for panning
   wrapper.addEventListener('mousedown', function(e) {
-    // Middle mouse button (button === 1) - pan regardless of zoom level
     if(e.button === 1) {
       isPanningCanvas = true;
       panStartX = e.clientX - canvasPanX;
       panStartY = e.clientY - canvasPanY;
       viewport.style.cursor = 'grabbing';
       e.preventDefault();
-      return;
-    }
-
-    // Left click - only pan if zoomed in and not dragging a screen
-    if(e.button === 0 && canvasZoomLevel > 1 && !canvasViewDragging) {
-      // Check if we clicked on a screen (let screen dragging take priority)
-      const canvas = document.getElementById('canvasView');
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const mouseX = (e.clientX - rect.left) * scaleX;
-      const mouseY = (e.clientY - rect.top) * scaleY;
-
-      // Check if mouse is over any screen
-      let overScreen = false;
-      Object.keys(screens).forEach(screenId => {
-        const screen = screens[screenId];
-        if(!screen.visible) return;
-        const screenData = screen.data;
-        const allPanelsPan = getAllPanels();
-        const p = allPanelsPan[screenData.panelType || 'CB5_MKII'];
-        if(!p) return;
-
-        const pw = screenData.panelsWide || 0;
-        const ph = screenData.panelsHigh || 0;
-        const canvasX = screenData.canvasX || 0;
-        const canvasY = screenData.canvasY || 0;
-
-        let wallResX = pw * p.res_x;
-        let wallResY = ph * p.res_y;
-        if(screenData.addCB5HalfRow && screenData.panelType === 'CB5_MKII') {
-          wallResY += allPanelsPan['CB5_MKII_HALF'].res_y;
-        }
-
-        if(mouseX >= canvasX && mouseX <= canvasX + wallResX &&
-           mouseY >= canvasY && mouseY <= canvasY + wallResY) {
-          overScreen = true;
-        }
-      });
-
-      if(!overScreen) {
-        isPanningCanvas = true;
-        panStartX = e.clientX - canvasPanX;
-        panStartY = e.clientY - canvasPanY;
-        viewport.style.cursor = 'grabbing';
-        e.preventDefault();
-      }
     }
   });
 

@@ -3137,7 +3137,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.159';
+const APP_VERSION = '2.0.160';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -8309,8 +8309,11 @@ function generateStructureLayout(){
     }
   }
   
-  // Initialize bumpers if not already done
-  if(bumpers.length === 0 && (showTopBumper || showBottomBumper)) {
+  // Initialize bumpers if not already done and not previously customized
+  // Check bumpersInitialized flag from current screen data to respect user's bumper customizations
+  const currentScreenData = screens[currentScreenId]?.data;
+  const bumpersAlreadyInitialized = currentScreenData?.bumpersInitialized || false;
+  if(bumpers.length === 0 && (showTopBumper || showBottomBumper) && !bumpersAlreadyInitialized) {
     initializeBumpers();
   }
   
@@ -15465,6 +15468,8 @@ function saveConfiguration() {
         topBumper1wColumn: data.topBumper1wColumn,
         bottomBumper1wColumn: data.bottomBumper1wColumn,
         bumpers: Array.isArray(data.bumpers) ? data.bumpers : [],
+        bumpersInitialized: data.bumpersInitialized || false,
+        nextBumperId: data.nextBumperId || 1,
         deletedPanels: deletedPanelsArray,
         customCircuitAssignments: circuitAssignmentsArray,
         customDataLineAssignments: dataLineAssignmentsArray

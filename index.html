@@ -3137,7 +3137,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.158';
+const APP_VERSION = '2.0.159';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -11143,7 +11143,11 @@ function showCanvasView(){
     ctx.fillText(logoText, logoTextX, logoTextY);
   });
 
+  // Cache the canvas state BEFORE drawing the border (for clean export)
+  cachedCanvasImageDataForExport = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
   // Draw canvas boundary border (so users can see canvas edges when zoomed)
+  // This is only for display, not included in export
   ctx.strokeStyle = '#10b981';
   ctx.lineWidth = 6;
   ctx.setLineDash([]);
@@ -11159,11 +11163,11 @@ function showCanvasView(){
       totalPanels += screen.data.panelsWide * screen.data.panelsHigh;
     }
   });
-  
+
   // Update canvas info display (includes selected screen coordinates if any)
   updateCanvasInfoDisplay();
 
-  // Cache the canvas state for quick selection highlighting
+  // Cache the canvas state WITH border for quick selection highlighting
   cachedCanvasImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   
   // Setup canvas view interactivity
@@ -11207,8 +11211,10 @@ function showCanvasView(){
   }
 }
 
-// Cached canvas image for fast selection highlighting
+// Cached canvas image for fast selection highlighting (includes border)
 let cachedCanvasImageData = null;
+// Cached canvas image for export (without border)
+let cachedCanvasImageDataForExport = null;
 let canvasViewDragging = false;
 let canvasViewDragStartX = 0;
 let canvasViewDragStartY = 0;
@@ -14586,14 +14592,17 @@ function exportCanvas(){
     // Clean filename of invalid characters
     filename = filename.replace(/[<>:"/\\|?*]/g, '_');
     
-    // Create a clean canvas without selection highlight for export
+    // Create a clean canvas without selection highlight or border for export
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = canvas.width;
     exportCanvas.height = canvas.height;
     const exportCtx = exportCanvas.getContext('2d');
-    
-    // Use cached image data (without highlight) if available, otherwise use current canvas
-    if(cachedCanvasImageData) {
+
+    // Use cached image data without border for clean export
+    if(cachedCanvasImageDataForExport) {
+      exportCtx.putImageData(cachedCanvasImageDataForExport, 0, 0);
+    } else if(cachedCanvasImageData) {
+      // Fallback to regular cache if export cache not available
       exportCtx.putImageData(cachedCanvasImageData, 0, 0);
     } else {
       exportCtx.drawImage(canvas, 0, 0);

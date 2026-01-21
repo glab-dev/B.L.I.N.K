@@ -3012,15 +3012,8 @@
   <div class="layout-title"><span>Combined View</span></div>
 
   <!-- Screen Toggle Buttons -->
-  <div id="combinedScreenToggles" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+  <div id="combinedScreenToggles" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;">
     <!-- Screen toggle buttons will be dynamically generated here -->
-  </div>
-
-  <!-- Combined View Actions -->
-  <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center;">
-    <button type="button" onclick="resetCombinedPositions()" style="padding: 6px 12px; background: #333; color: #888; border: 2px solid #555; border-radius: 4px; font-size: 12px; cursor: pointer;">Reset Positions</button>
-    <button type="button" id="mirrorCanvasBtn" onclick="toggleMirrorCanvasLayout()" style="padding: 6px 12px; background: #333; color: #888; border: 2px solid #555; border-radius: 4px; font-size: 12px; cursor: pointer;">Mirror Canvas Layout</button>
-    <span id="mirrorCanvasStatus" style="font-size: 11px; color: #666;"></span>
   </div>
 
   <!-- Combined Layouts Container -->
@@ -3028,6 +3021,14 @@
     <!-- Standard Layout -->
     <div class="layout-container" id="combinedStandardContainer" style="margin-bottom: 20px;">
       <div class="layout-title"><span>Standard Layout (Combined)</span></div>
+      <!-- Position Controls -->
+      <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center;">
+        <div class="slider-toggle" style="display: inline-flex;">
+          <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Reset</button>
+          <button type="button" class="slider-toggle-btn" id="mirrorCanvasBtn" onclick="toggleMirrorCanvasLayout()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Mirror Canvas</button>
+        </div>
+        <span id="mirrorCanvasStatus" style="font-size: 10px; color: #10b981;"></span>
+      </div>
       <div id="combinedStandardCanvasWrapper" style="overflow-x: auto;">
         <canvas id="combinedStandardCanvas"></canvas>
       </div>
@@ -17474,18 +17475,20 @@ function updateMirrorCanvasButton() {
 
   if(btn) {
     if(combinedMirrorCanvas) {
-      btn.style.background = '#10b981';
+      btn.classList.add('active');
+      btn.style.background = 'var(--primary)';
       btn.style.color = '#fff';
-      btn.style.borderColor = '#059669';
+      btn.style.textShadow = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000';
     } else {
-      btn.style.background = '#333';
-      btn.style.color = '#888';
-      btn.style.borderColor = '#555';
+      btn.classList.remove('active');
+      btn.style.background = 'transparent';
+      btn.style.color = '#9ca3af';
+      btn.style.textShadow = 'none';
     }
   }
 
   if(status) {
-    status.textContent = combinedMirrorCanvas ? '(Mirroring Canvas positions)' : '';
+    status.textContent = combinedMirrorCanvas ? '✓ Mirroring' : '';
   }
 }
 
@@ -17744,22 +17747,24 @@ function initCombinedView() {
   // Clear existing toggles
   togglesContainer.innerHTML = '';
 
-  // Create a toggle button for each screen
+  // Create a toggle button for each screen (smaller, mobile-friendly)
   Object.keys(screens).forEach(screenId => {
     const screen = screens[screenId];
     const btn = document.createElement('button');
-    btn.className = 'toggle-btn';
+    btn.className = 'slider-toggle-btn';
     btn.dataset.screenId = screenId;
-    btn.style.cssText = 'padding: 8px 16px; min-width: 80px; border: 3px solid #000; border-radius: 4px;';
+    btn.style.cssText = 'padding: 6px 12px; min-width: 50px; min-height: 32px; font-size: 11px; border: 2px solid #000; border-radius: 0; flex: none; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);';
 
     // Set button color based on screen color
     if(combinedSelectedScreens.has(screenId)) {
       btn.classList.add('active');
       btn.style.background = screen.color || '#10b981';
       btn.style.color = '#fff';
+      btn.style.textShadow = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000';
     } else {
       btn.style.background = '#333';
-      btn.style.color = '#888';
+      btn.style.color = '#9ca3af';
+      btn.style.textShadow = 'none';
     }
 
     btn.textContent = screen.name;

@@ -3006,6 +3006,64 @@
 
   </div>
 
+<!-- Combined View Container (outside main-container so it can be shown independently) -->
+<div class="layout-container" id="combinedContainer" style="display:none; padding: 12px; padding-top: 24px; margin-top: 32px; overflow: visible;">
+  <!-- Combined View Title -->
+  <div class="layout-title"><span>Combined View</span></div>
+
+  <!-- Screen Toggle Buttons -->
+  <div id="combinedScreenToggles" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
+    <!-- Screen toggle buttons will be dynamically generated here -->
+  </div>
+
+  <!-- Combined Layouts Container -->
+  <div id="combinedLayoutsWrapper" style="overflow-x: auto; margin-bottom: 20px;">
+    <!-- Standard Layout -->
+    <div class="layout-container" id="combinedStandardContainer" style="margin-bottom: 20px;">
+      <div class="layout-title"><span>Standard Layout (Combined)</span></div>
+      <div id="combinedStandardCanvasWrapper" style="overflow-x: auto;">
+        <canvas id="combinedStandardCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Power Layout -->
+    <div class="layout-container" id="combinedPowerContainer" style="margin-bottom: 20px;">
+      <div class="layout-title"><span>Power Layout (Combined)</span></div>
+      <div id="combinedPowerCanvasWrapper" style="overflow-x: auto;">
+        <canvas id="combinedPowerCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Data Layout -->
+    <div class="layout-container" id="combinedDataContainer" style="margin-bottom: 20px;">
+      <div class="layout-title"><span>Data Layout (Combined)</span></div>
+      <div id="combinedDataCanvasWrapper" style="overflow-x: auto;">
+        <canvas id="combinedDataCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Structure Layout -->
+    <div class="layout-container" id="combinedStructureContainer" style="margin-bottom: 20px;">
+      <div class="layout-title"><span>Structure Layout (Combined)</span></div>
+      <div id="combinedStructureCanvasWrapper" style="overflow-x: auto;">
+        <canvas id="combinedStructureCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Combined Specs -->
+  <div class="layout-container" id="combinedSpecsContainer" style="margin-bottom: 20px;">
+    <div class="layout-title"><span>Combined Specifications</span></div>
+    <div id="combinedSpecsContent" style="color: #e0e0e0; line-height: 1.8;"></div>
+  </div>
+
+  <!-- Combined Gear List -->
+  <div class="layout-container" id="combinedGearListContainer">
+    <div class="layout-title"><span>Combined Gear List</span></div>
+    <div id="combinedGearListContent" style="color: #e0e0e0; line-height: 1.8;"></div>
+  </div>
+</div>
+
 <!-- Canvas Container (outside main-container so it can be shown independently) -->
 <div class="layout-container" id="canvasContainer" style="display:none; padding: 12px; padding-top: 24px; margin-top: 32px; overflow: visible;">
   <!-- Canvas View Title -->
@@ -3137,7 +3195,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.160';
+const APP_VERSION = '2.0.161';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17063,9 +17121,605 @@ function generateGearList() {
   gearListContainer.style.display = 'block';
 }
 
+// ==================== COMBINED VIEW FUNCTIONS ====================
+
+// Track which screens are selected for combined view
+let combinedSelectedScreens = new Set();
+
+// Initialize combined view - create toggle buttons for each screen
+function initCombinedView() {
+  const togglesContainer = document.getElementById('combinedScreenToggles');
+  if(!togglesContainer) return;
+
+  // Clear existing toggles
+  togglesContainer.innerHTML = '';
+
+  // Create a toggle button for each screen
+  Object.keys(screens).forEach(screenId => {
+    const screen = screens[screenId];
+    const btn = document.createElement('button');
+    btn.className = 'toggle-btn';
+    btn.dataset.screenId = screenId;
+    btn.style.cssText = 'padding: 8px 16px; min-width: 80px; border: 3px solid #000; border-radius: 4px;';
+
+    // Set button color based on screen color
+    if(combinedSelectedScreens.has(screenId)) {
+      btn.classList.add('active');
+      btn.style.background = screen.color || '#10b981';
+      btn.style.color = '#fff';
+    } else {
+      btn.style.background = '#333';
+      btn.style.color = '#888';
+    }
+
+    btn.textContent = screen.name;
+    btn.onclick = function() {
+      toggleCombinedScreen(screenId);
+    };
+
+    togglesContainer.appendChild(btn);
+  });
+
+  // Render combined view if screens are selected
+  if(combinedSelectedScreens.size > 0) {
+    renderCombinedView();
+  } else {
+    // Show placeholder message
+    const specsContent = document.getElementById('combinedSpecsContent');
+    const gearContent = document.getElementById('combinedGearListContent');
+    if(specsContent) specsContent.innerHTML = '<p style="color: #888; text-align: center;">Select screens above to view combined layouts</p>';
+    if(gearContent) gearContent.innerHTML = '';
+
+    // Clear canvases
+    ['combinedStandardCanvas', 'combinedPowerCanvas', 'combinedDataCanvas', 'combinedStructureCanvas'].forEach(canvasId => {
+      const canvas = document.getElementById(canvasId);
+      if(canvas) {
+        canvas.width = 100;
+        canvas.height = 100;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, 100, 100);
+        ctx.fillStyle = '#888';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('No screens selected', 50, 50);
+      }
+    });
+  }
+}
+
+// Toggle a screen in the combined view
+function toggleCombinedScreen(screenId) {
+  if(combinedSelectedScreens.has(screenId)) {
+    combinedSelectedScreens.delete(screenId);
+  } else {
+    combinedSelectedScreens.add(screenId);
+  }
+
+  // Re-initialize to update button states and render
+  initCombinedView();
+}
+
+// Render the combined view with all selected screens side by side
+function renderCombinedView() {
+  if(combinedSelectedScreens.size === 0) return;
+
+  const allPanels = getAllPanels();
+  const selectedScreenIds = Array.from(combinedSelectedScreens);
+
+  // Calculate combined dimensions
+  let totalWidth = 0;
+  let maxHeight = 0;
+  const screenDimensions = [];
+  const panelSize = 40; // Fixed panel size for combined view
+  const gap = 20; // Gap between screens
+
+  selectedScreenIds.forEach((screenId, index) => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+
+    const data = screen.data;
+    const pw = data.panelsWide || 0;
+    const ph = data.panelsHigh || 0;
+
+    if(pw > 0 && ph > 0) {
+      const width = pw * panelSize;
+      const height = ph * panelSize;
+
+      screenDimensions.push({
+        screenId,
+        screen,
+        data,
+        pw,
+        ph,
+        width,
+        height,
+        x: totalWidth + (index > 0 ? gap : 0)
+      });
+
+      totalWidth += width + (index > 0 ? gap : 0);
+      maxHeight = Math.max(maxHeight, height);
+    }
+  });
+
+  if(screenDimensions.length === 0) {
+    initCombinedView(); // Will show placeholder
+    return;
+  }
+
+  // Add padding for bumpers/structure
+  const topPadding = 60;
+  const bottomPadding = 60;
+  const canvasHeight = maxHeight + topPadding + bottomPadding;
+  const canvasWidth = totalWidth + 40; // Add side padding
+
+  // Render each layout type
+  renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
+  renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
+  renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
+  renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
+
+  // Render combined specs and gear list
+  renderCombinedSpecs(selectedScreenIds);
+  renderCombinedGearList(selectedScreenIds);
+}
+
+// Render combined standard layout
+function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding) {
+  const canvas = document.getElementById('combinedStandardCanvas');
+  if(!canvas) return;
+
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+  const ctx = canvas.getContext('2d');
+
+  // Black background
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  const leftPadding = 20;
+
+  screenDimensions.forEach(dim => {
+    const { screen, data, pw, ph, x } = dim;
+    const screenX = leftPadding + x;
+    const screenY = topPadding;
+
+    // Draw panels
+    for(let r = 0; r < ph; r++) {
+      for(let c = 0; c < pw; c++) {
+        const panelKey = `${c},${r}`;
+        const px = screenX + c * panelSize;
+        const py = screenY + r * panelSize;
+
+        // Check if panel is deleted
+        const deletedPanels = data.deletedPanels || new Set();
+        if(deletedPanels.has && deletedPanels.has(panelKey)) {
+          ctx.fillStyle = '#1a1a1a';
+          ctx.fillRect(px, py, panelSize, panelSize);
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 3]);
+          ctx.strokeRect(px, py, panelSize, panelSize);
+          ctx.setLineDash([]);
+          continue;
+        }
+
+        // Draw panel with screen color
+        ctx.fillStyle = screen.color || '#10b981';
+        ctx.fillRect(px, py, panelSize, panelSize);
+
+        // Draw panel border
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px, py, panelSize, panelSize);
+
+        // Draw panel number
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${c+1}.${r+1}`, px + panelSize/2, py + panelSize/2);
+      }
+    }
+
+    // Draw screen label
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - 10);
+  });
+}
+
+// Render combined power layout
+function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding) {
+  const canvas = document.getElementById('combinedPowerCanvas');
+  if(!canvas) return;
+
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+  const ctx = canvas.getContext('2d');
+
+  // Black background
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  const leftPadding = 20;
+  const colors = ['#800080', '#008080', '#808000', '#000080', '#008000', '#800000'];
+
+  screenDimensions.forEach(dim => {
+    const { screen, data, pw, ph, x } = dim;
+    const screenX = leftPadding + x;
+    const screenY = topPadding;
+
+    // Use screen's calculated data for circuit info if available
+    const calculatedData = screen.calculatedData || {};
+    const maxPerCircuit = data.maxPanelsPerCircuit || 6;
+
+    // Draw panels with circuit coloring
+    let panelCount = 0;
+    for(let r = 0; r < ph; r++) {
+      for(let c = 0; c < pw; c++) {
+        const panelKey = `${c},${r}`;
+        const px = screenX + c * panelSize;
+        const py = screenY + r * panelSize;
+
+        const deletedPanels = data.deletedPanels || new Set();
+        if(deletedPanels.has && deletedPanels.has(panelKey)) {
+          ctx.fillStyle = '#1a1a1a';
+          ctx.fillRect(px, py, panelSize, panelSize);
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 3]);
+          ctx.strokeRect(px, py, panelSize, panelSize);
+          ctx.setLineDash([]);
+          continue;
+        }
+
+        // Calculate circuit number
+        const circuitNum = Math.floor(panelCount / maxPerCircuit);
+        const colorIndex = circuitNum % colors.length;
+
+        ctx.fillStyle = colors[colorIndex];
+        ctx.fillRect(px, py, panelSize, panelSize);
+
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px, py, panelSize, panelSize);
+
+        // Draw circuit number
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`C${circuitNum + 1}`, px + panelSize/2, py + panelSize/2);
+
+        panelCount++;
+      }
+    }
+
+    // Draw screen label
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - 10);
+  });
+}
+
+// Render combined data layout
+function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding) {
+  const canvas = document.getElementById('combinedDataCanvas');
+  if(!canvas) return;
+
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+  const ctx = canvas.getContext('2d');
+
+  // Black background
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  const leftPadding = 20;
+  const colors = ['#964B00', '#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#8B00FF', '#808080'];
+
+  screenDimensions.forEach(dim => {
+    const { screen, data, pw, ph, x } = dim;
+    const screenX = leftPadding + x;
+    const screenY = topPadding;
+
+    const maxPerData = data.maxPanelsPerData || 48;
+
+    // Draw panels with data line coloring
+    let panelCount = 0;
+    for(let c = 0; c < pw; c++) {
+      for(let r = 0; r < ph; r++) {
+        const panelKey = `${c},${r}`;
+        const px = screenX + c * panelSize;
+        const py = screenY + r * panelSize;
+
+        const deletedPanels = data.deletedPanels || new Set();
+        if(deletedPanels.has && deletedPanels.has(panelKey)) {
+          ctx.fillStyle = '#1a1a1a';
+          ctx.fillRect(px, py, panelSize, panelSize);
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 3]);
+          ctx.strokeRect(px, py, panelSize, panelSize);
+          ctx.setLineDash([]);
+          continue;
+        }
+
+        // Calculate data line number
+        const dataLine = Math.floor(panelCount / maxPerData);
+        const colorIndex = dataLine % colors.length;
+
+        ctx.fillStyle = colors[colorIndex];
+        ctx.fillRect(px, py, panelSize, panelSize);
+
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px, py, panelSize, panelSize);
+
+        // Draw data line number
+        ctx.fillStyle = dataLine < 4 ? '#000' : '#fff';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`D${dataLine + 1}`, px + panelSize/2, py + panelSize/2);
+
+        panelCount++;
+      }
+    }
+
+    // Draw screen label
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - 10);
+  });
+}
+
+// Render combined structure layout
+function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding) {
+  const canvas = document.getElementById('combinedStructureCanvas');
+  if(!canvas) return;
+
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+  const ctx = canvas.getContext('2d');
+
+  // Black background
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  const leftPadding = 20;
+  const bumperHeight = 25;
+
+  screenDimensions.forEach(dim => {
+    const { screen, data, pw, ph, x } = dim;
+    const screenX = leftPadding + x;
+    const screenY = topPadding;
+    const structureType = data.structureType || 'hanging';
+
+    // Draw bumpers (simplified)
+    if(data.useBumpers !== false) {
+      ctx.fillStyle = '#10b981';
+      if(structureType === 'hanging') {
+        // Top bumpers
+        for(let c = 0; c < pw; c += 2) {
+          const bw = Math.min(2, pw - c) * panelSize;
+          ctx.fillRect(screenX + c * panelSize, screenY - bumperHeight - 5, bw, bumperHeight);
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(screenX + c * panelSize, screenY - bumperHeight - 5, bw, bumperHeight);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 10px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('2W', screenX + c * panelSize + bw/2, screenY - bumperHeight/2 - 5);
+          ctx.fillStyle = '#10b981';
+        }
+      } else {
+        // Bottom bumpers
+        for(let c = 0; c < pw; c += 2) {
+          const bw = Math.min(2, pw - c) * panelSize;
+          const by = screenY + ph * panelSize + 5;
+          ctx.fillRect(screenX + c * panelSize, by, bw, bumperHeight);
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(screenX + c * panelSize, by, bw, bumperHeight);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 10px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('2W', screenX + c * panelSize + bw/2, by + bumperHeight/2);
+          ctx.fillStyle = '#10b981';
+        }
+      }
+    }
+
+    // Draw panels
+    for(let r = 0; r < ph; r++) {
+      for(let c = 0; c < pw; c++) {
+        const panelKey = `${c},${r}`;
+        const px = screenX + c * panelSize;
+        const py = screenY + r * panelSize;
+
+        const deletedPanels = data.deletedPanels || new Set();
+        if(deletedPanels.has && deletedPanels.has(panelKey)) {
+          ctx.fillStyle = '#1a1a1a';
+          ctx.fillRect(px, py, panelSize, panelSize);
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 3]);
+          ctx.strokeRect(px, py, panelSize, panelSize);
+          ctx.setLineDash([]);
+          continue;
+        }
+
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(px, py, panelSize, panelSize);
+
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px, py, panelSize, panelSize);
+
+        // Draw panel number
+        ctx.fillStyle = '#333';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${c+1}.${r+1}`, px + panelSize/2, py + panelSize/2);
+      }
+    }
+
+    // Draw screen label
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    const labelY = structureType === 'hanging' ? screenY - bumperHeight - 25 : screenY - 10;
+    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, labelY);
+  });
+}
+
+// Render combined specifications
+function renderCombinedSpecs(selectedScreenIds) {
+  const specsContent = document.getElementById('combinedSpecsContent');
+  if(!specsContent) return;
+
+  let totalPanels = 0;
+  let totalPixels = 0;
+  let totalPowerMax = 0;
+  let totalPowerAvg = 0;
+  let totalWeight = 0;
+  let totalWidth = 0;
+  let maxHeight = 0;
+
+  const allPanels = getAllPanels();
+
+  selectedScreenIds.forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+
+    const data = screen.data;
+    const pw = data.panelsWide || 0;
+    const ph = data.panelsHigh || 0;
+    const panelType = data.panelType || 'CB5_MKII';
+    const panel = allPanels[panelType];
+
+    if(!panel || pw === 0 || ph === 0) return;
+
+    // Count active panels (exclude deleted)
+    let activePanels = pw * ph;
+    const deletedPanels = data.deletedPanels;
+    if(deletedPanels && deletedPanels.size) {
+      activePanels -= deletedPanels.size;
+    }
+
+    totalPanels += activePanels;
+    totalPixels += activePanels * panel.res_x * panel.res_y;
+    totalPowerMax += activePanels * (panel.power_max_w || 0);
+    totalPowerAvg += activePanels * (panel.power_avg_w || 0);
+    totalWeight += activePanels * (panel.weight_kg || 0);
+    totalWidth += pw * (panel.width_m || 0.5);
+    maxHeight = Math.max(maxHeight, ph * (panel.height_m || 0.5));
+  });
+
+  const isImperial = displayLengthUnit === 'ft';
+  const weightUnit = displayWeightUnit;
+
+  let html = '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">';
+  html += `<div><strong>Total Screens:</strong> ${selectedScreenIds.length}</div>`;
+  html += `<div><strong>Total Panels:</strong> ${totalPanels}</div>`;
+  html += `<div><strong>Total Pixels:</strong> ${totalPixels.toLocaleString()}</div>`;
+  html += `<div><strong>Combined Width:</strong> ${isImperial ? (totalWidth * 3.28084).toFixed(2) + ' ft' : totalWidth.toFixed(2) + ' m'}</div>`;
+  html += `<div><strong>Max Height:</strong> ${isImperial ? (maxHeight * 3.28084).toFixed(2) + ' ft' : maxHeight.toFixed(2) + ' m'}</div>`;
+  html += `<div><strong>Total Weight:</strong> ${weightUnit === 'lbs' ? (totalWeight * 2.20462).toFixed(1) + ' lbs' : totalWeight.toFixed(1) + ' kg'}</div>`;
+  html += `<div><strong>Power (Max):</strong> ${totalPowerMax.toLocaleString()} W</div>`;
+  html += `<div><strong>Power (Avg):</strong> ${totalPowerAvg.toLocaleString()} W</div>`;
+  html += '</div>';
+
+  specsContent.innerHTML = html;
+}
+
+// Render combined gear list
+function renderCombinedGearList(selectedScreenIds) {
+  const gearContent = document.getElementById('combinedGearListContent');
+  if(!gearContent) return;
+
+  const allPanels = getAllPanels();
+
+  // Aggregate gear from all selected screens
+  let totalPanels = 0;
+  let totalCircuits = 0;
+  let totalDataLines = 0;
+  let totalProcessors = 0;
+  let total1wBumpers = 0;
+  let total2wBumpers = 0;
+  let total4wBumpers = 0;
+  let totalPlates2way = 0;
+  let totalPlates4way = 0;
+
+  selectedScreenIds.forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen) return;
+
+    const data = screen.data || {};
+    const calculatedData = screen.calculatedData || {};
+
+    const pw = data.panelsWide || 0;
+    const ph = data.panelsHigh || 0;
+    const panelType = data.panelType || 'CB5_MKII';
+    const panel = allPanels[panelType];
+
+    if(!panel || pw === 0 || ph === 0) return;
+
+    // Count active panels
+    let activePanels = pw * ph;
+    const deletedPanels = data.deletedPanels;
+    if(deletedPanels && deletedPanels.size) {
+      activePanels -= deletedPanels.size;
+    }
+
+    totalPanels += activePanels;
+
+    // Use calculated data if available
+    if(calculatedData.circuits) totalCircuits += calculatedData.circuits;
+    if(calculatedData.dataLines) totalDataLines += calculatedData.dataLines;
+    if(calculatedData.processors) totalProcessors += calculatedData.processors;
+
+    // Count bumpers from screen's bumper data
+    const screenBumpers = data.bumpers || [];
+    screenBumpers.forEach(b => {
+      if(b.type === '1w') total1wBumpers++;
+      else if(b.type === '2w') total2wBumpers++;
+      else if(b.type === '4w') total4wBumpers++;
+    });
+
+    // Estimate plates
+    totalPlates2way += Math.max(0, (pw - 2));
+    totalPlates4way += data.use4WayBumpers ? Math.floor(pw / 2) : 0;
+  });
+
+  let html = '<div style="line-height: 1.8;">';
+  html += `<div style="font-weight: bold; color: #10b981; margin-bottom: 8px;">Combined Gear (${selectedScreenIds.length} screens)</div>`;
+  html += `<div><strong>LED Panels:</strong> ${totalPanels}</div>`;
+  if(totalCircuits > 0) html += `<div><strong>Power Circuits:</strong> ${totalCircuits}</div>`;
+  if(totalDataLines > 0) html += `<div><strong>Data Lines:</strong> ${totalDataLines}</div>`;
+  if(totalProcessors > 0) html += `<div><strong>Processors:</strong> ${totalProcessors}</div>`;
+
+  html += '<div style="border-top: 1px solid #444; margin: 8px 0;"></div>';
+  html += '<div style="font-weight: bold; color: #10b981;">Rigging Hardware</div>';
+  html += `<div><strong>1W Bumpers:</strong> ${total1wBumpers}</div>`;
+  html += `<div><strong>2W Bumpers:</strong> ${total2wBumpers}</div>`;
+  html += `<div><strong>4W Bumpers:</strong> ${total4wBumpers}</div>`;
+  html += `<div><strong>2W Connecting Plates:</strong> ${totalPlates2way}</div>`;
+  html += `<div><strong>4W Connecting Plates:</strong> ${totalPlates4way}</div>`;
+  html += '</div>';
+
+  gearContent.innerHTML = html;
+}
+
 </script>
 
-<!-- Bottom Navigation - Toggle for Complex/Simple + Canvas button -->
+<!-- Bottom Navigation - Toggle for Complex/Simple + Combined + Canvas button -->
 <nav class="bottom-nav">
   <div class="nav-mode-toggle">
     <button class="nav-toggle-btn active" data-mode="complex" onclick="switchAppMode('complex')">
@@ -17075,6 +17729,9 @@ function generateGearList() {
       <span>Simple</span>
     </button>
   </div>
+  <button class="nav-item" data-view="combined" onclick="switchMobileView('combined')">
+    <span class="nav-item-label">Combined</span>
+  </button>
   <button class="nav-item" data-view="canvas" onclick="switchMobileView('canvas')">
     <span class="nav-item-label">Canvas</span>
   </button>
@@ -17157,6 +17814,7 @@ function switchMobileView(view) {
   const screenTabsContainer = document.getElementById('screenTabsContainer');
   const layoutsTogglesContainer = document.getElementById('layoutsTogglesContainer');
   const canvasContainer = document.getElementById('canvasContainer');
+  const combinedContainer = document.getElementById('combinedContainer');
   const gearListContainer = document.getElementById('gearListContainer');
 
   // Layout containers
@@ -17183,6 +17841,7 @@ function switchMobileView(view) {
   if(dataContainer) dataContainer.style.display = 'none';
   if(structureContainer) structureContainer.style.display = 'none';
   if(canvasContainer) canvasContainer.style.display = 'none';
+  if(combinedContainer) combinedContainer.style.display = 'none';
   if(gearListContainer) gearListContainer.style.display = 'none';
 
   switch(view) {
@@ -17215,6 +17874,15 @@ function switchMobileView(view) {
       if(dataDirectionRow) dataDirectionRow.style.display = 'none';
       if(dataTogglesRow) dataTogglesRow.style.display = 'none';
       // No layouts in simple mode (standardContainer, powerContainer, dataContainer, structureContainer already hidden)
+      break;
+
+    case 'combined':
+      // Show combined view with screen toggle buttons
+      if(combinedContainer) combinedContainer.style.display = 'block';
+      // Initialize combined view
+      if(typeof initCombinedView === 'function') {
+        initCombinedView();
+      }
       break;
 
     case 'canvas':

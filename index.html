@@ -3195,7 +3195,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.166';
+const APP_VERSION = '2.0.167';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17413,8 +17413,18 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       }
     }
 
-    // Get panels per circuit from screen data or use default
-    const panelsPerCircuit = data.maxPanelsPerCircuit || 6;
+    // Get panels per circuit - need to calculate like original if not set
+    const allPanelsData = getAllPanels();
+    const panelType = data.panelType || 'CB5_MKII';
+    const panelInfo = allPanelsData[panelType];
+    const voltage = parseInt(data.voltage) || 208;
+    const breaker = parseInt(data.breaker) || 20;
+    const powerType = data.powerType || 'max';
+    const perPanelW = powerType === 'max' ? (panelInfo?.power_max_w || 500) : (panelInfo?.power_avg_w || 250);
+    const circuitCapacityW = voltage * breaker;
+    const calculatedPanelsPerCircuit = Math.max(1, Math.floor(circuitCapacityW / perPanelW));
+    const userMaxPanelsPerCircuit = parseInt(data.maxPanelsPerCircuit);
+    const panelsPerCircuit = userMaxPanelsPerCircuit > 0 ? userMaxPanelsPerCircuit : calculatedPanelsPerCircuit;
 
     // Build list of all panels in order (column by column, top to bottom) - SAME AS ORIGINAL
     const orderedPanels = [];

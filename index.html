@@ -3195,7 +3195,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.163';
+const APP_VERSION = '2.0.164';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17287,7 +17287,16 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     // Get screen colors for checkerboard pattern (same as original)
     const primaryColor = screen.color || '#808080';
     const secondaryColor = screen.color2 || darkenColor(primaryColor, 30);
-    const screenDeletedPanels = data.deletedPanels || new Set();
+
+    // Properly convert deletedPanels to Set (may be array from JSON)
+    let screenDeletedPanels;
+    if(data.deletedPanels instanceof Set) {
+      screenDeletedPanels = data.deletedPanels;
+    } else if(Array.isArray(data.deletedPanels)) {
+      screenDeletedPanels = new Set(data.deletedPanels);
+    } else {
+      screenDeletedPanels = new Set();
+    }
 
     // Draw panels with checkerboard pattern (same as original)
     for(let c = 0; c < pw; c++) {
@@ -17296,7 +17305,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
         const px = screenX + c * panelSize;
         const py = screenY + r * panelSize;
 
-        const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
+        const hasDeleted = screenDeletedPanels.has(panelKey);
         if(hasDeleted) {
           ctx.fillStyle = '#1a1a1a';
           ctx.fillRect(px, py, panelSize, panelSize);
@@ -17369,8 +17378,25 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     const screenX = leftPadding + x;
     const screenY = topPadding + socaLabelHeight;
 
-    const screenDeletedPanels = data.deletedPanels || new Set();
-    const screenCustomCircuits = data.customCircuitAssignments || new Map();
+    // Properly convert deletedPanels to Set (may be array from JSON)
+    let screenDeletedPanels;
+    if(data.deletedPanels instanceof Set) {
+      screenDeletedPanels = data.deletedPanels;
+    } else if(Array.isArray(data.deletedPanels)) {
+      screenDeletedPanels = new Set(data.deletedPanels);
+    } else {
+      screenDeletedPanels = new Set();
+    }
+
+    // Properly convert customCircuitAssignments to Map (may be array from JSON)
+    let screenCustomCircuits;
+    if(data.customCircuitAssignments instanceof Map) {
+      screenCustomCircuits = data.customCircuitAssignments;
+    } else if(Array.isArray(data.customCircuitAssignments)) {
+      screenCustomCircuits = new Map(data.customCircuitAssignments);
+    } else {
+      screenCustomCircuits = new Map();
+    }
 
     // Get panels per circuit from screen data or use default
     const panelsPerCircuit = data.maxPanelsPerCircuit || 6;
@@ -17583,8 +17609,26 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     const screenX = leftPadding + x;
     const screenY = topPadding;
 
-    const screenDeletedPanels = data.deletedPanels || new Set();
-    const screenCustomDataLines = data.customDataLineAssignments || new Map();
+    // Properly convert deletedPanels to Set (may be array from JSON)
+    let screenDeletedPanels;
+    if(data.deletedPanels instanceof Set) {
+      screenDeletedPanels = data.deletedPanels;
+    } else if(Array.isArray(data.deletedPanels)) {
+      screenDeletedPanels = new Set(data.deletedPanels);
+    } else {
+      screenDeletedPanels = new Set();
+    }
+
+    // Properly convert customDataLineAssignments to Map (may be array from JSON)
+    let screenCustomDataLines;
+    if(data.customDataLineAssignments instanceof Map) {
+      screenCustomDataLines = data.customDataLineAssignments;
+    } else if(Array.isArray(data.customDataLineAssignments)) {
+      screenCustomDataLines = new Map(data.customDataLineAssignments);
+    } else {
+      screenCustomDataLines = new Map();
+    }
+
     const panelsPerDataLine = data.maxPanelsPerData || 48;
     const startDir = data.dataStartDir || 'top';
 
@@ -17596,8 +17640,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     for(let c=0; c<pw; c++){
       for(let r=0; r<ph; r++){
         const panelKey = `${c},${r}`;
-        const hasCustom = screenCustomDataLines.has ? screenCustomDataLines.has(panelKey) : false;
-        if(hasCustom) {
+        if(screenCustomDataLines.has(panelKey)) {
           usedCustomDataLines.add(screenCustomDataLines.get(panelKey) - 1);
         }
       }
@@ -17744,7 +17787,17 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     const { screen, data, pw, ph, x } = dim;
     const screenX = leftPadding + x;
     const structureType = data.structureType || 'hanging';
-    const screenDeletedPanels = data.deletedPanels || new Set();
+
+    // Properly convert deletedPanels to Set (may be array from JSON)
+    let screenDeletedPanels;
+    if(data.deletedPanels instanceof Set) {
+      screenDeletedPanels = data.deletedPanels;
+    } else if(Array.isArray(data.deletedPanels)) {
+      screenDeletedPanels = new Set(data.deletedPanels);
+    } else {
+      screenDeletedPanels = new Set();
+    }
+
     const screenBumpers = data.bumpers || [];
 
     // Determine if we have top or bottom bumpers based on structure type
@@ -17768,7 +17821,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
         const px = screenX + c * panelSize;
         const py = panelYOffset + r * panelSize;
 
-        const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
+        const hasDeleted = screenDeletedPanels.has(panelKey);
         if(hasDeleted) {
           // Deleted panels show dashed outline
           ctx.strokeStyle = '#333333';

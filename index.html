@@ -3195,7 +3195,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.161';
+const APP_VERSION = '2.0.162';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17284,19 +17284,23 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     const screenX = leftPadding + x;
     const screenY = topPadding;
 
-    // Draw panels
-    for(let r = 0; r < ph; r++) {
-      for(let c = 0; c < pw; c++) {
+    // Get screen colors for checkerboard pattern (same as original)
+    const primaryColor = screen.color || '#808080';
+    const secondaryColor = screen.color2 || darkenColor(primaryColor, 30);
+    const screenDeletedPanels = data.deletedPanels || new Set();
+
+    // Draw panels with checkerboard pattern (same as original)
+    for(let c = 0; c < pw; c++) {
+      for(let r = 0; r < ph; r++) {
         const panelKey = `${c},${r}`;
         const px = screenX + c * panelSize;
         const py = screenY + r * panelSize;
 
-        // Check if panel is deleted
-        const deletedPanels = data.deletedPanels || new Set();
-        if(deletedPanels.has && deletedPanels.has(panelKey)) {
+        const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
+        if(hasDeleted) {
           ctx.fillStyle = '#1a1a1a';
           ctx.fillRect(px, py, panelSize, panelSize);
-          ctx.strokeStyle = '#333';
+          ctx.strokeStyle = '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(px, py, panelSize, panelSize);
@@ -17304,18 +17308,19 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
           continue;
         }
 
-        // Draw panel with screen color
-        ctx.fillStyle = screen.color || '#10b981';
+        // Checkerboard pattern (same as original)
+        const isEvenPanel = (c + r) % 2 === 0;
+        ctx.fillStyle = isEvenPanel ? primaryColor : secondaryColor;
         ctx.fillRect(px, py, panelSize, panelSize);
 
-        // Draw panel border
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
+        // Black border
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
         ctx.strokeRect(px, py, panelSize, panelSize);
 
-        // Draw panel number
-        ctx.fillStyle = '#fff';
-        ctx.font = '10px Arial';
+        // Black panel number (same as original)
+        ctx.fillStyle = '#000000';
+        ctx.font = '11px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${c+1}.${r+1}`, px + panelSize/2, py + panelSize/2);
@@ -17335,39 +17340,105 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
   const canvas = document.getElementById('combinedPowerCanvas');
   if(!canvas) return;
 
+  // Add SOCA label height at the top
+  const socaLabelHeight = 60;
   canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
+  canvas.height = canvasHeight + socaLabelHeight;
   const ctx = canvas.getContext('2d');
 
-  // Black background
+  // Fill label area with white background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvasWidth, socaLabelHeight);
+
+  // Black background for panel area
   ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  ctx.fillRect(0, socaLabelHeight, canvasWidth, canvasHeight);
+
+  // Draw black border at bottom of SOCA label area
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, socaLabelHeight);
+  ctx.lineTo(canvasWidth, socaLabelHeight);
+  ctx.stroke();
 
   const leftPadding = 20;
-  const colors = ['#800080', '#008080', '#808000', '#000080', '#008000', '#800000'];
 
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x } = dim;
     const screenX = leftPadding + x;
-    const screenY = topPadding;
+    const screenY = topPadding + socaLabelHeight;
 
-    // Use screen's calculated data for circuit info if available
-    const calculatedData = screen.calculatedData || {};
-    const maxPerCircuit = data.maxPanelsPerCircuit || 6;
+    const screenDeletedPanels = data.deletedPanels || new Set();
+    const screenCustomCircuits = data.customCircuitAssignments || new Map();
 
-    // Draw panels with circuit coloring
-    let panelCount = 0;
-    for(let r = 0; r < ph; r++) {
-      for(let c = 0; c < pw; c++) {
+    // Get panels per circuit from screen data or use default
+    const panelsPerCircuit = data.maxPanelsPerCircuit || 6;
+
+    // Build list of all panels in order (column by column, top to bottom) - SAME AS ORIGINAL
+    const orderedPanels = [];
+    for(let c=0; c<pw; c++){
+      for(let r=0; r<ph; r++){
+        const panelKey = `${c},${r}`;
+        const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
+        if(!hasDeleted) {
+          const hasCustom = screenCustomCircuits.has ? screenCustomCircuits.has(panelKey) : false;
+          orderedPanels.push({
+            key: panelKey,
+            col: c,
+            row: r,
+            isCustom: hasCustom,
+            customCircuit: hasCustom ? screenCustomCircuits.get(panelKey) - 1 : null
+          });
+        }
+      }
+    }
+
+    // Collect all custom circuit numbers that are in use
+    const usedCustomCircuits = new Set();
+    orderedPanels.forEach(p => {
+      if(p.isCustom) {
+        usedCustomCircuits.add(p.customCircuit);
+      }
+    });
+
+    // Assign circuit numbers using same logic as original
+    const panelToCircuit = new Map();
+    let autoCircuitCounter = 0;
+    let panelsInCurrentAutoCircuit = 0;
+
+    orderedPanels.forEach(panel => {
+      if(panel.isCustom) {
+        panelToCircuit.set(panel.key, panel.customCircuit);
+      } else {
+        while(usedCustomCircuits.has(autoCircuitCounter)) {
+          autoCircuitCounter++;
+        }
+        panelToCircuit.set(panel.key, autoCircuitCounter);
+        panelsInCurrentAutoCircuit++;
+
+        if(panelsInCurrentAutoCircuit >= panelsPerCircuit) {
+          autoCircuitCounter++;
+          panelsInCurrentAutoCircuit = 0;
+          while(usedCustomCircuits.has(autoCircuitCounter)) {
+            autoCircuitCounter++;
+          }
+        }
+      }
+    });
+
+    // Draw all panels using resistor colors (same as original)
+    for(let c=0; c<pw; c++){
+      for(let r=0; r<ph; r++){
         const panelKey = `${c},${r}`;
         const px = screenX + c * panelSize;
         const py = screenY + r * panelSize;
 
-        const deletedPanels = data.deletedPanels || new Set();
-        if(deletedPanels.has && deletedPanels.has(panelKey)) {
+        const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
+        if(hasDeleted) {
           ctx.fillStyle = '#1a1a1a';
           ctx.fillRect(px, py, panelSize, panelSize);
-          ctx.strokeStyle = '#333';
+          ctx.strokeStyle = '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(px, py, panelSize, panelSize);
@@ -17375,33 +17446,120 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
           continue;
         }
 
-        // Calculate circuit number
-        const circuitNum = Math.floor(panelCount / maxPerCircuit);
-        const colorIndex = circuitNum % colors.length;
+        const circuitNum = panelToCircuit.get(panelKey);
+        if(circuitNum === undefined) continue;
 
-        ctx.fillStyle = colors[colorIndex];
+        // Use colorForIndex for resistor colors (same as original)
+        const socaGroup = Math.floor(circuitNum / 6);
+        const colorIndex = circuitNum % 6;
+        const colors = colorForIndex(colorIndex);
+
+        // Lighten the color based on SOCA group (same as original)
+        const lightenPercent = socaGroup * 0.15;
+        const fillColor = lightenColor(colors.solid, lightenPercent);
+
+        ctx.fillStyle = fillColor;
         ctx.fillRect(px, py, panelSize, panelSize);
-
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
         ctx.strokeRect(px, py, panelSize, panelSize);
 
-        // Draw circuit number
-        ctx.fillStyle = '#fff';
-        ctx.font = '10px Arial';
+        // Black text (same as original)
+        ctx.fillStyle = '#000000';
+        ctx.font = '11px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`C${circuitNum + 1}`, px + panelSize/2, py + panelSize/2);
-
-        panelCount++;
+        ctx.fillText(`${c+1}.${r+1}`, px + panelSize/2, py + panelSize/2);
       }
     }
 
+    // Draw SOCA labels for this screen
+    let maxCircuitNum = 0;
+    panelToCircuit.forEach(circuitNum => {
+      if(circuitNum > maxCircuitNum) maxCircuitNum = circuitNum;
+    });
+    const totalCircuits = maxCircuitNum + 1;
+    const socaGroups = Math.ceil(totalCircuits / 6);
+
+    // Build circuit to panels map
+    const circuitPanelMap = new Map();
+    for(let c=0; c<pw; c++){
+      for(let r=0; r<ph; r++){
+        const panelKey = `${c},${r}`;
+        const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
+        if(hasDeleted) continue;
+
+        const circuitNum = panelToCircuit.get(panelKey);
+        if(circuitNum !== undefined) {
+          if(!circuitPanelMap.has(circuitNum)) {
+            circuitPanelMap.set(circuitNum, []);
+          }
+          circuitPanelMap.get(circuitNum).push({
+            c: c,
+            r: r,
+            x: screenX + c * panelSize
+          });
+        }
+      }
+    }
+
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.font = 'bold 14px Arial';
+    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for(let s = 0; s < socaGroups; s++){
+      const startCircuit = s * 6;
+      const endCircuit = Math.min((s + 1) * 6 - 1, totalCircuits - 1);
+
+      let minX = Infinity;
+      let maxX = -Infinity;
+
+      for(let circuit = startCircuit; circuit <= endCircuit; circuit++) {
+        if(circuitPanelMap.has(circuit)) {
+          const panels = circuitPanelMap.get(circuit);
+          panels.forEach(p => {
+            minX = Math.min(minX, p.x);
+            maxX = Math.max(maxX, p.x);
+          });
+        }
+      }
+
+      if(minX === Infinity) continue;
+
+      const lineY = 35;
+      const startX = minX;
+      const endX = maxX + panelSize;
+      const midX = (startX + endX) / 2;
+
+      // Draw horizontal line
+      ctx.beginPath();
+      ctx.moveTo(startX, lineY);
+      ctx.lineTo(endX, lineY);
+      ctx.stroke();
+
+      // Draw vertical ticks
+      ctx.beginPath();
+      ctx.moveTo(startX, lineY - 8);
+      ctx.lineTo(startX, lineY + 8);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(endX, lineY - 8);
+      ctx.lineTo(endX, lineY + 8);
+      ctx.stroke();
+
+      // Draw SOCA label
+      ctx.fillText(`SOCA ${s + 1}`, midX, lineY - 18);
+    }
+
     // Draw screen label
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#000';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - 10);
+    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, 12);
   });
 }
 
@@ -17419,28 +17577,116 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   const leftPadding = 20;
-  const colors = ['#964B00', '#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#8B00FF', '#808080'];
 
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x } = dim;
     const screenX = leftPadding + x;
     const screenY = topPadding;
 
-    const maxPerData = data.maxPanelsPerData || 48;
+    const screenDeletedPanels = data.deletedPanels || new Set();
+    const screenCustomDataLines = data.customDataLineAssignments || new Map();
+    const panelsPerDataLine = data.maxPanelsPerData || 48;
+    const startDir = data.dataStartDir || 'top';
 
-    // Draw panels with data line coloring
-    let panelCount = 0;
-    for(let c = 0; c < pw; c++) {
-      for(let r = 0; r < ph; r++) {
+    // Build data line assignments using serpentine pattern (same as original)
+    const panelToDataLine = new Map();
+
+    // Collect all custom data line numbers that are in use
+    const usedCustomDataLines = new Set();
+    for(let c=0; c<pw; c++){
+      for(let r=0; r<ph; r++){
+        const panelKey = `${c},${r}`;
+        const hasCustom = screenCustomDataLines.has ? screenCustomDataLines.has(panelKey) : false;
+        if(hasCustom) {
+          usedCustomDataLines.add(screenCustomDataLines.get(panelKey) - 1);
+        }
+      }
+    }
+
+    // Build serpentine path based on data start direction
+    const serp = [];
+    if(startDir === 'all_top') {
+      for(let c=0; c<pw; c++){
+        for(let r=0; r<ph; r++) {
+          const panelKey = `${c},${r}`;
+          const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
+          if(!hasDeleted) {
+            serp.push({c, r, key: panelKey});
+          }
+        }
+      }
+    } else if(startDir === 'all_bottom') {
+      for(let c=0; c<pw; c++){
+        for(let r=ph-1; r>=0; r--) {
+          const panelKey = `${c},${r}`;
+          const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
+          if(!hasDeleted) {
+            serp.push({c, r, key: panelKey});
+          }
+        }
+      }
+    } else {
+      // Serpentine pattern for 'top' and 'bottom'
+      const startFromTop = (startDir === 'top');
+      for(let c=0; c<pw; c++){
+        const goingDown = startFromTop ? (c % 2 === 0) : (c % 2 === 1);
+        if(goingDown) {
+          for(let r=0; r<ph; r++) {
+            const panelKey = `${c},${r}`;
+            const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
+            if(!hasDeleted) {
+              serp.push({c, r, key: panelKey});
+            }
+          }
+        } else {
+          for(let r=ph-1; r>=0; r--) {
+            const panelKey = `${c},${r}`;
+            const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
+            if(!hasDeleted) {
+              serp.push({c, r, key: panelKey});
+            }
+          }
+        }
+      }
+    }
+
+    // Assign data lines
+    let autoDataLineCounter = 0;
+    let panelsInCurrentAutoDataLine = 0;
+
+    serp.forEach(panel => {
+      const hasCustom = screenCustomDataLines.has ? screenCustomDataLines.has(panel.key) : false;
+      if(hasCustom) {
+        panelToDataLine.set(panel.key, screenCustomDataLines.get(panel.key) - 1);
+      } else {
+        while(usedCustomDataLines.has(autoDataLineCounter)) {
+          autoDataLineCounter++;
+        }
+        panelToDataLine.set(panel.key, autoDataLineCounter);
+        panelsInCurrentAutoDataLine++;
+
+        if(panelsInCurrentAutoDataLine >= panelsPerDataLine) {
+          autoDataLineCounter++;
+          panelsInCurrentAutoDataLine = 0;
+          while(usedCustomDataLines.has(autoDataLineCounter)) {
+            autoDataLineCounter++;
+          }
+        }
+      }
+    });
+
+    // Draw all panels using resistor colors (same as original)
+    for(let c=0; c<pw; c++){
+      for(let r=0; r<ph; r++){
         const panelKey = `${c},${r}`;
         const px = screenX + c * panelSize;
         const py = screenY + r * panelSize;
 
-        const deletedPanels = data.deletedPanels || new Set();
-        if(deletedPanels.has && deletedPanels.has(panelKey)) {
+        const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
+        if(hasDeleted) {
           ctx.fillStyle = '#1a1a1a';
           ctx.fillRect(px, py, panelSize, panelSize);
-          ctx.strokeStyle = '#333';
+          ctx.strokeStyle = '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(px, py, panelSize, panelSize);
@@ -17448,25 +17694,24 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
           continue;
         }
 
-        // Calculate data line number
-        const dataLine = Math.floor(panelCount / maxPerData);
-        const colorIndex = dataLine % colors.length;
+        const dataLineNum = panelToDataLine.get(panelKey);
+        if(dataLineNum === undefined) continue;
 
-        ctx.fillStyle = colors[colorIndex];
+        // Use colorForIndex for resistor colors (same as original)
+        const colors = colorForIndex(dataLineNum);
+
+        ctx.fillStyle = colors.fill;
         ctx.fillRect(px, py, panelSize, panelSize);
-
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
         ctx.strokeRect(px, py, panelSize, panelSize);
 
-        // Draw data line number
-        ctx.fillStyle = dataLine < 4 ? '#000' : '#fff';
-        ctx.font = '10px Arial';
+        // Use contrast color for text (same as original)
+        ctx.fillStyle = colors.text;
+        ctx.font = '11px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`D${dataLine + 1}`, px + panelSize/2, py + panelSize/2);
-
-        panelCount++;
+        ctx.fillText(`${c+1}.${r+1}`, px + panelSize/2, py + panelSize/2);
       }
     }
 
@@ -17483,70 +17728,46 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
   const canvas = document.getElementById('combinedStructureCanvas');
   if(!canvas) return;
 
+  // Add extra height for bumpers at top and bottom
+  const bumperHeight = Math.max(25, panelSize * 0.7);
   canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
+  canvas.height = canvasHeight + bumperHeight * 2 + 20; // Extra space for bumpers
   const ctx = canvas.getContext('2d');
 
-  // Black background
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  // Dark background (same as original structure layout)
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const leftPadding = 20;
-  const bumperHeight = 25;
 
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x } = dim;
     const screenX = leftPadding + x;
-    const screenY = topPadding;
     const structureType = data.structureType || 'hanging';
+    const screenDeletedPanels = data.deletedPanels || new Set();
+    const screenBumpers = data.bumpers || [];
 
-    // Draw bumpers (simplified)
-    if(data.useBumpers !== false) {
-      ctx.fillStyle = '#10b981';
-      if(structureType === 'hanging') {
-        // Top bumpers
-        for(let c = 0; c < pw; c += 2) {
-          const bw = Math.min(2, pw - c) * panelSize;
-          ctx.fillRect(screenX + c * panelSize, screenY - bumperHeight - 5, bw, bumperHeight);
-          ctx.strokeStyle = '#000';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(screenX + c * panelSize, screenY - bumperHeight - 5, bw, bumperHeight);
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 10px Arial';
-          ctx.textAlign = 'center';
-          ctx.fillText('2W', screenX + c * panelSize + bw/2, screenY - bumperHeight/2 - 5);
-          ctx.fillStyle = '#10b981';
-        }
-      } else {
-        // Bottom bumpers
-        for(let c = 0; c < pw; c += 2) {
-          const bw = Math.min(2, pw - c) * panelSize;
-          const by = screenY + ph * panelSize + 5;
-          ctx.fillRect(screenX + c * panelSize, by, bw, bumperHeight);
-          ctx.strokeStyle = '#000';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(screenX + c * panelSize, by, bw, bumperHeight);
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 10px Arial';
-          ctx.textAlign = 'center';
-          ctx.fillText('2W', screenX + c * panelSize + bw/2, by + bumperHeight/2);
-          ctx.fillStyle = '#10b981';
-        }
-      }
+    // Determine if we have top or bottom bumpers
+    const isHanging = structureType === 'hanging' || structureType === 'hybrid';
+    const isGround = structureType === 'ground' || structureType === 'floor';
+
+    // Calculate panel Y position based on bumper placement
+    let panelYOffset = topPadding;
+    if(isHanging && screenBumpers.length > 0) {
+      panelYOffset += bumperHeight + 5;
     }
 
-    // Draw panels
-    for(let r = 0; r < ph; r++) {
-      for(let c = 0; c < pw; c++) {
+    // Draw panels first (white background with black outline, same as original)
+    for(let c=0; c<pw; c++){
+      for(let r=0; r<ph; r++){
         const panelKey = `${c},${r}`;
         const px = screenX + c * panelSize;
-        const py = screenY + r * panelSize;
+        const py = panelYOffset + r * panelSize;
 
-        const deletedPanels = data.deletedPanels || new Set();
-        if(deletedPanels.has && deletedPanels.has(panelKey)) {
-          ctx.fillStyle = '#1a1a1a';
-          ctx.fillRect(px, py, panelSize, panelSize);
-          ctx.strokeStyle = '#333';
+        const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
+        if(hasDeleted) {
+          // Deleted panels show dashed outline
+          ctx.strokeStyle = '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(px, py, panelSize, panelSize);
@@ -17554,27 +17775,70 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
           continue;
         }
 
-        ctx.fillStyle = '#fff';
+        // White background for panels (same as original)
+        ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(px, py, panelSize, panelSize);
 
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
+        // Black outline
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
         ctx.strokeRect(px, py, panelSize, panelSize);
 
-        // Draw panel number
-        ctx.fillStyle = '#333';
-        ctx.font = '10px Arial';
+        // Black label
+        ctx.fillStyle = '#000000';
+        ctx.font = '11px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${c+1}.${r+1}`, px + panelSize/2, py + panelSize/2);
       }
     }
 
+    // Draw bumpers from screen data (same green color as original)
+    if(screenBumpers.length > 0) {
+      screenBumpers.forEach(bumper => {
+        const bumperX = screenX + bumper.startCol * panelSize;
+        const bumperWidth = bumper.width * panelSize;
+        let bumperY;
+
+        if(isHanging) {
+          // Top bumpers
+          bumperY = topPadding;
+        } else {
+          // Bottom bumpers
+          bumperY = panelYOffset + ph * panelSize + 5;
+        }
+
+        // Draw bumper (green, same as original)
+        ctx.fillStyle = '#10b981';
+        ctx.fillRect(bumperX, bumperY, bumperWidth, bumperHeight);
+
+        // Black outline
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bumperX, bumperY, bumperWidth, bumperHeight);
+
+        // Bumper label (white text)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 11px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const bumperType = bumper.width === 1 ? '1W' : '2W';
+        ctx.fillText(bumperType, bumperX + bumperWidth/2, bumperY + bumperHeight/2);
+      });
+    }
+
     // Draw screen label
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
-    const labelY = structureType === 'hanging' ? screenY - bumperHeight - 25 : screenY - 10;
+    let labelY;
+    if(isHanging && screenBumpers.length > 0) {
+      labelY = topPadding - 15;
+    } else if(isHanging) {
+      labelY = panelYOffset - 15;
+    } else {
+      labelY = panelYOffset - 15;
+    }
     ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, labelY);
   });
 }

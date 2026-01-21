@@ -17126,6 +17126,258 @@ function generateGearList() {
 // Track which screens are selected for combined view
 let combinedSelectedScreens = new Set();
 
+// Store screen dimensions for click handling in Combined view
+let combinedScreenDimensions = [];
+let combinedPanelSize = 40;
+let combinedTopPadding = 60;
+let combinedLeftPadding = 20;
+
+// Combined view panel selection state
+let combinedSelectedPanel = null; // { screenId, col, row, key }
+
+// Get panel and screen at position in Combined standard canvas
+function getCombinedPanelAtPosition(canvas, clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+
+  const canvasX = (clientX - rect.left) * scaleX;
+  const canvasY = (clientY - rect.top) * scaleY;
+
+  // Check each screen
+  for(const dim of combinedScreenDimensions) {
+    const screenX = combinedLeftPadding + dim.x;
+    const screenY = combinedTopPadding;
+    const screenWidth = dim.pw * combinedPanelSize;
+    const screenHeight = dim.ph * combinedPanelSize;
+
+    // Check if click is within this screen's bounds
+    if(canvasX >= screenX && canvasX < screenX + screenWidth &&
+       canvasY >= screenY && canvasY < screenY + screenHeight) {
+      const col = Math.floor((canvasX - screenX) / combinedPanelSize);
+      const row = Math.floor((canvasY - screenY) / combinedPanelSize);
+
+      if(col >= 0 && col < dim.pw && row >= 0 && row < dim.ph) {
+        return {
+          screenId: dim.screenId,
+          screen: dim.screen,
+          data: dim.data,
+          col,
+          row,
+          key: `${col},${row}`
+        };
+      }
+    }
+  }
+  return null;
+}
+
+// Toggle panel deletion in Combined view (syncs to Complex tab)
+function toggleCombinedPanelDelete(screenId, panelKey) {
+  const screen = screens[screenId];
+  if(!screen || !screen.data) return;
+
+  // Ensure deletedPanels is a Set
+  if(!(screen.data.deletedPanels instanceof Set)) {
+    if(Array.isArray(screen.data.deletedPanels)) {
+      screen.data.deletedPanels = new Set(screen.data.deletedPanels);
+    } else {
+      screen.data.deletedPanels = new Set();
+    }
+  }
+
+  // Toggle the panel
+  if(screen.data.deletedPanels.has(panelKey)) {
+    screen.data.deletedPanels.delete(panelKey);
+  } else {
+    screen.data.deletedPanels.add(panelKey);
+  }
+
+  // If this is the current screen, sync to global deletedPanels
+  if(screenId === currentScreenId) {
+    deletedPanels = new Set(screen.data.deletedPanels);
+    // Recalculate for current screen
+    calculate();
+  }
+
+  // Re-render combined view
+  renderCombinedView();
+}
+
+// Show context menu for Combined view panel
+function showCombinedPanelContextMenu(x, y, panelInfo) {
+  // Remove existing menu if any
+  const existingMenu = document.getElementById('combinedPanelContextMenu');
+  if(existingMenu) existingMenu.remove();
+
+  const { screenId, screen, data, col, row, key } = panelInfo;
+
+  // Check if panel is deleted
+  let isDeleted = false;
+  if(data.deletedPanels instanceof Set) {
+    isDeleted = data.deletedPanels.has(key);
+  } else if(Array.isArray(data.deletedPanels)) {
+    isDeleted = data.deletedPanels.includes(key);
+  }
+
+  // Create context menu
+  const menu = document.createElement('div');
+  menu.id = 'combinedPanelContextMenu';
+  menu.style.position = 'fixed';
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  menu.style.background = '#2a2a2a';
+  menu.style.border = '2px solid ' + (screen.color || '#10b981');
+  menu.style.borderRadius = '6px';
+  menu.style.padding = '4px 0';
+  menu.style.zIndex = '10000';
+  menu.style.minWidth = '180px';
+  menu.style.boxShadow = '0 4px 12px rgba(0,0,0,0.6)';
+
+  // Screen name header
+  const header = document.createElement('div');
+  header.textContent = `${screen.name} - Panel ${col+1}.${row+1}`;
+  header.style.padding = '8px 12px';
+  header.style.color = screen.color || '#10b981';
+  header.style.fontWeight = 'bold';
+  header.style.fontSize = '13px';
+  header.style.borderBottom = '1px solid #444';
+  menu.appendChild(header);
+
+  // Delete/Restore option
+  const toggleOption = document.createElement('div');
+  toggleOption.textContent = isDeleted ? 'Restore Panel' : 'Delete Panel';
+  toggleOption.style.padding = '10px 12px';
+  toggleOption.style.cursor = 'pointer';
+  toggleOption.style.color = '#e0e0e0';
+  toggleOption.style.fontSize = '13px';
+  toggleOption.addEventListener('mouseover', function() {
+    toggleOption.style.background = isDeleted ? '#2a6a2a' : '#6a2a2a';
+  });
+  toggleOption.addEventListener('mouseout', function() {
+    toggleOption.style.background = 'transparent';
+  });
+  toggleOption.addEventListener('click', function() {
+    toggleCombinedPanelDelete(screenId, key);
+    menu.remove();
+  });
+  menu.appendChild(toggleOption);
+
+  // Go to screen option
+  const goToOption = document.createElement('div');
+  goToOption.textContent = `Edit in ${screen.name} tab`;
+  goToOption.style.padding = '10px 12px';
+  goToOption.style.cursor = 'pointer';
+  goToOption.style.color = '#e0e0e0';
+  goToOption.style.fontSize = '13px';
+  goToOption.style.borderTop = '1px solid #444';
+  goToOption.addEventListener('mouseover', function() {
+    goToOption.style.background = '#0a66c2';
+  });
+  goToOption.addEventListener('mouseout', function() {
+    goToOption.style.background = 'transparent';
+  });
+  goToOption.addEventListener('click', function() {
+    menu.remove();
+    // Switch to the screen's Complex tab
+    switchToScreen(screenId);
+    switchMobileView('complex');
+  });
+  menu.appendChild(goToOption);
+
+  document.body.appendChild(menu);
+
+  // Adjust position if menu goes off screen
+  const menuRect = menu.getBoundingClientRect();
+  if(menuRect.right > window.innerWidth) {
+    menu.style.left = (window.innerWidth - menuRect.width - 10) + 'px';
+  }
+  if(menuRect.bottom > window.innerHeight) {
+    menu.style.top = (window.innerHeight - menuRect.height - 10) + 'px';
+  }
+
+  // Close menu on click outside
+  function closeMenu(e) {
+    if(!menu.contains(e.target)) {
+      menu.remove();
+      document.removeEventListener('click', closeMenu);
+      document.removeEventListener('touchstart', closeMenu);
+    }
+  }
+  setTimeout(() => {
+    document.addEventListener('click', closeMenu);
+    document.addEventListener('touchstart', closeMenu);
+  }, 100);
+}
+
+// Setup Combined standard canvas touch/click handlers
+function setupCombinedCanvasHandlers() {
+  const canvas = document.getElementById('combinedStandardCanvas');
+  if(!canvas) return;
+
+  let longPressTimer = null;
+  let longPressTriggered = false;
+  let touchStartPos = { x: 0, y: 0 };
+
+  // Touch handlers for mobile
+  canvas.addEventListener('touchstart', function(e) {
+    if(e.touches.length !== 1) return;
+
+    longPressTriggered = false;
+    touchStartPos.x = e.touches[0].clientX;
+    touchStartPos.y = e.touches[0].clientY;
+
+    longPressTimer = setTimeout(() => {
+      longPressTriggered = true;
+      vibrate(50);
+
+      const panelInfo = getCombinedPanelAtPosition(canvas, touchStartPos.x, touchStartPos.y);
+      if(panelInfo) {
+        showCombinedPanelContextMenu(touchStartPos.x, touchStartPos.y, panelInfo);
+      }
+    }, 600);
+  }, { passive: true });
+
+  canvas.addEventListener('touchmove', function(e) {
+    if(longPressTimer) {
+      const dx = Math.abs(e.touches[0].clientX - touchStartPos.x);
+      const dy = Math.abs(e.touches[0].clientY - touchStartPos.y);
+      if(dx > 10 || dy > 10) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    }
+  }, { passive: true });
+
+  canvas.addEventListener('touchend', function(e) {
+    if(longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+    if(longPressTriggered) {
+      e.preventDefault();
+      longPressTriggered = false;
+    }
+  });
+
+  // Mouse right-click handler for desktop
+  canvas.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    const panelInfo = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
+    if(panelInfo) {
+      showCombinedPanelContextMenu(e.clientX, e.clientY, panelInfo);
+    }
+  });
+
+  // Double-click to quick toggle delete
+  canvas.addEventListener('dblclick', function(e) {
+    const panelInfo = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
+    if(panelInfo) {
+      toggleCombinedPanelDelete(panelInfo.screenId, panelInfo.key);
+    }
+  });
+}
+
 // Initialize combined view - create toggle buttons for each screen
 function initCombinedView() {
   const togglesContainer = document.getElementById('combinedScreenToggles');
@@ -17258,6 +17510,11 @@ function renderCombinedView() {
   const bottomPadding = 60;
   const canvasHeight = maxHeight + topPadding + bottomPadding;
   const canvasWidth = totalWidth + 40; // Add side padding
+
+  // Store dimensions globally for click handlers
+  combinedScreenDimensions = screenDimensions;
+  combinedPanelSize = panelSize;
+  combinedTopPadding = topPadding;
 
   // Render each layout type
   renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
@@ -18605,6 +18862,11 @@ function initMobileUI() {
   // Make sure calculate runs
   if(typeof calculate === 'function') {
     setTimeout(calculate, 100);
+  }
+
+  // Setup Combined canvas handlers for panel selection
+  if(typeof setupCombinedCanvasHandlers === 'function') {
+    setupCombinedCanvasHandlers();
   }
 
   // Check for updates after UI loads

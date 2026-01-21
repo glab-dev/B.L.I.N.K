@@ -3012,7 +3012,7 @@
   <div class="layout-title"><span>Combined View</span></div>
 
   <!-- Screen Toggle Buttons -->
-  <div id="combinedScreenToggles" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;">
+  <div id="combinedScreenToggles" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 4px; margin-bottom: 16px; max-width: 100%;">
     <!-- Screen toggle buttons will be dynamically generated here -->
   </div>
 
@@ -3203,7 +3203,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.173';
+const APP_VERSION = '2.0.174';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17753,7 +17753,7 @@ function initCombinedView() {
     const btn = document.createElement('button');
     btn.className = 'slider-toggle-btn';
     btn.dataset.screenId = screenId;
-    btn.style.cssText = 'padding: 4px 8px; min-width: auto; min-height: 28px; font-size: 10px; border: 2px solid #000; border-radius: 0; flex: none; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);';
+    btn.style.cssText = 'padding: 4px 6px; min-width: 0; min-height: 26px; font-size: 9px; border: 2px solid #000; border-radius: 0; box-shadow: 1px 1px 0px 0px rgba(0,0,0,1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
 
     // Set button color based on screen color
     if(combinedSelectedScreens.has(screenId)) {

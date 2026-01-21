@@ -17747,13 +17747,13 @@ function initCombinedView() {
   // Clear existing toggles
   togglesContainer.innerHTML = '';
 
-  // Create a toggle button for each screen (smaller, mobile-friendly)
+  // Create a toggle button for each screen (compact for mobile)
   Object.keys(screens).forEach(screenId => {
     const screen = screens[screenId];
     const btn = document.createElement('button');
     btn.className = 'slider-toggle-btn';
     btn.dataset.screenId = screenId;
-    btn.style.cssText = 'padding: 6px 12px; min-width: 50px; min-height: 32px; font-size: 11px; border: 2px solid #000; border-radius: 0; flex: none; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);';
+    btn.style.cssText = 'padding: 4px 8px; min-width: auto; min-height: 28px; font-size: 10px; border: 2px solid #000; border-radius: 0; flex: none; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);';
 
     // Set button color based on screen color
     if(combinedSelectedScreens.has(screenId)) {
@@ -17828,12 +17828,42 @@ function renderCombinedView() {
   const allPanels = getAllPanels();
   const selectedScreenIds = Array.from(combinedSelectedScreens);
 
-  // Calculate combined dimensions
+  // Get available width from the container
+  const container = document.getElementById('combinedStandardCanvasWrapper');
+  const availableWidth = container ? container.clientWidth - 40 : window.innerWidth - 60; // Account for padding
+
+  // First pass: calculate total panels wide to determine optimal panel size
+  let totalPanelsWide = 0;
+  let maxPanelsHigh = 0;
+  const gapCount = Math.max(0, selectedScreenIds.length - 1);
+  const minGap = 10; // Minimum gap between screens
+
+  selectedScreenIds.forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+    const pw = screen.data.panelsWide || 0;
+    const ph = screen.data.panelsHigh || 0;
+    if(pw > 0 && ph > 0) {
+      totalPanelsWide += pw;
+      maxPanelsHigh = Math.max(maxPanelsHigh, ph);
+    }
+  });
+
+  if(totalPanelsWide === 0) {
+    initCombinedView();
+    return;
+  }
+
+  // Calculate panel size to fit all screens (with minimum size of 15px, max of 40px)
+  const totalGapWidth = gapCount * minGap;
+  const maxPanelSize = Math.floor((availableWidth - totalGapWidth) / totalPanelsWide);
+  const panelSize = Math.max(15, Math.min(40, maxPanelSize));
+  const gap = Math.max(minGap, Math.min(20, panelSize / 2)); // Scale gap with panel size
+
+  // Calculate combined dimensions with dynamic panel size
   let totalWidth = 0;
   let maxHeight = 0;
   const screenDimensions = [];
-  const panelSize = 40; // Fixed panel size for combined view
-  const gap = 20; // Gap between screens
 
   selectedScreenIds.forEach((screenId, index) => {
     const screen = screens[screenId];
@@ -17868,9 +17898,9 @@ function renderCombinedView() {
     return;
   }
 
-  // Add padding for bumpers/structure
-  const topPadding = 60;
-  const bottomPadding = 60;
+  // Add padding for bumpers/structure (scale with panel size)
+  const topPadding = Math.max(40, panelSize * 1.5);
+  const bottomPadding = Math.max(40, panelSize * 1.5);
   const canvasHeight = maxHeight + topPadding + bottomPadding;
   const canvasWidth = totalWidth + 40; // Add side padding
 
@@ -17974,27 +18004,34 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
         ctx.lineWidth = 2;
         ctx.strokeRect(px, py, panelSize, panelSize);
 
-        // Black panel number (same as original)
+        // Black panel number (scale font with panel size)
         ctx.fillStyle = '#000000';
-        ctx.font = '11px Arial';
+        const panelFontSize = Math.max(8, Math.min(11, panelSize * 0.28));
+        ctx.font = `${panelFontSize}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${c+1}.${r+1}`, px + panelSize/2, py + panelSize/2);
+        // Only show panel numbers if panels are large enough
+        if(panelSize >= 20) {
+          ctx.fillText(`${c+1}.${r+1}`, px + panelSize/2, py + panelSize/2);
+        }
       }
     }
 
-    // Draw screen label with drag indicator
+    // Draw screen label with drag indicator (scale font with panel size)
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 14px Arial';
+    const labelFontSize = Math.max(10, Math.min(14, panelSize * 0.35));
+    ctx.font = `bold ${labelFontSize}px Arial`;
     ctx.textAlign = 'center';
-    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - 10);
+    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - Math.max(8, panelSize * 0.25));
 
-    // Draw subtle drag handle indicator
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    const handleY = screenY - 20;
-    const handleX = screenX + (pw * panelSize) / 2;
-    ctx.fillRect(handleX - 15, handleY, 30, 3);
-    ctx.fillRect(handleX - 15, handleY + 5, 30, 3);
+    // Draw subtle drag handle indicator (only if panels large enough)
+    if(panelSize >= 25) {
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      const handleY = screenY - 20;
+      const handleX = screenX + (pw * panelSize) / 2;
+      ctx.fillRect(handleX - 15, handleY, 30, 3);
+      ctx.fillRect(handleX - 15, handleY + 5, 30, 3);
+    }
   });
 }
 

@@ -3012,8 +3012,13 @@
   <div class="layout-title"><span>Combined View</span></div>
 
   <!-- Screen Toggle Buttons -->
-  <div id="combinedScreenToggles" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
+  <div id="combinedScreenToggles" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
     <!-- Screen toggle buttons will be dynamically generated here -->
+  </div>
+
+  <!-- Combined View Actions -->
+  <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+    <button type="button" onclick="resetCombinedPositions()" style="padding: 6px 12px; background: #333; color: #888; border: 2px solid #555; border-radius: 4px; font-size: 12px; cursor: pointer;">Reset Positions</button>
   </div>
 
   <!-- Combined Layouts Container -->
@@ -17135,6 +17140,218 @@ let combinedLeftPadding = 20;
 // Combined view panel selection state
 let combinedSelectedPanel = null; // { screenId, col, row, key }
 
+// Screen positions for Combined view (custom offsets)
+// Format: { screenId: { x: offsetX, y: offsetY } }
+let combinedScreenPositions = {};
+const STORAGE_KEY_COMBINED_POSITIONS = 'ledcalc_combined_positions';
+
+// Load combined screen positions from localStorage
+function loadCombinedPositions() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY_COMBINED_POSITIONS);
+    if(data) {
+      combinedScreenPositions = JSON.parse(data);
+    }
+  } catch(e) {
+    console.error('Error loading combined positions:', e);
+    combinedScreenPositions = {};
+  }
+}
+
+// Save combined screen positions to localStorage
+function saveCombinedPositions() {
+  try {
+    localStorage.setItem(STORAGE_KEY_COMBINED_POSITIONS, JSON.stringify(combinedScreenPositions));
+  } catch(e) {
+    console.error('Error saving combined positions:', e);
+  }
+}
+
+// Get screen at position for dragging (checks screen label area)
+function getCombinedScreenAtPosition(canvas, clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+
+  const canvasX = (clientX - rect.left) * scaleX;
+  const canvasY = (clientY - rect.top) * scaleY;
+
+  // Check each screen - include label area above panels for easier dragging
+  for(const dim of combinedScreenDimensions) {
+    const screenX = combinedLeftPadding + dim.x + (combinedScreenPositions[dim.screenId]?.x || 0);
+    const screenY = combinedTopPadding + (combinedScreenPositions[dim.screenId]?.y || 0);
+    const screenWidth = dim.pw * combinedPanelSize;
+    const screenHeight = dim.ph * combinedPanelSize;
+    const labelHeight = 25; // Height above panels for label
+
+    // Check if click is within this screen's bounds (including label area)
+    if(canvasX >= screenX && canvasX < screenX + screenWidth &&
+       canvasY >= screenY - labelHeight && canvasY < screenY + screenHeight) {
+      return dim;
+    }
+  }
+  return null;
+}
+
+// Drag state for Combined view screens
+let combinedDragState = {
+  isDragging: false,
+  screenDim: null,
+  startX: 0,
+  startY: 0,
+  startPosX: 0,
+  startPosY: 0
+};
+
+// Setup drag handlers for Combined view screens
+function setupCombinedDragHandlers() {
+  const canvas = document.getElementById('combinedStandardCanvas');
+  if(!canvas) return;
+
+  // Prevent duplicate handlers
+  if(canvas.dataset.dragHandlersSet) return;
+  canvas.dataset.dragHandlersSet = 'true';
+
+  // Mouse handlers for desktop
+  canvas.addEventListener('mousedown', function(e) {
+    if(e.button !== 0) return; // Only left click
+
+    const screenDim = getCombinedScreenAtPosition(canvas, e.clientX, e.clientY);
+    if(screenDim) {
+      combinedDragState.isDragging = true;
+      combinedDragState.screenDim = screenDim;
+      combinedDragState.startX = e.clientX;
+      combinedDragState.startY = e.clientY;
+      combinedDragState.startPosX = combinedScreenPositions[screenDim.screenId]?.x || 0;
+      combinedDragState.startPosY = combinedScreenPositions[screenDim.screenId]?.y || 0;
+      canvas.style.cursor = 'grabbing';
+      e.preventDefault();
+    }
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if(!combinedDragState.isDragging) return;
+
+    const dx = e.clientX - combinedDragState.startX;
+    const dy = e.clientY - combinedDragState.startY;
+
+    // Get canvas scale for accurate movement
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    const screenId = combinedDragState.screenDim.screenId;
+    if(!combinedScreenPositions[screenId]) {
+      combinedScreenPositions[screenId] = { x: 0, y: 0 };
+    }
+    combinedScreenPositions[screenId].x = combinedDragState.startPosX + (dx * scaleX);
+    combinedScreenPositions[screenId].y = combinedDragState.startPosY + (dy * scaleY);
+
+    // Re-render combined view
+    renderCombinedView();
+  });
+
+  document.addEventListener('mouseup', function(e) {
+    if(combinedDragState.isDragging) {
+      combinedDragState.isDragging = false;
+      combinedDragState.screenDim = null;
+      canvas.style.cursor = '';
+      saveCombinedPositions();
+    }
+  });
+
+  // Touch handlers for mobile
+  let touchDragStarted = false;
+  let touchDragTimer = null;
+
+  canvas.addEventListener('touchstart', function(e) {
+    if(e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    const screenDim = getCombinedScreenAtPosition(canvas, touch.clientX, touch.clientY);
+
+    if(screenDim) {
+      // Start a timer for drag mode (to distinguish from panel selection)
+      touchDragTimer = setTimeout(() => {
+        touchDragStarted = true;
+        combinedDragState.isDragging = true;
+        combinedDragState.screenDim = screenDim;
+        combinedDragState.startX = touch.clientX;
+        combinedDragState.startY = touch.clientY;
+        combinedDragState.startPosX = combinedScreenPositions[screenDim.screenId]?.x || 0;
+        combinedDragState.startPosY = combinedScreenPositions[screenDim.screenId]?.y || 0;
+        vibrate(30);
+      }, 300); // Short delay to distinguish from tap
+    }
+  }, { passive: true });
+
+  canvas.addEventListener('touchmove', function(e) {
+    if(touchDragTimer && !touchDragStarted) {
+      // Check if moved enough to cancel drag initiation
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - combinedDragState.startX);
+      const dy = Math.abs(touch.clientY - combinedDragState.startY);
+      if(dx > 5 || dy > 5) {
+        clearTimeout(touchDragTimer);
+        touchDragTimer = null;
+      }
+    }
+
+    if(!combinedDragState.isDragging || !touchDragStarted) return;
+
+    const touch = e.touches[0];
+    const dx = touch.clientX - combinedDragState.startX;
+    const dy = touch.clientY - combinedDragState.startY;
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    const screenId = combinedDragState.screenDim.screenId;
+    if(!combinedScreenPositions[screenId]) {
+      combinedScreenPositions[screenId] = { x: 0, y: 0 };
+    }
+    combinedScreenPositions[screenId].x = combinedDragState.startPosX + (dx * scaleX);
+    combinedScreenPositions[screenId].y = combinedDragState.startPosY + (dy * scaleY);
+
+    renderCombinedView();
+    e.preventDefault();
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', function(e) {
+    if(touchDragTimer) {
+      clearTimeout(touchDragTimer);
+      touchDragTimer = null;
+    }
+    if(combinedDragState.isDragging && touchDragStarted) {
+      combinedDragState.isDragging = false;
+      combinedDragState.screenDim = null;
+      touchDragStarted = false;
+      saveCombinedPositions();
+    }
+  });
+
+  canvas.addEventListener('touchcancel', function(e) {
+    if(touchDragTimer) {
+      clearTimeout(touchDragTimer);
+      touchDragTimer = null;
+    }
+    combinedDragState.isDragging = false;
+    combinedDragState.screenDim = null;
+    touchDragStarted = false;
+  });
+}
+
+// Reset all screen positions in Combined view
+function resetCombinedPositions() {
+  combinedScreenPositions = {};
+  saveCombinedPositions();
+  renderCombinedView();
+}
+
+// Load positions on startup
+loadCombinedPositions();
+
 // Get panel and screen at position in Combined standard canvas
 function getCombinedPanelAtPosition(canvas, clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
@@ -17144,10 +17361,11 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
   const canvasX = (clientX - rect.left) * scaleX;
   const canvasY = (clientY - rect.top) * scaleY;
 
-  // Check each screen
+  // Check each screen (use custom positions if available)
   for(const dim of combinedScreenDimensions) {
-    const screenX = combinedLeftPadding + dim.x;
-    const screenY = combinedTopPadding;
+    const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
+    const screenX = combinedLeftPadding + dim.x + customPos.x;
+    const screenY = combinedTopPadding + customPos.y;
     const screenWidth = dim.pw * combinedPanelSize;
     const screenHeight = dim.ph * combinedPanelSize;
 
@@ -17532,20 +17750,39 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   const canvas = document.getElementById('combinedStandardCanvas');
   if(!canvas) return;
 
-  canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
+  // Calculate canvas size with custom positions
+  let minX = 0, maxX = canvasWidth, minY = 0, maxY = canvasHeight;
+  screenDimensions.forEach(dim => {
+    const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
+    const screenRight = 20 + dim.x + customPos.x + dim.pw * panelSize + 20;
+    const screenBottom = topPadding + customPos.y + dim.ph * panelSize + 60;
+    const screenLeft = 20 + dim.x + customPos.x;
+    const screenTop = topPadding + customPos.y - 25;
+    maxX = Math.max(maxX, screenRight);
+    maxY = Math.max(maxY, screenBottom);
+    minX = Math.min(minX, screenLeft);
+    minY = Math.min(minY, screenTop);
+  });
+
+  // Adjust canvas size for custom positions
+  const adjustedWidth = Math.max(canvasWidth, maxX - minX + 40);
+  const adjustedHeight = Math.max(canvasHeight, maxY - minY + 40);
+
+  canvas.width = adjustedWidth;
+  canvas.height = adjustedHeight;
   const ctx = canvas.getContext('2d');
 
   // Black background
   ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  ctx.fillRect(0, 0, adjustedWidth, adjustedHeight);
 
   const leftPadding = 20;
 
   screenDimensions.forEach(dim => {
-    const { screen, data, pw, ph, x } = dim;
-    const screenX = leftPadding + x;
-    const screenY = topPadding;
+    const { screen, data, pw, ph, x, screenId } = dim;
+    const customPos = combinedScreenPositions[screenId] || { x: 0, y: 0 };
+    const screenX = leftPadding + x + customPos.x;
+    const screenY = topPadding + customPos.y;
 
     // Get screen colors for checkerboard pattern (same as original)
     const primaryColor = screen.color || '#808080';
@@ -17601,11 +17838,18 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       }
     }
 
-    // Draw screen label
+    // Draw screen label with drag indicator
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - 10);
+
+    // Draw subtle drag handle indicator
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    const handleY = screenY - 20;
+    const handleX = screenX + (pw * panelSize) / 2;
+    ctx.fillRect(handleX - 15, handleY, 30, 3);
+    ctx.fillRect(handleX - 15, handleY + 5, 30, 3);
   });
 }
 
@@ -18864,9 +19108,12 @@ function initMobileUI() {
     setTimeout(calculate, 100);
   }
 
-  // Setup Combined canvas handlers for panel selection
+  // Setup Combined canvas handlers for panel selection and screen dragging
   if(typeof setupCombinedCanvasHandlers === 'function') {
     setupCombinedCanvasHandlers();
+  }
+  if(typeof setupCombinedDragHandlers === 'function') {
+    setupCombinedDragHandlers();
   }
 
   // Check for updates after UI loads

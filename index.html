@@ -3195,7 +3195,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.164';
+const APP_VERSION = '2.0.165';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17203,6 +17203,12 @@ function toggleCombinedScreen(screenId) {
 // Render the combined view with all selected screens side by side
 function renderCombinedView() {
   if(combinedSelectedScreens.size === 0) return;
+
+  // IMPORTANT: Save current screen data first so the combined view has up-to-date info
+  // This ensures the current screen's customCircuitAssignments, deletedPanels, etc. are saved
+  if(typeof saveCurrentScreenData === 'function') {
+    saveCurrentScreenData();
+  }
 
   const allPanels = getAllPanels();
   const selectedScreenIds = Array.from(combinedSelectedScreens);

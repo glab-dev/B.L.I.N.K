@@ -3025,6 +3025,7 @@
       <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center;">
         <div class="slider-toggle" style="display: inline-flex;">
           <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Reset</button>
+          <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Manually Adjust</button>
           <button type="button" class="slider-toggle-btn" id="mirrorCanvasBtn" onclick="toggleMirrorCanvasLayout()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Mirror Canvas</button>
         </div>
         <span id="mirrorCanvasStatus" style="font-size: 10px; color: #10b981;"></span>
@@ -3203,7 +3204,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.174';
+const APP_VERSION = '2.0.175';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -15673,6 +15674,11 @@ function loadConfiguration(event) {
         // Ensure visible screens toggles are updated after all screens are loaded
         setTimeout(function() {
           updateCanvasScreenToggles();
+          // Refresh Combined view if it's currently visible
+          if(typeof initCombinedView === 'function') {
+            combinedSelectedScreens.clear(); // Reset selection for new project
+            initCombinedView();
+          }
         }, 100);
 
         alert(`Configuration "${config.name}" loaded successfully! (${Object.keys(screens).length} screens)`);
@@ -17148,6 +17154,9 @@ let combinedSelectedPanel = null; // { screenId, col, row, key }
 let combinedScreenPositions = {};
 const STORAGE_KEY_COMBINED_POSITIONS = 'ledcalc_combined_positions';
 
+// Manual adjust mode for Combined view (controls whether dragging is enabled)
+let combinedManualAdjust = false;
+
 // Load combined screen positions from localStorage
 function loadCombinedPositions() {
   try {
@@ -17218,6 +17227,7 @@ function setupCombinedDragHandlers() {
   // Mouse handlers for desktop
   canvas.addEventListener('mousedown', function(e) {
     if(e.button !== 0) return; // Only left click
+    if(!combinedManualAdjust) return; // Only allow dragging in manual adjust mode
 
     const screenDim = getCombinedScreenAtPosition(canvas, e.clientX, e.clientY);
     if(screenDim) {
@@ -17269,6 +17279,7 @@ function setupCombinedDragHandlers() {
 
   canvas.addEventListener('touchstart', function(e) {
     if(e.touches.length !== 1) return;
+    if(!combinedManualAdjust) return; // Only allow dragging in manual adjust mode
 
     const touch = e.touches[0];
     const screenDim = getCombinedScreenAtPosition(canvas, touch.clientX, touch.clientY);
@@ -17349,9 +17360,33 @@ function setupCombinedDragHandlers() {
 function resetCombinedPositions() {
   combinedScreenPositions = {};
   combinedMirrorCanvas = false;
+  combinedManualAdjust = false;
   updateMirrorCanvasButton();
+  updateManualAdjustButton();
   saveCombinedPositions();
   renderCombinedView();
+}
+
+// Toggle manual adjust mode for Combined view
+function toggleManualAdjust() {
+  combinedManualAdjust = !combinedManualAdjust;
+  updateManualAdjustButton();
+}
+
+// Update manual adjust button visual state
+function updateManualAdjustButton() {
+  const btn = document.getElementById('manualAdjustBtn');
+  if(btn) {
+    if(combinedManualAdjust) {
+      btn.classList.add('active');
+      btn.style.backgroundColor = '#10b981';
+      btn.style.color = '#000';
+    } else {
+      btn.classList.remove('active');
+      btn.style.backgroundColor = '';
+      btn.style.color = '';
+    }
+  }
 }
 
 // Mirror Canvas Layout mode
@@ -17378,46 +17413,45 @@ function toggleMirrorCanvasLayout() {
 function mirrorCanvasPositions() {
   // Get all screen canvas positions and convert to Combined view coordinates
   const allPanels = getAllPanels();
+  const selectedIds = Array.from(combinedSelectedScreens);
 
-  // Find the bounds of all screens in Canvas view
+  if(selectedIds.length === 0) return;
+
+  // Find the bounds of all SELECTED screens in Canvas view (pixel coordinates)
   let minCanvasX = Infinity, minCanvasY = Infinity;
-  let maxCanvasX = -Infinity, maxCanvasY = -Infinity;
 
-  Object.keys(screens).forEach(screenId => {
+  selectedIds.forEach(screenId => {
     const screen = screens[screenId];
     if(!screen || !screen.data) return;
 
     const data = screen.data;
-    const pw = data.panelsWide || 0;
-    const ph = data.panelsHigh || 0;
-    const panelType = data.panelType || 'CB5_MKII';
-    const panel = allPanels[panelType];
-    if(!panel || pw === 0 || ph === 0) return;
-
     const canvasX = data.canvasX || 0;
     const canvasY = data.canvasY || 0;
-    const widthPx = pw * panel.res_x;
-    const heightPx = ph * panel.res_y;
 
     minCanvasX = Math.min(minCanvasX, canvasX);
     minCanvasY = Math.min(minCanvasY, canvasY);
-    maxCanvasX = Math.max(maxCanvasX, canvasX + widthPx);
-    maxCanvasY = Math.max(maxCanvasY, canvasY + heightPx);
   });
 
   if(minCanvasX === Infinity) return;
 
-  // Calculate scale factor to fit Canvas positions into Combined view
-  // Combined view uses a fixed panel size, Canvas uses actual pixel resolution
-  const combinedPanelPx = combinedPanelSize; // pixels in Combined view per panel
+  // Get a reference panel for pixel-to-panel conversion
+  // Use the first selected screen's panel type
+  const firstScreen = screens[selectedIds[0]];
+  const refPanelType = firstScreen?.data?.panelType || 'CB5_MKII';
+  const refPanel = allPanels[refPanelType];
+  if(!refPanel) return;
 
-  // Convert Canvas pixel positions to Combined view positions
-  // We need to scale based on panel size relationships
+  // Pixel size of one panel in the Canvas view
+  const pixelsPerPanel = refPanel.res_x; // Assuming square-ish panels for simplicity
+
+  // Combined view panel size (will be recalculated in renderCombinedView)
+  const combinedPanelPx = combinedPanelSize || 40;
+
+  // Scale factor: Combined pixels per Canvas pixel
+  const scale = combinedPanelPx / pixelsPerPanel;
+
+  // Convert Canvas positions directly to Combined view absolute positions
   combinedScreenPositions = {};
-
-  // Calculate positions for each screen
-  let baseScreenIndex = 0;
-  const selectedIds = Array.from(combinedSelectedScreens);
 
   selectedIds.forEach((screenId, index) => {
     const screen = screens[screenId];
@@ -17426,39 +17460,31 @@ function mirrorCanvasPositions() {
     const data = screen.data;
     const pw = data.panelsWide || 0;
     const ph = data.panelsHigh || 0;
-    const panelType = data.panelType || 'CB5_MKII';
-    const panel = allPanels[panelType];
-    if(!panel || pw === 0 || ph === 0) return;
+    if(pw === 0 || ph === 0) return;
 
     // Get Canvas position (pixel-based)
     const canvasX = data.canvasX || 0;
     const canvasY = data.canvasY || 0;
 
-    // Calculate the Combined view's default position for this screen
-    // (side-by-side layout)
-    let defaultX = 0;
-    for(let i = 0; i < index; i++) {
-      const prevScreen = screens[selectedIds[i]];
-      if(prevScreen && prevScreen.data) {
-        defaultX += (prevScreen.data.panelsWide || 0) * combinedPanelPx + 20; // +gap
-      }
-    }
-
-    // Convert Canvas pixel position to Combined panel-based position
-    // Scale factor: how many pixels in Canvas equals one panel in Combined view
-    const panelWidthPx = panel.res_x;
-    const panelHeightPx = panel.res_y;
-
-    // Position offset from Canvas (relative to minimum bounds)
+    // Position relative to top-left of all selected screens
     const relativeCanvasX = canvasX - minCanvasX;
     const relativeCanvasY = canvasY - minCanvasY;
 
-    // Convert pixel offset to panel-based offset in Combined view
-    // Scale the pixel position to panel units
-    const combinedX = (relativeCanvasX / panelWidthPx) * combinedPanelPx;
-    const combinedY = (relativeCanvasY / panelHeightPx) * combinedPanelPx;
+    // Convert to Combined view coordinates
+    const combinedX = relativeCanvasX * scale;
+    const combinedY = relativeCanvasY * scale;
 
-    // The offset is the difference from default position
+    // Calculate what the default X position would be (side-by-side)
+    let defaultX = 0;
+    const gap = Math.max(10, Math.min(20, combinedPanelPx / 2));
+    for(let i = 0; i < index; i++) {
+      const prevScreen = screens[selectedIds[i]];
+      if(prevScreen && prevScreen.data) {
+        defaultX += (prevScreen.data.panelsWide || 0) * combinedPanelPx + gap;
+      }
+    }
+
+    // Store as offset from default position
     combinedScreenPositions[screenId] = {
       x: combinedX - defaultX,
       y: combinedY
@@ -18716,8 +18742,9 @@ function renderCombinedSpecs(selectedScreenIds) {
   }
 
   html += `<div><strong>Total Pixels:</strong> ${totalPixels.toLocaleString()}</div>`;
-  html += `<div><strong>Combined Width:</strong> ${isImperial ? (totalWidth * 3.28084).toFixed(2) + ' ft' : totalWidth.toFixed(2) + ' m'}</div>`;
-  html += `<div><strong>Max Height:</strong> ${isImperial ? (maxHeight * 3.28084).toFixed(2) + ' ft' : maxHeight.toFixed(2) + ' m'}</div>`;
+  const widthDisplay = isImperial ? (totalWidth * 3.28084).toFixed(2) + ' ft' : totalWidth.toFixed(2) + ' m';
+  const heightDisplay = isImperial ? (maxHeight * 3.28084).toFixed(2) + ' ft' : maxHeight.toFixed(2) + ' m';
+  html += `<div><strong>Dimensions:</strong> ${widthDisplay} × ${heightDisplay}</div>`;
   html += `<div><strong>Total Weight:</strong> ${weightUnit === 'lbs' ? (totalWeight * 2.20462).toFixed(1) + ' lbs' : totalWeight.toFixed(1) + ' kg'}</div>`;
   html += `<div><strong>Power (Max):</strong> ${totalPowerMax.toLocaleString()} W</div>`;
   html += `<div><strong>Total Amps:</strong> ${totalAmps.toFixed(1)} A @ ${voltage}V</div>`;

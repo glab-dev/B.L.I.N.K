@@ -3017,8 +3017,10 @@
   </div>
 
   <!-- Combined View Actions -->
-  <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+  <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center;">
     <button type="button" onclick="resetCombinedPositions()" style="padding: 6px 12px; background: #333; color: #888; border: 2px solid #555; border-radius: 4px; font-size: 12px; cursor: pointer;">Reset Positions</button>
+    <button type="button" id="mirrorCanvasBtn" onclick="toggleMirrorCanvasLayout()" style="padding: 6px 12px; background: #333; color: #888; border: 2px solid #555; border-radius: 4px; font-size: 12px; cursor: pointer;">Mirror Canvas Layout</button>
+    <span id="mirrorCanvasStatus" style="font-size: 11px; color: #666;"></span>
   </div>
 
   <!-- Combined Layouts Container -->
@@ -17345,8 +17347,146 @@ function setupCombinedDragHandlers() {
 // Reset all screen positions in Combined view
 function resetCombinedPositions() {
   combinedScreenPositions = {};
+  combinedMirrorCanvas = false;
+  updateMirrorCanvasButton();
   saveCombinedPositions();
   renderCombinedView();
+}
+
+// Mirror Canvas Layout mode
+let combinedMirrorCanvas = false;
+
+// Toggle mirroring of Canvas view layout positions
+function toggleMirrorCanvasLayout() {
+  combinedMirrorCanvas = !combinedMirrorCanvas;
+
+  if(combinedMirrorCanvas) {
+    // Copy positions from Canvas view to Combined view
+    mirrorCanvasPositions();
+  } else {
+    // Clear mirrored positions and use default/custom positions
+    combinedScreenPositions = {};
+    saveCombinedPositions();
+  }
+
+  updateMirrorCanvasButton();
+  renderCombinedView();
+}
+
+// Copy positions from Canvas view to Combined view
+function mirrorCanvasPositions() {
+  // Get all screen canvas positions and convert to Combined view coordinates
+  const allPanels = getAllPanels();
+
+  // Find the bounds of all screens in Canvas view
+  let minCanvasX = Infinity, minCanvasY = Infinity;
+  let maxCanvasX = -Infinity, maxCanvasY = -Infinity;
+
+  Object.keys(screens).forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+
+    const data = screen.data;
+    const pw = data.panelsWide || 0;
+    const ph = data.panelsHigh || 0;
+    const panelType = data.panelType || 'CB5_MKII';
+    const panel = allPanels[panelType];
+    if(!panel || pw === 0 || ph === 0) return;
+
+    const canvasX = data.canvasX || 0;
+    const canvasY = data.canvasY || 0;
+    const widthPx = pw * panel.res_x;
+    const heightPx = ph * panel.res_y;
+
+    minCanvasX = Math.min(minCanvasX, canvasX);
+    minCanvasY = Math.min(minCanvasY, canvasY);
+    maxCanvasX = Math.max(maxCanvasX, canvasX + widthPx);
+    maxCanvasY = Math.max(maxCanvasY, canvasY + heightPx);
+  });
+
+  if(minCanvasX === Infinity) return;
+
+  // Calculate scale factor to fit Canvas positions into Combined view
+  // Combined view uses a fixed panel size, Canvas uses actual pixel resolution
+  const combinedPanelPx = combinedPanelSize; // pixels in Combined view per panel
+
+  // Convert Canvas pixel positions to Combined view positions
+  // We need to scale based on panel size relationships
+  combinedScreenPositions = {};
+
+  // Calculate positions for each screen
+  let baseScreenIndex = 0;
+  const selectedIds = Array.from(combinedSelectedScreens);
+
+  selectedIds.forEach((screenId, index) => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+
+    const data = screen.data;
+    const pw = data.panelsWide || 0;
+    const ph = data.panelsHigh || 0;
+    const panelType = data.panelType || 'CB5_MKII';
+    const panel = allPanels[panelType];
+    if(!panel || pw === 0 || ph === 0) return;
+
+    // Get Canvas position (pixel-based)
+    const canvasX = data.canvasX || 0;
+    const canvasY = data.canvasY || 0;
+
+    // Calculate the Combined view's default position for this screen
+    // (side-by-side layout)
+    let defaultX = 0;
+    for(let i = 0; i < index; i++) {
+      const prevScreen = screens[selectedIds[i]];
+      if(prevScreen && prevScreen.data) {
+        defaultX += (prevScreen.data.panelsWide || 0) * combinedPanelPx + 20; // +gap
+      }
+    }
+
+    // Convert Canvas pixel position to Combined panel-based position
+    // Scale factor: how many pixels in Canvas equals one panel in Combined view
+    const panelWidthPx = panel.res_x;
+    const panelHeightPx = panel.res_y;
+
+    // Position offset from Canvas (relative to minimum bounds)
+    const relativeCanvasX = canvasX - minCanvasX;
+    const relativeCanvasY = canvasY - minCanvasY;
+
+    // Convert pixel offset to panel-based offset in Combined view
+    // Scale the pixel position to panel units
+    const combinedX = (relativeCanvasX / panelWidthPx) * combinedPanelPx;
+    const combinedY = (relativeCanvasY / panelHeightPx) * combinedPanelPx;
+
+    // The offset is the difference from default position
+    combinedScreenPositions[screenId] = {
+      x: combinedX - defaultX,
+      y: combinedY
+    };
+  });
+
+  saveCombinedPositions();
+}
+
+// Update the mirror canvas button state
+function updateMirrorCanvasButton() {
+  const btn = document.getElementById('mirrorCanvasBtn');
+  const status = document.getElementById('mirrorCanvasStatus');
+
+  if(btn) {
+    if(combinedMirrorCanvas) {
+      btn.style.background = '#10b981';
+      btn.style.color = '#fff';
+      btn.style.borderColor = '#059669';
+    } else {
+      btn.style.background = '#333';
+      btn.style.color = '#888';
+      btn.style.borderColor = '#555';
+    }
+  }
+
+  if(status) {
+    status.textContent = combinedMirrorCanvas ? '(Mirroring Canvas positions)' : '';
+  }
 }
 
 // Load positions on startup

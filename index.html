@@ -3009,9 +3009,9 @@
 <!-- Combined View Container (outside main-container so it can be shown independently) -->
 <div class="layout-container" id="combinedContainer" style="display:none; padding: 12px; padding-top: 24px; margin-top: 32px; overflow: visible;">
   <!-- Combined View Title with Hint -->
-  <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
     <div class="layout-title" style="margin-bottom: 0;"><span>Combined View</span></div>
-    <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 4px 8px; font-size: 11px; color: #10b981;">
+    <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 4px 10px; font-size: 11px; color: #10b981;">
       Toggle screens below to view combined specs
     </div>
   </div>
@@ -3026,6 +3026,11 @@
     <!-- Standard Layout -->
     <div class="layout-container" id="combinedStandardContainer" style="margin-bottom: 20px;">
       <div class="layout-title"><span>Standard Layout (Combined)</span></div>
+      <!-- Interaction Hints -->
+      <div id="combinedInteractionHints" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; font-size: 10px; color: #93c5fd; line-height: 1.5;">
+        <span id="combinedHintsDesktop" style="display: none;"><strong>Panels:</strong> Right-click for options, double-click to delete/restore &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
+        <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> Tap to select, tap again for options &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
+      </div>
       <!-- Position Controls -->
       <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center;">
         <div class="slider-toggle" style="display: inline-flex;">
@@ -3209,7 +3214,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.176';
+const APP_VERSION = '2.0.177';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17220,145 +17225,10 @@ let combinedDragState = {
   startPosY: 0
 };
 
-// Setup drag handlers for Combined view screens
+// Setup drag handlers for Combined view screens (now handled by setupCombinedCanvasHandlers)
 function setupCombinedDragHandlers() {
-  const canvas = document.getElementById('combinedStandardCanvas');
-  if(!canvas) return;
-
-  // Prevent duplicate handlers
-  if(canvas.dataset.dragHandlersSet) return;
-  canvas.dataset.dragHandlersSet = 'true';
-
-  // Mouse handlers for desktop
-  canvas.addEventListener('mousedown', function(e) {
-    if(e.button !== 0) return; // Only left click
-    if(!combinedManualAdjust) return; // Only allow dragging in manual adjust mode
-
-    const screenDim = getCombinedScreenAtPosition(canvas, e.clientX, e.clientY);
-    if(screenDim) {
-      combinedDragState.isDragging = true;
-      combinedDragState.screenDim = screenDim;
-      combinedDragState.startX = e.clientX;
-      combinedDragState.startY = e.clientY;
-      combinedDragState.startPosX = combinedScreenPositions[screenDim.screenId]?.x || 0;
-      combinedDragState.startPosY = combinedScreenPositions[screenDim.screenId]?.y || 0;
-      canvas.style.cursor = 'grabbing';
-      e.preventDefault();
-    }
-  });
-
-  document.addEventListener('mousemove', function(e) {
-    if(!combinedDragState.isDragging) return;
-
-    const dx = e.clientX - combinedDragState.startX;
-    const dy = e.clientY - combinedDragState.startY;
-
-    // Get canvas scale for accurate movement
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    const screenId = combinedDragState.screenDim.screenId;
-    if(!combinedScreenPositions[screenId]) {
-      combinedScreenPositions[screenId] = { x: 0, y: 0 };
-    }
-    combinedScreenPositions[screenId].x = combinedDragState.startPosX + (dx * scaleX);
-    combinedScreenPositions[screenId].y = combinedDragState.startPosY + (dy * scaleY);
-
-    // Re-render combined view
-    renderCombinedView();
-  });
-
-  document.addEventListener('mouseup', function(e) {
-    if(combinedDragState.isDragging) {
-      combinedDragState.isDragging = false;
-      combinedDragState.screenDim = null;
-      canvas.style.cursor = '';
-      saveCombinedPositions();
-    }
-  });
-
-  // Touch handlers for mobile
-  let touchDragStarted = false;
-  let touchDragTimer = null;
-
-  canvas.addEventListener('touchstart', function(e) {
-    if(e.touches.length !== 1) return;
-    if(!combinedManualAdjust) return; // Only allow dragging in manual adjust mode
-
-    const touch = e.touches[0];
-    const screenDim = getCombinedScreenAtPosition(canvas, touch.clientX, touch.clientY);
-
-    if(screenDim) {
-      // Start a timer for drag mode (to distinguish from panel selection)
-      touchDragTimer = setTimeout(() => {
-        touchDragStarted = true;
-        combinedDragState.isDragging = true;
-        combinedDragState.screenDim = screenDim;
-        combinedDragState.startX = touch.clientX;
-        combinedDragState.startY = touch.clientY;
-        combinedDragState.startPosX = combinedScreenPositions[screenDim.screenId]?.x || 0;
-        combinedDragState.startPosY = combinedScreenPositions[screenDim.screenId]?.y || 0;
-        vibrate(30);
-      }, 300); // Short delay to distinguish from tap
-    }
-  }, { passive: true });
-
-  canvas.addEventListener('touchmove', function(e) {
-    if(touchDragTimer && !touchDragStarted) {
-      // Check if moved enough to cancel drag initiation
-      const touch = e.touches[0];
-      const dx = Math.abs(touch.clientX - combinedDragState.startX);
-      const dy = Math.abs(touch.clientY - combinedDragState.startY);
-      if(dx > 5 || dy > 5) {
-        clearTimeout(touchDragTimer);
-        touchDragTimer = null;
-      }
-    }
-
-    if(!combinedDragState.isDragging || !touchDragStarted) return;
-
-    const touch = e.touches[0];
-    const dx = touch.clientX - combinedDragState.startX;
-    const dy = touch.clientY - combinedDragState.startY;
-
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    const screenId = combinedDragState.screenDim.screenId;
-    if(!combinedScreenPositions[screenId]) {
-      combinedScreenPositions[screenId] = { x: 0, y: 0 };
-    }
-    combinedScreenPositions[screenId].x = combinedDragState.startPosX + (dx * scaleX);
-    combinedScreenPositions[screenId].y = combinedDragState.startPosY + (dy * scaleY);
-
-    renderCombinedView();
-    e.preventDefault();
-  }, { passive: false });
-
-  canvas.addEventListener('touchend', function(e) {
-    if(touchDragTimer) {
-      clearTimeout(touchDragTimer);
-      touchDragTimer = null;
-    }
-    if(combinedDragState.isDragging && touchDragStarted) {
-      combinedDragState.isDragging = false;
-      combinedDragState.screenDim = null;
-      touchDragStarted = false;
-      saveCombinedPositions();
-    }
-  });
-
-  canvas.addEventListener('touchcancel', function(e) {
-    if(touchDragTimer) {
-      clearTimeout(touchDragTimer);
-      touchDragTimer = null;
-    }
-    combinedDragState.isDragging = false;
-    combinedDragState.screenDim = null;
-    touchDragStarted = false;
-  });
+  // Drag handling is now integrated into setupCombinedCanvasHandlers
+  // This function is kept for backward compatibility
 }
 
 // Reset all screen positions in Combined view
@@ -17703,70 +17573,200 @@ function showCombinedPanelContextMenu(x, y, panelInfo) {
 }
 
 // Setup Combined standard canvas touch/click handlers
+// Unified handler for both screen dragging (Manual Adjust mode) and panel selection
 function setupCombinedCanvasHandlers() {
   const canvas = document.getElementById('combinedStandardCanvas');
   if(!canvas) return;
 
-  let longPressTimer = null;
-  let longPressTriggered = false;
+  // Prevent duplicate handlers
+  if(canvas.dataset.combinedHandlersSet) return;
+  canvas.dataset.combinedHandlersSet = 'true';
+
+  // Touch state
   let touchStartPos = { x: 0, y: 0 };
+  let touchLastPos = { x: 0, y: 0 };
+  let touchStartPanel = null;
+  let touchDragPending = false;
 
-  // Touch handlers for mobile
-  canvas.addEventListener('touchstart', function(e) {
-    if(e.touches.length !== 1) return;
+  // ===== MOUSE HANDLERS (Desktop) =====
 
-    longPressTriggered = false;
-    touchStartPos.x = e.touches[0].clientX;
-    touchStartPos.y = e.touches[0].clientY;
+  // Mouse down - start drag (if Manual Adjust) or handle selection
+  canvas.addEventListener('mousedown', function(e) {
+    if(e.button !== 0) return; // Only left click
 
-    longPressTimer = setTimeout(() => {
-      longPressTriggered = true;
-      vibrate(50);
-
-      const panelInfo = getCombinedPanelAtPosition(canvas, touchStartPos.x, touchStartPos.y);
-      if(panelInfo) {
-        showCombinedPanelContextMenu(touchStartPos.x, touchStartPos.y, panelInfo);
-      }
-    }, 600);
-  }, { passive: true });
-
-  canvas.addEventListener('touchmove', function(e) {
-    if(longPressTimer) {
-      const dx = Math.abs(e.touches[0].clientX - touchStartPos.x);
-      const dy = Math.abs(e.touches[0].clientY - touchStartPos.y);
-      if(dx > 10 || dy > 10) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
+    if(combinedManualAdjust) {
+      // Manual Adjust mode: drag screens
+      const screenDim = getCombinedScreenAtPosition(canvas, e.clientX, e.clientY);
+      if(screenDim) {
+        combinedDragState.isDragging = true;
+        combinedDragState.screenDim = screenDim;
+        combinedDragState.startX = e.clientX;
+        combinedDragState.startY = e.clientY;
+        combinedDragState.startPosX = combinedScreenPositions[screenDim.screenId]?.x || 0;
+        combinedDragState.startPosY = combinedScreenPositions[screenDim.screenId]?.y || 0;
+        canvas.style.cursor = 'grabbing';
+        e.preventDefault();
       }
     }
-  }, { passive: true });
+    // Panel selection on desktop is done via right-click context menu
+  });
 
-  canvas.addEventListener('touchend', function(e) {
-    if(longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
+  // Mouse move - drag screen if in progress
+  document.addEventListener('mousemove', function(e) {
+    if(!combinedDragState.isDragging) return;
+
+    const dx = e.clientX - combinedDragState.startX;
+    const dy = e.clientY - combinedDragState.startY;
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    const screenId = combinedDragState.screenDim.screenId;
+    if(!combinedScreenPositions[screenId]) {
+      combinedScreenPositions[screenId] = { x: 0, y: 0 };
     }
-    if(longPressTriggered) {
-      e.preventDefault();
-      longPressTriggered = false;
+    combinedScreenPositions[screenId].x = combinedDragState.startPosX + (dx * scaleX);
+    combinedScreenPositions[screenId].y = combinedDragState.startPosY + (dy * scaleY);
+
+    renderCombinedView();
+  });
+
+  // Mouse up - end drag
+  document.addEventListener('mouseup', function(e) {
+    if(combinedDragState.isDragging) {
+      combinedDragState.isDragging = false;
+      combinedDragState.screenDim = null;
+      canvas.style.cursor = '';
+      saveCombinedPositions();
     }
   });
 
-  // Mouse right-click handler for desktop
+  // Right-click - context menu for panel (desktop)
   canvas.addEventListener('contextmenu', function(e) {
     e.preventDefault();
+    if(combinedManualAdjust) return; // No panel menu in adjust mode
+
     const panelInfo = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
     if(panelInfo) {
+      combinedSelectedPanel = panelInfo;
       showCombinedPanelContextMenu(e.clientX, e.clientY, panelInfo);
     }
   });
 
-  // Double-click to quick toggle delete
+  // Double-click to quick toggle delete (desktop)
   canvas.addEventListener('dblclick', function(e) {
+    if(combinedManualAdjust) return; // No panel actions in adjust mode
+
     const panelInfo = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
     if(panelInfo) {
       toggleCombinedPanelDelete(panelInfo.screenId, panelInfo.key);
     }
+  });
+
+  // ===== TOUCH HANDLERS (Mobile) =====
+
+  canvas.addEventListener('touchstart', function(e) {
+    if(e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    touchStartPos.x = touch.clientX;
+    touchStartPos.y = touch.clientY;
+    touchLastPos.x = touch.clientX;
+    touchLastPos.y = touch.clientY;
+
+    if(combinedManualAdjust) {
+      // Manual Adjust mode: immediate drag like Canvas view
+      const screenDim = getCombinedScreenAtPosition(canvas, touch.clientX, touch.clientY);
+      if(screenDim) {
+        combinedDragState.isDragging = true;
+        combinedDragState.screenDim = screenDim;
+        combinedDragState.startX = touch.clientX;
+        combinedDragState.startY = touch.clientY;
+        combinedDragState.startPosX = combinedScreenPositions[screenDim.screenId]?.x || 0;
+        combinedDragState.startPosY = combinedScreenPositions[screenDim.screenId]?.y || 0;
+        e.preventDefault();
+      }
+    } else {
+      // Panel selection mode: track start panel for tap-to-select
+      touchStartPanel = getCombinedPanelAtPosition(canvas, touch.clientX, touch.clientY);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', function(e) {
+    if(e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    touchLastPos.x = touch.clientX;
+    touchLastPos.y = touch.clientY;
+
+    if(combinedManualAdjust && combinedDragState.isDragging) {
+      // Drag screen
+      if(!touchDragPending) {
+        touchDragPending = true;
+        requestAnimationFrame(function() {
+          touchDragPending = false;
+          if(!combinedDragState.isDragging) return;
+
+          const dx = touchLastPos.x - combinedDragState.startX;
+          const dy = touchLastPos.y - combinedDragState.startY;
+
+          const rect = canvas.getBoundingClientRect();
+          const scaleX = canvas.width / rect.width;
+          const scaleY = canvas.height / rect.height;
+
+          const screenId = combinedDragState.screenDim.screenId;
+          if(!combinedScreenPositions[screenId]) {
+            combinedScreenPositions[screenId] = { x: 0, y: 0 };
+          }
+          combinedScreenPositions[screenId].x = combinedDragState.startPosX + (dx * scaleX);
+          combinedScreenPositions[screenId].y = combinedDragState.startPosY + (dy * scaleY);
+
+          renderCombinedView();
+        });
+      }
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', function(e) {
+    if(combinedManualAdjust) {
+      // End screen drag
+      if(combinedDragState.isDragging) {
+        combinedDragState.isDragging = false;
+        combinedDragState.screenDim = null;
+        saveCombinedPositions();
+      }
+    } else {
+      // Panel selection mode: tap to select, tap again for menu
+      const dx = Math.abs(touchLastPos.x - touchStartPos.x);
+      const dy = Math.abs(touchLastPos.y - touchStartPos.y);
+
+      // Only process as tap if didn't move much
+      if(dx < 15 && dy < 15 && touchStartPanel) {
+        const panelKey = `${touchStartPanel.screenId}-${touchStartPanel.key}`;
+        const selectedKey = combinedSelectedPanel ? `${combinedSelectedPanel.screenId}-${combinedSelectedPanel.key}` : null;
+
+        if(selectedKey === panelKey) {
+          // Panel was already selected - show context menu
+          vibrate(30);
+          showCombinedPanelContextMenu(touchLastPos.x, touchLastPos.y, touchStartPanel);
+        } else {
+          // Select this panel (highlight it)
+          combinedSelectedPanel = touchStartPanel;
+          vibrate(10);
+          renderCombinedView(); // Will highlight selected panel
+        }
+      }
+    }
+
+    touchStartPanel = null;
+  });
+
+  canvas.addEventListener('touchcancel', function(e) {
+    combinedDragState.isDragging = false;
+    combinedDragState.screenDim = null;
+    touchStartPanel = null;
   });
 }
 
@@ -17774,6 +17774,13 @@ function setupCombinedCanvasHandlers() {
 function initCombinedView() {
   const togglesContainer = document.getElementById('combinedScreenToggles');
   if(!togglesContainer) return;
+
+  // Show appropriate hints based on device type
+  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const desktopHints = document.getElementById('combinedHintsDesktop');
+  const mobileHints = document.getElementById('combinedHintsMobile');
+  if(desktopHints) desktopHints.style.display = isMobile ? 'none' : 'inline';
+  if(mobileHints) mobileHints.style.display = isMobile ? 'inline' : 'none';
 
   // Clear existing toggles
   togglesContainer.innerHTML = '';
@@ -18039,9 +18046,19 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
         ctx.fillStyle = isEvenPanel ? primaryColor : secondaryColor;
         ctx.fillRect(px, py, panelSize, panelSize);
 
-        // Black border
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
+        // Check if this panel is selected
+        const isSelected = combinedSelectedPanel &&
+          combinedSelectedPanel.screenId === screenId &&
+          combinedSelectedPanel.key === panelKey;
+
+        // Border - highlight if selected
+        if(isSelected) {
+          ctx.strokeStyle = '#FFFF00';
+          ctx.lineWidth = 3;
+        } else {
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 2;
+        }
         ctx.strokeRect(px, py, panelSize, panelSize);
 
         // Black panel number (scale font with panel size)

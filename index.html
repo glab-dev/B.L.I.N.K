@@ -17953,13 +17953,15 @@ function renderCombinedSpecs(selectedScreenIds) {
   const specsContent = document.getElementById('combinedSpecsContent');
   if(!specsContent) return;
 
-  let totalPanels = 0;
   let totalPixels = 0;
   let totalPowerMax = 0;
-  let totalPowerAvg = 0;
   let totalWeight = 0;
   let totalWidth = 0;
   let maxHeight = 0;
+  let totalDataLines = 0;
+
+  // Track panels by type
+  const panelsByType = {};
 
   const allPanels = getAllPanels();
 
@@ -17975,40 +17977,75 @@ function renderCombinedSpecs(selectedScreenIds) {
 
     if(!panel || pw === 0 || ph === 0) return;
 
-    // Count active panels (exclude deleted)
-    let activePanels = pw * ph;
-    const deletedPanels = data.deletedPanels;
-    if(deletedPanels && deletedPanels.size) {
-      activePanels -= deletedPanels.size;
+    // Count deleted panels properly
+    let deletedCount = 0;
+    if(data.deletedPanels instanceof Set) {
+      deletedCount = data.deletedPanels.size;
+    } else if(Array.isArray(data.deletedPanels)) {
+      deletedCount = data.deletedPanels.length;
     }
 
-    totalPanels += activePanels;
+    // Count active panels (exclude deleted)
+    const activePanels = (pw * ph) - deletedCount;
+
+    // Track panels by type
+    const panelDisplayName = `${panel.brand} ${panel.name}`;
+    if(!panelsByType[panelDisplayName]) {
+      panelsByType[panelDisplayName] = 0;
+    }
+    panelsByType[panelDisplayName] += activePanels;
+
     totalPixels += activePanels * panel.res_x * panel.res_y;
     totalPowerMax += activePanels * (panel.power_max_w || 0);
-    totalPowerAvg += activePanels * (panel.power_avg_w || 0);
     totalWeight += activePanels * (panel.weight_kg || 0);
     totalWidth += pw * (panel.width_m || 0.5);
     maxHeight = Math.max(maxHeight, ph * (panel.height_m || 0.5));
+
+    // Calculate data lines for this screen
+    const maxPanelsPerData = parseInt(data.maxPanelsPerData) || 48;
+    const screenDataLines = Math.ceil(activePanels / maxPanelsPerData);
+    totalDataLines += screenDataLines;
   });
+
+  // Calculate total panels
+  const totalPanels = Object.values(panelsByType).reduce((sum, count) => sum + count, 0);
+
+  // Calculate amps (assume 208V for combined, could be different per screen)
+  const voltage = 208;
+  const totalAmps = totalPowerMax / voltage;
+  const ampsPerPhase = totalAmps / 3;
 
   const isImperial = displayLengthUnit === 'ft';
   const weightUnit = displayWeightUnit;
 
   let html = '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">';
   html += `<div><strong>Total Screens:</strong> ${selectedScreenIds.length}</div>`;
-  html += `<div><strong>Total Panels:</strong> ${totalPanels}</div>`;
+
+  // Show panels - if multiple types, list each
+  const panelTypes = Object.keys(panelsByType);
+  if(panelTypes.length === 1) {
+    html += `<div><strong>Total Panels:</strong> ${totalPanels} (${panelTypes[0]})</div>`;
+  } else {
+    html += `<div><strong>Total Panels:</strong> ${totalPanels}</div>`;
+    panelTypes.forEach(type => {
+      html += `<div style="padding-left: 10px; font-size: 0.9em;">• ${panelsByType[type]} × ${type}</div>`;
+    });
+  }
+
   html += `<div><strong>Total Pixels:</strong> ${totalPixels.toLocaleString()}</div>`;
   html += `<div><strong>Combined Width:</strong> ${isImperial ? (totalWidth * 3.28084).toFixed(2) + ' ft' : totalWidth.toFixed(2) + ' m'}</div>`;
   html += `<div><strong>Max Height:</strong> ${isImperial ? (maxHeight * 3.28084).toFixed(2) + ' ft' : maxHeight.toFixed(2) + ' m'}</div>`;
   html += `<div><strong>Total Weight:</strong> ${weightUnit === 'lbs' ? (totalWeight * 2.20462).toFixed(1) + ' lbs' : totalWeight.toFixed(1) + ' kg'}</div>`;
   html += `<div><strong>Power (Max):</strong> ${totalPowerMax.toLocaleString()} W</div>`;
-  html += `<div><strong>Power (Avg):</strong> ${totalPowerAvg.toLocaleString()} W</div>`;
+  html += `<div><strong>Total Amps:</strong> ${totalAmps.toFixed(1)} A @ ${voltage}V</div>`;
+  html += `<div><strong>Amps per Phase:</strong> ${ampsPerPhase.toFixed(1)} A (3-phase)</div>`;
+  html += `<div><strong>Data Lines:</strong> ${totalDataLines}</div>`;
   html += '</div>';
 
   specsContent.innerHTML = html;
 }
 
-// Render combined gear list
+// Render combined gear list - matches PDF export format with categories
 function renderCombinedGearList(selectedScreenIds) {
   const gearContent = document.getElementById('combinedGearListContent');
   if(!gearContent) return;
@@ -18025,6 +18062,38 @@ function renderCombinedGearList(selectedScreenIds) {
   let total4wBumpers = 0;
   let totalPlates2way = 0;
   let totalPlates4way = 0;
+  let totalShackles = 0;
+  let totalCheeseye = 0;
+  let totalSocaSplays = 0;
+  let totalTrue1Twofers = 0;
+  let totalDataJumpers = 0;
+  let totalDataCrossJumpers = 0;
+  let totalCat5Couplers = 0;
+  let totalPowerJumpers = 0;
+
+  // Ground support
+  let totalRearTruss = 0;
+  let totalBaseTruss = 0;
+  let totalBridgeClamps = 0;
+  let totalRearBridgeAdapters = 0;
+  let totalSandbags = 0;
+  let totalSwivelCheeseboroughs = 0;
+  let totalPipes = 0;
+
+  // Floor frames
+  let totalFrame1x1 = 0;
+  let totalFrame2x1 = 0;
+  let totalFrame2x2 = 0;
+  let totalFrame3x2 = 0;
+
+  // Track panel info for jumpers
+  let hasJumpersBuiltin = false;
+  let dataJumperLen = '';
+  let dataCrossJumperLen = '';
+  let powerJumperLen = '';
+  let needsShacklesAndCheeseye = false;
+  let hasHangingScreen = false;
+  let hasFloorScreen = false;
 
   selectedScreenIds.forEach(screenId => {
     const screen = screens[screenId];
@@ -18040,47 +18109,191 @@ function renderCombinedGearList(selectedScreenIds) {
 
     if(!panel || pw === 0 || ph === 0) return;
 
-    // Count active panels
-    let activePanels = pw * ph;
-    const deletedPanels = data.deletedPanels;
-    if(deletedPanels && deletedPanels.size) {
-      activePanels -= deletedPanels.size;
+    // Count deleted panels properly
+    let deletedCount = 0;
+    if(data.deletedPanels instanceof Set) {
+      deletedCount = data.deletedPanels.size;
+    } else if(Array.isArray(data.deletedPanels)) {
+      deletedCount = data.deletedPanels.length;
     }
 
+    const activePanels = (pw * ph) - deletedCount;
     totalPanels += activePanels;
 
     // Use calculated data if available
     if(calculatedData.circuits) totalCircuits += calculatedData.circuits;
     if(calculatedData.dataLines) totalDataLines += calculatedData.dataLines;
     if(calculatedData.processors) totalProcessors += calculatedData.processors;
+    if(calculatedData.socaCount) totalSocaSplays += calculatedData.socaCount;
 
     // Count bumpers from screen's bumper data
     const screenBumpers = data.bumpers || [];
+    const useBumpers = data.useBumpers !== false;
+    let screenBumper1w = 0;
+    let screenBumper2w = 0;
     screenBumpers.forEach(b => {
-      if(b.type === '1w') total1wBumpers++;
-      else if(b.type === '2w') total2wBumpers++;
+      if(b.type === '1w') { total1wBumpers++; screenBumper1w++; }
+      else if(b.type === '2w') { total2wBumpers++; screenBumper2w++; }
       else if(b.type === '4w') total4wBumpers++;
     });
 
     // Estimate plates
     totalPlates2way += Math.max(0, (pw - 2));
     totalPlates4way += data.use4WayBumpers ? Math.floor(pw / 2) : 0;
+
+    // Shackles and Cheeseye
+    const needsShackles = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3'].includes(panelType);
+    const structureType = data.structureType || 'hanging';
+    const isHanging = structureType === 'hanging';
+    if(isHanging) hasHangingScreen = true;
+    if(structureType === 'floor') hasFloorScreen = true;
+
+    if(needsShackles && isHanging && useBumpers) {
+      needsShacklesAndCheeseye = true;
+      if(panelType === 'INFILED_AMT8_3') {
+        totalShackles += screenBumper1w + (screenBumper2w * 2);
+        totalCheeseye += screenBumper1w + (screenBumper2w * 2);
+      } else {
+        totalShackles += screenBumper1w + screenBumper2w;
+        totalCheeseye += screenBumper1w + screenBumper2w;
+      }
+    }
+
+    // Ground support from calculated data
+    if(calculatedData.groundSupport) {
+      const gs = calculatedData.groundSupport;
+      totalRearTruss += gs.totalRearTruss || 0;
+      totalBaseTruss += gs.totalBaseTruss || 0;
+      totalBridgeClamps += gs.totalBridgeClamps || 0;
+      totalRearBridgeAdapters += gs.totalRearBridgeClampAdapters || 0;
+      totalSandbags += gs.totalSandbags || 0;
+      totalSwivelCheeseboroughs += gs.totalSwivelCheeseboroughs || 0;
+      totalPipes += gs.totalPipes || 0;
+    }
+
+    // Floor frames from calculated data
+    if(calculatedData.floorFrames) {
+      const ff = calculatedData.floorFrames;
+      totalFrame1x1 += ff.frame_1x1 || 0;
+      totalFrame2x1 += ff.frame_2x1 || 0;
+      totalFrame2x2 += ff.frame_2x2 || 0;
+      totalFrame3x2 += ff.frame_3x2 || 0;
+    }
+
+    // Panel-specific info for data/power jumpers
+    if(panel.jumpers_builtin) hasJumpersBuiltin = true;
+    if(panel.data_jumper_ft && !dataJumperLen) dataJumperLen = panel.data_jumper_ft;
+    if(panel.data_cross_jumper_ft && !dataCrossJumperLen) dataCrossJumperLen = panel.data_cross_jumper_ft;
+    if(panel.power_jumper_ft && !powerJumperLen) powerJumperLen = panel.power_jumper_ft;
+
+    // Data and power jumpers
+    if(!panel.jumpers_builtin && panel.data_jumper_ft) {
+      totalDataJumpers += activePanels;
+    }
+    if(!panel.jumpers_builtin && panel.power_jumper_ft) {
+      totalPowerJumpers += activePanels;
+    }
+    if(calculatedData.dataCrossJumperCount) {
+      totalDataCrossJumpers += calculatedData.dataCrossJumperCount;
+    }
+    if(panel.jumpers_builtin) {
+      const screenDataLines = calculatedData.dataLines || 0;
+      const screenCrossJumpers = calculatedData.dataCrossJumperCount || 0;
+      totalCat5Couplers += screenDataLines + screenCrossJumpers;
+    }
+
+    // True1 Twofers
+    const columnsPerCircuit = calculatedData.columnsPerCircuit || 1;
+    const circuitsNeeded = calculatedData.circuits || 0;
+    if(columnsPerCircuit > 1) {
+      totalTrue1Twofers += circuitsNeeded * columnsPerCircuit;
+    }
   });
 
-  let html = '<div style="line-height: 1.8;">';
-  html += `<div style="font-weight: bold; color: #10b981; margin-bottom: 8px;">Combined Gear (${selectedScreenIds.length} screens)</div>`;
-  html += `<div><strong>LED Panels:</strong> ${totalPanels}</div>`;
-  if(totalCircuits > 0) html += `<div><strong>Power Circuits:</strong> ${totalCircuits}</div>`;
-  if(totalDataLines > 0) html += `<div><strong>Data Lines:</strong> ${totalDataLines}</div>`;
-  if(totalProcessors > 0) html += `<div><strong>Processors:</strong> ${totalProcessors}</div>`;
+  // Helper to add a gear line only if value > 0
+  function addGearLine(label, value) {
+    if(value > 0) {
+      return `<div style="margin-left: 12px;"><strong>${label}</strong> ${value}</div>`;
+    }
+    return '';
+  }
 
-  html += '<div style="border-top: 1px solid #444; margin: 8px 0;"></div>';
-  html += '<div style="font-weight: bold; color: #10b981;">Rigging Hardware</div>';
-  html += `<div><strong>1W Bumpers:</strong> ${total1wBumpers}</div>`;
-  html += `<div><strong>2W Bumpers:</strong> ${total2wBumpers}</div>`;
-  html += `<div><strong>4W Bumpers:</strong> ${total4wBumpers}</div>`;
-  html += `<div><strong>2W Connecting Plates:</strong> ${totalPlates2way}</div>`;
-  html += `<div><strong>4W Connecting Plates:</strong> ${totalPlates4way}</div>`;
+  // Helper to add a section header
+  function addGearHeader(title) {
+    return `<div style="font-weight: bold; color: #10b981; margin-top: 12px; margin-bottom: 4px;">${title}</div>`;
+  }
+
+  let html = '<div style="line-height: 1.8; font-size: 14px;">';
+
+  // Equipment Section
+  html += addGearHeader('Equipment');
+  html += addGearLine('Processors:', totalProcessors);
+  html += addGearLine('LED Panels:', totalPanels);
+  html += addGearLine('Power Circuits:', totalCircuits);
+  html += addGearLine('Data Lines:', totalDataLines);
+
+  // Rigging Hardware Section
+  const hasRiggingHardware = total1wBumpers > 0 || total2wBumpers > 0 || total4wBumpers > 0 ||
+                             totalPlates2way > 0 || totalPlates4way > 0 || totalShackles > 0 || totalCheeseye > 0;
+  if(hasRiggingHardware) {
+    html += addGearHeader('Rigging Hardware');
+    html += addGearLine('1W Bumpers:', total1wBumpers);
+    html += addGearLine('2W Bumpers:', total2wBumpers);
+    html += addGearLine('4W Bumpers:', total4wBumpers);
+    html += addGearLine('4W Connecting Plates:', totalPlates4way);
+    html += addGearLine('2W Connecting Plates:', totalPlates2way);
+    html += addGearLine('5/8" Shackles:', totalShackles);
+    html += addGearLine('Cheeseye:', totalCheeseye);
+  }
+
+  // Ground Support Section
+  const hasGroundSupport = totalRearTruss > 0 || totalBaseTruss > 0 || totalBridgeClamps > 0 ||
+                           totalRearBridgeAdapters > 0 || totalSandbags > 0 || totalSwivelCheeseboroughs > 0 || totalPipes > 0;
+  if(hasGroundSupport) {
+    html += addGearHeader('Ground Support');
+    html += addGearLine('Rear Truss:', totalRearTruss);
+    html += addGearLine('Base Truss:', totalBaseTruss);
+    html += addGearLine('Bridge Clamps:', totalBridgeClamps);
+    html += addGearLine('Rear Bridge Adapter:', totalRearBridgeAdapters);
+    html += addGearLine('Sandbags:', totalSandbags);
+    html += addGearLine('Swivel Cheeseborough:', totalSwivelCheeseboroughs);
+    html += addGearLine('Pipes:', totalPipes);
+  }
+
+  // Floor Hardware Section
+  const hasFloorHardware = totalFrame1x1 > 0 || totalFrame2x1 > 0 || totalFrame2x2 > 0 || totalFrame3x2 > 0;
+  if(hasFloorHardware) {
+    html += addGearHeader('Floor Hardware');
+    html += addGearLine('3×2 Frame:', totalFrame3x2);
+    html += addGearLine('2×2 Frame:', totalFrame2x2);
+    html += addGearLine('2×1 Frame:', totalFrame2x1);
+    html += addGearLine('1×1 Frame:', totalFrame1x1);
+  }
+
+  // Data Cables Section
+  const hasDataCables = totalDataJumpers > 0 || totalDataCrossJumpers > 0 || totalCat5Couplers > 0;
+  if(hasDataCables) {
+    html += addGearHeader('Data Cables');
+    if(totalDataJumpers > 0 && dataJumperLen) {
+      html += addGearLine(`Data Jumpers ${dataJumperLen}:`, totalDataJumpers);
+    }
+    if(totalDataCrossJumpers > 0 && dataCrossJumperLen) {
+      html += addGearLine(`Data Cross Jumpers ${dataCrossJumperLen}:`, totalDataCrossJumpers);
+    }
+    html += addGearLine('Cat5 Couplers:', totalCat5Couplers);
+  }
+
+  // Power Cables Section
+  const hasPowerCables = totalSocaSplays > 0 || totalPowerJumpers > 0 || totalTrue1Twofers > 0;
+  if(hasPowerCables) {
+    html += addGearHeader('Power Cables');
+    if(totalPowerJumpers > 0 && powerJumperLen) {
+      html += addGearLine(`Power Jumpers ${powerJumperLen}:`, totalPowerJumpers);
+    }
+    html += addGearLine('Soca Splays:', totalSocaSplays);
+    html += addGearLine('True1 Twofer:', totalTrue1Twofers);
+  }
+
   html += '</div>';
 
   gearContent.innerHTML = html;

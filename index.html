@@ -3195,7 +3195,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.165';
+const APP_VERSION = '2.0.166';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17294,14 +17294,16 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     const primaryColor = screen.color || '#808080';
     const secondaryColor = screen.color2 || darkenColor(primaryColor, 30);
 
-    // Properly convert deletedPanels to Set (may be array from JSON)
-    let screenDeletedPanels;
+    // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
+    let screenDeletedPanels = new Set();
     if(data.deletedPanels instanceof Set) {
-      screenDeletedPanels = data.deletedPanels;
+      data.deletedPanels.forEach(key => screenDeletedPanels.add(key));
     } else if(Array.isArray(data.deletedPanels)) {
-      screenDeletedPanels = new Set(data.deletedPanels);
-    } else {
-      screenDeletedPanels = new Set();
+      data.deletedPanels.forEach(key => screenDeletedPanels.add(key));
+    } else if(data.deletedPanels && typeof data.deletedPanels[Symbol.iterator] === 'function') {
+      for(const key of data.deletedPanels) {
+        screenDeletedPanels.add(key);
+      }
     }
 
     // Draw panels with checkerboard pattern (same as original)
@@ -17384,24 +17386,31 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     const screenX = leftPadding + x;
     const screenY = topPadding + socaLabelHeight;
 
-    // Properly convert deletedPanels to Set (may be array from JSON)
-    let screenDeletedPanels;
+    // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
+    let screenDeletedPanels = new Set();
     if(data.deletedPanels instanceof Set) {
-      screenDeletedPanels = data.deletedPanels;
+      // It's already a Set, copy it
+      data.deletedPanels.forEach(key => screenDeletedPanels.add(key));
     } else if(Array.isArray(data.deletedPanels)) {
-      screenDeletedPanels = new Set(data.deletedPanels);
-    } else {
-      screenDeletedPanels = new Set();
+      // It's an array (from JSON)
+      data.deletedPanels.forEach(key => screenDeletedPanels.add(key));
+    } else if(data.deletedPanels && typeof data.deletedPanels[Symbol.iterator] === 'function') {
+      // It's some other iterable
+      for(const key of data.deletedPanels) {
+        screenDeletedPanels.add(key);
+      }
     }
 
     // Properly convert customCircuitAssignments to Map (may be array from JSON)
-    let screenCustomCircuits;
+    let screenCustomCircuits = new Map();
     if(data.customCircuitAssignments instanceof Map) {
-      screenCustomCircuits = data.customCircuitAssignments;
+      data.customCircuitAssignments.forEach((val, key) => screenCustomCircuits.set(key, val));
     } else if(Array.isArray(data.customCircuitAssignments)) {
-      screenCustomCircuits = new Map(data.customCircuitAssignments);
-    } else {
-      screenCustomCircuits = new Map();
+      data.customCircuitAssignments.forEach(([key, val]) => screenCustomCircuits.set(key, val));
+    } else if(data.customCircuitAssignments && typeof data.customCircuitAssignments.entries === 'function') {
+      for(const [key, val] of data.customCircuitAssignments.entries()) {
+        screenCustomCircuits.set(key, val);
+      }
     }
 
     // Get panels per circuit from screen data or use default
@@ -17615,24 +17624,28 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     const screenX = leftPadding + x;
     const screenY = topPadding;
 
-    // Properly convert deletedPanels to Set (may be array from JSON)
-    let screenDeletedPanels;
+    // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
+    let screenDeletedPanels = new Set();
     if(data.deletedPanels instanceof Set) {
-      screenDeletedPanels = data.deletedPanels;
+      data.deletedPanels.forEach(key => screenDeletedPanels.add(key));
     } else if(Array.isArray(data.deletedPanels)) {
-      screenDeletedPanels = new Set(data.deletedPanels);
-    } else {
-      screenDeletedPanels = new Set();
+      data.deletedPanels.forEach(key => screenDeletedPanels.add(key));
+    } else if(data.deletedPanels && typeof data.deletedPanels[Symbol.iterator] === 'function') {
+      for(const key of data.deletedPanels) {
+        screenDeletedPanels.add(key);
+      }
     }
 
     // Properly convert customDataLineAssignments to Map (may be array from JSON)
-    let screenCustomDataLines;
+    let screenCustomDataLines = new Map();
     if(data.customDataLineAssignments instanceof Map) {
-      screenCustomDataLines = data.customDataLineAssignments;
+      data.customDataLineAssignments.forEach((val, key) => screenCustomDataLines.set(key, val));
     } else if(Array.isArray(data.customDataLineAssignments)) {
-      screenCustomDataLines = new Map(data.customDataLineAssignments);
-    } else {
-      screenCustomDataLines = new Map();
+      data.customDataLineAssignments.forEach(([key, val]) => screenCustomDataLines.set(key, val));
+    } else if(data.customDataLineAssignments && typeof data.customDataLineAssignments.entries === 'function') {
+      for(const [key, val] of data.customDataLineAssignments.entries()) {
+        screenCustomDataLines.set(key, val);
+      }
     }
 
     const panelsPerDataLine = data.maxPanelsPerData || 48;
@@ -17794,14 +17807,16 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     const screenX = leftPadding + x;
     const structureType = data.structureType || 'hanging';
 
-    // Properly convert deletedPanels to Set (may be array from JSON)
-    let screenDeletedPanels;
+    // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
+    let screenDeletedPanels = new Set();
     if(data.deletedPanels instanceof Set) {
-      screenDeletedPanels = data.deletedPanels;
+      data.deletedPanels.forEach(key => screenDeletedPanels.add(key));
     } else if(Array.isArray(data.deletedPanels)) {
-      screenDeletedPanels = new Set(data.deletedPanels);
-    } else {
-      screenDeletedPanels = new Set();
+      data.deletedPanels.forEach(key => screenDeletedPanels.add(key));
+    } else if(data.deletedPanels && typeof data.deletedPanels[Symbol.iterator] === 'function') {
+      for(const key of data.deletedPanels) {
+        screenDeletedPanels.add(key);
+      }
     }
 
     const screenBumpers = data.bumpers || [];

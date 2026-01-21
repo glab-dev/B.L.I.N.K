@@ -3009,7 +3009,7 @@
 <!-- Combined View Container (outside main-container so it can be shown independently) -->
 <div class="layout-container" id="combinedContainer" style="display:none; padding: 12px; padding-top: 24px; margin-top: 32px; overflow: visible;">
   <!-- Combined View Title with Hint -->
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
+  <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
     <div class="layout-title" style="margin-bottom: 0;"><span>Combined View</span></div>
     <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 4px 10px; font-size: 11px; color: #10b981;">
       Toggle screens below to view combined specs
@@ -3027,7 +3027,7 @@
     <div class="layout-container" id="combinedStandardContainer" style="margin-bottom: 20px;">
       <div class="layout-title"><span>Standard Layout (Combined)</span></div>
       <!-- Interaction Hints -->
-      <div id="combinedInteractionHints" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; font-size: 10px; color: #93c5fd; line-height: 1.5;">
+      <div id="combinedInteractionHints" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; font-size: 10px; color: #10b981; line-height: 1.5;">
         <span id="combinedHintsDesktop" style="display: none;"><strong>Panels:</strong> Right-click for options, double-click to delete/restore &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
         <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> Tap to select, tap again for options &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
       </div>
@@ -3214,7 +3214,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.177';
+const APP_VERSION = '2.0.178';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18046,19 +18046,9 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
         ctx.fillStyle = isEvenPanel ? primaryColor : secondaryColor;
         ctx.fillRect(px, py, panelSize, panelSize);
 
-        // Check if this panel is selected
-        const isSelected = combinedSelectedPanel &&
-          combinedSelectedPanel.screenId === screenId &&
-          combinedSelectedPanel.key === panelKey;
-
-        // Border - highlight if selected
-        if(isSelected) {
-          ctx.strokeStyle = '#FFFF00';
-          ctx.lineWidth = 3;
-        } else {
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 2;
-        }
+        // Black border
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
         ctx.strokeRect(px, py, panelSize, panelSize);
 
         // Black panel number (scale font with panel size)
@@ -18081,6 +18071,26 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     ctx.textAlign = 'center';
     ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - Math.max(8, panelSize * 0.25));
   });
+
+  // Draw selection highlight on top of everything (after all panels drawn)
+  if(combinedSelectedPanel) {
+    const selectedDim = screenDimensions.find(d => d.screenId === combinedSelectedPanel.screenId);
+    if(selectedDim) {
+      const customPos = combinedScreenPositions[selectedDim.screenId] || { x: 0, y: 0 };
+      const screenX = leftPadding + selectedDim.x + customPos.x;
+      const screenY = topPadding + customPos.y;
+      const col = combinedSelectedPanel.col;
+      const row = combinedSelectedPanel.row;
+      const px = screenX + col * panelSize;
+      const py = screenY + row * panelSize;
+
+      // Draw yellow highlight border (inset slightly so it shows fully)
+      ctx.strokeStyle = '#FFFF00';
+      ctx.lineWidth = 2;
+      const inset = 2;
+      ctx.strokeRect(px + inset, py + inset, panelSize - inset * 2, panelSize - inset * 2);
+    }
+  }
 }
 
 // Render combined power layout

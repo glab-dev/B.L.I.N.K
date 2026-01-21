@@ -3008,12 +3008,11 @@
 
 <!-- Combined View Container (outside main-container so it can be shown independently) -->
 <div class="layout-container" id="combinedContainer" style="display:none; padding: 12px; padding-top: 24px; margin-top: 32px; overflow: visible;">
-  <!-- Combined View Title with Hint -->
-  <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
-    <div class="layout-title" style="margin-bottom: 0;"><span>Combined View</span></div>
-    <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 4px 10px; font-size: 11px; color: #10b981;">
-      Toggle screens below to view combined specs
-    </div>
+  <!-- Combined View Title -->
+  <div class="layout-title"><span>Combined View</span></div>
+  <!-- Hint Box -->
+  <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 4px 10px; font-size: 11px; color: #10b981; margin-bottom: 16px; display: inline-block;">
+    Toggle screens below to view combined specs
   </div>
 
   <!-- Screen Toggle Buttons -->
@@ -3214,7 +3213,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.178';
+const APP_VERSION = '2.0.179';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17650,6 +17649,7 @@ function setupCombinedCanvasHandlers() {
     const panelInfo = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
     if(panelInfo) {
       combinedSelectedPanel = panelInfo;
+      renderCombinedView(); // Show highlight
       showCombinedPanelContextMenu(e.clientX, e.clientY, panelInfo);
     }
   });
@@ -18087,8 +18087,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       // Draw yellow highlight border (inset slightly so it shows fully)
       ctx.strokeStyle = '#FFFF00';
       ctx.lineWidth = 2;
-      const inset = 2;
-      ctx.strokeRect(px + inset, py + inset, panelSize - inset * 2, panelSize - inset * 2);
+      ctx.strokeRect(px + 1, py + 1, panelSize - 2, panelSize - 2);
     }
   }
 }

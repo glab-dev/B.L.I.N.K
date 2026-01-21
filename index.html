@@ -3195,7 +3195,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.162';
+const APP_VERSION = '2.0.163';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17555,11 +17555,11 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       ctx.fillText(`SOCA ${s + 1}`, midX, lineY - 18);
     }
 
-    // Draw screen label
-    ctx.fillStyle = '#000';
+    // Draw screen label (white text above the panels, like data layout)
+    ctx.fillStyle = '#fff';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, 12);
+    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - 10);
   });
 }
 
@@ -17747,13 +17747,17 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     const screenDeletedPanels = data.deletedPanels || new Set();
     const screenBumpers = data.bumpers || [];
 
-    // Determine if we have top or bottom bumpers
+    // Determine if we have top or bottom bumpers based on structure type
     const isHanging = structureType === 'hanging' || structureType === 'hybrid';
     const isGround = structureType === 'ground' || structureType === 'floor';
 
+    // Check if there are any top or bottom bumpers
+    const hasTopBumpers = screenBumpers.some(b => b.position === 'top');
+    const hasBottomBumpers = screenBumpers.some(b => b.position === 'bottom');
+
     // Calculate panel Y position based on bumper placement
     let panelYOffset = topPadding;
-    if(isHanging && screenBumpers.length > 0) {
+    if(hasTopBumpers) {
       panelYOffset += bumperHeight + 5;
     }
 
@@ -17793,14 +17797,23 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
       }
     }
 
-    // Draw bumpers from screen data (same green color as original)
+    // Draw bumpers from screen data using proper bumper structure
     if(screenBumpers.length > 0) {
       screenBumpers.forEach(bumper => {
+        // Calculate bumper width based on type
+        let bumperWidthCols = 1;
+        if(bumper.type === '2w') {
+          bumperWidthCols = 2;
+        } else if(bumper.type === '4w') {
+          // 4W bumpers span from startCol to endCol
+          bumperWidthCols = (bumper.endCol - bumper.startCol) || 2;
+        }
+
         const bumperX = screenX + bumper.startCol * panelSize;
-        const bumperWidth = bumper.width * panelSize;
+        const bumperWidthPx = bumperWidthCols * panelSize;
         let bumperY;
 
-        if(isHanging) {
+        if(bumper.position === 'top') {
           // Top bumpers
           bumperY = topPadding;
         } else {
@@ -17808,22 +17821,32 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
           bumperY = panelYOffset + ph * panelSize + 5;
         }
 
-        // Draw bumper (green, same as original)
-        ctx.fillStyle = '#10b981';
-        ctx.fillRect(bumperX, bumperY, bumperWidth, bumperHeight);
+        // Use colors matching original: green for top 2W, orange for bottom, blue for 1W, orange for 4W
+        let fillColor = '#4CAF50'; // Default green
+        if(bumper.type === '1w') {
+          fillColor = '#2196F3'; // Blue for 1W
+        } else if(bumper.type === '4w') {
+          fillColor = '#FF6B35'; // Orange for 4W
+        } else if(bumper.position === 'bottom') {
+          fillColor = '#FF9800'; // Orange for bottom bumpers
+        }
+
+        // Draw bumper
+        ctx.fillStyle = fillColor;
+        ctx.fillRect(bumperX, bumperY, bumperWidthPx, bumperHeight);
 
         // Black outline
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(bumperX, bumperY, bumperWidth, bumperHeight);
+        ctx.strokeRect(bumperX, bumperY, bumperWidthPx, bumperHeight);
 
         // Bumper label (white text)
         ctx.fillStyle = '#FFFFFF';
         ctx.font = 'bold 11px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const bumperType = bumper.width === 1 ? '1W' : '2W';
-        ctx.fillText(bumperType, bumperX + bumperWidth/2, bumperY + bumperHeight/2);
+        const label = bumper.type ? bumper.type.toUpperCase() : '2W';
+        ctx.fillText(label, bumperX + bumperWidthPx/2, bumperY + bumperHeight/2);
       });
     }
 
@@ -17832,10 +17855,8 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     let labelY;
-    if(isHanging && screenBumpers.length > 0) {
+    if(hasTopBumpers) {
       labelY = topPadding - 15;
-    } else if(isHanging) {
-      labelY = panelYOffset - 15;
     } else {
       labelY = panelYOffset - 15;
     }

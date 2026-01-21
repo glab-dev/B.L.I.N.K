@@ -3008,8 +3008,13 @@
 
 <!-- Combined View Container (outside main-container so it can be shown independently) -->
 <div class="layout-container" id="combinedContainer" style="display:none; padding: 12px; padding-top: 24px; margin-top: 32px; overflow: visible;">
-  <!-- Combined View Title -->
-  <div class="layout-title"><span>Combined View</span></div>
+  <!-- Combined View Title with Hint -->
+  <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+    <div class="layout-title" style="margin-bottom: 0;"><span>Combined View</span></div>
+    <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 4px 8px; font-size: 11px; color: #10b981;">
+      Toggle screens below to view combined specs
+    </div>
+  </div>
 
   <!-- Screen Toggle Buttons -->
   <div id="combinedScreenToggles" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 4px; margin-bottom: 16px; max-width: 100%;">
@@ -3025,7 +3030,7 @@
       <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center;">
         <div class="slider-toggle" style="display: inline-flex;">
           <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Reset</button>
-          <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Manually Adjust</button>
+          <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Manual Adjust</button>
           <button type="button" class="slider-toggle-btn" id="mirrorCanvasBtn" onclick="toggleMirrorCanvasLayout()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Mirror Canvas</button>
         </div>
         <span id="mirrorCanvasStatus" style="font-size: 10px; color: #10b981;"></span>
@@ -3204,7 +3209,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.175';
+const APP_VERSION = '2.0.176';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17380,7 +17385,7 @@ function updateManualAdjustButton() {
     if(combinedManualAdjust) {
       btn.classList.add('active');
       btn.style.backgroundColor = '#10b981';
-      btn.style.color = '#000';
+      btn.style.color = '#fff';
     } else {
       btn.classList.remove('active');
       btn.style.backgroundColor = '';
@@ -17837,6 +17842,15 @@ function toggleCombinedScreen(screenId) {
     combinedSelectedScreens.add(screenId);
   }
 
+  // Reset custom positions when toggling screens to keep layout neat
+  // (unless in manual adjust mode where user is actively positioning)
+  if(!combinedManualAdjust) {
+    combinedScreenPositions = {};
+    combinedMirrorCanvas = false;
+    updateMirrorCanvasButton();
+    saveCombinedPositions();
+  }
+
   // Re-initialize to update button states and render
   initCombinedView();
 }
@@ -18043,21 +18057,12 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       }
     }
 
-    // Draw screen label with drag indicator (scale font with panel size)
+    // Draw screen label (scale font with panel size)
     ctx.fillStyle = '#fff';
     const labelFontSize = Math.max(10, Math.min(14, panelSize * 0.35));
     ctx.font = `bold ${labelFontSize}px Arial`;
     ctx.textAlign = 'center';
     ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - Math.max(8, panelSize * 0.25));
-
-    // Draw subtle drag handle indicator (only if panels large enough)
-    if(panelSize >= 25) {
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      const handleY = screenY - 20;
-      const handleX = screenX + (pw * panelSize) / 2;
-      ctx.fillRect(handleX - 15, handleY, 30, 3);
-      ctx.fillRect(handleX - 15, handleY + 5, 30, 3);
-    }
   });
 }
 

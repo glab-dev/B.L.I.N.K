@@ -3038,11 +3038,11 @@
           <button type="button" class="slider-toggle-btn" id="mirrorCanvasBtn" onclick="toggleMirrorCanvasLayout()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Mirror Canvas</button>
         </div>
         <span id="mirrorCanvasStatus" style="font-size: 10px; color: #10b981;"></span>
-        <!-- Zoom Controls -->
-        <div style="display: inline-flex; align-items: center; gap: 4px; margin-left: 10px;">
-          <button type="button" onclick="adjustCombinedZoom(-10)" style="width: 28px; height: 28px; font-size: 14px; font-weight: bold; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">−</button>
-          <span id="combinedZoomLevel" style="font-size: 11px; color: #ccc; min-width: 45px; text-align: center;">100%</span>
-          <button type="button" onclick="adjustCombinedZoom(10)" style="width: 28px; height: 28px; font-size: 14px; font-weight: bold; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">+</button>
+        <!-- Zoom Controls (matching Canvas View style) -->
+        <div style="display: inline-flex; align-items: stretch; gap: 4px; margin-left: 10px;">
+          <button class="toggle-btn" onclick="adjustCombinedZoom(-10)" title="Zoom Out" style="padding: 6px 10px; height: 32px; font-size: 14px; box-sizing: border-box;">−</button>
+          <input type="number" id="combinedZoomInput" value="100" min="50" max="200" step="10" onchange="setCombinedZoom(parseInt(this.value))" title="Enter zoom percentage" style="width: 55px; padding: 4px; height: 32px; text-align: center; box-sizing: border-box; border: 2px solid #000; font-size: 11px;">
+          <button class="toggle-btn" onclick="adjustCombinedZoom(10)" title="Zoom In" style="padding: 6px 10px; height: 32px; font-size: 14px; box-sizing: border-box;">+</button>
         </div>
       </div>
       <div id="combinedStandardCanvasWrapper" style="overflow-x: auto;">
@@ -3219,7 +3219,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.187';
+const APP_VERSION = '2.0.188';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17425,9 +17425,9 @@ function setCombinedZoom(level) {
 
 // Update zoom display
 function updateCombinedZoomDisplay() {
-  const display = document.getElementById('combinedZoomLevel');
-  if(display) {
-    display.textContent = combinedZoomLevel + '%';
+  const input = document.getElementById('combinedZoomInput');
+  if(input) {
+    input.value = combinedZoomLevel;
   }
 }
 

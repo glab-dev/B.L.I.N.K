@@ -3213,7 +3213,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.179';
+const APP_VERSION = '2.0.180';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17156,7 +17156,8 @@ let combinedTopPadding = 60;
 let combinedLeftPadding = 20;
 
 // Combined view panel selection state
-let combinedSelectedPanel = null; // { screenId, col, row, key }
+let combinedSelectedPanel = null; // { screenId, col, row, key } - for single selection (mobile)
+let combinedSelectedPanels = new Set(); // Set of "screenId:col,row" strings for multi-selection (desktop)
 
 // Screen positions for Combined view (custom offsets)
 // Format: { screenId: { x: offsetX, y: offsetY } }
@@ -17433,6 +17434,50 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
   return null;
 }
 
+// Get all panels within a rectangle (for drag selection)
+function getCombinedPanelsInRect(canvas, x1, y1, x2, y2) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+
+  const canvasX1 = (Math.min(x1, x2) - rect.left) * scaleX;
+  const canvasY1 = (Math.min(y1, y2) - rect.top) * scaleY;
+  const canvasX2 = (Math.max(x1, x2) - rect.left) * scaleX;
+  const canvasY2 = (Math.max(y1, y2) - rect.top) * scaleY;
+
+  const panels = [];
+
+  // Check each screen
+  for(const dim of combinedScreenDimensions) {
+    const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
+    const screenX = combinedLeftPadding + dim.x + customPos.x;
+    const screenY = combinedTopPadding + customPos.y;
+
+    // Check each panel in this screen
+    for(let c = 0; c < dim.pw; c++) {
+      for(let r = 0; r < dim.ph; r++) {
+        const px = screenX + c * combinedPanelSize;
+        const py = screenY + r * combinedPanelSize;
+        const px2 = px + combinedPanelSize;
+        const py2 = py + combinedPanelSize;
+
+        // Check if panel overlaps with selection rect
+        if(px < canvasX2 && px2 > canvasX1 && py < canvasY2 && py2 > canvasY1) {
+          panels.push({
+            screenId: dim.screenId,
+            screen: dim.screen,
+            data: dim.data,
+            col: c,
+            row: r,
+            key: `${c},${r}`
+          });
+        }
+      }
+    }
+  }
+  return panels;
+}
+
 // Toggle panel deletion in Combined view (syncs to Complex tab)
 function toggleCombinedPanelDelete(screenId, panelKey) {
   const screen = screens[screenId];
@@ -17473,7 +17518,11 @@ function showCombinedPanelContextMenu(x, y, panelInfo) {
 
   const { screenId, screen, data, col, row, key } = panelInfo;
 
-  // Check if panel is deleted
+  // Get selected panel count (use multi-selection if available, otherwise single)
+  const selectedCount = combinedSelectedPanels.size > 0 ? combinedSelectedPanels.size : 1;
+  const panelLabel = selectedCount === 1 ? 'panel' : 'panels';
+
+  // Check if panel is deleted (for single panel)
   let isDeleted = false;
   if(data.deletedPanels instanceof Set) {
     isDeleted = data.deletedPanels.has(key);
@@ -17492,12 +17541,16 @@ function showCombinedPanelContextMenu(x, y, panelInfo) {
   menu.style.borderRadius = '6px';
   menu.style.padding = '4px 0';
   menu.style.zIndex = '10000';
-  menu.style.minWidth = '180px';
+  menu.style.minWidth = '220px';
   menu.style.boxShadow = '0 4px 12px rgba(0,0,0,0.6)';
 
-  // Screen name header
+  // Header showing selection count
   const header = document.createElement('div');
-  header.textContent = `${screen.name} - Panel ${col+1}.${row+1}`;
+  if(selectedCount === 1) {
+    header.textContent = `${screen.name} - Panel ${col+1}.${row+1}`;
+  } else {
+    header.textContent = `${selectedCount} panels selected`;
+  }
   header.style.padding = '8px 12px';
   header.style.color = screen.color || '#10b981';
   header.style.fontWeight = 'bold';
@@ -17505,46 +17558,80 @@ function showCombinedPanelContextMenu(x, y, panelInfo) {
   header.style.borderBottom = '1px solid #444';
   menu.appendChild(header);
 
+  // Helper to create menu option
+  function createMenuOption(text, hoverColor, onClick) {
+    const option = document.createElement('div');
+    option.textContent = text;
+    option.style.padding = '10px 12px';
+    option.style.cursor = 'pointer';
+    option.style.color = '#e0e0e0';
+    option.style.fontSize = '13px';
+    option.addEventListener('mouseover', function() {
+      option.style.background = hoverColor;
+    });
+    option.addEventListener('mouseout', function() {
+      option.style.background = 'transparent';
+    });
+    option.addEventListener('click', onClick);
+    return option;
+  }
+
+  // Assign Custom Circuit # option
+  const circuitOption = createMenuOption(
+    `Assign Circuit # to ${selectedCount} ${panelLabel}`,
+    '#2a4a6a',
+    function() {
+      menu.remove();
+      promptAssignCombinedCircuit();
+    }
+  );
+  menu.appendChild(circuitOption);
+
+  // Assign Custom Data Line # option
+  const dataOption = createMenuOption(
+    `Assign Data Line # to ${selectedCount} ${panelLabel}`,
+    '#4a2a6a',
+    function() {
+      menu.remove();
+      promptAssignCombinedDataLine();
+    }
+  );
+  menu.appendChild(dataOption);
+
   // Delete/Restore option
-  const toggleOption = document.createElement('div');
-  toggleOption.textContent = isDeleted ? 'Restore Panel' : 'Delete Panel';
-  toggleOption.style.padding = '10px 12px';
-  toggleOption.style.cursor = 'pointer';
-  toggleOption.style.color = '#e0e0e0';
-  toggleOption.style.fontSize = '13px';
-  toggleOption.addEventListener('mouseover', function() {
-    toggleOption.style.background = isDeleted ? '#2a6a2a' : '#6a2a2a';
-  });
-  toggleOption.addEventListener('mouseout', function() {
-    toggleOption.style.background = 'transparent';
-  });
-  toggleOption.addEventListener('click', function() {
-    toggleCombinedPanelDelete(screenId, key);
-    menu.remove();
-  });
+  const toggleOption = createMenuOption(
+    selectedCount > 1 ? `Delete ${selectedCount} ${panelLabel}` : (isDeleted ? 'Restore Panel' : 'Delete Panel'),
+    isDeleted ? '#2a6a2a' : '#6a2a2a',
+    function() {
+      if(combinedSelectedPanels.size > 0) {
+        combinedSelectedPanels.forEach(pkey => {
+          const [sid, pk] = pkey.split(':');
+          toggleCombinedPanelDelete(sid, pk);
+        });
+        combinedSelectedPanels.clear();
+      } else {
+        toggleCombinedPanelDelete(screenId, key);
+      }
+      menu.remove();
+    }
+  );
+  toggleOption.style.borderTop = '1px solid #444';
   menu.appendChild(toggleOption);
 
-  // Go to screen option
-  const goToOption = document.createElement('div');
-  goToOption.textContent = `Edit in ${screen.name} tab`;
-  goToOption.style.padding = '10px 12px';
-  goToOption.style.cursor = 'pointer';
-  goToOption.style.color = '#e0e0e0';
-  goToOption.style.fontSize = '13px';
-  goToOption.style.borderTop = '1px solid #444';
-  goToOption.addEventListener('mouseover', function() {
-    goToOption.style.background = '#0a66c2';
-  });
-  goToOption.addEventListener('mouseout', function() {
-    goToOption.style.background = 'transparent';
-  });
-  goToOption.addEventListener('click', function() {
-    menu.remove();
-    // Switch to the screen's Complex tab
-    switchToScreen(screenId);
-    switchMobileView('complex');
-  });
-  menu.appendChild(goToOption);
+  // Go to screen option (only for single selection)
+  if(selectedCount === 1) {
+    const goToOption = createMenuOption(
+      `Edit in ${screen.name} tab`,
+      '#0a66c2',
+      function() {
+        menu.remove();
+        switchToScreen(screenId);
+        switchMobileView('complex');
+      }
+    );
+    goToOption.style.borderTop = '1px solid #444';
+    menu.appendChild(goToOption);
+  }
 
   document.body.appendChild(menu);
 
@@ -17571,6 +17658,140 @@ function showCombinedPanelContextMenu(x, y, panelInfo) {
   }, 100);
 }
 
+// Prompt user for custom circuit number and assign to selected panels
+function promptAssignCombinedCircuit() {
+  // Get panels to assign (use multi-selection or single selected panel)
+  const panelsToAssign = [];
+  if(combinedSelectedPanels.size > 0) {
+    combinedSelectedPanels.forEach(pkey => {
+      const [screenId, panelKey] = pkey.split(':');
+      panelsToAssign.push({ screenId, panelKey });
+    });
+  } else if(combinedSelectedPanel) {
+    panelsToAssign.push({
+      screenId: combinedSelectedPanel.screenId,
+      panelKey: combinedSelectedPanel.key
+    });
+  }
+
+  if(panelsToAssign.length === 0) return;
+
+  const input = prompt(`Enter circuit number for ${panelsToAssign.length} panel(s):\n(Enter 0 or leave blank to clear custom assignment)`);
+  if(input === null) return; // Cancelled
+
+  const circuitNum = parseInt(input);
+  const clearAssignment = input.trim() === '' || circuitNum === 0;
+
+  // Group panels by screen for efficient updates
+  const panelsByScreen = {};
+  panelsToAssign.forEach(p => {
+    if(!panelsByScreen[p.screenId]) panelsByScreen[p.screenId] = [];
+    panelsByScreen[p.screenId].push(p.panelKey);
+  });
+
+  // Apply to each screen's data
+  Object.keys(panelsByScreen).forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+
+    // Ensure customCircuitAssignments is a Map
+    if(!(screen.data.customCircuitAssignments instanceof Map)) {
+      if(Array.isArray(screen.data.customCircuitAssignments)) {
+        screen.data.customCircuitAssignments = new Map(screen.data.customCircuitAssignments);
+      } else {
+        screen.data.customCircuitAssignments = new Map();
+      }
+    }
+
+    // Update each panel
+    panelsByScreen[screenId].forEach(panelKey => {
+      if(clearAssignment) {
+        screen.data.customCircuitAssignments.delete(panelKey);
+      } else {
+        screen.data.customCircuitAssignments.set(panelKey, circuitNum);
+      }
+    });
+
+    // If this is the current screen, sync to global variable
+    if(screenId === currentScreenId) {
+      customCircuitAssignments = new Map(screen.data.customCircuitAssignments);
+      calculate(); // Recalculate layouts
+    }
+  });
+
+  // Clear selection and re-render
+  combinedSelectedPanels.clear();
+  combinedSelectedPanel = null;
+  renderCombinedView();
+}
+
+// Prompt user for custom data line number and assign to selected panels
+function promptAssignCombinedDataLine() {
+  // Get panels to assign (use multi-selection or single selected panel)
+  const panelsToAssign = [];
+  if(combinedSelectedPanels.size > 0) {
+    combinedSelectedPanels.forEach(pkey => {
+      const [screenId, panelKey] = pkey.split(':');
+      panelsToAssign.push({ screenId, panelKey });
+    });
+  } else if(combinedSelectedPanel) {
+    panelsToAssign.push({
+      screenId: combinedSelectedPanel.screenId,
+      panelKey: combinedSelectedPanel.key
+    });
+  }
+
+  if(panelsToAssign.length === 0) return;
+
+  const input = prompt(`Enter data line number for ${panelsToAssign.length} panel(s):\n(Enter 0 or leave blank to clear custom assignment)`);
+  if(input === null) return; // Cancelled
+
+  const dataLineNum = parseInt(input);
+  const clearAssignment = input.trim() === '' || dataLineNum === 0;
+
+  // Group panels by screen for efficient updates
+  const panelsByScreen = {};
+  panelsToAssign.forEach(p => {
+    if(!panelsByScreen[p.screenId]) panelsByScreen[p.screenId] = [];
+    panelsByScreen[p.screenId].push(p.panelKey);
+  });
+
+  // Apply to each screen's data
+  Object.keys(panelsByScreen).forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+
+    // Ensure customDataLineAssignments is a Map
+    if(!(screen.data.customDataLineAssignments instanceof Map)) {
+      if(Array.isArray(screen.data.customDataLineAssignments)) {
+        screen.data.customDataLineAssignments = new Map(screen.data.customDataLineAssignments);
+      } else {
+        screen.data.customDataLineAssignments = new Map();
+      }
+    }
+
+    // Update each panel
+    panelsByScreen[screenId].forEach(panelKey => {
+      if(clearAssignment) {
+        screen.data.customDataLineAssignments.delete(panelKey);
+      } else {
+        screen.data.customDataLineAssignments.set(panelKey, dataLineNum);
+      }
+    });
+
+    // If this is the current screen, sync to global variable
+    if(screenId === currentScreenId) {
+      customDataLineAssignments = new Map(screen.data.customDataLineAssignments);
+      calculate(); // Recalculate layouts
+    }
+  });
+
+  // Clear selection and re-render
+  combinedSelectedPanels.clear();
+  combinedSelectedPanel = null;
+  renderCombinedView();
+}
+
 // Setup Combined standard canvas touch/click handlers
 // Unified handler for both screen dragging (Manual Adjust mode) and panel selection
 function setupCombinedCanvasHandlers() {
@@ -17587,9 +17808,14 @@ function setupCombinedCanvasHandlers() {
   let touchStartPanel = null;
   let touchDragPending = false;
 
+  // Mouse panel selection state
+  let mouseSelectStart = { x: 0, y: 0 };
+  let isMouseSelecting = false;
+  let mouseStartPanel = null;
+
   // ===== MOUSE HANDLERS (Desktop) =====
 
-  // Mouse down - start drag (if Manual Adjust) or handle selection
+  // Mouse down - start drag (if Manual Adjust) or start panel selection
   canvas.addEventListener('mousedown', function(e) {
     if(e.button !== 0) return; // Only left click
 
@@ -17606,32 +17832,75 @@ function setupCombinedCanvasHandlers() {
         canvas.style.cursor = 'grabbing';
         e.preventDefault();
       }
+    } else {
+      // Panel selection mode: start selection
+      mouseSelectStart.x = e.clientX;
+      mouseSelectStart.y = e.clientY;
+      isMouseSelecting = true;
+      mouseStartPanel = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
+
+      // Check for modifier keys (Ctrl/Cmd/Shift for multi-select)
+      const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
+      if(!isMultiSelect) {
+        combinedSelectedPanels.clear();
+      }
+
+      // Select clicked panel immediately
+      if(mouseStartPanel) {
+        const panelKey = `${mouseStartPanel.screenId}:${mouseStartPanel.key}`;
+        if(combinedSelectedPanels.has(panelKey)) {
+          combinedSelectedPanels.delete(panelKey);
+        } else {
+          combinedSelectedPanels.add(panelKey);
+        }
+        renderCombinedView();
+      }
     }
-    // Panel selection on desktop is done via right-click context menu
   });
 
-  // Mouse move - drag screen if in progress
-  document.addEventListener('mousemove', function(e) {
-    if(!combinedDragState.isDragging) return;
+  // Mouse move - drag screen or extend panel selection
+  canvas.addEventListener('mousemove', function(e) {
+    if(combinedDragState.isDragging) {
+      // Screen dragging
+      const dx = e.clientX - combinedDragState.startX;
+      const dy = e.clientY - combinedDragState.startY;
 
-    const dx = e.clientX - combinedDragState.startX;
-    const dy = e.clientY - combinedDragState.startY;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
 
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
+      const screenId = combinedDragState.screenDim.screenId;
+      if(!combinedScreenPositions[screenId]) {
+        combinedScreenPositions[screenId] = { x: 0, y: 0 };
+      }
+      combinedScreenPositions[screenId].x = combinedDragState.startPosX + (dx * scaleX);
+      combinedScreenPositions[screenId].y = combinedDragState.startPosY + (dy * scaleY);
 
-    const screenId = combinedDragState.screenDim.screenId;
-    if(!combinedScreenPositions[screenId]) {
-      combinedScreenPositions[screenId] = { x: 0, y: 0 };
+      renderCombinedView();
+    } else if(isMouseSelecting) {
+      // Panel drag selection
+      const dx = Math.abs(e.clientX - mouseSelectStart.x);
+      const dy = Math.abs(e.clientY - mouseSelectStart.y);
+
+      // Only do rect selection if dragged more than 5 pixels
+      if(dx > 5 || dy > 5) {
+        const panels = getCombinedPanelsInRect(canvas, mouseSelectStart.x, mouseSelectStart.y, e.clientX, e.clientY);
+
+        const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
+        if(!isMultiSelect) {
+          combinedSelectedPanels.clear();
+        }
+
+        panels.forEach(p => {
+          combinedSelectedPanels.add(`${p.screenId}:${p.key}`);
+        });
+
+        renderCombinedView();
+      }
     }
-    combinedScreenPositions[screenId].x = combinedDragState.startPosX + (dx * scaleX);
-    combinedScreenPositions[screenId].y = combinedDragState.startPosY + (dy * scaleY);
-
-    renderCombinedView();
   });
 
-  // Mouse up - end drag
+  // Mouse up - end drag or selection
   document.addEventListener('mouseup', function(e) {
     if(combinedDragState.isDragging) {
       combinedDragState.isDragging = false;
@@ -17639,6 +17908,14 @@ function setupCombinedCanvasHandlers() {
       canvas.style.cursor = '';
       saveCombinedPositions();
     }
+    isMouseSelecting = false;
+    mouseStartPanel = null;
+  });
+
+  // Mouse leave - end selection (but not screen drag which uses document)
+  canvas.addEventListener('mouseleave', function(e) {
+    isMouseSelecting = false;
+    mouseStartPanel = null;
   });
 
   // Right-click - context menu for panel (desktop)
@@ -17648,6 +17925,12 @@ function setupCombinedCanvasHandlers() {
 
     const panelInfo = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
     if(panelInfo) {
+      // If clicked panel is not in selection, clear and select only it
+      const panelKey = `${panelInfo.screenId}:${panelInfo.key}`;
+      if(!combinedSelectedPanels.has(panelKey)) {
+        combinedSelectedPanels.clear();
+        combinedSelectedPanels.add(panelKey);
+      }
       combinedSelectedPanel = panelInfo;
       renderCombinedView(); // Show highlight
       showCombinedPanelContextMenu(e.clientX, e.clientY, panelInfo);
@@ -17658,9 +17941,18 @@ function setupCombinedCanvasHandlers() {
   canvas.addEventListener('dblclick', function(e) {
     if(combinedManualAdjust) return; // No panel actions in adjust mode
 
-    const panelInfo = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
-    if(panelInfo) {
-      toggleCombinedPanelDelete(panelInfo.screenId, panelInfo.key);
+    // Delete all selected panels
+    if(combinedSelectedPanels.size > 0) {
+      combinedSelectedPanels.forEach(key => {
+        const [screenId, panelKey] = key.split(':');
+        toggleCombinedPanelDelete(screenId, panelKey);
+      });
+      combinedSelectedPanels.clear();
+    } else {
+      const panelInfo = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
+      if(panelInfo) {
+        toggleCombinedPanelDelete(panelInfo.screenId, panelInfo.key);
+      }
     }
   });
 
@@ -18073,7 +18365,27 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   });
 
   // Draw selection highlight on top of everything (after all panels drawn)
-  if(combinedSelectedPanel) {
+  // First, highlight all multi-selected panels (desktop)
+  if(combinedSelectedPanels.size > 0) {
+    ctx.strokeStyle = '#FFFF00';
+    ctx.lineWidth = 2;
+    combinedSelectedPanels.forEach(key => {
+      const [screenId, panelKey] = key.split(':');
+      const [col, row] = panelKey.split(',').map(Number);
+      const selectedDim = screenDimensions.find(d => d.screenId === screenId);
+      if(selectedDim) {
+        const customPos = combinedScreenPositions[selectedDim.screenId] || { x: 0, y: 0 };
+        const screenX = leftPadding + selectedDim.x + customPos.x;
+        const screenY = topPadding + customPos.y;
+        const px = screenX + col * panelSize;
+        const py = screenY + row * panelSize;
+        ctx.strokeRect(px + 1, py + 1, panelSize - 2, panelSize - 2);
+      }
+    });
+  }
+
+  // Also highlight single selected panel (mobile)
+  if(combinedSelectedPanel && combinedSelectedPanels.size === 0) {
     const selectedDim = screenDimensions.find(d => d.screenId === combinedSelectedPanel.screenId);
     if(selectedDim) {
       const customPos = combinedScreenPositions[selectedDim.screenId] || { x: 0, y: 0 };
@@ -18084,7 +18396,6 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       const px = screenX + col * panelSize;
       const py = screenY + row * panelSize;
 
-      // Draw yellow highlight border (inset slightly so it shows fully)
       ctx.strokeStyle = '#FFFF00';
       ctx.lineWidth = 2;
       ctx.strokeRect(px + 1, py + 1, panelSize - 2, panelSize - 2);

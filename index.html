@@ -3213,7 +3213,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.184';
+const APP_VERSION = '2.0.185';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17406,31 +17406,39 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
   const canvasX = (clientX - rect.left) * scaleX;
   const canvasY = (clientY - rect.top) * scaleY;
 
+  const allPanels = getAllPanels();
+
   // Check each screen
   for(const dim of combinedScreenDimensions) {
-    let screenX, screenY;
+    let screenX, screenY, drawPanelSize;
 
     if(combinedMirrorCanvas) {
-      // Use canvas positions with uniform pixel scale
+      // Use canvas positions with pixel scale
       const dataCanvasX = dim.data.canvasX || 0;
       const dataCanvasY = dim.data.canvasY || 0;
       screenX = combinedLeftPadding + dataCanvasX * combinedPixelScale;
       screenY = combinedTopPadding + dataCanvasY * combinedPixelScale;
+      // Calculate actual panel size based on pixel resolution
+      const panelType = dim.data.panelType || 'CB5_MKII';
+      const panelInfo = allPanels[panelType];
+      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+      drawPanelSize = pixelWidth * combinedPixelScale;
     } else {
       // Use custom positions or default horizontal layout
       const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
       screenX = combinedLeftPadding + dim.x + customPos.x;
       screenY = combinedTopPadding + customPos.y;
+      drawPanelSize = combinedPanelSize;
     }
 
-    const screenWidth = dim.pw * combinedPanelSize;
-    const screenHeight = dim.ph * combinedPanelSize;
+    const screenWidth = dim.pw * drawPanelSize;
+    const screenHeight = dim.ph * drawPanelSize;
 
     // Check if click is within this screen's bounds
     if(canvasX >= screenX && canvasX < screenX + screenWidth &&
        canvasY >= screenY && canvasY < screenY + screenHeight) {
-      const col = Math.floor((canvasX - screenX) / combinedPanelSize);
-      const row = Math.floor((canvasY - screenY) / combinedPanelSize);
+      const col = Math.floor((canvasX - screenX) / drawPanelSize);
+      const row = Math.floor((canvasY - screenY) / drawPanelSize);
 
       if(col >= 0 && col < dim.pw && row >= 0 && row < dim.ph) {
         return {
@@ -17459,31 +17467,38 @@ function getCombinedPanelsInRect(canvas, x1, y1, x2, y2) {
   const canvasY2 = (Math.max(y1, y2) - rect.top) * scaleY;
 
   const panels = [];
+  const allPanels = getAllPanels();
 
   // Check each screen
   for(const dim of combinedScreenDimensions) {
-    let screenX, screenY;
+    let screenX, screenY, drawPanelSize;
 
     if(combinedMirrorCanvas) {
-      // Use canvas positions with uniform pixel scale
+      // Use canvas positions with pixel scale
       const dataCanvasX = dim.data.canvasX || 0;
       const dataCanvasY = dim.data.canvasY || 0;
       screenX = combinedLeftPadding + dataCanvasX * combinedPixelScale;
       screenY = combinedTopPadding + dataCanvasY * combinedPixelScale;
+      // Calculate actual panel size based on pixel resolution
+      const panelType = dim.data.panelType || 'CB5_MKII';
+      const panelInfo = allPanels[panelType];
+      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+      drawPanelSize = pixelWidth * combinedPixelScale;
     } else {
       // Use custom positions or default horizontal layout
       const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
       screenX = combinedLeftPadding + dim.x + customPos.x;
       screenY = combinedTopPadding + customPos.y;
+      drawPanelSize = combinedPanelSize;
     }
 
     // Check each panel in this screen
     for(let c = 0; c < dim.pw; c++) {
       for(let r = 0; r < dim.ph; r++) {
-        const px = screenX + c * combinedPanelSize;
-        const py = screenY + r * combinedPanelSize;
-        const px2 = px + combinedPanelSize;
-        const py2 = py + combinedPanelSize;
+        const px = screenX + c * drawPanelSize;
+        const py = screenY + r * drawPanelSize;
+        const px2 = px + drawPanelSize;
+        const py2 = py + drawPanelSize;
 
         // Check if panel overlaps with selection rect
         if(px < canvasX2 && px2 > canvasX1 && py < canvasY2 && py2 > canvasY1) {
@@ -18294,13 +18309,27 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   const allPanels = getAllPanels();
 
   // When mirroring, calculate a uniform scale factor based on the canvas resolution
-  // This ensures all screens scale consistently regardless of their panel types
+  // This converts absolute pixel positions to our panel-based layout
   let pixelScale = 1;
   if(combinedMirrorCanvas) {
-    // Use a uniform pixel-to-panel scale (pixels per panel unit)
-    // We'll use the standard CB5 pixel size as our reference
-    const avgPixelSize = 176; // Standard CB5 pixel size as reference
-    pixelScale = panelSize / avgPixelSize;
+    // Find the total canvas pixel extent
+    let maxCanvasPixelX = 0;
+    let maxCanvasPixelY = 0;
+    screenDimensions.forEach(dim => {
+      const panelType = dim.data.panelType || 'CB5_MKII';
+      const panelInfo = allPanels[panelType];
+      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+      const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+      const screenPixelRight = (dim.data.canvasX || 0) + dim.pw * pixelWidth;
+      const screenPixelBottom = (dim.data.canvasY || 0) + dim.ph * pixelHeight;
+      maxCanvasPixelX = Math.max(maxCanvasPixelX, screenPixelRight);
+      maxCanvasPixelY = Math.max(maxCanvasPixelY, screenPixelBottom);
+    });
+    // Calculate scale to fit in available width (with padding)
+    const availableWidth = canvasWidth - 40;
+    pixelScale = Math.min(availableWidth / maxCanvasPixelX, 1);
+    // Ensure minimum visibility
+    if(pixelScale < 0.05) pixelScale = 0.05;
   }
   // Store globally for hit detection functions
   combinedPixelScale = pixelScale;
@@ -18308,23 +18337,32 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   // Calculate canvas size with positions (use canvas positions only when mirroring is enabled)
   let minX = 0, maxX = canvasWidth, minY = 0, maxY = canvasHeight;
   screenDimensions.forEach(dim => {
-    let scaledX, scaledY;
+    let scaledX, scaledY, screenWidth, screenHeight;
 
     if(combinedMirrorCanvas) {
-      // Use canvas positions with uniform pixel scale
+      // Use canvas positions with pixel scale
       const canvasX = dim.data.canvasX || 0;
       const canvasY = dim.data.canvasY || 0;
       scaledX = canvasX * pixelScale;
       scaledY = canvasY * pixelScale;
+      // Calculate actual screen dimensions based on pixel resolution
+      const panelType = dim.data.panelType || 'CB5_MKII';
+      const panelInfo = allPanels[panelType];
+      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+      const actualPanelSize = pixelWidth * pixelScale;
+      screenWidth = dim.pw * actualPanelSize;
+      screenHeight = dim.ph * actualPanelSize;
     } else {
       // Use custom positions or default horizontal layout
       const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
       scaledX = dim.x + customPos.x;
       scaledY = customPos.y;
+      screenWidth = dim.pw * panelSize;
+      screenHeight = dim.ph * panelSize;
     }
 
-    const screenRight = 20 + scaledX + dim.pw * panelSize + 20;
-    const screenBottom = topPadding + scaledY + dim.ph * panelSize + 60;
+    const screenRight = 20 + scaledX + screenWidth + 20;
+    const screenBottom = topPadding + scaledY + screenHeight + 60;
     const screenLeft = 20 + scaledX;
     const screenTop = topPadding + scaledY - 25;
     maxX = Math.max(maxX, screenRight);
@@ -18350,18 +18388,24 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x, screenId } = dim;
 
-    let screenX, screenY;
+    let screenX, screenY, actualPanelSize;
     if(combinedMirrorCanvas) {
-      // Use canvas positions with uniform pixel scale
+      // Use canvas positions with pixel scale
       const canvasX = data.canvasX || 0;
       const canvasY = data.canvasY || 0;
       screenX = leftPadding + canvasX * pixelScale;
       screenY = topPadding + canvasY * pixelScale;
+      // Calculate actual panel size based on pixel resolution
+      const panelType = data.panelType || 'CB5_MKII';
+      const panelInfo = allPanels[panelType];
+      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+      actualPanelSize = pixelWidth * pixelScale;
     } else {
       // Use custom positions or default horizontal layout
       const customPos = combinedScreenPositions[screenId] || { x: 0, y: 0 };
       screenX = leftPadding + x + customPos.x;
       screenY = topPadding + customPos.y;
+      actualPanelSize = panelSize;
     }
 
     // Get screen colors for checkerboard pattern (same as original)
@@ -18381,20 +18425,22 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     }
 
     // Draw panels with checkerboard pattern (same as original)
+    // Use actualPanelSize for mirroring mode, panelSize for normal mode
+    const drawPanelSize = combinedMirrorCanvas ? actualPanelSize : panelSize;
     for(let c = 0; c < pw; c++) {
       for(let r = 0; r < ph; r++) {
         const panelKey = `${c},${r}`;
-        const px = screenX + c * panelSize;
-        const py = screenY + r * panelSize;
+        const px = screenX + c * drawPanelSize;
+        const py = screenY + r * drawPanelSize;
 
         const hasDeleted = screenDeletedPanels.has(panelKey);
         if(hasDeleted) {
           ctx.fillStyle = '#1a1a1a';
-          ctx.fillRect(px, py, panelSize, panelSize);
+          ctx.fillRect(px, py, drawPanelSize, drawPanelSize);
           ctx.strokeStyle = '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
-          ctx.strokeRect(px, py, panelSize, panelSize);
+          ctx.strokeRect(px, py, drawPanelSize, drawPanelSize);
           ctx.setLineDash([]);
           continue;
         }
@@ -18402,32 +18448,32 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
         // Checkerboard pattern (same as original)
         const isEvenPanel = (c + r) % 2 === 0;
         ctx.fillStyle = isEvenPanel ? primaryColor : secondaryColor;
-        ctx.fillRect(px, py, panelSize, panelSize);
+        ctx.fillRect(px, py, drawPanelSize, drawPanelSize);
 
         // Black border
         ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(px, py, panelSize, panelSize);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px, py, drawPanelSize, drawPanelSize);
 
         // Black panel number (scale font with panel size)
         ctx.fillStyle = '#000000';
-        const panelFontSize = Math.max(8, Math.min(11, panelSize * 0.28));
+        const panelFontSize = Math.max(6, Math.min(11, drawPanelSize * 0.28));
         ctx.font = `${panelFontSize}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         // Only show panel numbers if panels are large enough
-        if(panelSize >= 20) {
-          ctx.fillText(`${c+1}.${r+1}`, px + panelSize/2, py + panelSize/2);
+        if(drawPanelSize >= 15) {
+          ctx.fillText(`${c+1}.${r+1}`, px + drawPanelSize/2, py + drawPanelSize/2);
         }
       }
     }
 
     // Draw screen label (scale font with panel size)
     ctx.fillStyle = '#fff';
-    const labelFontSize = Math.max(10, Math.min(14, panelSize * 0.35));
+    const labelFontSize = Math.max(8, Math.min(14, drawPanelSize * 0.35));
     ctx.font = `bold ${labelFontSize}px Arial`;
     ctx.textAlign = 'center';
-    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - Math.max(8, panelSize * 0.25));
+    ctx.fillText(screen.name, screenX + (pw * drawPanelSize) / 2, screenY - Math.max(6, drawPanelSize * 0.25));
   });
 
   // Draw selection highlight on top of everything (after all panels drawn)
@@ -18440,20 +18486,25 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       const [col, row] = panelKey.split(',').map(Number);
       const selectedDim = screenDimensions.find(d => d.screenId === screenId);
       if(selectedDim) {
-        let screenX, screenY;
+        let screenX, screenY, drawPanelSize;
         if(combinedMirrorCanvas) {
           const canvasX = selectedDim.data.canvasX || 0;
           const canvasY = selectedDim.data.canvasY || 0;
           screenX = leftPadding + canvasX * pixelScale;
           screenY = topPadding + canvasY * pixelScale;
+          const panelType = selectedDim.data.panelType || 'CB5_MKII';
+          const panelInfo = allPanels[panelType];
+          const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+          drawPanelSize = pixelWidth * pixelScale;
         } else {
           const customPos = combinedScreenPositions[selectedDim.screenId] || { x: 0, y: 0 };
           screenX = leftPadding + selectedDim.x + customPos.x;
           screenY = topPadding + customPos.y;
+          drawPanelSize = panelSize;
         }
-        const px = screenX + col * panelSize;
-        const py = screenY + row * panelSize;
-        ctx.strokeRect(px + 1, py + 1, panelSize - 2, panelSize - 2);
+        const px = screenX + col * drawPanelSize;
+        const py = screenY + row * drawPanelSize;
+        ctx.strokeRect(px + 1, py + 1, drawPanelSize - 2, drawPanelSize - 2);
       }
     });
   }
@@ -18462,25 +18513,30 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   if(combinedSelectedPanel && combinedSelectedPanels.size === 0) {
     const selectedDim = screenDimensions.find(d => d.screenId === combinedSelectedPanel.screenId);
     if(selectedDim) {
-      let screenX, screenY;
+      let screenX, screenY, drawPanelSize;
       if(combinedMirrorCanvas) {
         const canvasX = selectedDim.data.canvasX || 0;
         const canvasY = selectedDim.data.canvasY || 0;
         screenX = leftPadding + canvasX * pixelScale;
         screenY = topPadding + canvasY * pixelScale;
+        const panelType = selectedDim.data.panelType || 'CB5_MKII';
+        const panelInfo = allPanels[panelType];
+        const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+        drawPanelSize = pixelWidth * pixelScale;
       } else {
         const customPos = combinedScreenPositions[selectedDim.screenId] || { x: 0, y: 0 };
         screenX = leftPadding + selectedDim.x + customPos.x;
         screenY = topPadding + customPos.y;
+        drawPanelSize = panelSize;
       }
       const col = combinedSelectedPanel.col;
       const row = combinedSelectedPanel.row;
-      const px = screenX + col * panelSize;
-      const py = screenY + row * panelSize;
+      const px = screenX + col * drawPanelSize;
+      const py = screenY + row * drawPanelSize;
 
       ctx.strokeStyle = '#FFFF00';
       ctx.lineWidth = 2;
-      ctx.strokeRect(px + 1, py + 1, panelSize - 2, panelSize - 2);
+      ctx.strokeRect(px + 1, py + 1, drawPanelSize - 2, drawPanelSize - 2);
     }
   }
 }
@@ -19138,15 +19194,28 @@ function renderCombinedSpecs(selectedScreenIds) {
   const heightDisplay = isImperial ? (maxHeight * 3.28084).toFixed(2) + ' ft' : maxHeight.toFixed(2) + ' m';
   const weightDisplay = weightUnit === 'lbs' ? (totalWeight * 2.20462).toFixed(1) + ' lbs' : totalWeight.toFixed(1) + ' kg';
 
+  // Helper to shorten panel type names for display
+  function shortenPanelName(fullName) {
+    // Remove "ROE Visual" prefix, keep brand abbreviation
+    let short = fullName.replace('ROE Visual ', 'ROE ');
+    // Shorten common names
+    short = short.replace('Black Pearl ', 'BP');
+    short = short.replace('Carbon ', '');
+    short = short.replace('Black Marble ', 'BM');
+    short = short.replace(' (Matte)', '');
+    short = short.replace(' Half Panel', ' Half');
+    return short;
+  }
+
   // Build panels display
   let panelsDisplay = `${totalPanels}`;
   const panelTypes = Object.keys(panelsByType);
   if(panelTypes.length === 1) {
-    panelsDisplay += ` (${panelTypes[0]})`;
+    panelsDisplay += ` (${shortenPanelName(panelTypes[0])})`;
   } else if(panelTypes.length > 1) {
     panelsDisplay += '<br>';
     panelTypes.forEach(type => {
-      panelsDisplay += `<span style="font-size: 0.85em; color: #ccc; padding-left: 8px;">• ${panelsByType[type]} × ${type}</span><br>`;
+      panelsDisplay += `<span style="font-size: 0.85em; color: #ccc; padding-left: 8px;">• ${panelsByType[type]}x ${shortenPanelName(type)}</span><br>`;
     });
   }
 

@@ -3213,7 +3213,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.181';
+const APP_VERSION = '2.0.182';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17405,11 +17405,21 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
   const canvasX = (clientX - rect.left) * scaleX;
   const canvasY = (clientY - rect.top) * scaleY;
 
-  // Check each screen (use custom positions if available)
+  const allPanels = getAllPanels();
+
+  // Check each screen (use canvas positions scaled to panel-based layout)
   for(const dim of combinedScreenDimensions) {
-    const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
-    const screenX = combinedLeftPadding + dim.x + customPos.x;
-    const screenY = combinedTopPadding + customPos.y;
+    // Use canvas positions scaled to panel-based layout
+    const panelType = dim.data.panelType || 'CB5_MKII';
+    const panelInfo = allPanels[panelType];
+    const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+    const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+    const dataCanvasX = dim.data.canvasX || 0;
+    const dataCanvasY = dim.data.canvasY || 0;
+    const scaledX = (dataCanvasX / pixelWidth) * combinedPanelSize;
+    const scaledY = (dataCanvasY / pixelHeight) * combinedPanelSize;
+    const screenX = combinedLeftPadding + scaledX;
+    const screenY = combinedTopPadding + scaledY;
     const screenWidth = dim.pw * combinedPanelSize;
     const screenHeight = dim.ph * combinedPanelSize;
 
@@ -17446,12 +17456,21 @@ function getCombinedPanelsInRect(canvas, x1, y1, x2, y2) {
   const canvasY2 = (Math.max(y1, y2) - rect.top) * scaleY;
 
   const panels = [];
+  const allPanels = getAllPanels();
 
   // Check each screen
   for(const dim of combinedScreenDimensions) {
-    const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
-    const screenX = combinedLeftPadding + dim.x + customPos.x;
-    const screenY = combinedTopPadding + customPos.y;
+    // Use canvas positions scaled to panel-based layout
+    const panelType = dim.data.panelType || 'CB5_MKII';
+    const panelInfo = allPanels[panelType];
+    const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+    const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+    const dataCanvasX = dim.data.canvasX || 0;
+    const dataCanvasY = dim.data.canvasY || 0;
+    const scaledX = (dataCanvasX / pixelWidth) * combinedPanelSize;
+    const scaledY = (dataCanvasY / pixelHeight) * combinedPanelSize;
+    const screenX = combinedLeftPadding + scaledX;
+    const screenY = combinedTopPadding + scaledY;
 
     // Check each panel in this screen
     for(let c = 0; c < dim.pw; c++) {
@@ -18266,14 +18285,28 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   const canvas = document.getElementById('combinedStandardCanvas');
   if(!canvas) return;
 
-  // Calculate canvas size with custom positions
+  // Get panel pixel dimensions to calculate scale factor from canvas view to combined view
+  const allPanels = getAllPanels();
+
+  // Calculate canvas size with positions from canvas view (data.canvasX/canvasY)
   let minX = 0, maxX = canvasWidth, minY = 0, maxY = canvasHeight;
   screenDimensions.forEach(dim => {
-    const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
-    const screenRight = 20 + dim.x + customPos.x + dim.pw * panelSize + 20;
-    const screenBottom = topPadding + customPos.y + dim.ph * panelSize + 60;
-    const screenLeft = 20 + dim.x + customPos.x;
-    const screenTop = topPadding + customPos.y - 25;
+    // Use canvas positions (data.canvasX/canvasY) scaled to panel-based layout
+    const panelType = dim.data.panelType || 'CB5_MKII';
+    const panelInfo = allPanels[panelType];
+    const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+    const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+
+    // Scale canvas pixel positions to panel-based positions
+    const canvasX = dim.data.canvasX || 0;
+    const canvasY = dim.data.canvasY || 0;
+    const scaledX = (canvasX / pixelWidth) * panelSize;
+    const scaledY = (canvasY / pixelHeight) * panelSize;
+
+    const screenRight = 20 + scaledX + dim.pw * panelSize + 20;
+    const screenBottom = topPadding + scaledY + dim.ph * panelSize + 60;
+    const screenLeft = 20 + scaledX;
+    const screenTop = topPadding + scaledY - 25;
     maxX = Math.max(maxX, screenRight);
     maxY = Math.max(maxY, screenBottom);
     minX = Math.min(minX, screenLeft);
@@ -18296,9 +18329,20 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
 
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x, screenId } = dim;
-    const customPos = combinedScreenPositions[screenId] || { x: 0, y: 0 };
-    const screenX = leftPadding + x + customPos.x;
-    const screenY = topPadding + customPos.y;
+
+    // Use canvas positions (data.canvasX/canvasY) scaled to panel-based layout
+    const panelType = data.panelType || 'CB5_MKII';
+    const panelInfo = allPanels[panelType];
+    const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+    const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+
+    const canvasX = data.canvasX || 0;
+    const canvasY = data.canvasY || 0;
+    const scaledX = (canvasX / pixelWidth) * panelSize;
+    const scaledY = (canvasY / pixelHeight) * panelSize;
+
+    const screenX = leftPadding + scaledX;
+    const screenY = topPadding + scaledY;
 
     // Get screen colors for checkerboard pattern (same as original)
     const primaryColor = screen.color || '#808080';
@@ -18376,9 +18420,17 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       const [col, row] = panelKey.split(',').map(Number);
       const selectedDim = screenDimensions.find(d => d.screenId === screenId);
       if(selectedDim) {
-        const customPos = combinedScreenPositions[selectedDim.screenId] || { x: 0, y: 0 };
-        const screenX = leftPadding + selectedDim.x + customPos.x;
-        const screenY = topPadding + customPos.y;
+        // Use canvas positions scaled to panel-based layout
+        const panelType = selectedDim.data.panelType || 'CB5_MKII';
+        const panelInfo = allPanels[panelType];
+        const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+        const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+        const canvasX = selectedDim.data.canvasX || 0;
+        const canvasY = selectedDim.data.canvasY || 0;
+        const scaledX = (canvasX / pixelWidth) * panelSize;
+        const scaledY = (canvasY / pixelHeight) * panelSize;
+        const screenX = leftPadding + scaledX;
+        const screenY = topPadding + scaledY;
         const px = screenX + col * panelSize;
         const py = screenY + row * panelSize;
         ctx.strokeRect(px + 1, py + 1, panelSize - 2, panelSize - 2);
@@ -18390,9 +18442,17 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   if(combinedSelectedPanel && combinedSelectedPanels.size === 0) {
     const selectedDim = screenDimensions.find(d => d.screenId === combinedSelectedPanel.screenId);
     if(selectedDim) {
-      const customPos = combinedScreenPositions[selectedDim.screenId] || { x: 0, y: 0 };
-      const screenX = leftPadding + selectedDim.x + customPos.x;
-      const screenY = topPadding + customPos.y;
+      // Use canvas positions scaled to panel-based layout
+      const panelType = selectedDim.data.panelType || 'CB5_MKII';
+      const panelInfo = allPanels[panelType];
+      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+      const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+      const canvasX = selectedDim.data.canvasX || 0;
+      const canvasY = selectedDim.data.canvasY || 0;
+      const scaledX = (canvasX / pixelWidth) * panelSize;
+      const scaledY = (canvasY / pixelHeight) * panelSize;
+      const screenX = leftPadding + scaledX;
+      const screenY = topPadding + scaledY;
       const col = combinedSelectedPanel.col;
       const row = combinedSelectedPanel.row;
       const px = screenX + col * panelSize;
@@ -18436,9 +18496,9 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
 
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x, screenId } = dim;
-    const customPos = combinedScreenPositions[screenId] || { x: 0, y: 0 };
-    const screenX = leftPadding + x + customPos.x;
-    const screenY = topPadding + socaLabelHeight + customPos.y;
+    // Use the default x position from screenDimensions (no custom positioning)
+    const screenX = leftPadding + x;
+    const screenY = topPadding + socaLabelHeight;
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
     let screenDeletedPanels = new Set();
@@ -18678,9 +18738,9 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
 
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x, screenId } = dim;
-    const customPos = combinedScreenPositions[screenId] || { x: 0, y: 0 };
-    const screenX = leftPadding + x + customPos.x;
-    const screenY = topPadding + customPos.y;
+    // Use the default x position from screenDimensions (no custom positioning)
+    const screenX = leftPadding + x;
+    const screenY = topPadding;
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
     let screenDeletedPanels = new Set();
@@ -18855,8 +18915,8 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x, screenId } = dim;
-    const customPos = combinedScreenPositions[screenId] || { x: 0, y: 0 };
-    const screenX = leftPadding + x + customPos.x;
+    // Use the default x position from screenDimensions (no custom positioning)
+    const screenX = leftPadding + x;
     const structureType = data.structureType || 'hanging';
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
@@ -18881,8 +18941,8 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     const hasTopBumpers = screenBumpers.some(b => b.position === 'top');
     const hasBottomBumpers = screenBumpers.some(b => b.position === 'bottom');
 
-    // Calculate panel Y position based on bumper placement and custom position
-    let panelYOffset = topPadding + customPos.y;
+    // Calculate panel Y position based on bumper placement (no custom positioning)
+    let panelYOffset = topPadding;
     if(hasTopBumpers) {
       panelYOffset += bumperHeight + 5;
     }
@@ -19070,24 +19130,24 @@ function renderCombinedSpecs(selectedScreenIds) {
     });
   }
 
-  // Two-column layout with green subheadings and white values
+  // Two-column layout with green title above white value (vertically stacked)
   let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">';
 
   // Left column: Total Screens, Total Panels, Total Pixels, Total Weight
-  html += '<div style="display: flex; flex-direction: column; gap: 6px;">';
-  html += `<div><span style="color: #10b981; font-weight: bold;">Total Screens:</span> <span style="color: #fff;">${selectedScreenIds.length}</span></div>`;
-  html += `<div><span style="color: #10b981; font-weight: bold;">Total Panels:</span> <span style="color: #fff;">${panelsDisplay}</span></div>`;
-  html += `<div><span style="color: #10b981; font-weight: bold;">Total Pixels:</span> <span style="color: #fff;">${totalPixels.toLocaleString()}</span></div>`;
-  html += `<div><span style="color: #10b981; font-weight: bold;">Total Weight:</span> <span style="color: #fff;">${weightDisplay}</span></div>`;
+  html += '<div style="display: flex; flex-direction: column; gap: 12px;">';
+  html += `<div><div style="color: #10b981; font-weight: bold; font-size: 0.9em;">Total Screens</div><div style="color: #fff;">${selectedScreenIds.length}</div></div>`;
+  html += `<div><div style="color: #10b981; font-weight: bold; font-size: 0.9em;">Total Panels</div><div style="color: #fff;">${panelsDisplay}</div></div>`;
+  html += `<div><div style="color: #10b981; font-weight: bold; font-size: 0.9em;">Total Pixels</div><div style="color: #fff;">${totalPixels.toLocaleString()}</div></div>`;
+  html += `<div><div style="color: #10b981; font-weight: bold; font-size: 0.9em;">Total Weight</div><div style="color: #fff;">${weightDisplay}</div></div>`;
   html += '</div>';
 
   // Right column: Dimensions, Power, Amps, Amps/Phase, Data Lines
-  html += '<div style="display: flex; flex-direction: column; gap: 6px;">';
-  html += `<div><span style="color: #10b981; font-weight: bold;">Dimensions:</span> <span style="color: #fff;">${widthDisplay} × ${heightDisplay}</span></div>`;
-  html += `<div><span style="color: #10b981; font-weight: bold;">Power (Max):</span> <span style="color: #fff;">${totalPowerMax.toLocaleString()} W</span></div>`;
-  html += `<div><span style="color: #10b981; font-weight: bold;">Total Amps:</span> <span style="color: #fff;">${totalAmps.toFixed(1)} A @ ${voltage}V</span></div>`;
-  html += `<div><span style="color: #10b981; font-weight: bold;">Amps/Phase:</span> <span style="color: #fff;">${ampsPerPhase.toFixed(1)} A (3-phase)</span></div>`;
-  html += `<div><span style="color: #10b981; font-weight: bold;">Data Lines:</span> <span style="color: #fff;">${totalDataLines}</span></div>`;
+  html += '<div style="display: flex; flex-direction: column; gap: 12px;">';
+  html += `<div><div style="color: #10b981; font-weight: bold; font-size: 0.9em;">Dimensions</div><div style="color: #fff;">${widthDisplay} × ${heightDisplay}</div></div>`;
+  html += `<div><div style="color: #10b981; font-weight: bold; font-size: 0.9em;">Power (Max)</div><div style="color: #fff;">${totalPowerMax.toLocaleString()} W</div></div>`;
+  html += `<div><div style="color: #10b981; font-weight: bold; font-size: 0.9em;">Total Amps</div><div style="color: #fff;">${totalAmps.toFixed(1)} A @ ${voltage}V</div></div>`;
+  html += `<div><div style="color: #10b981; font-weight: bold; font-size: 0.9em;">Amps/Phase</div><div style="color: #fff;">${ampsPerPhase.toFixed(1)} A (3-phase)</div></div>`;
+  html += `<div><div style="color: #10b981; font-weight: bold; font-size: 0.9em;">Data Lines</div><div style="color: #fff;">${totalDataLines}</div></div>`;
   html += '</div>';
 
   html += '</div>';

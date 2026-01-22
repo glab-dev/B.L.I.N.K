@@ -3213,7 +3213,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.182';
+const APP_VERSION = '2.0.183';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17407,19 +17407,29 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
 
   const allPanels = getAllPanels();
 
-  // Check each screen (use canvas positions scaled to panel-based layout)
+  // Check each screen
   for(const dim of combinedScreenDimensions) {
-    // Use canvas positions scaled to panel-based layout
-    const panelType = dim.data.panelType || 'CB5_MKII';
-    const panelInfo = allPanels[panelType];
-    const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-    const pixelHeight = panelInfo ? panelInfo.res_y : 176;
-    const dataCanvasX = dim.data.canvasX || 0;
-    const dataCanvasY = dim.data.canvasY || 0;
-    const scaledX = (dataCanvasX / pixelWidth) * combinedPanelSize;
-    const scaledY = (dataCanvasY / pixelHeight) * combinedPanelSize;
-    const screenX = combinedLeftPadding + scaledX;
-    const screenY = combinedTopPadding + scaledY;
+    let screenX, screenY;
+
+    if(combinedMirrorCanvas) {
+      // Use canvas positions scaled to panel-based layout
+      const panelType = dim.data.panelType || 'CB5_MKII';
+      const panelInfo = allPanels[panelType];
+      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+      const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+      const dataCanvasX = dim.data.canvasX || 0;
+      const dataCanvasY = dim.data.canvasY || 0;
+      const scaledX = (dataCanvasX / pixelWidth) * combinedPanelSize;
+      const scaledY = (dataCanvasY / pixelHeight) * combinedPanelSize;
+      screenX = combinedLeftPadding + scaledX;
+      screenY = combinedTopPadding + scaledY;
+    } else {
+      // Use custom positions or default horizontal layout
+      const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
+      screenX = combinedLeftPadding + dim.x + customPos.x;
+      screenY = combinedTopPadding + customPos.y;
+    }
+
     const screenWidth = dim.pw * combinedPanelSize;
     const screenHeight = dim.ph * combinedPanelSize;
 
@@ -17460,17 +17470,26 @@ function getCombinedPanelsInRect(canvas, x1, y1, x2, y2) {
 
   // Check each screen
   for(const dim of combinedScreenDimensions) {
-    // Use canvas positions scaled to panel-based layout
-    const panelType = dim.data.panelType || 'CB5_MKII';
-    const panelInfo = allPanels[panelType];
-    const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-    const pixelHeight = panelInfo ? panelInfo.res_y : 176;
-    const dataCanvasX = dim.data.canvasX || 0;
-    const dataCanvasY = dim.data.canvasY || 0;
-    const scaledX = (dataCanvasX / pixelWidth) * combinedPanelSize;
-    const scaledY = (dataCanvasY / pixelHeight) * combinedPanelSize;
-    const screenX = combinedLeftPadding + scaledX;
-    const screenY = combinedTopPadding + scaledY;
+    let screenX, screenY;
+
+    if(combinedMirrorCanvas) {
+      // Use canvas positions scaled to panel-based layout
+      const panelType = dim.data.panelType || 'CB5_MKII';
+      const panelInfo = allPanels[panelType];
+      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+      const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+      const dataCanvasX = dim.data.canvasX || 0;
+      const dataCanvasY = dim.data.canvasY || 0;
+      const scaledX = (dataCanvasX / pixelWidth) * combinedPanelSize;
+      const scaledY = (dataCanvasY / pixelHeight) * combinedPanelSize;
+      screenX = combinedLeftPadding + scaledX;
+      screenY = combinedTopPadding + scaledY;
+    } else {
+      // Use custom positions or default horizontal layout
+      const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
+      screenX = combinedLeftPadding + dim.x + customPos.x;
+      screenY = combinedTopPadding + customPos.y;
+    }
 
     // Check each panel in this screen
     for(let c = 0; c < dim.pw; c++) {
@@ -18288,20 +18307,27 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   // Get panel pixel dimensions to calculate scale factor from canvas view to combined view
   const allPanels = getAllPanels();
 
-  // Calculate canvas size with positions from canvas view (data.canvasX/canvasY)
+  // Calculate canvas size with positions (use canvas positions only when mirroring is enabled)
   let minX = 0, maxX = canvasWidth, minY = 0, maxY = canvasHeight;
   screenDimensions.forEach(dim => {
-    // Use canvas positions (data.canvasX/canvasY) scaled to panel-based layout
-    const panelType = dim.data.panelType || 'CB5_MKII';
-    const panelInfo = allPanels[panelType];
-    const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-    const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+    let scaledX, scaledY;
 
-    // Scale canvas pixel positions to panel-based positions
-    const canvasX = dim.data.canvasX || 0;
-    const canvasY = dim.data.canvasY || 0;
-    const scaledX = (canvasX / pixelWidth) * panelSize;
-    const scaledY = (canvasY / pixelHeight) * panelSize;
+    if(combinedMirrorCanvas) {
+      // Use canvas positions (data.canvasX/canvasY) scaled to panel-based layout
+      const panelType = dim.data.panelType || 'CB5_MKII';
+      const panelInfo = allPanels[panelType];
+      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+      const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+      const canvasX = dim.data.canvasX || 0;
+      const canvasY = dim.data.canvasY || 0;
+      scaledX = (canvasX / pixelWidth) * panelSize;
+      scaledY = (canvasY / pixelHeight) * panelSize;
+    } else {
+      // Use custom positions or default horizontal layout
+      const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
+      scaledX = dim.x + customPos.x;
+      scaledY = customPos.y;
+    }
 
     const screenRight = 20 + scaledX + dim.pw * panelSize + 20;
     const screenBottom = topPadding + scaledY + dim.ph * panelSize + 60;
@@ -18330,19 +18356,25 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x, screenId } = dim;
 
-    // Use canvas positions (data.canvasX/canvasY) scaled to panel-based layout
-    const panelType = data.panelType || 'CB5_MKII';
-    const panelInfo = allPanels[panelType];
-    const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-    const pixelHeight = panelInfo ? panelInfo.res_y : 176;
-
-    const canvasX = data.canvasX || 0;
-    const canvasY = data.canvasY || 0;
-    const scaledX = (canvasX / pixelWidth) * panelSize;
-    const scaledY = (canvasY / pixelHeight) * panelSize;
-
-    const screenX = leftPadding + scaledX;
-    const screenY = topPadding + scaledY;
+    let screenX, screenY;
+    if(combinedMirrorCanvas) {
+      // Use canvas positions (data.canvasX/canvasY) scaled to panel-based layout
+      const panelType = data.panelType || 'CB5_MKII';
+      const panelInfo = allPanels[panelType];
+      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+      const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+      const canvasX = data.canvasX || 0;
+      const canvasY = data.canvasY || 0;
+      const scaledX = (canvasX / pixelWidth) * panelSize;
+      const scaledY = (canvasY / pixelHeight) * panelSize;
+      screenX = leftPadding + scaledX;
+      screenY = topPadding + scaledY;
+    } else {
+      // Use custom positions or default horizontal layout
+      const customPos = combinedScreenPositions[screenId] || { x: 0, y: 0 };
+      screenX = leftPadding + x + customPos.x;
+      screenY = topPadding + customPos.y;
+    }
 
     // Get screen colors for checkerboard pattern (same as original)
     const primaryColor = screen.color || '#808080';
@@ -18420,17 +18452,23 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       const [col, row] = panelKey.split(',').map(Number);
       const selectedDim = screenDimensions.find(d => d.screenId === screenId);
       if(selectedDim) {
-        // Use canvas positions scaled to panel-based layout
-        const panelType = selectedDim.data.panelType || 'CB5_MKII';
-        const panelInfo = allPanels[panelType];
-        const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-        const pixelHeight = panelInfo ? panelInfo.res_y : 176;
-        const canvasX = selectedDim.data.canvasX || 0;
-        const canvasY = selectedDim.data.canvasY || 0;
-        const scaledX = (canvasX / pixelWidth) * panelSize;
-        const scaledY = (canvasY / pixelHeight) * panelSize;
-        const screenX = leftPadding + scaledX;
-        const screenY = topPadding + scaledY;
+        let screenX, screenY;
+        if(combinedMirrorCanvas) {
+          const panelType = selectedDim.data.panelType || 'CB5_MKII';
+          const panelInfo = allPanels[panelType];
+          const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+          const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+          const canvasX = selectedDim.data.canvasX || 0;
+          const canvasY = selectedDim.data.canvasY || 0;
+          const scaledX = (canvasX / pixelWidth) * panelSize;
+          const scaledY = (canvasY / pixelHeight) * panelSize;
+          screenX = leftPadding + scaledX;
+          screenY = topPadding + scaledY;
+        } else {
+          const customPos = combinedScreenPositions[selectedDim.screenId] || { x: 0, y: 0 };
+          screenX = leftPadding + selectedDim.x + customPos.x;
+          screenY = topPadding + customPos.y;
+        }
         const px = screenX + col * panelSize;
         const py = screenY + row * panelSize;
         ctx.strokeRect(px + 1, py + 1, panelSize - 2, panelSize - 2);
@@ -18442,17 +18480,23 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   if(combinedSelectedPanel && combinedSelectedPanels.size === 0) {
     const selectedDim = screenDimensions.find(d => d.screenId === combinedSelectedPanel.screenId);
     if(selectedDim) {
-      // Use canvas positions scaled to panel-based layout
-      const panelType = selectedDim.data.panelType || 'CB5_MKII';
-      const panelInfo = allPanels[panelType];
-      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-      const pixelHeight = panelInfo ? panelInfo.res_y : 176;
-      const canvasX = selectedDim.data.canvasX || 0;
-      const canvasY = selectedDim.data.canvasY || 0;
-      const scaledX = (canvasX / pixelWidth) * panelSize;
-      const scaledY = (canvasY / pixelHeight) * panelSize;
-      const screenX = leftPadding + scaledX;
-      const screenY = topPadding + scaledY;
+      let screenX, screenY;
+      if(combinedMirrorCanvas) {
+        const panelType = selectedDim.data.panelType || 'CB5_MKII';
+        const panelInfo = allPanels[panelType];
+        const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+        const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+        const canvasX = selectedDim.data.canvasX || 0;
+        const canvasY = selectedDim.data.canvasY || 0;
+        const scaledX = (canvasX / pixelWidth) * panelSize;
+        const scaledY = (canvasY / pixelHeight) * panelSize;
+        screenX = leftPadding + scaledX;
+        screenY = topPadding + scaledY;
+      } else {
+        const customPos = combinedScreenPositions[selectedDim.screenId] || { x: 0, y: 0 };
+        screenX = leftPadding + selectedDim.x + customPos.x;
+        screenY = topPadding + customPos.y;
+      }
       const col = combinedSelectedPanel.col;
       const row = combinedSelectedPanel.row;
       const px = screenX + col * panelSize;

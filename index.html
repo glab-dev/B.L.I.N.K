@@ -3219,7 +3219,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.188';
+const APP_VERSION = '2.0.189';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17244,6 +17244,8 @@ function resetCombinedPositions() {
   combinedScreenPositions = {};
   combinedMirrorCanvas = false;
   combinedManualAdjust = false;
+  combinedZoomLevel = 100; // Reset zoom to 100%
+  updateCombinedZoomDisplay();
   updateMirrorCanvasButton();
   updateManualAdjustButton();
   saveCombinedPositions();
@@ -18394,15 +18396,15 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       maxCanvasPixelX = Math.max(maxCanvasPixelX, screenPixelRight);
       maxCanvasPixelY = Math.max(maxCanvasPixelY, screenPixelBottom);
     });
-    // Calculate scale to fit canvas pixels into the same space as the normal layout
-    // Target: make the mirrored view approximately the same size as the non-mirrored view
-    // Use the panelSize (which is already calculated to fit the container) as reference
-    // Base scale - use a reasonable default that keeps things visible
-    // Then apply zoom level to allow user adjustment
-    const baseScale = 0.15; // Base scale for converting pixels to canvas units
+    // Calculate scale to make mirrored panels the same size as non-mirrored panels
+    // In non-mirrored mode, each panel is drawn at `panelSize` pixels
+    // In mirrored mode, we need pixelScale such that panel pixel width * pixelScale = panelSize
+    // Use average panel pixel width (176 for CB5) as reference
+    const avgPixelWidth = 176;
+    const baseScale = panelSize / avgPixelWidth;
     pixelScale = baseScale * (combinedZoomLevel / 100);
     // Ensure minimum visibility
-    if(pixelScale < 0.03) pixelScale = 0.03;
+    if(pixelScale < 0.05) pixelScale = 0.05;
   }
   // Store globally for hit detection functions
   combinedPixelScale = pixelScale;

@@ -3038,6 +3038,12 @@
           <button type="button" class="slider-toggle-btn" id="mirrorCanvasBtn" onclick="toggleMirrorCanvasLayout()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Mirror Canvas</button>
         </div>
         <span id="mirrorCanvasStatus" style="font-size: 10px; color: #10b981;"></span>
+        <!-- Zoom Controls -->
+        <div style="display: inline-flex; align-items: center; gap: 4px; margin-left: 10px;">
+          <button type="button" onclick="adjustCombinedZoom(-10)" style="width: 28px; height: 28px; font-size: 14px; font-weight: bold; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">−</button>
+          <span id="combinedZoomLevel" style="font-size: 11px; color: #ccc; min-width: 45px; text-align: center;">100%</span>
+          <button type="button" onclick="adjustCombinedZoom(10)" style="width: 28px; height: 28px; font-size: 14px; font-weight: bold; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">+</button>
+        </div>
       </div>
       <div id="combinedStandardCanvasWrapper" style="overflow-x: auto;">
         <canvas id="combinedStandardCanvas"></canvas>
@@ -3213,7 +3219,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.186';
+const APP_VERSION = '2.0.187';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17155,6 +17161,7 @@ let combinedPanelSize = 40;
 let combinedTopPadding = 60;
 let combinedLeftPadding = 20;
 let combinedPixelScale = 1; // Uniform scale for mirroring canvas positions
+let combinedZoomLevel = 100; // Zoom percentage (100 = 100%)
 
 // Combined view panel selection state
 let combinedSelectedPanel = null; // { screenId, col, row, key } - for single selection (mobile)
@@ -17275,10 +17282,15 @@ function toggleMirrorCanvasLayout() {
   if(combinedMirrorCanvas) {
     // Copy positions from Canvas view to Combined view
     mirrorCanvasPositions();
+    // Auto-fit zoom to show all screens
+    autoFitCombinedZoom();
   } else {
     // Clear mirrored positions and use default/custom positions
     combinedScreenPositions = {};
     saveCombinedPositions();
+    // Reset zoom to 100%
+    combinedZoomLevel = 100;
+    updateCombinedZoomDisplay();
   }
 
   updateMirrorCanvasButton();
@@ -17397,6 +17409,63 @@ function updateMirrorCanvasButton() {
 // Load positions on startup
 loadCombinedPositions();
 
+// Adjust zoom level for combined standard layout
+function adjustCombinedZoom(delta) {
+  combinedZoomLevel = Math.max(50, Math.min(200, combinedZoomLevel + delta));
+  updateCombinedZoomDisplay();
+  renderCombinedView();
+}
+
+// Set zoom level directly
+function setCombinedZoom(level) {
+  combinedZoomLevel = Math.max(50, Math.min(200, level));
+  updateCombinedZoomDisplay();
+  renderCombinedView();
+}
+
+// Update zoom display
+function updateCombinedZoomDisplay() {
+  const display = document.getElementById('combinedZoomLevel');
+  if(display) {
+    display.textContent = combinedZoomLevel + '%';
+  }
+}
+
+// Auto-fit zoom to show all screens comfortably
+function autoFitCombinedZoom() {
+  const container = document.getElementById('combinedStandardCanvasWrapper');
+  if(!container || combinedScreenDimensions.length === 0) return;
+
+  const allPanels = getAllPanels();
+  const containerWidth = container.clientWidth - 40;
+
+  // Calculate total pixel extent of all screens
+  let maxPixelX = 0;
+  let maxPixelY = 0;
+  combinedScreenDimensions.forEach(dim => {
+    const panelType = dim.data.panelType || 'CB5_MKII';
+    const panelInfo = allPanels[panelType];
+    const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+    const pixelHeight = panelInfo ? panelInfo.res_y : 176;
+    const screenPixelRight = (dim.data.canvasX || 0) + dim.pw * pixelWidth;
+    const screenPixelBottom = (dim.data.canvasY || 0) + dim.ph * pixelHeight;
+    maxPixelX = Math.max(maxPixelX, screenPixelRight);
+    maxPixelY = Math.max(maxPixelY, screenPixelBottom);
+  });
+
+  if(maxPixelX === 0) return;
+
+  // Calculate ideal zoom to fit width with some padding
+  // Base scale maps pixels to canvas units, zoom adjusts that
+  const baseScale = 0.15; // Reasonable base scale
+  const idealWidth = maxPixelX * baseScale;
+  const zoomToFit = Math.floor((containerWidth / idealWidth) * 100);
+
+  // Clamp to reasonable range and set
+  combinedZoomLevel = Math.max(50, Math.min(150, zoomToFit));
+  updateCombinedZoomDisplay();
+}
+
 // Get panel and screen at position in Combined standard canvas
 function getCombinedPanelAtPosition(canvas, clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
@@ -17424,11 +17493,11 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
       const pixelWidth = panelInfo ? panelInfo.res_x : 176;
       drawPanelSize = pixelWidth * combinedPixelScale;
     } else {
-      // Use custom positions or default horizontal layout
+      // Use custom positions or default horizontal layout (with zoom applied)
       const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
-      screenX = combinedLeftPadding + dim.x + customPos.x;
-      screenY = combinedTopPadding + customPos.y;
-      drawPanelSize = combinedPanelSize;
+      screenX = combinedLeftPadding + (dim.x + customPos.x) * (combinedZoomLevel / 100);
+      screenY = combinedTopPadding + customPos.y * (combinedZoomLevel / 100);
+      drawPanelSize = combinedPanelSize; // Already zoomed from renderCombinedView
     }
 
     const screenWidth = dim.pw * drawPanelSize;
@@ -17485,11 +17554,11 @@ function getCombinedPanelsInRect(canvas, x1, y1, x2, y2) {
       const pixelWidth = panelInfo ? panelInfo.res_x : 176;
       drawPanelSize = pixelWidth * combinedPixelScale;
     } else {
-      // Use custom positions or default horizontal layout
+      // Use custom positions or default horizontal layout (with zoom applied)
       const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
-      screenX = combinedLeftPadding + dim.x + customPos.x;
-      screenY = combinedTopPadding + customPos.y;
-      drawPanelSize = combinedPanelSize;
+      screenX = combinedLeftPadding + (dim.x + customPos.x) * (combinedZoomLevel / 100);
+      screenY = combinedTopPadding + customPos.y * (combinedZoomLevel / 100);
+      drawPanelSize = combinedPanelSize; // Already zoomed from renderCombinedView
     }
 
     // Check each panel in this screen
@@ -18286,8 +18355,8 @@ function renderCombinedView() {
 
   // Store dimensions globally for click handlers
   combinedScreenDimensions = screenDimensions;
-  combinedPanelSize = panelSize;
-  combinedTopPadding = topPadding;
+  combinedPanelSize = panelSize * (combinedZoomLevel / 100); // Store zoomed size for hit detection
+  combinedTopPadding = topPadding * (combinedZoomLevel / 100);
 
   // Render each layout type
   renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
@@ -18328,18 +18397,19 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     // Calculate scale to fit canvas pixels into the same space as the normal layout
     // Target: make the mirrored view approximately the same size as the non-mirrored view
     // Use the panelSize (which is already calculated to fit the container) as reference
-    // Scale so that the largest dimension fits within the available canvas size
-    const targetWidth = canvasWidth - 40;
-    const targetHeight = canvasHeight - 40;
-    const scaleX = targetWidth / maxCanvasPixelX;
-    const scaleY = targetHeight / maxCanvasPixelY;
-    pixelScale = Math.min(scaleX, scaleY);
-    // Ensure minimum visibility but cap maximum to keep it reasonable
-    if(pixelScale < 0.05) pixelScale = 0.05;
-    if(pixelScale > 0.5) pixelScale = 0.5; // Cap to prevent oversized rendering
+    // Base scale - use a reasonable default that keeps things visible
+    // Then apply zoom level to allow user adjustment
+    const baseScale = 0.15; // Base scale for converting pixels to canvas units
+    pixelScale = baseScale * (combinedZoomLevel / 100);
+    // Ensure minimum visibility
+    if(pixelScale < 0.03) pixelScale = 0.03;
   }
   // Store globally for hit detection functions
   combinedPixelScale = pixelScale;
+
+  // Apply zoom to panelSize for non-mirrored mode
+  const zoomedPanelSize = panelSize * (combinedZoomLevel / 100);
+  const zoomedTopPadding = topPadding * (combinedZoomLevel / 100);
 
   // Calculate canvas size with positions (use canvas positions only when mirroring is enabled)
   let minX = 0, maxX = canvasWidth, minY = 0, maxY = canvasHeight;
@@ -18360,12 +18430,12 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       screenWidth = dim.pw * actualPanelSize;
       screenHeight = dim.ph * actualPanelSize;
     } else {
-      // Use custom positions or default horizontal layout
+      // Use custom positions or default horizontal layout (with zoom applied)
       const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
-      scaledX = dim.x + customPos.x;
-      scaledY = customPos.y;
-      screenWidth = dim.pw * panelSize;
-      screenHeight = dim.ph * panelSize;
+      scaledX = (dim.x + customPos.x) * (combinedZoomLevel / 100);
+      scaledY = customPos.y * (combinedZoomLevel / 100);
+      screenWidth = dim.pw * zoomedPanelSize;
+      screenHeight = dim.ph * zoomedPanelSize;
     }
 
     const screenRight = 20 + scaledX + screenWidth + 20;
@@ -18401,18 +18471,18 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       const canvasX = data.canvasX || 0;
       const canvasY = data.canvasY || 0;
       screenX = leftPadding + canvasX * pixelScale;
-      screenY = topPadding + canvasY * pixelScale;
+      screenY = zoomedTopPadding + canvasY * pixelScale;
       // Calculate actual panel size based on pixel resolution
       const panelType = data.panelType || 'CB5_MKII';
       const panelInfo = allPanels[panelType];
       const pixelWidth = panelInfo ? panelInfo.res_x : 176;
       actualPanelSize = pixelWidth * pixelScale;
     } else {
-      // Use custom positions or default horizontal layout
+      // Use custom positions or default horizontal layout (with zoom applied)
       const customPos = combinedScreenPositions[screenId] || { x: 0, y: 0 };
-      screenX = leftPadding + x + customPos.x;
-      screenY = topPadding + customPos.y;
-      actualPanelSize = panelSize;
+      screenX = leftPadding + (x + customPos.x) * (combinedZoomLevel / 100);
+      screenY = zoomedTopPadding + customPos.y * (combinedZoomLevel / 100);
+      actualPanelSize = zoomedPanelSize;
     }
 
     // Get screen colors for checkerboard pattern (same as original)

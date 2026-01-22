@@ -3016,7 +3016,7 @@
   </div>
 
   <!-- Screen Toggle Buttons -->
-  <div id="combinedScreenToggles" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 4px; margin-bottom: 16px; max-width: 100%;">
+  <div id="combinedScreenToggles" style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px;">
     <!-- Screen toggle buttons will be dynamically generated here -->
   </div>
 
@@ -3213,7 +3213,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.180';
+const APP_VERSION = '2.0.181';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17845,7 +17845,7 @@ function setupCombinedCanvasHandlers() {
         combinedSelectedPanels.clear();
       }
 
-      // Select clicked panel immediately
+      // Select clicked panel immediately, or deselect all if clicking empty area
       if(mouseStartPanel) {
         const panelKey = `${mouseStartPanel.screenId}:${mouseStartPanel.key}`;
         if(combinedSelectedPanels.has(panelKey)) {
@@ -17853,8 +17853,10 @@ function setupCombinedCanvasHandlers() {
         } else {
           combinedSelectedPanels.add(panelKey);
         }
-        renderCombinedView();
       }
+      // Always re-render to show selection changes (including deselection)
+      combinedSelectedPanel = null; // Clear single selection too
+      renderCombinedView();
     }
   });
 
@@ -18083,7 +18085,7 @@ function initCombinedView() {
     const btn = document.createElement('button');
     btn.className = 'slider-toggle-btn';
     btn.dataset.screenId = screenId;
-    btn.style.cssText = 'padding: 4px 6px; min-width: 0; min-height: 26px; font-size: 9px; border: 2px solid #000; border-radius: 0; box-shadow: 1px 1px 0px 0px rgba(0,0,0,1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+    btn.style.cssText = 'padding: 4px 8px; min-height: 26px; font-size: 10px; border: 2px solid #000; border-radius: 0; box-shadow: 1px 1px 0px 0px rgba(0,0,0,1); white-space: nowrap;';
 
     // Set button color based on screen color
     if(combinedSelectedScreens.has(screenId)) {
@@ -18433,9 +18435,10 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
   const leftPadding = 20;
 
   screenDimensions.forEach(dim => {
-    const { screen, data, pw, ph, x } = dim;
-    const screenX = leftPadding + x;
-    const screenY = topPadding + socaLabelHeight;
+    const { screen, data, pw, ph, x, screenId } = dim;
+    const customPos = combinedScreenPositions[screenId] || { x: 0, y: 0 };
+    const screenX = leftPadding + x + customPos.x;
+    const screenY = topPadding + socaLabelHeight + customPos.y;
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
     let screenDeletedPanels = new Set();
@@ -18565,13 +18568,6 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
         ctx.strokeRect(px, py, panelSize, panelSize);
-
-        // Black text (same as original)
-        ctx.fillStyle = '#000000';
-        ctx.font = '11px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${c+1}.${r+1}`, px + panelSize/2, py + panelSize/2);
       }
     }
 
@@ -18681,9 +18677,10 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
   const leftPadding = 20;
 
   screenDimensions.forEach(dim => {
-    const { screen, data, pw, ph, x } = dim;
-    const screenX = leftPadding + x;
-    const screenY = topPadding;
+    const { screen, data, pw, ph, x, screenId } = dim;
+    const customPos = combinedScreenPositions[screenId] || { x: 0, y: 0 };
+    const screenX = leftPadding + x + customPos.x;
+    const screenY = topPadding + customPos.y;
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
     let screenDeletedPanels = new Set();
@@ -18828,13 +18825,6 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
         ctx.strokeRect(px, py, panelSize, panelSize);
-
-        // Use contrast color for text (same as original)
-        ctx.fillStyle = colors.text;
-        ctx.font = '11px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${c+1}.${r+1}`, px + panelSize/2, py + panelSize/2);
       }
     }
 
@@ -18864,8 +18854,9 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
   const leftPadding = 20;
 
   screenDimensions.forEach(dim => {
-    const { screen, data, pw, ph, x } = dim;
-    const screenX = leftPadding + x;
+    const { screen, data, pw, ph, x, screenId } = dim;
+    const customPos = combinedScreenPositions[screenId] || { x: 0, y: 0 };
+    const screenX = leftPadding + x + customPos.x;
     const structureType = data.structureType || 'hanging';
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
@@ -18890,8 +18881,8 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     const hasTopBumpers = screenBumpers.some(b => b.position === 'top');
     const hasBottomBumpers = screenBumpers.some(b => b.position === 'bottom');
 
-    // Calculate panel Y position based on bumper placement
-    let panelYOffset = topPadding;
+    // Calculate panel Y position based on bumper placement and custom position
+    let panelYOffset = topPadding + customPos.y;
     if(hasTopBumpers) {
       panelYOffset += bumperHeight + 5;
     }
@@ -18922,13 +18913,6 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
         ctx.strokeRect(px, py, panelSize, panelSize);
-
-        // Black label
-        ctx.fillStyle = '#000000';
-        ctx.font = '11px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${c+1}.${r+1}`, px + panelSize/2, py + panelSize/2);
       }
     }
 
@@ -19069,29 +19053,43 @@ function renderCombinedSpecs(selectedScreenIds) {
   const isImperial = displayLengthUnit === 'ft';
   const weightUnit = displayWeightUnit;
 
-  let html = '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">';
-  html += `<div><strong>Total Screens:</strong> ${selectedScreenIds.length}</div>`;
+  // Format values
+  const widthDisplay = isImperial ? (totalWidth * 3.28084).toFixed(2) + ' ft' : totalWidth.toFixed(2) + ' m';
+  const heightDisplay = isImperial ? (maxHeight * 3.28084).toFixed(2) + ' ft' : maxHeight.toFixed(2) + ' m';
+  const weightDisplay = weightUnit === 'lbs' ? (totalWeight * 2.20462).toFixed(1) + ' lbs' : totalWeight.toFixed(1) + ' kg';
 
-  // Show panels - if multiple types, list each
+  // Build panels display
+  let panelsDisplay = `${totalPanels}`;
   const panelTypes = Object.keys(panelsByType);
   if(panelTypes.length === 1) {
-    html += `<div><strong>Total Panels:</strong> ${totalPanels} (${panelTypes[0]})</div>`;
-  } else {
-    html += `<div><strong>Total Panels:</strong> ${totalPanels}</div>`;
+    panelsDisplay += ` (${panelTypes[0]})`;
+  } else if(panelTypes.length > 1) {
+    panelsDisplay += '<br>';
     panelTypes.forEach(type => {
-      html += `<div style="padding-left: 10px; font-size: 0.9em;">• ${panelsByType[type]} × ${type}</div>`;
+      panelsDisplay += `<span style="font-size: 0.85em; color: #ccc; padding-left: 8px;">• ${panelsByType[type]} × ${type}</span><br>`;
     });
   }
 
-  html += `<div><strong>Total Pixels:</strong> ${totalPixels.toLocaleString()}</div>`;
-  const widthDisplay = isImperial ? (totalWidth * 3.28084).toFixed(2) + ' ft' : totalWidth.toFixed(2) + ' m';
-  const heightDisplay = isImperial ? (maxHeight * 3.28084).toFixed(2) + ' ft' : maxHeight.toFixed(2) + ' m';
-  html += `<div><strong>Dimensions:</strong> ${widthDisplay} × ${heightDisplay}</div>`;
-  html += `<div><strong>Total Weight:</strong> ${weightUnit === 'lbs' ? (totalWeight * 2.20462).toFixed(1) + ' lbs' : totalWeight.toFixed(1) + ' kg'}</div>`;
-  html += `<div><strong>Power (Max):</strong> ${totalPowerMax.toLocaleString()} W</div>`;
-  html += `<div><strong>Total Amps:</strong> ${totalAmps.toFixed(1)} A @ ${voltage}V</div>`;
-  html += `<div><strong>Amps per Phase:</strong> ${ampsPerPhase.toFixed(1)} A (3-phase)</div>`;
-  html += `<div><strong>Data Lines:</strong> ${totalDataLines}</div>`;
+  // Two-column layout with green subheadings and white values
+  let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">';
+
+  // Left column: Total Screens, Total Panels, Total Pixels, Total Weight
+  html += '<div style="display: flex; flex-direction: column; gap: 6px;">';
+  html += `<div><span style="color: #10b981; font-weight: bold;">Total Screens:</span> <span style="color: #fff;">${selectedScreenIds.length}</span></div>`;
+  html += `<div><span style="color: #10b981; font-weight: bold;">Total Panels:</span> <span style="color: #fff;">${panelsDisplay}</span></div>`;
+  html += `<div><span style="color: #10b981; font-weight: bold;">Total Pixels:</span> <span style="color: #fff;">${totalPixels.toLocaleString()}</span></div>`;
+  html += `<div><span style="color: #10b981; font-weight: bold;">Total Weight:</span> <span style="color: #fff;">${weightDisplay}</span></div>`;
+  html += '</div>';
+
+  // Right column: Dimensions, Power, Amps, Amps/Phase, Data Lines
+  html += '<div style="display: flex; flex-direction: column; gap: 6px;">';
+  html += `<div><span style="color: #10b981; font-weight: bold;">Dimensions:</span> <span style="color: #fff;">${widthDisplay} × ${heightDisplay}</span></div>`;
+  html += `<div><span style="color: #10b981; font-weight: bold;">Power (Max):</span> <span style="color: #fff;">${totalPowerMax.toLocaleString()} W</span></div>`;
+  html += `<div><span style="color: #10b981; font-weight: bold;">Total Amps:</span> <span style="color: #fff;">${totalAmps.toFixed(1)} A @ ${voltage}V</span></div>`;
+  html += `<div><span style="color: #10b981; font-weight: bold;">Amps/Phase:</span> <span style="color: #fff;">${ampsPerPhase.toFixed(1)} A (3-phase)</span></div>`;
+  html += `<div><span style="color: #10b981; font-weight: bold;">Data Lines:</span> <span style="color: #fff;">${totalDataLines}</span></div>`;
+  html += '</div>';
+
   html += '</div>';
 
   specsContent.innerHTML = html;

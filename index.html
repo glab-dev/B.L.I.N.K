@@ -3213,7 +3213,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.185';
+const APP_VERSION = '2.0.186';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18325,11 +18325,18 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       maxCanvasPixelX = Math.max(maxCanvasPixelX, screenPixelRight);
       maxCanvasPixelY = Math.max(maxCanvasPixelY, screenPixelBottom);
     });
-    // Calculate scale to fit in available width (with padding)
-    const availableWidth = canvasWidth - 40;
-    pixelScale = Math.min(availableWidth / maxCanvasPixelX, 1);
-    // Ensure minimum visibility
+    // Calculate scale to fit canvas pixels into the same space as the normal layout
+    // Target: make the mirrored view approximately the same size as the non-mirrored view
+    // Use the panelSize (which is already calculated to fit the container) as reference
+    // Scale so that the largest dimension fits within the available canvas size
+    const targetWidth = canvasWidth - 40;
+    const targetHeight = canvasHeight - 40;
+    const scaleX = targetWidth / maxCanvasPixelX;
+    const scaleY = targetHeight / maxCanvasPixelY;
+    pixelScale = Math.min(scaleX, scaleY);
+    // Ensure minimum visibility but cap maximum to keep it reasonable
     if(pixelScale < 0.05) pixelScale = 0.05;
+    if(pixelScale > 0.5) pixelScale = 0.5; // Cap to prevent oversized rendering
   }
   // Store globally for hit detection functions
   combinedPixelScale = pixelScale;

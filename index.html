@@ -3212,7 +3212,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.204';
+const APP_VERSION = '2.0.205';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -19742,6 +19742,10 @@ function switchMobileView(view) {
     case 'combined':
       // Show combined view with screen toggle buttons
       if(combinedContainer) combinedContainer.style.display = 'block';
+      // Save current screen data first to ensure deletedPanels is synced
+      if(typeof saveCurrentScreenData === 'function') {
+        saveCurrentScreenData();
+      }
       // Initialize combined view
       if(typeof initCombinedView === 'function') {
         initCombinedView();

@@ -24,11 +24,12 @@ A professional LED wall calculator PWA (Progressive Web App) for planning LED vi
 13. [Cabling](#cabling)
 14. [Layout Views](#layout-views)
 15. [Canvas View](#canvas-view)
-16. [Gear List](#gear-list)
-17. [PDF Export](#pdf-export)
-18. [Keyboard Shortcuts](#keyboard-shortcuts)
-19. [Supported Panels](#supported-panels)
-20. [Supported Processors](#supported-processors)
+16. [Combined View](#combined-view)
+17. [Gear List](#gear-list)
+18. [PDF Export](#pdf-export)
+19. [Keyboard Shortcuts](#keyboard-shortcuts)
+20. [Supported Panels](#supported-panels)
+21. [Supported Processors](#supported-processors)
 
 ---
 
@@ -403,6 +404,40 @@ Multi-screen canvas visualization for positioning multiple LED walls:
 
 ---
 
+## Combined View
+
+View and manage multiple screens together in a unified interface:
+
+### Screen Selection
+- Select which screens to include in the combined view
+- Click screen buttons to toggle selection
+- All selected screens are displayed together
+
+### Combined Standard Layout
+- View all selected screens in one layout
+- **Zoom Controls** - Zoom in/out (50%-200%) to see detail or overview
+- **Manual Adjust** - Enable to drag screens to custom positions
+- **Reset** - Reset all positions and zoom to defaults
+
+### Panel Selection (Multi-Screen)
+- Click panels to select/deselect across any screen
+- Ctrl/Cmd+click for multi-select
+- Drag to rectangle-select multiple panels
+- Right-click selected panels for circuit/data assignment
+
+### Combined Specs
+- Aggregated specifications across all selected screens
+- Total panels by type (e.g., "40x ROE BP2 V2")
+- Combined power, weight, and dimension totals
+- Total data lines and amp calculations
+
+### Additional Combined Layouts
+- **Power Layout** - Combined power distribution view
+- **Data Layout** - Combined data routing view
+- **Structure Layout** - Combined structure/bumper view
+
+---
+
 ## Gear List
 
 Comprehensive equipment summary organized by category:
@@ -484,7 +519,25 @@ Generate a professional multi-page PDF report containing:
 
 ## Version
 
-v2.0.150 - PWA Edition with Aspect Ratio Lock and NovaStar MX40 Pro Support
+v2.0.204 - Combined View, CB5 Ground Support Improvements, UI Enhancements
+
+### Recent Updates (v2.0.190 - v2.0.204)
+- **Combined View** - New tab to view and manage multiple screens together
+  - Combined Standard, Power, Data, and Structure layouts
+  - Zoom controls (50%-200%)
+  - Manual Adjust mode for repositioning screens
+  - Multi-panel selection across screens
+  - Aggregated specs with panel type breakdown
+- **CB5/CB5 Half Ground Support** - With Air Frames enabled:
+  - Rear truss and bridge clamps no longer needed
+  - Cyan ladder extends full height of each column
+  - Ground support hardware list updated accordingly
+- **Sandbag Weight** - Changed from 50lb to 25lb sandbags
+- **UI Improvements**
+  - Manual bumper hint box changed from blue to green
+  - Panel type labels shortened (ROE BP2 V2, ROE BO3, etc.)
+  - Canvas view panel numbers always white for visibility
+  - Ground support items with 0 values are hidden
 
 ---
 

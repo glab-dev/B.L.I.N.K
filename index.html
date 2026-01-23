@@ -3212,7 +3212,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.203';
+const APP_VERSION = '2.0.204';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -11130,8 +11130,8 @@ function showCanvasView(){
         ctx.lineWidth = 2;
         ctx.strokeRect(xBase, y, panelResX, panelResY);
         
-        // Draw panel label
-        ctx.fillStyle = getContrastColor(fillColor);
+        // Draw panel label - always use white text for visibility
+        ctx.fillStyle = '#FFFFFF';
         const fontSize = Math.max(12, Math.min(panelResX, panelResY) / 4);
         ctx.font = `${fontSize}px Arial`;
         ctx.textAlign = 'center';

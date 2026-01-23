@@ -1094,12 +1094,12 @@
     
     .structure-selection-info {
       padding: 8px 12px;
-      background: #2a3a4a;
-      border: 1px solid #3a5a7a;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
       border-radius: 4px;
       margin-bottom: 12px;
       font-size: 12px;
-      color: #8ac;
+      color: #10b981;
       display: none;
     }
     
@@ -3035,9 +3035,7 @@
         <div class="slider-toggle" style="display: inline-flex;">
           <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Reset</button>
           <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Manual Adjust</button>
-          <button type="button" class="slider-toggle-btn" id="mirrorCanvasBtn" onclick="toggleMirrorCanvasLayout()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Mirror Canvas</button>
         </div>
-        <span id="mirrorCanvasStatus" style="font-size: 10px; color: #10b981;"></span>
         <!-- Zoom Controls (matching Canvas View style) -->
         <div style="display: inline-flex; align-items: stretch; gap: 4px; margin-left: 10px;">
           <button class="toggle-btn" onclick="adjustCombinedZoom(-10)" title="Zoom Out" style="padding: 6px 10px; height: 32px; font-size: 14px; box-sizing: border-box;">−</button>
@@ -3081,11 +3079,6 @@
     <div id="combinedSpecsContent" style="color: #e0e0e0; line-height: 1.8;"></div>
   </div>
 
-  <!-- Combined Gear List -->
-  <div class="layout-container" id="combinedGearListContainer">
-    <div class="layout-title"><span>Combined Gear List</span></div>
-    <div id="combinedGearListContent" style="color: #e0e0e0; line-height: 1.8;"></div>
-  </div>
 </div>
 
 <!-- Canvas Container (outside main-container so it can be shown independently) -->
@@ -3219,7 +3212,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.189';
+const APP_VERSION = '2.0.203';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -8403,16 +8396,19 @@ function generateStructureLayout(){
   const isGroundStacking = showBottomBumper;
   // Track which bumpers have ladders (for drawing ladder bases)
   const bumpersWithLadders = new Set();
-  
+
+  // Check if CB5 panels with air frames - they don't need bridge clamps or rear truss
+  const isCB5WithAirframes = (panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF') && connectionMethod === 'airframe';
+
   if(isGroundStacking) {
     const bridgeClampSize = 14; // Size of bridge clamp indicator
     const ladderWidth = 8; // Width of ladder piece
-    const ladderHeightPanels = 2; // Each ladder piece spans 2 panels
-    
+    const ladderHeightPanels = isCB5WithAirframes ? 1 : 2; // CB5 with airframes: 1 panel per ladder section, others: 2 panels
+
     // Get columns that have bottom bumpers (ladders are bound to bumpers)
     const columnsWithBumpers = new Set();
     const bumperToColumnMap = new Map(); // Map bumper id to its ladder column
-    
+
     bumpers.filter(b => b.position === 'bottom').forEach(bumper => {
       // For bottom bumpers, get the columns they cover
       const cols = getBumperColumns(bumper);
@@ -8431,17 +8427,17 @@ function generateStructureLayout(){
         bumpersWithLadders.add(bumper.id);
       }
     });
-    
+
     // Draw REAR LADDER (cyan) - only in columns with bumpers, centered horizontally
-    // Each ladder is 2 panels high, stacked from BOTTOM up
-    // Ladders only cover complete 2-panel sections (odd top panel has no ladder)
+    // For CB5 with airframes: ladders extend full height (1 panel sections)
+    // For others: Each ladder is 2 panels high, stacked from BOTTOM up
     ctx.fillStyle = '#00CED1'; // Cyan for ladder pieces
-    
+
     columnsWithBumpers.forEach(c => {
       // Find the topmost and bottommost non-deleted panel in this column
       let topRow = -1;
       let bottomRow = -1;
-      
+
       for(let r = 0; r < ph; r++) {
         const panelKey = `${c},${r}`;
         if(!deletedPanels.has(panelKey)) {
@@ -8449,37 +8445,38 @@ function generateStructureLayout(){
           bottomRow = r;
         }
       }
-      
+
       // Draw ladders if there are panels in this column
       if(topRow !== -1 && bottomRow !== -1) {
         const totalPanelsInColumn = bottomRow - topRow + 1;
-        // Only complete 2-panel sections get ladders (from bottom)
-        const numLadders = Math.floor(totalPanelsInColumn / ladderHeightPanels);
-        
+        // For CB5 with airframes: draw full height ladder
+        // For others: Only complete 2-panel sections get ladders (from bottom)
+        const numLadders = isCB5WithAirframes ? totalPanelsInColumn : Math.floor(totalPanelsInColumn / ladderHeightPanels);
+
         // Draw each ladder piece from bottom to top
         for(let ladderIndex = 0; ladderIndex < numLadders; ladderIndex++) {
           // Calculate which rows this ladder covers (from bottom)
           const ladderBottomRow = bottomRow - (ladderIndex * ladderHeightPanels);
           const ladderTopRow = ladderBottomRow - ladderHeightPanels + 1;
-          
+
           // Skip if ladder would be above the topmost panel
           if(ladderTopRow < topRow) continue;
-          
+
           const ladderX = c * size + size/2 - ladderWidth/2; // Centered in column
           const ladderTopY = panelYOffset + ladderTopRow * size + 4;
           const ladderHeight = ladderHeightPanels * size - 8;
-          
+
           // Draw ladder as a rounded rectangle
           ctx.fillStyle = '#00CED1'; // Cyan
           ctx.beginPath();
           ctx.roundRect(ladderX, ladderTopY, ladderWidth, ladderHeight, 2);
           ctx.fill();
-          
+
           // Black outline
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 1.5;
           ctx.stroke();
-          
+
           // Draw ladder rungs
           ctx.strokeStyle = '#008B8B'; // Darker cyan for rungs
           ctx.lineWidth = 1;
@@ -8493,27 +8490,30 @@ function generateStructureLayout(){
         }
       }
     });
-    
+
     // Draw BRIDGE CLAMPS (purple) - only on columns with ladders (bound to bumpers)
-    // In center of panels, every 2nd row from bottom (2nd, 4th, 6th, etc.)
-    ctx.fillStyle = '#9932CC'; // Purple for bridge clamps
-    columnsWithBumpers.forEach(c => {
-      // Start from 2nd row from bottom (index ph-2), then every 2nd row going up
-      for(let r = ph - 2; r >= 0; r -= 2) {
-        const panelKey = `${c},${r}`;
-        if(!deletedPanels.has(panelKey)) {
-          // Draw bridge clamp as a filled circle at center of panel
-          ctx.beginPath();
-          ctx.arc(c * size + size/2, panelYOffset + r * size + size/2, bridgeClampSize/2, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // Black outline
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
+    // Skip for CB5 with airframes - they don't need bridge clamps
+    if(!isCB5WithAirframes) {
+      // In center of panels, every 2nd row from bottom (2nd, 4th, 6th, etc.)
+      ctx.fillStyle = '#9932CC'; // Purple for bridge clamps
+      columnsWithBumpers.forEach(c => {
+        // Start from 2nd row from bottom (index ph-2), then every 2nd row going up
+        for(let r = ph - 2; r >= 0; r -= 2) {
+          const panelKey = `${c},${r}`;
+          if(!deletedPanels.has(panelKey)) {
+            // Draw bridge clamp as a filled circle at center of panel
+            ctx.beginPath();
+            ctx.arc(c * size + size/2, panelYOffset + r * size + size/2, bridgeClampSize/2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Black outline
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
         }
-      }
-    });
+      });
+    }
   }
   
   // Draw all bumpers and store their positions for interaction
@@ -8772,7 +8772,12 @@ function updateGroundSupportDisplay() {
     screens[currentScreenId].calculatedData.groundSupportWeightKg = hardware.totalWeightKg || 0;
   }
 
-  if(hardware.totalRearTruss === 0 && hardware.totalBridgeClamps === 0 && hardware.totalBaseTruss === 0) {
+  // Hide ground support box if nothing to show
+  const hasAnyHardware = hardware.totalRearTruss > 0 || hardware.totalBridgeClamps > 0 ||
+                         hardware.totalBaseTruss > 0 || hardware.totalSandbags > 0 ||
+                         hardware.totalPipes > 0 || hardware.totalSwivelCheeseboroughs > 0 ||
+                         hardware.totalRearBridgeClampAdapters > 0;
+  if(!hasAnyHardware) {
     groundSupportBox.style.display = 'none';
     updateFloorFramesDisplay(); // Continue chain to floor frames then total weight
     return;
@@ -8780,21 +8785,27 @@ function updateGroundSupportDisplay() {
   
   const wtUnit = getWeightUnitLabel();
   let html = '';
-  
-  html += `<div class="plates-row">
-    <span class="plates-label" style="color: #ffffff;">Rear Truss</span>
-    <span class="plates-value">${hardware.totalRearTruss}</span>
-  </div>`;
-  
-  html += `<div class="plates-row">
-    <span class="plates-label" style="color: #ffffff;">Base Truss</span>
-    <span class="plates-value">${hardware.totalBaseTruss}</span>
-  </div>`;
-  
-  html += `<div class="plates-row">
-    <span class="plates-label" style="color: #ffffff;">Bridge Clamps</span>
-    <span class="plates-value">${hardware.totalBridgeClamps}</span>
-  </div>`;
+
+  if(hardware.totalRearTruss > 0) {
+    html += `<div class="plates-row">
+      <span class="plates-label" style="color: #ffffff;">Rear Truss</span>
+      <span class="plates-value">${hardware.totalRearTruss}</span>
+    </div>`;
+  }
+
+  if(hardware.totalBaseTruss > 0) {
+    html += `<div class="plates-row">
+      <span class="plates-label" style="color: #ffffff;">Base Truss</span>
+      <span class="plates-value">${hardware.totalBaseTruss}</span>
+    </div>`;
+  }
+
+  if(hardware.totalBridgeClamps > 0) {
+    html += `<div class="plates-row">
+      <span class="plates-label" style="color: #ffffff;">Bridge Clamps</span>
+      <span class="plates-value">${hardware.totalBridgeClamps}</span>
+    </div>`;
+  }
   
   if(hardware.totalRearBridgeClampAdapters > 0) {
     html += `<div class="plates-row">
@@ -8821,7 +8832,7 @@ function updateGroundSupportDisplay() {
   }
   
   html += `<div class="plates-row">
-    <span class="plates-label" style="color: #ffffff;">Sandbags (50lb)</span>
+    <span class="plates-label" style="color: #ffffff;">Sandbags (25lb)</span>
     <span class="plates-value">${hardware.totalSandbags}</span>
   </div>`;
   
@@ -9116,7 +9127,7 @@ function calculateGroundSupportHardware(pw, ph) {
     rearBridgeClampAdapter: 1.1, // per adapter (DM2.6 only)
     pipe: 5.0,                // per pipe
     swivelCheeseborough: 1.2, // per swivel cheeseborough
-    sandbag: 50.0             // per sandbag (50lb sandbags)
+    sandbag: 25.0             // per sandbag (25lb sandbags)
   };
   
   let totalRearTruss = 0;
@@ -9130,7 +9141,10 @@ function calculateGroundSupportHardware(pw, ph) {
   
   const panelType = document.getElementById('panelType').value;
   const isDM26 = panelType === 'DM2_6';
-  
+
+  // Check if CB5 panels with air frames - they don't need rear truss or bridge clamps
+  const isCB5WithAirframes = (panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF') && connectionMethod === 'airframe';
+
   // Track bumpers and their ladder columns for sandbag calculation
   const bumperLadderInfo = []; // {bumper, ladderCol, panelsInColumn}
   
@@ -9171,7 +9185,10 @@ function calculateGroundSupportHardware(pw, ph) {
     if(topRow !== -1 && bottomRow !== -1) {
       const totalPanelsInColumn = bottomRow - topRow + 1;
       const numTruss = Math.floor(totalPanelsInColumn / ladderHeightPanels);
-      totalRearTruss += numTruss;
+      // CB5 with airframes don't need rear truss
+      if(!isCB5WithAirframes) {
+        totalRearTruss += numTruss;
+      }
       
       // Check if we need a second base (more than 8 panels high)
       if(totalPanelsInColumn > maxPanelsBeforeSecondBase) {
@@ -9210,26 +9227,29 @@ function calculateGroundSupportHardware(pw, ph) {
   totalBaseTruss = columnsWithBumpers.size + totalSecondBases;
   
   // Count bridge clamps - every 2nd row from bottom, only in columns with ladders
-  columnsWithBumpers.forEach(c => {
-    for(let r = ph - 2; r >= 0; r -= 2) {
-      const panelKey = `${c},${r}`;
-      if(!deletedPanels.has(panelKey)) {
-        totalBridgeClamps++;
+  // Skip for CB5 with airframes - they don't need bridge clamps
+  if(!isCB5WithAirframes) {
+    columnsWithBumpers.forEach(c => {
+      for(let r = ph - 2; r >= 0; r -= 2) {
+        const panelKey = `${c},${r}`;
+        if(!deletedPanels.has(panelKey)) {
+          totalBridgeClamps++;
+        }
       }
-    }
-  });
-  
+    });
+  }
+
   // Rear bridge clamp adapters for DM2.6 only (1 per bridge clamp)
   if(isDM26) {
     totalRearBridgeClampAdapters = totalBridgeClamps;
   }
   
-  // Calculate sandbags: ((total weight of bumper) / 50lbs) x 1.25 = sandbags per column
+  // Calculate sandbags: ((total weight of bumper) / 25lbs) x 1.25 = sandbags per column
   // Round up to nearest whole sandbag
   bumperLadderInfo.forEach(info => {
     const bumperWeight = calculateBumperPickupWeight(info.bumper);
     const weightLbs = bumperWeight.lbs;
-    const sandbagWeight = 50; // lbs per sandbag
+    const sandbagWeight = 25; // lbs per sandbag
     const sandbagMultiplier = 1.25;
     const sandbagCount = Math.ceil((weightLbs / sandbagWeight) * sandbagMultiplier);
     totalSandbags += sandbagCount;
@@ -13877,7 +13897,7 @@ function exportPDF(){
               col1Y += 3.5;
             }
             if(hardware.totalSandbags > 0) {
-              pdf.text('Sandbags (50lb)', col1X + colLabelX, col1Y);
+              pdf.text('Sandbags (25lb)', col1X + colLabelX, col1Y);
               pdf.text(hardware.totalSandbags.toString(), col1X + colValueX, col1Y, { align: 'right' });
               col1Y += 3.5;
             }
@@ -17207,9 +17227,12 @@ function getCombinedScreenAtPosition(canvas, clientX, clientY) {
   const canvasY = (clientY - rect.top) * scaleY;
 
   // Check each screen - include label area above panels for easier dragging
+  const zoomFactor = combinedZoomLevel / 100;
   for(const dim of combinedScreenDimensions) {
-    const screenX = combinedLeftPadding + dim.x + (combinedScreenPositions[dim.screenId]?.x || 0);
-    const screenY = combinedTopPadding + (combinedScreenPositions[dim.screenId]?.y || 0);
+    // Scale both base position and custom offset by zoom factor
+    const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
+    const screenX = combinedLeftPadding + (dim.x + customPos.x) * zoomFactor;
+    const screenY = combinedTopPadding + customPos.y * zoomFactor;
     const screenWidth = dim.pw * combinedPanelSize;
     const screenHeight = dim.ph * combinedPanelSize;
     const labelHeight = 25; // Height above panels for label
@@ -17435,36 +17458,10 @@ function updateCombinedZoomDisplay() {
 
 // Auto-fit zoom to show all screens comfortably
 function autoFitCombinedZoom() {
-  const container = document.getElementById('combinedStandardCanvasWrapper');
-  if(!container || combinedScreenDimensions.length === 0) return;
-
-  const allPanels = getAllPanels();
-  const containerWidth = container.clientWidth - 40;
-
-  // Calculate total pixel extent of all screens
-  let maxPixelX = 0;
-  let maxPixelY = 0;
-  combinedScreenDimensions.forEach(dim => {
-    const panelType = dim.data.panelType || 'CB5_MKII';
-    const panelInfo = allPanels[panelType];
-    const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-    const pixelHeight = panelInfo ? panelInfo.res_y : 176;
-    const screenPixelRight = (dim.data.canvasX || 0) + dim.pw * pixelWidth;
-    const screenPixelBottom = (dim.data.canvasY || 0) + dim.ph * pixelHeight;
-    maxPixelX = Math.max(maxPixelX, screenPixelRight);
-    maxPixelY = Math.max(maxPixelY, screenPixelBottom);
-  });
-
-  if(maxPixelX === 0) return;
-
-  // Calculate ideal zoom to fit width with some padding
-  // Base scale maps pixels to canvas units, zoom adjusts that
-  const baseScale = 0.15; // Reasonable base scale
-  const idealWidth = maxPixelX * baseScale;
-  const zoomToFit = Math.floor((containerWidth / idealWidth) * 100);
-
-  // Clamp to reasonable range and set
-  combinedZoomLevel = Math.max(50, Math.min(150, zoomToFit));
+  // When toggling mirror canvas ON, just keep zoom at 100%
+  // The mirrored view uses the same panel sizes as non-mirrored at 100% zoom
+  // User can manually zoom out if needed
+  combinedZoomLevel = 100;
   updateCombinedZoomDisplay();
 }
 
@@ -17484,21 +17481,25 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
     let screenX, screenY, drawPanelSize;
 
     if(combinedMirrorCanvas) {
-      // Use canvas positions with pixel scale
+      // Use canvas positions - convert from pixel coordinates to panel-based layout
       const dataCanvasX = dim.data.canvasX || 0;
       const dataCanvasY = dim.data.canvasY || 0;
-      screenX = combinedLeftPadding + dataCanvasX * combinedPixelScale;
-      screenY = combinedTopPadding + dataCanvasY * combinedPixelScale;
-      // Calculate actual panel size based on pixel resolution
+      // Get this screen's panel pixel width to properly scale its position
       const panelType = dim.data.panelType || 'CB5_MKII';
       const panelInfo = allPanels[panelType];
       const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-      drawPanelSize = pixelWidth * combinedPixelScale;
+      // Convert pixel position to panel units, then to display pixels
+      screenX = combinedLeftPadding + (dataCanvasX / pixelWidth) * combinedPanelSize;
+      screenY = combinedTopPadding + (dataCanvasY / pixelWidth) * combinedPanelSize;
+      // Use same panel size as non-mirrored mode
+      drawPanelSize = combinedPanelSize;
     } else {
-      // Use custom positions or default horizontal layout (with zoom applied)
+      // Use custom positions or default horizontal layout
+      // Scale both base position and custom offset by zoom factor
+      const zoomFactor = combinedZoomLevel / 100;
       const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
-      screenX = combinedLeftPadding + (dim.x + customPos.x) * (combinedZoomLevel / 100);
-      screenY = combinedTopPadding + customPos.y * (combinedZoomLevel / 100);
+      screenX = combinedLeftPadding + (dim.x + customPos.x) * zoomFactor;
+      screenY = combinedTopPadding + customPos.y * zoomFactor;
       drawPanelSize = combinedPanelSize; // Already zoomed from renderCombinedView
     }
 
@@ -17545,21 +17546,25 @@ function getCombinedPanelsInRect(canvas, x1, y1, x2, y2) {
     let screenX, screenY, drawPanelSize;
 
     if(combinedMirrorCanvas) {
-      // Use canvas positions with pixel scale
+      // Use canvas positions - convert from pixel coordinates to panel-based layout
       const dataCanvasX = dim.data.canvasX || 0;
       const dataCanvasY = dim.data.canvasY || 0;
-      screenX = combinedLeftPadding + dataCanvasX * combinedPixelScale;
-      screenY = combinedTopPadding + dataCanvasY * combinedPixelScale;
-      // Calculate actual panel size based on pixel resolution
+      // Get this screen's panel pixel width to properly scale its position
       const panelType = dim.data.panelType || 'CB5_MKII';
       const panelInfo = allPanels[panelType];
       const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-      drawPanelSize = pixelWidth * combinedPixelScale;
+      // Convert pixel position to panel units, then to display pixels
+      screenX = combinedLeftPadding + (dataCanvasX / pixelWidth) * combinedPanelSize;
+      screenY = combinedTopPadding + (dataCanvasY / pixelWidth) * combinedPanelSize;
+      // Use same panel size as non-mirrored mode
+      drawPanelSize = combinedPanelSize;
     } else {
-      // Use custom positions or default horizontal layout (with zoom applied)
+      // Use custom positions or default horizontal layout
+      // Scale both base position and custom offset by zoom factor
+      const zoomFactor = combinedZoomLevel / 100;
       const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
-      screenX = combinedLeftPadding + (dim.x + customPos.x) * (combinedZoomLevel / 100);
-      screenY = combinedTopPadding + customPos.y * (combinedZoomLevel / 100);
+      screenX = combinedLeftPadding + (dim.x + customPos.x) * zoomFactor;
+      screenY = combinedTopPadding + customPos.y * zoomFactor;
       drawPanelSize = combinedPanelSize; // Already zoomed from renderCombinedView
     }
 
@@ -17985,8 +17990,11 @@ function setupCombinedCanvasHandlers() {
       if(!combinedScreenPositions[screenId]) {
         combinedScreenPositions[screenId] = { x: 0, y: 0 };
       }
-      combinedScreenPositions[screenId].x = combinedDragState.startPosX + (dx * scaleX);
-      combinedScreenPositions[screenId].y = combinedDragState.startPosY + (dy * scaleY);
+      // Store positions in unzoomed units so they work correctly at any zoom level
+      // The drag movement is in screen pixels, convert to canvas pixels, then to unzoomed units
+      const zoomFactor = combinedZoomLevel / 100;
+      combinedScreenPositions[screenId].x = combinedDragState.startPosX + (dx * scaleX) / zoomFactor;
+      combinedScreenPositions[screenId].y = combinedDragState.startPosY + (dy * scaleY) / zoomFactor;
 
       renderCombinedView();
     } else if(isMouseSelecting) {
@@ -18358,7 +18366,7 @@ function renderCombinedView() {
   // Store dimensions globally for click handlers
   combinedScreenDimensions = screenDimensions;
   combinedPanelSize = panelSize * (combinedZoomLevel / 100); // Store zoomed size for hit detection
-  combinedTopPadding = topPadding * (combinedZoomLevel / 100);
+  combinedTopPadding = topPadding; // Don't scale padding - positions are not zoomed
 
   // Render each layout type
   renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
@@ -18379,80 +18387,70 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   // Get panel pixel dimensions to calculate scale factor from canvas view to combined view
   const allPanels = getAllPanels();
 
-  // When mirroring, calculate a uniform scale factor based on the canvas resolution
-  // This converts absolute pixel positions to our panel-based layout
-  let pixelScale = 1;
-  if(combinedMirrorCanvas) {
-    // Find the total canvas pixel extent
-    let maxCanvasPixelX = 0;
-    let maxCanvasPixelY = 0;
-    screenDimensions.forEach(dim => {
-      const panelType = dim.data.panelType || 'CB5_MKII';
-      const panelInfo = allPanels[panelType];
-      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-      const pixelHeight = panelInfo ? panelInfo.res_y : 176;
-      const screenPixelRight = (dim.data.canvasX || 0) + dim.pw * pixelWidth;
-      const screenPixelBottom = (dim.data.canvasY || 0) + dim.ph * pixelHeight;
-      maxCanvasPixelX = Math.max(maxCanvasPixelX, screenPixelRight);
-      maxCanvasPixelY = Math.max(maxCanvasPixelY, screenPixelBottom);
-    });
-    // Calculate scale to make mirrored panels the same size as non-mirrored panels
-    // In non-mirrored mode, each panel is drawn at `panelSize` pixels
-    // In mirrored mode, we need pixelScale such that panel pixel width * pixelScale = panelSize
-    // Use average panel pixel width (176 for CB5) as reference
-    const avgPixelWidth = 176;
-    const baseScale = panelSize / avgPixelWidth;
-    pixelScale = baseScale * (combinedZoomLevel / 100);
-    // Ensure minimum visibility
-    if(pixelScale < 0.05) pixelScale = 0.05;
-  }
+  // When mirroring, calculate a pixel scale that makes panels the same size as non-mirrored mode
+  // We use a single scale factor: zoomedPanelSize / referencePixelWidth
+  // This way, at 100% zoom, mirrored panels are the same size as non-mirrored panels
+  const zoomedPanelSize = panelSize * (combinedZoomLevel / 100);
+  const referencePixelWidth = 176; // CB5 pixel width as reference
+  let pixelScale = zoomedPanelSize / referencePixelWidth;
+  if(pixelScale < 0.05) pixelScale = 0.05;
+
   // Store globally for hit detection functions
   combinedPixelScale = pixelScale;
 
-  // Apply zoom to panelSize for non-mirrored mode
-  const zoomedPanelSize = panelSize * (combinedZoomLevel / 100);
-  const zoomedTopPadding = topPadding * (combinedZoomLevel / 100);
-
   // Calculate canvas size with positions (use canvas positions only when mirroring is enabled)
-  let minX = 0, maxX = canvasWidth, minY = 0, maxY = canvasHeight;
+  // Start with no assumptions - calculate actual bounds from screen positions
+  let minX = Infinity, maxX = 0, minY = Infinity, maxY = 0;
+  const zoomFactor = combinedZoomLevel / 100;
+  const leftPad = 20; // Use different name to avoid conflict with leftPadding below
+
   screenDimensions.forEach(dim => {
     let scaledX, scaledY, screenWidth, screenHeight;
 
     if(combinedMirrorCanvas) {
-      // Use canvas positions with pixel scale
+      // Use canvas positions - convert from pixel coordinates to panel-based layout
       const canvasX = dim.data.canvasX || 0;
       const canvasY = dim.data.canvasY || 0;
-      scaledX = canvasX * pixelScale;
-      scaledY = canvasY * pixelScale;
-      // Calculate actual screen dimensions based on pixel resolution
       const panelType = dim.data.panelType || 'CB5_MKII';
       const panelInfo = allPanels[panelType];
       const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-      const actualPanelSize = pixelWidth * pixelScale;
-      screenWidth = dim.pw * actualPanelSize;
-      screenHeight = dim.ph * actualPanelSize;
+      scaledX = (canvasX / pixelWidth) * zoomedPanelSize;
+      scaledY = (canvasY / pixelWidth) * zoomedPanelSize;
+      screenWidth = dim.pw * zoomedPanelSize;
+      screenHeight = dim.ph * zoomedPanelSize;
     } else {
-      // Use custom positions or default horizontal layout (with zoom applied)
+      // Use custom positions or default horizontal layout
+      // Scale both base position and custom offset by zoom factor
       const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
-      scaledX = (dim.x + customPos.x) * (combinedZoomLevel / 100);
-      scaledY = customPos.y * (combinedZoomLevel / 100);
+      scaledX = (dim.x + customPos.x) * zoomFactor;
+      scaledY = customPos.y * zoomFactor;
       screenWidth = dim.pw * zoomedPanelSize;
       screenHeight = dim.ph * zoomedPanelSize;
     }
 
-    const screenRight = 20 + scaledX + screenWidth + 20;
-    const screenBottom = topPadding + scaledY + screenHeight + 60;
-    const screenLeft = 20 + scaledX;
-    const screenTop = topPadding + scaledY - 25;
-    maxX = Math.max(maxX, screenRight);
-    maxY = Math.max(maxY, screenBottom);
+    // Calculate actual screen bounds on canvas
+    const screenLeft = leftPad + scaledX;
+    const screenRight = screenLeft + screenWidth;
+    const screenTop = topPadding + scaledY - 30; // Include label area
+    const screenBottom = topPadding + scaledY + screenHeight;
+
     minX = Math.min(minX, screenLeft);
+    maxX = Math.max(maxX, screenRight);
     minY = Math.min(minY, screenTop);
+    maxY = Math.max(maxY, screenBottom);
   });
 
-  // Adjust canvas size for custom positions
-  const adjustedWidth = Math.max(canvasWidth, maxX - minX + 40);
-  const adjustedHeight = Math.max(canvasHeight, maxY - minY + 40);
+  // Add padding around all content
+  const paddingX = 40;
+  const paddingY = 60;
+
+  // Canvas must be large enough to show all screens with padding
+  // Handle case where screens might have negative positions
+  const contentWidth = maxX - Math.min(0, minX) + paddingX;
+  const contentHeight = maxY - Math.min(0, minY) + paddingY;
+
+  const adjustedWidth = Math.max(canvasWidth * zoomFactor, contentWidth);
+  const adjustedHeight = Math.max(canvasHeight * zoomFactor, contentHeight);
 
   canvas.width = adjustedWidth;
   canvas.height = adjustedHeight;
@@ -18469,21 +18467,25 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
 
     let screenX, screenY, actualPanelSize;
     if(combinedMirrorCanvas) {
-      // Use canvas positions with pixel scale
+      // Use canvas positions with pixel scale for positioning only
       const canvasX = data.canvasX || 0;
       const canvasY = data.canvasY || 0;
-      screenX = leftPadding + canvasX * pixelScale;
-      screenY = zoomedTopPadding + canvasY * pixelScale;
-      // Calculate actual panel size based on pixel resolution
+      // Get this screen's panel pixel width to properly scale its position
       const panelType = data.panelType || 'CB5_MKII';
       const panelInfo = allPanels[panelType];
       const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-      actualPanelSize = pixelWidth * pixelScale;
+      // Convert pixel position to panel units, then to display pixels
+      screenX = leftPadding + (canvasX / pixelWidth) * zoomedPanelSize;
+      screenY = topPadding + (canvasY / pixelWidth) * zoomedPanelSize;
+      // Use same panel size as non-mirrored mode for consistent appearance
+      actualPanelSize = zoomedPanelSize;
     } else {
-      // Use custom positions or default horizontal layout (with zoom applied)
+      // Use custom positions or default horizontal layout
+      // Scale both base position and custom offset by zoom factor
+      const zoomFactor = combinedZoomLevel / 100;
       const customPos = combinedScreenPositions[screenId] || { x: 0, y: 0 };
-      screenX = leftPadding + (x + customPos.x) * (combinedZoomLevel / 100);
-      screenY = zoomedTopPadding + customPos.y * (combinedZoomLevel / 100);
+      screenX = leftPadding + (x + customPos.x) * zoomFactor;
+      screenY = topPadding + customPos.y * zoomFactor;
       actualPanelSize = zoomedPanelSize;
     }
 
@@ -18504,8 +18506,8 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     }
 
     // Draw panels with checkerboard pattern (same as original)
-    // Use actualPanelSize for mirroring mode, panelSize for normal mode
-    const drawPanelSize = combinedMirrorCanvas ? actualPanelSize : panelSize;
+    // Use actualPanelSize for mirroring mode, zoomedPanelSize for normal mode
+    const drawPanelSize = combinedMirrorCanvas ? actualPanelSize : zoomedPanelSize;
     for(let c = 0; c < pw; c++) {
       for(let r = 0; r < ph; r++) {
         const panelKey = `${c},${r}`;
@@ -19277,10 +19279,11 @@ function renderCombinedSpecs(selectedScreenIds) {
   function shortenPanelName(fullName) {
     // Remove "ROE Visual" prefix, keep brand abbreviation
     let short = fullName.replace('ROE Visual ', 'ROE ');
-    // Shorten common names
-    short = short.replace('Black Pearl ', 'BP');
+    // Remove full names, keep model numbers (e.g., "Black Pearl BP2 V2" -> "BP2 V2")
+    short = short.replace('Black Pearl ', '');
+    short = short.replace('Black Onyx ', '');
+    short = short.replace('Black Marble ', '');
     short = short.replace('Carbon ', '');
-    short = short.replace('Black Marble ', 'BM');
     short = short.replace(' (Matte)', '');
     short = short.replace(' Half Panel', ' Half');
     return short;

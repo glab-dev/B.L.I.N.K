@@ -3345,7 +3345,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.234';
+const APP_VERSION = '2.0.236';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -4165,6 +4165,16 @@ function getAllPanels() {
 // Get all processors (built-in + custom)
 function getAllProcessors() {
   return {...processors, ...customProcessors};
+}
+
+// Get panel height ratio (for CB5_MKII full panels which are 2:1 aspect ratio)
+function getPanelHeightRatio(panelType) {
+  // CB5_MKII full panels are 0.6m x 1.2m (width x height), so height = 2x width
+  if(panelType === 'CB5_MKII') {
+    return 2;
+  }
+  // All other panels are square (1:1 aspect ratio)
+  return 1;
 }
 
 // Load custom data from localStorage on startup
@@ -6605,7 +6615,7 @@ function getVibrantColorForPDF(hexColor) {
     return '#DAA520'; // Goldenrod instead of pure yellow
   }
   
-  // For other colors, increase saturation and darken slightly
+  // For other colors, desaturate and lighten for ink-saving
   const r = parseInt(hexColor.slice(1,3), 16);
   const g = parseInt(hexColor.slice(3,5), 16);
   const b = parseInt(hexColor.slice(5,7), 16);
@@ -6633,9 +6643,9 @@ function getVibrantColorForPDF(hexColor) {
     }
   }
   
-  // Increase saturation by 20% and darken by 15%
-  s = Math.min(1, s * 1.2);
-  const newL = Math.max(0.25, l * 0.85); // Don't go too dark, minimum lightness of 0.25
+  // Desaturate by 50% and lighten slightly for ink-saving when printing
+  s = s * 0.5;
+  const newL = Math.min(0.85, l * 1.15); // Lighten slightly, max lightness of 0.85
   
   // Convert back to RGB
   function hue2rgb(p, q, t) {
@@ -7253,8 +7263,14 @@ function generateLayout(mode){
   const calculatedSize = Math.floor(maxCanvasWidth / pw);
   const size = Math.max(minSize, Math.min(maxSize, calculatedSize));
 
-  canvas.width = pw * size;
-  canvas.height = ph * size;
+  // Get panel type and calculate height ratio for CB5_MKII full panels
+  const panelType = document.getElementById('panelType').value;
+  const heightRatio = getPanelHeightRatio(panelType);
+  const panelWidth = size;
+  const panelHeight = size * heightRatio;
+
+  canvas.width = pw * panelWidth;
+  canvas.height = ph * panelHeight;
 
   // Update global panelSize for all modes
   panelSize = size;
@@ -7269,54 +7285,54 @@ function generateLayout(mode){
     currentCanvas = canvas;
     currentPw = pw;
     currentPh = ph;
-    
-    for(let c=0;c<pw;c++){ 
+
+    for(let c=0;c<pw;c++){
       for(let r=0;r<ph;r++){
         const panelKey = `${c},${r}`;
-        
+
         // Skip deleted panels
         if(deletedPanels.has(panelKey)) {
-          const x=c*size, y=r*size;
+          const x=c*panelWidth, y=r*panelHeight;
           ctx.fillStyle = '#1a1a1a'; // Dark background for deleted
-          ctx.fillRect(x, y, size, size);
+          ctx.fillRect(x, y, panelWidth, panelHeight);
           ctx.strokeStyle = '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
-          ctx.strokeRect(x, y, size, size);
+          ctx.strokeRect(x, y, panelWidth, panelHeight);
           ctx.setLineDash([]);
           continue;
         }
-        
-        const x=c*size, y=r*size;
+
+        const x=c*panelWidth, y=r*panelHeight;
         const fillColor = getStandardColorForPanel(c, r);
         ctx.fillStyle = fillColor;
-        ctx.fillRect(x, y, size, size);
-        
+        ctx.fillRect(x, y, panelWidth, panelHeight);
+
         // Highlight selected panels
         if(selectedPanels.has(panelKey)) {
           ctx.strokeStyle = '#00FF00';
           ctx.lineWidth = 4;
-          ctx.strokeRect(x+2, y+2, size-4, size-4);
+          ctx.strokeRect(x+2, y+2, panelWidth-4, panelHeight-4);
         }
-        
+
         // Show indicators for custom assignments
         if(customCircuitAssignments.has(panelKey)) {
           ctx.fillStyle = '#FFD700'; // Gold indicator for circuit
-          ctx.fillRect(x+size-10, y+2, 8, 8);
+          ctx.fillRect(x+panelWidth-10, y+2, 8, 8);
         }
         if(customDataLineAssignments.has(panelKey)) {
           ctx.fillStyle = '#00CED1'; // Cyan indicator for data line
-          ctx.fillRect(x+2, y+size-10, 8, 8);
+          ctx.fillRect(x+2, y+panelHeight-10, 8, 8);
         }
-        
+
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, size, size);
+        ctx.strokeRect(x, y, panelWidth, panelHeight);
         ctx.fillStyle = '#000000'; // Always use black text (no black panels in standard layout)
-        ctx.fillText(`${c+1}.${r+1}`, x+size/2, y+size/2);
+        ctx.fillText(`${c+1}.${r+1}`, x+panelWidth/2, y+panelHeight/2);
       }
     }
-    
+
     return;
   }
 
@@ -7325,7 +7341,7 @@ function generateLayout(mode){
     // Knockouts in a column split that column into separate circuit segments
 
     const socaLabelHeight = 60;
-    canvas.height = ph * size + socaLabelHeight;
+    canvas.height = ph * panelHeight + socaLabelHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Fill label area with white background (for PDF export - JPEG doesn't support transparency)
@@ -7439,47 +7455,47 @@ function generateLayout(mode){
     for(let c=0; c<pw; c++){
       for(let r=0; r<ph; r++){
         const panelKey = `${c},${r}`;
-        const x = c * size;
-        const y = r * size + socaLabelHeight;
-        
+        const x = c * panelWidth;
+        const y = r * panelHeight + socaLabelHeight;
+
         // Check if panel is deleted
         if(deletedPanels.has(panelKey)) {
           ctx.fillStyle = '#1a1a1a';
-          ctx.fillRect(x, y, size, size);
+          ctx.fillRect(x, y, panelWidth, panelHeight);
           ctx.strokeStyle = '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
-          ctx.strokeRect(x, y, size, size);
+          ctx.strokeRect(x, y, panelWidth, panelHeight);
           ctx.setLineDash([]);
           continue;
         }
-        
+
         // Get circuit number for this panel
         const circuitNum = panelToCircuit.get(panelKey);
         if(circuitNum === undefined) continue;
-        
+
         // Determine which SOCA group this circuit belongs to
         const socaGroup = Math.floor(circuitNum / 6);
         const colorIndex = circuitNum % 6;
         const colors = colorForIndex(colorIndex);
-        
+
         // Lighten the color based on SOCA group (10% lighter for each SOCA)
         const lightenPercent = socaGroup * 0.15; // 15% lighter per SOCA group
         const fillColor = lightenColor(colors.solid, lightenPercent);
-        
+
         ctx.fillStyle = fillColor;
-        ctx.fillRect(x, y, size, size);
+        ctx.fillRect(x, y, panelWidth, panelHeight);
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, size, size);
-        
+        ctx.strokeRect(x, y, panelWidth, panelHeight);
+
         // Always use black text (no black panels in power layout)
         ctx.fillStyle = '#000000';
-        
+
         ctx.font = '11px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${c+1}.${r+1}`, x+size/2, y+size/2);
+        ctx.fillText(`${c+1}.${r+1}`, x+panelWidth/2, y+panelHeight/2);
       }
     }
     
@@ -7498,7 +7514,7 @@ function generateLayout(mode){
       for(let r=0; r<ph; r++){
         const panelKey = `${c},${r}`;
         if(deletedPanels.has(panelKey)) continue;
-        
+
         const circuitNum = panelToCircuit.get(panelKey);
         if(circuitNum !== undefined) {
           if(!circuitPanelMap.has(circuitNum)) {
@@ -7507,7 +7523,7 @@ function generateLayout(mode){
           circuitPanelMap.get(circuitNum).push({
             c: c,
             r: r,
-            x: c * size
+            x: c * panelWidth
           });
         }
       }
@@ -7540,10 +7556,10 @@ function generateLayout(mode){
       
       // If no panels found, skip this SOCA
       if(minX === Infinity) continue;
-      
+
       const lineY = 35;
       const startX = minX;
-      const endX = maxX + size;
+      const endX = maxX + panelWidth;
       const midX = (startX + endX) / 2;
       
       // Draw horizontal line across the top
@@ -7862,16 +7878,16 @@ function generateLayout(mode){
     for(let c=0;c<pw;c++){
       for(let r=0;r<ph;r++){
         const panelKey = `${c},${r}`;
-        const x=c*size, y=r*size;
-        
+        const x=c*panelWidth, y=r*panelHeight;
+
         // Check if panel is deleted
         if(deletedPanels.has(panelKey)) {
           ctx.fillStyle = '#1a1a1a';
-          ctx.fillRect(x,y,size,size);
+          ctx.fillRect(x,y,panelWidth,panelHeight);
           ctx.strokeStyle='#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
-          ctx.strokeRect(x,y,size,size);
+          ctx.strokeRect(x,y,panelWidth,panelHeight);
           ctx.setLineDash([]);
         }
       }
@@ -7884,19 +7900,19 @@ function generateLayout(mode){
       groupPoints[gi] = [];
       for(let idx=0; idx<groups[gi].length; idx++){
         const pnt = groups[gi][idx];
-        const x=pnt.c*size, y=pnt.r*size;
+        const x=pnt.c*panelWidth, y=pnt.r*panelHeight;
         ctx.fillStyle=colors.fill;
-        ctx.fillRect(x,y,size,size);
+        ctx.fillRect(x,y,panelWidth,panelHeight);
         ctx.strokeStyle='#000000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x,y,size,size);
-        
+        ctx.strokeRect(x,y,panelWidth,panelHeight);
+
         // Use white text only for data line 9 (black resistor color), black text for all others
         ctx.fillStyle = (gi === 9) ? '#FFFFFF' : '#000000';
-        
+
         // Show panel number as column.row (matching standard layout)
-        ctx.fillText(`${pnt.c+1}.${pnt.r+1}`, x+size/2, y+size/2);
-        groupPoints[gi].push({x:x+size/2, y:y+size/2, color: colors.solid});
+        ctx.fillText(`${pnt.c+1}.${pnt.r+1}`, x+panelWidth/2, y+panelHeight/2);
+        groupPoints[gi].push({x:x+panelWidth/2, y:y+panelHeight/2, color: colors.solid});
       }
     }
     if(showArrows){
@@ -8114,18 +8130,23 @@ function generateStructureLayout(){
   const calculatedStructSize = Math.floor(maxStructCanvasWidth / pw);
   const size = Math.max(minStructSize, Math.min(maxStructSize, calculatedStructSize));
 
+  // Get panel type and calculate height ratio for CB5_MKII full panels
+  const panelType = document.getElementById('panelType').value;
+  const heightRatio = getPanelHeightRatio(panelType);
+  const panelWidth = size;
+  const panelHeight = size * heightRatio;
+
   const bumperHeight = Math.max(30, size * 0.8); // Scale bumper height with panel size
   const fourWayHeight = Math.max(15, size * 0.4); // Scale 4-way height with panel size
   const fourWayGap = 5; // Gap between 2W and 4W bumpers
 
   // Check if 4-way bumpers are enabled
   const use4Way = use4WayBumpersEnabled;
-  const panelType = document.getElementById('panelType').value;
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
   const has4WayBumpers = use4Way && isCB5;
 
   // Calculate canvas height - add space for bumpers and 4-way bumpers
-  let canvasHeight = ph * size;
+  let canvasHeight = ph * panelHeight;
   if(showTopBumper) {
     canvasHeight += bumperHeight;
     if(has4WayBumpers) canvasHeight += fourWayHeight + fourWayGap;
@@ -8135,7 +8156,7 @@ function generateStructureLayout(){
     if(has4WayBumpers) canvasHeight += fourWayHeight + fourWayGap;
   }
 
-  canvas.width = pw * size;
+  canvas.width = pw * panelWidth;
   canvas.height = canvasHeight;
 
   // Update global panelSize for consistent sizing across all functions
@@ -8160,36 +8181,36 @@ function generateStructureLayout(){
   }
 
   // Draw all panels with black outline and labels
-  for(let c=0;c<pw;c++){ 
+  for(let c=0;c<pw;c++){
     for(let r=0;r<ph;r++){
       const panelKey = `${c},${r}`;
-      
+
       // Skip deleted panels - they'll show the dark background
       if(deletedPanels.has(panelKey)) {
-        const x=c*size, y=panelYOffset + r*size;
+        const x=c*panelWidth, y=panelYOffset + r*panelHeight;
         // Draw dashed outline for deleted panels
         ctx.strokeStyle='#333333';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
-        ctx.strokeRect(x, y, size, size);
+        ctx.strokeRect(x, y, panelWidth, panelHeight);
         ctx.setLineDash([]);
         continue;
       }
-      
-      const x=c*size, y=panelYOffset + r*size;
-      
+
+      const x=c*panelWidth, y=panelYOffset + r*panelHeight;
+
       // White background for panels
       ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(x, y, size, size);
-      
+      ctx.fillRect(x, y, panelWidth, panelHeight);
+
       // Black outline
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 2;
-      ctx.strokeRect(x, y, size, size);
-      
+      ctx.strokeRect(x, y, panelWidth, panelHeight);
+
       // Black label
       ctx.fillStyle = '#000000';
-      ctx.fillText(`${c+1}.${r+1}`, x+size/2, y+size/2);
+      ctx.fillText(`${c+1}.${r+1}`, x+panelWidth/2, y+panelHeight/2);
     }
   }
 
@@ -8201,10 +8222,10 @@ function generateStructureLayout(){
 
     // Draw each frame's outline
     frames.forEach(frame => {
-      const frameX = frame.col * size;
-      const frameY = panelYOffset + frame.row * size;
-      const frameW = frame.width * size;
-      const frameH = frame.height * size;
+      const frameX = frame.col * panelWidth;
+      const frameY = panelYOffset + frame.row * panelHeight;
+      const frameW = frame.width * panelWidth;
+      const frameH = frame.height * panelHeight;
 
       // Get color for this frame type
       const color = floorFrameColors[frame.type] || '#ffffff';
@@ -8273,8 +8294,8 @@ function generateStructureLayout(){
       const belowKey = `0,${r+1}`;
       if(!deletedPanels.has(panelKey) && !deletedPanels.has(belowKey)) {
         const x = 2; // Left edge
-        const y = panelYOffset + (r + 1) * size - plateLength/2; // At the joint between panels
-        
+        const y = panelYOffset + (r + 1) * panelHeight - plateLength/2; // At the joint between panels
+
         ctx.fillStyle = '#FFD700'; // Gold/yellow for 2-way
         ctx.fillRect(x, y, plateThickness, plateLength);
         ctx.strokeStyle = '#000000';
@@ -8282,15 +8303,15 @@ function generateStructureLayout(){
         ctx.strokeRect(x, y, plateThickness, plateLength);
       }
     }
-    
+
     // RIGHT EDGE - vertical 2-way plates at panel joints
     for(let r = 0; r < ph - 1; r++) {
       const panelKey = `${pw-1},${r}`;
       const belowKey = `${pw-1},${r+1}`;
       if(!deletedPanels.has(panelKey) && !deletedPanels.has(belowKey)) {
-        const x = pw * size - plateThickness - 2; // Right edge
-        const y = panelYOffset + (r + 1) * size - plateLength/2; // At the joint between panels
-        
+        const x = pw * panelWidth - plateThickness - 2; // Right edge
+        const y = panelYOffset + (r + 1) * panelHeight - plateLength/2; // At the joint between panels
+
         ctx.fillStyle = '#FFD700'; // Gold/yellow for 2-way
         ctx.fillRect(x, y, plateThickness, plateLength);
         ctx.strokeStyle = '#000000';
@@ -8298,16 +8319,16 @@ function generateStructureLayout(){
         ctx.strokeRect(x, y, plateThickness, plateLength);
       }
     }
-    
+
     // TOP EDGE (if ground stacking) - horizontal 2-way plates at panel joints
     if(isGroundStacking) {
       for(let c = 0; c < pw - 1; c++) {
         const panelKey = `${c},0`;
         const rightKey = `${c+1},0`;
         if(!deletedPanels.has(panelKey) && !deletedPanels.has(rightKey)) {
-          const x = (c + 1) * size - plateLength/2; // At the joint between panels
+          const x = (c + 1) * panelWidth - plateLength/2; // At the joint between panels
           const y = panelYOffset + 2; // Top edge of panels
-          
+
           ctx.fillStyle = '#FFD700'; // Gold/yellow for 2-way
           ctx.fillRect(x, y, plateLength, plateThickness);
           ctx.strokeStyle = '#000000';
@@ -8316,16 +8337,16 @@ function generateStructureLayout(){
         }
       }
     }
-    
+
     // BOTTOM EDGE (if hanging) - horizontal 2-way plates at panel joints
     if(isHanging) {
       for(let c = 0; c < pw - 1; c++) {
         const panelKey = `${c},${ph-1}`;
         const rightKey = `${c+1},${ph-1}`;
         if(!deletedPanels.has(panelKey) && !deletedPanels.has(rightKey)) {
-          const x = (c + 1) * size - plateLength/2; // At the joint between panels
-          const y = panelYOffset + ph * size - plateThickness - 2; // Bottom edge of panels
-          
+          const x = (c + 1) * panelWidth - plateLength/2; // At the joint between panels
+          const y = panelYOffset + ph * panelHeight - plateThickness - 2; // Bottom edge of panels
+
           ctx.fillStyle = '#FFD700'; // Gold/yellow for 2-way
           ctx.fillRect(x, y, plateLength, plateThickness);
           ctx.strokeStyle = '#000000';
@@ -8334,7 +8355,7 @@ function generateStructureLayout(){
         }
       }
     }
-    
+
     // CORNER 2-way plates connecting to bumpers
     // TOP-LEFT CORNER (if hanging)
     if(isHanging) {
@@ -8350,13 +8371,13 @@ function generateStructureLayout(){
         ctx.strokeRect(x, y, plateLength, plateThickness);
       }
     }
-    
+
     // TOP-RIGHT CORNER (if hanging)
     if(isHanging) {
       const topRightKey = `${pw-1},0`;
       if(!deletedPanels.has(topRightKey)) {
         // Horizontal plate at top-right
-        const x = pw * size - plateLength - 2;
+        const x = pw * panelWidth - plateLength - 2;
         const y = panelYOffset - plateThickness - 2;
         ctx.fillStyle = '#FFD700';
         ctx.fillRect(x, y, plateLength, plateThickness);
@@ -8365,14 +8386,14 @@ function generateStructureLayout(){
         ctx.strokeRect(x, y, plateLength, plateThickness);
       }
     }
-    
+
     // BOTTOM-LEFT CORNER (if ground stacking)
     if(isGroundStacking) {
       const bottomLeftKey = `0,${ph-1}`;
       if(!deletedPanels.has(bottomLeftKey)) {
         // Horizontal plate at bottom-left
         const x = 2;
-        const y = panelYOffset + ph * size + 2;
+        const y = panelYOffset + ph * panelHeight + 2;
         ctx.fillStyle = '#FFD700';
         ctx.fillRect(x, y, plateLength, plateThickness);
         ctx.strokeStyle = '#000000';
@@ -8380,14 +8401,14 @@ function generateStructureLayout(){
         ctx.strokeRect(x, y, plateLength, plateThickness);
       }
     }
-    
+
     // BOTTOM-RIGHT CORNER (if ground stacking)
     if(isGroundStacking) {
       const bottomRightKey = `${pw-1},${ph-1}`;
       if(!deletedPanels.has(bottomRightKey)) {
         // Horizontal plate at bottom-right
-        const x = pw * size - plateLength - 2;
-        const y = panelYOffset + ph * size + 2;
+        const x = pw * panelWidth - plateLength - 2;
+        const y = panelYOffset + ph * panelHeight + 2;
         ctx.fillStyle = '#FFD700';
         ctx.fillRect(x, y, plateLength, plateThickness);
         ctx.strokeStyle = '#000000';
@@ -8415,7 +8436,7 @@ function generateStructureLayout(){
     if(isHanging) {
       const topRightKey = `${pw-1},0`;
       if(!deletedPanels.has(topRightKey)) {
-        const x = pw * size - plateThickness - 2;
+        const x = pw * panelWidth - plateThickness - 2;
         const y = panelYOffset - plateLength/2 - 2;
         ctx.fillStyle = '#FFD700';
         ctx.fillRect(x, y, plateThickness, plateLength);
@@ -8424,13 +8445,13 @@ function generateStructureLayout(){
         ctx.strokeRect(x, y, plateThickness, plateLength);
       }
     }
-    
+
     // BOTTOM-LEFT vertical (if ground stacking)
     if(isGroundStacking) {
       const bottomLeftKey = `0,${ph-1}`;
       if(!deletedPanels.has(bottomLeftKey)) {
         const x = 2;
-        const y = panelYOffset + ph * size - plateLength/2 + 2;
+        const y = panelYOffset + ph * panelHeight - plateLength/2 + 2;
         ctx.fillStyle = '#FFD700';
         ctx.fillRect(x, y, plateThickness, plateLength);
         ctx.strokeStyle = '#000000';
@@ -8438,13 +8459,13 @@ function generateStructureLayout(){
         ctx.strokeRect(x, y, plateThickness, plateLength);
       }
     }
-    
+
     // BOTTOM-RIGHT vertical (if ground stacking)
     if(isGroundStacking) {
       const bottomRightKey = `${pw-1},${ph-1}`;
       if(!deletedPanels.has(bottomRightKey)) {
-        const x = pw * size - plateThickness - 2;
-        const y = panelYOffset + ph * size - plateLength/2 + 2;
+        const x = pw * panelWidth - plateThickness - 2;
+        const y = panelYOffset + ph * panelHeight - plateLength/2 + 2;
         ctx.fillStyle = '#FFD700';
         ctx.fillRect(x, y, plateThickness, plateLength);
         ctx.strokeStyle = '#000000';
@@ -8452,7 +8473,7 @@ function generateStructureLayout(){
         ctx.strokeRect(x, y, plateThickness, plateLength);
       }
     }
-    
+
     // Draw 4-way plates (red) at interior panel intersections
     for(let c = 0; c < pw - 1; c++) {
       for(let r = 0; r < ph - 1; r++) {
@@ -8460,13 +8481,13 @@ function generateStructureLayout(){
         const topRight = `${c+1},${r}`;
         const bottomLeft = `${c},${r+1}`;
         const bottomRight = `${c+1},${r+1}`;
-        
+
         // Only draw if all 4 panels exist (not deleted)
         if(!deletedPanels.has(topLeft) && !deletedPanels.has(topRight) &&
            !deletedPanels.has(bottomLeft) && !deletedPanels.has(bottomRight)) {
-          const x = (c + 1) * size - plate4WaySize/2;
-          const y = panelYOffset + (r + 1) * size - plate4WaySize/2;
-          
+          const x = (c + 1) * panelWidth - plate4WaySize/2;
+          const y = panelYOffset + (r + 1) * panelHeight - plate4WaySize/2;
+
           ctx.fillStyle = '#FF4444'; // Red for 4-way
           ctx.fillRect(x, y, plate4WaySize, plate4WaySize);
           ctx.strokeStyle = '#000000';
@@ -8475,7 +8496,7 @@ function generateStructureLayout(){
         }
       }
     }
-    
+
     // Draw 4-way plates (red) connecting panels to TOP BUMPERS (if hanging)
     // Align with interior panel intersections (columns between panels)
     // Show for any panel type that has bumpers (CB5 with 4-way, or DM2.6, etc.)
@@ -8484,9 +8505,9 @@ function generateStructureLayout(){
         const topLeftKey = `${c},0`;
         const topRightKey = `${c+1},0`;
         if(!deletedPanels.has(topLeftKey) && !deletedPanels.has(topRightKey)) {
-          const x = (c + 1) * size - plate4WaySize/2; // Align with interior intersections
+          const x = (c + 1) * panelWidth - plate4WaySize/2; // Align with interior intersections
           const y = panelYOffset - plate4WaySize/2; // Between bumper and panel
-          
+
           ctx.fillStyle = '#FF4444'; // Red for 4-way
           ctx.fillRect(x, y, plate4WaySize, plate4WaySize);
           ctx.strokeStyle = '#000000';
@@ -8495,7 +8516,7 @@ function generateStructureLayout(){
         }
       }
     }
-    
+
     // Draw 4-way plates (red) connecting panels to BOTTOM BUMPERS (if ground stacking)
     // Align with interior panel intersections (columns between panels)
     // Show for any panel type that has bumpers (CB5 with 4-way, or DM2.6, etc.)
@@ -8504,9 +8525,9 @@ function generateStructureLayout(){
         const bottomLeftKey = `${c},${ph-1}`;
         const bottomRightKey = `${c+1},${ph-1}`;
         if(!deletedPanels.has(bottomLeftKey) && !deletedPanels.has(bottomRightKey)) {
-          const x = (c + 1) * size - plate4WaySize/2; // Align with interior intersections
-          const y = panelYOffset + ph * size - plate4WaySize/2; // Between panel and bumper
-          
+          const x = (c + 1) * panelWidth - plate4WaySize/2; // Align with interior intersections
+          const y = panelYOffset + ph * panelHeight - plate4WaySize/2; // Between panel and bumper
+
           ctx.fillStyle = '#FF4444'; // Red for 4-way
           ctx.fillRect(x, y, plate4WaySize, plate4WaySize);
           ctx.strokeStyle = '#000000';
@@ -8595,9 +8616,9 @@ function generateStructureLayout(){
           // Skip if ladder would be above the topmost panel
           if(ladderTopRow < topRow) continue;
 
-          const ladderX = c * size + size/2 - ladderWidth/2; // Centered in column
-          const ladderTopY = panelYOffset + ladderTopRow * size + 4;
-          const ladderHeight = ladderHeightPanels * size - 8;
+          const ladderX = c * panelWidth + panelWidth/2 - ladderWidth/2; // Centered in column
+          const ladderTopY = panelYOffset + ladderTopRow * panelHeight + 4;
+          const ladderHeight = ladderHeightPanels * panelHeight - 8;
 
           // Draw ladder as a rounded rectangle
           ctx.fillStyle = '#00CED1'; // Cyan
@@ -8613,7 +8634,7 @@ function generateStructureLayout(){
           // Draw ladder rungs
           ctx.strokeStyle = '#008B8B'; // Darker cyan for rungs
           ctx.lineWidth = 1;
-          const rungSpacing = size / 2;
+          const rungSpacing = panelHeight / 2;
           for(let y = ladderTopY + rungSpacing; y < ladderTopY + ladderHeight - 5; y += rungSpacing) {
             ctx.beginPath();
             ctx.moveTo(ladderX + 1, y);
@@ -8636,7 +8657,7 @@ function generateStructureLayout(){
           if(!deletedPanels.has(panelKey)) {
             // Draw bridge clamp as a filled circle at center of panel
             ctx.beginPath();
-            ctx.arc(c * size + size/2, panelYOffset + r * size + size/2, bridgeClampSize/2, 0, Math.PI * 2);
+            ctx.arc(c * panelWidth + panelWidth/2, panelYOffset + r * panelHeight + panelHeight/2, bridgeClampSize/2, 0, Math.PI * 2);
             ctx.fill();
 
             // Black outline
@@ -8648,10 +8669,10 @@ function generateStructureLayout(){
       });
     }
   }
-  
+
   // Draw all bumpers and store their positions for interaction
   // Pass bumpersWithLadders so we can draw ladder bases inside bumpers
-  drawAllBumpers(ctx, pw, ph, size, bumperHeight, fourWayHeight, fourWayGap, panelYOffset, bumpersWithLadders);
+  drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, fourWayHeight, fourWayGap, panelYOffset, bumpersWithLadders);
   
   // Update pickup weight summary
   updatePickupWeightSummary();
@@ -9415,113 +9436,113 @@ function calculateGroundSupportHardware(pw, ph) {
 }
 
 // Draw all bumpers from the bumpers array
-function drawAllBumpers(ctx, pw, ph, size, bumperHeight, fourWayHeight, fourWayGap, panelYOffset, bumpersWithLadders = new Set()) {
+function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, fourWayHeight, fourWayGap, panelYOffset, bumpersWithLadders = new Set()) {
   const use4Way = use4WayBumpersEnabled;
   const panelType = document.getElementById('panelType').value;
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
-  
+
   ctx.font = 'bold 10px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  
+
   // Draw each bumper
   bumpers.forEach(bumper => {
     let x, y, width, height;
     let label = '';
     let fillColor = '';
-    
+
     if(bumper.type === '4w') {
       // 4-way bumper - spans from center of one 2W to center of next 2W
       // startCol and endCol are already the column positions (centers of 2W bumpers)
       const col1 = bumper.startCol;
       const col2 = bumper.endCol;
-      
-      x = col1 * size;  // Start at column 1, 5, 9... (centers of 2W bumpers)
-      width = (col2 - col1) * size;  // Width of 2 columns
+
+      x = col1 * panelWidth;  // Start at column 1, 5, 9... (centers of 2W bumpers)
+      width = (col2 - col1) * panelWidth;  // Width of 2 columns
       height = fourWayHeight;
-      
+
       if(bumper.position === 'top') {
         // 4W bumpers stay at top (they connect to the 2W bumpers which drop down)
         y = 0;
       } else {
-        y = panelYOffset + (ph * size) + bumperHeight + fourWayGap;
+        y = panelYOffset + (ph * panelHeight) + bumperHeight + fourWayGap;
       }
-      
+
       fillColor = '#FF6B35'; // Orange
       label = '4W';
-      
+
     } else if(bumper.type === '2w') {
       // 2-way bumper - spans 2 columns
       const col = bumper.startCol;
-      x = col * size;
-      width = size * 2; // Span 2 columns
+      x = col * panelWidth;
+      width = panelWidth * 2; // Span 2 columns
       height = bumperHeight;
-      
+
       if(bumper.position === 'top') {
         // For hanging bumpers, drop down to the first non-deleted row
         // Check both columns covered by this 2W bumper
         const row1 = getFirstNonDeletedRow(col, ph);
         const row2 = getFirstNonDeletedRow(col + 1, ph);
         const maxRow = Math.max(row1, row2); // Use the deeper one so bumper sits on both
-        
+
         const baseY = use4Way && isCB5 ? (fourWayHeight + fourWayGap) : 0;
-        y = baseY + (maxRow * size); // Drop down by the number of deleted rows
+        y = baseY + (maxRow * panelHeight); // Drop down by the number of deleted rows
       } else {
-        y = panelYOffset + (ph * size);
+        y = panelYOffset + (ph * panelHeight);
       }
-      
+
       fillColor = '#4CAF50'; // Green for top, orange for bottom
       if(bumper.position === 'bottom') {
         fillColor = '#FF9800';
       }
       label = '2W';
-      
+
     } else if(bumper.type === '1w') {
       // 1-way bumper - spans 1 column
       const col = bumper.startCol;
-      x = col * size;
-      width = size; // Span 1 column
+      x = col * panelWidth;
+      width = panelWidth; // Span 1 column
       height = bumperHeight;
-      
+
       if(bumper.position === 'top') {
         // For hanging bumpers, drop down to the first non-deleted row
         const firstRow = getFirstNonDeletedRow(col, ph);
-        
+
         const baseY = use4Way && isCB5 ? (fourWayHeight + fourWayGap) : 0;
-        y = baseY + (firstRow * size); // Drop down by the number of deleted rows
+        y = baseY + (firstRow * panelHeight); // Drop down by the number of deleted rows
       } else {
-        y = panelYOffset + (ph * size);
+        y = panelYOffset + (ph * panelHeight);
       }
-      
+
       fillColor = '#2196F3'; // Blue for 1W
       label = '1W';
     }
-    
+
     // Store position for interaction
     bumper.x = x;
     bumper.y = y;
     bumper.width = width;
     bumper.height = height;
-    
+
     // Draw bumper
     ctx.fillStyle = fillColor;
     ctx.fillRect(x, y, width, height);
-    
+
     // Draw LADDER BASE (dark blue) inside bumpers that have ladders
     // Only for bottom bumpers (ground support)
     // Position under the column where the ladder is (respects ladderColumn setting)
     if(bumper.position === 'bottom' && bumpersWithLadders.has(bumper.id)) {
-      const ladderBaseWidth = size * 0.85; // Slightly less than panel width
+      const ladderBaseWidth = panelWidth * 0.85; // Slightly less than panel width
       const ladderBaseHeight = 10; // Height of ladder base
-      
+
       // Determine which column the ladder is in
       let ladderColOffset = 0; // Default: first column (left)
       if(bumper.type === '2w' && bumper.ladderColumn === 'right') {
-        ladderColOffset = size; // Move to second column (right)
+        ladderColOffset = panelWidth; // Move to second column (right)
       }
-      
+
       // Position under the correct column
-      const ladderBaseX = x + ladderColOffset + (size - ladderBaseWidth) / 2;
+      const ladderBaseX = x + ladderColOffset + (panelWidth - ladderBaseWidth) / 2;
       const ladderBaseY = y + (height - ladderBaseHeight) / 2; // Centered vertically in bumper
       
       // Draw ladder base rectangle
@@ -17455,7 +17476,8 @@ function toggleScreenVisibility(screenId, visible) {
         });
       }
     }
-    // Redraw canvas view to show/hide the screen
+    // Update toggle button states and redraw canvas view
+    updateCanvasScreenToggles();
     showCanvasView();
   }
 }
@@ -19995,7 +20017,7 @@ function renderCombinedGearList(selectedScreenIds) {
 
 </script>
 
-<!-- Bottom Navigation - Toggle for Complex/Simple + Combined + Canvas button -->
+<!-- Bottom Navigation - Toggle for Complex/Simple/Combined + Canvas button -->
 <nav class="bottom-nav">
   <div class="nav-mode-toggle">
     <button class="nav-toggle-btn active" data-mode="complex" onclick="switchAppMode('complex')">
@@ -20004,10 +20026,10 @@ function renderCombinedGearList(selectedScreenIds) {
     <button class="nav-toggle-btn" data-mode="simple" onclick="switchAppMode('simple')">
       <span>Simple</span>
     </button>
+    <button class="nav-toggle-btn" data-mode="combined" onclick="switchAppMode('combined')">
+      <span>Combined</span>
+    </button>
   </div>
-  <button class="nav-item" data-view="combined" onclick="switchMobileView('combined')">
-    <span class="nav-item-label">Combined</span>
-  </button>
   <button class="nav-item" data-view="canvas" onclick="switchMobileView('canvas')">
     <span class="nav-item-label">Canvas</span>
   </button>
@@ -20051,7 +20073,7 @@ let currentMobileView = 'simple';
 let currentAppMode = 'simple'; // Track complex vs simple mode
 let currentMobileLayout = 'standard'; // Track which layout is showing in layouts view
 
-// Switch between Complex and Simple app modes
+// Switch between Complex, Simple, and Combined app modes
 function switchAppMode(mode) {
   currentAppMode = mode;
 
@@ -20060,11 +20082,13 @@ function switchAppMode(mode) {
     btn.classList.toggle('active', btn.dataset.mode === mode);
   });
 
-  // For now, both modes show the same view - we'll customize simple mode later
+  // Switch to the appropriate view
   if(mode === 'complex') {
     switchMobileView('complex');
-  } else {
+  } else if(mode === 'simple') {
     switchMobileView('simple');
+  } else if(mode === 'combined') {
+    switchMobileView('combined');
   }
 }
 
@@ -20077,7 +20101,7 @@ function switchMobileView(view) {
   });
 
   // Update toggle buttons based on view
-  if(view === 'complex' || view === 'simple') {
+  if(view === 'complex' || view === 'simple' || view === 'combined') {
     document.querySelectorAll('.nav-toggle-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.mode === view);
     });

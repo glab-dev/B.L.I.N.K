@@ -16252,7 +16252,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if(btnPDF) btnPDF.addEventListener('click', function(e) {
       e.preventDefault();
-      openPdfExportModal();
+      // Only show modal for complex view, simple view exports specs only
+      if(currentMobileView === 'complex') {
+        openPdfExportModal();
+      } else {
+        // Simple view - export specs only directly
+        pdfExportOptions.specs = true;
+        pdfExportOptions.gearList = false;
+        pdfExportOptions.standard = false;
+        pdfExportOptions.power = false;
+        pdfExportOptions.data = false;
+        pdfExportOptions.structure = false;
+        exportPDF();
+      }
     });
     
     if(btnExp) btnExp.addEventListener('click', function(e) {

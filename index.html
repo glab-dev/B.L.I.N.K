@@ -11101,7 +11101,7 @@ function renderCanvasTabs() {
       <div class="screen-tab ${isActive ? 'active' : ''}" onclick="switchToCanvas('${canvasId}')" style="top: 0; padding: 6px 12px; min-height: 36px;">
         <span class="screen-tab-name" style="font-size: 12px;">${canvas.name}</span>
         <button class="screen-tab-edit" onclick="event.stopPropagation(); openCanvasRenameModal('${canvasId}')" title="Edit canvas">✎</button>
-        ${canvasIds.length > 1 ? `<button class="screen-tab-close" onclick="event.stopPropagation(); deleteCanvas('${canvasId}')" title="Delete canvas">×</button>` : ''}
+        <button class="screen-tab-close" onclick="event.stopPropagation(); deleteCanvas('${canvasId}')" title="Delete canvas" style="${canvasIds.length <= 1 ? 'visibility: hidden;' : ''}">×</button>
       </div>`;
   });
 

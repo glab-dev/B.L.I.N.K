@@ -3367,7 +3367,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.249';
+const APP_VERSION = '2.0.250';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -6719,9 +6719,13 @@ function getCanvasDataURLForPDF(canvas) {
     const b = data[i + 2];
     // Alpha stays the same: data[i + 3]
 
-    // Keep pure black pixels as black (text, arrows, outlines)
-    if(r < 15 && g < 15 && b < 15) {
-      continue; // Keep black text/arrows unchanged
+    // Keep dark pixels as black (text, arrows, outlines, and their anti-aliased edges)
+    if(r < 60 && g < 60 && b < 60) {
+      // Make these pixels pure black for crisp text/arrows
+      data[i] = 0;
+      data[i + 1] = 0;
+      data[i + 2] = 0;
+      continue;
     }
 
     // Convert to HSL
@@ -6755,9 +6759,9 @@ function getCanvasDataURLForPDF(canvas) {
       continue;
     }
 
-    // For other colors, desaturate and lighten for ink saving
-    s = s * 0.4; // Reduce saturation to 40%
-    l = Math.min(0.90, l * 1.2 + 0.1); // Lighten moderately
+    // For other colors, desaturate slightly and lighten for ink saving
+    s = s * 0.7; // Reduce saturation to 70%
+    l = Math.min(0.88, l * 1.15 + 0.05); // Lighten slightly
 
     // Convert back to RGB
     function hue2rgb(p, q, t) {

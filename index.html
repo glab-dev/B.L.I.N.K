@@ -764,6 +764,11 @@
       .layout-container {
         overflow-x: visible;
       }
+
+      /* Move collapse button further right on desktop */
+      .layout-collapse-btn {
+        right: 16px;
+      }
     }
     
     .button-row {
@@ -901,6 +906,7 @@
     .undo-redo-buttons {
       display: flex;
       gap: 8px;
+      margin-left: 16px;
     }
     
     .undo-redo-btn {
@@ -1252,6 +1258,13 @@
     @media (max-width: 600px) {
       .structure-info-panel {
         grid-template-columns: 1fr;
+      }
+
+      /* Constrain manual bumper toggle button width on mobile */
+      #manualBumperToggle {
+        max-width: 180px;
+        font-size: 11px;
+        padding: 8px 10px;
       }
     }
     
@@ -3142,13 +3155,13 @@
           <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> Tap to select, tap again for options &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
         </div>
         <!-- Position Controls -->
-        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center;">
+        <div id="combinedPositionControls" style="display: flex; flex-wrap: nowrap; gap: 6px; margin-bottom: 10px; align-items: center;">
           <div class="slider-toggle" style="display: inline-flex;">
             <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Reset</button>
             <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Manual Adjust</button>
           </div>
           <!-- Zoom Controls (matching Canvas View style) -->
-          <div style="display: inline-flex; align-items: stretch; gap: 4px; margin-left: 10px;">
+          <div id="combinedZoomControls" style="display: inline-flex; align-items: stretch; gap: 4px;">
             <button class="toggle-btn" onclick="adjustCombinedZoom(-10)" title="Zoom Out" style="padding: 6px 10px; height: 32px; font-size: 14px; box-sizing: border-box;">−</button>
             <input type="number" id="combinedZoomInput" value="100" min="50" max="200" step="10" onchange="setCombinedZoom(parseInt(this.value))" title="Enter zoom percentage" style="width: 55px; padding: 4px; height: 32px; text-align: center; box-sizing: border-box; border: 2px solid #000; font-size: 11px;">
             <button class="toggle-btn" onclick="adjustCombinedZoom(10)" title="Zoom In" style="padding: 6px 10px; height: 32px; font-size: 14px; box-sizing: border-box;">+</button>
@@ -3345,7 +3358,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.239';
+const APP_VERSION = '2.0.240';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -13168,13 +13181,13 @@ let pdfExportOptions = {
 function openPdfExportModal() {
   const modal = document.getElementById('pdfExportModal');
   if (modal) {
-    // Reset checkboxes to stored state
-    document.getElementById('pdfExportSpecs').checked = pdfExportOptions.specs;
-    document.getElementById('pdfExportGearList').checked = pdfExportOptions.gearList;
-    document.getElementById('pdfExportStandard').checked = pdfExportOptions.standard;
-    document.getElementById('pdfExportPower').checked = pdfExportOptions.power;
-    document.getElementById('pdfExportData').checked = pdfExportOptions.data;
-    document.getElementById('pdfExportStructure').checked = pdfExportOptions.structure;
+    // Always reset all checkboxes to ON by default
+    document.getElementById('pdfExportSpecs').checked = true;
+    document.getElementById('pdfExportGearList').checked = true;
+    document.getElementById('pdfExportStandard').checked = true;
+    document.getElementById('pdfExportPower').checked = true;
+    document.getElementById('pdfExportData').checked = true;
+    document.getElementById('pdfExportStructure').checked = true;
     modal.classList.add('active');
   }
 }
@@ -16318,8 +16331,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if(btnPDF) btnPDF.addEventListener('click', function(e) {
       e.preventDefault();
-      // Only show modal for complex view, simple view exports specs only
-      if(currentMobileView === 'complex') {
+      // Show modal for complex and combined views, simple view exports specs only
+      if(currentMobileView === 'complex' || currentMobileView === 'combined') {
         openPdfExportModal();
       } else {
         // Simple view - export specs only directly

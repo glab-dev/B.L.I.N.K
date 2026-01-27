@@ -928,23 +928,29 @@
       cursor: not-allowed;
     }
 
-    /* Collapse/Expand arrow for layout containers */
+    /* Collapse/Expand button for layout containers - square inside header */
     .layout-collapse-btn {
-      position: absolute;
-      top: -10px;
-      right: 16px;
-      background: transparent;
-      border: none;
-      padding: 2px 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: #222;
+      border: 1px solid var(--primary);
+      border-radius: 3px;
+      padding: 0;
       font-size: 10px;
       color: var(--primary);
       cursor: pointer;
-      z-index: 5;
+      margin-left: 8px;
+      vertical-align: middle;
       line-height: 1;
+      flex-shrink: 0;
     }
 
     .layout-collapse-btn:hover {
-      color: #fff;
+      background: var(--primary);
+      color: #000;
     }
 
     .layout-content {
@@ -2974,8 +2980,7 @@
 
     <div class="layout-container" id="standardContainer" style="display:none;">
       <div class="layout-title">
-        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('standardContainer')" id="standardCollapseBtn" title="Minimize">▼</button>
-        <span>Standard Layout</span>
+        <span>Standard Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('standardContainer')" id="standardCollapseBtn" title="Minimize">▼</button></span>
         <div class="undo-redo-buttons">
           <button class="undo-redo-btn" id="undoBtn" onclick="undo()" title="Undo">Undo</button>
           <button class="undo-redo-btn" id="redoBtn" onclick="redo()" title="Redo">Redo</button>
@@ -2989,8 +2994,7 @@
 
     <div class="layout-container" id="powerContainer" style="display:none;">
       <div class="layout-title">
-        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('powerContainer')" id="powerCollapseBtn" title="Minimize">▼</button>
-        <span>Power Layout</span>
+        <span>Power Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('powerContainer')" id="powerCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="powerContent">
         <canvas id="powerCanvas"></canvas>
@@ -2999,8 +3003,7 @@
 
     <div class="layout-container" id="dataContainer" style="display:none;">
       <div class="layout-title">
-        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('dataContainer')" id="dataCollapseBtn" title="Minimize">▼</button>
-        <span>Data Layout</span>
+        <span>Data Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('dataContainer')" id="dataCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="dataContent">
         <canvas id="dataCanvas"></canvas>
@@ -3009,8 +3012,7 @@
 
     <div class="layout-container" id="structureContainer" style="display:none;">
       <div class="layout-title">
-        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('structureContainer')" id="structureCollapseBtn" title="Minimize">▼</button>
-        <span>Structure Layout</span>
+        <span>Structure Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('structureContainer')" id="structureCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="structureContent">
       <!-- Manual Mode Toggle -->
@@ -3116,8 +3118,7 @@
     <!-- Standard Layout -->
     <div class="layout-container" id="combinedStandardContainer" style="margin-bottom: 20px;">
       <div class="layout-title">
-        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedStandardContainer')" id="combinedStandardCollapseBtn" title="Minimize">▼</button>
-        <span>Standard Layout (Combined)</span>
+        <span>Standard Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedStandardContainer')" id="combinedStandardCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="combinedStandardContent">
         <!-- Interaction Hints -->
@@ -3147,8 +3148,7 @@
     <!-- Power Layout -->
     <div class="layout-container" id="combinedPowerContainer" style="margin-bottom: 20px;">
       <div class="layout-title">
-        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedPowerContainer')" id="combinedPowerCollapseBtn" title="Minimize">▼</button>
-        <span>Power Layout (Combined)</span>
+        <span>Power Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedPowerContainer')" id="combinedPowerCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="combinedPowerContent">
         <div id="combinedPowerCanvasWrapper" style="overflow-x: auto;">
@@ -3160,8 +3160,7 @@
     <!-- Data Layout -->
     <div class="layout-container" id="combinedDataContainer" style="margin-bottom: 20px;">
       <div class="layout-title">
-        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedDataContainer')" id="combinedDataCollapseBtn" title="Minimize">▼</button>
-        <span>Data Layout (Combined)</span>
+        <span>Data Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedDataContainer')" id="combinedDataCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="combinedDataContent">
         <div id="combinedDataCanvasWrapper" style="overflow-x: auto;">
@@ -3173,8 +3172,7 @@
     <!-- Structure Layout -->
     <div class="layout-container" id="combinedStructureContainer" style="margin-bottom: 20px;">
       <div class="layout-title">
-        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedStructureContainer')" id="combinedStructureCollapseBtn" title="Minimize">▼</button>
-        <span>Structure Layout (Combined)</span>
+        <span>Structure Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedStructureContainer')" id="combinedStructureCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="combinedStructureContent">
         <div id="combinedStructureCanvasWrapper" style="overflow-x: auto;">
@@ -3187,8 +3185,7 @@
   <!-- Combined Specs -->
   <div class="layout-container" id="combinedSpecsContainer" style="margin-bottom: 20px;">
     <div class="layout-title">
-      <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedSpecsContainer')" id="combinedSpecsCollapseBtn" title="Minimize">▼</button>
-      <span>Combined Specifications</span>
+      <span>Combined Specifications<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedSpecsContainer')" id="combinedSpecsCollapseBtn" title="Minimize">▼</button></span>
     </div>
     <div class="layout-content" id="combinedSpecsContent" style="color: #e0e0e0; line-height: 1.8;"></div>
   </div>
@@ -3201,7 +3198,7 @@
   <div class="layout-title">
     <span>Canvas View</span>
   </div>
-  <div id="canvasTabsContainer" style="position: absolute; right: 16px; top: 12px; display: flex; align-items: flex-end; gap: 4px;">
+  <div id="canvasTabsContainer" style="position: absolute; right: 16px; top: -18px; display: flex; align-items: flex-end; gap: 4px;">
     <div id="canvasTabs" style="display: flex; align-items: flex-end; gap: 4px;">
       <!-- Canvas tabs will be dynamically generated here -->
     </div>
@@ -11053,10 +11050,15 @@ function initializeCanvases() {
   if(Object.keys(canvases).length === 0) {
     canvasIdCounter = 1;
     const defaultCanvasId = 'canvas_1';
+    const defaultData = getDefaultCanvasData();
+    // Initialize with current screen visibility
+    Object.keys(screens).forEach(screenId => {
+      defaultData.screenVisibility[screenId] = screens[screenId].visible !== false;
+    });
     canvases[defaultCanvasId] = {
       id: defaultCanvasId,
       name: 'Canvas 1',
-      data: getDefaultCanvasData()
+      data: defaultData
     };
     currentCanvasId = defaultCanvasId;
   }
@@ -11067,7 +11069,8 @@ function getDefaultCanvasData() {
   return {
     canvasSize: '4K_UHD',
     customCanvasWidth: 3840,
-    customCanvasHeight: 2160
+    customCanvasHeight: 2160,
+    screenVisibility: {} // Per-canvas screen visibility: {screenId: true/false}
   };
 }
 
@@ -11103,10 +11106,17 @@ function addNewCanvas() {
   const newCanvasId = `canvas_${canvasIdCounter}`;
   const canvasNumber = Object.keys(canvases).length + 1;
 
+  // Create new canvas with all screens hidden (since they may be on other canvases)
+  const newCanvasData = getDefaultCanvasData();
+  // Initialize all screens as not visible in the new canvas
+  Object.keys(screens).forEach(screenId => {
+    newCanvasData.screenVisibility[screenId] = false;
+  });
+
   canvases[newCanvasId] = {
     id: newCanvasId,
     name: `Canvas ${canvasNumber}`,
-    data: getDefaultCanvasData()
+    data: newCanvasData
   };
 
   currentCanvasId = newCanvasId;
@@ -11159,6 +11169,12 @@ function saveCurrentCanvasData() {
   canvas.data.canvasSize = document.getElementById('canvasSize')?.value || '4K_UHD';
   canvas.data.customCanvasWidth = parseInt(document.getElementById('customCanvasWidth')?.value) || 3840;
   canvas.data.customCanvasHeight = parseInt(document.getElementById('customCanvasHeight')?.value) || 2160;
+
+  // Save current screen visibility for this canvas
+  canvas.data.screenVisibility = {};
+  Object.keys(screens).forEach(screenId => {
+    canvas.data.screenVisibility[screenId] = screens[screenId].visible !== false;
+  });
 }
 
 function loadCanvasData(canvasId) {
@@ -11176,6 +11192,17 @@ function loadCanvasData(canvasId) {
   const customHeightInput = document.getElementById('customCanvasHeight');
   if(customWidthInput) customWidthInput.value = canvas.data.customCanvasWidth || 3840;
   if(customHeightInput) customHeightInput.value = canvas.data.customCanvasHeight || 2160;
+
+  // Restore screen visibility for this canvas
+  if(canvas.data.screenVisibility) {
+    Object.keys(screens).forEach(screenId => {
+      if(canvas.data.screenVisibility.hasOwnProperty(screenId)) {
+        screens[screenId].visible = canvas.data.screenVisibility[screenId];
+      }
+    });
+    // Update the screen toggles UI
+    updateCanvasScreenToggles();
+  }
 }
 
 function showCanvasView(){
@@ -17204,10 +17231,19 @@ function addNewScreen() {
     visible: true,
     data: getDefaultScreenData()
   };
-  
+
   console.log('New screen created:', screens[newScreenId]);
   console.log('All screens:', Object.keys(screens));
-  
+
+  // Add new screen to all canvases' visibility tracking
+  // Visible only in current canvas, hidden in others
+  Object.keys(canvases).forEach(canvasId => {
+    if(!canvases[canvasId].data.screenVisibility) {
+      canvases[canvasId].data.screenVisibility = {};
+    }
+    canvases[canvasId].data.screenVisibility[newScreenId] = (canvasId === currentCanvasId);
+  });
+
   renderScreenTabs();
   updateCanvasScreenToggles();
 
@@ -17232,6 +17268,13 @@ function deleteScreen(screenId) {
   }
 
   delete screens[screenId];
+
+  // Remove screen from all canvases' visibility tracking
+  Object.keys(canvases).forEach(canvasId => {
+    if(canvases[canvasId].data.screenVisibility) {
+      delete canvases[canvasId].data.screenVisibility[screenId];
+    }
+  });
 
   // Clear canvas selection if the deleted screen was selected
   if(selectedCanvasScreenId === screenId) {
@@ -17366,6 +17409,13 @@ function updateCanvasScreenToggles() {
 function toggleScreenVisibility(screenId, visible) {
   if(screens[screenId]) {
     screens[screenId].visible = visible;
+    // Also update the current canvas's visibility tracking
+    if(currentCanvasId && canvases[currentCanvasId]) {
+      if(!canvases[currentCanvasId].data.screenVisibility) {
+        canvases[currentCanvasId].data.screenVisibility = {};
+      }
+      canvases[currentCanvasId].data.screenVisibility[screenId] = visible;
+    }
     // Redraw canvas view to show/hide the screen
     showCanvasView();
   }

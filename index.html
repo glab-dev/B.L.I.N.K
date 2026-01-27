@@ -882,6 +882,7 @@
       background: #222;
       border: 1px solid var(--primary);
       padding: 4px 10px;
+      padding-right: 28px;
       font-family: 'Bangers', cursive;
       font-size: 16px;
       font-weight: normal;
@@ -928,24 +929,25 @@
       cursor: not-allowed;
     }
 
-    /* Collapse/Expand button for layout containers - small square inside header */
+    /* Collapse/Expand button for layout containers - positioned inside header */
     .layout-collapse-btn {
-      display: inline-flex;
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
       align-items: center;
       justify-content: center;
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       background: #222;
       border: 1px solid var(--primary);
       border-radius: 2px;
       padding: 0;
-      font-size: 8px;
+      font-size: 9px;
       color: var(--primary);
       cursor: pointer;
-      margin-left: 6px;
-      vertical-align: middle;
       line-height: 1;
-      flex-shrink: 0;
     }
 
     .layout-collapse-btn:hover {

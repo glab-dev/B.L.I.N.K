@@ -3367,7 +3367,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.247';
+const APP_VERSION = '2.0.248';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -6695,6 +6695,97 @@ function getVibrantColorForPDF(hexColor) {
   const bFinal = Math.round(bNew * 255);
   
   return `#${rFinal.toString(16).padStart(2,'0')}${gFinal.toString(16).padStart(2,'0')}${bFinal.toString(16).padStart(2,'0')}`;
+}
+
+// Process canvas for print-friendly PDF output (desaturate and lighten colors)
+function getCanvasDataURLForPDF(canvas) {
+  // Create a temporary canvas to process the image
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = canvas.width;
+  tempCanvas.height = canvas.height;
+  const tempCtx = tempCanvas.getContext('2d');
+
+  // Draw original canvas to temp canvas
+  tempCtx.drawImage(canvas, 0, 0);
+
+  // Get image data
+  const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+  const data = imageData.data;
+
+  // Process each pixel
+  for(let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    // Alpha stays the same: data[i + 3]
+
+    // Convert to HSL
+    const rNorm = r / 255;
+    const gNorm = g / 255;
+    const bNorm = b / 255;
+
+    const max = Math.max(rNorm, gNorm, bNorm);
+    const min = Math.min(rNorm, gNorm, bNorm);
+    let l = (max + min) / 2;
+
+    let h, s;
+    if(max === min) {
+      h = s = 0;
+    } else {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+      switch(max) {
+        case rNorm: h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6; break;
+        case gNorm: h = ((bNorm - rNorm) / d + 2) / 6; break;
+        case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break;
+      }
+    }
+
+    // For dark colors (black backgrounds), make them light grey
+    if(l < 0.15) {
+      // Very dark colors become light grey
+      data[i] = 245;     // R
+      data[i + 1] = 245; // G
+      data[i + 2] = 245; // B
+      continue;
+    }
+
+    // For other colors, desaturate heavily and lighten
+    s = s * 0.3; // Reduce saturation to 30%
+    l = Math.min(0.92, l * 1.3 + 0.15); // Lighten significantly
+
+    // Convert back to RGB
+    function hue2rgb(p, q, t) {
+      if(t < 0) t += 1;
+      if(t > 1) t -= 1;
+      if(t < 1/6) return p + (q - p) * 6 * t;
+      if(t < 1/2) return q;
+      if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    }
+
+    let rNew, gNew, bNew;
+    if(s === 0) {
+      rNew = gNew = bNew = l;
+    } else {
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      rNew = hue2rgb(p, q, h + 1/3);
+      gNew = hue2rgb(p, q, h);
+      bNew = hue2rgb(p, q, h - 1/3);
+    }
+
+    data[i] = Math.round(rNew * 255);
+    data[i + 1] = Math.round(gNew * 255);
+    data[i + 2] = Math.round(bNew * 255);
+  }
+
+  // Put processed image data back
+  tempCtx.putImageData(imageData, 0, 0);
+
+  // Return as JPEG data URL
+  return tempCanvas.toDataURL('image/jpeg', 0.85);
 }
 
 function getCanvasDescription() {
@@ -14099,8 +14190,8 @@ function exportPDF(){
         const canvas = document.getElementById(layout.canvasId);
         
         if(container && container.style.display !== 'none' && canvas && canvas.width > 0) {
-          // Use JPEG with 0.92 quality for good balance of size and clarity
-          const canvasImg = canvas.toDataURL('image/jpeg', 0.85);
+          // Use print-friendly colors (desaturated and lightened for ink saving)
+          const canvasImg = getCanvasDataURLForPDF(canvas);
 
           // Fixed WIDTH for all layouts, height scales proportionally
           const fixedWidth = 114; // mm - same width for all layouts
@@ -14167,8 +14258,8 @@ function exportPDF(){
         pdf.text('Structure Layout', margin, yOffset);
         yOffset += 8;
         
-        // Add structure canvas image - use JPEG with 0.85 quality for good balance of size and clarity
-        const canvasImg = canvas.toDataURL('image/jpeg', 0.85);
+        // Add structure canvas image - use print-friendly colors
+        const canvasImg = getCanvasDataURLForPDF(canvas);
         const fixedWidth = 160; // Wider for structure view page
         const maxHeight = 80;
 

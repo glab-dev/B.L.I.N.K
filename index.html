@@ -533,18 +533,19 @@
       display: block;
       margin-bottom: 4px;
       margin-left: 2px;
+      font-family: 'Roboto Condensed', sans-serif;
       font-weight: 700;
       font-size: 11px;
       color: #d1d5db;
       text-transform: uppercase;
     }
     
-    /* Comic style inputs */
+    /* Input styling */
     input[type="number"], input[type="text"], select {
       width: 100%;
       padding: 12px 14px;
       font-size: 16px; /* Prevents iOS zoom on focus */
-      font-family: 'Permanent Marker', cursive;
+      font-family: 'Roboto Condensed', sans-serif;
       background: #333;
       color: #fff;
       border: 2px solid #000;
@@ -871,6 +872,7 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 16px;
+      position: relative;
     }
 
     .layout-title > span,
@@ -903,7 +905,7 @@
     .undo-redo-btn {
       padding: 6px 12px;
       font-size: 11px;
-      font-family: 'Permanent Marker', cursive;
+      font-family: 'Roboto Condensed', sans-serif;
       background: #333;
       color: #e0e0e0;
       border: 2px solid #000;
@@ -925,6 +927,37 @@
     .undo-redo-btn:disabled {
       opacity: 0.4;
       cursor: not-allowed;
+    }
+
+    /* Collapse/Expand arrow for layout containers */
+    .layout-collapse-btn {
+      position: absolute;
+      top: -10px;
+      right: 16px;
+      background: transparent;
+      border: none;
+      padding: 2px 4px;
+      font-size: 10px;
+      color: var(--primary);
+      cursor: pointer;
+      z-index: 5;
+      line-height: 1;
+    }
+
+    .layout-collapse-btn:hover {
+      color: #fff;
+    }
+
+    .layout-content {
+      overflow: hidden;
+    }
+
+    .layout-content.collapsed {
+      display: none;
+    }
+
+    .layout-container.collapsed {
+      padding-bottom: 20px;
     }
 
     .canvas-zoom-controls {
@@ -1209,12 +1242,12 @@
       gap: 8px;
     }
 
-    /* Comic-style toggle buttons */
+    /* Toggle buttons */
     .toggle-btn, .unit-toggle-btn {
       padding: 10px 16px;
       font-size: 13px;
-      font-family: 'Permanent Marker', cursive;
-      font-weight: normal;
+      font-family: 'Roboto Condensed', sans-serif;
+      font-weight: 700;
       background: #333;
       color: #9ca3af;
       border: 2px solid #000;
@@ -1245,8 +1278,8 @@
     .slider-toggle-btn {
       padding: 10px 14px;
       font-size: 13px;
-      font-family: 'Permanent Marker', cursive;
-      font-weight: normal;
+      font-family: 'Roboto Condensed', sans-serif;
+      font-weight: 700;
       background: transparent;
       color: #9ca3af;
       border: none;
@@ -1385,7 +1418,8 @@
     }
 
     .toggle-label, .unit-toggle-label {
-      font-size: 12px;
+      font-family: 'Roboto Condensed', sans-serif;
+      font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
       color: #9ca3af;
@@ -1796,8 +1830,8 @@
     }
 
     .screen-tab-name {
-      font-family: 'Permanent Marker', cursive;
-      font-weight: normal;
+      font-family: 'Roboto Condensed', sans-serif;
+      font-weight: 700;
       font-size: 14px;
       white-space: nowrap;
     }
@@ -2353,6 +2387,49 @@
   </div>
 </div>
 
+<!-- PDF Export Options Modal -->
+<div id="pdfExportModal" class="modal-overlay">
+  <div class="modal-dialog" style="max-width: 360px;">
+    <div class="modal-header">
+      <h2 class="modal-title">PDF Export Options</h2>
+      <button class="modal-close" onclick="closePdfExportModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="color: #888; font-size: 12px; margin-bottom: 12px;">Select which sections to include in the PDF:</p>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportSpecs" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
+          <span style="font-size: 14px;">Specifications</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportGearList" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
+          <span style="font-size: 14px;">Gear List</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportStandard" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
+          <span style="font-size: 14px;">Standard Layout</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportPower" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
+          <span style="font-size: 14px;">Power Layout</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportData" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
+          <span style="font-size: 14px;">Data Layout</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportStructure" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
+          <span style="font-size: 14px;">Structure Layout</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closePdfExportModal()">Cancel</button>
+      <button class="btn-primary" onclick="confirmPdfExport()">Export PDF</button>
+    </div>
+  </div>
+</div>
+
 <!-- Request Item Modal -->
 <div id="requestItemModal" class="modal-overlay">
   <div class="modal-dialog">
@@ -2898,31 +2975,45 @@
 
     <div class="layout-container" id="standardContainer" style="display:none;">
       <div class="layout-title">
+        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('standardContainer')" id="standardCollapseBtn" title="Minimize">▼</button>
         <span>Standard Layout</span>
         <div class="undo-redo-buttons">
           <button class="undo-redo-btn" id="undoBtn" onclick="undo()" title="Undo">Undo</button>
           <button class="undo-redo-btn" id="redoBtn" onclick="redo()" title="Redo">Redo</button>
         </div>
       </div>
-      <div class="mobile-hint" id="standardLayoutHint">Tap to select • Tap again for options • Drag to multi-select</div>
-      <canvas id="standardCanvas"></canvas>
+      <div class="layout-content" id="standardContent">
+        <div class="mobile-hint" id="standardLayoutHint">Tap to select • Tap again for options • Drag to multi-select</div>
+        <canvas id="standardCanvas"></canvas>
+      </div>
     </div>
-    
+
     <div class="layout-container" id="powerContainer" style="display:none;">
-      <div class="layout-title"><span>Power Layout</span></div>
-      <canvas id="powerCanvas"></canvas>
+      <div class="layout-title">
+        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('powerContainer')" id="powerCollapseBtn" title="Minimize">▼</button>
+        <span>Power Layout</span>
+      </div>
+      <div class="layout-content" id="powerContent">
+        <canvas id="powerCanvas"></canvas>
+      </div>
     </div>
 
     <div class="layout-container" id="dataContainer" style="display:none;">
-      <div class="layout-title"><span>Data Layout</span></div>
-      <canvas id="dataCanvas"></canvas>
+      <div class="layout-title">
+        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('dataContainer')" id="dataCollapseBtn" title="Minimize">▼</button>
+        <span>Data Layout</span>
+      </div>
+      <div class="layout-content" id="dataContent">
+        <canvas id="dataCanvas"></canvas>
+      </div>
     </div>
-    
+
     <div class="layout-container" id="structureContainer" style="display:none;">
       <div class="layout-title">
+        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('structureContainer')" id="structureCollapseBtn" title="Minimize">▼</button>
         <span>Structure Layout</span>
       </div>
-      
+      <div class="layout-content" id="structureContent">
       <!-- Manual Mode Toggle -->
       <div class="structure-mode-toggle">
         <button type="button" class="toggle-btn" id="manualBumperToggle" onclick="toggleManualBumperMode()">
@@ -2986,6 +3077,7 @@
         <div class="context-menu-item" onclick="changeBumperType('2w')">Change to 2W</div>
         <div class="context-menu-item" onclick="deleteBumper()" style="color:#ff6b6b;">Delete Bumper</div>
       </div>
+      </div>
     </div>
     
     <!-- Layouts Toggle Bar (for mobile layouts view) -->
@@ -3024,67 +3116,97 @@
   <div id="combinedLayoutsWrapper" style="overflow-x: auto; margin-bottom: 20px;">
     <!-- Standard Layout -->
     <div class="layout-container" id="combinedStandardContainer" style="margin-bottom: 20px;">
-      <div class="layout-title"><span>Standard Layout (Combined)</span></div>
-      <!-- Interaction Hints -->
-      <div id="combinedInteractionHints" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; font-size: 10px; color: #10b981; line-height: 1.5;">
-        <span id="combinedHintsDesktop" style="display: none;"><strong>Panels:</strong> Right-click for options, double-click to delete/restore &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
-        <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> Tap to select, tap again for options &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
+      <div class="layout-title">
+        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedStandardContainer')" id="combinedStandardCollapseBtn" title="Minimize">▼</button>
+        <span>Standard Layout (Combined)</span>
       </div>
-      <!-- Position Controls -->
-      <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center;">
-        <div class="slider-toggle" style="display: inline-flex;">
-          <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Reset</button>
-          <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Manual Adjust</button>
+      <div class="layout-content" id="combinedStandardContent">
+        <!-- Interaction Hints -->
+        <div id="combinedInteractionHints" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; font-size: 10px; color: #10b981; line-height: 1.5;">
+          <span id="combinedHintsDesktop" style="display: none;"><strong>Panels:</strong> Right-click for options, double-click to delete/restore &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
+          <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> Tap to select, tap again for options &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
         </div>
-        <!-- Zoom Controls (matching Canvas View style) -->
-        <div style="display: inline-flex; align-items: stretch; gap: 4px; margin-left: 10px;">
-          <button class="toggle-btn" onclick="adjustCombinedZoom(-10)" title="Zoom Out" style="padding: 6px 10px; height: 32px; font-size: 14px; box-sizing: border-box;">−</button>
-          <input type="number" id="combinedZoomInput" value="100" min="50" max="200" step="10" onchange="setCombinedZoom(parseInt(this.value))" title="Enter zoom percentage" style="width: 55px; padding: 4px; height: 32px; text-align: center; box-sizing: border-box; border: 2px solid #000; font-size: 11px;">
-          <button class="toggle-btn" onclick="adjustCombinedZoom(10)" title="Zoom In" style="padding: 6px 10px; height: 32px; font-size: 14px; box-sizing: border-box;">+</button>
+        <!-- Position Controls -->
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center;">
+          <div class="slider-toggle" style="display: inline-flex;">
+            <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Reset</button>
+            <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Manual Adjust</button>
+          </div>
+          <!-- Zoom Controls (matching Canvas View style) -->
+          <div style="display: inline-flex; align-items: stretch; gap: 4px; margin-left: 10px;">
+            <button class="toggle-btn" onclick="adjustCombinedZoom(-10)" title="Zoom Out" style="padding: 6px 10px; height: 32px; font-size: 14px; box-sizing: border-box;">−</button>
+            <input type="number" id="combinedZoomInput" value="100" min="50" max="200" step="10" onchange="setCombinedZoom(parseInt(this.value))" title="Enter zoom percentage" style="width: 55px; padding: 4px; height: 32px; text-align: center; box-sizing: border-box; border: 2px solid #000; font-size: 11px;">
+            <button class="toggle-btn" onclick="adjustCombinedZoom(10)" title="Zoom In" style="padding: 6px 10px; height: 32px; font-size: 14px; box-sizing: border-box;">+</button>
+          </div>
         </div>
-      </div>
-      <div id="combinedStandardCanvasWrapper" style="overflow-x: auto;">
-        <canvas id="combinedStandardCanvas"></canvas>
+        <div id="combinedStandardCanvasWrapper" style="overflow-x: auto;">
+          <canvas id="combinedStandardCanvas"></canvas>
+        </div>
       </div>
     </div>
 
     <!-- Power Layout -->
     <div class="layout-container" id="combinedPowerContainer" style="margin-bottom: 20px;">
-      <div class="layout-title"><span>Power Layout (Combined)</span></div>
-      <div id="combinedPowerCanvasWrapper" style="overflow-x: auto;">
-        <canvas id="combinedPowerCanvas"></canvas>
+      <div class="layout-title">
+        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedPowerContainer')" id="combinedPowerCollapseBtn" title="Minimize">▼</button>
+        <span>Power Layout (Combined)</span>
+      </div>
+      <div class="layout-content" id="combinedPowerContent">
+        <div id="combinedPowerCanvasWrapper" style="overflow-x: auto;">
+          <canvas id="combinedPowerCanvas"></canvas>
+        </div>
       </div>
     </div>
 
     <!-- Data Layout -->
     <div class="layout-container" id="combinedDataContainer" style="margin-bottom: 20px;">
-      <div class="layout-title"><span>Data Layout (Combined)</span></div>
-      <div id="combinedDataCanvasWrapper" style="overflow-x: auto;">
-        <canvas id="combinedDataCanvas"></canvas>
+      <div class="layout-title">
+        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedDataContainer')" id="combinedDataCollapseBtn" title="Minimize">▼</button>
+        <span>Data Layout (Combined)</span>
+      </div>
+      <div class="layout-content" id="combinedDataContent">
+        <div id="combinedDataCanvasWrapper" style="overflow-x: auto;">
+          <canvas id="combinedDataCanvas"></canvas>
+        </div>
       </div>
     </div>
 
     <!-- Structure Layout -->
     <div class="layout-container" id="combinedStructureContainer" style="margin-bottom: 20px;">
-      <div class="layout-title"><span>Structure Layout (Combined)</span></div>
-      <div id="combinedStructureCanvasWrapper" style="overflow-x: auto;">
-        <canvas id="combinedStructureCanvas"></canvas>
+      <div class="layout-title">
+        <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedStructureContainer')" id="combinedStructureCollapseBtn" title="Minimize">▼</button>
+        <span>Structure Layout (Combined)</span>
+      </div>
+      <div class="layout-content" id="combinedStructureContent">
+        <div id="combinedStructureCanvasWrapper" style="overflow-x: auto;">
+          <canvas id="combinedStructureCanvas"></canvas>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Combined Specs -->
   <div class="layout-container" id="combinedSpecsContainer" style="margin-bottom: 20px;">
-    <div class="layout-title"><span>Combined Specifications</span></div>
-    <div id="combinedSpecsContent" style="color: #e0e0e0; line-height: 1.8;"></div>
+    <div class="layout-title">
+      <button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedSpecsContainer')" id="combinedSpecsCollapseBtn" title="Minimize">▼</button>
+      <span>Combined Specifications</span>
+    </div>
+    <div class="layout-content" id="combinedSpecsContent" style="color: #e0e0e0; line-height: 1.8;"></div>
   </div>
 
 </div>
 
 <!-- Canvas Container (outside main-container so it can be shown independently) -->
 <div class="layout-container" id="canvasContainer" style="display:none; padding: 12px; padding-top: 24px; margin-top: 32px; overflow: visible;">
-  <!-- Canvas View Title -->
-  <div class="layout-title"><span>Canvas View</span></div>
+  <!-- Canvas View Title with Tabs on the right -->
+  <div class="layout-title">
+    <span>Canvas View</span>
+  </div>
+  <div id="canvasTabsContainer" style="position: absolute; right: 16px; top: 12px; display: flex; align-items: flex-end; gap: 4px;">
+    <div id="canvasTabs" style="display: flex; align-items: flex-end; gap: 4px;">
+      <!-- Canvas tabs will be dynamically generated here -->
+    </div>
+  </div>
 
   <!-- Zoom and Undo/Redo Controls -->
   <div style="display: flex; gap: 6px; margin-bottom: 12px; align-items: stretch;">
@@ -10921,6 +11043,142 @@ function updateSuggestedDataLimit(){
   if(!input.value){ input.placeholder = suggested; }
 }
 
+// ==================== CANVAS TABS MANAGEMENT ====================
+// Data structure for multiple canvases
+let canvases = {};
+let canvasIdCounter = 0;
+let currentCanvasId = null;
+
+// Initialize default canvas
+function initializeCanvases() {
+  if(Object.keys(canvases).length === 0) {
+    canvasIdCounter = 1;
+    const defaultCanvasId = 'canvas_1';
+    canvases[defaultCanvasId] = {
+      id: defaultCanvasId,
+      name: 'Canvas 1',
+      data: getDefaultCanvasData()
+    };
+    currentCanvasId = defaultCanvasId;
+  }
+  renderCanvasTabs();
+}
+
+function getDefaultCanvasData() {
+  return {
+    canvasSize: '4K_UHD',
+    customCanvasWidth: 3840,
+    customCanvasHeight: 2160
+  };
+}
+
+function renderCanvasTabs() {
+  const container = document.getElementById('canvasTabs');
+  if(!container) return;
+
+  const canvasIds = Object.keys(canvases).sort((a, b) => {
+    const numA = parseInt(a.split('_')[1]) || 0;
+    const numB = parseInt(b.split('_')[1]) || 0;
+    return numA - numB;
+  });
+
+  let html = '';
+  canvasIds.forEach(canvasId => {
+    const canvas = canvases[canvasId];
+    const isActive = canvasId === currentCanvasId;
+    html += `
+      <div class="screen-tab ${isActive ? 'active' : ''}" onclick="switchToCanvas('${canvasId}')" style="top: 0;">
+        <span class="screen-tab-name">${canvas.name}</span>
+        <button class="screen-tab-edit" onclick="event.stopPropagation(); openCanvasRenameModal('${canvasId}')" title="Edit canvas">✎</button>
+        ${canvasIds.length > 1 ? `<button class="screen-tab-close" onclick="event.stopPropagation(); deleteCanvas('${canvasId}')" title="Delete canvas">×</button>` : ''}
+      </div>`;
+  });
+
+  html += `<div class="screen-tab-add" onclick="addNewCanvas()" title="Add new canvas">+</div>`;
+  container.innerHTML = html;
+}
+
+function addNewCanvas() {
+  saveCurrentCanvasData();
+  canvasIdCounter++;
+  const newCanvasId = `canvas_${canvasIdCounter}`;
+  const canvasNumber = Object.keys(canvases).length + 1;
+
+  canvases[newCanvasId] = {
+    id: newCanvasId,
+    name: `Canvas ${canvasNumber}`,
+    data: getDefaultCanvasData()
+  };
+
+  currentCanvasId = newCanvasId;
+  renderCanvasTabs();
+  loadCanvasData(newCanvasId);
+  showCanvasView();
+}
+
+function switchToCanvas(canvasId) {
+  if(canvasId === currentCanvasId) return;
+  saveCurrentCanvasData();
+  currentCanvasId = canvasId;
+  loadCanvasData(canvasId);
+  renderCanvasTabs();
+  showCanvasView();
+}
+
+function deleteCanvas(canvasId) {
+  const canvasIds = Object.keys(canvases);
+  if(canvasIds.length <= 1) return;
+
+  if(!confirm(`Delete "${canvases[canvasId].name}"?`)) return;
+
+  delete canvases[canvasId];
+
+  if(currentCanvasId === canvasId) {
+    const remainingIds = Object.keys(canvases);
+    currentCanvasId = remainingIds[0];
+    loadCanvasData(currentCanvasId);
+  }
+
+  renderCanvasTabs();
+  showCanvasView();
+}
+
+function openCanvasRenameModal(canvasId) {
+  const canvas = canvases[canvasId];
+  if(!canvas) return;
+  const newName = prompt('Rename canvas:', canvas.name);
+  if(newName && newName.trim()) {
+    canvas.name = newName.trim();
+    renderCanvasTabs();
+  }
+}
+
+function saveCurrentCanvasData() {
+  if(!currentCanvasId || !canvases[currentCanvasId]) return;
+  const canvas = canvases[currentCanvasId];
+
+  canvas.data.canvasSize = document.getElementById('canvasSize')?.value || '4K_UHD';
+  canvas.data.customCanvasWidth = parseInt(document.getElementById('customCanvasWidth')?.value) || 3840;
+  canvas.data.customCanvasHeight = parseInt(document.getElementById('customCanvasHeight')?.value) || 2160;
+}
+
+function loadCanvasData(canvasId) {
+  const canvas = canvases[canvasId];
+  if(!canvas) return;
+
+  const canvasSizeSelect = document.getElementById('canvasSize');
+  if(canvasSizeSelect) {
+    canvasSizeSelect.value = canvas.data.canvasSize || '4K_UHD';
+    // Trigger change event to show/hide custom inputs
+    canvasSizeSelect.dispatchEvent(new Event('change'));
+  }
+
+  const customWidthInput = document.getElementById('customCanvasWidth');
+  const customHeightInput = document.getElementById('customCanvasHeight');
+  if(customWidthInput) customWidthInput.value = canvas.data.customCanvasWidth || 3840;
+  if(customHeightInput) customHeightInput.value = canvas.data.customCanvasHeight || 2160;
+}
+
 function showCanvasView(){
   // Get all panels (built-in + custom) for use throughout this function
   const allPanels = getAllPanels();
@@ -12797,6 +13055,50 @@ function initCanvasTouchPanZoom() {
   });
 }
 
+// PDF Export Options Modal Functions
+let pdfExportOptions = {
+  specs: true,
+  gearList: true,
+  standard: true,
+  power: true,
+  data: true,
+  structure: true
+};
+
+function openPdfExportModal() {
+  const modal = document.getElementById('pdfExportModal');
+  if (modal) {
+    // Reset checkboxes to stored state
+    document.getElementById('pdfExportSpecs').checked = pdfExportOptions.specs;
+    document.getElementById('pdfExportGearList').checked = pdfExportOptions.gearList;
+    document.getElementById('pdfExportStandard').checked = pdfExportOptions.standard;
+    document.getElementById('pdfExportPower').checked = pdfExportOptions.power;
+    document.getElementById('pdfExportData').checked = pdfExportOptions.data;
+    document.getElementById('pdfExportStructure').checked = pdfExportOptions.structure;
+    modal.classList.add('active');
+  }
+}
+
+function closePdfExportModal() {
+  const modal = document.getElementById('pdfExportModal');
+  if (modal) {
+    modal.classList.remove('active');
+  }
+}
+
+function confirmPdfExport() {
+  // Save the options
+  pdfExportOptions.specs = document.getElementById('pdfExportSpecs').checked;
+  pdfExportOptions.gearList = document.getElementById('pdfExportGearList').checked;
+  pdfExportOptions.standard = document.getElementById('pdfExportStandard').checked;
+  pdfExportOptions.power = document.getElementById('pdfExportPower').checked;
+  pdfExportOptions.data = document.getElementById('pdfExportData').checked;
+  pdfExportOptions.structure = document.getElementById('pdfExportStructure').checked;
+
+  closePdfExportModal();
+  exportPDF();
+}
+
 function exportPDF(){
   try {
     // Save current screen data first to ensure all toggle states are persisted
@@ -13147,6 +13449,8 @@ function exportPDF(){
           const panelHeightM = p.height_m.toFixed(3);
           const panelWeightLbs = (p.weight_kg * 2.20462).toFixed(2);
 
+          // Only add specs if enabled in export options
+          if(pdfExportOptions.specs) {
           // PANEL section
           addSpecHeader('PANEL');
           addSpecLine('Panel:', `${p.brand || ''} ${p.name || panelType}`);
@@ -13260,10 +13564,11 @@ function exportPDF(){
             addSpecLine('Port Capacity:', portCapacity.toLocaleString() + ' px');
             addSpecLine('Max Panels/Data:', maxPanelsPerData.toString());
           }
+          } // End of pdfExportOptions.specs check
         }
 
         // ========== RIGHT COLUMN: GEAR LIST (complex mode only) ==========
-        if(currentAppMode === 'complex') {
+        if(currentAppMode === 'complex' && pdfExportOptions.gearList) {
           addGearListToColumn(screenId, screen.name, col2X, col2Y, colWidth, lineHeight, processorGroups);
         }
 
@@ -13630,26 +13935,40 @@ function exportPDF(){
     }
 
     function addScreenLayouts(screenId, screenName) {
-      // Page 2: Standard, Power, Data layouts
-      pdf.addPage();
-      yOffset = margin;
+      // Build layouts array based on export options
+      const layouts = [];
+      if(pdfExportOptions.standard) {
+        layouts.push({ containerId: 'standardContainer', canvasId: 'standardCanvas', title: 'Standard Layout' });
+      }
+      if(pdfExportOptions.power) {
+        layouts.push({ containerId: 'powerContainer', canvasId: 'powerCanvas', title: 'Power Layout' });
+      }
+      if(pdfExportOptions.data) {
+        layouts.push({ containerId: 'dataContainer', canvasId: 'dataCanvas', title: 'Data Layout' });
+      }
 
-      const layouts = [
-        { containerId: 'standardContainer', canvasId: 'standardCanvas', title: 'Standard Layout' },
-        { containerId: 'powerContainer', canvasId: 'powerCanvas', title: 'Power Layout' },
-        { containerId: 'dataContainer', canvasId: 'dataCanvas', title: 'Data Layout' }
-      ];
+      // Only add a new page if we have layouts to add
+      if(layouts.length > 0) {
+        pdf.addPage();
+        yOffset = margin;
+      }
       
       let layoutIndex = 0;
       
       function addNextLayout() {
         if(layoutIndex >= layouts.length) {
-          // All main layouts done, now add Structure View page (Page 3)
-          addStructureViewPage(screenId, screenName, function() {
-            // After structure view, move to next screen (gear list is already on page 1)
+          // All main layouts done, now add Structure View page if enabled
+          if(pdfExportOptions.structure) {
+            addStructureViewPage(screenId, screenName, function() {
+              // After structure view, move to next screen (gear list is already on page 1)
+              screenIndex++;
+              processNextScreen();
+            });
+          } else {
+            // Skip structure view, move to next screen
             screenIndex++;
             processNextScreen();
-          });
+          }
           return;
         }
         
@@ -15899,7 +16218,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if(btnPDF) btnPDF.addEventListener('click', function(e) {
       e.preventDefault();
-      exportPDF();
+      openPdfExportModal();
     });
     
     if(btnExp) btnExp.addEventListener('click', function(e) {
@@ -16419,9 +16738,10 @@ function initializeScreenSystem() {
     visible: true,
     data: getDefaultScreenData()
   };
-  
+
   renderScreenTabs();
   updateCanvasScreenToggles();
+  initializeCanvases();
 }
 
 function renderScreenTabs() {
@@ -18558,10 +18878,15 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   });
 
   // Draw selection highlight on top of everything (after all panels drawn)
+  // Calculate scaled border properties based on zoom level (zoomFactor already defined above)
+  const scaledLineWidth = Math.max(1, Math.round(2 * zoomFactor));
+  const scaledOffset = Math.max(1, Math.round(1 * zoomFactor));
+  const scaledInset = scaledOffset * 2;
+
   // First, highlight all multi-selected panels (desktop)
   if(combinedSelectedPanels.size > 0) {
     ctx.strokeStyle = '#FFFF00';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = scaledLineWidth;
     combinedSelectedPanels.forEach(key => {
       const [screenId, panelKey] = key.split(':');
       const [col, row] = panelKey.split(',').map(Number);
@@ -18585,7 +18910,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
         }
         const px = screenX + col * drawPanelSize;
         const py = screenY + row * drawPanelSize;
-        ctx.strokeRect(px + 1, py + 1, drawPanelSize - 2, drawPanelSize - 2);
+        ctx.strokeRect(px + scaledOffset, py + scaledOffset, drawPanelSize - scaledInset, drawPanelSize - scaledInset);
       }
     });
   }
@@ -18616,8 +18941,8 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       const py = screenY + row * drawPanelSize;
 
       ctx.strokeStyle = '#FFFF00';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(px + 1, py + 1, drawPanelSize - 2, drawPanelSize - 2);
+      ctx.lineWidth = scaledLineWidth;
+      ctx.strokeRect(px + scaledOffset, py + scaledOffset, drawPanelSize - scaledInset, drawPanelSize - scaledInset);
     }
   }
 }
@@ -19765,6 +20090,54 @@ function switchMobileView(view) {
   // Trigger recalculation to ensure canvases render
   if(typeof calculate === 'function') {
     calculate();
+  }
+}
+
+// Track collapsed state of layout containers
+const collapsedLayouts = new Set();
+
+// Toggle collapse/expand state of a layout container
+function toggleLayoutCollapse(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  // Map container ID to content ID
+  const contentIdMap = {
+    'standardContainer': 'standardContent',
+    'powerContainer': 'powerContent',
+    'dataContainer': 'dataContent',
+    'structureContainer': 'structureContent',
+    'combinedStandardContainer': 'combinedStandardContent',
+    'combinedPowerContainer': 'combinedPowerContent',
+    'combinedDataContainer': 'combinedDataContent',
+    'combinedStructureContainer': 'combinedStructureContent',
+    'combinedSpecsContainer': 'combinedSpecsContent'
+  };
+
+  const contentId = contentIdMap[containerId];
+  const content = document.getElementById(contentId);
+  const btn = document.getElementById(containerId.replace('Container', 'CollapseBtn'));
+
+  if (!content) return;
+
+  if (collapsedLayouts.has(containerId)) {
+    // Expand
+    collapsedLayouts.delete(containerId);
+    content.classList.remove('collapsed');
+    container.classList.remove('collapsed');
+    if (btn) {
+      btn.textContent = '▼';
+      btn.classList.remove('collapsed');
+    }
+  } else {
+    // Collapse
+    collapsedLayouts.add(containerId);
+    content.classList.add('collapsed');
+    container.classList.add('collapsed');
+    if (btn) {
+      btn.textContent = '▶';
+      btn.classList.add('collapsed');
+    }
   }
 }
 

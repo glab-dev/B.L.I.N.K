@@ -2433,7 +2433,7 @@
 <div id="pdfExportModal" class="modal-overlay">
   <div class="modal-dialog" style="max-width: 360px;">
     <div class="modal-header">
-      <h2 class="modal-title">PDF Export Options</h2>
+      <h2 class="modal-title" id="pdfExportModalTitle">PDF Export Options</h2>
       <button class="modal-close" onclick="closePdfExportModal()">&times;</button>
     </div>
     <div class="modal-body">
@@ -2467,7 +2467,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closePdfExportModal()">Cancel</button>
-      <button class="btn-primary" onclick="confirmPdfExport()">Export PDF</button>
+      <button class="btn-primary" id="pdfExportModalBtn" onclick="confirmPdfExport()">Export PDF</button>
     </div>
   </div>
 </div>
@@ -3370,7 +3370,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.252';
+const APP_VERSION = '2.0.253';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -13194,10 +13194,19 @@ let pdfExportOptions = {
   data: true,
   structure: true
 };
+let isPrintMode = false; // Track if we're in print mode vs export mode
 
-function openPdfExportModal() {
+function openPdfExportModal(printMode = false) {
   const modal = document.getElementById('pdfExportModal');
   if (modal) {
+    isPrintMode = printMode;
+
+    // Update modal title and button text based on mode
+    const titleEl = document.getElementById('pdfExportModalTitle');
+    const btnEl = document.getElementById('pdfExportModalBtn');
+    if (titleEl) titleEl.textContent = printMode ? 'Print Options' : 'PDF Export Options';
+    if (btnEl) btnEl.textContent = printMode ? 'Print' : 'Export PDF';
+
     // Always reset all checkboxes to ON by default
     document.getElementById('pdfExportSpecs').checked = true;
     document.getElementById('pdfExportGearList').checked = true;
@@ -16364,11 +16373,11 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
-    // Print button - same behavior as Export PDF
+    // Print button - same behavior as Export PDF but with Print labels
     if(btnPrint) btnPrint.addEventListener('click', function(e) {
       e.preventDefault();
       if(currentMobileView === 'complex' || currentMobileView === 'combined') {
-        openPdfExportModal();
+        openPdfExportModal(true); // true = print mode
       } else {
         pdfExportOptions.specs = true;
         pdfExportOptions.gearList = false;

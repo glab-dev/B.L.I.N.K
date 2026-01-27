@@ -906,7 +906,8 @@
     .undo-redo-buttons {
       display: flex;
       gap: 8px;
-      margin-left: 32px;
+      margin-left: 16px;
+      margin-top: 20px;
     }
     
     .undo-redo-btn {
@@ -1260,7 +1261,12 @@
         grid-template-columns: 1fr;
       }
 
-      /* Constrain manual bumper toggle button width on mobile */
+      /* Constrain bumper toggle buttons width on mobile */
+      #useBumpersBtn, #use4WayBumpersBtn {
+        max-width: 120px;
+        flex: none;
+      }
+
       #manualBumperToggle {
         max-width: 140px;
         font-size: 10px;
@@ -3358,7 +3364,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.243';
+const APP_VERSION = '2.0.244';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready

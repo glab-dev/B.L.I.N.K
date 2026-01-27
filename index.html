@@ -18961,9 +18961,9 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
           drawPanelSize = pixelWidth * pixelScale;
         } else {
           const customPos = combinedScreenPositions[selectedDim.screenId] || { x: 0, y: 0 };
-          screenX = leftPadding + selectedDim.x + customPos.x;
-          screenY = topPadding + customPos.y;
-          drawPanelSize = panelSize;
+          screenX = leftPadding + (selectedDim.x + customPos.x) * zoomFactor;
+          screenY = topPadding + customPos.y * zoomFactor;
+          drawPanelSize = zoomedPanelSize;
         }
         const px = screenX + col * drawPanelSize;
         const py = screenY + row * drawPanelSize;
@@ -18988,9 +18988,9 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
         drawPanelSize = pixelWidth * pixelScale;
       } else {
         const customPos = combinedScreenPositions[selectedDim.screenId] || { x: 0, y: 0 };
-        screenX = leftPadding + selectedDim.x + customPos.x;
-        screenY = topPadding + customPos.y;
-        drawPanelSize = panelSize;
+        screenX = leftPadding + (selectedDim.x + customPos.x) * zoomFactor;
+        screenY = topPadding + customPos.y * zoomFactor;
+        drawPanelSize = zoomedPanelSize;
       }
       const col = combinedSelectedPanel.col;
       const row = combinedSelectedPanel.row;

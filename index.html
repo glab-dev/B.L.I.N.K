@@ -17391,9 +17391,9 @@ function saveScreenRename() {
 function updateCanvasScreenToggles() {
   const container = document.getElementById('canvasScreenToggles');
   if(!container) return;
-  
+
   let html = '<div style="margin-top: 16px; margin-bottom: 12px; display: inline-block; background: #222; border: 1px solid var(--primary); padding: 4px 10px; font-family: Bangers, cursive; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; color: var(--primary); transform: rotate(-2deg);">Visible Screens</div>';
-  
+
   // Sort screen IDs numerically
   const screenIds = Object.keys(screens).sort((a, b) => {
     const numA = parseInt(a.split('_')[1]);
@@ -17407,30 +17407,26 @@ function updateCanvasScreenToggles() {
     const showCrosshair = screen.showCrosshair !== false;
 
     html += `
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; padding: 4px 6px; background: #333; border-radius: 4px;">
-        <label class="inline-label" style="margin-bottom: 0; display: flex; align-items: center; flex: 1;">
-          <input type="checkbox" ${screen.visible ? 'checked' : ''} style="width: 16px; height: 16px;"
-                 onchange="toggleScreenVisibility('${screenId}', this.checked)">
-          <span style="margin-left: 6px; display: inline-flex; align-items: center; font-size: 13px;">
-            <span style="display: inline-block; width: 12px; height: 12px; background: ${screen.color}; margin-right: 5px; border: 1px solid #666;"></span>
-            ${screen.name}
-          </span>
-        </label>
-        <div style="display: flex; gap: 4px;">
-          <button type="button" class="toggle-btn ${showCoords ? 'active' : ''}"
-                  style="padding: 3px 6px; font-size: 10px; min-width: 28px; min-height: 24px; line-height: 1;"
-                  onclick="toggleScreenCoordinates('${screenId}')">X/Y</button>
-          <button type="button" class="toggle-btn ${showPixels ? 'active' : ''}"
-                  style="padding: 3px 6px; font-size: 10px; min-width: 38px; min-height: 24px; line-height: 1;"
-                  onclick="toggleScreenPixelDimensions('${screenId}')">Pixels</button>
-          <button type="button" class="toggle-btn ${showCrosshair ? 'active' : ''}"
-                  style="padding: 3px 6px; font-size: 10px; min-width: 24px; min-height: 24px; line-height: 1;"
-                  onclick="toggleScreenCrosshair('${screenId}')" title="Show X crosshair">X</button>
-        </div>
+      <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 6px; flex-wrap: wrap;">
+        <button type="button" class="toggle-btn ${screen.visible ? 'active' : ''}"
+                style="padding: 3px 8px; font-size: 10px; min-height: 24px; line-height: 1; display: inline-flex; align-items: center; gap: 4px;"
+                onclick="toggleScreenVisibility('${screenId}', ${!screen.visible})">
+          <span style="display: inline-block; width: 10px; height: 10px; background: ${screen.color}; border: 1px solid #666; flex-shrink: 0;"></span>
+          ${screen.name}
+        </button>
+        <button type="button" class="toggle-btn ${showCoords ? 'active' : ''}"
+                style="padding: 3px 6px; font-size: 10px; min-width: 28px; min-height: 24px; line-height: 1;"
+                onclick="toggleScreenCoordinates('${screenId}')">X/Y</button>
+        <button type="button" class="toggle-btn ${showPixels ? 'active' : ''}"
+                style="padding: 3px 6px; font-size: 10px; min-width: 38px; min-height: 24px; line-height: 1;"
+                onclick="toggleScreenPixelDimensions('${screenId}')">Pixels</button>
+        <button type="button" class="toggle-btn ${showCrosshair ? 'active' : ''}"
+                style="padding: 3px 6px; font-size: 10px; min-width: 24px; min-height: 24px; line-height: 1;"
+                onclick="toggleScreenCrosshair('${screenId}')" title="Show X crosshair">X</button>
       </div>
     `;
   });
-  
+
   container.innerHTML = html;
 }
 

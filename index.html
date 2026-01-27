@@ -3367,7 +3367,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.250';
+const APP_VERSION = '2.0.251';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -6697,103 +6697,9 @@ function getVibrantColorForPDF(hexColor) {
   return `#${rFinal.toString(16).padStart(2,'0')}${gFinal.toString(16).padStart(2,'0')}${bFinal.toString(16).padStart(2,'0')}`;
 }
 
-// Process canvas for print-friendly PDF output (desaturate and lighten colors)
+// Get canvas as data URL for PDF (original colors, no processing)
 function getCanvasDataURLForPDF(canvas) {
-  // Create a temporary canvas to process the image
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = canvas.width;
-  tempCanvas.height = canvas.height;
-  const tempCtx = tempCanvas.getContext('2d');
-
-  // Draw original canvas to temp canvas
-  tempCtx.drawImage(canvas, 0, 0);
-
-  // Get image data
-  const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-  const data = imageData.data;
-
-  // Process each pixel
-  for(let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    // Alpha stays the same: data[i + 3]
-
-    // Keep dark pixels as black (text, arrows, outlines, and their anti-aliased edges)
-    if(r < 60 && g < 60 && b < 60) {
-      // Make these pixels pure black for crisp text/arrows
-      data[i] = 0;
-      data[i + 1] = 0;
-      data[i + 2] = 0;
-      continue;
-    }
-
-    // Convert to HSL
-    const rNorm = r / 255;
-    const gNorm = g / 255;
-    const bNorm = b / 255;
-
-    const max = Math.max(rNorm, gNorm, bNorm);
-    const min = Math.min(rNorm, gNorm, bNorm);
-    let l = (max + min) / 2;
-
-    let h, s;
-    if(max === min) {
-      h = s = 0;
-    } else {
-      const d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-
-      switch(max) {
-        case rNorm: h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6; break;
-        case gNorm: h = ((bNorm - rNorm) / d + 2) / 6; break;
-        case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break;
-      }
-    }
-
-    // For dark background colors (not pure black), make them light grey
-    if(l < 0.15) {
-      data[i] = 245;     // R
-      data[i + 1] = 245; // G
-      data[i + 2] = 245; // B
-      continue;
-    }
-
-    // For other colors, desaturate slightly and lighten for ink saving
-    s = s * 0.7; // Reduce saturation to 70%
-    l = Math.min(0.88, l * 1.15 + 0.05); // Lighten slightly
-
-    // Convert back to RGB
-    function hue2rgb(p, q, t) {
-      if(t < 0) t += 1;
-      if(t > 1) t -= 1;
-      if(t < 1/6) return p + (q - p) * 6 * t;
-      if(t < 1/2) return q;
-      if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-      return p;
-    }
-
-    let rNew, gNew, bNew;
-    if(s === 0) {
-      rNew = gNew = bNew = l;
-    } else {
-      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-      const p = 2 * l - q;
-      rNew = hue2rgb(p, q, h + 1/3);
-      gNew = hue2rgb(p, q, h);
-      bNew = hue2rgb(p, q, h - 1/3);
-    }
-
-    data[i] = Math.round(rNew * 255);
-    data[i + 1] = Math.round(gNew * 255);
-    data[i + 2] = Math.round(bNew * 255);
-  }
-
-  // Put processed image data back
-  tempCtx.putImageData(imageData, 0, 0);
-
-  // Return as JPEG data URL
-  return tempCanvas.toDataURL('image/jpeg', 0.85);
+  return canvas.toDataURL('image/jpeg', 0.85);
 }
 
 function getCanvasDescription() {

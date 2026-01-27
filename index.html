@@ -3345,7 +3345,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.238';
+const APP_VERSION = '2.0.239';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18800,7 +18800,15 @@ function renderCombinedView() {
 
     if(pw > 0 && ph > 0) {
       const width = pw * panelSize;
-      const height = ph * panelSize;
+
+      // Calculate actual height accounting for CB5 panel type (2:1 ratio) and half panel rows
+      const screenPanelType = data.panelType || 'CB5_MKII';
+      const heightRatio = getPanelHeightRatio(screenPanelType);
+      const hasCB5HalfRow = data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
+      const originalPh = hasCB5HalfRow ? ph - 1 : ph;
+      const fullPanelHeight = panelSize * heightRatio;
+      const halfPanelHeight = panelSize; // Half panels are square
+      const height = hasCB5HalfRow ? (originalPh * fullPanelHeight + halfPanelHeight) : (ph * fullPanelHeight);
 
       screenDimensions.push({
         screenId,

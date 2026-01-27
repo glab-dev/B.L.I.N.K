@@ -3345,7 +3345,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.237';
+const APP_VERSION = '2.0.238';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18974,20 +18974,36 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     // Draw panels with checkerboard pattern (same as original)
     // Use actualPanelSize for mirroring mode, zoomedPanelSize for normal mode
     const drawPanelSize = combinedMirrorCanvas ? actualPanelSize : zoomedPanelSize;
+
+    // Calculate panel height for CB5_MKII (rectangular) vs other panels (square)
+    const screenPanelType = data.panelType || 'CB5_MKII';
+    const screenHeightRatio = getPanelHeightRatio(screenPanelType);
+    const drawPanelWidth = drawPanelSize;
+    const drawPanelHeight = drawPanelSize * screenHeightRatio;
+
+    // Check if this screen has half panel row enabled
+    const screenHasCB5HalfRow = data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
+    const screenOriginalPh = screenHasCB5HalfRow ? ph - 1 : ph;
+    const halfPanelDrawHeight = drawPanelSize; // Half panels are square
+
     for(let c = 0; c < pw; c++) {
       for(let r = 0; r < ph; r++) {
         const panelKey = `${c},${r}`;
-        const px = screenX + c * drawPanelSize;
-        const py = screenY + r * drawPanelSize;
+
+        // Determine if this row is the half panel row
+        const isHalfPanelRow = screenHasCB5HalfRow && r === screenOriginalPh;
+        const currentDrawHeight = isHalfPanelRow ? halfPanelDrawHeight : drawPanelHeight;
+        const px = screenX + c * drawPanelWidth;
+        const py = screenY + (isHalfPanelRow ? (screenOriginalPh * drawPanelHeight) : (r * drawPanelHeight));
 
         const hasDeleted = screenDeletedPanels.has(panelKey);
         if(hasDeleted) {
           ctx.fillStyle = '#1a1a1a';
-          ctx.fillRect(px, py, drawPanelSize, drawPanelSize);
+          ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
           ctx.strokeStyle = '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
-          ctx.strokeRect(px, py, drawPanelSize, drawPanelSize);
+          ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
           ctx.setLineDash([]);
           continue;
         }
@@ -18995,12 +19011,12 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
         // Checkerboard pattern (same as original)
         const isEvenPanel = (c + r) % 2 === 0;
         ctx.fillStyle = isEvenPanel ? primaryColor : secondaryColor;
-        ctx.fillRect(px, py, drawPanelSize, drawPanelSize);
+        ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
 
         // Black border
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 1;
-        ctx.strokeRect(px, py, drawPanelSize, drawPanelSize);
+        ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
 
         // Black panel number (scale font with panel size)
         ctx.fillStyle = '#000000';
@@ -19010,17 +19026,20 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
         ctx.textBaseline = 'middle';
         // Only show panel numbers if panels are large enough
         if(drawPanelSize >= 15) {
-          ctx.fillText(`${c+1}.${r+1}`, px + drawPanelSize/2, py + drawPanelSize/2);
+          ctx.fillText(`${c+1}.${r+1}`, px + drawPanelWidth/2, py + currentDrawHeight/2);
         }
       }
     }
+
+    // Calculate total screen height for label positioning
+    const screenTotalHeight = screenHasCB5HalfRow ? (screenOriginalPh * drawPanelHeight + halfPanelDrawHeight) : (ph * drawPanelHeight);
 
     // Draw screen label (scale font with panel size)
     ctx.fillStyle = '#fff';
     const labelFontSize = Math.max(8, Math.min(14, drawPanelSize * 0.35));
     ctx.font = `bold ${labelFontSize}px Arial`;
     ctx.textAlign = 'center';
-    ctx.fillText(screen.name, screenX + (pw * drawPanelSize) / 2, screenY - Math.max(6, drawPanelSize * 0.25));
+    ctx.fillText(screen.name, screenX + (pw * drawPanelWidth) / 2, screenY - Math.max(6, drawPanelSize * 0.25));
   });
 
   // Draw selection highlight on top of everything (after all panels drawn)
@@ -19220,21 +19239,35 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       }
     });
 
+    // Calculate panel dimensions for CB5_MKII (rectangular) vs other panels (square)
+    const screenHeightRatio = getPanelHeightRatio(panelType);
+    const drawPanelWidth = panelSize;
+    const drawPanelHeight = panelSize * screenHeightRatio;
+
+    // Check if this screen has half panel row enabled
+    const screenHasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
+    const screenOriginalPh = screenHasCB5HalfRow ? ph - 1 : ph;
+    const halfPanelDrawHeight = panelSize; // Half panels are square
+
     // Draw all panels using resistor colors (same as original)
     for(let c=0; c<pw; c++){
       for(let r=0; r<ph; r++){
         const panelKey = `${c},${r}`;
-        const px = screenX + c * panelSize;
-        const py = screenY + r * panelSize;
+
+        // Determine if this row is the half panel row
+        const isHalfPanelRow = screenHasCB5HalfRow && r === screenOriginalPh;
+        const currentDrawHeight = isHalfPanelRow ? halfPanelDrawHeight : drawPanelHeight;
+        const px = screenX + c * drawPanelWidth;
+        const py = screenY + (isHalfPanelRow ? (screenOriginalPh * drawPanelHeight) : (r * drawPanelHeight));
 
         const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
         if(hasDeleted) {
           ctx.fillStyle = '#1a1a1a';
-          ctx.fillRect(px, py, panelSize, panelSize);
+          ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
           ctx.strokeStyle = '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
-          ctx.strokeRect(px, py, panelSize, panelSize);
+          ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
           ctx.setLineDash([]);
           continue;
         }
@@ -19252,10 +19285,10 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
         const fillColor = lightenColor(colors.solid, lightenPercent);
 
         ctx.fillStyle = fillColor;
-        ctx.fillRect(px, py, panelSize, panelSize);
+        ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(px, py, panelSize, panelSize);
+        ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
       }
     }
 
@@ -19283,7 +19316,7 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
           circuitPanelMap.get(circuitNum).push({
             c: c,
             r: r,
-            x: screenX + c * panelSize
+            x: screenX + c * drawPanelWidth
           });
         }
       }
@@ -19317,7 +19350,7 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
 
       const lineY = 35;
       const startX = minX;
-      const endX = maxX + panelSize;
+      const endX = maxX + drawPanelWidth;
       const midX = (startX + endX) / 2;
 
       // Draw horizontal line
@@ -19396,6 +19429,17 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
 
     const panelsPerDataLine = data.maxPanelsPerData || 48;
     const startDir = data.dataStartDir || 'top';
+
+    // Calculate panel dimensions for CB5_MKII (rectangular) vs other panels (square)
+    const screenPanelType = data.panelType || 'CB5_MKII';
+    const screenHeightRatio = getPanelHeightRatio(screenPanelType);
+    const drawPanelWidth = panelSize;
+    const drawPanelHeight = panelSize * screenHeightRatio;
+
+    // Check if this screen has half panel row enabled
+    const screenHasCB5HalfRow = data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
+    const screenOriginalPh = screenHasCB5HalfRow ? ph - 1 : ph;
+    const halfPanelDrawHeight = panelSize; // Half panels are square
 
     // Build data line assignments using serpentine pattern (same as original)
     const panelToDataLine = new Map();
@@ -19487,17 +19531,21 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     for(let c=0; c<pw; c++){
       for(let r=0; r<ph; r++){
         const panelKey = `${c},${r}`;
-        const px = screenX + c * panelSize;
-        const py = screenY + r * panelSize;
+
+        // Determine if this row is the half panel row
+        const isHalfPanelRow = screenHasCB5HalfRow && r === screenOriginalPh;
+        const currentDrawHeight = isHalfPanelRow ? halfPanelDrawHeight : drawPanelHeight;
+        const px = screenX + c * drawPanelWidth;
+        const py = screenY + (isHalfPanelRow ? (screenOriginalPh * drawPanelHeight) : (r * drawPanelHeight));
 
         const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
         if(hasDeleted) {
           ctx.fillStyle = '#1a1a1a';
-          ctx.fillRect(px, py, panelSize, panelSize);
+          ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
           ctx.strokeStyle = '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
-          ctx.strokeRect(px, py, panelSize, panelSize);
+          ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
           ctx.setLineDash([]);
           continue;
         }
@@ -19509,10 +19557,10 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
         const colors = colorForIndex(dataLineNum);
 
         ctx.fillStyle = colors.fill;
-        ctx.fillRect(px, py, panelSize, panelSize);
+        ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(px, py, panelSize, panelSize);
+        ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
       }
     }
 
@@ -19520,7 +19568,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - 10);
+    ctx.fillText(screen.name, screenX + (pw * drawPanelWidth) / 2, screenY - 10);
   });
 }
 
@@ -19561,6 +19609,20 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 
     const screenBumpers = data.bumpers || [];
 
+    // Calculate panel dimensions for CB5_MKII (rectangular) vs other panels (square)
+    const screenPanelType = data.panelType || 'CB5_MKII';
+    const screenHeightRatio = getPanelHeightRatio(screenPanelType);
+    const drawPanelWidth = panelSize;
+    const drawPanelHeight = panelSize * screenHeightRatio;
+
+    // Check if this screen has half panel row enabled
+    const screenHasCB5HalfRow = data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
+    const screenOriginalPh = screenHasCB5HalfRow ? ph - 1 : ph;
+    const halfPanelDrawHeight = panelSize; // Half panels are square
+
+    // Calculate total screen height (accounting for half panel row if present)
+    const screenTotalHeight = screenHasCB5HalfRow ? (screenOriginalPh * drawPanelHeight + halfPanelDrawHeight) : (ph * drawPanelHeight);
+
     // Determine if we have top or bottom bumpers based on structure type
     const isHanging = structureType === 'hanging' || structureType === 'hybrid';
     const isGround = structureType === 'ground' || structureType === 'floor';
@@ -19579,8 +19641,12 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     for(let c=0; c<pw; c++){
       for(let r=0; r<ph; r++){
         const panelKey = `${c},${r}`;
-        const px = screenX + c * panelSize;
-        const py = panelYOffset + r * panelSize;
+
+        // Determine if this row is the half panel row
+        const isHalfPanelRow = screenHasCB5HalfRow && r === screenOriginalPh;
+        const currentDrawHeight = isHalfPanelRow ? halfPanelDrawHeight : drawPanelHeight;
+        const px = screenX + c * drawPanelWidth;
+        const py = panelYOffset + (isHalfPanelRow ? (screenOriginalPh * drawPanelHeight) : (r * drawPanelHeight));
 
         const hasDeleted = screenDeletedPanels.has(panelKey);
         if(hasDeleted) {
@@ -19588,19 +19654,19 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
           ctx.strokeStyle = '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
-          ctx.strokeRect(px, py, panelSize, panelSize);
+          ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
           ctx.setLineDash([]);
           continue;
         }
 
         // White background for panels (same as original)
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(px, py, panelSize, panelSize);
+        ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
 
         // Black outline
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(px, py, panelSize, panelSize);
+        ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
       }
     }
 
@@ -19616,16 +19682,16 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
           bumperWidthCols = (bumper.endCol - bumper.startCol) || 2;
         }
 
-        const bumperX = screenX + bumper.startCol * panelSize;
-        const bumperWidthPx = bumperWidthCols * panelSize;
+        const bumperX = screenX + bumper.startCol * drawPanelWidth;
+        const bumperWidthPx = bumperWidthCols * drawPanelWidth;
         let bumperY;
 
         if(bumper.position === 'top') {
           // Top bumpers
           bumperY = topPadding;
         } else {
-          // Bottom bumpers
-          bumperY = panelYOffset + ph * panelSize + 5;
+          // Bottom bumpers - use total screen height which accounts for half panel row
+          bumperY = panelYOffset + screenTotalHeight + 5;
         }
 
         // Use colors matching original: green for top 2W, orange for bottom, blue for 1W, orange for 4W
@@ -19667,7 +19733,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     } else {
       labelY = panelYOffset - 15;
     }
-    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, labelY);
+    ctx.fillText(screen.name, screenX + (pw * drawPanelWidth) / 2, labelY);
   });
 }
 

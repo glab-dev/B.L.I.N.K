@@ -3345,7 +3345,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.236';
+const APP_VERSION = '2.0.237';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -7269,8 +7269,15 @@ function generateLayout(mode){
   const panelWidth = size;
   const panelHeight = size * heightRatio;
 
+  // hasCB5HalfRow is already declared earlier in this function
+  // Calculate dimensions accounting for half panel row
+  const originalPh = hasCB5HalfRow ? ph - 1 : ph; // ph includes the half row, originalPh is just full panels
+  const halfPanelHeight = size; // Half panels are square
+
+  // Canvas height: full panel rows + half panel row if enabled
+  const canvasHeightCalc = hasCB5HalfRow ? (originalPh * panelHeight + halfPanelHeight) : (ph * panelHeight);
   canvas.width = pw * panelWidth;
-  canvas.height = ph * panelHeight;
+  canvas.height = canvasHeightCalc;
 
   // Update global panelSize for all modes
   panelSize = size;
@@ -7290,29 +7297,34 @@ function generateLayout(mode){
       for(let r=0;r<ph;r++){
         const panelKey = `${c},${r}`;
 
+        // Determine if this row is the half panel row (last row when hasCB5HalfRow)
+        const isHalfPanelRow = hasCB5HalfRow && r === originalPh;
+        const currentPanelHeight = isHalfPanelRow ? halfPanelHeight : panelHeight;
+        // Calculate Y position: full panels use panelHeight, half panel row starts after all full panels
+        const y = isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight);
+        const x = c * panelWidth;
+
         // Skip deleted panels
         if(deletedPanels.has(panelKey)) {
-          const x=c*panelWidth, y=r*panelHeight;
           ctx.fillStyle = '#1a1a1a'; // Dark background for deleted
-          ctx.fillRect(x, y, panelWidth, panelHeight);
+          ctx.fillRect(x, y, panelWidth, currentPanelHeight);
           ctx.strokeStyle = '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
-          ctx.strokeRect(x, y, panelWidth, panelHeight);
+          ctx.strokeRect(x, y, panelWidth, currentPanelHeight);
           ctx.setLineDash([]);
           continue;
         }
 
-        const x=c*panelWidth, y=r*panelHeight;
         const fillColor = getStandardColorForPanel(c, r);
         ctx.fillStyle = fillColor;
-        ctx.fillRect(x, y, panelWidth, panelHeight);
+        ctx.fillRect(x, y, panelWidth, currentPanelHeight);
 
         // Highlight selected panels
         if(selectedPanels.has(panelKey)) {
           ctx.strokeStyle = '#00FF00';
           ctx.lineWidth = 4;
-          ctx.strokeRect(x+2, y+2, panelWidth-4, panelHeight-4);
+          ctx.strokeRect(x+2, y+2, panelWidth-4, currentPanelHeight-4);
         }
 
         // Show indicators for custom assignments
@@ -7322,14 +7334,14 @@ function generateLayout(mode){
         }
         if(customDataLineAssignments.has(panelKey)) {
           ctx.fillStyle = '#00CED1'; // Cyan indicator for data line
-          ctx.fillRect(x+2, y+panelHeight-10, 8, 8);
+          ctx.fillRect(x+2, y+currentPanelHeight-10, 8, 8);
         }
 
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, panelWidth, panelHeight);
+        ctx.strokeRect(x, y, panelWidth, currentPanelHeight);
         ctx.fillStyle = '#000000'; // Always use black text (no black panels in standard layout)
-        ctx.fillText(`${c+1}.${r+1}`, x+panelWidth/2, y+panelHeight/2);
+        ctx.fillText(`${c+1}.${r+1}`, x+panelWidth/2, y+currentPanelHeight/2);
       }
     }
 
@@ -7341,7 +7353,7 @@ function generateLayout(mode){
     // Knockouts in a column split that column into separate circuit segments
 
     const socaLabelHeight = 60;
-    canvas.height = ph * panelHeight + socaLabelHeight;
+    canvas.height = canvasHeightCalc + socaLabelHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Fill label area with white background (for PDF export - JPEG doesn't support transparency)
@@ -7455,17 +7467,21 @@ function generateLayout(mode){
     for(let c=0; c<pw; c++){
       for(let r=0; r<ph; r++){
         const panelKey = `${c},${r}`;
+
+        // Determine if this row is the half panel row
+        const isHalfPanelRow = hasCB5HalfRow && r === originalPh;
+        const currentPanelHeight = isHalfPanelRow ? halfPanelHeight : panelHeight;
         const x = c * panelWidth;
-        const y = r * panelHeight + socaLabelHeight;
+        const y = (isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight)) + socaLabelHeight;
 
         // Check if panel is deleted
         if(deletedPanels.has(panelKey)) {
           ctx.fillStyle = '#1a1a1a';
-          ctx.fillRect(x, y, panelWidth, panelHeight);
+          ctx.fillRect(x, y, panelWidth, currentPanelHeight);
           ctx.strokeStyle = '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
-          ctx.strokeRect(x, y, panelWidth, panelHeight);
+          ctx.strokeRect(x, y, panelWidth, currentPanelHeight);
           ctx.setLineDash([]);
           continue;
         }
@@ -7484,10 +7500,10 @@ function generateLayout(mode){
         const fillColor = lightenColor(colors.solid, lightenPercent);
 
         ctx.fillStyle = fillColor;
-        ctx.fillRect(x, y, panelWidth, panelHeight);
+        ctx.fillRect(x, y, panelWidth, currentPanelHeight);
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, panelWidth, panelHeight);
+        ctx.strokeRect(x, y, panelWidth, currentPanelHeight);
 
         // Always use black text (no black panels in power layout)
         ctx.fillStyle = '#000000';
@@ -7495,7 +7511,7 @@ function generateLayout(mode){
         ctx.font = '11px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${c+1}.${r+1}`, x+panelWidth/2, y+panelHeight/2);
+        ctx.fillText(`${c+1}.${r+1}`, x+panelWidth/2, y+currentPanelHeight/2);
       }
     }
     
@@ -7878,16 +7894,21 @@ function generateLayout(mode){
     for(let c=0;c<pw;c++){
       for(let r=0;r<ph;r++){
         const panelKey = `${c},${r}`;
-        const x=c*panelWidth, y=r*panelHeight;
+
+        // Determine if this row is the half panel row
+        const isHalfPanelRow = hasCB5HalfRow && r === originalPh;
+        const currentPanelHeight = isHalfPanelRow ? halfPanelHeight : panelHeight;
+        const x = c * panelWidth;
+        const y = isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight);
 
         // Check if panel is deleted
         if(deletedPanels.has(panelKey)) {
           ctx.fillStyle = '#1a1a1a';
-          ctx.fillRect(x,y,panelWidth,panelHeight);
+          ctx.fillRect(x,y,panelWidth,currentPanelHeight);
           ctx.strokeStyle='#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
-          ctx.strokeRect(x,y,panelWidth,panelHeight);
+          ctx.strokeRect(x,y,panelWidth,currentPanelHeight);
           ctx.setLineDash([]);
         }
       }
@@ -7900,19 +7921,25 @@ function generateLayout(mode){
       groupPoints[gi] = [];
       for(let idx=0; idx<groups[gi].length; idx++){
         const pnt = groups[gi][idx];
-        const x=pnt.c*panelWidth, y=pnt.r*panelHeight;
+
+        // Determine if this row is the half panel row
+        const isHalfPanelRow = hasCB5HalfRow && pnt.r === originalPh;
+        const currentPanelHeight = isHalfPanelRow ? halfPanelHeight : panelHeight;
+        const x = pnt.c * panelWidth;
+        const y = isHalfPanelRow ? (originalPh * panelHeight) : (pnt.r * panelHeight);
+
         ctx.fillStyle=colors.fill;
-        ctx.fillRect(x,y,panelWidth,panelHeight);
+        ctx.fillRect(x,y,panelWidth,currentPanelHeight);
         ctx.strokeStyle='#000000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x,y,panelWidth,panelHeight);
+        ctx.strokeRect(x,y,panelWidth,currentPanelHeight);
 
         // Use white text only for data line 9 (black resistor color), black text for all others
         ctx.fillStyle = (gi === 9) ? '#FFFFFF' : '#000000';
 
         // Show panel number as column.row (matching standard layout)
-        ctx.fillText(`${pnt.c+1}.${pnt.r+1}`, x+panelWidth/2, y+panelHeight/2);
-        groupPoints[gi].push({x:x+panelWidth/2, y:y+panelHeight/2, color: colors.solid});
+        ctx.fillText(`${pnt.c+1}.${pnt.r+1}`, x+panelWidth/2, y+currentPanelHeight/2);
+        groupPoints[gi].push({x:x+panelWidth/2, y:y+currentPanelHeight/2, color: colors.solid});
       }
     }
     if(showArrows){
@@ -8136,6 +8163,11 @@ function generateStructureLayout(){
   const panelWidth = size;
   const panelHeight = size * heightRatio;
 
+  // Check if CB5 half panel row is enabled - last row should be square
+  const hasCB5HalfRow = cb5HalfRowEnabled && panelType === 'CB5_MKII';
+  const originalPh = hasCB5HalfRow ? ph - 1 : ph;
+  const halfPanelHeight = size; // Half panels are square
+
   const bumperHeight = Math.max(30, size * 0.8); // Scale bumper height with panel size
   const fourWayHeight = Math.max(15, size * 0.4); // Scale 4-way height with panel size
   const fourWayGap = 5; // Gap between 2W and 4W bumpers
@@ -8146,7 +8178,8 @@ function generateStructureLayout(){
   const has4WayBumpers = use4Way && isCB5;
 
   // Calculate canvas height - add space for bumpers and 4-way bumpers
-  let canvasHeight = ph * panelHeight;
+  // Account for half panel row if enabled
+  let canvasHeight = hasCB5HalfRow ? (originalPh * panelHeight + halfPanelHeight) : (ph * panelHeight);
   if(showTopBumper) {
     canvasHeight += bumperHeight;
     if(has4WayBumpers) canvasHeight += fourWayHeight + fourWayGap;
@@ -8185,32 +8218,35 @@ function generateStructureLayout(){
     for(let r=0;r<ph;r++){
       const panelKey = `${c},${r}`;
 
+      // Determine if this row is the half panel row
+      const isHalfPanelRow = hasCB5HalfRow && r === originalPh;
+      const currentPanelHeight = isHalfPanelRow ? halfPanelHeight : panelHeight;
+      const x = c * panelWidth;
+      const y = panelYOffset + (isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight));
+
       // Skip deleted panels - they'll show the dark background
       if(deletedPanels.has(panelKey)) {
-        const x=c*panelWidth, y=panelYOffset + r*panelHeight;
         // Draw dashed outline for deleted panels
         ctx.strokeStyle='#333333';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
-        ctx.strokeRect(x, y, panelWidth, panelHeight);
+        ctx.strokeRect(x, y, panelWidth, currentPanelHeight);
         ctx.setLineDash([]);
         continue;
       }
 
-      const x=c*panelWidth, y=panelYOffset + r*panelHeight;
-
       // White background for panels
       ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(x, y, panelWidth, panelHeight);
+      ctx.fillRect(x, y, panelWidth, currentPanelHeight);
 
       // Black outline
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 2;
-      ctx.strokeRect(x, y, panelWidth, panelHeight);
+      ctx.strokeRect(x, y, panelWidth, currentPanelHeight);
 
       // Black label
       ctx.fillStyle = '#000000';
-      ctx.fillText(`${c+1}.${r+1}`, x+panelWidth/2, y+panelHeight/2);
+      ctx.fillText(`${c+1}.${r+1}`, x+panelWidth/2, y+currentPanelHeight/2);
     }
   }
 

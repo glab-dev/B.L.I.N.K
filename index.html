@@ -2572,7 +2572,10 @@
         <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save Configuration</button>
         <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load Configuration</button>
         <input type="file" id="loadConfigInput" accept=".ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
-        <button id="btnExportPDF" class="mobile-menu-btn" style="color: #a78bbd;" onclick="closeMobileMenu();">Export PDF</button>
+        <div style="display: flex; gap: 8px;">
+          <button id="btnExportPDF" class="mobile-menu-btn" style="color: #a78bbd; flex: 1;" onclick="closeMobileMenu();">Export PDF</button>
+          <button id="btnPrint" class="mobile-menu-btn" style="color: #a78bbd; flex: 1;" onclick="closeMobileMenu();">Print</button>
+        </div>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Custom Items</div>
@@ -3367,7 +3370,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.251';
+const APP_VERSION = '2.0.252';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -16265,6 +16268,7 @@ document.addEventListener('DOMContentLoaded', function() {
   
   try {
     const btnPDF = document.getElementById('btnExportPDF');
+    const btnPrint = document.getElementById('btnPrint');
     const btnExp = document.getElementById('btnExportCanvas');
     
     // Auto-calculate on any input change
@@ -16359,7 +16363,23 @@ document.addEventListener('DOMContentLoaded', function() {
         exportPDF();
       }
     });
-    
+
+    // Print button - same behavior as Export PDF
+    if(btnPrint) btnPrint.addEventListener('click', function(e) {
+      e.preventDefault();
+      if(currentMobileView === 'complex' || currentMobileView === 'combined') {
+        openPdfExportModal();
+      } else {
+        pdfExportOptions.specs = true;
+        pdfExportOptions.gearList = false;
+        pdfExportOptions.standard = false;
+        pdfExportOptions.power = false;
+        pdfExportOptions.data = false;
+        pdfExportOptions.structure = false;
+        exportPDF();
+      }
+    });
+
     if(btnExp) btnExp.addEventListener('click', function(e) {
       e.preventDefault();
       exportCanvas();

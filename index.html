@@ -765,10 +765,6 @@
         overflow-x: visible;
       }
 
-      /* Move collapse button further right on desktop */
-      .layout-collapse-btn {
-        right: 55px;
-      }
     }
     
     .button-row {
@@ -972,6 +968,13 @@
     .layout-collapse-btn:hover {
       background: var(--primary);
       color: #000;
+    }
+
+    /* Desktop: position collapse button between text and right edge of header */
+    @media (min-width: 768px) {
+      .layout-collapse-btn {
+        right: 3px;
+      }
     }
 
     .layout-content {
@@ -3364,7 +3367,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.246';
+const APP_VERSION = '2.0.247';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready

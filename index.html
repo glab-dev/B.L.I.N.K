@@ -11203,15 +11203,17 @@ function loadCanvasData(canvasId) {
   if(customHeightInput) customHeightInput.value = canvas.data.customCanvasHeight || 2160;
 
   // Restore screen visibility for this canvas
-  if(canvas.data.screenVisibility) {
-    Object.keys(screens).forEach(screenId => {
-      if(canvas.data.screenVisibility.hasOwnProperty(screenId)) {
-        screens[screenId].visible = canvas.data.screenVisibility[screenId];
-      }
-    });
-    // Update the screen toggles UI
-    updateCanvasScreenToggles();
-  }
+  // Default all screens to hidden, then restore saved visibility
+  Object.keys(screens).forEach(screenId => {
+    if(canvas.data.screenVisibility && canvas.data.screenVisibility.hasOwnProperty(screenId)) {
+      screens[screenId].visible = canvas.data.screenVisibility[screenId];
+    } else {
+      // If no saved state, default to hidden
+      screens[screenId].visible = false;
+    }
+  });
+  // Update the screen toggles UI
+  updateCanvasScreenToggles();
 }
 
 function showCanvasView(){
@@ -17430,12 +17432,24 @@ function updateCanvasScreenToggles() {
 function toggleScreenVisibility(screenId, visible) {
   if(screens[screenId]) {
     screens[screenId].visible = visible;
-    // Also update the current canvas's visibility tracking
+    // Update current canvas's visibility tracking
     if(currentCanvasId && canvases[currentCanvasId]) {
       if(!canvases[currentCanvasId].data.screenVisibility) {
         canvases[currentCanvasId].data.screenVisibility = {};
       }
       canvases[currentCanvasId].data.screenVisibility[screenId] = visible;
+
+      // If turning ON a screen, turn it OFF in all other canvases
+      if(visible) {
+        Object.keys(canvases).forEach(canvasId => {
+          if(canvasId !== currentCanvasId) {
+            if(!canvases[canvasId].data.screenVisibility) {
+              canvases[canvasId].data.screenVisibility = {};
+            }
+            canvases[canvasId].data.screenVisibility[screenId] = false;
+          }
+        });
+      }
     }
     // Redraw canvas view to show/hide the screen
     showCanvasView();

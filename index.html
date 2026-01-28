@@ -2471,6 +2471,10 @@
           <input type="checkbox" id="pdfExportEcoFriendly" style="width: 16px; height: 16px; accent-color: var(--primary);">
           <span style="font-size: 12px;">Eco Friendly</span>
         </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportGreyscale" style="width: 16px; height: 16px; accent-color: var(--primary);">
+          <span style="font-size: 12px;">Greyscale</span>
+        </label>
       </div>
     </div>
     <div class="modal-footer">
@@ -3378,7 +3382,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.261';
+const APP_VERSION = '2.0.262';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3938,6 +3942,8 @@ let dragStartX = 0;
 
 // Eco-friendly print mode - uses lighter colors and white backgrounds
 let ecoPrintMode = false;
+// Greyscale print mode - converts all colors to greyscale
+let greyscalePrintMode = false;
 
 // Canvas movement undo/redo state
 let canvasMoveHistory = [];
@@ -6639,6 +6645,13 @@ function colorForIndex(i){
   // Use pastel colors for eco-friendly printing
   if (ecoPrintMode) {
     base = toPastelColor(base);
+  }
+  // Convert to greyscale for greyscale printing
+  if (greyscalePrintMode) {
+    base = toGreyscale(base);
+    return { fill: base, text: '#000000', solid: base };
+  }
+  if (ecoPrintMode) {
     return { fill: base, text: '#000000', solid: base };
   }
   return { fill: hexToRgba(base, alpha), text: getContrastColor(base), solid: base };
@@ -7199,6 +7212,12 @@ function getStandardColorForPanel(c, r){
   if (ecoPrintMode) {
     primaryColor = toPastelColor(primaryColor);
     secondaryColor = toPastelColor(secondaryColor);
+  }
+
+  // Convert to greyscale for greyscale printing
+  if (greyscalePrintMode) {
+    primaryColor = toGreyscale(primaryColor);
+    secondaryColor = toGreyscale(secondaryColor);
   }
 
   // Alternate colors in a checkerboard pattern (same logic as canvas view)
@@ -9559,7 +9578,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
         y = panelYOffset + (ph * panelHeight) + bumperHeight + fourWayGap;
       }
 
-      fillColor = ecoPrintMode ? toPastelColor('#FF6B35') : '#FF6B35'; // Orange
+      fillColor = greyscalePrintMode ? toGreyscale('#FF6B35') : (ecoPrintMode ? toPastelColor('#FF6B35') : '#FF6B35'); // Orange
       label = '4W';
 
     } else if(bumper.type === '2w') {
@@ -9571,7 +9590,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
 
       if(bumper.position === 'top') {
         // For hanging bumpers, drop down to the first non-deleted row
-        // Check both columns covered by this 2W bumper
+        // Check both columns covered by this 2W bumpers
         const row1 = getFirstNonDeletedRow(col, ph);
         const row2 = getFirstNonDeletedRow(col + 1, ph);
         const maxRow = Math.max(row1, row2); // Use the deeper one so bumper sits on both
@@ -9582,9 +9601,9 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
         y = panelYOffset + (ph * panelHeight);
       }
 
-      fillColor = ecoPrintMode ? toPastelColor('#4CAF50') : '#4CAF50'; // Green for top, orange for bottom
+      fillColor = greyscalePrintMode ? toGreyscale('#4CAF50') : (ecoPrintMode ? toPastelColor('#4CAF50') : '#4CAF50'); // Green for top, orange for bottom
       if(bumper.position === 'bottom') {
-        fillColor = ecoPrintMode ? toPastelColor('#FF9800') : '#FF9800';
+        fillColor = greyscalePrintMode ? toGreyscale('#FF9800') : (ecoPrintMode ? toPastelColor('#FF9800') : '#FF9800');
       }
       label = '2W';
 
@@ -9605,7 +9624,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
         y = panelYOffset + (ph * panelHeight);
       }
 
-      fillColor = ecoPrintMode ? toPastelColor('#2196F3') : '#2196F3'; // Blue for 1W
+      fillColor = greyscalePrintMode ? toGreyscale('#2196F3') : (ecoPrintMode ? toPastelColor('#2196F3') : '#2196F3'); // Blue for 1W
       label = '1W';
     }
 
@@ -13241,6 +13260,8 @@ function openPdfExportModal(printMode = false) {
     document.getElementById('pdfExportStructure').checked = true;
     // Eco Friendly defaults to ON for Print button, OFF for Export PDF
     document.getElementById('pdfExportEcoFriendly').checked = printMode;
+    // Greyscale always defaults to OFF
+    document.getElementById('pdfExportGreyscale').checked = false;
     modal.classList.add('active');
   }
 }
@@ -13276,9 +13297,16 @@ function exportPDF(){
       ecoPrintMode = true;
     }
 
+    // Enable greyscale printing mode if checkbox is checked
+    const greyscaleCheckbox = document.getElementById('pdfExportGreyscale');
+    if (greyscaleCheckbox && greyscaleCheckbox.checked) {
+      greyscalePrintMode = true;
+    }
+
     if(!window.jspdf || !window.html2canvas){
       alert('PDF export libraries not loaded. Please check your internet connection and refresh the page.');
       ecoPrintMode = false; // Reset on error
+      greyscalePrintMode = false;
       return;
     }
 
@@ -13334,9 +13362,10 @@ function exportPDF(){
     function removeOverlay() {
       const overlay = document.getElementById('pdfExportOverlay');
       if(overlay) overlay.remove();
-      // Reset eco print mode and re-render with normal colors
-      if (ecoPrintMode) {
+      // Reset print modes and re-render with normal colors
+      if (ecoPrintMode || greyscalePrintMode) {
         ecoPrintMode = false;
+        greyscalePrintMode = false;
         generateLayout('standard');
         generateLayout('power');
         generateLayout('data');
@@ -15150,11 +15179,12 @@ function exportPDF(){
   } catch(err) {
     console.error('PDF export error:', err);
     alert('Error exporting PDF: ' + err.message);
-    // Make sure to remove overlay and reset eco print mode on error
+    // Make sure to remove overlay and reset print modes on error
     const overlay = document.getElementById('pdfExportOverlay');
     if(overlay) overlay.remove();
-    if (ecoPrintMode) {
+    if (ecoPrintMode || greyscalePrintMode) {
       ecoPrintMode = false;
+      greyscalePrintMode = false;
       generateLayout('standard');
       generateLayout('power');
       generateLayout('data');
@@ -16928,6 +16958,19 @@ function toPastelColor(hex) {
   }
 
   return '#' + [r2, g2, b2].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
+}
+
+// Convert a color to greyscale for print-friendly output
+function toGreyscale(hex) {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+
+  // Use luminance formula for perceptually accurate greyscale
+  const grey = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+
+  return '#' + grey.toString(16).padStart(2, '0').repeat(3);
 }
 
 function getDefaultScreenData() {
@@ -19127,6 +19170,11 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     if (ecoPrintMode) {
       primaryColor = toPastelColor(primaryColor);
       secondaryColor = toPastelColor(secondaryColor);
+    }
+    // Convert to greyscale for greyscale printing
+    if (greyscalePrintMode) {
+      primaryColor = toGreyscale(primaryColor);
+      secondaryColor = toGreyscale(secondaryColor);
     }
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)

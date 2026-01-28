@@ -2168,18 +2168,35 @@
 
     .mobile-menu-btn {
       width: 100%;
-      padding: 14px 16px;
+      padding: 10px 12px;
       margin-bottom: 8px;
       background: #333;
       border: 2px solid #000;
       border-radius: 0; /* Removed to fix diagonal line artifacts on Windows */
       color: var(--primary);
-      font-size: 14px;
-      font-family: 'Permanent Marker', cursive;
+      font-size: 13px;
+      font-family: 'Bangers', cursive;
+      letter-spacing: 1px;
       text-align: left;
       cursor: pointer;
       box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
       transition: all 0.1s;
+    }
+
+    .mobile-menu-btn.accent {
+      color: var(--accent-color);
+    }
+
+    .mobile-menu-btn-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .mobile-menu-btn-row .mobile-menu-btn {
+      flex: 1;
+      margin-bottom: 0;
+      text-align: center;
     }
 
     .mobile-menu-btn:active {
@@ -2468,11 +2485,11 @@
       <p style="color: #888; font-size: 11px; margin-bottom: 10px;">Print options:</p>
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportEcoFriendly" style="width: 16px; height: 16px; accent-color: var(--primary);">
+          <input type="checkbox" id="pdfExportEcoFriendly" style="width: 16px; height: 16px; accent-color: var(--primary);" onchange="if(this.checked) document.getElementById('pdfExportGreyscale').checked = false;">
           <span style="font-size: 12px;">Eco Friendly</span>
         </label>
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportGreyscale" style="width: 16px; height: 16px; accent-color: var(--primary);">
+          <input type="checkbox" id="pdfExportGreyscale" style="width: 16px; height: 16px; accent-color: var(--primary);" onchange="if(this.checked) document.getElementById('pdfExportEcoFriendly').checked = false;">
           <span style="font-size: 12px;">Greyscale</span>
         </label>
       </div>
@@ -2581,19 +2598,18 @@
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Configuration</div>
         <input type="text" id="configName" placeholder="Config name..." style="margin-bottom: 12px;">
-        <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save Configuration</button>
-        <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load Configuration</button>
-        <input type="file" id="loadConfigInput" accept=".ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
-        <div style="display: flex; gap: 8px;">
-          <button id="btnExportPDF" class="mobile-menu-btn" style="color: #a78bbd; flex: 1;" onclick="closeMobileMenu();">Export PDF</button>
-          <button id="btnPrint" class="mobile-menu-btn" style="color: #a78bbd; flex: 1;" onclick="closeMobileMenu();">Print</button>
+        <div class="mobile-menu-btn-row">
+          <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save</button>
+          <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load</button>
+          <input type="file" id="loadConfigInput" accept=".ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
+          <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="closeMobileMenu();">Export</button>
         </div>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Custom Items</div>
         <button class="mobile-menu-btn" onclick="openProcessorRequestModal(); closeMobileMenu();">Request Custom Processor</button>
         <button class="mobile-menu-btn" onclick="openCustomPanelModal(); closeMobileMenu();">Add Custom Panel</button>
-        <button class="mobile-menu-btn" style="color: #a78bbd;" onclick="openManageCustomModal(); closeMobileMenu();">Manage Custom Panels</button>
+        <button class="mobile-menu-btn accent" onclick="openManageCustomModal(); closeMobileMenu();">Manage Custom Panels</button>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label" style="color: var(--accent-color);">App Info</div>
@@ -3382,7 +3398,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.265';
+const APP_VERSION = '2.1.0';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -6730,9 +6746,7 @@ function getVibrantColorForPDF(hexColor) {
 }
 
 // Get canvas as data URL for PDF
-// When printMode is true, convert dark backgrounds to white and desaturate colors to 70%
-function getCanvasDataURLForPDF(canvas, printMode = false) {
-  // printMode parameter reserved for future eco-friendly print rendering
+function getCanvasDataURLForPDF(canvas) {
   return canvas.toDataURL('image/jpeg', 0.85);
 }
 
@@ -13238,19 +13252,10 @@ let pdfExportOptions = {
   data: true,
   structure: true
 };
-let isPrintMode = false; // Track if we're in print mode vs export mode
 
-function openPdfExportModal(printMode = false) {
+function openPdfExportModal() {
   const modal = document.getElementById('pdfExportModal');
   if (modal) {
-    isPrintMode = printMode;
-
-    // Update modal title and button text based on mode
-    const titleEl = document.getElementById('pdfExportModalTitle');
-    const btnEl = document.getElementById('pdfExportModalBtn');
-    if (titleEl) titleEl.textContent = printMode ? 'Print Options' : 'PDF Export Options';
-    if (btnEl) btnEl.textContent = printMode ? 'Print' : 'Export PDF';
-
     // Always reset all checkboxes to ON by default
     document.getElementById('pdfExportSpecs').checked = true;
     document.getElementById('pdfExportGearList').checked = true;
@@ -13258,9 +13263,8 @@ function openPdfExportModal(printMode = false) {
     document.getElementById('pdfExportPower').checked = true;
     document.getElementById('pdfExportData').checked = true;
     document.getElementById('pdfExportStructure').checked = true;
-    // Eco Friendly defaults to ON for Print button, OFF for Export PDF
-    document.getElementById('pdfExportEcoFriendly').checked = printMode;
-    // Greyscale always defaults to OFF
+    // Eco Friendly and Greyscale default to OFF
+    document.getElementById('pdfExportEcoFriendly').checked = false;
     document.getElementById('pdfExportGreyscale').checked = false;
     modal.classList.add('active');
   }
@@ -13791,6 +13795,12 @@ function exportPDF(){
         // Include layouts if any layout option is selected
         const includeAnyLayout = pdfExportOptions.standard || pdfExportOptions.power || pdfExportOptions.data || pdfExportOptions.structure;
         if(includeAnyLayout) {
+          // Force show main container first (parent of layout containers)
+          // This is critical when exporting from Combined view where mainContainer is hidden
+          const mainContainer = document.querySelector('.main-container');
+          const mainContainerWasHidden = mainContainer && mainContainer.style.display === 'none';
+          if(mainContainer) mainContainer.style.display = 'block';
+
           // Force show all layout containers before capturing
           const standardContainer = document.getElementById('standardContainer');
           const powerContainer = document.getElementById('powerContainer');
@@ -13801,6 +13811,13 @@ function exportPDF(){
           if(powerContainer) powerContainer.style.display = 'block';
           if(dataContainer) dataContainer.style.display = 'block';
           if(structureContainer) structureContainer.style.display = 'block';
+
+          // Force a browser reflow to ensure containers have proper width
+          if(mainContainer) void mainContainer.offsetWidth;
+          if(standardContainer) void standardContainer.offsetWidth;
+          if(powerContainer) void powerContainer.offsetWidth;
+          if(dataContainer) void dataContainer.offsetWidth;
+          if(structureContainer) void structureContainer.offsetWidth;
 
           // Explicitly regenerate all layouts for this screen
           generateLayout('standard');
@@ -14195,7 +14212,7 @@ function exportPDF(){
         
         if(container && container.style.display !== 'none' && canvas && canvas.width > 0) {
           // Use print-friendly colors when in print mode
-          const canvasImg = getCanvasDataURLForPDF(canvas, isPrintMode);
+          const canvasImg = getCanvasDataURLForPDF(canvas);
 
           // Fixed WIDTH for all layouts, height scales proportionally
           const fixedWidth = 114; // mm - same width for all layouts
@@ -14263,7 +14280,7 @@ function exportPDF(){
         yOffset += 8;
         
         // Add structure canvas image - use print-friendly colors when in print mode
-        const canvasImg = getCanvasDataURLForPDF(canvas, isPrintMode);
+        const canvasImg = getCanvasDataURLForPDF(canvas);
         const fixedWidth = 160; // Wider for structure view page
         const maxHeight = 80;
 
@@ -15120,6 +15137,12 @@ function exportPDF(){
 
       // Restore original screen
       switchToScreen(originalScreenId);
+
+      // Restore the original app mode view (this ensures containers are properly hidden/shown)
+      // This is critical when exporting from Combined view to restore proper container visibility
+      if(typeof switchMobileView === 'function' && typeof currentAppMode !== 'undefined') {
+        switchMobileView(currentAppMode);
+      }
 
       setTimeout(() => {
         updateProgress('Saving PDF...', 100);
@@ -16363,7 +16386,6 @@ document.addEventListener('DOMContentLoaded', function() {
   
   try {
     const btnPDF = document.getElementById('btnExportPDF');
-    const btnPrint = document.getElementById('btnPrint');
     const btnExp = document.getElementById('btnExportCanvas');
     
     // Auto-calculate on any input change
@@ -16449,22 +16471,6 @@ document.addEventListener('DOMContentLoaded', function() {
         openPdfExportModal();
       } else {
         // Simple view - export specs only directly
-        pdfExportOptions.specs = true;
-        pdfExportOptions.gearList = false;
-        pdfExportOptions.standard = false;
-        pdfExportOptions.power = false;
-        pdfExportOptions.data = false;
-        pdfExportOptions.structure = false;
-        exportPDF();
-      }
-    });
-
-    // Print button - same behavior as Export PDF but with Print labels
-    if(btnPrint) btnPrint.addEventListener('click', function(e) {
-      e.preventDefault();
-      if(currentMobileView === 'complex' || currentMobileView === 'combined') {
-        openPdfExportModal(true); // true = print mode
-      } else {
         pdfExportOptions.specs = true;
         pdfExportOptions.gearList = false;
         pdfExportOptions.standard = false;

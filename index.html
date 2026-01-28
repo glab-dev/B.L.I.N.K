@@ -1292,7 +1292,8 @@
     }
 
     /* Toggle buttons */
-    .toggle-btn, .unit-toggle-btn {
+    .toggle-btn, .unit-toggle-btn,
+    button.toggle-btn, button.unit-toggle-btn {
       padding: 10px 16px;
       font-size: 14px;
       font-family: 'Roboto Condensed', sans-serif !important;
@@ -1300,8 +1301,8 @@
       letter-spacing: 0 !important;
       background: #333;
       color: #9ca3af;
-      border: 2px solid #000;
-      border-radius: 0;
+      border: 2px solid #000 !important;
+      border-radius: 0 !important;
       cursor: pointer;
       transition: all 0.1s;
       min-width: 44px;
@@ -1309,7 +1310,7 @@
       text-align: center;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
-      box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+      box-shadow: 2px 2px 0px 0px rgba(0,0,0,1) !important;
       text-shadow: none !important;
       width: auto;
       margin-bottom: 0;
@@ -3430,7 +3431,7 @@
             <option value="jpeg">JPEG</option>
             <option value="resolume">Resolume (.xml)</option>
           </select>
-          <button id="btnExportCanvas" class="config-btn" style="background: var(--primary); border-color: var(--primary); flex: 1; height: 48px; padding: 0; box-sizing: border-box;">Export</button>
+          <button id="btnExportCanvas" class="config-btn" style="background: var(--primary); border: 2px solid #000; flex: 1; height: 48px; padding: 0; box-sizing: border-box;">Export</button>
         </div>
 
         <!-- Screen Visibility Toggles -->
@@ -3444,7 +3445,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.1.1';
+const APP_VERSION = '2.1.2';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready

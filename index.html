@@ -1066,10 +1066,14 @@
       border-radius: 0;
       cursor: pointer;
       font-size: 13px;
-      font-family: 'Bangers', cursive;
+      font-family: 'Bangers', cursive !important;
+      font-style: normal !important;
       letter-spacing: 1px;
       transition: all 0.1s;
       box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+      text-shadow: none;
+      min-height: auto;
+      margin-bottom: 0;
     }
 
     .secondary-button:hover {
@@ -1289,8 +1293,9 @@
     .toggle-btn, .unit-toggle-btn {
       padding: 10px 16px;
       font-size: 14px;
-      font-family: 'Roboto Condensed', sans-serif;
+      font-family: 'Roboto Condensed', sans-serif !important;
       font-weight: 700;
+      letter-spacing: 0 !important;
       background: #333;
       color: #9ca3af;
       border: 2px solid #000;
@@ -1303,6 +1308,9 @@
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
       box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+      text-shadow: none !important;
+      width: auto;
+      margin-bottom: 0;
     }
 
     .toggle-btn:hover, .unit-toggle-btn:hover {
@@ -1321,8 +1329,9 @@
     .slider-toggle-btn {
       padding: 10px 14px;
       font-size: 14px;
-      font-family: 'Roboto Condensed', sans-serif;
+      font-family: 'Roboto Condensed', sans-serif !important;
       font-weight: 700;
+      letter-spacing: 0 !important;
       background: transparent;
       color: #9ca3af;
       border: none;
@@ -1334,6 +1343,10 @@
       text-align: center;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
+      text-shadow: none;
+      width: auto;
+      margin-bottom: 0;
+      box-shadow: none;
     }
 
     /* Desktop: constrain toggle width */
@@ -1569,11 +1582,16 @@
       background: #333;
       border: 2px solid #000;
       color: #888;
-      font-family: 'Bangers', cursive;
+      font-family: 'Bangers', cursive !important;
+      font-style: normal !important;
       letter-spacing: 1px;
       font-size: 12px;
       cursor: pointer;
       transition: all 0.2s;
+      text-shadow: none;
+      min-height: auto;
+      margin-bottom: 0;
+      width: auto;
     }
 
     .manage-tab.active {
@@ -1667,7 +1685,8 @@
       border-radius: 0;
       cursor: pointer;
       font-size: 13px;
-      font-family: 'Bangers', cursive;
+      font-family: 'Bangers', cursive !important;
+      font-style: normal !important;
       letter-spacing: 1px;
       transition: all 0.1s;
       box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
@@ -1676,6 +1695,9 @@
          1px -1px 0 #000,
         -1px  1px 0 #000,
          1px  1px 0 #000;
+      width: auto;
+      margin-bottom: 0;
+      min-height: auto;
     }
 
     .btn-primary:hover {
@@ -1695,10 +1717,15 @@
       border-radius: 0;
       cursor: pointer;
       font-size: 13px;
-      font-family: 'Bangers', cursive;
+      font-family: 'Bangers', cursive !important;
+      font-style: normal !important;
       letter-spacing: 1px;
       transition: all 0.1s;
       box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+      width: auto;
+      margin-bottom: 0;
+      min-height: auto;
+      text-shadow: none;
     }
 
     .btn-secondary:hover {
@@ -1718,7 +1745,8 @@
       border-radius: 0;
       cursor: pointer;
       font-size: 14px;
-      font-family: 'Bangers', cursive;
+      font-family: 'Bangers', cursive !important;
+      font-style: normal !important;
       letter-spacing: 1px;
       transition: all 0.1s;
       box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
@@ -1727,6 +1755,9 @@
          1px -1px 0 #000,
         -1px  1px 0 #000,
          1px  1px 0 #000;
+      width: auto;
+      margin-bottom: 0;
+      min-height: auto;
     }
 
     .btn-danger:hover {
@@ -2181,12 +2212,15 @@
       border-radius: 0; /* Removed to fix diagonal line artifacts on Windows */
       color: var(--primary);
       font-size: 13px;
-      font-family: 'Bangers', cursive;
+      font-family: 'Bangers', cursive !important;
+      font-style: normal !important;
       letter-spacing: 1px;
       text-align: left;
       cursor: pointer;
       box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
       transition: all 0.1s;
+      text-shadow: none;
+      min-height: auto;
     }
 
     .mobile-menu-btn.accent {

@@ -3370,7 +3370,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.257';
+const APP_VERSION = '2.0.258';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -6703,102 +6703,8 @@ function getVibrantColorForPDF(hexColor) {
 // Get canvas as data URL for PDF
 // When printMode is true, convert dark backgrounds to white and desaturate colors to 70%
 function getCanvasDataURLForPDF(canvas, printMode = false) {
-  if (!printMode) {
-    return canvas.toDataURL('image/jpeg', 0.85);
-  }
-
-  // Print mode: process colors for better printing
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = canvas.width;
-  tempCanvas.height = canvas.height;
-  const tempCtx = tempCanvas.getContext('2d');
-  tempCtx.drawImage(canvas, 0, 0);
-
-  const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-  const data = imageData.data;
-
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-
-    // FIRST: Convert very dark pixels (backgrounds, deleted panels) to white
-    // These are near-black backgrounds that should print as white
-    if (r < 25 && g < 25 && b < 25) {
-      data[i] = 255;
-      data[i + 1] = 255;
-      data[i + 2] = 255;
-      continue;
-    }
-
-    // Check if pixel is grayscale (text, arrows, outlines)
-    // Grayscale pixels have similar R, G, B values
-    const maxRGB = Math.max(r, g, b);
-    const minRGB = Math.min(r, g, b);
-    const isGrayscale = (maxRGB - minRGB) < 30;
-
-    // Keep dark grayscale pixels as black (text, panel numbers, arrows)
-    // These are darker grays used for text (like #333 = 51,51,51)
-    if (isGrayscale && maxRGB < 150) {
-      data[i] = 0;
-      data[i + 1] = 0;
-      data[i + 2] = 0;
-      continue;
-    }
-
-    // Desaturate colors to 50%
-    const rNorm = r / 255;
-    const gNorm = g / 255;
-    const bNorm = b / 255;
-
-    const max = Math.max(rNorm, gNorm, bNorm);
-    const min = Math.min(rNorm, gNorm, bNorm);
-    let l = (max + min) / 2;
-    let h, s;
-
-    if (max === min) {
-      h = s = 0;
-    } else {
-      const d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-      switch (max) {
-        case rNorm: h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6; break;
-        case gNorm: h = ((bNorm - rNorm) / d + 2) / 6; break;
-        case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break;
-      }
-    }
-
-    // Reduce saturation to 50%
-    s = s * 0.5;
-
-    // Convert back to RGB
-    function hue2rgb(p, q, t) {
-      if (t < 0) t += 1;
-      if (t > 1) t -= 1;
-      if (t < 1/6) return p + (q - p) * 6 * t;
-      if (t < 1/2) return q;
-      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-      return p;
-    }
-
-    let rNew, gNew, bNew;
-    if (s === 0) {
-      rNew = gNew = bNew = l;
-    } else {
-      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-      const p = 2 * l - q;
-      rNew = hue2rgb(p, q, h + 1/3);
-      gNew = hue2rgb(p, q, h);
-      bNew = hue2rgb(p, q, h - 1/3);
-    }
-
-    data[i] = Math.round(rNew * 255);
-    data[i + 1] = Math.round(gNew * 255);
-    data[i + 2] = Math.round(bNew * 255);
-  }
-
-  tempCtx.putImageData(imageData, 0, 0);
-  return tempCanvas.toDataURL('image/jpeg', 0.85);
+  // printMode parameter reserved for future eco-friendly print rendering
+  return canvas.toDataURL('image/jpeg', 0.85);
 }
 
 function getCanvasDescription() {

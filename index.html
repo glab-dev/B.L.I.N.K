@@ -3382,7 +3382,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.263';
+const APP_VERSION = '2.0.264';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -13668,7 +13668,9 @@ function exportPDF(){
           addSpecLine('Panel Size:', `${panelWidthFt}' × ${panelHeightFt}' (${panelWidthM} × ${panelHeightM} m)`);
           addSpecLine('Panel Res:', `${p.res_x} × ${p.res_y}`);
 
-          if(currentAppMode === 'complex') {
+          // Show complex details if any layout or gear list option is selected (indicates complex/combined mode export)
+          const showComplexDetails = pdfExportOptions.standard || pdfExportOptions.power || pdfExportOptions.data || pdfExportOptions.structure || pdfExportOptions.gearList;
+          if(showComplexDetails) {
             // Complex mode: show additional panel specs
             if(p.brightness_nits) addSpecLine('Brightness:', `${p.brightness_nits} nits`);
             if(p.weight_kg) addSpecLine('Weight/Panel:', `${panelWeightLbs} lbs (${p.weight_kg.toFixed(2)} kg)`);
@@ -13691,7 +13693,7 @@ function exportPDF(){
           addSpecLine('Total Pixels:', totalPixels.toLocaleString() + ' px');
 
           // Weight display depends on mode
-          if(currentAppMode === 'complex') {
+          if(showComplexDetails) {
             // Complex mode: show total weight with breakdown
             // Structure = Bumpers + Connecting Plates + Ground Support Hardware (or Floor Frames for floor mode)
             const structureType = data.structureType || 'hanging';
@@ -13752,7 +13754,7 @@ function exportPDF(){
           const portCapacity = pr.base_pixels_1g || 0;
           const maxPanelsPerData = p.max_panels_per_data || calcData.panelsPerDataLine || 0;
 
-          if(currentAppMode === 'complex') {
+          if(showComplexDetails) {
             // Complex mode: show all data specs
             let processorName = pr.name || data.processor;
             // For PDF, just use plain text without HTML tags
@@ -13777,13 +13779,14 @@ function exportPDF(){
           } // End of pdfExportOptions.specs check
         }
 
-        // ========== RIGHT COLUMN: GEAR LIST (complex mode only) ==========
-        if(currentAppMode === 'complex' && pdfExportOptions.gearList) {
+        // ========== RIGHT COLUMN: GEAR LIST ==========
+        if(pdfExportOptions.gearList) {
           addGearListToColumn(screenId, screen.name, col2X, col2Y, colWidth, lineHeight, processorGroups);
         }
 
-        // Only include layouts in complex mode
-        if(currentAppMode === 'complex') {
+        // Include layouts if any layout option is selected
+        const includeAnyLayout = pdfExportOptions.standard || pdfExportOptions.power || pdfExportOptions.data || pdfExportOptions.structure;
+        if(includeAnyLayout) {
           // Force show all layout containers before capturing
           const standardContainer = document.getElementById('standardContainer');
           const powerContainer = document.getElementById('powerContainer');
@@ -13806,7 +13809,7 @@ function exportPDF(){
             addScreenLayouts(screenId, screen.name);
           }, 150);
         } else {
-          // Simple mode: skip layouts, move to next screen
+          // No layouts selected: skip layouts, move to next screen
           screenIndex++;
           setTimeout(processNextScreen, 50);
         }

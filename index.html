@@ -3382,7 +3382,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.262';
+const APP_VERSION = '2.0.263';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -6823,9 +6823,9 @@ function createOutlineOnlyStandardCanvas() {
       const y = r * size;
       
       if(deletedPanels.has(panelKey)) {
-        ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
+        ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
         ctx.fillRect(x, y, size, size);
-        ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
+        ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode) ? '#cccccc' : '#333333';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.strokeRect(x, y, size, size);
@@ -6961,9 +6961,9 @@ function createOutlineOnlyPowerCanvas() {
       const y = r * size + socaLabelHeight;
       
       if(deletedPanels.has(panelKey)) {
-        ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
+        ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
         ctx.fillRect(x, y, size, size);
-        ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
+        ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode) ? '#cccccc' : '#333333';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.strokeRect(x, y, size, size);
@@ -7162,9 +7162,9 @@ function createOutlineOnlyDataCanvas() {
       const y = r * size;
       
       if(deletedPanels.has(panelKey)) {
-        ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
+        ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
         ctx.fillRect(x, y, size, size);
-        ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
+        ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode) ? '#cccccc' : '#333333';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.strokeRect(x, y, size, size);
@@ -7380,9 +7380,9 @@ function generateLayout(mode){
 
         // Skip deleted panels
         if(deletedPanels.has(panelKey)) {
-          ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a'; // White for eco print, dark otherwise
+          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a'; // White for eco print, dark otherwise
           ctx.fillRect(x, y, panelWidth, currentPanelHeight);
-          ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
+          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode) ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(x, y, panelWidth, currentPanelHeight);
@@ -7550,9 +7550,9 @@ function generateLayout(mode){
 
         // Check if panel is deleted
         if(deletedPanels.has(panelKey)) {
-          ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
+          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
           ctx.fillRect(x, y, panelWidth, currentPanelHeight);
-          ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
+          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode) ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(x, y, panelWidth, currentPanelHeight);
@@ -7977,9 +7977,9 @@ function generateLayout(mode){
 
         // Check if panel is deleted
         if(deletedPanels.has(panelKey)) {
-          ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
+          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
           ctx.fillRect(x,y,panelWidth,currentPanelHeight);
-          ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
+          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode) ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(x,y,panelWidth,currentPanelHeight);
@@ -8272,7 +8272,7 @@ function generateStructureLayout(){
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Fill entire canvas with dark background (same as deleted panels)
-  ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
+  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const fontSize = Math.max(10, Math.floor(size * 0.22));
@@ -9696,7 +9696,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
     const pickupWeight = calculateBumperPickupWeight(bumper);
 
     // Draw label with weight
-    ctx.fillStyle = ecoPrintMode ? '#000000' : '#FFFFFF';
+    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#000000' : '#FFFFFF';
 
     // For small bumpers (especially 4W on mobile), only show weight
     // Check if height is too small for both label and weight
@@ -16968,7 +16968,11 @@ function toGreyscale(hex) {
   const b = num & 255;
 
   // Use luminance formula for perceptually accurate greyscale
-  const grey = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+  let grey = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+
+  // Lighten by blending with white (70% grey, 30% white)
+  grey = Math.round(grey * 0.7 + 255 * 0.3);
+  grey = Math.min(255, grey); // Cap at 255
 
   return '#' + grey.toString(16).padStart(2, '0').repeat(3);
 }
@@ -19216,9 +19220,9 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
 
         const hasDeleted = screenDeletedPanels.has(panelKey);
         if(hasDeleted) {
-          ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
+          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
           ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
+          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode) ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
@@ -19480,9 +19484,9 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
 
         const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
         if(hasDeleted) {
-          ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
+          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
           ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
+          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode) ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
@@ -19758,9 +19762,9 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
 
         const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
         if(hasDeleted) {
-          ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
+          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
           ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
+          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode) ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
@@ -19802,7 +19806,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
   const ctx = canvas.getContext('2d');
 
   // Dark background (same as original structure layout)
-  ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
+  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const leftPadding = 20;
@@ -19932,7 +19936,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
         ctx.strokeRect(bumperX, bumperY, bumperWidthPx, bumperHeight);
 
         // Bumper label (black for eco print, white otherwise)
-        ctx.fillStyle = ecoPrintMode ? '#000000' : '#FFFFFF';
+        ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#000000' : '#FFFFFF';
         ctx.font = 'bold 11px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';

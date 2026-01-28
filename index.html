@@ -2437,31 +2437,39 @@
       <button class="modal-close" onclick="closePdfExportModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <p style="color: #888; font-size: 12px; margin-bottom: 12px;">Select which sections to include:</p>
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportSpecs" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
-          <span style="font-size: 14px;">Specifications</span>
+      <p style="color: #888; font-size: 11px; margin-bottom: 10px;">Select which sections to include:</p>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportSpecs" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
+          <span style="font-size: 12px;">Specifications</span>
         </label>
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportGearList" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
-          <span style="font-size: 14px;">Gear List</span>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportGearList" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
+          <span style="font-size: 12px;">Gear List</span>
         </label>
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportStandard" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
-          <span style="font-size: 14px;">Standard Layout</span>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportStandard" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
+          <span style="font-size: 12px;">Standard Layout</span>
         </label>
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportPower" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
-          <span style="font-size: 14px;">Power Layout</span>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportPower" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
+          <span style="font-size: 12px;">Power Layout</span>
         </label>
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportData" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
-          <span style="font-size: 14px;">Data Layout</span>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportData" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
+          <span style="font-size: 12px;">Data Layout</span>
         </label>
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportStructure" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
-          <span style="font-size: 14px;">Structure Layout</span>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportStructure" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
+          <span style="font-size: 12px;">Structure Layout</span>
+        </label>
+      </div>
+      <hr style="border: none; border-top: 1px solid #444; margin: 14px 0 10px 0;">
+      <p style="color: #888; font-size: 11px; margin-bottom: 10px;">Print options:</p>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="pdfExportEcoFriendly" style="width: 16px; height: 16px; accent-color: var(--primary);">
+          <span style="font-size: 12px;">Eco Friendly</span>
         </label>
       </div>
     </div>
@@ -3370,7 +3378,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.260';
+const APP_VERSION = '2.0.261';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -13231,6 +13239,8 @@ function openPdfExportModal(printMode = false) {
     document.getElementById('pdfExportPower').checked = true;
     document.getElementById('pdfExportData').checked = true;
     document.getElementById('pdfExportStructure').checked = true;
+    // Eco Friendly defaults to ON for Print button, OFF for Export PDF
+    document.getElementById('pdfExportEcoFriendly').checked = printMode;
     modal.classList.add('active');
   }
 }
@@ -13260,8 +13270,9 @@ function exportPDF(){
     // Save current screen data first to ensure all toggle states are persisted
     saveCurrentScreenData();
 
-    // Enable eco-friendly printing mode for Print button (lighter colors, white backgrounds)
-    if (isPrintMode) {
+    // Enable eco-friendly printing mode if checkbox is checked (lighter colors, white backgrounds)
+    const ecoFriendlyCheckbox = document.getElementById('pdfExportEcoFriendly');
+    if (ecoFriendlyCheckbox && ecoFriendlyCheckbox.checked) {
       ecoPrintMode = true;
     }
 

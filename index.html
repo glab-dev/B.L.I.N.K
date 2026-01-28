@@ -3370,7 +3370,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.256';
+const APP_VERSION = '2.0.257';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -6722,6 +6722,15 @@ function getCanvasDataURLForPDF(canvas, printMode = false) {
     const g = data[i + 1];
     const b = data[i + 2];
 
+    // FIRST: Convert very dark pixels (backgrounds, deleted panels) to white
+    // These are near-black backgrounds that should print as white
+    if (r < 25 && g < 25 && b < 25) {
+      data[i] = 255;
+      data[i + 1] = 255;
+      data[i + 2] = 255;
+      continue;
+    }
+
     // Check if pixel is grayscale (text, arrows, outlines)
     // Grayscale pixels have similar R, G, B values
     const maxRGB = Math.max(r, g, b);
@@ -6729,27 +6738,11 @@ function getCanvasDataURLForPDF(canvas, printMode = false) {
     const isGrayscale = (maxRGB - minRGB) < 30;
 
     // Keep dark grayscale pixels as black (text, panel numbers, arrows)
+    // These are darker grays used for text (like #333 = 51,51,51)
     if (isGrayscale && maxRGB < 150) {
       data[i] = 0;
       data[i + 1] = 0;
       data[i + 2] = 0;
-      continue;
-    }
-
-    // Convert dark colored backgrounds (deleted panels, canvas bg) to white
-    // These are dark but NOT grayscale (have some color)
-    if (maxRGB < 50 && !isGrayscale) {
-      data[i] = 255;
-      data[i + 1] = 255;
-      data[i + 2] = 255;
-      continue;
-    }
-
-    // Convert pure dark backgrounds to white
-    if (r < 30 && g < 30 && b < 30) {
-      data[i] = 255;
-      data[i + 1] = 255;
-      data[i + 2] = 255;
       continue;
     }
 

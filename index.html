@@ -3005,9 +3005,9 @@
 
           <!-- Row 4: Toggle buttons (complex mode only) -->
           <div id="dataTogglesRow" class="toggle-group" style="gap: 6px;">
-            <button type="button" class="toggle-btn active" id="showArrowsBtn" onclick="toggleShowArrows()" style="padding: 8px 10px; font-size: 11px; min-width: auto;">Arrows</button>
-            <button type="button" class="toggle-btn active" id="redundancyBtn" onclick="toggleRedundancy()" style="padding: 8px 10px; font-size: 11px; min-width: auto;">Data Redun.</button>
-            <button type="button" class="toggle-btn" id="processorRedundancyBtn" onclick="toggleProcessorRedundancy()" style="padding: 8px 10px; font-size: 11px; min-width: auto;">Proc Redun.</button>
+            <button type="button" class="toggle-btn active" id="showArrowsBtn" onclick="toggleShowArrows()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Arrows</button>
+            <button type="button" class="toggle-btn active" id="redundancyBtn" onclick="toggleRedundancy()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Data Redun.</button>
+            <button type="button" class="toggle-btn" id="processorRedundancyBtn" onclick="toggleProcessorRedundancy()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Proc Redun.</button>
           </div>
         </div>
 
@@ -3031,9 +3031,9 @@
             </label>
             <!-- Bumper Toggles Row -->
             <div class="toggle-group" style="gap: 6px;">
-              <button type="button" class="toggle-btn active" id="useBumpersBtn" onclick="toggleUseBumpers()" style="padding: 6px 8px; font-size: 12px; min-width: auto;">Bumpers</button>
+              <button type="button" class="toggle-btn active" id="useBumpersBtn" onclick="toggleUseBumpers()" style="padding: 6px 8px; font-size: 12px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Bumpers</button>
               <span id="fourWayBumperOption" style="display: none;">
-                <button type="button" class="toggle-btn" id="use4WayBumpersBtn" onclick="toggle4WayBumpers()" style="padding: 6px 8px; font-size: 12px; min-width: auto;">4-Way Bumpers</button>
+                <button type="button" class="toggle-btn" id="use4WayBumpersBtn" onclick="toggle4WayBumpers()" style="padding: 6px 8px; font-size: 12px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">4-Way Bumpers</button>
               </span>
             </div>
           </div>
@@ -3132,12 +3132,12 @@
       <div class="layout-content" id="structureContent">
       <!-- Manual Mode Toggle -->
       <div class="structure-mode-toggle">
-        <button type="button" class="toggle-btn" id="manualBumperToggle" onclick="toggleManualBumperMode()">
+        <button type="button" class="toggle-btn" id="manualBumperToggle" onclick="toggleManualBumperMode()" style="border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">
           Manually Distribute Bumpers
         </button>
         <div class="undo-redo-buttons" id="structureUndoRedo" style="display: none;">
-          <button class="undo-redo-btn" id="structureUndoBtn" onclick="structureUndo()" title="Undo (Ctrl+Z)">Undo</button>
-          <button class="undo-redo-btn" id="structureRedoBtn" onclick="structureRedo()" title="Redo (Ctrl+Y)">Redo</button>
+          <button class="undo-redo-btn" id="structureUndoBtn" onclick="structureUndo()" title="Undo (Ctrl+Z)" style="border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Undo</button>
+          <button class="undo-redo-btn" id="structureRedoBtn" onclick="structureRedo()" title="Redo (Ctrl+Y)" style="border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Redo</button>
         </div>
         <span class="structure-mode-hint" id="structureModeHint">Auto-distribution active</span>
       </div>
@@ -3401,7 +3401,7 @@
           </div>
           <div style="display: flex; flex-direction: column; flex: 1;">
             <span class="toggle-label" style="display: block; margin-bottom: 4px; visibility: hidden;">Snap</span>
-            <button type="button" class="toggle-btn active" id="snapModeBtn" onclick="toggleSnapMode()" style="width: 100%; padding: 10px 8px; min-height: 48px; box-sizing: border-box;">Snap</button>
+            <button type="button" class="toggle-btn active" id="snapModeBtn" onclick="toggleSnapMode()" style="width: 100%; padding: 10px 8px; min-height: 48px; box-sizing: border-box; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Snap</button>
           </div>
           <div style="flex: 1;">
             <span class="toggle-label" style="display: block; margin-bottom: 4px;">Fine(px)</span>
@@ -3445,7 +3445,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.1.2';
+const APP_VERSION = '2.1.3';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17731,20 +17731,20 @@ function updateCanvasScreenToggles() {
     html += `
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; padding: 4px 6px; background: #333; border-radius: 4px;">
         <button type="button" class="toggle-btn ${screen.visible ? 'active' : ''}"
-                style="padding: 3px 6px; font-size: 10px; min-height: 24px; line-height: 1; display: inline-flex; align-items: center; gap: 4px; width: 110px; justify-content: flex-start;"
+                style="padding: 3px 6px; font-size: 10px; min-height: 24px; line-height: 1; display: inline-flex; align-items: center; gap: 4px; width: 110px; justify-content: flex-start; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);"
                 onclick="toggleScreenVisibility('${screenId}', ${!screen.visible})">
           <span style="display: inline-block; width: 10px; height: 10px; background: ${screen.color}; border: 1px solid #666; flex-shrink: 0;"></span>
           ${screen.name}
         </button>
         <div style="display: flex; gap: 4px;">
           <button type="button" class="toggle-btn ${showCoords ? 'active' : ''}"
-                  style="padding: 3px 6px; font-size: 10px; min-width: 28px; min-height: 24px; line-height: 1;"
+                  style="padding: 3px 6px; font-size: 10px; min-width: 28px; min-height: 24px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);"
                   onclick="toggleScreenCoordinates('${screenId}')">X/Y</button>
           <button type="button" class="toggle-btn ${showPixels ? 'active' : ''}"
-                  style="padding: 3px 6px; font-size: 10px; min-width: 38px; min-height: 24px; line-height: 1;"
+                  style="padding: 3px 6px; font-size: 10px; min-width: 38px; min-height: 24px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);"
                   onclick="toggleScreenPixelDimensions('${screenId}')">Pixels</button>
           <button type="button" class="toggle-btn ${showCrosshair ? 'active' : ''}"
-                  style="padding: 3px 6px; font-size: 10px; min-width: 24px; min-height: 24px; line-height: 1;"
+                  style="padding: 3px 6px; font-size: 10px; min-width: 24px; min-height: 24px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);"
                   onclick="toggleScreenCrosshair('${screenId}')" title="Show X crosshair">X</button>
         </div>
       </div>

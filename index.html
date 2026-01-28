@@ -1088,6 +1088,8 @@
     .secondary-button.active {
       background: var(--primary);
       color: #fff;
+      border: 2px solid #000 !important;
+      box-shadow: 2px 2px 0px 0px rgba(0,0,0,1) !important;
       text-shadow:
         -1px -1px 0 #000,
          1px -1px 0 #000,
@@ -1366,6 +1368,8 @@
     .slider-toggle-btn.active {
       background: var(--primary);
       color: #fff;
+      border: 2px solid #000 !important;
+      box-shadow: 2px 2px 0px 0px rgba(0,0,0,1) !important;
       text-shadow:
         -1px -1px 0 #000,
          1px -1px 0 #000,
@@ -1454,7 +1458,8 @@
     .toggle-btn.active, .unit-toggle-btn.active {
       background: var(--primary);
       color: #fff;
-      border-color: #000;
+      border: 2px solid #000 !important;
+      box-shadow: 2px 2px 0px 0px rgba(0,0,0,1) !important;
       text-shadow:
         -1px -1px 0 #000,
          1px -1px 0 #000,
@@ -1680,7 +1685,7 @@
     .btn-primary {
       background: var(--primary);
       color: white;
-      border: 2px solid #000;
+      border: 2px solid #000 !important;
       padding: 8px 16px;
       border-radius: 0;
       cursor: pointer;
@@ -1689,7 +1694,7 @@
       font-style: normal !important;
       letter-spacing: 1px;
       transition: all 0.1s;
-      box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+      box-shadow: 2px 2px 0px 0px rgba(0,0,0,1) !important;
       text-shadow:
         -1px -1px 0 #000,
          1px -1px 0 #000,
@@ -3439,7 +3444,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.1.1';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready

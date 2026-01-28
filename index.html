@@ -3370,7 +3370,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.259';
+const APP_VERSION = '2.0.260';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -9669,7 +9669,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
     const pickupWeight = calculateBumperPickupWeight(bumper);
 
     // Draw label with weight
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = ecoPrintMode ? '#000000' : '#FFFFFF';
 
     // For small bumpers (especially 4W on mobile), only show weight
     // Check if height is too small for both label and weight
@@ -16892,9 +16892,9 @@ function toPastelColor(hex) {
     }
   }
 
-  // Make pastel: high lightness (85%), reduced saturation (40%)
-  l = 0.85;
-  s = s * 0.4;
+  // Make pastel: moderate lightness (70%), moderate saturation (50%) for better differentiation
+  l = 0.70;
+  s = s * 0.5;
 
   // Convert back to RGB
   let r2, g2, b2;
@@ -19872,8 +19872,8 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
         ctx.lineWidth = 2;
         ctx.strokeRect(bumperX, bumperY, bumperWidthPx, bumperHeight);
 
-        // Bumper label (white text)
-        ctx.fillStyle = '#FFFFFF';
+        // Bumper label (black for eco print, white otherwise)
+        ctx.fillStyle = ecoPrintMode ? '#000000' : '#FFFFFF';
         ctx.font = 'bold 11px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';

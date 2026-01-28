@@ -3370,7 +3370,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.258';
+const APP_VERSION = '2.0.259';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3927,6 +3927,9 @@ let customCircuitAssignments = new Map(); // stores "col,row" -> circuit number
 let customDataLineAssignments = new Map(); // stores "col,row" -> data line number
 let isDragging = false;
 let dragStartX = 0;
+
+// Eco-friendly print mode - uses lighter colors and white backgrounds
+let ecoPrintMode = false;
 
 // Canvas movement undo/redo state
 let canvasMoveHistory = [];
@@ -6622,9 +6625,14 @@ function getContrastColor(hex){
   return brightness<128?'#FFFFFF':'#000000';
 }
 function colorForIndex(i){
-  const base=resistorColors[i%10];
+  let base=resistorColors[i%10];
   const cycle=Math.floor(i/10);
   const alpha=Math.max(0.4, 1 - cycle*0.2);
+  // Use pastel colors for eco-friendly printing
+  if (ecoPrintMode) {
+    base = toPastelColor(base);
+    return { fill: base, text: '#000000', solid: base };
+  }
   return { fill: hexToRgba(base, alpha), text: getContrastColor(base), solid: base };
 }
 
@@ -6794,16 +6802,16 @@ function createOutlineOnlyStandardCanvas() {
       const y = r * size;
       
       if(deletedPanels.has(panelKey)) {
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
         ctx.fillRect(x, y, size, size);
-        ctx.strokeStyle = '#333333';
+        ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.strokeRect(x, y, size, size);
         ctx.setLineDash([]);
         continue;
       }
-      
+
       // White fill
       ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(x, y, size, size);
@@ -6932,16 +6940,16 @@ function createOutlineOnlyPowerCanvas() {
       const y = r * size + socaLabelHeight;
       
       if(deletedPanels.has(panelKey)) {
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
         ctx.fillRect(x, y, size, size);
-        ctx.strokeStyle = '#333333';
+        ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.strokeRect(x, y, size, size);
         ctx.setLineDash([]);
         continue;
       }
-      
+
       const circuitNum = panelToCircuit.get(panelKey);
       if(circuitNum === undefined) continue;
       
@@ -7133,9 +7141,9 @@ function createOutlineOnlyDataCanvas() {
       const y = r * size;
       
       if(deletedPanels.has(panelKey)) {
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
         ctx.fillRect(x, y, size, size);
-        ctx.strokeStyle = '#333333';
+        ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.strokeRect(x, y, size, size);
@@ -7143,7 +7151,8 @@ function createOutlineOnlyDataCanvas() {
       }
     }
   }
-  
+
+
   // Draw active panels with data grouping
   for(let gi=0; gi<groups.length; gi++){
     const colors = colorForIndex(gi);
@@ -7175,9 +7184,15 @@ function createOutlineOnlyDataCanvas() {
 function getStandardColorForPanel(c, r){
   // Get the current screen's colors (same as canvas view)
   const currentScreen = screens[currentScreenId];
-  const primaryColor = currentScreen ? currentScreen.color : '#808080';
-  const secondaryColor = currentScreen ? (currentScreen.color2 || darkenColor(primaryColor, 30)) : '#606060';
-  
+  let primaryColor = currentScreen ? currentScreen.color : '#808080';
+  let secondaryColor = currentScreen ? (currentScreen.color2 || darkenColor(primaryColor, 30)) : '#606060';
+
+  // Convert to pastel colors for eco-friendly printing
+  if (ecoPrintMode) {
+    primaryColor = toPastelColor(primaryColor);
+    secondaryColor = toPastelColor(secondaryColor);
+  }
+
   // Alternate colors in a checkerboard pattern (same logic as canvas view)
   const isEvenPanel = (c + r) % 2 === 0;
   return isEvenPanel ? primaryColor : secondaryColor;
@@ -7338,9 +7353,9 @@ function generateLayout(mode){
 
         // Skip deleted panels
         if(deletedPanels.has(panelKey)) {
-          ctx.fillStyle = '#1a1a1a'; // Dark background for deleted
+          ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a'; // White for eco print, dark otherwise
           ctx.fillRect(x, y, panelWidth, currentPanelHeight);
-          ctx.strokeStyle = '#333333';
+          ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(x, y, panelWidth, currentPanelHeight);
@@ -7508,9 +7523,9 @@ function generateLayout(mode){
 
         // Check if panel is deleted
         if(deletedPanels.has(panelKey)) {
-          ctx.fillStyle = '#1a1a1a';
+          ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
           ctx.fillRect(x, y, panelWidth, currentPanelHeight);
-          ctx.strokeStyle = '#333333';
+          ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(x, y, panelWidth, currentPanelHeight);
@@ -7935,9 +7950,9 @@ function generateLayout(mode){
 
         // Check if panel is deleted
         if(deletedPanels.has(panelKey)) {
-          ctx.fillStyle = '#1a1a1a';
+          ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
           ctx.fillRect(x,y,panelWidth,currentPanelHeight);
-          ctx.strokeStyle='#333333';
+          ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(x,y,panelWidth,currentPanelHeight);
@@ -8230,7 +8245,7 @@ function generateStructureLayout(){
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Fill entire canvas with dark background (same as deleted panels)
-  ctx.fillStyle = '#1a1a1a';
+  ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const fontSize = Math.max(10, Math.floor(size * 0.22));
@@ -9536,7 +9551,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
         y = panelYOffset + (ph * panelHeight) + bumperHeight + fourWayGap;
       }
 
-      fillColor = '#FF6B35'; // Orange
+      fillColor = ecoPrintMode ? toPastelColor('#FF6B35') : '#FF6B35'; // Orange
       label = '4W';
 
     } else if(bumper.type === '2w') {
@@ -9559,9 +9574,9 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
         y = panelYOffset + (ph * panelHeight);
       }
 
-      fillColor = '#4CAF50'; // Green for top, orange for bottom
+      fillColor = ecoPrintMode ? toPastelColor('#4CAF50') : '#4CAF50'; // Green for top, orange for bottom
       if(bumper.position === 'bottom') {
-        fillColor = '#FF9800';
+        fillColor = ecoPrintMode ? toPastelColor('#FF9800') : '#FF9800';
       }
       label = '2W';
 
@@ -9582,7 +9597,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
         y = panelYOffset + (ph * panelHeight);
       }
 
-      fillColor = '#2196F3'; // Blue for 1W
+      fillColor = ecoPrintMode ? toPastelColor('#2196F3') : '#2196F3'; // Blue for 1W
       label = '1W';
     }
 
@@ -13244,12 +13259,18 @@ function exportPDF(){
   try {
     // Save current screen data first to ensure all toggle states are persisted
     saveCurrentScreenData();
-    
+
+    // Enable eco-friendly printing mode for Print button (lighter colors, white backgrounds)
+    if (isPrintMode) {
+      ecoPrintMode = true;
+    }
+
     if(!window.jspdf || !window.html2canvas){
       alert('PDF export libraries not loaded. Please check your internet connection and refresh the page.');
+      ecoPrintMode = false; // Reset on error
       return;
     }
-    
+
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({
       orientation: 'p',
@@ -13302,6 +13323,14 @@ function exportPDF(){
     function removeOverlay() {
       const overlay = document.getElementById('pdfExportOverlay');
       if(overlay) overlay.remove();
+      // Reset eco print mode and re-render with normal colors
+      if (ecoPrintMode) {
+        ecoPrintMode = false;
+        generateLayout('standard');
+        generateLayout('power');
+        generateLayout('data');
+        generateStructureLayout();
+      }
     }
     
     function checkPageBreak(heightNeeded) {
@@ -15110,9 +15139,16 @@ function exportPDF(){
   } catch(err) {
     console.error('PDF export error:', err);
     alert('Error exporting PDF: ' + err.message);
-    // Make sure to remove overlay on error
+    // Make sure to remove overlay and reset eco print mode on error
     const overlay = document.getElementById('pdfExportOverlay');
     if(overlay) overlay.remove();
+    if (ecoPrintMode) {
+      ecoPrintMode = false;
+      generateLayout('standard');
+      generateLayout('power');
+      generateLayout('data');
+      generateStructureLayout();
+    }
   }
 }
 
@@ -16829,6 +16865,58 @@ function darkenColor(hex, percent) {
   const g = Math.max(0, ((num >> 8) & 0x00FF) - Math.round(255 * percent / 100));
   const b = Math.max(0, (num & 0x0000FF) - Math.round(255 * percent / 100));
   return '#' + (0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1);
+}
+
+// Convert a color to a pastel/lighter version for eco-friendly printing
+// Increases lightness to 85% while keeping hue and reducing saturation
+function toPastelColor(hex) {
+  const num = parseInt(hex.replace('#', ''), 16);
+  let r = (num >> 16) & 255;
+  let g = (num >> 8) & 255;
+  let b = num & 255;
+
+  // Convert to HSL
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
+
+  if (max === min) {
+    h = s = 0;
+  } else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+
+  // Make pastel: high lightness (85%), reduced saturation (40%)
+  l = 0.85;
+  s = s * 0.4;
+
+  // Convert back to RGB
+  let r2, g2, b2;
+  if (s === 0) {
+    r2 = g2 = b2 = l;
+  } else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r2 = hue2rgb(p, q, h + 1/3);
+    g2 = hue2rgb(p, q, h);
+    b2 = hue2rgb(p, q, h - 1/3);
+  }
+
+  return '#' + [r2, g2, b2].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
 }
 
 function getDefaultScreenData() {
@@ -19022,8 +19110,13 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     }
 
     // Get screen colors for checkerboard pattern (same as original)
-    const primaryColor = screen.color || '#808080';
-    const secondaryColor = screen.color2 || darkenColor(primaryColor, 30);
+    let primaryColor = screen.color || '#808080';
+    let secondaryColor = screen.color2 || darkenColor(primaryColor, 30);
+    // Convert to pastel for eco-friendly printing
+    if (ecoPrintMode) {
+      primaryColor = toPastelColor(primaryColor);
+      secondaryColor = toPastelColor(secondaryColor);
+    }
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
     let screenDeletedPanels = new Set();
@@ -19064,9 +19157,9 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
 
         const hasDeleted = screenDeletedPanels.has(panelKey);
         if(hasDeleted) {
-          ctx.fillStyle = '#1a1a1a';
+          ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
           ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.strokeStyle = '#333333';
+          ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
@@ -19328,9 +19421,9 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
 
         const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
         if(hasDeleted) {
-          ctx.fillStyle = '#1a1a1a';
+          ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
           ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.strokeStyle = '#333333';
+          ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
@@ -19606,9 +19699,9 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
 
         const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
         if(hasDeleted) {
-          ctx.fillStyle = '#1a1a1a';
+          ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
           ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.strokeStyle = '#333333';
+          ctx.strokeStyle = ecoPrintMode ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
@@ -19650,7 +19743,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
   const ctx = canvas.getContext('2d');
 
   // Dark background (same as original structure layout)
-  ctx.fillStyle = '#1a1a1a';
+  ctx.fillStyle = ecoPrintMode ? '#ffffff' : '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const leftPadding = 20;

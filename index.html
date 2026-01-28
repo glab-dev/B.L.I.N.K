@@ -3382,7 +3382,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.0.264';
+const APP_VERSION = '2.0.265';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -13290,6 +13290,10 @@ function exportPDF(){
   try {
     // Save current screen data first to ensure all toggle states are persisted
     saveCurrentScreenData();
+
+    // Reset print modes first to ensure clean state
+    ecoPrintMode = false;
+    greyscalePrintMode = false;
 
     // Enable eco-friendly printing mode if checkbox is checked (lighter colors, white backgrounds)
     const ecoFriendlyCheckbox = document.getElementById('pdfExportEcoFriendly');

@@ -4033,6 +4033,8 @@ let currentCanvas = null;
 let currentPw = 0;
 let currentPh = 0;
 let panelSize = 50;
+let currentPanelWidth = 50;
+let currentPanelHeight = 50;
 
 // Canvas view offset (for dragging the wall around the canvas)
 let canvasOffsetX = 0;
@@ -5242,7 +5244,13 @@ function getStructurePanelAtMouse(canvas, clientX, clientY) {
   const x = (clientX - rect.left) * (canvas.width / rect.width);
   const y = (clientY - rect.top) * (canvas.height / rect.height);
 
-  const size = panelSize; // Use global panelSize for consistent sizing
+  // Get proper panel dimensions for structure layout
+  const panelType = document.getElementById('panelType').value;
+  const heightRatio = getPanelHeightRatio(panelType);
+  const size = panelSize; // Base size for scaling
+  const panelWidth = size;
+  const panelHeight = size * heightRatio;
+  
   const {pw, ph} = getEffectivePanelCountsForLayout();
 
   // Calculate panel Y offset (accounting for top bumpers)
@@ -5250,7 +5258,6 @@ function getStructurePanelAtMouse(canvas, clientX, clientY) {
   const fourWayHeight = Math.max(15, size * 0.4);
   const fourWayGap = Math.max(3, size * 0.1);
   const use4Way = use4WayBumpersEnabled;
-  const panelType = document.getElementById('panelType').value;
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
   
   let panelYOffset = 0;
@@ -5260,11 +5267,11 @@ function getStructurePanelAtMouse(canvas, clientX, clientY) {
   }
   
   // Check if click is in panel area
-  if(y < panelYOffset || y >= panelYOffset + ph * size) return null;
-  if(x < 0 || x >= pw * size) return null;
+  if(y < panelYOffset || y >= panelYOffset + ph * panelHeight) return null;
+  if(x < 0 || x >= pw * panelWidth) return null;
   
-  const col = Math.floor(x / size);
-  const row = Math.floor((y - panelYOffset) / size);
+  const col = Math.floor(x / panelWidth);
+  const row = Math.floor((y - panelYOffset) / panelHeight);
   
   if(col < 0 || col >= pw || row < 0 || row >= ph) return null;
   
@@ -5277,8 +5284,8 @@ function getStructurePanelAtMouse(canvas, clientX, clientY) {
     col: col,
     row: row,
     key: panelKey,
-    x: col * size,
-    y: panelYOffset + row * size
+    x: col * panelWidth,
+    y: panelYOffset + row * panelHeight
   };
 }
 
@@ -7400,6 +7407,8 @@ function generateLayout(mode){
 
   // Update global panelSize for all modes
   panelSize = size;
+  currentPanelWidth = panelWidth;
+  currentPanelHeight = panelHeight;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const fontSize = Math.max(10, Math.floor(size * 0.22));
@@ -10741,8 +10750,8 @@ function getPanelAtPosition(canvas, x, y) {
   const canvasX = (x - rect.left) * scaleX;
   const canvasY = (y - rect.top) * scaleY;
   
-  const col = Math.floor(canvasX / panelSize);
-  const row = Math.floor(canvasY / panelSize);
+  const col = Math.floor(canvasX / currentPanelWidth);
+  const row = Math.floor(canvasY / currentPanelHeight);
   
   if(col >= 0 && col < currentPw && row >= 0 && row < currentPh) {
     return {col, row, key: `${col},${row}`};
@@ -10760,10 +10769,10 @@ function getPanelsInRect(x1, y1, x2, y2) {
   const canvasX2 = (Math.max(x1, x2) - rect.left) * scaleX;
   const canvasY2 = (Math.max(y1, y2) - rect.top) * scaleY;
   
-  const col1 = Math.max(0, Math.floor(canvasX1 / panelSize));
-  const row1 = Math.max(0, Math.floor(canvasY1 / panelSize));
-  const col2 = Math.min(currentPw - 1, Math.floor(canvasX2 / panelSize));
-  const row2 = Math.min(currentPh - 1, Math.floor(canvasY2 / panelSize));
+  const col1 = Math.max(0, Math.floor(canvasX1 / currentPanelWidth));
+  const row1 = Math.max(0, Math.floor(canvasY1 / currentPanelHeight));
+  const col2 = Math.min(currentPw - 1, Math.floor(canvasX2 / currentPanelWidth));
+  const row2 = Math.min(currentPh - 1, Math.floor(canvasY2 / currentPanelHeight));
   
   const panels = [];
   for(let c = col1; c <= col2; c++) {
@@ -18260,14 +18269,20 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
       drawPanelSize = combinedPanelSize; // Already zoomed from renderCombinedView
     }
 
-    const screenWidth = dim.pw * drawPanelSize;
-    const screenHeight = dim.ph * drawPanelSize;
+    // Calculate proper panel dimensions for this screen
+    const screenPanelType = dim.data.panelType || 'CB5_MKII';
+    const screenHeightRatio = getPanelHeightRatio(screenPanelType);
+    const actualPanelWidth = drawPanelSize;
+    const actualPanelHeight = drawPanelSize * screenHeightRatio;
+
+    const screenWidth = dim.pw * actualPanelWidth;
+    const screenHeight = dim.ph * actualPanelHeight;
 
     // Check if click is within this screen's bounds
     if(canvasX >= screenX && canvasX < screenX + screenWidth &&
        canvasY >= screenY && canvasY < screenY + screenHeight) {
-      const col = Math.floor((canvasX - screenX) / drawPanelSize);
-      const row = Math.floor((canvasY - screenY) / drawPanelSize);
+      const col = Math.floor((canvasX - screenX) / actualPanelWidth);
+      const row = Math.floor((canvasY - screenY) / actualPanelHeight);
 
       if(col >= 0 && col < dim.pw && row >= 0 && row < dim.ph) {
         return {
@@ -19382,9 +19397,40 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
           screenY = topPadding + customPos.y * zoomFactor;
           drawPanelSize = zoomedPanelSize;
         }
-        const px = screenX + col * drawPanelSize;
-        const py = screenY + row * drawPanelSize;
-        ctx.strokeRect(px + scaledOffset, py + scaledOffset, drawPanelSize - scaledInset, drawPanelSize - scaledInset);
+        // Calculate proper panel dimensions for highlight (skip CB5 half panels)
+        const screenPanelType = selectedDim.data.panelType || 'CB5_MKII';
+        const screenHeightRatio = getPanelHeightRatio(screenPanelType);
+        const hasCB5HalfRow = selectedDim.data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
+        const originalPh = hasCB5HalfRow ? selectedDim.ph - 1 : selectedDim.ph;
+        const isHalfPanelRow = hasCB5HalfRow && row === originalPh;
+        
+        let highlightWidth, highlightHeight;
+        if (isHalfPanelRow) {
+          // Keep square highlight for CB5 half panels (as requested)
+          highlightWidth = drawPanelSize;
+          highlightHeight = drawPanelSize;
+        } else {
+          // Use rectangular highlight for CB5 full panels and other rectangular panels
+          highlightWidth = drawPanelSize;
+          highlightHeight = drawPanelSize * screenHeightRatio;
+        }
+        
+        const px = screenX + col * highlightWidth;
+        // For CB5 with half panel row, calculate Y position properly
+        let py;
+        if (hasCB5HalfRow) {
+          if (isHalfPanelRow) {
+            // Half panel row is at the bottom
+            py = screenY + originalPh * (drawPanelSize * screenHeightRatio);
+          } else {
+            // Full panels use rectangular height
+            py = screenY + row * (drawPanelSize * screenHeightRatio);
+          }
+        } else {
+          // No half panel row - use calculated highlight height
+          py = screenY + row * highlightHeight;
+        }
+        ctx.strokeRect(px + scaledOffset, py + scaledOffset, highlightWidth - scaledInset, highlightHeight - scaledInset);
       }
     });
   }
@@ -21082,7 +21128,7 @@ function setupBumperTouchDrag() {
     const rect = canvas.getBoundingClientRect();
     const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
 
-    const newCol = Math.floor((touchX - touchDragOffsetX) / panelSize);
+    const newCol = Math.floor((touchX - touchDragOffsetX) / currentPanelWidth);
     const pw = parseInt(document.getElementById('panelsWide').value) || 0;
 
     // Constrain to valid columns

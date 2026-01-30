@@ -3067,52 +3067,7 @@
           </div>
         </div>
         
-        <!-- Cabling Section -->
-        <div class="section-box" id="cablingSection">
-          <div class="section-title">Cabling</div>
-
-          <div class="compact-row" style="margin-bottom: 8px;">
-            <label style="flex: 0 0 90px;">
-              <span>Wall to Floor</span>
-              <input type="number" id="wallToFloor" min="0" step="0.1" placeholder="5">
-            </label>
-            <label style="flex: 0 0 90px;">
-              <span>Distro to Wall</span>
-              <input type="number" id="distroToWall" min="0" step="0.1" placeholder="10">
-            </label>
-          </div>
-
-          <div class="compact-row" style="margin-bottom: 8px;">
-            <label style="flex: 0 0 90px;">
-              <span>Proc to Wall</span>
-              <input type="number" id="processorToWall" min="0" step="0.1" placeholder="15">
-            </label>
-            <label style="flex: 0 0 90px;">
-              <span>Server to Proc</span>
-              <input type="number" id="serverToProcessor" min="0" step="0.1" placeholder="50">
-            </label>
-          </div>
-
-          <div class="compact-row" style="margin-bottom: 8px;">
-            <label style="flex: 0 0 90px;">
-              <span>Cable Pick</span>
-              <input type="number" id="cablePick" min="0" step="0.1" placeholder="0">
-            </label>
-          </div>
-
-          <div style="margin-bottom: 8px;">
-            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Cable Drop</span>
-            <div class="slider-toggle">
-              <button type="button" class="slider-toggle-btn active" id="cableDropBehindBtn" onclick="setCableDropPosition('behind')">Behind</button>
-              <button type="button" class="slider-toggle-btn" id="cableDropSRBtn" onclick="setCableDropPosition('sr')">SR</button>
-              <button type="button" class="slider-toggle-btn" id="cableDropSLBtn" onclick="setCableDropPosition('sl')">SL</button>
-            </div>
-          </div>
-
-          <div class="compact-row" style="margin-bottom: 0;">
-            <button type="button" class="toggle-btn" id="distBoxOnWallBtn" onclick="toggleDistBoxOnWall()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Dist Box on Wall (C)</button>
-          </div>
-        </div>
+        <!-- Cabling section moved to Gear tab -->
 
       </div>
 
@@ -3239,6 +3194,59 @@
 <!-- Gear List Container (outside main-container so it can be shown as its own tab) -->
 <div class="layout-container" id="gearListContainer" style="display:none; padding-top: 24px; margin-top: 32px;">
   <div class="layout-title"><span>Gear List</span></div>
+
+  <!-- Screen Toggle Buttons -->
+  <div id="gearScreenToggles" style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px;">
+    <!-- Dynamically generated -->
+  </div>
+
+  <!-- Cabling Section -->
+  <div class="section-box" id="cablingSection" style="margin-bottom: 16px;">
+    <div class="section-title">Cabling</div>
+
+    <div class="compact-row" style="margin-bottom: 8px;">
+      <label style="flex: 0 0 90px;">
+        <span>Wall to Floor</span>
+        <input type="number" id="wallToFloor" min="0" step="0.1" placeholder="5">
+      </label>
+      <label style="flex: 0 0 90px;">
+        <span>Distro to Wall</span>
+        <input type="number" id="distroToWall" min="0" step="0.1" placeholder="10">
+      </label>
+    </div>
+
+    <div class="compact-row" style="margin-bottom: 8px;">
+      <label style="flex: 0 0 90px;">
+        <span>Proc to Wall</span>
+        <input type="number" id="processorToWall" min="0" step="0.1" placeholder="15">
+      </label>
+      <label style="flex: 0 0 90px;">
+        <span>Server to Proc</span>
+        <input type="number" id="serverToProcessor" min="0" step="0.1" placeholder="50">
+      </label>
+    </div>
+
+    <div class="compact-row" style="margin-bottom: 8px;">
+      <label style="flex: 0 0 90px;">
+        <span>Cable Pick</span>
+        <input type="number" id="cablePick" min="0" step="0.1" placeholder="0">
+      </label>
+    </div>
+
+    <div style="margin-bottom: 8px;">
+      <span class="toggle-label" style="display: block; margin-bottom: 4px;">Cable Drop</span>
+      <div class="slider-toggle">
+        <button type="button" class="slider-toggle-btn active" id="cableDropBehindBtn" onclick="setCableDropPosition('behind')">Behind</button>
+        <button type="button" class="slider-toggle-btn" id="cableDropSRBtn" onclick="setCableDropPosition('sr')">SR</button>
+        <button type="button" class="slider-toggle-btn" id="cableDropSLBtn" onclick="setCableDropPosition('sl')">SL</button>
+      </div>
+    </div>
+
+    <div class="compact-row" style="margin-bottom: 0;">
+      <button type="button" class="toggle-btn" id="distBoxOnWallBtn" onclick="toggleDistBoxOnWall()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Dist Box on Wall (C)</button>
+    </div>
+  </div>
+
   <div id="gearListContent" style="color: #e0e0e0; line-height: 1.8;"></div>
 </div>
 
@@ -3501,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.4.5';
+const APP_VERSION = '2.4.6';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18571,20 +18579,81 @@ function calculateCabling(screenId) {
   return result;
 }
 
+// ==================== GEAR VIEW FUNCTIONS ====================
+let gearSelectedScreens = new Set();
+
+function initGearView() {
+  const togglesContainer = document.getElementById('gearScreenToggles');
+  if(!togglesContainer) return;
+
+  togglesContainer.innerHTML = '';
+
+  // Auto-select all screens if none selected yet
+  if(gearSelectedScreens.size === 0) {
+    Object.keys(screens).forEach(id => gearSelectedScreens.add(id));
+  }
+
+  // Remove any screens that no longer exist
+  gearSelectedScreens.forEach(id => {
+    if(!screens[id]) gearSelectedScreens.delete(id);
+  });
+
+  Object.keys(screens).forEach(screenId => {
+    const screen = screens[screenId];
+    const btn = document.createElement('button');
+    btn.className = 'slider-toggle-btn';
+    btn.dataset.screenId = screenId;
+    btn.style.cssText = 'padding: 4px 12px; min-height: 26px; font-size: 10px; border: 2px solid #000; border-radius: 0; box-shadow: 1px 1px 0px 0px rgba(0,0,0,1); white-space: nowrap; width: fit-content; flex-grow: 0; flex-shrink: 0;';
+
+    if(gearSelectedScreens.has(screenId)) {
+      btn.classList.add('active');
+      btn.style.background = screen.color || '#10b981';
+      btn.style.color = '#fff';
+      btn.style.textShadow = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000';
+    } else {
+      btn.style.background = '#333';
+      btn.style.color = '#9ca3af';
+      btn.style.textShadow = 'none';
+    }
+
+    btn.textContent = screen.name;
+    btn.onclick = function() {
+      toggleGearScreen(screenId);
+    };
+
+    togglesContainer.appendChild(btn);
+  });
+
+  generateGearList();
+}
+
+function toggleGearScreen(screenId) {
+  if(gearSelectedScreens.has(screenId)) {
+    gearSelectedScreens.delete(screenId);
+  } else {
+    gearSelectedScreens.add(screenId);
+  }
+  initGearView();
+}
+
 function generateGearList() {
   const gearListContainer = document.getElementById('gearListContainer');
   const gearListContent = document.getElementById('gearListContent');
-  
+
   if(!gearListContainer || !gearListContent) return;
-  
-  // Sort screen IDs numerically
-  const screenIds = Object.keys(screens).sort((a, b) => {
+
+  // Use selected screens if on gear tab, otherwise show all
+  const allScreenIds = Object.keys(screens).sort((a, b) => {
     const numA = parseInt(a.split('_')[1]);
     const numB = parseInt(b.split('_')[1]);
     return numA - numB;
   });
+  const screenIds = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearSelectedScreens.size > 0)
+    ? allScreenIds.filter(id => gearSelectedScreens.has(id))
+    : allScreenIds;
+
   let html = '<div style="font-size: 14px;">';
-  
+
   screenIds.forEach(screenId => {
     const screen = screens[screenId];
     const data = screen.data;
@@ -21560,7 +21629,6 @@ function switchMobileView(view) {
   // Config sections (for simple mode hiding)
   const powerSection = document.getElementById('powerSection');
   const structureSection = document.getElementById('structureSection');
-  const cablingSection = document.getElementById('cablingSection');
   const dataDirectionRow = document.getElementById('dataDirectionRow');
   const dataTogglesRow = document.getElementById('dataTogglesRow');
 
@@ -21589,7 +21657,6 @@ function switchMobileView(view) {
       // Show all config sections
       if(powerSection) powerSection.style.display = 'block';
       if(structureSection) structureSection.style.display = 'block';
-      if(cablingSection) cablingSection.style.display = 'block';
       if(dataDirectionRow) dataDirectionRow.style.display = 'block';
       if(dataTogglesRow) dataTogglesRow.style.display = 'flex';
       break;
@@ -21602,9 +21669,8 @@ function switchMobileView(view) {
       if(screenTabsContainer) screenTabsContainer.style.display = 'flex';
       // Show power section
       if(powerSection) powerSection.style.display = 'block';
-      // Hide structure and cabling
+      // Hide structure
       if(structureSection) structureSection.style.display = 'none';
-      if(cablingSection) cablingSection.style.display = 'none';
       // Simplify data section
       if(dataDirectionRow) dataDirectionRow.style.display = 'none';
       if(dataTogglesRow) dataTogglesRow.style.display = 'none';
@@ -21627,9 +21693,13 @@ function switchMobileView(view) {
     case 'gear':
       // Show gear list tab
       if(gearListContainer) gearListContainer.style.display = 'block';
-      // Ensure gear list is populated
-      if(typeof generateGearList === 'function') {
-        generateGearList();
+      // Save current screen data first
+      if(typeof saveCurrentScreenData === 'function') {
+        saveCurrentScreenData();
+      }
+      // Initialize gear view with screen toggles
+      if(typeof initGearView === 'function') {
+        initGearView();
       }
       break;
 

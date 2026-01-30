@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.4.7';
+const APP_VERSION = '2.4.8';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -6317,8 +6317,11 @@ function calculate(){
       '<p>Enter panel dimensions above to begin calculating your LED wall.</p>' +
       '</div>';
     
-    // Hide all layout containers (except canvasContainer if we're on canvas page)
-    const layoutContainers = ['standardContainer', 'structureContainer', 'powerContainer', 'dataContainer', 'gearListContainer'];
+    // Hide all layout containers (except canvasContainer if we're on canvas page, and gearListContainer if we're on gear tab)
+    const layoutContainers = ['standardContainer', 'structureContainer', 'powerContainer', 'dataContainer'];
+    if(typeof currentMobileView === 'undefined' || currentMobileView !== 'gear') {
+      layoutContainers.push('gearListContainer');
+    }
     if(typeof currentMobileView === 'undefined' || currentMobileView !== 'canvas') {
       layoutContainers.push('canvasContainer');
     }

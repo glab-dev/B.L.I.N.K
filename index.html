@@ -17374,18 +17374,18 @@ function saveCurrentScreenData() {
   const connectionMethod = document.querySelector('input[name="connectionMethod"]:checked');
   if(connectionMethod) data.connectionMethod = connectionMethod.value;
   
-  // Cabling
+  // Cabling - use value if present, otherwise fall back to placeholder default
   const wallToFloorEl = document.getElementById('wallToFloor');
   const distroToWallEl = document.getElementById('distroToWall');
   const processorToWallEl = document.getElementById('processorToWall');
   const serverToProcessorEl = document.getElementById('serverToProcessor');
   const cablePickEl = document.getElementById('cablePick');
 
-  if(wallToFloorEl) data.wallToFloor = parseFloat(wallToFloorEl.value) || parseFloat(wallToFloorEl.placeholder) || 5;
-  if(distroToWallEl) data.distroToWall = parseFloat(distroToWallEl.value) || parseFloat(distroToWallEl.placeholder) || 10;
-  if(processorToWallEl) data.processorToWall = parseFloat(processorToWallEl.value) || parseFloat(processorToWallEl.placeholder) || 15;
-  if(serverToProcessorEl) data.serverToProcessor = parseFloat(serverToProcessorEl.value) || parseFloat(serverToProcessorEl.placeholder) || 50;
-  if(cablePickEl) data.cablePick = parseFloat(cablePickEl.value) || 0;
+  if(wallToFloorEl) data.wallToFloor = wallToFloorEl.value !== '' ? parseFloat(wallToFloorEl.value) : parseFloat(wallToFloorEl.placeholder);
+  if(distroToWallEl) data.distroToWall = distroToWallEl.value !== '' ? parseFloat(distroToWallEl.value) : parseFloat(distroToWallEl.placeholder);
+  if(processorToWallEl) data.processorToWall = processorToWallEl.value !== '' ? parseFloat(processorToWallEl.value) : parseFloat(processorToWallEl.placeholder);
+  if(serverToProcessorEl) data.serverToProcessor = serverToProcessorEl.value !== '' ? parseFloat(serverToProcessorEl.value) : parseFloat(serverToProcessorEl.placeholder);
+  if(cablePickEl) data.cablePick = cablePickEl.value !== '' ? parseFloat(cablePickEl.value) : 0;
   data.cableDropPosition = cableDropPosition;
   data.distBoxOnWall = distBoxOnWallEnabled;
   
@@ -18220,14 +18220,14 @@ function calculateCabling(screenId) {
     }
   }
 
-  // Cabling inputs
-  const wallToFloor = data.wallToFloor || 5;
-  const distroToWall = data.distroToWall || 10;
-  const processorToWall = data.processorToWall || 15;
-  const serverToProcessor = data.serverToProcessor || 50;
-  const cablePick = data.cablePick || 0;
-  const dropPos = data.cableDropPosition || 'behind';
-  const distBoxOnWall = data.distBoxOnWall || false;
+  // Cabling inputs - use nullish coalescing so 0 values are respected
+  const wallToFloor = data.wallToFloor ?? 5;
+  const distroToWall = data.distroToWall ?? 10;
+  const processorToWall = data.processorToWall ?? 15;
+  const serverToProcessor = data.serverToProcessor ?? 50;
+  const cablePick = data.cablePick ?? 0;
+  const dropPos = data.cableDropPosition ?? 'behind';
+  const distBoxOnWall = data.distBoxOnWall ?? false;
 
   // Deleted panels
   const deletedPanelsSet = data.deletedPanels || new Set();
@@ -18413,6 +18413,7 @@ function calculateCabling(screenId) {
     serverCable: {lengthFt: serverToProcessor},
     wallHeightFt: Math.round(wallHeightFt * 10) / 10,
     wallWidthFt: Math.round(wallWidthFt * 10) / 10,
+    inputs: {wallToFloor, distroToWall, processorToWall, cablePick},
     totals: {
       socaCount: socaCables.length,
       dataCount: dataCables.length,
@@ -18483,24 +18484,15 @@ function generateGearList() {
       html += `<h3 style="color: #c27676; margin-bottom: 12px; font-size: 16px;">${screen.name} — Cable Requirements</h3>`;
       html += `<div style="margin-bottom: 8px; color: #999; font-size: 12px;">Wall: ${cabling.wallWidthFt}' W × ${cabling.wallHeightFt}' H</div>`;
 
+      // Cabling distances used
+      html += `<div style="margin-bottom: 8px; color: #999; font-size: 12px;">Wall→Floor: ${cabling.inputs.wallToFloor}' | Distro→Wall: ${cabling.inputs.distroToWall}' | Proc→Wall: ${cabling.inputs.processorToWall}' | Pick: ${cabling.inputs.cablePick}'</div>`;
+
       // Power Cables (SOCA)
       if(cabling.socaCables.length > 0) {
         html += `<div style="margin-top: 8px;"><strong style="color: #ff9800;">Power (SOCA):</strong></div>`;
-        // Group by rounded length for summary
-        const socaByLength = {};
         cabling.socaCables.forEach(s => {
-          if(!socaByLength[s.roundedFt]) socaByLength[s.roundedFt] = 0;
-          socaByLength[s.roundedFt]++;
+          html += `<div style="margin-left: 12px;">SOCA ${s.index}: ${s.lengthFt}' → <strong>${s.roundedFt}' cable</strong></div>`;
         });
-        for(const [len, count] of Object.entries(socaByLength).sort((a,b) => a[0] - b[0])) {
-          html += `<div style="margin-left: 12px;">${count}× SOCA @ ${len}' cable</div>`;
-        }
-        // Detail view
-        html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
-        cabling.socaCables.forEach(s => {
-          html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">SOCA ${s.index}: ${s.lengthFt}' → ${s.roundedFt}'</div>`;
-        });
-        html += `</details>`;
       }
 
       // Data Cables
@@ -18508,27 +18500,12 @@ function generateGearList() {
         const primaryCables = cabling.dataCables.filter(c => !c.backup);
         const backupCables = cabling.dataCables.filter(c => c.backup);
         html += `<div style="margin-top: 8px;"><strong style="color: #4ecdc4;">Data Cables:</strong></div>`;
-
-        // Group primary by rounded length
-        const dataByLength = {};
         primaryCables.forEach(c => {
-          if(!dataByLength[c.roundedFt]) dataByLength[c.roundedFt] = 0;
-          dataByLength[c.roundedFt]++;
+          html += `<div style="margin-left: 12px;">Line ${c.lineIndex}: ${c.lengthFt}' → <strong>${c.roundedFt}' cable</strong></div>`;
         });
-        for(const [len, count] of Object.entries(dataByLength).sort((a,b) => a[0] - b[0])) {
-          html += `<div style="margin-left: 12px;">${count}× Data @ ${len}' cable</div>`;
-        }
-
         if(backupCables.length > 0) {
           html += `<div style="margin-left: 12px; color: #999;">+ ${backupCables.length}× Backup (same lengths)</div>`;
         }
-
-        // Detail view
-        html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
-        primaryCables.forEach(c => {
-          html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">Line ${c.lineIndex}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
-        });
-        html += `</details>`;
       }
 
       // Distribution Box Cables (processor to dist box)
@@ -18536,15 +18513,16 @@ function generateGearList() {
         const mainBoxCables = cabling.distBoxCables.filter(c => c.label === 'main');
         html += `<div style="margin-top: 8px;"><strong style="color: #e040fb;">Processor → Dist Box:</strong></div>`;
         const boxCableType = mainBoxCables[0]?.type || 'cat6a';
-        const boxCableLen = mainBoxCables[0]?.roundedFt || 0;
-        html += `<div style="margin-left: 12px;">${cabling.distBoxCables.length}× ${boxCableType === 'fiber' ? 'Fiber' : 'Cat6A'} @ ${boxCableLen}' cable</div>`;
+        const boxCableLen = mainBoxCables[0]?.lengthFt || 0;
+        const boxCableRounded = mainBoxCables[0]?.roundedFt || 0;
+        html += `<div style="margin-left: 12px;">${cabling.distBoxCables.length}× ${boxCableType === 'fiber' ? 'Fiber' : 'Cat6A'}: ${boxCableLen}' → <strong>${boxCableRounded}' cable</strong></div>`;
         if(boxCableType === 'fiber') {
           html += `<div style="margin-left: 12px; color: #e040fb; font-size: 12px;">(Fiber required: distance > 200')</div>`;
         }
       }
 
       // Server Cable
-      html += `<div style="margin-top: 8px;"><strong style="color: #78909c;">Server → Processor:</strong> ${cabling.serverCable.lengthFt}' cable</div>`;
+      html += `<div style="margin-top: 8px;"><strong style="color: #78909c;">Server → Processor:</strong> ${cabling.serverCable.lengthFt}'</div>`;
 
       // Totals
       html += `<div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #9a4a4a;">`;

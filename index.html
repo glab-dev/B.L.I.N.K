@@ -1069,6 +1069,8 @@
       transition: all 0.1s;
       box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
       text-shadow: none;
+      margin-bottom: 0;
+      min-height: auto;
     }
 
     .secondary-button:hover {
@@ -1304,6 +1306,8 @@
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
       box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+      width: auto;
+      margin-bottom: 0;
     }
 
     .toggle-btn:hover, .unit-toggle-btn:hover {
@@ -1337,6 +1341,8 @@
       touch-action: manipulation;
       text-shadow: none;
       box-shadow: none;
+      width: auto;
+      margin-bottom: 0;
     }
 
     /* Desktop: constrain toggle width */
@@ -1686,6 +1692,9 @@
          1px -1px 0 #000,
         -1px  1px 0 #000,
          1px  1px 0 #000;
+      width: auto;
+      margin-bottom: 0;
+      min-height: auto;
     }
 
     .btn-primary:hover {
@@ -1710,6 +1719,9 @@
       transition: all 0.1s;
       box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
       text-shadow: none;
+      width: auto;
+      margin-bottom: 0;
+      min-height: auto;
     }
 
     .btn-secondary:hover {
@@ -1738,6 +1750,9 @@
          1px -1px 0 #000,
         -1px  1px 0 #000,
          1px  1px 0 #000;
+      width: auto;
+      margin-bottom: 0;
+      min-height: auto;
     }
 
     .btn-danger:hover {
@@ -3297,8 +3312,8 @@
   <div class="layout-title">
     <span>Canvas View</span>
   </div>
-  <div id="canvasTabsContainer" style="position: absolute; right: 16px; top: -42px; display: flex; align-items: flex-end; gap: 4px;">
-    <div id="canvasTabs" style="display: flex; align-items: flex-end; gap: 4px;">
+  <div id="canvasTabsContainer" style="display: flex; align-items: flex-end; gap: 4px; margin-bottom: -4px; flex-wrap: wrap;">
+    <div id="canvasTabs" style="display: flex; align-items: flex-end; gap: 4px; flex-wrap: wrap;">
       <!-- Canvas tabs will be dynamically generated here -->
     </div>
   </div>

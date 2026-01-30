@@ -3501,7 +3501,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.4.2';
+const APP_VERSION = '2.4.3';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18135,6 +18135,96 @@ function getDataLineEntryPoints(pw, ph, panelsPerDataLine, startDir, deletedPane
   return entryPoints;
 }
 
+// Get ALL panels per data line in serpentine order (for inter-panel cable calculations)
+function getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap) {
+  const dataLinePanels = {}; // { dataLineIndex: [{col, row}, ...] in order }
+  const usedCustomDataLines = new Set();
+
+  for(let c = 0; c < pw; c++) {
+    for(let r = 0; r < ph; r++) {
+      const panelKey = `${c},${r}`;
+      if(!deletedPanelsSet.has(panelKey) && customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey)) {
+        usedCustomDataLines.add(customDataLineAssignmentsMap.get(panelKey) - 1);
+      }
+    }
+  }
+
+  if(startDir === 'all_top') {
+    let autoDataLineCounter = 0;
+    for(let c = 0; c < pw; c++) {
+      while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
+      for(let r = 0; r < ph; r++) {
+        const panelKey = `${c},${r}`;
+        if(deletedPanelsSet.has(panelKey)) continue;
+        const dl = (customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey))
+          ? customDataLineAssignmentsMap.get(panelKey) - 1
+          : autoDataLineCounter;
+        if(!dataLinePanels[dl]) dataLinePanels[dl] = [];
+        dataLinePanels[dl].push({col: c, row: r});
+      }
+      autoDataLineCounter++;
+    }
+  } else if(startDir === 'all_bottom') {
+    let autoDataLineCounter = 0;
+    for(let c = 0; c < pw; c++) {
+      while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
+      for(let r = ph - 1; r >= 0; r--) {
+        const panelKey = `${c},${r}`;
+        if(deletedPanelsSet.has(panelKey)) continue;
+        const dl = (customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey))
+          ? customDataLineAssignmentsMap.get(panelKey) - 1
+          : autoDataLineCounter;
+        if(!dataLinePanels[dl]) dataLinePanels[dl] = [];
+        dataLinePanels[dl].push({col: c, row: r});
+      }
+      autoDataLineCounter++;
+    }
+  } else {
+    // Serpentine: top or bottom
+    const startFromTop = (startDir === 'top');
+    let autoDataLineCounter = 0;
+    let panelsInCurrentAutoDataLine = 0;
+
+    while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
+
+    let currentColumn = 0;
+    let serpentineGoingDown = startFromTop;
+
+    while(currentColumn < pw) {
+      const rows = serpentineGoingDown
+        ? Array.from({length: ph}, (_, i) => i)
+        : Array.from({length: ph}, (_, i) => ph - 1 - i);
+
+      for(const r of rows) {
+        const panelKey = `${currentColumn},${r}`;
+        if(deletedPanelsSet.has(panelKey)) continue;
+
+        let dataLine;
+        if(customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey)) {
+          dataLine = customDataLineAssignmentsMap.get(panelKey) - 1;
+        } else {
+          while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
+          dataLine = autoDataLineCounter;
+          panelsInCurrentAutoDataLine++;
+          if(panelsInCurrentAutoDataLine >= panelsPerDataLine) {
+            autoDataLineCounter++;
+            panelsInCurrentAutoDataLine = 0;
+            while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
+          }
+        }
+
+        if(!dataLinePanels[dataLine]) dataLinePanels[dataLine] = [];
+        dataLinePanels[dataLine].push({col: currentColumn, row: r});
+      }
+
+      currentColumn++;
+      serpentineGoingDown = !serpentineGoingDown;
+    }
+  }
+
+  return dataLinePanels;
+}
+
 // Calculate Manhattan detour around knockout areas
 function calculateKnockoutDetour(startCol, startRow, endCol, endRow, deletedPanelsSet, pw, ph) {
   // If no knockouts between start and end, Manhattan distance is fine
@@ -18410,7 +18500,56 @@ function calculateCabling(screenId) {
     }
   }
 
-  // ---- C. Totals ----
+  // ---- C. Knockout Bridge Cables ----
+  // When knockouts create gaps between consecutive panels in a data line,
+  // a longer cable is needed to bridge the gap (data cross jumper)
+  const knockoutBridgeCables = [];
+
+  const dataLinePanelOrdering = getDataLinePanelOrdering(
+    pw, effectivePh, panelsPerDataLine,
+    data.dataStartDir || 'top',
+    deletedPanelsSet,
+    data.customDataLineAssignments
+  );
+
+  for(const [dlIndex, panels] of Object.entries(dataLinePanelOrdering)) {
+    if(panels.length < 2) continue;
+
+    for(let i = 1; i < panels.length; i++) {
+      const prev = panels[i - 1];
+      const curr = panels[i];
+
+      // Check if panels are physically adjacent (same column vertically adjacent, or column transition at boundary)
+      const colDiff = Math.abs(curr.col - prev.col);
+      const rowDiff = Math.abs(curr.row - prev.row);
+      const isAdjacent = (colDiff === 0 && rowDiff === 1) ||
+                         (colDiff === 1 && rowDiff === 0);
+
+      if(!isAdjacent) {
+        // Non-adjacent panels — need a bridge cable
+        // Calculate physical distance between panel centers
+        const hDist = Math.abs((curr.col + 0.5) * panelWidthFt - (prev.col + 0.5) * panelWidthFt);
+        const vDist = Math.abs((curr.row + 0.5) * panelHeightFt - (prev.row + 0.5) * panelHeightFt);
+        const bridgeFt = hDist + vDist + cablePick;
+
+        knockoutBridgeCables.push({
+          dataLine: parseInt(dlIndex) + 1,
+          fromPanel: `${prev.col + 1},${prev.row + 1}`,
+          toPanel: `${curr.col + 1},${curr.row + 1}`,
+          lengthFt: Math.round(bridgeFt * 10) / 10,
+          roundedFt: roundUpToStandard(bridgeFt)
+        });
+      }
+    }
+  }
+
+  // If redundancy, double the bridge cables too
+  if(redundancy && knockoutBridgeCables.length > 0) {
+    const backupBridges = knockoutBridgeCables.map(c => ({...c, backup: true}));
+    knockoutBridgeCables.push(...backupBridges);
+  }
+
+  // ---- D. Totals ----
   const fiberCount = distBoxCables.filter(c => c.type === 'fiber').length;
   const cat6aDistBoxCount = distBoxCables.filter(c => c.type === 'cat6a').length;
 
@@ -18418,6 +18557,7 @@ function calculateCabling(screenId) {
     socaCables,
     dataCables,
     distBoxCables,
+    knockoutBridgeCables,
     serverCable: {lengthFt: serverToProcessor},
     wallHeightFt: Math.round(wallHeightFt * 10) / 10,
     wallWidthFt: Math.round(wallWidthFt * 10) / 10,
@@ -18425,6 +18565,7 @@ function calculateCabling(screenId) {
     totals: {
       socaCount: socaCables.length,
       dataCount: dataCables.length,
+      knockoutBridgeCount: knockoutBridgeCables.length,
       distBoxCableCount: distBoxCables.length,
       fiberCount,
       cat6aCount: dataCables.length + cat6aDistBoxCount
@@ -18547,6 +18688,29 @@ function generateGearList() {
         html += `</details>`;
       }
 
+      // Knockout Bridge Cables (data cross jumpers across gaps)
+      if(cabling.knockoutBridgeCables && cabling.knockoutBridgeCables.length > 0) {
+        const primaryBridges = cabling.knockoutBridgeCables.filter(c => !c.backup);
+        const backupBridges = cabling.knockoutBridgeCables.filter(c => c.backup);
+        html += `<div style="margin-top: 8px;"><strong style="color: #ffab40;">Data Cross Jumpers (Knockout):</strong></div>`;
+        const bridgeByLength = {};
+        primaryBridges.forEach(c => {
+          if(!bridgeByLength[c.roundedFt]) bridgeByLength[c.roundedFt] = 0;
+          bridgeByLength[c.roundedFt]++;
+        });
+        for(const [len, count] of Object.entries(bridgeByLength).sort((a,b) => a[0] - b[0])) {
+          html += `<div style="margin-left: 12px;">${count}x ${len}'</div>`;
+        }
+        if(backupBridges.length > 0) {
+          html += `<div style="margin-left: 12px; color: #999;">+ ${backupBridges.length}x Backup (same lengths)</div>`;
+        }
+        html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
+        primaryBridges.forEach(c => {
+          html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">Line ${c.dataLine} (${c.fromPanel} → ${c.toPanel}): ${c.lengthFt}' → ${c.roundedFt}'</div>`;
+        });
+        html += `</details>`;
+      }
+
       // Distribution Box Cables (processor to dist box)
       if(cabling.distBoxCables.length > 0) {
         const mainBoxCables = cabling.distBoxCables.filter(c => c.label === 'main');
@@ -18567,6 +18731,9 @@ function generateGearList() {
       html += `<strong style="color: #c27676;">Totals:</strong>`;
       html += `<div style="margin-left: 12px;">SOCA cables: ${cabling.totals.socaCount}</div>`;
       html += `<div style="margin-left: 12px;">Data cables: ${cabling.totals.dataCount}</div>`;
+      if(cabling.totals.knockoutBridgeCount > 0) {
+        html += `<div style="margin-left: 12px;">Data cross jumpers (knockout): ${cabling.totals.knockoutBridgeCount}</div>`;
+      }
       if(cabling.totals.distBoxCableCount > 0) {
         html += `<div style="margin-left: 12px;">Dist box cables: ${cabling.totals.distBoxCableCount}</div>`;
       }
@@ -21250,6 +21417,24 @@ function renderCombinedGearList(selectedScreenIds) {
         }
         if(backupCables.length > 0) {
           html += `<div style="margin-left: 16px; color: #999;">+ ${backupCables.length}x Backup</div>`;
+        }
+      }
+
+      // Knockout bridge cables
+      if(cabling.knockoutBridgeCables && cabling.knockoutBridgeCables.length > 0) {
+        const primaryBridges = cabling.knockoutBridgeCables.filter(c => !c.backup);
+        const backupBridges = cabling.knockoutBridgeCables.filter(c => c.backup);
+        const bridgeByLength = {};
+        primaryBridges.forEach(c => {
+          if(!bridgeByLength[c.roundedFt]) bridgeByLength[c.roundedFt] = 0;
+          bridgeByLength[c.roundedFt]++;
+        });
+        html += `<div style="margin-left: 8px; color: #ffab40;"><strong>Data Cross Jumpers:</strong></div>`;
+        for(const [len, count] of Object.entries(bridgeByLength).sort((a,b) => a[0] - b[0])) {
+          html += `<div style="margin-left: 16px;">${count}x ${len}'</div>`;
+        }
+        if(backupBridges.length > 0) {
+          html += `<div style="margin-left: 16px; color: #999;">+ ${backupBridges.length}x Backup</div>`;
         }
       }
 

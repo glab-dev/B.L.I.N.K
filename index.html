@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.4.8';
+const APP_VERSION = '2.4.9';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -16467,6 +16467,13 @@ function loadConfiguration(event) {
           if(typeof initCombinedView === 'function') {
             combinedSelectedScreens.clear(); // Reset selection for new project
             initCombinedView();
+          }
+          // Reset gear tab selection for new project
+          if(typeof gearSelectedScreens !== 'undefined') {
+            gearSelectedScreens.clear();
+          }
+          if(typeof initGearView === 'function') {
+            initGearView();
           }
         }, 100);
 

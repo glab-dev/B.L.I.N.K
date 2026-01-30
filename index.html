@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.0';
+const APP_VERSION = '2.5.1';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18935,8 +18935,6 @@ function generateGearList() {
       const halfPanel = allPanelsObj['CB5_MKII_HALF'];
       html += `<div style="margin-left: 24px; font-size: 12px; color: #bbb;">${halfPanelCount}x ${p.brand} ${halfPanel ? halfPanel.name : 'CB5 MKII Half Panel'}</div>`;
     }
-    html += `<div style="margin-left: 12px;"><span style="color: #999;">Dimensions:</span> ${(W * p.width_m).toFixed(2)}m × ${(H * p.height_m).toFixed(2)}m</div>`;
-    html += `<div style="margin-left: 12px;"><span style="color: #999;">Resolution:</span> ${W * p.res_x} × ${H * p.res_y} px</div>`;
 
     // === RIGGING HARDWARE ===
     const hasRigging = bumper1wCount > 0 || bumper2wCount > 0 || bumper4wCount > 0 || plates4way > 0 || plates2way > 0;
@@ -19013,7 +19011,6 @@ function generateGearList() {
       const backupCables = cabling.dataCables.filter(c => c.backup);
       const knockoutCables = cabling.knockoutBridgeCables || [];
       if(primaryCables.length > 0 || knockoutCables.length > 0) {
-        html += `<div style="margin-left: 12px; margin-top: 4px; color: #999; font-size: 12px;">Wall: ${cabling.wallWidthFt}' W × ${cabling.wallHeightFt}' H</div>`;
         const allDataByLength = {};
         primaryCables.forEach(c => { allDataByLength[c.roundedFt] = (allDataByLength[c.roundedFt] || 0) + 1; });
         knockoutCables.forEach(c => { allDataByLength[c.roundedFt] = (allDataByLength[c.roundedFt] || 0) + 1; });

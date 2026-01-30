@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.4.9';
+const APP_VERSION = '2.4.10';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18761,8 +18761,8 @@ function generateGearList() {
         primaryCables.forEach(c => {
           html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">Line ${c.lineIndex}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
         });
-        knockoutCables.forEach(c => {
-          html += `<div style="margin-left: 12px; font-size: 12px; color: #ffab40;">Knockout Line ${c.dataLine}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
+        knockoutCables.forEach((c, idx) => {
+          html += `<div style="margin-left: 12px; font-size: 12px; color: #ffab40;">Knockout ${idx + 1} (P${c.fromPanel} → P${c.toPanel}): ${c.lengthFt}' → ${c.roundedFt}'</div>`;
         });
         html += `</details>`;
       }

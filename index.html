@@ -3351,6 +3351,16 @@
     </div>
   </div>
 
+  <!-- Combined Gear List -->
+  <div class="layout-container" id="combinedGearListContainer" style="margin-bottom: 20px;">
+    <div class="layout-title">
+      <span>Gear List<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedGearListContainer')" id="combinedGearListCollapseBtn" title="Minimize">▼</button></span>
+    </div>
+    <div class="layout-content">
+      <div id="combinedGearListContent" style="color: #e0e0e0; line-height: 1.8;"></div>
+    </div>
+  </div>
+
 </div>
 
 <!-- Canvas Tabs Container (outside canvas container, normal flow like screen tabs) -->
@@ -6783,6 +6793,7 @@ function calculate(){
   generateLayout('power');
   generateLayout('data');
   showCanvasView();
+  generateGearList();
 }
 
 function lightenColor(hex, percent) {
@@ -21158,6 +21169,71 @@ function renderCombinedGearList(selectedScreenIds) {
     html += addGearLine('True1 Twofer:', totalTrue1Twofers);
   }
 
+  // Cabling Section - per-screen cable length calculations
+  let hasCablingData = false;
+  selectedScreenIds.forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen) return;
+    const cabling = calculateCabling(screenId);
+    if(!cabling) return;
+    hasCablingData = true;
+  });
+
+  if(hasCablingData) {
+    html += addGearHeader('Cable Runs');
+    selectedScreenIds.forEach(screenId => {
+      const screen = screens[screenId];
+      if(!screen) return;
+      const cabling = screen.calculatedData?.cabling;
+      if(!cabling) return;
+
+      html += `<div style="margin-top: 8px; margin-left: 4px; padding: 8px; background: #3a2a2a; border-radius: 4px; border-left: 3px solid ${screen.color};">`;
+      html += `<div style="font-weight: bold; color: #c27676; margin-bottom: 4px;">${screen.name}</div>`;
+
+      // SOCA
+      if(cabling.socaCables.length > 0) {
+        const socaByLength = {};
+        cabling.socaCables.forEach(s => {
+          if(!socaByLength[s.roundedFt]) socaByLength[s.roundedFt] = 0;
+          socaByLength[s.roundedFt]++;
+        });
+        html += `<div style="margin-left: 8px; color: #ff9800;"><strong>SOCA:</strong></div>`;
+        for(const [len, count] of Object.entries(socaByLength).sort((a,b) => a[0] - b[0])) {
+          html += `<div style="margin-left: 16px;">${count}× @ ${len}'</div>`;
+        }
+      }
+
+      // Data cables
+      if(cabling.dataCables.length > 0) {
+        const primaryCables = cabling.dataCables.filter(c => !c.backup);
+        const backupCables = cabling.dataCables.filter(c => c.backup);
+        const dataByLength = {};
+        primaryCables.forEach(c => {
+          if(!dataByLength[c.roundedFt]) dataByLength[c.roundedFt] = 0;
+          dataByLength[c.roundedFt]++;
+        });
+        html += `<div style="margin-left: 8px; color: #4ecdc4;"><strong>Data:</strong></div>`;
+        for(const [len, count] of Object.entries(dataByLength).sort((a,b) => a[0] - b[0])) {
+          html += `<div style="margin-left: 16px;">${count}× @ ${len}'</div>`;
+        }
+        if(backupCables.length > 0) {
+          html += `<div style="margin-left: 16px; color: #999;">+ ${backupCables.length}× Backup</div>`;
+        }
+      }
+
+      // Dist box cables
+      if(cabling.distBoxCables.length > 0) {
+        const boxType = cabling.distBoxCables[0]?.type === 'fiber' ? 'Fiber' : 'Cat6A';
+        const boxLen = cabling.distBoxCables[0]?.roundedFt || 0;
+        html += `<div style="margin-left: 8px; color: #e040fb;"><strong>Proc→Dist Box:</strong> ${cabling.distBoxCables.length}× ${boxType} @ ${boxLen}'</div>`;
+      }
+
+      // Server cable
+      html += `<div style="margin-left: 8px; color: #78909c;"><strong>Server→Proc:</strong> ${cabling.serverCable.lengthFt}'</div>`;
+      html += `</div>`;
+    });
+  }
+
   html += '</div>';
 
   gearContent.innerHTML = html;
@@ -21307,6 +21383,10 @@ function switchMobileView(view) {
       if(cablingSection) cablingSection.style.display = 'block';
       if(dataDirectionRow) dataDirectionRow.style.display = 'block';
       if(dataTogglesRow) dataTogglesRow.style.display = 'flex';
+      // Re-show gear list if it has content
+      if(gearListContainer && gearListContainer.querySelector('#gearListContent')?.innerHTML) {
+        gearListContainer.style.display = 'block';
+      }
       break;
 
     case 'simple':

@@ -3317,7 +3317,25 @@
     <div class="layout-title">
       <span>Combined Specifications<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedSpecsContainer')" id="combinedSpecsCollapseBtn" title="Minimize">▼</button></span>
     </div>
-    <div class="layout-content" id="combinedSpecsContent" style="color: #e0e0e0; line-height: 1.8;"></div>
+    <div class="layout-content">
+      <div style="display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;">
+        <div style="flex: 0 0 auto;">
+          <span class="toggle-label" style="display: block; margin-bottom: 4px;">Power Basis</span>
+          <div class="slider-toggle">
+            <button type="button" class="slider-toggle-btn active" id="combinedPowerMaxBtn" onclick="setCombinedPowerType('max')">Max</button>
+            <button type="button" class="slider-toggle-btn" id="combinedPowerAvgBtn" onclick="setCombinedPowerType('avg')">Avg</button>
+          </div>
+        </div>
+        <div style="flex: 0 0 auto;">
+          <span class="toggle-label" style="display: block; margin-bottom: 4px;">Phase</span>
+          <div class="slider-toggle">
+            <button type="button" class="slider-toggle-btn active" id="combinedPhase3Btn" onclick="setCombinedPhase(3)">3Ø</button>
+            <button type="button" class="slider-toggle-btn" id="combinedPhase1Btn" onclick="setCombinedPhase(1)">1Ø</button>
+          </div>
+        </div>
+      </div>
+      <div id="combinedSpecsContent" style="color: #e0e0e0; line-height: 1.8;"></div>
+    </div>
   </div>
 
 </div>
@@ -3460,7 +3478,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.3.1';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -17981,6 +17999,24 @@ function generateGearList() {
 // Track which screens are selected for combined view
 let combinedSelectedScreens = new Set();
 
+// Combined specs power/phase toggle state
+let combinedPowerType = 'max';
+let combinedPhase = 3;
+
+function setCombinedPowerType(type) {
+  combinedPowerType = type;
+  document.getElementById('combinedPowerMaxBtn').classList.toggle('active', type === 'max');
+  document.getElementById('combinedPowerAvgBtn').classList.toggle('active', type === 'avg');
+  renderCombinedSpecs(Array.from(combinedSelectedScreens));
+}
+
+function setCombinedPhase(phase) {
+  combinedPhase = phase;
+  document.getElementById('combinedPhase3Btn').classList.toggle('active', phase === 3);
+  document.getElementById('combinedPhase1Btn').classList.toggle('active', phase === 1);
+  renderCombinedSpecs(Array.from(combinedSelectedScreens));
+}
+
 // Store screen dimensions for click handling in Combined view
 let combinedScreenDimensions = [];
 let combinedPanelSize = 40;
@@ -20198,24 +20234,22 @@ function renderCombinedSpecs(selectedScreenIds) {
     // Pixels - use stored value or calculate
     totalPixels += calcData.totalPixels || (activePanels * panel.res_x * panel.res_y);
 
-    // Power - use per-screen power type
-    const powerType = data.powerType || 'max';
-    const powerPerPanel = powerType === 'max' ? (panel.power_max_w || 0) : (panel.power_avg_w || 0);
+    // Power - use combined toggle state
+    const powerPerPanel = combinedPowerType === 'max' ? (panel.power_max_w || 0) : (panel.power_avg_w || 0);
     let screenPowerW = activePanels * powerPerPanel;
     if(hasCB5HalfRow) {
       const halfPanel = allPanels['CB5_MKII_HALF'];
       if(halfPanel) {
-        screenPowerW += pw * (powerType === 'max' ? (halfPanel.power_max_w || 0) : (halfPanel.power_avg_w || 0));
+        screenPowerW += pw * (combinedPowerType === 'max' ? (halfPanel.power_max_w || 0) : (halfPanel.power_avg_w || 0));
       }
     }
     totalPowerW += screenPowerW;
 
-    // Amps - use per-screen voltage and phase
+    // Amps - use per-screen voltage with combined phase toggle
     const voltage = parseInt(data.voltage) || 208;
-    const phase = parseInt(data.phase) || 3;
     const screenAmps = voltage > 0 ? screenPowerW / voltage : 0;
     totalAmps += screenAmps;
-    totalAmpsPerPhase += phase === 3 ? screenAmps / 1.732 : screenAmps;
+    totalAmpsPerPhase += combinedPhase === 3 ? screenAmps / 1.732 : screenAmps;
 
     // Weight - use stored calculated data (panels + structure)
     if('panelWeightOnlyKg' in calcData) {
@@ -20299,9 +20333,11 @@ function renderCombinedSpecs(selectedScreenIds) {
   // Right column: Dimensions, Power, Amps, Amps/Phase, Data Lines
   html += '<div style="display: flex; flex-direction: column; gap: 12px;">';
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Dimensions</div><div style="color: #fff;">${widthDisplay} × ${heightDisplay}</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Total Power</div><div style="color: #fff;">${totalPowerW.toLocaleString()} W</div></div>`;
+  const powerLabel = combinedPowerType === 'max' ? 'Power (Max)' : 'Power (Avg)';
+  const phaseLabel = combinedPhase === 3 ? 'Amps/Phase (3Ø)' : 'Total Amps (1Ø)';
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">${powerLabel}</div><div style="color: #fff;">${totalPowerW.toLocaleString()} W</div></div>`;
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Total Amps</div><div style="color: #fff;">${totalAmps.toFixed(1)} A</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Amps/Phase</div><div style="color: #fff;">${totalAmpsPerPhase.toFixed(1)} A</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">${phaseLabel}</div><div style="color: #fff;">${totalAmpsPerPhase.toFixed(1)} A</div></div>`;
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Data Lines</div><div style="color: #fff;">${totalDataLines}</div></div>`;
   html += '</div>';
 

@@ -20138,11 +20138,13 @@ function renderCombinedSpecs(selectedScreenIds) {
   if(!specsContent) return;
 
   let totalPixels = 0;
-  let totalPowerMax = 0;
+  let totalPowerW = 0;
   let totalWeight = 0;
   let totalWidth = 0;
   let maxHeight = 0;
   let totalDataLines = 0;
+  let totalAmps = 0;
+  let totalAmpsPerPhase = 0;
 
   // Track panels by type
   const panelsByType = {};
@@ -20154,6 +20156,7 @@ function renderCombinedSpecs(selectedScreenIds) {
     if(!screen || !screen.data) return;
 
     const data = screen.data;
+    const calcData = screen.calculatedData || {};
     const pw = data.panelsWide || 0;
     const ph = data.panelsHigh || 0;
     const panelType = data.panelType || 'CB5_MKII';
@@ -20170,7 +20173,10 @@ function renderCombinedSpecs(selectedScreenIds) {
     }
 
     // Count active panels (exclude deleted)
-    const activePanels = (pw * ph) - deletedCount;
+    const activePanels = calcData.activePanels || ((pw * ph) - deletedCount);
+
+    // CB5 half panel row
+    const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
 
     // Track panels by type
     const panelDisplayName = `${panel.brand} ${panel.name}`;
@@ -20179,36 +20185,71 @@ function renderCombinedSpecs(selectedScreenIds) {
     }
     panelsByType[panelDisplayName] += activePanels;
 
-    totalPixels += activePanels * panel.res_x * panel.res_y;
-    totalPowerMax += activePanels * (panel.power_max_w || 0);
-
-    // Use getPanelWeight to respect connection method (air frame vs connecting plates)
-    const screenUseConnectingPlates = (panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF') && data.connectionMethod === 'plates';
-    const screenPanelWeightKg = getPanelWeight(panelType, screenUseConnectingPlates);
-    totalWeight += activePanels * screenPanelWeightKg;
-
-    // Add CB5 half panel row weight if enabled for this screen
-    if(data.addCB5HalfRow && panelType === 'CB5_MKII') {
-      const halfPanelWeightKg = getPanelWeight('CB5_MKII_HALF', screenUseConnectingPlates);
-      totalWeight += pw * halfPanelWeightKg;
+    // Add half panel row to panel count
+    if(hasCB5HalfRow) {
+      const halfPanel = allPanels['CB5_MKII_HALF'];
+      if(halfPanel) {
+        const halfDisplayName = `${halfPanel.brand} ${halfPanel.name}`;
+        if(!panelsByType[halfDisplayName]) panelsByType[halfDisplayName] = 0;
+        panelsByType[halfDisplayName] += pw;
+      }
     }
 
-    totalWidth += pw * (panel.width_m || 0.5);
-    maxHeight = Math.max(maxHeight, ph * (panel.height_m || 0.5));
+    // Pixels - use stored value or calculate
+    totalPixels += calcData.totalPixels || (activePanels * panel.res_x * panel.res_y);
 
-    // Calculate data lines for this screen
-    const maxPanelsPerData = parseInt(data.maxPanelsPerData) || 48;
-    const screenDataLines = Math.ceil(activePanels / maxPanelsPerData);
-    totalDataLines += screenDataLines;
+    // Power - use per-screen power type
+    const powerType = data.powerType || 'max';
+    const powerPerPanel = powerType === 'max' ? (panel.power_max_w || 0) : (panel.power_avg_w || 0);
+    let screenPowerW = activePanels * powerPerPanel;
+    if(hasCB5HalfRow) {
+      const halfPanel = allPanels['CB5_MKII_HALF'];
+      if(halfPanel) {
+        screenPowerW += pw * (powerType === 'max' ? (halfPanel.power_max_w || 0) : (halfPanel.power_avg_w || 0));
+      }
+    }
+    totalPowerW += screenPowerW;
+
+    // Amps - use per-screen voltage and phase
+    const voltage = parseInt(data.voltage) || 208;
+    const phase = parseInt(data.phase) || 3;
+    const screenAmps = voltage > 0 ? screenPowerW / voltage : 0;
+    totalAmps += screenAmps;
+    totalAmpsPerPhase += phase === 3 ? screenAmps / 1.732 : screenAmps;
+
+    // Weight - use stored calculated data (panels + structure)
+    if('panelWeightOnlyKg' in calcData) {
+      // Use stored breakdown: panels + bumpers + plates + ground support + floor frames
+      const panelWeightKg = calcData.panelWeightOnlyKg || 0;
+      const bumperWeightKg = calcData.bumperWeightKg || 0;
+      const platesWeightKg = calcData.platesWeightKg || 0;
+      const groundSupportWeightKg = calcData.groundSupportWeightKg || 0;
+      const floorFramesWeightKg = (calcData.floorFrames && calcData.floorFrames.totalWeightKg) || 0;
+      totalWeight += panelWeightKg + bumperWeightKg + platesWeightKg + groundSupportWeightKg + floorFramesWeightKg;
+    } else {
+      // Fallback: panel weight only
+      const screenUseConnectingPlates = (panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF') && data.connectionMethod === 'plates';
+      totalWeight += activePanels * getPanelWeight(panelType, screenUseConnectingPlates);
+      if(hasCB5HalfRow) {
+        totalWeight += pw * getPanelWeight('CB5_MKII_HALF', screenUseConnectingPlates);
+      }
+    }
+
+    // Data lines - use stored calculated value
+    totalDataLines += calcData.dataLines || Math.ceil(activePanels / (parseInt(data.maxPanelsPerData) || 48));
+
+    // Dimensions
+    totalWidth += pw * (panel.width_m || 0.5);
+    let screenHeight = ph * (panel.height_m || 0.5);
+    if(hasCB5HalfRow) {
+      const halfPanel = allPanels['CB5_MKII_HALF'];
+      if(halfPanel) screenHeight += halfPanel.height_m || 0;
+    }
+    maxHeight = Math.max(maxHeight, screenHeight);
   });
 
   // Calculate total panels
   const totalPanels = Object.values(panelsByType).reduce((sum, count) => sum + count, 0);
-
-  // Calculate amps (assume 208V for combined, could be different per screen)
-  const voltage = 208;
-  const totalAmps = totalPowerMax / voltage;
-  const ampsPerPhase = totalAmps / 3;
 
   const isImperial = displayLengthUnit === 'ft';
   const weightUnit = displayWeightUnit;
@@ -20258,9 +20299,9 @@ function renderCombinedSpecs(selectedScreenIds) {
   // Right column: Dimensions, Power, Amps, Amps/Phase, Data Lines
   html += '<div style="display: flex; flex-direction: column; gap: 12px;">';
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Dimensions</div><div style="color: #fff;">${widthDisplay} × ${heightDisplay}</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Power (Max)</div><div style="color: #fff;">${totalPowerMax.toLocaleString()} W</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Total Amps</div><div style="color: #fff;">${totalAmps.toFixed(1)} A @ ${voltage}V</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Amps/Phase</div><div style="color: #fff;">${ampsPerPhase.toFixed(1)} A (3-phase)</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Total Power</div><div style="color: #fff;">${totalPowerW.toLocaleString()} W</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Total Amps</div><div style="color: #fff;">${totalAmps.toFixed(1)} A</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Amps/Phase</div><div style="color: #fff;">${totalAmpsPerPhase.toFixed(1)} A</div></div>`;
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Data Lines</div><div style="color: #fff;">${totalDataLines}</div></div>`;
   html += '</div>';
 

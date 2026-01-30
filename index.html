@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.1';
+const APP_VERSION = '2.5.2';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18818,9 +18818,19 @@ function generateGearList() {
 
     const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
     const fullPanelRows = hasCB5HalfRow ? H - 1 : H;
-    const fullPanelCount = W * fullPanelRows;
-    const halfPanelCount = hasCB5HalfRow ? W : 0;
-    const activePanels = calcData.activePanels || calcData.panelCount || (fullPanelCount + halfPanelCount);
+    const deletedPanelsSet = data.deletedPanels || new Set();
+    // Count deleted panels per type (full rows vs half row)
+    let deletedFullCount = 0, deletedHalfCount = 0;
+    if(deletedPanelsSet && deletedPanelsSet.size > 0) {
+      deletedPanelsSet.forEach(key => {
+        const row = parseInt(key.split(',')[1]);
+        if(hasCB5HalfRow && row === H - 1) deletedHalfCount++;
+        else if(row < fullPanelRows) deletedFullCount++;
+      });
+    }
+    const activeFullPanels = (W * fullPanelRows) - deletedFullCount;
+    const activeHalfPanels = hasCB5HalfRow ? W - deletedHalfCount : 0;
+    const activePanels = calcData.activePanels || calcData.panelCount || (activeFullPanels + activeHalfPanels);
 
     // Rigging data
     const bumper1wCount = calcData.bumper1wCount || 0;
@@ -18930,10 +18940,10 @@ function generateGearList() {
       html += `<div style="margin-left: 12px; color: #999;">Processor: See ${processorGroup.firstScreenName}</div>`;
     }
     html += gearLine('Panel Count:', activePanels);
-    html += `<div style="margin-left: 24px; font-size: 12px; color: #bbb;">${fullPanelCount}x ${p.brand} ${p.name}</div>`;
-    if(halfPanelCount > 0) {
+    html += `<div style="margin-left: 24px; font-size: 12px; color: #bbb;">${activeFullPanels}x ${p.brand} ${p.name}</div>`;
+    if(activeHalfPanels > 0) {
       const halfPanel = allPanelsObj['CB5_MKII_HALF'];
-      html += `<div style="margin-left: 24px; font-size: 12px; color: #bbb;">${halfPanelCount}x ${p.brand} ${halfPanel ? halfPanel.name : 'CB5 MKII Half Panel'}</div>`;
+      html += `<div style="margin-left: 24px; font-size: 12px; color: #bbb;">${activeHalfPanels}x ${p.brand} ${halfPanel ? halfPanel.name : 'CB5 MKII Half Panel'}</div>`;
     }
 
     // === RIGGING HARDWARE ===

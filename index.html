@@ -6510,7 +6510,8 @@ function calculate(){
   const panelHeightDisplay = displayLengthUnit === 'ft' ? (p.height_m * M_TO_FT).toFixed(3) : p.height_m.toFixed(3);
   const wallWidthDisplay = displayLengthUnit === 'ft' ? wallWF.toFixed(2) : wallWM.toFixed(2);
   const wallHeightDisplay = displayLengthUnit === 'ft' ? adjustedWallHF.toFixed(2) : adjustedWallHM.toFixed(2);
-  const panelWeightDisplay = displayWeightUnit === 'lbs' ? (p.weight_kg * KG_TO_LBS).toFixed(2) : p.weight_kg.toFixed(2);
+  const perPanelWeightKg = getPanelWeight(panelType, useConnectingPlatesForWeight);
+  const panelWeightDisplay = displayWeightUnit === 'lbs' ? (perPanelWeightKg * KG_TO_LBS).toFixed(2) : perPanelWeightKg.toFixed(2);
   const totalWeightDisplay = displayWeightUnit === 'lbs' ? totalWeightLbs.toFixed(2) : totalWeight.toFixed(2);
   const panelOnlyWeightDisplay = displayWeightUnit === 'lbs' ? (panelWeightOnly * KG_TO_LBS).toFixed(2) : panelWeightOnly.toFixed(2);
   const bumperWeightDisplay = displayWeightUnit === 'lbs' ? (bumperWeight * KG_TO_LBS).toFixed(2) : bumperWeight.toFixed(2);
@@ -13712,9 +13713,10 @@ function exportPDF(){
           const wallHeightM = wallHeightMm > 0 ? (wallHeightMm / 1000).toFixed(2) : '0';
           const activePanels = calcData.activePanels || (pw * ph);
           const totalPixels = wallResX * wallResY;
+          const exportUseConnectingPlates = (panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF') && data.connectionMethod === 'plates';
 
           // Use stored panel-only weight (already calculated without bumpers)
-          const panelOnlyWeightKg = calcData.panelWeightOnlyKg || (activePanels * (p.weight_kg || 0));
+          const panelOnlyWeightKg = calcData.panelWeightOnlyKg || (activePanels * getPanelWeight(panelType, exportUseConnectingPlates));
           const panelOnlyWeightLbs = (panelOnlyWeightKg * 2.20462).toFixed(1);
 
           // Calculate power (stored as power_max_w, power_avg_w in panels object)
@@ -13737,7 +13739,8 @@ function exportPDF(){
           const panelHeightFt = (p.height_m * 3.28084).toFixed(3);
           const panelWidthM = p.width_m.toFixed(3);
           const panelHeightM = p.height_m.toFixed(3);
-          const panelWeightLbs = (p.weight_kg * 2.20462).toFixed(2);
+          const exportPanelWeightKg = getPanelWeight(panelType, exportUseConnectingPlates);
+          const panelWeightLbs = (exportPanelWeightKg * 2.20462).toFixed(2);
 
           // Only add specs if enabled in export options
           if(pdfExportOptions.specs) {
@@ -13753,7 +13756,7 @@ function exportPDF(){
           if(showComplexDetails) {
             // Complex mode: show additional panel specs
             if(p.brightness_nits) addSpecLine('Brightness:', `${p.brightness_nits} nits`);
-            if(p.weight_kg) addSpecLine('Weight/Panel:', `${panelWeightLbs} lbs (${p.weight_kg.toFixed(2)} kg)`);
+            if(exportPanelWeightKg) addSpecLine('Weight/Panel:', `${panelWeightLbs} lbs (${exportPanelWeightKg.toFixed(2)} kg)`);
             addSpecLine('Panel Power:', `${p.power_max_w} W / ${p.power_avg_w} W (Max/Avg)`);
             if(p.max_hanging !== null && p.max_hanging !== undefined) addSpecLine('Max Hanging:', `${p.max_hanging} panels`);
             if(p.max_stacking !== null && p.max_stacking !== undefined) addSpecLine('Max Stacking:', `${p.max_stacking} panels`);
@@ -13762,7 +13765,7 @@ function exportPDF(){
             }
           } else {
             // Simple mode: just weight per panel
-            if(p.weight_kg) addSpecLine('Weight/Panel:', `${panelWeightLbs} lbs (${p.weight_kg.toFixed(2)} kg)`);
+            if(exportPanelWeightKg) addSpecLine('Weight/Panel:', `${panelWeightLbs} lbs (${exportPanelWeightKg.toFixed(2)} kg)`);
           }
 
           // WALL section
@@ -20178,7 +20181,18 @@ function renderCombinedSpecs(selectedScreenIds) {
 
     totalPixels += activePanels * panel.res_x * panel.res_y;
     totalPowerMax += activePanels * (panel.power_max_w || 0);
-    totalWeight += activePanels * (panel.weight_kg || 0);
+
+    // Use getPanelWeight to respect connection method (air frame vs connecting plates)
+    const screenUseConnectingPlates = (panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF') && data.connectionMethod === 'plates';
+    const screenPanelWeightKg = getPanelWeight(panelType, screenUseConnectingPlates);
+    totalWeight += activePanels * screenPanelWeightKg;
+
+    // Add CB5 half panel row weight if enabled for this screen
+    if(data.addCB5HalfRow && panelType === 'CB5_MKII') {
+      const halfPanelWeightKg = getPanelWeight('CB5_MKII_HALF', screenUseConnectingPlates);
+      totalWeight += pw * halfPanelWeightKg;
+    }
+
     totalWidth += pw * (panel.width_m || 0.5);
     maxHeight = Math.max(maxHeight, ph * (panel.height_m || 0.5));
 

@@ -3501,7 +3501,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.4.1';
+const APP_VERSION = '2.4.2';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -3910,6 +3910,9 @@ let redundancyEnabled = true;
 function toggleRedundancy() {
   redundancyEnabled = !redundancyEnabled;
   document.getElementById('redundancyBtn').classList.toggle('active', redundancyEnabled);
+  if(screens[currentScreenId]) {
+    screens[currentScreenId].data.redundancy = redundancyEnabled;
+  }
   calculate();
 }
 
@@ -6794,6 +6797,11 @@ function calculate(){
   generateLayout('data');
   showCanvasView();
   generateGearList();
+
+  // If combined view is active, update it too
+  if(currentAppMode === 'combined' && combinedSelectedScreens.size > 0) {
+    renderCombinedView();
+  }
 }
 
 function lightenColor(hex, percent) {
@@ -18444,19 +18452,30 @@ function generateGearList() {
   
   screenIds.forEach(screenId => {
     const screen = screens[screenId];
-    const W = screen.data.panelsWide;
-    const H = screen.data.panelsHigh;
-    
+    const data = screen.data;
+    const W = data.panelsWide;
+    const H = data.panelsHigh;
+
     if(W === 0 || H === 0) return;
-    
-    const panelType = document.getElementById('panelType').value;
+
+    const panelType = data.panelType || document.getElementById('panelType').value;
     const allPanels = {...panels, ...customPanels};
     const p = allPanels[panelType];
     if(!p) return;
-    
+
+    const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
+    const fullPanelRows = hasCB5HalfRow ? H - 1 : H;
+    const fullPanelCount = W * fullPanelRows;
+    const halfPanelCount = hasCB5HalfRow ? W : 0;
+
     html += `<div style="margin-bottom: 24px; padding: 16px; background: #2a2a2a; border-radius: 6px; border-left: 4px solid ${screen.color};">`;
     html += `<h3 style="color: #fff; margin-bottom: 12px; font-size: 16px;">${screen.name}</h3>`;
-    html += `<div><strong>Panels:</strong> ${W * H} × ${p.brand} ${p.name}</div>`;
+    html += `<div><strong>Panels:</strong> ${fullPanelCount}x ${p.brand} ${p.name}</div>`;
+    if(halfPanelCount > 0) {
+      const halfPanel = allPanels['CB5_MKII_HALF'];
+      const halfName = halfPanel ? halfPanel.name : 'CB5 MKII Half Panel';
+      html += `<div style="margin-left: 60px;">${halfPanelCount}x ${p.brand} ${halfName}</div>`;
+    }
     html += `<div><strong>Dimensions:</strong> ${(W * p.width_m).toFixed(2)}m × ${(H * p.height_m).toFixed(2)}m</div>`;
     html += `<div><strong>Resolution:</strong> ${W * p.res_x} × ${H * p.res_y} px</div>`;
 
@@ -18490,9 +18509,19 @@ function generateGearList() {
       // Power Cables (SOCA)
       if(cabling.socaCables.length > 0) {
         html += `<div style="margin-top: 8px;"><strong style="color: #ff9800;">Power (SOCA):</strong></div>`;
+        const socaByLength = {};
         cabling.socaCables.forEach(s => {
-          html += `<div style="margin-left: 12px;">SOCA ${s.index}: ${s.lengthFt}' → <strong>${s.roundedFt}' cable</strong></div>`;
+          if(!socaByLength[s.roundedFt]) socaByLength[s.roundedFt] = 0;
+          socaByLength[s.roundedFt]++;
         });
+        for(const [len, count] of Object.entries(socaByLength).sort((a,b) => a[0] - b[0])) {
+          html += `<div style="margin-left: 12px;">${count}x ${len}'</div>`;
+        }
+        html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
+        cabling.socaCables.forEach(s => {
+          html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">SOCA ${s.index}: ${s.lengthFt}' → ${s.roundedFt}'</div>`;
+        });
+        html += `</details>`;
       }
 
       // Data Cables
@@ -18500,12 +18529,22 @@ function generateGearList() {
         const primaryCables = cabling.dataCables.filter(c => !c.backup);
         const backupCables = cabling.dataCables.filter(c => c.backup);
         html += `<div style="margin-top: 8px;"><strong style="color: #4ecdc4;">Data Cables:</strong></div>`;
+        const dataByLength = {};
         primaryCables.forEach(c => {
-          html += `<div style="margin-left: 12px;">Line ${c.lineIndex}: ${c.lengthFt}' → <strong>${c.roundedFt}' cable</strong></div>`;
+          if(!dataByLength[c.roundedFt]) dataByLength[c.roundedFt] = 0;
+          dataByLength[c.roundedFt]++;
         });
-        if(backupCables.length > 0) {
-          html += `<div style="margin-left: 12px; color: #999;">+ ${backupCables.length}× Backup (same lengths)</div>`;
+        for(const [len, count] of Object.entries(dataByLength).sort((a,b) => a[0] - b[0])) {
+          html += `<div style="margin-left: 12px;">${count}x ${len}'</div>`;
         }
+        if(backupCables.length > 0) {
+          html += `<div style="margin-left: 12px; color: #999;">+ ${backupCables.length}x Backup (same lengths)</div>`;
+        }
+        html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
+        primaryCables.forEach(c => {
+          html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">Line ${c.lineIndex}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
+        });
+        html += `</details>`;
       }
 
       // Distribution Box Cables (processor to dist box)
@@ -18513,9 +18552,8 @@ function generateGearList() {
         const mainBoxCables = cabling.distBoxCables.filter(c => c.label === 'main');
         html += `<div style="margin-top: 8px;"><strong style="color: #e040fb;">Processor → Dist Box:</strong></div>`;
         const boxCableType = mainBoxCables[0]?.type || 'cat6a';
-        const boxCableLen = mainBoxCables[0]?.lengthFt || 0;
         const boxCableRounded = mainBoxCables[0]?.roundedFt || 0;
-        html += `<div style="margin-left: 12px;">${cabling.distBoxCables.length}× ${boxCableType === 'fiber' ? 'Fiber' : 'Cat6A'}: ${boxCableLen}' → <strong>${boxCableRounded}' cable</strong></div>`;
+        html += `<div style="margin-left: 12px;">${cabling.distBoxCables.length}x ${boxCableType === 'fiber' ? 'Fiber' : 'Cat6A'} ${boxCableRounded}'</div>`;
         if(boxCableType === 'fiber') {
           html += `<div style="margin-left: 12px; color: #e040fb; font-size: 12px;">(Fiber required: distance > 200')</div>`;
         }
@@ -20906,7 +20944,7 @@ function renderCombinedGearList(selectedScreenIds) {
   const allPanels = getAllPanels();
 
   // Aggregate gear from all selected screens
-  let totalPanels = 0;
+  const panelsByType = {}; // { 'Brand Name': count }
   let totalCircuits = 0;
   let totalDataLines = 0;
   let totalProcessors = 0;
@@ -20962,16 +21000,28 @@ function renderCombinedGearList(selectedScreenIds) {
 
     if(!panel || pw === 0 || ph === 0) return;
 
-    // Count deleted panels properly
+    // Count panels per type, accounting for CB5 half row
+    const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
+    const fullRows = hasCB5HalfRow ? ph - 1 : ph;
+    const fullPanelCount = pw * fullRows;
+    const halfPanelCount = hasCB5HalfRow ? pw : 0;
+
+    const panelLabel = `${panel.brand} ${panel.name}`;
+    panelsByType[panelLabel] = (panelsByType[panelLabel] || 0) + fullPanelCount;
+    if(halfPanelCount > 0) {
+      const halfPanel = allPanels['CB5_MKII_HALF'];
+      const halfLabel = halfPanel ? `${halfPanel.brand} ${halfPanel.name}` : `${panel.brand} CB5 MKII Half Panel`;
+      panelsByType[halfLabel] = (panelsByType[halfLabel] || 0) + halfPanelCount;
+    }
+
+    // Count deleted panels for jumper calculations
     let deletedCount = 0;
     if(data.deletedPanels instanceof Set) {
       deletedCount = data.deletedPanels.size;
     } else if(Array.isArray(data.deletedPanels)) {
       deletedCount = data.deletedPanels.length;
     }
-
     const activePanels = (pw * ph) - deletedCount;
-    totalPanels += activePanels;
 
     // Use calculated data if available
     if(calculatedData.circuits) totalCircuits += calculatedData.circuits;
@@ -21081,7 +21131,11 @@ function renderCombinedGearList(selectedScreenIds) {
   // Equipment Section
   html += addGearHeader('Equipment');
   html += addGearLine('Processors:', totalProcessors);
-  html += addGearLine('LED Panels:', totalPanels);
+  for(const [panelLabel, count] of Object.entries(panelsByType)) {
+    if(count > 0) {
+      html += `<div style="margin-left: 12px;"><strong>${panelLabel}:</strong> ${count}</div>`;
+    }
+  }
   html += addGearLine('Power Circuits:', totalCircuits);
   html += addGearLine('Data Lines:', totalDataLines);
 
@@ -21177,7 +21231,7 @@ function renderCombinedGearList(selectedScreenIds) {
         });
         html += `<div style="margin-left: 8px; color: #ff9800;"><strong>SOCA:</strong></div>`;
         for(const [len, count] of Object.entries(socaByLength).sort((a,b) => a[0] - b[0])) {
-          html += `<div style="margin-left: 16px;">${count}× @ ${len}'</div>`;
+          html += `<div style="margin-left: 16px;">${count}x ${len}'</div>`;
         }
       }
 
@@ -21192,10 +21246,10 @@ function renderCombinedGearList(selectedScreenIds) {
         });
         html += `<div style="margin-left: 8px; color: #4ecdc4;"><strong>Data:</strong></div>`;
         for(const [len, count] of Object.entries(dataByLength).sort((a,b) => a[0] - b[0])) {
-          html += `<div style="margin-left: 16px;">${count}× @ ${len}'</div>`;
+          html += `<div style="margin-left: 16px;">${count}x ${len}'</div>`;
         }
         if(backupCables.length > 0) {
-          html += `<div style="margin-left: 16px; color: #999;">+ ${backupCables.length}× Backup</div>`;
+          html += `<div style="margin-left: 16px; color: #999;">+ ${backupCables.length}x Backup</div>`;
         }
       }
 
@@ -21203,7 +21257,7 @@ function renderCombinedGearList(selectedScreenIds) {
       if(cabling.distBoxCables.length > 0) {
         const boxType = cabling.distBoxCables[0]?.type === 'fiber' ? 'Fiber' : 'Cat6A';
         const boxLen = cabling.distBoxCables[0]?.roundedFt || 0;
-        html += `<div style="margin-left: 8px; color: #e040fb;"><strong>Proc→Dist Box:</strong> ${cabling.distBoxCables.length}× ${boxType} @ ${boxLen}'</div>`;
+        html += `<div style="margin-left: 8px; color: #e040fb;"><strong>Proc→Dist Box:</strong> ${cabling.distBoxCables.length}x ${boxType} ${boxLen}'</div>`;
       }
 
       // Server cable

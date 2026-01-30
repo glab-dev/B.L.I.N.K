@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.4.6';
+const APP_VERSION = '2.4.7';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18698,17 +18698,11 @@ function generateGearList() {
       }
     }
 
-    html += `</div>`;
-
-    // Calculate and show cabling for this screen
+    // Calculate and show cabling for this screen (inside same container)
     const cabling = calculateCabling(screenId);
     if(cabling) {
-      html += `<div style="margin-bottom: 24px; padding: 16px; background: #3a2a2a; border-radius: 6px; border: 2px solid #9a4a4a;">`;
-      html += `<h3 style="color: #c27676; margin-bottom: 12px; font-size: 16px;">${screen.name} — Cable Requirements</h3>`;
-      html += `<div style="margin-bottom: 8px; color: #999; font-size: 12px;">Wall: ${cabling.wallWidthFt}' W × ${cabling.wallHeightFt}' H</div>`;
-
-      // Cabling distances used
-      html += `<div style="margin-bottom: 8px; color: #999; font-size: 12px;">Wall→Floor: ${cabling.inputs.wallToFloor}' | Distro→Wall: ${cabling.inputs.distroToWall}' | Proc→Wall: ${cabling.inputs.processorToWall}' | Pick: ${cabling.inputs.cablePick}'</div>`;
+      html += `<div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #444;">`;
+      html += `<div style="margin-bottom: 6px; color: #999; font-size: 12px;">Wall: ${cabling.wallWidthFt}' W × ${cabling.wallHeightFt}' H</div>`;
 
       // Power Cables (SOCA)
       if(cabling.socaCables.length > 0) {
@@ -18728,43 +18722,37 @@ function generateGearList() {
         html += `</details>`;
       }
 
-      // Data Cables
-      if(cabling.dataCables.length > 0) {
-        const primaryCables = cabling.dataCables.filter(c => !c.backup);
-        const backupCables = cabling.dataCables.filter(c => c.backup);
+      // Data Cables (including knockout bridge cables)
+      const primaryCables = cabling.dataCables.filter(c => !c.backup);
+      const backupCables = cabling.dataCables.filter(c => c.backup);
+      const knockoutCables = cabling.knockoutBridgeCables || [];
+      const hasDataCables = primaryCables.length > 0 || knockoutCables.length > 0;
+
+      if(hasDataCables) {
         html += `<div style="margin-top: 8px;"><strong style="color: #4ecdc4;">Data Cables:</strong></div>`;
-        const dataByLength = {};
+        // Combine data cables and knockout cables into one grouped list
+        const allDataByLength = {};
         primaryCables.forEach(c => {
-          if(!dataByLength[c.roundedFt]) dataByLength[c.roundedFt] = 0;
-          dataByLength[c.roundedFt]++;
+          if(!allDataByLength[c.roundedFt]) allDataByLength[c.roundedFt] = 0;
+          allDataByLength[c.roundedFt]++;
         });
-        for(const [len, count] of Object.entries(dataByLength).sort((a,b) => a[0] - b[0])) {
+        knockoutCables.forEach(c => {
+          if(!allDataByLength[c.roundedFt]) allDataByLength[c.roundedFt] = 0;
+          allDataByLength[c.roundedFt]++;
+        });
+        for(const [len, count] of Object.entries(allDataByLength).sort((a,b) => a[0] - b[0])) {
           html += `<div style="margin-left: 12px;">${count}x ${len}'</div>`;
         }
         if(backupCables.length > 0) {
           html += `<div style="margin-left: 12px; color: #999;">+ ${backupCables.length}x Backup (same lengths)</div>`;
         }
+        // Detail dropdown with knockout cables labeled
         html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
         primaryCables.forEach(c => {
           html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">Line ${c.lineIndex}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
         });
-        html += `</details>`;
-      }
-
-      // Knockout Bridge Cables (data cross jumpers across gaps)
-      if(cabling.knockoutBridgeCables && cabling.knockoutBridgeCables.length > 0) {
-        html += `<div style="margin-top: 8px;"><strong style="color: #ffab40;">Data Cross Jumpers (Knockout):</strong></div>`;
-        const bridgeByLength = {};
-        cabling.knockoutBridgeCables.forEach(c => {
-          if(!bridgeByLength[c.roundedFt]) bridgeByLength[c.roundedFt] = 0;
-          bridgeByLength[c.roundedFt]++;
-        });
-        for(const [len, count] of Object.entries(bridgeByLength).sort((a,b) => a[0] - b[0])) {
-          html += `<div style="margin-left: 12px;">${count}x ${len}'</div>`;
-        }
-        html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
-        cabling.knockoutBridgeCables.forEach(c => {
-          html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">Line ${c.dataLine} (${c.fromPanel} → ${c.toPanel}): ${c.lengthFt}' → ${c.roundedFt}'</div>`;
+        knockoutCables.forEach(c => {
+          html += `<div style="margin-left: 12px; font-size: 12px; color: #ffab40;">Knockout Line ${c.dataLine}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
         });
         html += `</details>`;
       }
@@ -18784,23 +18772,10 @@ function generateGearList() {
       // Server Cable
       html += `<div style="margin-top: 8px;"><strong style="color: #78909c;">Server → Processor:</strong> ${cabling.serverCable.lengthFt}'</div>`;
 
-      // Totals
-      html += `<div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #9a4a4a;">`;
-      html += `<strong style="color: #c27676;">Totals:</strong>`;
-      html += `<div style="margin-left: 12px;">SOCA cables: ${cabling.totals.socaCount}</div>`;
-      html += `<div style="margin-left: 12px;">Data cables: ${cabling.totals.dataCount}</div>`;
-      if(cabling.totals.knockoutBridgeCount > 0) {
-        html += `<div style="margin-left: 12px;">Data cross jumpers (knockout): ${cabling.totals.knockoutBridgeCount}</div>`;
-      }
-      if(cabling.totals.distBoxCableCount > 0) {
-        html += `<div style="margin-left: 12px;">Dist box cables: ${cabling.totals.distBoxCableCount}</div>`;
-      }
-      if(cabling.totals.fiberCount > 0) {
-        html += `<div style="margin-left: 12px; color: #e040fb;">Fiber cables: ${cabling.totals.fiberCount}</div>`;
-      }
-      html += `</div>`;
       html += `</div>`;
     }
+
+    html += `</div>`;
   });
 
   html += '</div>';
@@ -21463,34 +21438,26 @@ function renderCombinedGearList(selectedScreenIds) {
         }
       }
 
-      // Data cables
-      if(cabling.dataCables.length > 0) {
-        const primaryCables = cabling.dataCables.filter(c => !c.backup);
-        const backupCables = cabling.dataCables.filter(c => c.backup);
-        const dataByLength = {};
+      // Data cables (including knockout bridge cables)
+      const primaryCables = cabling.dataCables.filter(c => !c.backup);
+      const backupCables = cabling.dataCables.filter(c => c.backup);
+      const knockoutCables = cabling.knockoutBridgeCables || [];
+      if(primaryCables.length > 0 || knockoutCables.length > 0) {
+        const allDataByLength = {};
         primaryCables.forEach(c => {
-          if(!dataByLength[c.roundedFt]) dataByLength[c.roundedFt] = 0;
-          dataByLength[c.roundedFt]++;
+          if(!allDataByLength[c.roundedFt]) allDataByLength[c.roundedFt] = 0;
+          allDataByLength[c.roundedFt]++;
+        });
+        knockoutCables.forEach(c => {
+          if(!allDataByLength[c.roundedFt]) allDataByLength[c.roundedFt] = 0;
+          allDataByLength[c.roundedFt]++;
         });
         html += `<div style="margin-left: 8px; color: #4ecdc4;"><strong>Data:</strong></div>`;
-        for(const [len, count] of Object.entries(dataByLength).sort((a,b) => a[0] - b[0])) {
+        for(const [len, count] of Object.entries(allDataByLength).sort((a,b) => a[0] - b[0])) {
           html += `<div style="margin-left: 16px;">${count}x ${len}'</div>`;
         }
         if(backupCables.length > 0) {
           html += `<div style="margin-left: 16px; color: #999;">+ ${backupCables.length}x Backup</div>`;
-        }
-      }
-
-      // Knockout bridge cables
-      if(cabling.knockoutBridgeCables && cabling.knockoutBridgeCables.length > 0) {
-        const bridgeByLength = {};
-        cabling.knockoutBridgeCables.forEach(c => {
-          if(!bridgeByLength[c.roundedFt]) bridgeByLength[c.roundedFt] = 0;
-          bridgeByLength[c.roundedFt]++;
-        });
-        html += `<div style="margin-left: 8px; color: #ffab40;"><strong>Data Cross Jumpers:</strong></div>`;
-        for(const [len, count] of Object.entries(bridgeByLength).sort((a,b) => a[0] - b[0])) {
-          html += `<div style="margin-left: 16px;">${count}x ${len}'</div>`;
         }
       }
 

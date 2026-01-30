@@ -3234,13 +3234,13 @@
       </div>
     </div>
 
-    <!-- Gear List Section -->
-    <div class="layout-container" id="gearListContainer" style="display:none;">
-      <div class="layout-title"><span>Gear List</span></div>
-      <div id="gearListContent" style="color: #e0e0e0; line-height: 1.8;"></div>
-    </div>
-
   </div>
+
+<!-- Gear List Container (outside main-container so it can be shown as its own tab) -->
+<div class="layout-container" id="gearListContainer" style="display:none; padding-top: 24px; margin-top: 32px;">
+  <div class="layout-title"><span>Gear List</span></div>
+  <div id="gearListContent" style="color: #e0e0e0; line-height: 1.8;"></div>
+</div>
 
 <!-- Combined View Container (outside main-container so it can be shown independently) -->
 <div class="layout-container" id="combinedContainer" style="display:none; padding-top: 24px; margin-top: 32px; overflow: visible;">
@@ -3501,7 +3501,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.4.4';
+const APP_VERSION = '2.4.5';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18737,7 +18737,10 @@ function generateGearList() {
   html += '</div>';
 
   gearListContent.innerHTML = html;
-  gearListContainer.style.display = 'block';
+  // Only show container if we're on the gear tab
+  if(typeof currentAppMode !== 'undefined' && currentAppMode === 'gear') {
+    gearListContainer.style.display = 'block';
+  }
 }
 
 // ==================== COMBINED VIEW FUNCTIONS ====================
@@ -21454,6 +21457,9 @@ function renderCombinedGearList(selectedScreenIds) {
     <button class="nav-toggle-btn" data-mode="combined" onclick="switchAppMode('combined')">
       <span>Combined</span>
     </button>
+    <button class="nav-toggle-btn" data-mode="gear" onclick="switchAppMode('gear')">
+      <span>Gear</span>
+    </button>
   </div>
   <button class="nav-item" data-view="canvas" onclick="switchMobileView('canvas')">
     <span class="nav-item-label">Canvas</span>
@@ -21514,6 +21520,8 @@ function switchAppMode(mode) {
     switchMobileView('simple');
   } else if(mode === 'combined') {
     switchMobileView('combined');
+  } else if(mode === 'gear') {
+    switchMobileView('gear');
   }
 }
 
@@ -21526,7 +21534,7 @@ function switchMobileView(view) {
   });
 
   // Update toggle buttons based on view
-  if(view === 'complex' || view === 'simple' || view === 'combined') {
+  if(view === 'complex' || view === 'simple' || view === 'combined' || view === 'gear') {
     document.querySelectorAll('.nav-toggle-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.mode === view);
     });
@@ -21584,10 +21592,6 @@ function switchMobileView(view) {
       if(cablingSection) cablingSection.style.display = 'block';
       if(dataDirectionRow) dataDirectionRow.style.display = 'block';
       if(dataTogglesRow) dataTogglesRow.style.display = 'flex';
-      // Re-show gear list if it has content
-      if(gearListContainer && gearListContainer.querySelector('#gearListContent')?.innerHTML) {
-        gearListContainer.style.display = 'block';
-      }
       break;
 
     case 'simple':
@@ -21617,6 +21621,15 @@ function switchMobileView(view) {
       // Initialize combined view
       if(typeof initCombinedView === 'function') {
         initCombinedView();
+      }
+      break;
+
+    case 'gear':
+      // Show gear list tab
+      if(gearListContainer) gearListContainer.style.display = 'block';
+      // Ensure gear list is populated
+      if(typeof generateGearList === 'function') {
+        generateGearList();
       }
       break;
 

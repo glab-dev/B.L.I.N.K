@@ -3069,35 +3069,48 @@
         
         <!-- Cabling Section -->
         <div class="section-box" id="cablingSection">
-          <div class="section-title">Cabling <span style="color: #d47a7a; font-size: 11px; font-weight: normal;">(in development)</span></div>
-          
+          <div class="section-title">Cabling</div>
+
           <div class="compact-row" style="margin-bottom: 8px;">
-            <label style="flex: 0 0 90px;">
-              <span>Trim Height</span>
-              <input type="number" id="trimHeight" min="0" step="0.1" value="20">
-            </label>
             <label style="flex: 0 0 90px;">
               <span>Wall to Floor</span>
-              <input type="number" id="wallToFloor" min="0" step="0.1" value="5">
+              <input type="number" id="wallToFloor" min="0" step="0.1" placeholder="5">
             </label>
-          </div>
-          
-          <div class="compact-row" style="margin-bottom: 8px;">
             <label style="flex: 0 0 90px;">
               <span>Distro to Wall</span>
-              <input type="number" id="distroToWall" min="0" step="0.1" value="10">
-            </label>
-            <label style="flex: 0 0 90px;">
-              <span>Proc to Wall</span>
-              <input type="number" id="processorToWall" min="0" step="0.1" value="15">
+              <input type="number" id="distroToWall" min="0" step="0.1" placeholder="10">
             </label>
           </div>
-          
-          <div class="compact-row">
-            <label style="flex: 0 0 90px; margin-bottom: 0;">
-              <span>FOH to Proc</span>
-              <input type="number" id="fohToProcessor" min="0" step="0.1" value="50">
+
+          <div class="compact-row" style="margin-bottom: 8px;">
+            <label style="flex: 0 0 90px;">
+              <span>Proc to Wall</span>
+              <input type="number" id="processorToWall" min="0" step="0.1" placeholder="15">
             </label>
+            <label style="flex: 0 0 90px;">
+              <span>Server to Proc</span>
+              <input type="number" id="serverToProcessor" min="0" step="0.1" placeholder="50">
+            </label>
+          </div>
+
+          <div class="compact-row" style="margin-bottom: 8px;">
+            <label style="flex: 0 0 90px;">
+              <span>Cable Pick</span>
+              <input type="number" id="cablePick" min="0" step="0.1" placeholder="0">
+            </label>
+          </div>
+
+          <div style="margin-bottom: 8px;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Cable Drop</span>
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active" id="cableDropBehindBtn" onclick="setCableDropPosition('behind')">Behind</button>
+              <button type="button" class="slider-toggle-btn" id="cableDropSRBtn" onclick="setCableDropPosition('sr')">SR</button>
+              <button type="button" class="slider-toggle-btn" id="cableDropSLBtn" onclick="setCableDropPosition('sl')">SL</button>
+            </div>
+          </div>
+
+          <div class="compact-row" style="margin-bottom: 0;">
+            <button type="button" class="toggle-btn" id="distBoxOnWallBtn" onclick="toggleDistBoxOnWall()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Dist Box on Wall (C)</button>
           </div>
         </div>
 
@@ -3478,7 +3491,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.3.1';
+const APP_VERSION = '2.4.0';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -4016,6 +4029,30 @@ function setConnectionMethod(method) {
   document.getElementById('connectionAirframeBtn').classList.toggle('active', method === 'airframe');
   document.getElementById('connectionPlatesBtn').classList.toggle('active', method === 'plates');
   calculate();
+}
+
+// Cable drop position
+let cableDropPosition = 'behind';
+function setCableDropPosition(position) {
+  cableDropPosition = position;
+  document.getElementById('cableDropBehindBtn').classList.toggle('active', position === 'behind');
+  document.getElementById('cableDropSRBtn').classList.toggle('active', position === 'sr');
+  document.getElementById('cableDropSLBtn').classList.toggle('active', position === 'sl');
+  if(screens[currentScreenId]) {
+    screens[currentScreenId].data.cableDropPosition = position;
+  }
+  generateGearList();
+}
+
+// Dist box on wall toggle
+let distBoxOnWallEnabled = false;
+function toggleDistBoxOnWall() {
+  distBoxOnWallEnabled = !distBoxOnWallEnabled;
+  document.getElementById('distBoxOnWallBtn').classList.toggle('active', distBoxOnWallEnabled);
+  if(screens[currentScreenId]) {
+    screens[currentScreenId].data.distBoxOnWall = distBoxOnWallEnabled;
+  }
+  generateGearList();
 }
 
 // Compatibility getters - these mimic the old checkbox behavior
@@ -5995,10 +6032,17 @@ function resetCalculator() {
       bumpers: [],
       canvasX: 0,
       canvasY: 0,
-      addCB5HalfRow: false
+      addCB5HalfRow: false,
+      wallToFloor: 5,
+      distroToWall: 10,
+      processorToWall: 15,
+      serverToProcessor: 50,
+      cablePick: 0,
+      cableDropPosition: 'behind',
+      distBoxOnWall: false
     };
   }
-  
+
   // Reset input fields to default values
   document.getElementById('panelsWide').value = '';
   document.getElementById('panelsHigh').value = '';
@@ -6051,6 +6095,24 @@ function resetCalculator() {
   // Reset max panels per circuit
   document.getElementById('maxPanelsPerCircuit').value = '';
   
+  // Reset cabling fields
+  distBoxOnWallEnabled = false;
+  document.getElementById('distBoxOnWallBtn')?.classList.remove('active');
+  cableDropPosition = 'behind';
+  document.getElementById('cableDropBehindBtn')?.classList.add('active');
+  document.getElementById('cableDropSRBtn')?.classList.remove('active');
+  document.getElementById('cableDropSLBtn')?.classList.remove('active');
+  const wallToFloorEl = document.getElementById('wallToFloor');
+  if(wallToFloorEl) wallToFloorEl.value = '';
+  const distroToWallEl = document.getElementById('distroToWall');
+  if(distroToWallEl) distroToWallEl.value = '';
+  const processorToWallEl = document.getElementById('processorToWall');
+  if(processorToWallEl) processorToWallEl.value = '';
+  const serverToProcessorEl = document.getElementById('serverToProcessor');
+  if(serverToProcessorEl) serverToProcessorEl.value = '';
+  const cablePickEl = document.getElementById('cablePick');
+  if(cablePickEl) cablePickEl.value = '';
+
   // Clear deleted panels
   deletedPanels.clear();
   
@@ -16212,11 +16274,13 @@ function saveConfiguration() {
         use4WayBumpers: data.use4WayBumpers,
         addCB5HalfRow: data.addCB5HalfRow,
         connectionMethod: data.connectionMethod,
-        trimHeight: data.trimHeight,
         wallToFloor: data.wallToFloor,
         distroToWall: data.distroToWall,
         processorToWall: data.processorToWall,
-        fohToProcessor: data.fohToProcessor,
+        serverToProcessor: data.serverToProcessor,
+        cablePick: data.cablePick,
+        cableDropPosition: data.cableDropPosition,
+        distBoxOnWall: data.distBoxOnWall,
         canvasX: data.canvasX,
         canvasY: data.canvasY,
         canvasSize: data.canvasSize,
@@ -16838,11 +16902,22 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
     
+    // Cabling input listeners - save current screen data then update gear list
+    const cablingInputIds = ['wallToFloor', 'distroToWall', 'processorToWall', 'serverToProcessor', 'cablePick'];
+    cablingInputIds.forEach(id => {
+      const el = document.getElementById(id);
+      if(el) {
+        el.addEventListener('input', function() {
+          saveCurrentScreenData();
+          generateGearList();
+        });
+      }
+    });
     syncFromPanels();
     updateSuggestedDataLimit();
     showSpecWarningIfNeeded();
     updateUndoRedoButtons(); // Initialize button states
-    
+
     // Initialize custom panels and processors dropdowns
     updatePanelDropdowns();
     updateProcessorDropdowns();
@@ -17125,11 +17200,13 @@ function getDefaultScreenData() {
     use4WayBumpers: false,
     
     // Cabling
-    trimHeight: 20,
     wallToFloor: 5,
     distroToWall: 10,
     processorToWall: 15,
-    fohToProcessor: 50,
+    serverToProcessor: 50,
+    cablePick: 0,
+    cableDropPosition: 'behind',
+    distBoxOnWall: false,
     
     // Canvas
     canvasX: 0,
@@ -17287,17 +17364,19 @@ function saveCurrentScreenData() {
   if(connectionMethod) data.connectionMethod = connectionMethod.value;
   
   // Cabling
-  const trimHeight = document.getElementById('trimHeight');
-  const wallToFloor = document.getElementById('wallToFloor');
-  const distroToWall = document.getElementById('distroToWall');
-  const processorToWall = document.getElementById('processorToWall');
-  const fohToProcessor = document.getElementById('fohToProcessor');
-  
-  if(trimHeight) data.trimHeight = parseFloat(trimHeight.value) || 20;
-  if(wallToFloor) data.wallToFloor = parseFloat(wallToFloor.value) || 5;
-  if(distroToWall) data.distroToWall = parseFloat(distroToWall.value) || 10;
-  if(processorToWall) data.processorToWall = parseFloat(processorToWall.value) || 15;
-  if(fohToProcessor) data.fohToProcessor = parseFloat(fohToProcessor.value) || 50;
+  const wallToFloorEl = document.getElementById('wallToFloor');
+  const distroToWallEl = document.getElementById('distroToWall');
+  const processorToWallEl = document.getElementById('processorToWall');
+  const serverToProcessorEl = document.getElementById('serverToProcessor');
+  const cablePickEl = document.getElementById('cablePick');
+
+  if(wallToFloorEl) data.wallToFloor = parseFloat(wallToFloorEl.value) || parseFloat(wallToFloorEl.placeholder) || 5;
+  if(distroToWallEl) data.distroToWall = parseFloat(distroToWallEl.value) || parseFloat(distroToWallEl.placeholder) || 10;
+  if(processorToWallEl) data.processorToWall = parseFloat(processorToWallEl.value) || parseFloat(processorToWallEl.placeholder) || 15;
+  if(serverToProcessorEl) data.serverToProcessor = parseFloat(serverToProcessorEl.value) || parseFloat(serverToProcessorEl.placeholder) || 50;
+  if(cablePickEl) data.cablePick = parseFloat(cablePickEl.value) || 0;
+  data.cableDropPosition = cableDropPosition;
+  data.distBoxOnWall = distBoxOnWallEnabled;
   
   // Canvas
   console.log(`Saving screen data for ${currentScreenId}: canvasOffsetX=${canvasOffsetX}, canvasOffsetY=${canvasOffsetY}`);
@@ -17445,17 +17524,28 @@ function loadScreenData(screenId) {
   if(use4WayBtn) use4WayBtn.classList.toggle('active', use4WayBumpersEnabled);
   
   // Cabling
-  const trimHeight = document.getElementById('trimHeight');
-  const wallToFloor = document.getElementById('wallToFloor');
-  const distroToWall = document.getElementById('distroToWall');
-  const processorToWall = document.getElementById('processorToWall');
-  const fohToProcessor = document.getElementById('fohToProcessor');
-  
-  if(trimHeight) trimHeight.value = data.trimHeight || 20;
-  if(wallToFloor) wallToFloor.value = data.wallToFloor || 5;
-  if(distroToWall) distroToWall.value = data.distroToWall || 10;
-  if(processorToWall) processorToWall.value = data.processorToWall || 15;
-  if(fohToProcessor) fohToProcessor.value = data.fohToProcessor || 50;
+  const wallToFloorEl = document.getElementById('wallToFloor');
+  const distroToWallEl = document.getElementById('distroToWall');
+  const processorToWallEl = document.getElementById('processorToWall');
+  const serverToProcessorEl = document.getElementById('serverToProcessor');
+  const cablePickEl = document.getElementById('cablePick');
+
+  // Set value only if non-default, otherwise leave empty to show placeholder
+  if(wallToFloorEl) wallToFloorEl.value = (data.wallToFloor && data.wallToFloor !== 5) ? data.wallToFloor : '';
+  if(distroToWallEl) distroToWallEl.value = (data.distroToWall && data.distroToWall !== 10) ? data.distroToWall : '';
+  if(processorToWallEl) processorToWallEl.value = (data.processorToWall && data.processorToWall !== 15) ? data.processorToWall : '';
+  const serverVal = data.serverToProcessor ?? data.fohToProcessor;
+  if(serverToProcessorEl) serverToProcessorEl.value = (serverVal && serverVal !== 50) ? serverVal : '';
+  if(cablePickEl) cablePickEl.value = (data.cablePick && data.cablePick !== 0) ? data.cablePick : '';
+
+  // Restore cable drop toggle buttons
+  cableDropPosition = data.cableDropPosition || 'behind';
+  document.getElementById('cableDropBehindBtn')?.classList.toggle('active', cableDropPosition === 'behind');
+  document.getElementById('cableDropSRBtn')?.classList.toggle('active', cableDropPosition === 'sr');
+  document.getElementById('cableDropSLBtn')?.classList.toggle('active', cableDropPosition === 'sl');
+
+  distBoxOnWallEnabled = data.distBoxOnWall || false;
+  document.getElementById('distBoxOnWallBtn')?.classList.toggle('active', distBoxOnWallEnabled);
   
   // Canvas - FORCE to proper values
   const loadedX = (typeof data.canvasX === 'number') ? data.canvasX : 0;
@@ -17923,6 +18013,409 @@ function resetCurrentScreenOnPanelChange() {
   canvasOffsetY = 0;
 }
 
+// ==================== CABLING CALCULATION SYSTEM ====================
+
+function roundUpToStandard(lengthFt) {
+  const standards = [25, 50, 75, 100, 150, 200, 250, 300];
+  for(const s of standards) {
+    if(lengthFt <= s) return s;
+  }
+  return Math.ceil(lengthFt / 50) * 50;
+}
+
+// Returns array mapping data line index to its entry panel {col, row}
+function getDataLineEntryPoints(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap) {
+  const entryPoints = {};
+  const usedCustomDataLines = new Set();
+
+  for(let c = 0; c < pw; c++) {
+    for(let r = 0; r < ph; r++) {
+      const panelKey = `${c},${r}`;
+      if(!deletedPanelsSet.has(panelKey) && customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey)) {
+        usedCustomDataLines.add(customDataLineAssignmentsMap.get(panelKey) - 1);
+      }
+    }
+  }
+
+  if(startDir === 'all_top') {
+    let autoDataLineCounter = 0;
+    for(let c = 0; c < pw; c++) {
+      while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
+      for(let r = 0; r < ph; r++) {
+        const panelKey = `${c},${r}`;
+        if(!deletedPanelsSet.has(panelKey)) {
+          const dl = (customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey))
+            ? customDataLineAssignmentsMap.get(panelKey) - 1
+            : autoDataLineCounter;
+          if(!(dl in entryPoints)) entryPoints[dl] = {col: c, row: r};
+          break;
+        }
+      }
+      autoDataLineCounter++;
+    }
+  } else if(startDir === 'all_bottom') {
+    let autoDataLineCounter = 0;
+    for(let c = 0; c < pw; c++) {
+      while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
+      for(let r = ph - 1; r >= 0; r--) {
+        const panelKey = `${c},${r}`;
+        if(!deletedPanelsSet.has(panelKey)) {
+          const dl = (customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey))
+            ? customDataLineAssignmentsMap.get(panelKey) - 1
+            : autoDataLineCounter;
+          if(!(dl in entryPoints)) entryPoints[dl] = {col: c, row: r};
+          break;
+        }
+      }
+      autoDataLineCounter++;
+    }
+  } else {
+    // Serpentine: top or bottom
+    const startFromTop = (startDir === 'top');
+    let autoDataLineCounter = 0;
+    let panelsInCurrentAutoDataLine = 0;
+
+    while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
+
+    let currentColumn = 0;
+    let serpentineGoingDown = startFromTop;
+
+    while(currentColumn < pw) {
+      const rows = serpentineGoingDown
+        ? Array.from({length: ph}, (_, i) => i)
+        : Array.from({length: ph}, (_, i) => ph - 1 - i);
+
+      for(const r of rows) {
+        const panelKey = `${currentColumn},${r}`;
+        if(deletedPanelsSet.has(panelKey)) continue;
+
+        let dataLine;
+        if(customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey)) {
+          dataLine = customDataLineAssignmentsMap.get(panelKey) - 1;
+        } else {
+          while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
+          dataLine = autoDataLineCounter;
+          panelsInCurrentAutoDataLine++;
+          if(panelsInCurrentAutoDataLine >= panelsPerDataLine) {
+            autoDataLineCounter++;
+            panelsInCurrentAutoDataLine = 0;
+            while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
+          }
+        }
+
+        if(!(dataLine in entryPoints)) {
+          entryPoints[dataLine] = {col: currentColumn, row: r};
+        }
+      }
+
+      currentColumn++;
+      serpentineGoingDown = !serpentineGoingDown;
+    }
+  }
+
+  return entryPoints;
+}
+
+// Calculate Manhattan detour around knockout areas
+function calculateKnockoutDetour(startCol, startRow, endCol, endRow, deletedPanelsSet, pw, ph) {
+  // If no knockouts between start and end, Manhattan distance is fine
+  // Check if direct Manhattan path (horizontal then vertical) crosses any deleted panel
+  const minCol = Math.min(startCol, endCol);
+  const maxCol = Math.max(startCol, endCol);
+  const minRow = Math.min(startRow, endRow);
+  const maxRow = Math.max(startRow, endRow);
+
+  let pathBlocked = false;
+  // Check horizontal segment (at startRow)
+  for(let c = minCol; c <= maxCol; c++) {
+    if(deletedPanelsSet.has(`${c},${startRow}`)) { pathBlocked = true; break; }
+  }
+  if(!pathBlocked) {
+    // Check vertical segment (at endCol)
+    for(let r = minRow; r <= maxRow; r++) {
+      if(deletedPanelsSet.has(`${endCol},${r}`)) { pathBlocked = true; break; }
+    }
+  }
+
+  if(!pathBlocked) {
+    // Direct Manhattan is clear
+    return Math.abs(endCol - startCol) + Math.abs(endRow - startRow);
+  }
+
+  // BFS to find shortest Manhattan path avoiding knockouts
+  const visited = new Set();
+  const queue = [{col: startCol, row: startRow, dist: 0}];
+  visited.add(`${startCol},${startRow}`);
+
+  const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]]; // up, down, right, left
+
+  while(queue.length > 0) {
+    const {col, row, dist} = queue.shift();
+
+    if(col === endCol && row === endRow) {
+      return dist;
+    }
+
+    for(const [dc, dr] of directions) {
+      const nc = col + dc;
+      const nr = row + dr;
+      const key = `${nc},${nr}`;
+
+      if(nc < 0 || nc >= pw || nr < 0 || nr >= ph) continue;
+      if(visited.has(key)) continue;
+      if(deletedPanelsSet.has(key) && !(nc === endCol && nr === endRow)) continue;
+
+      visited.add(key);
+      queue.push({col: nc, row: nr, dist: dist + 1});
+    }
+  }
+
+  // If no path found (completely blocked), fall back to Manhattan distance
+  return Math.abs(endCol - startCol) + Math.abs(endRow - startRow);
+}
+
+// Main cabling calculation for a screen
+function calculateCabling(screenId) {
+  const screen = screens[screenId];
+  if(!screen || !screen.calculatedData) return null;
+
+  const data = screen.data;
+  const calc = screen.calculatedData;
+  const allPanels = {...panels, ...customPanels};
+  const panelType = data.panelType;
+  const p = allPanels[panelType];
+  if(!p) return null;
+
+  const pw = data.panelsWide;
+  const ph = data.panelsHigh;
+  if(pw === 0 || ph === 0) return null;
+
+  const M_TO_FT = 3.28084;
+
+  // Panel dimensions in feet
+  const panelWidthFt = p.width_m * M_TO_FT;
+  const panelHeightFt = p.height_m * M_TO_FT;
+
+  // Wall dimensions in feet
+  let wallHeightFt = ph * panelHeightFt;
+  let wallWidthFt = pw * panelWidthFt;
+
+  // Account for CB5 half panel row
+  const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
+  if(hasCB5HalfRow) {
+    const halfP = allPanels['CB5_MKII_HALF'];
+    if(halfP) {
+      wallHeightFt += halfP.height_m * M_TO_FT;
+    }
+  }
+
+  // Cabling inputs
+  const wallToFloor = data.wallToFloor || 5;
+  const distroToWall = data.distroToWall || 10;
+  const processorToWall = data.processorToWall || 15;
+  const serverToProcessor = data.serverToProcessor || 50;
+  const cablePick = data.cablePick || 0;
+  const dropPos = data.cableDropPosition || 'behind';
+  const distBoxOnWall = data.distBoxOnWall || false;
+
+  // Deleted panels
+  const deletedPanelsSet = data.deletedPanels || new Set();
+
+  // Cable drop horizontal position (in feet from left edge)
+  let dropPositionFt;
+  if(dropPos === 'behind') {
+    dropPositionFt = wallWidthFt / 2;
+  } else if(dropPos === 'sr') {
+    dropPositionFt = wallWidthFt;
+  } else {
+    dropPositionFt = 0;
+  }
+
+  // ---- A. SOCA (Power) Cable Calculation ----
+  const socaCables = [];
+  const circuitsNeeded = calc.circuitsNeeded || 0;
+  const socaCount = calc.socaCount || 0;
+  const columnsPerCircuit = calc.columnsPerCircuit || 1;
+
+  for(let s = 0; s < socaCount; s++) {
+    // Each SOCA covers up to 6 circuits
+    const firstCircuit = s * 6;
+    const lastCircuit = Math.min(firstCircuit + 5, circuitsNeeded - 1);
+
+    // First and last columns this SOCA covers
+    const firstCol = firstCircuit * columnsPerCircuit;
+    const lastCol = Math.min((lastCircuit + 1) * columnsPerCircuit - 1, pw - 1);
+
+    // Center of the SOCA's column group (in feet)
+    const socaCenterFt = ((firstCol + lastCol) / 2 + 0.5) * panelWidthFt;
+
+    // Horizontal distance from drop to SOCA center
+    const horizontalFt = Math.abs(dropPositionFt - socaCenterFt);
+
+    // Vertical: cable runs from bottom of wall down to floor, then to distro
+    const verticalFt = wallHeightFt;
+
+    const totalFt = verticalFt + horizontalFt + wallToFloor + distroToWall + cablePick;
+    socaCables.push({
+      index: s + 1,
+      lengthFt: Math.round(totalFt * 10) / 10,
+      roundedFt: roundUpToStandard(totalFt)
+    });
+  }
+
+  // ---- B. Data Cable Calculation ----
+  const dataCables = [];
+  const distBoxCables = [];
+  const dataLines = calc.dataLines || 0;
+  const panelsPerDataLine = calc.panelsPerDataLine || 16;
+  const redundancy = data.redundancy;
+  const distributionBoxCount = calc.distributionBoxCount || 0;
+  const distributionBoxName = calc.distributionBoxName || '';
+  const hasDistBox = distributionBoxCount > 0;
+
+  // Effective ph for layout (includes CB5 half row)
+  const effectivePh = hasCB5HalfRow ? ph + 1 : ph;
+
+  // Get entry points for each data line
+  const entryPoints = getDataLineEntryPoints(
+    pw, effectivePh, panelsPerDataLine,
+    data.dataStartDir || 'top',
+    deletedPanelsSet,
+    data.customDataLineAssignments
+  );
+
+  if(distBoxOnWall && hasDistBox) {
+    // Distribution box on wall: center top of wall
+    const distBoxCol = Math.floor(pw / 2);
+    const distBoxRow = 0; // top row
+    const distBoxPositionFt = wallWidthFt / 2; // center horizontal
+
+    // Data cables from dist box to each data line entry
+    for(let dl = 0; dl < dataLines; dl++) {
+      const entry = entryPoints[dl];
+      if(!entry) continue;
+
+      // Panel center position
+      const panelCenterFt = (entry.col + 0.5) * panelWidthFt;
+      const panelCenterVertFt = (entry.row + 0.5) * panelHeightFt;
+      const distBoxCenterVertFt = 0.5 * panelHeightFt; // center of top row
+
+      // Manhattan distance in panel units, accounting for knockouts
+      const detourPanels = calculateKnockoutDetour(distBoxCol, distBoxRow, entry.col, entry.row, deletedPanelsSet, pw, effectivePh);
+      const detourFt = detourPanels * Math.max(panelWidthFt, panelHeightFt); // approximate: use larger dimension
+
+      // More precise: convert horizontal and vertical separately
+      const hDist = Math.abs(panelCenterFt - distBoxPositionFt);
+      const vDist = Math.abs(panelCenterVertFt - distBoxCenterVertFt);
+
+      // Check if knockouts add extra distance
+      const directManhattan = Math.abs(entry.col - distBoxCol) + Math.abs(entry.row - distBoxRow);
+      const extraDetour = (detourPanels - directManhattan);
+      const extraDetourFt = extraDetour > 0 ? extraDetour * ((panelWidthFt + panelHeightFt) / 2) : 0;
+
+      const totalFt = hDist + vDist + extraDetourFt + cablePick;
+
+      dataCables.push({
+        lineIndex: dl + 1,
+        lengthFt: Math.round(totalFt * 10) / 10,
+        roundedFt: roundUpToStandard(totalFt),
+        type: 'cat6a'
+      });
+    }
+
+    // If redundancy, double the data cables (backup follows same paths)
+    if(redundancy) {
+      const backupCables = dataCables.map(c => ({...c, lineIndex: c.lineIndex, backup: true}));
+      dataCables.push(...backupCables);
+    }
+
+    // Processor-to-distribution-box cables
+    // Cable route: processor → floor → up wall to dist box at center top
+    const procToDistBoxFt = processorToWall + wallToFloor + wallHeightFt + cablePick;
+    const cableType = procToDistBoxFt > 200 ? 'fiber' : 'cat6a';
+
+    for(let b = 0; b < distributionBoxCount; b++) {
+      // 2 cables per dist box (main + backup)
+      distBoxCables.push({
+        boxIndex: b + 1,
+        lengthFt: Math.round(procToDistBoxFt * 10) / 10,
+        roundedFt: roundUpToStandard(procToDistBoxFt),
+        type: cableType,
+        label: 'main'
+      });
+      distBoxCables.push({
+        boxIndex: b + 1,
+        lengthFt: Math.round(procToDistBoxFt * 10) / 10,
+        roundedFt: roundUpToStandard(procToDistBoxFt),
+        type: cableType,
+        label: 'backup'
+      });
+    }
+  } else {
+    // No dist box on wall: data cables run from processor back to each entry point
+    for(let dl = 0; dl < dataLines; dl++) {
+      const entry = entryPoints[dl];
+      if(!entry) continue;
+
+      // Panel center horizontal position
+      const panelCenterFt = (entry.col + 0.5) * panelWidthFt;
+
+      // Horizontal distance from drop position to panel center
+      const horizontalFt = Math.abs(dropPositionFt - panelCenterFt);
+
+      // Vertical: full wall height (cable runs top to bottom or bottom to top)
+      const verticalFt = wallHeightFt;
+
+      // Check for knockout detours from drop column to entry panel
+      const dropCol = dropPos === 'sr' ? pw - 1 : (dropPos === 'sl' ? 0 : Math.floor(pw / 2));
+      const entryRow = (data.dataStartDir === 'bottom' || data.dataStartDir === 'all_bottom') ? effectivePh - 1 : 0;
+      const directManhattan = Math.abs(entry.col - dropCol) + Math.abs(entry.row - entryRow);
+      const detourPanels = calculateKnockoutDetour(dropCol, entryRow, entry.col, entry.row, deletedPanelsSet, pw, effectivePh);
+      const extraDetour = detourPanels - directManhattan;
+      const extraDetourFt = extraDetour > 0 ? extraDetour * ((panelWidthFt + panelHeightFt) / 2) : 0;
+
+      const totalFt = verticalFt + horizontalFt + wallToFloor + processorToWall + cablePick + extraDetourFt;
+
+      dataCables.push({
+        lineIndex: dl + 1,
+        lengthFt: Math.round(totalFt * 10) / 10,
+        roundedFt: roundUpToStandard(totalFt),
+        type: 'cat6a'
+      });
+    }
+
+    // If redundancy, double the data cables (backup follows same paths)
+    if(redundancy) {
+      const backupCables = dataCables.map(c => ({...c, lineIndex: c.lineIndex, backup: true}));
+      dataCables.push(...backupCables);
+    }
+  }
+
+  // ---- C. Totals ----
+  const fiberCount = distBoxCables.filter(c => c.type === 'fiber').length;
+  const cat6aDistBoxCount = distBoxCables.filter(c => c.type === 'cat6a').length;
+
+  const result = {
+    socaCables,
+    dataCables,
+    distBoxCables,
+    serverCable: {lengthFt: serverToProcessor},
+    wallHeightFt: Math.round(wallHeightFt * 10) / 10,
+    wallWidthFt: Math.round(wallWidthFt * 10) / 10,
+    totals: {
+      socaCount: socaCables.length,
+      dataCount: dataCables.length,
+      distBoxCableCount: distBoxCables.length,
+      fiberCount,
+      cat6aCount: dataCables.length + cat6aDistBoxCount
+    }
+  };
+
+  // Store in calculatedData
+  screen.calculatedData.cabling = result;
+  return result;
+}
+
 function generateGearList() {
   const gearListContainer = document.getElementById('gearListContainer');
   const gearListContent = document.getElementById('gearListContent');
@@ -17971,25 +18464,95 @@ function generateGearList() {
     }
 
     html += `</div>`;
+
+    // Calculate and show cabling for this screen
+    const cabling = calculateCabling(screenId);
+    if(cabling) {
+      html += `<div style="margin-bottom: 24px; padding: 16px; background: #3a2a2a; border-radius: 6px; border: 2px solid #9a4a4a;">`;
+      html += `<h3 style="color: #c27676; margin-bottom: 12px; font-size: 16px;">${screen.name} — Cable Requirements</h3>`;
+      html += `<div style="margin-bottom: 8px; color: #999; font-size: 12px;">Wall: ${cabling.wallWidthFt}' W × ${cabling.wallHeightFt}' H</div>`;
+
+      // Power Cables (SOCA)
+      if(cabling.socaCables.length > 0) {
+        html += `<div style="margin-top: 8px;"><strong style="color: #ff9800;">Power (SOCA):</strong></div>`;
+        // Group by rounded length for summary
+        const socaByLength = {};
+        cabling.socaCables.forEach(s => {
+          if(!socaByLength[s.roundedFt]) socaByLength[s.roundedFt] = 0;
+          socaByLength[s.roundedFt]++;
+        });
+        for(const [len, count] of Object.entries(socaByLength).sort((a,b) => a[0] - b[0])) {
+          html += `<div style="margin-left: 12px;">${count}× SOCA @ ${len}' cable</div>`;
+        }
+        // Detail view
+        html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
+        cabling.socaCables.forEach(s => {
+          html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">SOCA ${s.index}: ${s.lengthFt}' → ${s.roundedFt}'</div>`;
+        });
+        html += `</details>`;
+      }
+
+      // Data Cables
+      if(cabling.dataCables.length > 0) {
+        const primaryCables = cabling.dataCables.filter(c => !c.backup);
+        const backupCables = cabling.dataCables.filter(c => c.backup);
+        html += `<div style="margin-top: 8px;"><strong style="color: #4ecdc4;">Data Cables:</strong></div>`;
+
+        // Group primary by rounded length
+        const dataByLength = {};
+        primaryCables.forEach(c => {
+          if(!dataByLength[c.roundedFt]) dataByLength[c.roundedFt] = 0;
+          dataByLength[c.roundedFt]++;
+        });
+        for(const [len, count] of Object.entries(dataByLength).sort((a,b) => a[0] - b[0])) {
+          html += `<div style="margin-left: 12px;">${count}× Data @ ${len}' cable</div>`;
+        }
+
+        if(backupCables.length > 0) {
+          html += `<div style="margin-left: 12px; color: #999;">+ ${backupCables.length}× Backup (same lengths)</div>`;
+        }
+
+        // Detail view
+        html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
+        primaryCables.forEach(c => {
+          html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">Line ${c.lineIndex}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
+        });
+        html += `</details>`;
+      }
+
+      // Distribution Box Cables (processor to dist box)
+      if(cabling.distBoxCables.length > 0) {
+        const mainBoxCables = cabling.distBoxCables.filter(c => c.label === 'main');
+        html += `<div style="margin-top: 8px;"><strong style="color: #e040fb;">Processor → Dist Box:</strong></div>`;
+        const boxCableType = mainBoxCables[0]?.type || 'cat6a';
+        const boxCableLen = mainBoxCables[0]?.roundedFt || 0;
+        html += `<div style="margin-left: 12px;">${cabling.distBoxCables.length}× ${boxCableType === 'fiber' ? 'Fiber' : 'Cat6A'} @ ${boxCableLen}' cable</div>`;
+        if(boxCableType === 'fiber') {
+          html += `<div style="margin-left: 12px; color: #e040fb; font-size: 12px;">(Fiber required: distance > 200')</div>`;
+        }
+      }
+
+      // Server Cable
+      html += `<div style="margin-top: 8px;"><strong style="color: #78909c;">Server → Processor:</strong> ${cabling.serverCable.lengthFt}' cable</div>`;
+
+      // Totals
+      html += `<div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #9a4a4a;">`;
+      html += `<strong style="color: #c27676;">Totals:</strong>`;
+      html += `<div style="margin-left: 12px;">SOCA cables: ${cabling.totals.socaCount}</div>`;
+      html += `<div style="margin-left: 12px;">Data cables: ${cabling.totals.dataCount}</div>`;
+      if(cabling.totals.distBoxCableCount > 0) {
+        html += `<div style="margin-left: 12px;">Dist box cables: ${cabling.totals.distBoxCableCount}</div>`;
+      }
+      if(cabling.totals.fiberCount > 0) {
+        html += `<div style="margin-left: 12px; color: #e040fb;">Fiber cables: ${cabling.totals.fiberCount}</div>`;
+      }
+      html += `</div>`;
+      html += `</div>`;
+    }
   });
-  
-  const trimHeight = parseFloat(document.getElementById('trimHeight').value) || 20;
-  const wallToFloor = parseFloat(document.getElementById('wallToFloor').value) || 5;
-  const distroToWall = parseFloat(document.getElementById('distroToWall').value) || 10;
-  const processorToWall = parseFloat(document.getElementById('processorToWall').value) || 15;
-  const fohToProcessor = parseFloat(document.getElementById('fohToProcessor').value) || 50;
-  
-  html += `<div style="margin-top: 24px; padding: 16px; background: #3a2a2a; border-radius: 6px; border: 2px solid #9a4a4a;">`;
-  html += `<h3 style="color: #c27676; margin-bottom: 12px; font-size: 16px;">Cable Requirements</h3>`;
-  html += `<div><strong>Trim Height:</strong> ${trimHeight} ft</div>`;
-  html += `<div><strong>Wall to Floor:</strong> ${wallToFloor} ft</div>`;
-  html += `<div><strong>Distro to Wall Top:</strong> ${distroToWall} ft</div>`;
-  html += `<div><strong>Processor to Wall:</strong> ${processorToWall} ft</div>`;
-  html += `<div><strong>FOH to Processor:</strong> ${fohToProcessor} ft</div>`;
-  html += `</div>`;
-  
+
   html += '</div>';
-  
+
   gearListContent.innerHTML = html;
   gearListContainer.style.display = 'block';
 }

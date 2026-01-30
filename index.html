@@ -3501,7 +3501,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.4.3';
+const APP_VERSION = '2.4.4';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18543,12 +18543,6 @@ function calculateCabling(screenId) {
     }
   }
 
-  // If redundancy, double the bridge cables too
-  if(redundancy && knockoutBridgeCables.length > 0) {
-    const backupBridges = knockoutBridgeCables.map(c => ({...c, backup: true}));
-    knockoutBridgeCables.push(...backupBridges);
-  }
-
   // ---- D. Totals ----
   const fiberCount = distBoxCables.filter(c => c.type === 'fiber').length;
   const cat6aDistBoxCount = distBoxCables.filter(c => c.type === 'cat6a').length;
@@ -18690,22 +18684,17 @@ function generateGearList() {
 
       // Knockout Bridge Cables (data cross jumpers across gaps)
       if(cabling.knockoutBridgeCables && cabling.knockoutBridgeCables.length > 0) {
-        const primaryBridges = cabling.knockoutBridgeCables.filter(c => !c.backup);
-        const backupBridges = cabling.knockoutBridgeCables.filter(c => c.backup);
         html += `<div style="margin-top: 8px;"><strong style="color: #ffab40;">Data Cross Jumpers (Knockout):</strong></div>`;
         const bridgeByLength = {};
-        primaryBridges.forEach(c => {
+        cabling.knockoutBridgeCables.forEach(c => {
           if(!bridgeByLength[c.roundedFt]) bridgeByLength[c.roundedFt] = 0;
           bridgeByLength[c.roundedFt]++;
         });
         for(const [len, count] of Object.entries(bridgeByLength).sort((a,b) => a[0] - b[0])) {
           html += `<div style="margin-left: 12px;">${count}x ${len}'</div>`;
         }
-        if(backupBridges.length > 0) {
-          html += `<div style="margin-left: 12px; color: #999;">+ ${backupBridges.length}x Backup (same lengths)</div>`;
-        }
         html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
-        primaryBridges.forEach(c => {
+        cabling.knockoutBridgeCables.forEach(c => {
           html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">Line ${c.dataLine} (${c.fromPanel} → ${c.toPanel}): ${c.lengthFt}' → ${c.roundedFt}'</div>`;
         });
         html += `</details>`;
@@ -21422,19 +21411,14 @@ function renderCombinedGearList(selectedScreenIds) {
 
       // Knockout bridge cables
       if(cabling.knockoutBridgeCables && cabling.knockoutBridgeCables.length > 0) {
-        const primaryBridges = cabling.knockoutBridgeCables.filter(c => !c.backup);
-        const backupBridges = cabling.knockoutBridgeCables.filter(c => c.backup);
         const bridgeByLength = {};
-        primaryBridges.forEach(c => {
+        cabling.knockoutBridgeCables.forEach(c => {
           if(!bridgeByLength[c.roundedFt]) bridgeByLength[c.roundedFt] = 0;
           bridgeByLength[c.roundedFt]++;
         });
         html += `<div style="margin-left: 8px; color: #ffab40;"><strong>Data Cross Jumpers:</strong></div>`;
         for(const [len, count] of Object.entries(bridgeByLength).sort((a,b) => a[0] - b[0])) {
           html += `<div style="margin-left: 16px;">${count}x ${len}'</div>`;
-        }
-        if(backupBridges.length > 0) {
-          html += `<div style="margin-left: 16px; color: #999;">+ ${backupBridges.length}x Backup</div>`;
         }
       }
 

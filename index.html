@@ -1197,39 +1197,67 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
+      padding-top: 8px;
     }
     
     .structure-info-box {
-      background: #1a1a1a;
-      border-radius: 6px;
-      padding: 12px;
+      background: var(--comic-panel);
+      border: 4px solid #000;
+      border-radius: 2px;
+      padding: 16px;
+      padding-top: 28px;
+      margin-bottom: 16px;
+      margin-top: 12px;
+      overflow: visible;
+      position: relative;
+      box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
       font-size: 12px;
     }
-    
+
     .structure-info-box.weights {
-      border-left: 3px solid #4a9eff;
+      border-color: #4a9eff;
     }
-    
+
     .structure-info-box.plates {
-      border-left: 3px solid #6fc276;
+      border-color: #6fc276;
     }
-    
+
     .structure-info-box.ground-support {
-      border-left: 3px solid #00CED1;
+      border-color: #00CED1;
     }
-    
+
+    .structure-info-box.floor-frames {
+      border-color: #4ecdc4;
+    }
+
+    .structure-info-box.total-weight {
+      border-color: #FFD700;
+    }
+
     .structure-info-title {
-      font-weight: bold;
-      margin-bottom: 8px;
-      font-size: 13px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      position: absolute;
+      top: -16px;
+      left: 16px;
+      background: #222;
+      padding: 4px 10px;
+      margin: 0;
+      font-family: 'Bangers', cursive;
+      font-size: 16px;
+      font-weight: normal;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      transform: rotate(-2deg);
+      cursor: default;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
     }
-    
-    .structure-info-title.weights { color: #4a9eff; }
-    .structure-info-title.plates { color: #6fc276; }
-    .structure-info-title.ground-support { color: #00CED1; }
+
+    .structure-info-title.weights { color: #4a9eff; border: 1px solid #4a9eff; }
+    .structure-info-title.plates { color: #6fc276; border: 1px solid #6fc276; }
+    .structure-info-title.ground-support { color: #00CED1; border: 1px solid #00CED1; }
+    .structure-info-title.floor-frames { color: #4ecdc4; border: 1px solid #4ecdc4; }
+    .structure-info-title.total-weight { color: #FFD700; border: 1px solid #FFD700; }
     
     .weight-row {
       display: flex;
@@ -3157,14 +3185,14 @@
           </div>
 
           <!-- Floor Frames -->
-          <div class="structure-info-box floor-frames" id="structureFloorFramesBox" style="display: none; border-left: 3px solid #4ecdc4;">
-            <div class="structure-info-title floor-frames" style="color: #4ecdc4;">Floor Frames</div>
+          <div class="structure-info-box floor-frames" id="structureFloorFramesBox" style="display: none;">
+            <div class="structure-info-title floor-frames">Floor Frames</div>
             <div id="structureFloorFramesContent"></div>
           </div>
 
           <!-- Total Structure Weight -->
-          <div class="structure-info-box" id="structureTotalWeightBox" style="display: none; border-left: 3px solid #FFD700;">
-            <div class="structure-info-title" style="color: #FFD700;">Total Structure Weight</div>
+          <div class="structure-info-box total-weight" id="structureTotalWeightBox" style="display: none;">
+            <div class="structure-info-title total-weight">Total Structure Weight</div>
             <div id="structureTotalWeightContent"></div>
           </div>
         </div>
@@ -3509,7 +3537,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.17';
+const APP_VERSION = '2.5.18';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18919,8 +18947,8 @@ function generateGearList() {
     const is4KCanvas = (canvasSize === '4K_UHD' || canvasSize === '4K_DCI');
 
     // --- BEGIN PER-SCREEN CONTAINER ---
-    html += `<div style="margin-bottom: 24px; padding: 16px; background: #2a2a2a; border-radius: 6px; border-left: 4px solid ${screen.color};">`;
-    html += `<h3 style="color: #10b981; margin-bottom: 4px; font-size: 16px; font-family: 'Bangers', cursive;">${screen.name}</h3>`;
+    html += `<div style="background: var(--comic-panel); border: 4px solid ${screen.color}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
+    html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${screen.color}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${screen.color}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${screen.name}</div>`;
 
     // === EQUIPMENT ===
     html += sectionHdr('Equipment');
@@ -21780,8 +21808,8 @@ function renderCombinedGearList(selectedScreenIds) {
       const cabling = screen.calculatedData?.cabling;
       if(!cabling) return;
 
-      html += `<div style="margin-top: 8px; margin-left: 4px; padding: 8px; background: #3a2a2a; border-radius: 4px; border-left: 3px solid ${screen.color};">`;
-      html += `<div style="font-weight: bold; color: #c27676; margin-bottom: 4px;">${screen.name}</div>`;
+      html += `<div style="background: var(--comic-panel); border: 4px solid ${screen.color}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
+      html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${screen.color}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${screen.color}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${screen.name}</div>`;
 
       // SOCA
       if(cabling.socaCables.length > 0) {

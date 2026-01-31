@@ -350,7 +350,7 @@
         <div class="mobile-menu-btn-row">
           <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save</button>
           <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load</button>
-          <input type="file" id="loadConfigInput" accept=".ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
+          <input type="file" id="loadConfigInput" accept=".led,.ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
           <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="closeMobileMenu();">Export</button>
         </div>
         <button class="mobile-menu-btn accent" onclick="sendGearListToJared(); closeMobileMenu();" style="margin-top: 8px;">Send to Jared</button>
@@ -1198,7 +1198,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.30';
+const APP_VERSION = '2.5.31';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // ==================== SECURITY UTILITIES ====================
@@ -14471,7 +14471,7 @@ async function saveConfiguration() {
   
   // Convert to JSON and save via file picker
   const json = JSON.stringify(config, null, 2);
-  const fileName = `${configName.replace(/\s+/g, '_')}.ledconfig`;
+  const fileName = `${configName.replace(/\s+/g, '_')}.led`;
 
   const blob = new Blob([json], { type: 'application/json' });
 
@@ -14482,7 +14482,7 @@ async function saveConfiguration() {
         suggestedName: fileName,
         types: [{
           description: 'LED Config Files',
-          accept: { 'application/json': ['.ledconfig'] }
+          accept: { 'application/json': ['.led', '.ledconfig'] }
         }]
       });
       const writable = await handle.createWritable();

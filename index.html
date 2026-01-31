@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.2';
+const APP_VERSION = '2.5.3';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18817,20 +18817,10 @@ function generateGearList() {
     const isFirstScreenInGroup = processorGroup && processorGroup.firstScreenId === screenId;
 
     const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
-    const fullPanelRows = hasCB5HalfRow ? H - 1 : H;
-    const deletedPanelsSet = data.deletedPanels || new Set();
-    // Count deleted panels per type (full rows vs half row)
-    let deletedFullCount = 0, deletedHalfCount = 0;
-    if(deletedPanelsSet && deletedPanelsSet.size > 0) {
-      deletedPanelsSet.forEach(key => {
-        const row = parseInt(key.split(',')[1]);
-        if(hasCB5HalfRow && row === H - 1) deletedHalfCount++;
-        else if(row < fullPanelRows) deletedFullCount++;
-      });
-    }
-    const activeFullPanels = (W * fullPanelRows) - deletedFullCount;
-    const activeHalfPanels = hasCB5HalfRow ? W - deletedHalfCount : 0;
-    const activePanels = calcData.activePanels || calcData.panelCount || (activeFullPanels + activeHalfPanels);
+    // Use calcData.activePanels directly (same as PDF export) — already accounts for deletions
+    const activePanels = calcData.activePanels || calcData.panelCount || 0;
+    const activeHalfPanels = hasCB5HalfRow ? W : 0;
+    const activeFullPanels = activePanels - activeHalfPanels;
 
     // Rigging data
     const bumper1wCount = calcData.bumper1wCount || 0;
@@ -21345,26 +21335,20 @@ function renderCombinedSpecs(selectedScreenIds) {
 
     if(!panel || pw === 0 || ph === 0) return;
 
-    // Count deleted panels properly
-    let deletedCount = 0;
-    if(data.deletedPanels instanceof Set) {
-      deletedCount = data.deletedPanels.size;
-    } else if(Array.isArray(data.deletedPanels)) {
-      deletedCount = data.deletedPanels.length;
-    }
-
-    // Count active panels (exclude deleted)
-    const activePanels = calcData.activePanels || ((pw * ph) - deletedCount);
+    // Use calcData.activePanels directly (same as PDF export) — already accounts for deletions
+    const activePanels = calcData.activePanels || calcData.panelCount || 0;
 
     // CB5 half panel row
     const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
+    const halfPanelCount = hasCB5HalfRow ? pw : 0;
+    const fullPanelCount = activePanels - halfPanelCount;
 
     // Track panels by type
     const panelDisplayName = `${panel.brand} ${panel.name}`;
     if(!panelsByType[panelDisplayName]) {
       panelsByType[panelDisplayName] = 0;
     }
-    panelsByType[panelDisplayName] += activePanels;
+    panelsByType[panelDisplayName] += fullPanelCount;
 
     // Add half panel row to panel count
     if(hasCB5HalfRow) {
@@ -21372,7 +21356,7 @@ function renderCombinedSpecs(selectedScreenIds) {
       if(halfPanel) {
         const halfDisplayName = `${halfPanel.brand} ${halfPanel.name}`;
         if(!panelsByType[halfDisplayName]) panelsByType[halfDisplayName] = 0;
-        panelsByType[halfDisplayName] += pw;
+        panelsByType[halfDisplayName] += halfPanelCount;
       }
     }
 
@@ -21555,11 +21539,11 @@ function renderCombinedGearList(selectedScreenIds) {
 
     if(!panel || pw === 0 || ph === 0) return;
 
-    // Count panels per type, accounting for CB5 half row
+    // Use calcData.activePanels directly (same as PDF export) — already accounts for deletions
     const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
-    const fullRows = hasCB5HalfRow ? ph - 1 : ph;
-    const fullPanelCount = pw * fullRows;
+    const activePanels = calculatedData.activePanels || calculatedData.panelCount || 0;
     const halfPanelCount = hasCB5HalfRow ? pw : 0;
+    const fullPanelCount = activePanels - halfPanelCount;
 
     const panelLabel = `${panel.brand} ${panel.name}`;
     panelsByType[panelLabel] = (panelsByType[panelLabel] || 0) + fullPanelCount;
@@ -21568,15 +21552,6 @@ function renderCombinedGearList(selectedScreenIds) {
       const halfLabel = halfPanel ? `${halfPanel.brand} ${halfPanel.name}` : `${panel.brand} CB5 MKII Half Panel`;
       panelsByType[halfLabel] = (panelsByType[halfLabel] || 0) + halfPanelCount;
     }
-
-    // Count deleted panels for jumper calculations
-    let deletedCount = 0;
-    if(data.deletedPanels instanceof Set) {
-      deletedCount = data.deletedPanels.size;
-    } else if(Array.isArray(data.deletedPanels)) {
-      deletedCount = data.deletedPanels.length;
-    }
-    const activePanels = (pw * ph) - deletedCount;
 
     // Use calculated data if available
     if(calculatedData.circuits) totalCircuits += calculatedData.circuits;

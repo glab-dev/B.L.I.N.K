@@ -1215,23 +1215,23 @@
     }
 
     .structure-info-box.weights {
-      border-color: #4a9eff;
+      box-shadow: 4px 4px 0px 0px #4a9eff;
     }
 
     .structure-info-box.plates {
-      border-color: #6fc276;
+      box-shadow: 4px 4px 0px 0px #6fc276;
     }
 
     .structure-info-box.ground-support {
-      border-color: #00CED1;
+      box-shadow: 4px 4px 0px 0px #00CED1;
     }
 
     .structure-info-box.floor-frames {
-      border-color: #4ecdc4;
+      box-shadow: 4px 4px 0px 0px #4ecdc4;
     }
 
     .structure-info-box.total-weight {
-      border-color: #FFD700;
+      box-shadow: 4px 4px 0px 0px #FFD700;
     }
 
     .structure-info-title {
@@ -1258,6 +1258,7 @@
     .structure-info-title.ground-support { color: #00CED1; border: 1px solid #00CED1; }
     .structure-info-title.floor-frames { color: #4ecdc4; border: 1px solid #4ecdc4; }
     .structure-info-title.total-weight { color: #FFD700; border: 1px solid #FFD700; }
+
     
     .weight-row {
       display: flex;
@@ -3537,7 +3538,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.18';
+const APP_VERSION = '2.5.19';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18947,7 +18948,7 @@ function generateGearList() {
     const is4KCanvas = (canvasSize === '4K_UHD' || canvasSize === '4K_DCI');
 
     // --- BEGIN PER-SCREEN CONTAINER ---
-    html += `<div style="background: var(--comic-panel); border: 4px solid ${screen.color}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
+    html += `<div style="background: var(--comic-panel); border: 4px solid #000; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px ${screen.color};">`;
     html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${screen.color}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${screen.color}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${screen.name}</div>`;
 
     // === EQUIPMENT ===
@@ -21808,7 +21809,7 @@ function renderCombinedGearList(selectedScreenIds) {
       const cabling = screen.calculatedData?.cabling;
       if(!cabling) return;
 
-      html += `<div style="background: var(--comic-panel); border: 4px solid ${screen.color}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
+      html += `<div style="background: var(--comic-panel); border: 4px solid #000; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px ${screen.color};">`;
       html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${screen.color}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${screen.color}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${screen.name}</div>`;
 
       // SOCA

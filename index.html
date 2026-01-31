@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.10';
+const APP_VERSION = '2.5.11';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -19027,7 +19027,7 @@ function generateGearList() {
         allDataCables.forEach(c => { allDataByLength[c.roundedFt] = (allDataByLength[c.roundedFt] || 0) + 1; });
         knockoutCables.forEach(c => { allDataByLength[c.roundedFt] = (allDataByLength[c.roundedFt] || 0) + 1; });
         for(const [len, count] of Object.entries(allDataByLength).sort((a,b) => a[0] - b[0])) {
-          html += `<div style="margin-left: 12px;">${count}x ${len}' Cat6</div>`;
+          html += `<div style="margin-left: 12px; color: #fff;">${count}x ${len}' Cat6</div>`;
         }
         // Detail dropdown at end of section
         const primaryCables = allDataCables.filter(c => !c.backup);
@@ -19055,7 +19055,7 @@ function generateGearList() {
       const socaByLength = {};
       cabling.socaCables.forEach(s => { socaByLength[s.roundedFt] = (socaByLength[s.roundedFt] || 0) + 1; });
       for(const [len, count] of Object.entries(socaByLength).sort((a,b) => a[0] - b[0])) {
-        html += `<div style="margin-left: 12px;">${count}x ${len}' Soca</div>`;
+        html += `<div style="margin-left: 12px; color: #fff;">${count}x ${len}' Soca</div>`;
       }
     }
     // True1 cables
@@ -19080,7 +19080,7 @@ function generateGearList() {
       const mainBoxCables = cabling.distBoxCables.filter(c => c.label === 'main');
       const boxCableType = mainBoxCables[0]?.type || 'cat6a';
       const boxCableRounded = mainBoxCables[0]?.roundedFt || 0;
-      html += `<div style="margin-left: 12px;">${cabling.distBoxCables.length}x ${boxCableType === 'fiber' ? 'Fiber' : 'Cat6A'} ${boxCableRounded}'</div>`;
+      html += `<div style="margin-left: 12px; color: #fff;">${cabling.distBoxCables.length}x ${boxCableType === 'fiber' ? 'Fiber' : 'Cat6A'} ${boxCableRounded}'</div>`;
       if(boxCableType === 'fiber') {
         html += `<div style="margin-left: 12px; color: #e040fb; font-size: 12px;">(Fiber required: distance > 200')</div>`;
       }

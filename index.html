@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.15';
+const APP_VERSION = '2.5.16';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -14321,9 +14321,9 @@ function exportPDF(){
       addGearLine("50' Soca:", (computedSocaByLength[50] || '').toString());
       addGearLine("25' Soca:", (computedSocaByLength[25] || '').toString());
       addGearLine("50' True1:", '');
-      addGearLine("25' True1:", (socaCount * 2).toString());
-      addGearLine("10' True1:", (socaCount * 2).toString());
-      addGearLine("5' True1:", (socaCount * 4).toString());
+      addGearLine("25' True1:", socaCount.toString());
+      addGearLine("10' True1:", socaCount.toString());
+      addGearLine("5' True1:", (socaCount * 2).toString());
       addGearLine("3' True1:", '');
       addGearLine('True1 Twofer:', columnsPerCircuit > 1 ? (circuitsNeeded * columnsPerCircuit).toString() : '');
 
@@ -15290,9 +15290,9 @@ function exportPDF(){
         addLine("50' Soca:", (computedSocaByLength2[50] || '').toString());
         addLine("25' Soca:", (computedSocaByLength2[25] || '').toString());
         addLine("50' True1:", '');
-        addLine("25' True1:", (socaCount * 2).toString());
-        addLine("10' True1:", (socaCount * 2).toString());
-        addLine("5' True1:", (socaCount * 4).toString());
+        addLine("25' True1:", socaCount.toString());
+        addLine("10' True1:", socaCount.toString());
+        addLine("5' True1:", (socaCount * 2).toString());
         addLine("3' True1:", '');
         addLine('True1 Twofer:', columnsPerCircuit > 1 ? (circuitsNeeded * columnsPerCircuit).toString() : '');
 
@@ -19049,9 +19049,9 @@ function generateGearList() {
       }
     }
     // True1 cables
-    html += gearLine("25' True1:", socaCount * 2);
-    html += gearLine("10' True1:", socaCount * 2);
-    html += gearLine("5' True1:", socaCount * 4);
+    html += gearLine("25' True1:", socaCount);
+    html += gearLine("10' True1:", socaCount);
+    html += gearLine("5' True1:", socaCount * 2);
     if(columnsPerCircuit > 1) {
       html += gearLine('True1 Twofer:', circuitsNeeded * columnsPerCircuit);
     }

@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.9';
+const APP_VERSION = '2.5.10';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -19095,31 +19095,43 @@ function generateGearList() {
       const isHDCanvas = canvasSize === 'HD' || (canvasSize === 'custom' &&
         (parseInt(data.customCanvasWidth) || 1920) <= 1920 &&
         (parseInt(data.customCanvasHeight) || 1080) <= 1080);
+      // Build SDI counts by length, then merge server cable into matching bucket
+      const sdiType = isHDCanvas ? '3G SDI' : '12G SDI';
+      const sdiCounts = {};
       if(isHDCanvas) {
-        html += gearLine("100' 3G SDI:", sdiPerProcessor);
-        html += gearLine("50' 3G SDI:", sdiPerProcessor);
-        html += gearLine("25' 3G SDI:", sdiPerProcessor);
-        html += gearLine("10' 3G SDI:", 6);
-        html += gearLine("3' 3G SDI:", 6);
+        sdiCounts[100] = sdiPerProcessor;
+        sdiCounts[50] = sdiPerProcessor;
+        sdiCounts[25] = sdiPerProcessor;
+        sdiCounts[10] = 6;
+        sdiCounts[3] = 6;
       } else {
-        html += gearLine("100' 12G SDI:", sdiPerProcessor);
-        html += gearLine("50' 12G SDI:", sdiPerProcessor);
-        html += gearLine("25' 12G SDI:", sdiPerProcessor);
+        sdiCounts[100] = sdiPerProcessor;
+        sdiCounts[50] = sdiPerProcessor;
+        sdiCounts[25] = sdiPerProcessor;
       }
-      // Server → Processor cable (primary + backup = 2)
+      // Server → Processor cable (primary + backup = 2) merged into SDI counts
+      let serverFiberLine = '';
       if(cabling && cabling.serverCable) {
         const serverLen = cabling.serverCable.lengthFt || 0;
         if(serverLen > 0) {
           if(serverLen > 300) {
-            // Fiber required for distances over 300' (minimum 500')
             const fiberLen = Math.max(500, Math.ceil(serverLen / 100) * 100);
-            html += gearLine(`${fiberLen}' Fiber (Server → Processor):`, 2);
+            serverFiberLine = `${fiberLen}' Fiber`;
           } else {
             const sdiLen = roundUpToStandard(serverLen);
-            const sdiType = isHDCanvas ? '3G SDI' : '12G SDI';
-            html += gearLine(`${sdiLen}' ${sdiType} (Server → Processor):`, 2);
+            sdiCounts[sdiLen] = (sdiCounts[sdiLen] || 0) + 2;
           }
         }
+      }
+      // Render SDI lines sorted by length descending
+      for(const len of Object.keys(sdiCounts).map(Number).sort((a,b) => b - a)) {
+        if(sdiCounts[len] > 0) {
+          html += gearLine(`${len}' ${sdiType}:`, sdiCounts[len]);
+        }
+      }
+      // Fiber line if server cable was too long for SDI
+      if(serverFiberLine) {
+        html += gearLine(`${serverFiberLine}:`, 2);
       }
       html += gearLine("25' HDMI:", 6);
       html += gearLine("10' HDMI:", 6);

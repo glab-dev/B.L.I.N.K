@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.11';
+const APP_VERSION = '2.5.12';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18421,14 +18421,13 @@ function calculateCabling(screenId) {
   // Deleted panels
   const deletedPanelsSet = data.deletedPanels || new Set();
 
-  // Cable drop horizontal position (in feet from left edge)
-  let dropPositionFt;
+  // Cable drop horizontal extra: SR/SL adds half wall width to all cable lengths
+  let dropHorizontalExtra;
   if(dropPos === 'behind') {
-    dropPositionFt = wallWidthFt / 2;
-  } else if(dropPos === 'sr') {
-    dropPositionFt = wallWidthFt;
+    dropHorizontalExtra = 0;
   } else {
-    dropPositionFt = 0;
+    // SR or SL: add distance from center of wall to the edge
+    dropHorizontalExtra = wallWidthFt / 2;
   }
 
   // ---- A. SOCA (Power) Cable Calculation ----
@@ -18446,16 +18445,10 @@ function calculateCabling(screenId) {
     const firstCol = firstCircuit * columnsPerCircuit;
     const lastCol = Math.min((lastCircuit + 1) * columnsPerCircuit - 1, pw - 1);
 
-    // Center of the SOCA's column group (in feet)
-    const socaCenterFt = ((firstCol + lastCol) / 2 + 0.5) * panelWidthFt;
-
-    // Horizontal distance from drop to SOCA center
-    const horizontalFt = Math.abs(dropPositionFt - socaCenterFt);
-
     // Vertical: cable runs from bottom of wall down to floor, then to distro
     const verticalFt = wallHeightFt;
 
-    const totalFt = verticalFt + horizontalFt + wallToFloor + distroToWall + cablePick;
+    const totalFt = verticalFt + dropHorizontalExtra + wallToFloor + distroToWall + cablePick;
     socaCables.push({
       index: s + 1,
       lengthFt: Math.round(totalFt * 10) / 10,
@@ -18557,16 +18550,10 @@ function calculateCabling(screenId) {
       const entry = entryPoints[dl];
       if(!entry) continue;
 
-      // Panel center horizontal position
-      const panelCenterFt = (entry.col + 0.5) * panelWidthFt;
-
-      // Horizontal distance from drop position to panel center
-      const horizontalFt = Math.abs(dropPositionFt - panelCenterFt);
-
       // Vertical: full wall height (cable runs top to bottom or bottom to top)
       const verticalFt = wallHeightFt;
 
-      // Check for knockout detours from drop column to entry panel
+      // Check for knockout detours from entry panel routing
       const dropCol = dropPos === 'sr' ? pw - 1 : (dropPos === 'sl' ? 0 : Math.floor(pw / 2));
       const entryRow = (data.dataStartDir === 'bottom' || data.dataStartDir === 'all_bottom') ? effectivePh - 1 : 0;
       const directManhattan = Math.abs(entry.col - dropCol) + Math.abs(entry.row - entryRow);
@@ -18574,7 +18561,7 @@ function calculateCabling(screenId) {
       const extraDetour = detourPanels - directManhattan;
       const extraDetourFt = extraDetour > 0 ? extraDetour * ((panelWidthFt + panelHeightFt) / 2) : 0;
 
-      const totalFt = verticalFt + horizontalFt + wallToFloor + processorToWall + cablePick + extraDetourFt;
+      const totalFt = verticalFt + dropHorizontalExtra + wallToFloor + processorToWall + cablePick + extraDetourFt;
 
       dataCables.push({
         lineIndex: dl + 1,

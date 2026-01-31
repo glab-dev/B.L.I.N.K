@@ -1,4 +1,5 @@
 # Development tools — keep private
 .claude/
 CLAUDE.md
+README.md
 tests/

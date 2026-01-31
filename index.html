@@ -1198,7 +1198,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.28';
+const APP_VERSION = '2.5.29';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // ==================== SECURITY UTILITIES ====================
@@ -14451,7 +14451,10 @@ async function saveConfiguration() {
   const json = JSON.stringify(config, null, 2);
   const fileName = `${configName.replace(/\s+/g, '_')}.ledconfig`;
 
+  const blob = new Blob([json], { type: 'application/json' });
+
   if(window.showSaveFilePicker) {
+    // Desktop: native Save As dialog
     try {
       const handle = await window.showSaveFilePicker({
         suggestedName: fileName,
@@ -14465,14 +14468,25 @@ async function saveConfiguration() {
       await writable.close();
       showAlert(`Configuration "${configName}" saved successfully!`);
     } catch(e) {
-      // User cancelled the save dialog
+      if(e.name !== 'AbortError') {
+        showAlert('Save failed: ' + e.message);
+      }
+    }
+  } else if(navigator.canShare && navigator.canShare({ files: [new File([blob], fileName)] })) {
+    // Mobile (iOS/Android): native share sheet with "Save to Files" option
+    try {
+      await navigator.share({
+        files: [new File([blob], fileName, { type: 'application/json' })],
+        title: configName
+      });
+      showAlert(`Configuration "${configName}" saved successfully!`);
+    } catch(e) {
       if(e.name !== 'AbortError') {
         showAlert('Save failed: ' + e.message);
       }
     }
   } else {
-    // Fallback for browsers without File System Access API
-    const blob = new Blob([json], { type: 'application/json' });
+    // Fallback: direct download
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;

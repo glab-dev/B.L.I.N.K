@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.3';
+const APP_VERSION = '2.5.4';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -6372,6 +6372,19 @@ function calculate(){
   const wallHF = wallHM? (wallHM/0.3048) : 0;
 
   const totalPanelsGrid = pw*ph;
+  // Prune out-of-bounds deletedPanels (stale entries from previous grid sizes)
+  const prunedDeleted = new Set();
+  deletedPanels.forEach(key => {
+    const parts = key.split(',');
+    const c = parseInt(parts[0]), r = parseInt(parts[1]);
+    if(c >= 0 && c < pw && r >= 0 && r < ph) prunedDeleted.add(key);
+  });
+  if(prunedDeleted.size !== deletedPanels.size) {
+    deletedPanels = prunedDeleted;
+    if(screens[currentScreenId]) {
+      screens[currentScreenId].data.deletedPanels = new Set(deletedPanels);
+    }
+  }
   const activePanelsCount = totalPanelsGrid - deletedPanels.size;
   
   // Calculate mixed panel counts if CB5 half row is enabled

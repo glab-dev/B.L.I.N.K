@@ -1202,7 +1202,7 @@
     
     .structure-info-box {
       background: var(--comic-panel);
-      border: 4px solid #000;
+      border: 1px solid #555;
       border-radius: 2px;
       padding: 16px;
       padding-top: 28px;
@@ -1213,30 +1213,11 @@
       font-size: 12px;
     }
 
-    .structure-info-box.weights {
-      border-bottom-color: #4a9eff;
-      border-right-color: #4a9eff;
-    }
-
-    .structure-info-box.plates {
-      border-bottom-color: #6fc276;
-      border-right-color: #6fc276;
-    }
-
-    .structure-info-box.ground-support {
-      border-bottom-color: #00CED1;
-      border-right-color: #00CED1;
-    }
-
-    .structure-info-box.floor-frames {
-      border-bottom-color: #4ecdc4;
-      border-right-color: #4ecdc4;
-    }
-
-    .structure-info-box.total-weight {
-      border-bottom-color: #FFD700;
-      border-right-color: #FFD700;
-    }
+    .structure-info-box.weights { border-color: #4a9eff; }
+    .structure-info-box.plates { border-color: #6fc276; }
+    .structure-info-box.ground-support { border-color: #00CED1; }
+    .structure-info-box.floor-frames { border-color: #4ecdc4; }
+    .structure-info-box.total-weight { border-color: #FFD700; }
 
     .structure-info-title {
       position: absolute;
@@ -3542,7 +3523,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.20';
+const APP_VERSION = '2.5.21';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18952,7 +18933,7 @@ function generateGearList() {
     const is4KCanvas = (canvasSize === '4K_UHD' || canvasSize === '4K_DCI');
 
     // --- BEGIN PER-SCREEN CONTAINER ---
-    html += `<div style="background: var(--comic-panel); border: 4px solid #000; border-bottom-color: ${screen.color}; border-right-color: ${screen.color}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
+    html += `<div style="background: var(--comic-panel); border: 1px solid ${screen.color}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
     html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${screen.color}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${screen.color}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${screen.name}</div>`;
 
     // === EQUIPMENT ===
@@ -21813,7 +21794,7 @@ function renderCombinedGearList(selectedScreenIds) {
       const cabling = screen.calculatedData?.cabling;
       if(!cabling) return;
 
-      html += `<div style="background: var(--comic-panel); border: 4px solid #000; border-bottom-color: ${screen.color}; border-right-color: ${screen.color}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
+      html += `<div style="background: var(--comic-panel); border: 1px solid ${screen.color}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
       html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${screen.color}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${screen.color}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${screen.name}</div>`;
 
       // SOCA

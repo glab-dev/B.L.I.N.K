@@ -2578,6 +2578,22 @@
   </div>
 </div>
 
+<!-- Custom Alert/Confirm Modal -->
+<div id="customAlertModal" class="modal-overlay">
+  <div class="modal-dialog" style="max-width: 300px; padding: 12px;">
+    <div class="modal-header" style="margin-bottom: 8px; padding-bottom: 6px;">
+      <h2 class="modal-title" id="customAlertTitle">Notice</h2>
+    </div>
+    <div class="modal-body" style="margin-bottom: 10px;">
+      <p id="customAlertMessage" style="color: #e0e0e0; font-size: 13px; line-height: 1.5; margin: 0;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="customAlertCancelBtn" onclick="closeCustomAlert(false)" style="display: none;">Cancel</button>
+      <button class="btn-primary" id="customAlertOkBtn" onclick="closeCustomAlert(true)">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- Request Item Modal -->
 <div id="requestItemModal" class="modal-overlay">
   <div class="modal-dialog">
@@ -2681,6 +2697,7 @@
           <input type="file" id="loadConfigInput" accept=".ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
           <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="closeMobileMenu();">Export</button>
         </div>
+        <button class="mobile-menu-btn accent" onclick="sendGearListToJared(); closeMobileMenu();" style="margin-top: 8px;">Send to Jared</button>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Custom Items</div>
@@ -3525,7 +3542,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.23';
+const APP_VERSION = '2.5.25';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -4358,7 +4375,7 @@ function saveCustomPanels() {
     localStorage.setItem(STORAGE_KEY_CUSTOM_PANELS, JSON.stringify(customPanels));
   } catch(err) {
     console.error('Error saving custom panels:', err);
-    alert('Error saving custom panel data');
+    showAlert('Error saving custom panel data');
   }
 }
 
@@ -4367,7 +4384,7 @@ function saveCustomProcessors() {
     localStorage.setItem(STORAGE_KEY_CUSTOM_PROCESSORS, JSON.stringify(customProcessors));
   } catch(err) {
     console.error('Error saving custom processors:', err);
-    alert('Error saving custom processor data');
+    showAlert('Error saving custom processor data');
   }
 }
 
@@ -4660,7 +4677,7 @@ function set1wColumn() {
     updateStructureVisualization();
     updateWeightDisplay();
   } else {
-    alert(`Please enter a column number between 1 and ${W}`);
+    showAlert(`Please enter a column number between 1 and ${W}`);
   }
 }
 
@@ -11274,7 +11291,7 @@ function showCircuitNumberPrompt() {
   } else {
     const num = parseInt(circuitNum);
     if(isNaN(num) || num < 1 || num > 999) {
-      alert('Please enter a valid circuit number between 1 and 999');
+      showAlert('Please enter a valid circuit number between 1 and 999');
       return;
     }
     
@@ -11303,7 +11320,7 @@ function showDataLineNumberPrompt() {
   } else {
     const num = parseInt(dataLineNum);
     if(isNaN(num) || num < 1 || num > 999) {
-      alert('Please enter a valid data line number between 1 and 999');
+      showAlert('Please enter a valid data line number between 1 and 999');
       return;
     }
     
@@ -11506,11 +11523,11 @@ function switchToCanvas(canvasId) {
   showCanvasView();
 }
 
-function deleteCanvas(canvasId) {
+async function deleteCanvas(canvasId) {
   const canvasIds = Object.keys(canvases);
   if(canvasIds.length <= 1) return;
 
-  if(!confirm(`Delete "${canvases[canvasId].name}"?`)) return;
+  if(!await showConfirm(`Delete "${canvases[canvasId].name}"?`)) return;
 
   delete canvases[canvasId];
 
@@ -13489,6 +13506,305 @@ function closePdfExportModal() {
   }
 }
 
+// Custom Alert/Confirm Modal Functions
+let _customAlertResolve = null;
+
+function showAlert(message, title) {
+  return new Promise(resolve => {
+    _customAlertResolve = resolve;
+    document.getElementById('customAlertTitle').textContent = title || 'Notice';
+    document.getElementById('customAlertMessage').textContent = message;
+    document.getElementById('customAlertCancelBtn').style.display = 'none';
+    document.getElementById('customAlertOkBtn').textContent = 'OK';
+    document.getElementById('customAlertModal').classList.add('active');
+  });
+}
+
+function showConfirm(message, title) {
+  return new Promise(resolve => {
+    _customAlertResolve = resolve;
+    document.getElementById('customAlertTitle').textContent = title || 'Confirm';
+    document.getElementById('customAlertMessage').textContent = message;
+    document.getElementById('customAlertCancelBtn').style.display = '';
+    document.getElementById('customAlertOkBtn').textContent = 'OK';
+    document.getElementById('customAlertModal').classList.add('active');
+  });
+}
+
+function closeCustomAlert(result) {
+  document.getElementById('customAlertModal').classList.remove('active');
+  if (_customAlertResolve) {
+    _customAlertResolve(result !== false && result !== undefined ? true : false);
+    _customAlertResolve = null;
+  }
+}
+
+// Send Gear List Email
+function sendGearListToJared() {
+  generateGearList();
+
+  const screenIds = Object.keys(screens);
+  if(screenIds.length === 0) {
+    showAlert('No screens to send. Please add at least one screen.');
+    return;
+  }
+
+  const configName = document.getElementById('configName').value.trim() || 'LED Wall Config';
+  const nl = '\n';
+  const line = (label, value) => { if(value === 0 || value === '' || value === null || value === undefined || value === '0') return ''; return ` - ${label} ${value}${nl}`; };
+  const hdr = (title) => `${nl}${title.toUpperCase()}${nl}${'-'.repeat(title.length)}${nl}`;
+
+  let text = `LED GEAR LIST${nl}`;
+  text += `Project: ${configName}${nl}`;
+  text += `======================================${nl}`;
+
+  // Build processor groups (same as generateGearList)
+  const processorGroups = {};
+  screenIds.forEach(sid => {
+    const s = screens[sid];
+    const pt = s.data.processor || 'Brompton_SX40';
+    if(!processorGroups[pt]) processorGroups[pt] = { screens: [], firstScreenId: sid, firstScreenName: s.name, processorCount: 0, distBoxCount: 0, distBoxName: '' };
+    processorGroups[pt].screens.push(sid);
+  });
+  for(const pt in processorGroups) {
+    const grp = processorGroups[pt];
+    let totalPanels = 0;
+    grp.screens.forEach(sid => { totalPanels += (screens[sid].calculatedData || {}).activePanels || 0; });
+    const pr = processors[pt] || processors['Brompton_SX40'];
+    if(pr) {
+      const portsPerProc = pr.ports || 1;
+      const maxPixPerPort = pr.base_pixels_1g || 525000;
+      const firstData = screens[grp.screens[0]].data;
+      const firstPanel = {...panels, ...customPanels}[firstData.panelType || 'CB5_MKII'];
+      if(firstPanel) {
+        const ppp = Math.max(1, Math.floor(maxPixPerPort / (firstPanel.res_x * firstPanel.res_y)));
+        const portsNeeded = Math.ceil(totalPanels / ppp);
+        grp.processorCount = Math.ceil(portsNeeded / portsPerProc);
+        grp.distBoxCount = pr.uses_distbox ? Math.ceil(portsNeeded / (pr.distbox_ports || 4)) : 0;
+        grp.distBoxName = pr.distbox_name || 'Dist Box';
+      }
+    }
+  }
+
+  let isFirstScreen = true;
+  screenIds.forEach(screenId => {
+    const screen = screens[screenId];
+    const data = screen.data;
+    const calcData = screen.calculatedData || {};
+    const W = data.panelsWide;
+    const H = data.panelsHigh;
+    if(W === 0 || H === 0) return;
+
+    const panelType = data.panelType || 'CB5_MKII';
+    const allPanelsObj = {...panels, ...customPanels};
+    const p = allPanelsObj[panelType];
+    if(!p) return;
+
+    const processorType = data.processor || 'Brompton_SX40';
+    const processorGroup = processorGroups[processorType] || null;
+    const isFirstScreenInGroup = processorGroup && processorGroup.firstScreenId === screenId;
+
+    const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
+    const activePanels = calcData.activePanels || calcData.panelCount || 0;
+    const activeHalfPanels = hasCB5HalfRow ? W : 0;
+    const activeFullPanels = activePanels - activeHalfPanels;
+
+    const bumper1wCount = calcData.bumper1wCount || 0;
+    const bumper2wCount = calcData.bumper2wCount || 0;
+    const bumper4wCount = calcData.bumper4wCount || 0;
+    const plates2way = calcData.plates2way || 0;
+    const plates4way = calcData.plates4way || 0;
+    const useBumpers = data.useBumpers !== false;
+    const socaCount = calcData.socaCount || 0;
+    const circuitsNeeded = calcData.circuitsNeeded || 0;
+    const columnsPerCircuit = calcData.columnsPerCircuit || 1;
+    const dataJumperLen = p.data_jumper_ft || '';
+    const dataCrossJumperLen = p.data_cross_jumper_ft || '';
+    const powerJumperLen = p.power_jumper_ft || '';
+    const jumpersBuiltin = p.jumpers_builtin || false;
+    const dataLinesCount = calcData.dataLines || 0;
+
+    // Screen header
+    text += `${nl}${nl}`;
+    text += `${screen.name.toUpperCase()}${nl}`;
+    text += `======================================${nl}`;
+
+    // Equipment
+    text += hdr('Equipment');
+    if(isFirstScreenInGroup && processorGroup && processorGroup.processorCount > 0) {
+      text += line('Processor:', `${processorGroup.processorCount}x ${calcData.processorName || ''}`);
+      if(processorGroup.distBoxCount > 0) text += line(`${processorGroup.distBoxName}:`, processorGroup.distBoxCount);
+    } else if(processorGroup && processorGroup.firstScreenId !== screenId) {
+      text += ` - Processor: See ${processorGroup.firstScreenName}${nl}`;
+    }
+    text += ` - Panels: ${activeFullPanels} x ${p.brand} ${p.name}${nl}`;
+    if(activeHalfPanels > 0) text += ` - Half Panels: ${activeHalfPanels} x ${p.brand} CB5 MKII Half Panel${nl}`;
+
+    // Rigging Hardware
+    const hasRigging = bumper1wCount > 0 || bumper2wCount > 0 || bumper4wCount > 0 || plates4way > 0 || plates2way > 0;
+    if(hasRigging) {
+      text += hdr('Rigging Hardware');
+      text += line('1W Bumpers:', bumper1wCount);
+      text += line('2W Bumpers:', bumper2wCount);
+      text += line('4W Bumpers:', bumper4wCount);
+      text += line('4W Connecting Plates:', plates4way);
+      text += line('2W Connecting Plates:', plates2way);
+      const needsSC = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3'].includes(panelType);
+      const isHanging = (data.structureType || 'hanging') === 'hanging';
+      if(needsSC && isHanging && useBumpers) {
+        let shackleCount = 0;
+        if(panelType === 'INFILED_AMT8_3') shackleCount = bumper1wCount + (bumper2wCount * 2);
+        else shackleCount = bumper1wCount + bumper2wCount;
+        text += line('5/8" Shackles:', shackleCount);
+        text += line('Cheeseye:', shackleCount);
+      }
+    }
+
+    // Ground Support
+    const gs = calcData.groundSupport || {};
+    const hasGS = gs.totalRearTruss > 0 || gs.totalBaseTruss > 0 || gs.totalBridgeClamps > 0 || gs.totalSandbags > 0 || gs.totalPipes > 0 || gs.totalSwivelCheeseboroughs > 0 || gs.totalRearBridgeClampAdapters > 0;
+    if(hasGS) {
+      text += hdr('Ground Support');
+      text += line('Rear Truss:', gs.totalRearTruss);
+      text += line('Base Truss:', gs.totalBaseTruss);
+      text += line('Bridge Clamps:', gs.totalBridgeClamps);
+      text += line('Rear Bridge Adapter:', gs.totalRearBridgeClampAdapters);
+      text += line('Sandbags:', gs.totalSandbags);
+      text += line('Swivel Cheeseborough:', gs.totalSwivelCheeseboroughs);
+      if(gs.totalPipes > 0) {
+        let pipeStr = '';
+        if(gs.pipeInfo && gs.pipeInfo.length > 0) {
+          const uLen = [...new Set(gs.pipeInfo.map(pi => pi.pipeLengthFt))];
+          pipeStr = ' (' + uLen.map(l => l + 'ft').join(', ') + ')';
+        }
+        text += line('Pipe' + pipeStr + ':', gs.totalPipes);
+      }
+    }
+
+    // Floor Hardware
+    if(calcData.floorFrames) {
+      const ff = calcData.floorFrames;
+      if(ff.frame_1x1 > 0 || ff.frame_2x1 > 0 || ff.frame_2x2 > 0 || ff.frame_3x2 > 0) {
+        text += hdr('Floor Hardware');
+        if(ff.frame_3x2 > 0) text += line('3x2 Frame:', ff.frame_3x2);
+        if(ff.frame_2x2 > 0) text += line('2x2 Frame:', ff.frame_2x2);
+        if(ff.frame_2x1 > 0) text += line('2x1 Frame:', ff.frame_2x1);
+        if(ff.frame_1x1 > 0) text += line('1x1 Frame:', ff.frame_1x1);
+      }
+    }
+
+    // Data Cables
+    text += hdr('Data Cables');
+    if(!jumpersBuiltin && dataJumperLen) text += line(`Jumpers ${dataJumperLen}':`, activePanels);
+    if(dataCrossJumperLen) text += line(`Cross Jumpers ${dataCrossJumperLen}':`, '');
+    if(jumpersBuiltin) text += line('Cat5 Couplers:', dataLinesCount);
+    const cabling = calculateCabling(screenId);
+    if(cabling) {
+      const allDataCables = cabling.dataCables || [];
+      const knockoutCables = cabling.knockoutBridgeCables || [];
+      if(allDataCables.length > 0 || knockoutCables.length > 0) {
+        const allDataByLength = {};
+        allDataCables.forEach(c => { allDataByLength[c.roundedFt] = (allDataByLength[c.roundedFt] || 0) + 1; });
+        knockoutCables.forEach(c => { allDataByLength[c.roundedFt] = (allDataByLength[c.roundedFt] || 0) + 1; });
+        for(const [len, count] of Object.entries(allDataByLength).sort((a,b) => a[0] - b[0])) {
+          text += ` - ${count}x ${len}' Cat6${nl}`;
+        }
+      }
+    }
+
+    // Power Cables
+    text += hdr('Power Cables');
+    if(!jumpersBuiltin && powerJumperLen) text += line(`Jumpers ${powerJumperLen}':`, activePanels);
+    text += line('Soca Splays:', socaCount);
+    if(cabling && cabling.socaCables.length > 0) {
+      const socaByLength = {};
+      cabling.socaCables.forEach(s => { socaByLength[s.roundedFt] = (socaByLength[s.roundedFt] || 0) + 1; });
+      for(const [len, count] of Object.entries(socaByLength).sort((a,b) => a[0] - b[0])) {
+        text += ` - ${count}x ${len}' Soca${nl}`;
+      }
+    }
+    text += line("25' True1:", socaCount);
+    text += line("10' True1:", socaCount);
+    text += line("5' True1:", socaCount * 2);
+    if(columnsPerCircuit > 1) text += line('True1 Twofer:', circuitsNeeded * columnsPerCircuit);
+
+    // Processor -> Dist Box
+    if(cabling && cabling.distBoxCables.length > 0) {
+      text += hdr('Processor to Dist Box');
+      const mainBoxCables = cabling.distBoxCables.filter(c => c.label === 'main');
+      const boxCableType = mainBoxCables[0]?.type || 'cat6a';
+      const boxCableRounded = mainBoxCables[0]?.roundedFt || 0;
+      text += ` - ${cabling.distBoxCables.length}x ${boxCableType === 'fiber' ? 'Fiber' : 'Cat6A'} ${boxCableRounded}'${nl}`;
+    }
+
+    // Signal Cables (first screen only)
+    if(isFirstScreen) {
+      text += hdr('Signal Cables');
+      const procCount = processorGroup ? processorGroup.processorCount : 0;
+      const sdiPerProcessor = procCount * 2;
+      const canvasSize = data.canvasSize || '4K_UHD';
+      const isHDCanvas = canvasSize === 'HD' || (canvasSize === 'custom' &&
+        (parseInt(data.customCanvasWidth) || 1920) <= 1920 &&
+        (parseInt(data.customCanvasHeight) || 1080) <= 1080);
+      const sdiType = isHDCanvas ? '3G SDI' : '12G SDI';
+      const sdiCounts = {};
+      if(isHDCanvas) {
+        sdiCounts[100] = sdiPerProcessor; sdiCounts[50] = sdiPerProcessor;
+        sdiCounts[25] = sdiPerProcessor; sdiCounts[10] = 6; sdiCounts[3] = 6;
+      } else {
+        sdiCounts[100] = sdiPerProcessor; sdiCounts[50] = sdiPerProcessor; sdiCounts[25] = sdiPerProcessor;
+      }
+      if(cabling && cabling.serverCable) {
+        const serverLen = cabling.serverCable.lengthFt || 0;
+        if(serverLen > 0 && serverLen <= 300) {
+          const sdiLen = roundUpToStandard(serverLen);
+          sdiCounts[sdiLen] = (sdiCounts[sdiLen] || 0) + 2;
+        }
+      }
+      for(const len of Object.keys(sdiCounts).map(Number).sort((a,b) => b - a)) {
+        if(sdiCounts[len] > 0) text += line(`${len}' ${sdiType}:`, sdiCounts[len]);
+      }
+      text += line("25' HDMI:", 6);
+      text += line("10' HDMI:", 6);
+      text += line("6' HDMI:", 6);
+    }
+
+    // Utility (first screen only)
+    if(isFirstScreen) {
+      text += hdr('Utility');
+      text += line("UG 10':", 8);
+      text += line("UG 25':", 6);
+      text += line("UG 50':", 6);
+      text += line('UG Twofers:', 8);
+      text += line('Power Bars:', 8);
+    }
+
+    // Spares
+    text += hdr('Spares');
+    text += ` - Spare Soca Splays:${nl}`;
+    text += ` - Spare Panel Count:${nl}`;
+    if(!jumpersBuiltin && dataJumperLen) text += ` - Spare Data Jumpers ${dataJumperLen}':${nl}`;
+    if(jumpersBuiltin) text += ` - Spare Cat5 Couplers:${nl}`;
+    if(!jumpersBuiltin && powerJumperLen) text += ` - Spare Power Jumpers ${powerJumperLen}':${nl}`;
+
+    isFirstScreen = false;
+  });
+
+  const email = 'JYoung@apexsound.com';
+  const subject = encodeURIComponent(`LED Gear List - ${configName}`);
+  const encodedBody = encodeURIComponent(text);
+
+  let mailtoUrl = `mailto:${email}?subject=${subject}&body=${encodedBody}`;
+  if(mailtoUrl.length > 16000) {
+    const truncNote = '\n\n(Gear list truncated due to email length limits - see full list in app)';
+    const maxBodyLen = 14000 - subject.length - email.length;
+    const truncBody = encodeURIComponent(text.substring(0, maxBodyLen) + truncNote);
+    mailtoUrl = `mailto:${email}?subject=${subject}&body=${truncBody}`;
+  }
+
+  window.location.href = mailtoUrl;
+}
+
 function confirmPdfExport() {
   // Save the options
   pdfExportOptions.specs = document.getElementById('pdfExportSpecs').checked;
@@ -13524,7 +13840,7 @@ function exportPDF(){
     }
 
     if(!window.jspdf || !window.html2canvas){
-      alert('PDF export libraries not loaded. Please check your internet connection and refresh the page.');
+      showAlert('PDF export libraries not loaded. Please check your internet connection and refresh the page.');
       ecoPrintMode = false; // Reset on error
       greyscalePrintMode = false;
       return;
@@ -15482,7 +15798,7 @@ function exportPDF(){
     
   } catch(err) {
     console.error('PDF export error:', err);
-    alert('Error exporting PDF: ' + err.message);
+    showAlert('Error exporting PDF: ' + err.message);
     // Make sure to remove overlay and reset print modes on error
     const overlay = document.getElementById('pdfExportOverlay');
     if(overlay) overlay.remove();
@@ -15501,7 +15817,7 @@ function exportCanvas(){
   try {
     const canvas = document.getElementById('canvasView');
     if(canvas.width === 0 || document.getElementById('canvasContainer').style.display === 'none'){
-      alert('Please generate a canvas view first by clicking "Calculate".');
+      showAlert('Please generate a canvas view first by clicking "Calculate".');
       return;
     }
     
@@ -15567,7 +15883,7 @@ function exportCanvas(){
 
     exportCanvas.toBlob(function(blob) {
       if(!blob) {
-        alert('Failed to create image. Please try again.');
+        showAlert('Failed to create image. Please try again.');
         return;
       }
 
@@ -15586,7 +15902,7 @@ function exportCanvas(){
       }, 100);
     }, mimeType, quality);
   } catch(err) {
-    alert('Error exporting canvas: ' + err.message);
+    showAlert('Error exporting canvas: ' + err.message);
     console.error('Export error:', err);
   }
 }
@@ -15596,7 +15912,7 @@ function exportResolumeXML(filename) {
   try {
     const screenKeys = Object.keys(screens);
     if(screenKeys.length === 0) {
-      alert('No screens to export. Please add at least one screen.');
+      showAlert('No screens to export. Please add at least one screen.');
       return;
     }
 
@@ -15753,7 +16069,7 @@ function exportResolumeXML(filename) {
     }, 100);
 
   } catch(err) {
-    alert('Error exporting Resolume XML: ' + err.message);
+    showAlert('Error exporting Resolume XML: ' + err.message);
     console.error('Resolume export error:', err);
   }
 }
@@ -15946,7 +16262,7 @@ function saveCustomPanel() {
   const name = document.getElementById('customPanelName').value.trim();
 
   if(!brand || !name) {
-    alert('Please enter brand and name');
+    showAlert('Please enter brand and name');
     return;
   }
 
@@ -16037,7 +16353,7 @@ function saveCustomPanel() {
   }
 
   closeCustomPanelModal();
-  alert(`Custom panel "${brand} ${name}" saved successfully!`);
+  showAlert(`Custom panel "${brand} ${name}" saved successfully!`);
 }
 
 // Request Item Modal
@@ -16078,7 +16394,7 @@ function sendItemRequest() {
   const notes = document.getElementById('requestNotes').value.trim();
 
   if(!brand || !model) {
-    alert('Please enter both brand and model name');
+    showAlert('Please enter both brand and model name');
     return;
   }
 
@@ -16104,9 +16420,9 @@ function sendItemRequest() {
 }
 
 // Delete custom panel
-function deleteCustomPanel(key) {
+async function deleteCustomPanel(key) {
   const panel = customPanels[key];
-  if(confirm(`Delete custom panel "${panel.brand} ${panel.name}"?`)) {
+  if(await showConfirm(`Delete custom panel "${panel.brand} ${panel.name}"?`)) {
     delete customPanels[key];
     saveCustomPanels();
     updatePanelDropdowns();
@@ -16115,9 +16431,9 @@ function deleteCustomPanel(key) {
 }
 
 // Delete custom processor
-function deleteCustomProcessor(key) {
+async function deleteCustomProcessor(key) {
   const proc = customProcessors[key];
-  if(confirm(`Delete custom processor "${proc.name}"?`)) {
+  if(await showConfirm(`Delete custom processor "${proc.name}"?`)) {
     delete customProcessors[key];
     saveCustomProcessors();
     updateProcessorDropdowns();
@@ -16448,7 +16764,7 @@ function saveConfiguration() {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
   
-  alert(`Configuration "${configName}" saved successfully!`);
+  showAlert(`Configuration "${configName}" saved successfully!`);
 }
 
 function loadConfiguration(event) {
@@ -16566,7 +16882,7 @@ function loadConfiguration(event) {
           }
         }, 100);
 
-        alert(`Configuration "${config.name}" loaded successfully! (${Object.keys(screens).length} screens)`);
+        showAlert(`Configuration "${config.name}" loaded successfully! (${Object.keys(screens).length} screens)`);
       } else {
         // Legacy v1.0 single-screen config - load into current screen
         document.getElementById('panelType').value = config.panelType || 'BP2_V2';
@@ -16644,13 +16960,13 @@ function loadConfiguration(event) {
         updateSuggestedDataLimit();
         calculate();
         
-        alert(`Configuration "${config.name}" loaded successfully! (Legacy format)`);
+        showAlert(`Configuration "${config.name}" loaded successfully! (Legacy format)`);
       }
       
       // Reset file input
       event.target.value = '';
     } catch(err) {
-      alert('Error loading configuration: ' + err.message);
+      showAlert('Error loading configuration: ' + err.message);
       console.error('Load error:', err);
     }
   };
@@ -17163,7 +17479,7 @@ function updateMX40ModeToggleVisibility() {
     console.log('Initialization complete - v55.6 Multi-Screen');
   } catch(err) {
     console.error('Initialization error:', err);
-    alert('Error initializing calculator: ' + err.message);
+    showAlert('Error initializing calculator: ' + err.message);
   }
 });
 
@@ -17883,7 +18199,7 @@ function addNewScreen() {
 
 function deleteScreen(screenId) {
   if(Object.keys(screens).length === 1) {
-    alert('Cannot delete the last screen');
+    showAlert('Cannot delete the last screen');
     return;
   }
 
@@ -17959,7 +18275,7 @@ function closeScreenRenameModal() {
 function saveScreenRename() {
   const newName = document.getElementById('screenRenameInput').value.trim();
   if(!newName) {
-    alert('Please enter a screen name');
+    showAlert('Please enter a screen name');
     return;
   }
   
@@ -17982,7 +18298,7 @@ function saveScreenRename() {
 
 function duplicateScreen() {
   if(!screenToRename || !screens[screenToRename]) {
-    alert('No screen selected to duplicate');
+    showAlert('No screen selected to duplicate');
     return;
   }
 

@@ -310,11 +310,11 @@
       justify-content: center;
       color: var(--primary);
       text-decoration: none;
-      font-size: 13px;
-      font-family: 'Bangers', cursive;
-      font-weight: normal;
+      font-size: 11px;
+      font-family: 'Roboto Condensed', sans-serif;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 1.5px;
+      letter-spacing: 1px;
       padding: 8px 4px;
       -webkit-tap-highlight-color: transparent;
       cursor: pointer;
@@ -367,11 +367,11 @@
       border: none;
       border-right: 2px solid #000;
       cursor: pointer;
-      font-family: 'Bangers', cursive;
-      font-size: 13px;
-      font-weight: normal;
+      font-family: 'Roboto Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 1.5px;
+      letter-spacing: 1px;
       transition: all 0.1s;
     }
 
@@ -400,7 +400,7 @@
     }
 
     .nav-item-label {
-      font-size: 13px;
+      font-size: 11px;
       line-height: 1;
     }
 
@@ -3525,7 +3525,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.22';
+const APP_VERSION = '2.5.23';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -21867,13 +21867,15 @@ function renderCombinedGearList(selectedScreenIds) {
     <button class="nav-toggle-btn" data-mode="combined" onclick="switchAppMode('combined')">
       <span>Combined</span>
     </button>
+  </div>
+  <div class="nav-mode-toggle" style="flex: 1;">
     <button class="nav-toggle-btn" data-mode="gear" onclick="switchAppMode('gear')">
       <span>Gear</span>
     </button>
+    <button class="nav-toggle-btn" data-view="canvas" onclick="switchMobileView('canvas')">
+      <span>Canvas</span>
+    </button>
   </div>
-  <button class="nav-item" data-view="canvas" onclick="switchMobileView('canvas')">
-    <span class="nav-item-label">Canvas</span>
-  </button>
 </nav>
 
 <script>
@@ -21938,17 +21940,10 @@ function switchAppMode(mode) {
 function switchMobileView(view) {
   currentMobileView = view;
 
-  // Update nav items (for canvas button)
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.classList.toggle('active', item.dataset.view === view);
+  // Update all toggle buttons - match by data-mode or data-view
+  document.querySelectorAll('.nav-toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === view || btn.dataset.view === view);
   });
-
-  // Update toggle buttons based on view
-  if(view === 'complex' || view === 'simple' || view === 'combined' || view === 'gear') {
-    document.querySelectorAll('.nav-toggle-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.mode === view);
-    });
-  }
 
   // Get all containers
   const mainContainer = document.querySelector('.main-container');

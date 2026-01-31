@@ -1198,7 +1198,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.29';
+const APP_VERSION = '2.5.30';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // ==================== SECURITY UTILITIES ====================
@@ -13582,15 +13582,26 @@ function exportCanvas(){
         return;
       }
 
+      const fullFilename = filename + extension;
+
+      // Mobile: use share API for native "Save to Files" option
+      if(navigator.canShare) {
+        const file = new File([blob], fullFilename, { type: mimeType });
+        if(navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file] }).catch(function() {});
+          return;
+        }
+      }
+
+      // Fallback: direct download
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = filename + extension;
+      link.download = fullFilename;
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
 
-      // Cleanup
       setTimeout(function() {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
@@ -13747,17 +13758,28 @@ function exportResolumeXML(filename) {
   </ScreenSetup>
 </XmlState>`;
 
-    // Create blob and download
+    // Create blob and download/share
     const blob = new Blob([xml], { type: 'application/xml' });
+    const xmlFilename = filename + '.xml';
+
+    // Mobile: use share API for native "Save to Files" option
+    if(navigator.canShare) {
+      const file = new File([blob], xmlFilename, { type: 'application/xml' });
+      if(navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file] }).catch(function() {});
+        return;
+      }
+    }
+
+    // Fallback: direct download
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = filename + '.xml';
+    link.download = xmlFilename;
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
 
-    // Cleanup
     setTimeout(function() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
@@ -14476,8 +14498,7 @@ async function saveConfiguration() {
     // Mobile (iOS/Android): native share sheet with "Save to Files" option
     try {
       await navigator.share({
-        files: [new File([blob], fileName, { type: 'application/json' })],
-        title: configName
+        files: [new File([blob], fileName, { type: 'application/json' })]
       });
       showAlert(`Configuration "${configName}" saved successfully!`);
     } catch(e) {

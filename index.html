@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.5';
+const APP_VERSION = '2.5.6';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18805,7 +18805,7 @@ function generateGearList() {
   const sectionHdr = (title, color) => `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #444; margin-bottom: 4px;"><strong style="color: ${color}; font-size: 13px;">${title}</strong></div>`;
   const gearLine = (label, value) => {
     if(value === 0 || value === '' || value === null || value === undefined || value === '0') return '';
-    return `<div style="margin-left: 12px;"><span style="color: #999;">${label}</span> ${value}</div>`;
+    return `<div style="margin-left: 12px;"><span style="color: #fff;">${label}</span> ${value}</div>`;
   };
 
   let html = '<div style="font-size: 14px;">';
@@ -18940,13 +18940,13 @@ function generateGearList() {
         html += gearLine(`${processorGroup.distBoxName}:`, processorGroup.distBoxCount);
       }
     } else if(processorGroup && processorGroup.firstScreenName && processorGroup.firstScreenId !== screenId) {
-      html += `<div style="margin-left: 12px; color: #999;">Processor: See ${processorGroup.firstScreenName}</div>`;
+      html += `<div style="margin-left: 12px; color: #fff;">Processor: See ${processorGroup.firstScreenName}</div>`;
     }
     html += gearLine('Panel Count:', activePanels);
-    html += `<div style="margin-left: 24px; font-size: 12px; color: #bbb;">${activeFullPanels}x ${p.brand} ${p.name}</div>`;
+    html += `<div style="margin-left: 24px; font-size: 12px; color: #fff;">${activeFullPanels}x ${p.brand} ${p.name}</div>`;
     if(activeHalfPanels > 0) {
       const halfPanel = allPanelsObj['CB5_MKII_HALF'];
-      html += `<div style="margin-left: 24px; font-size: 12px; color: #bbb;">${activeHalfPanels}x ${p.brand} ${halfPanel ? halfPanel.name : 'CB5 MKII Half Panel'}</div>`;
+      html += `<div style="margin-left: 24px; font-size: 12px; color: #fff;">${activeHalfPanels}x ${p.brand} ${halfPanel ? halfPanel.name : 'CB5 MKII Half Panel'}</div>`;
     }
 
     // === RIGGING HARDWARE ===
@@ -19008,10 +19008,10 @@ function generateGearList() {
     html += sectionHdr('Data Cables', '#4ecdc4');
     // Jumpers and couplers
     if(!jumpersBuiltin && dataJumperLen) {
-      html += gearLine(`Data Jumpers ${dataJumperLen}':`, activePanels);
+      html += gearLine(`Jumpers ${dataJumperLen}':`, activePanels);
     }
     if(dataCrossJumperLen && dataCrossJumperCount > 0) {
-      html += gearLine(`Data Cross Jumpers ${dataCrossJumperLen}':`, dataCrossJumperCount);
+      html += gearLine(`Cross Jumpers ${dataCrossJumperLen}':`, dataCrossJumperCount);
     }
     if(jumpersBuiltin) {
       const totalCat5Couplers = dataCrossJumperCount + dataLinesCount;
@@ -19032,12 +19032,12 @@ function generateGearList() {
         }
         // Detail dropdown at end of section
         const primaryCables = allDataCables.filter(c => !c.backup);
-        html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
+        html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #fff; font-size: 12px;">Detail</summary>`;
         primaryCables.forEach(c => {
-          html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">Line ${c.lineIndex}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
+          html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">Line ${c.lineIndex}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
         });
         knockoutCables.forEach((c, idx) => {
-          html += `<div style="margin-left: 12px; font-size: 12px; color: #ffab40;">Knockout ${idx + 1} (P${c.fromPanel} → P${c.toPanel}): ${c.lengthFt}' → ${c.roundedFt}'</div>`;
+          html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">Knockout ${idx + 1} (P${c.fromPanel} → P${c.toPanel}): ${c.lengthFt}' → ${c.roundedFt}'</div>`;
         });
         html += `</details>`;
       }
@@ -19046,7 +19046,7 @@ function generateGearList() {
     // === POWER CABLES ===
     html += sectionHdr('Power Cables', '#ff9800');
     if(!jumpersBuiltin && powerJumperLen) {
-      html += gearLine(`Power Jumpers ${powerJumperLen}':`, activePanels);
+      html += gearLine(`Jumpers ${powerJumperLen}':`, activePanels);
     }
     html += gearLine('Soca Splays:', socaCount);
     // Computed SOCA cable lengths
@@ -19068,9 +19068,9 @@ function generateGearList() {
     }
     // SOCA detail dropdown at end of section
     if(hasSocaDetail) {
-      html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
+      html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #fff; font-size: 12px;">Detail</summary>`;
       cabling.socaCables.forEach(s => {
-        html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">SOCA ${s.index}: ${s.lengthFt}' → ${s.roundedFt}'</div>`;
+        html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">SOCA ${s.index}: ${s.lengthFt}' → ${s.roundedFt}'</div>`;
       });
       html += `</details>`;
     }

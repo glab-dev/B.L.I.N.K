@@ -3538,12 +3538,37 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.25';
+const APP_VERSION = '2.5.26';
 console.log('JavaScript loaded - v' + APP_VERSION);
+
+// ==================== SECURITY UTILITIES ====================
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = String(str);
+  return div.innerHTML;
+}
+
+function escapeJsString(str) {
+  return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    .replace(/"/g, '\\"').replace(/</g, '\\x3c').replace(/>/g, '\\x3e');
+}
+
+function escapeXml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+function isValidHexColor(str) {
+  return typeof str === 'string' && /^#[0-9a-fA-F]{6,8}$/.test(str);
+}
+
+function safeColor(color, fallback) {
+  return isValidHexColor(color) ? color : (fallback || '#10b981');
+}
 
 // Set version number in menu when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
@@ -4351,17 +4376,31 @@ let customPanels = {};
 let customProcessors = {};
 
 // Load custom data from localStorage
+function validateCustomData(parsed) {
+  if(!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+  const safe = {};
+  const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
+  Object.keys(parsed).forEach(key => {
+    if(dangerousKeys.includes(key)) return;
+    const entry = parsed[key];
+    if(!entry || typeof entry !== 'object') return;
+    if(typeof entry.brand !== 'string' || typeof entry.name !== 'string') return;
+    safe[key] = entry;
+  });
+  return safe;
+}
+
 function loadCustomData() {
   try {
     const panelsData = localStorage.getItem(STORAGE_KEY_CUSTOM_PANELS);
     if(panelsData) {
-      customPanels = JSON.parse(panelsData);
+      customPanels = validateCustomData(JSON.parse(panelsData));
       console.log('Loaded custom panels:', Object.keys(customPanels).length);
     }
-    
+
     const processorsData = localStorage.getItem(STORAGE_KEY_CUSTOM_PROCESSORS);
     if(processorsData) {
-      customProcessors = JSON.parse(processorsData);
+      customProcessors = validateCustomData(JSON.parse(processorsData));
       console.log('Loaded custom processors:', Object.keys(customProcessors).length);
     }
   } catch(err) {
@@ -6673,7 +6712,7 @@ function calculate(){
     // SIMPLE MODE - Condensed specs
     // Panel specs
     html += `<div class="result-section-title">PANEL</div>`;
-    html += `<div class="result-row"><strong>Panel:</strong> ${p.brand} ${p.name}</div>`;
+    html += `<div class="result-row"><strong>Panel:</strong> ${escapeHtml(p.brand)} ${escapeHtml(p.name)}</div>`;
     html += `<div class="result-row"><strong>Pixel pitch:</strong> ${p.pixel_pitch_mm} mm</div>`;
     html += `<div class="result-row"><strong>Panel size:</strong> ${panelWidthDisplay} ${lenUnit} × ${panelHeightDisplay} ${lenUnit}</div>`;
     html += `<div class="result-row"><strong>Panel res:</strong> ${p.res_x} × ${p.res_y}</div>`;
@@ -6705,7 +6744,7 @@ function calculate(){
   } else {
     // COMPLEX MODE - Full specs (original)
     // PANEL Section
-    html += `<div class="result-row"><strong>Panel:</strong> ${p.brand} ${p.name}</div>`;
+    html += `<div class="result-row"><strong>Panel:</strong> ${escapeHtml(p.brand)} ${escapeHtml(p.name)}</div>`;
     html += `<div class="result-row"><strong>Pixel pitch:</strong> ${p.pixel_pitch_mm} mm</div>`;
     html += `<div class="result-row"><strong>Panel size:</strong> ${panelWidthDisplay} ${lenUnit} × ${panelHeightDisplay} ${lenUnit}</div>`;
     html += `<div class="result-row"><strong>Panel res:</strong> ${p.res_x} × ${p.res_y}</div>`;
@@ -6792,13 +6831,13 @@ function calculate(){
     // DATA Section
     html += `<br>`;
     html += `<div class="result-section-title">DATA</div>`;
-    let processorDisplayName = pr.name;
+    let processorDisplayName = escapeHtml(pr.name);
     if(pr.in_development) {
       processorDisplayName = processorDisplayName.replace('(in development)', '<span style="color: #d47a7a;">(in development)</span>');
     }
     html += `<div class="result-row"><strong>Processor:</strong> ${processorDisplayName}</div>`;
     if(distributionBoxName) {
-      html += `<div class="result-row"><strong>Distribution box:</strong> ${distributionBoxName}${distributionCount > 0 ? ` (${distributionCount})` : ''}</div>`;
+      html += `<div class="result-row"><strong>Distribution box:</strong> ${escapeHtml(distributionBoxName)}${distributionCount > 0 ? ` (${distributionCount})` : ''}</div>`;
     }
     html += `<div class="result-row"><strong>Port Capacity:</strong> ${adjustedCapacity.toLocaleString()} px</div>`;
     html += `<div class="result-row"><strong>Max panels per data line:</strong> ${suggestedPanelsPerData}</div>`;
@@ -11478,7 +11517,7 @@ function renderCanvasTabs() {
     const isActive = canvasId === currentCanvasId;
     html += `
       <div class="screen-tab ${isActive ? 'active' : ''}" onclick="switchToCanvas('${canvasId}')">
-        <span class="screen-tab-name">${canvas.name}</span>
+        <span class="screen-tab-name">${escapeHtml(canvas.name)}</span>
         <button class="screen-tab-edit" onclick="event.stopPropagation(); openCanvasRenameModal('${canvasId}')" title="Edit canvas">✎</button>
         <button class="screen-tab-close" onclick="event.stopPropagation(); deleteCanvas('${canvasId}')" title="Delete canvas" style="${canvasIds.length <= 1 ? 'visibility: hidden;' : ''}">×</button>
       </div>`;
@@ -11546,7 +11585,7 @@ function openCanvasRenameModal(canvasId) {
   if(!canvas) return;
   const newName = prompt('Rename canvas:', canvas.name);
   if(newName && newName.trim()) {
-    canvas.name = newName.trim();
+    canvas.name = newName.trim().substring(0, 50);
     renderCanvasTabs();
   }
 }
@@ -12038,7 +12077,7 @@ function updateCanvasInfoDisplay() {
     const screen = screens[selectedCanvasScreenId];
     const x = screen.data.canvasX || 0;
     const y = screen.data.canvasY || 0;
-    html += `<br><span style="color: var(--primary);">Selected: ${screen.name} (X: ${x}, Y: ${y})</span>`;
+    html += `<br><span style="color: var(--primary);">Selected: ${escapeHtml(screen.name)} (X: ${x}, Y: ${y})</span>`;
   }
 
   infoEl.innerHTML = html;
@@ -15982,7 +16021,7 @@ function exportResolumeXML(filename) {
       slicesXml += `
           <Slice>
             <Params name="Common">
-              <Param name="Name" default="Layer" value="${screen.name || 'Screen'}"/>
+              <Param name="Name" default="Layer" value="${escapeXml(screen.name || 'Screen')}"/>
             </Params>
             <InputRect orientation="0">${inputVertices}
             </InputRect>
@@ -16028,7 +16067,7 @@ function exportResolumeXML(filename) {
     // Build complete XML matching Resolume Arena 7 format
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 
-<XmlState name="${filename}">
+<XmlState name="${escapeXml(filename)}">
   <versionInfo name="Resolume Arena" majorVersion="7" minorVersion="23" microVersion="2"
                revision="51094"/>
   <ScreenSetup name="ScreenSetup">
@@ -16456,10 +16495,10 @@ function openManageCustomModal() {
       const panel = customPanels[key];
       panelsHtml += `
         <div class="custom-item">
-          <div class="custom-item-name">${panel.brand} ${panel.name}</div>
+          <div class="custom-item-name">${escapeHtml(panel.brand)} ${escapeHtml(panel.name)}</div>
           <div class="custom-item-actions">
-            <button class="btn-small" onclick="openCustomPanelModal('${key}'); closeManageCustomModal();">Edit</button>
-            <button class="btn-small danger" onclick="deleteCustomPanel('${key}')">Delete</button>
+            <button class="btn-small" onclick="openCustomPanelModal('${escapeJsString(key)}'); closeManageCustomModal();">Edit</button>
+            <button class="btn-small danger" onclick="deleteCustomPanel('${escapeJsString(key)}')">Delete</button>
           </div>
         </div>
       `;
@@ -16770,64 +16809,101 @@ function saveConfiguration() {
 function loadConfiguration(event) {
   const file = event.target.files[0];
   if(!file) return;
-  
+
+  // File size check (max 10MB)
+  if(file.size > 10 * 1024 * 1024) {
+    showAlert('Configuration file is too large (max 10MB).');
+    return;
+  }
+
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
       const config = JSON.parse(e.target.result);
-      
+
       // Verify version
       if(!config.version) {
         throw new Error('Invalid configuration file');
       }
-      
+
       // Check if this is a v2.0 multi-screen config
       if(config.version === '2.0' && config.screens) {
+        // Validate config.screens is a plain object
+        if(typeof config.screens !== 'object' || config.screens === null || Array.isArray(config.screens)) {
+          throw new Error('Invalid screens data in configuration file');
+        }
+
         // Load multi-screen configuration
-        
+
         // Clear existing screens UI
         const tabsContainer = document.getElementById('screenTabsContainer');
         if(tabsContainer) {
           tabsContainer.innerHTML = '';
         }
-        
+
         // Reset screens object
         screens = {};
-        
+
+        // Filter screen IDs to prevent prototype pollution
+        const safeScreenIds = Object.keys(config.screens).filter(id =>
+          /^screen_\d+$/.test(id)
+        );
+
         // Restore screens data
-        Object.keys(config.screens).forEach(screenId => {
+        safeScreenIds.forEach(screenId => {
           const savedScreen = config.screens[screenId];
-          
+          if(!savedScreen || typeof savedScreen !== 'object') return;
+
+          // Validate screen name
+          const screenName = (typeof savedScreen.name === 'string')
+            ? savedScreen.name.substring(0, 50)
+            : 'Screen';
+
           // Safely restore deletedPanels
           let deletedPanelsSet = new Set();
-          if(Array.isArray(savedScreen.data.deletedPanels)) {
+          if(savedScreen.data && Array.isArray(savedScreen.data.deletedPanels)) {
             deletedPanelsSet = new Set(savedScreen.data.deletedPanels);
           }
-          
+
           // Safely restore customCircuitAssignments
           let circuitAssignmentsMap = new Map();
-          if(Array.isArray(savedScreen.data.customCircuitAssignments)) {
+          if(savedScreen.data && Array.isArray(savedScreen.data.customCircuitAssignments)) {
             circuitAssignmentsMap = new Map(savedScreen.data.customCircuitAssignments);
           }
-          
+
           // Safely restore customDataLineAssignments
           let dataLineAssignmentsMap = new Map();
-          if(Array.isArray(savedScreen.data.customDataLineAssignments)) {
+          if(savedScreen.data && Array.isArray(savedScreen.data.customDataLineAssignments)) {
             dataLineAssignmentsMap = new Map(savedScreen.data.customDataLineAssignments);
           }
-          
+
           // Get screen index for default colors
           const screenIndex = Object.keys(screens).length;
           const defaultColor = screenColors[screenIndex] || '#808080';
           const defaultColor2 = screenColors2[screenIndex] || '#606060';
-          
+
+          // Validate colors
+          const screenColor = isValidHexColor(savedScreen.color) ? savedScreen.color : defaultColor;
+          const screenColor2 = isValidHexColor(savedScreen.color2) ? savedScreen.color2 : defaultColor2;
+
+          // Safely spread data, filtering dangerous keys
+          const safeData = {};
+          if(savedScreen.data && typeof savedScreen.data === 'object' && !Array.isArray(savedScreen.data)) {
+            const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
+            Object.keys(savedScreen.data).forEach(key => {
+              if(!dangerousKeys.includes(key)) {
+                safeData[key] = savedScreen.data[key];
+              }
+            });
+          }
+
           screens[screenId] = {
-            name: savedScreen.name,
-            color: savedScreen.color || defaultColor,
-            color2: savedScreen.color2 || defaultColor2,
+            name: screenName,
+            color: screenColor,
+            color2: screenColor2,
             visible: savedScreen.visible !== false,
             data: {
-              ...savedScreen.data,
+              ...safeData,
               deletedPanels: deletedPanelsSet,
               customCircuitAssignments: circuitAssignmentsMap,
               customDataLineAssignments: dataLineAssignmentsMap
@@ -16835,14 +16911,18 @@ function loadConfiguration(event) {
             calculatedData: savedScreen.calculatedData || {}
           };
         });
+
+        // Restore counters with validation
+        screenIdCounter = (typeof config.screenIdCounter === 'number' && config.screenIdCounter > 0)
+          ? config.screenIdCounter
+          : Object.keys(screens).length;
+        currentScreenId = (typeof config.currentScreenId === 'string' && /^screen_\d+$/.test(config.currentScreenId))
+          ? config.currentScreenId
+          : 'screen_1';
         
-        // Restore counters
-        screenIdCounter = config.screenIdCounter || Object.keys(screens).length;
-        currentScreenId = config.currentScreenId || 'screen_1';
-        
-        // Restore global settings
-        displayLengthUnit = config.displayLengthUnit || 'ft';
-        displayWeightUnit = config.displayWeightUnit || 'lbs';
+        // Restore global settings with validation
+        displayLengthUnit = (config.displayLengthUnit === 'ft' || config.displayLengthUnit === 'm') ? config.displayLengthUnit : 'ft';
+        displayWeightUnit = (config.displayWeightUnit === 'lbs' || config.displayWeightUnit === 'kg') ? config.displayWeightUnit : 'lbs';
         
         // Update unit buttons
         const isImperial = displayLengthUnit === 'ft';
@@ -17705,10 +17785,10 @@ function renderScreenTabs() {
     const isActive = screenId === currentScreenId;
     html += `
       <div class="screen-tab ${isActive ? 'active' : ''}"
-           onclick="switchToScreen('${screenId}')">
-        <span class="screen-tab-name">${screen.name}</span>
-        <button class="screen-tab-edit" onclick="event.stopPropagation(); openScreenRenameModal('${screenId}')" title="Edit screen">✎</button>
-        ${screenIds.length > 1 ? `<button class="screen-tab-close" onclick="event.stopPropagation(); deleteScreen('${screenId}')" title="Delete screen">×</button>` : ''}
+           onclick="switchToScreen('${escapeJsString(screenId)}')">
+        <span class="screen-tab-name">${escapeHtml(screen.name)}</span>
+        <button class="screen-tab-edit" onclick="event.stopPropagation(); openScreenRenameModal('${escapeJsString(screenId)}')" title="Edit screen">✎</button>
+        ${screenIds.length > 1 ? `<button class="screen-tab-close" onclick="event.stopPropagation(); deleteScreen('${escapeJsString(screenId)}')" title="Delete screen">×</button>` : ''}
       </div>
     `;
   });
@@ -18273,12 +18353,12 @@ function closeScreenRenameModal() {
 }
 
 function saveScreenRename() {
-  const newName = document.getElementById('screenRenameInput').value.trim();
+  const newName = document.getElementById('screenRenameInput').value.trim().substring(0, 50);
   if(!newName) {
     showAlert('Please enter a screen name');
     return;
   }
-  
+
   if(screenToRename && screens[screenToRename]) {
     screens[screenToRename].name = newName;
     screens[screenToRename].color = document.getElementById('screenColorInput').value;
@@ -18357,24 +18437,26 @@ function updateCanvasScreenToggles() {
     const showCrosshair = screen.showCrosshair !== false;
 
     const textOutline = 'text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;';
+    const safeScreenColor = safeColor(screen.color);
+    const safeScreenId = escapeJsString(screenId);
     html += `
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; padding: 4px 6px; background: #333; border-radius: 4px;">
         <button type="button" class="toggle-btn ${screen.visible ? 'active' : ''}"
                 style="padding: 3px 6px; font-size: 10px; min-height: 24px; line-height: 1; display: inline-flex; align-items: center; gap: 4px; width: 110px; justify-content: flex-start; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${screen.visible ? textOutline : ''}"
-                onclick="toggleScreenVisibility('${screenId}', ${!screen.visible})">
-          <span style="display: inline-block; width: 10px; height: 10px; background: ${screen.color}; border: 1px solid #666; flex-shrink: 0;"></span>
-          ${screen.name}
+                onclick="toggleScreenVisibility('${safeScreenId}', ${!screen.visible})">
+          <span style="display: inline-block; width: 10px; height: 10px; background: ${safeScreenColor}; border: 1px solid #666; flex-shrink: 0;"></span>
+          ${escapeHtml(screen.name)}
         </button>
         <div style="display: flex; gap: 4px;">
           <button type="button" class="toggle-btn ${showCoords ? 'active' : ''}"
                   style="padding: 3px 6px; font-size: 10px; min-width: 28px; min-height: 24px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showCoords ? textOutline : ''}"
-                  onclick="toggleScreenCoordinates('${screenId}')">X/Y</button>
+                  onclick="toggleScreenCoordinates('${safeScreenId}')">X/Y</button>
           <button type="button" class="toggle-btn ${showPixels ? 'active' : ''}"
                   style="padding: 3px 6px; font-size: 10px; min-width: 38px; min-height: 24px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showPixels ? textOutline : ''}"
-                  onclick="toggleScreenPixelDimensions('${screenId}')">Pixels</button>
+                  onclick="toggleScreenPixelDimensions('${safeScreenId}')">Pixels</button>
           <button type="button" class="toggle-btn ${showCrosshair ? 'active' : ''}"
                   style="padding: 3px 6px; font-size: 10px; min-width: 24px; min-height: 24px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showCrosshair ? textOutline : ''}"
-                  onclick="toggleScreenCrosshair('${screenId}')" title="Show X crosshair">X</button>
+                  onclick="toggleScreenCrosshair('${safeScreenId}')" title="Show X crosshair">X</button>
         </div>
       </div>
     `;
@@ -19251,23 +19333,24 @@ function generateGearList() {
     const is4KCanvas = (canvasSize === '4K_UHD' || canvasSize === '4K_DCI');
 
     // --- BEGIN PER-SCREEN CONTAINER ---
-    html += `<div style="background: var(--comic-panel); border: 1px solid ${screen.color}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
-    html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${screen.color}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${screen.color}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${screen.name}</div>`;
+    const gearScreenColor = safeColor(screen.color);
+    html += `<div style="background: var(--comic-panel); border: 1px solid ${gearScreenColor}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
+    html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${gearScreenColor}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${gearScreenColor}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${escapeHtml(screen.name)}</div>`;
 
     // === EQUIPMENT ===
     html += sectionHdr('Equipment');
     if(isFirstScreenInGroup && processorGroup && processorGroup.processorCount > 0) {
-      html += gearLine('Processor:', `${processorGroup.processorCount}x ${calcData.processorName || ''}`);
+      html += gearLine('Processor:', `${processorGroup.processorCount}x ${escapeHtml(calcData.processorName || '')}`);
       if(processorGroup.distBoxCount > 0) {
-        html += gearLine(`${processorGroup.distBoxName}:`, processorGroup.distBoxCount);
+        html += gearLine(`${escapeHtml(processorGroup.distBoxName)}:`, processorGroup.distBoxCount);
       }
     } else if(processorGroup && processorGroup.firstScreenName && processorGroup.firstScreenId !== screenId) {
-      html += `<div style="margin-left: 12px; color: #fff;">Processor: See ${processorGroup.firstScreenName}</div>`;
+      html += `<div style="margin-left: 12px; color: #fff;">Processor: See ${escapeHtml(processorGroup.firstScreenName)}</div>`;
     }
-    html += `<div style="margin-left: 12px;"><span style="color: #fff;">Panels:</span> ${activeFullPanels} x ${p.brand} ${p.name}</div>`;
+    html += `<div style="margin-left: 12px;"><span style="color: #fff;">Panels:</span> ${activeFullPanels} x ${escapeHtml(p.brand)} ${escapeHtml(p.name)}</div>`;
     if(activeHalfPanels > 0) {
       const halfPanel = allPanelsObj['CB5_MKII_HALF'];
-      html += `<div style="margin-left: 12px;"><span style="color: #fff;">Half Panels:</span> ${activeHalfPanels} x ${p.brand} ${halfPanel ? halfPanel.name : 'CB5 MKII Half Panel'}</div>`;
+      html += `<div style="margin-left: 12px;"><span style="color: #fff;">Half Panels:</span> ${activeHalfPanels} x ${escapeHtml(p.brand)} ${escapeHtml(halfPanel ? halfPanel.name : 'CB5 MKII Half Panel')}</div>`;
     }
 
     // === RIGGING HARDWARE ===
@@ -19540,7 +19623,10 @@ function loadCombinedPositions() {
   try {
     const data = localStorage.getItem(STORAGE_KEY_COMBINED_POSITIONS);
     if(data) {
-      combinedScreenPositions = JSON.parse(data);
+      const parsed = JSON.parse(data);
+      if(parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        combinedScreenPositions = parsed;
+      }
     }
   } catch(e) {
     console.error('Error loading combined positions:', e);
@@ -21803,11 +21889,11 @@ function renderCombinedSpecs(selectedScreenIds) {
   let panelsDisplay = `${totalPanels}`;
   const panelTypes = Object.keys(panelsByType);
   if(panelTypes.length === 1) {
-    panelsDisplay += ` (${shortenPanelName(panelTypes[0])})`;
+    panelsDisplay += ` (${escapeHtml(shortenPanelName(panelTypes[0]))})`;
   } else if(panelTypes.length > 1) {
     panelsDisplay += '<br>';
     panelTypes.forEach(type => {
-      panelsDisplay += `<span style="font-size: 0.85em; color: #ccc; padding-left: 8px;">• ${panelsByType[type]}x ${shortenPanelName(type)}</span><br>`;
+      panelsDisplay += `<span style="font-size: 0.85em; color: #ccc; padding-left: 8px;">• ${panelsByType[type]}x ${escapeHtml(shortenPanelName(type))}</span><br>`;
     });
   }
 
@@ -22026,7 +22112,7 @@ function renderCombinedGearList(selectedScreenIds) {
   html += addGearLine('Processors:', totalProcessors);
   for(const [panelLabel, count] of Object.entries(panelsByType)) {
     if(count > 0) {
-      html += `<div style="margin-left: 12px;"><strong>${panelLabel}:</strong> ${count}</div>`;
+      html += `<div style="margin-left: 12px;"><strong>${escapeHtml(panelLabel)}:</strong> ${count}</div>`;
     }
   }
   html += addGearLine('Power Circuits:', totalCircuits);
@@ -22112,8 +22198,9 @@ function renderCombinedGearList(selectedScreenIds) {
       const cabling = screen.calculatedData?.cabling;
       if(!cabling) return;
 
-      html += `<div style="background: var(--comic-panel); border: 1px solid ${screen.color}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
-      html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${screen.color}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${screen.color}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${screen.name}</div>`;
+      const combinedCableColor = safeColor(screen.color);
+      html += `<div style="background: var(--comic-panel); border: 1px solid ${combinedCableColor}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
+      html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${combinedCableColor}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${combinedCableColor}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${escapeHtml(screen.name)}</div>`;
 
       // SOCA
       if(cabling.socaCables.length > 0) {

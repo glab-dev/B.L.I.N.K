@@ -1198,6 +1198,8 @@
       grid-template-columns: 1fr 1fr;
       gap: 16px;
       padding-top: 8px;
+      padding-right: 5px;
+      padding-bottom: 5px;
     }
     
     .structure-info-box {
@@ -3261,7 +3263,7 @@
     </div>
   </div>
 
-  <div id="gearListContent" style="color: #e0e0e0; line-height: 1.8;"></div>
+  <div id="gearListContent" style="color: #e0e0e0; line-height: 1.8; padding-right: 5px; padding-bottom: 5px;"></div>
 </div>
 
 <!-- Combined View Container (outside main-container so it can be shown independently) -->
@@ -3279,7 +3281,7 @@
   </div>
 
   <!-- Combined Layouts Container -->
-  <div id="combinedLayoutsWrapper" style="overflow-x: auto; margin-bottom: 20px;">
+  <div id="combinedLayoutsWrapper" style="overflow-x: auto; margin-bottom: 20px; padding-right: 5px; padding-bottom: 5px;">
     <!-- Standard Layout -->
     <div class="layout-container" id="combinedStandardContainer" style="margin-bottom: 20px;">
       <div class="layout-title">
@@ -3379,7 +3381,7 @@
       <span>Gear List<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedGearListContainer')" id="combinedGearListCollapseBtn" title="Minimize">▼</button></span>
     </div>
     <div class="layout-content">
-      <div id="combinedGearListContent" style="color: #e0e0e0; line-height: 1.8;"></div>
+      <div id="combinedGearListContent" style="color: #e0e0e0; line-height: 1.8; padding-right: 5px; padding-bottom: 5px;"></div>
     </div>
   </div>
 
@@ -3523,7 +3525,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.21';
+const APP_VERSION = '2.5.22';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready

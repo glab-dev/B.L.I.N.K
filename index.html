@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.4';
+const APP_VERSION = '2.5.5';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -19020,19 +19020,18 @@ function generateGearList() {
     // Computed data cable lengths from calculateCabling
     const cabling = calculateCabling(screenId);
     if(cabling) {
-      const primaryCables = cabling.dataCables.filter(c => !c.backup);
-      const backupCables = cabling.dataCables.filter(c => c.backup);
+      const allDataCables = cabling.dataCables || [];
       const knockoutCables = cabling.knockoutBridgeCables || [];
-      if(primaryCables.length > 0 || knockoutCables.length > 0) {
+      if(allDataCables.length > 0 || knockoutCables.length > 0) {
+        // Merge all cables (primary + backup + knockout) into totals by length
         const allDataByLength = {};
-        primaryCables.forEach(c => { allDataByLength[c.roundedFt] = (allDataByLength[c.roundedFt] || 0) + 1; });
+        allDataCables.forEach(c => { allDataByLength[c.roundedFt] = (allDataByLength[c.roundedFt] || 0) + 1; });
         knockoutCables.forEach(c => { allDataByLength[c.roundedFt] = (allDataByLength[c.roundedFt] || 0) + 1; });
         for(const [len, count] of Object.entries(allDataByLength).sort((a,b) => a[0] - b[0])) {
           html += `<div style="margin-left: 12px;">${count}x ${len}' Cat6</div>`;
         }
-        if(backupCables.length > 0) {
-          html += `<div style="margin-left: 12px; color: #999;">+ ${backupCables.length}x Backup (same lengths)</div>`;
-        }
+        // Detail dropdown at end of section
+        const primaryCables = allDataCables.filter(c => !c.backup);
         html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
         primaryCables.forEach(c => {
           html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">Line ${c.lineIndex}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
@@ -19051,17 +19050,14 @@ function generateGearList() {
     }
     html += gearLine('Soca Splays:', socaCount);
     // Computed SOCA cable lengths
+    let hasSocaDetail = false;
     if(cabling && cabling.socaCables.length > 0) {
+      hasSocaDetail = true;
       const socaByLength = {};
       cabling.socaCables.forEach(s => { socaByLength[s.roundedFt] = (socaByLength[s.roundedFt] || 0) + 1; });
       for(const [len, count] of Object.entries(socaByLength).sort((a,b) => a[0] - b[0])) {
         html += `<div style="margin-left: 12px;">${count}x ${len}' Soca</div>`;
       }
-      html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
-      cabling.socaCables.forEach(s => {
-        html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">SOCA ${s.index}: ${s.lengthFt}' → ${s.roundedFt}'</div>`;
-      });
-      html += `</details>`;
     }
     // True1 cables
     html += gearLine("25' True1:", socaCount * 2);
@@ -19069,6 +19065,14 @@ function generateGearList() {
     html += gearLine("5' True1:", socaCount * 4);
     if(columnsPerCircuit > 1) {
       html += gearLine('True1 Twofer:', circuitsNeeded * columnsPerCircuit);
+    }
+    // SOCA detail dropdown at end of section
+    if(hasSocaDetail) {
+      html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #999; font-size: 12px;">Detail</summary>`;
+      cabling.socaCables.forEach(s => {
+        html += `<div style="margin-left: 12px; font-size: 12px; color: #bbb;">SOCA ${s.index}: ${s.lengthFt}' → ${s.roundedFt}'</div>`;
+      });
+      html += `</details>`;
     }
 
     // === PROCESSOR → DIST BOX ===

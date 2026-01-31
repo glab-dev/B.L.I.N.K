@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.14';
+const APP_VERSION = '2.5.15';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18792,7 +18792,7 @@ function generateGearList() {
   });
 
   // Helpers
-  const sectionHdr = (title, color) => `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #444; margin-bottom: 4px;"><strong style="color: ${color}; font-size: 13px;">${title}</strong></div>`;
+  const sectionHdr = (title) => `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #444; margin-bottom: 4px;"><strong style="color: #10b981; font-size: 13px;">${title}</strong></div>`;
   const gearLine = (label, value) => {
     if(value === 0 || value === '' || value === null || value === undefined || value === '0') return '';
     return `<div style="margin-left: 12px;"><span style="color: #fff;">${label}</span> ${value}</div>`;
@@ -18920,10 +18920,10 @@ function generateGearList() {
 
     // --- BEGIN PER-SCREEN CONTAINER ---
     html += `<div style="margin-bottom: 24px; padding: 16px; background: #2a2a2a; border-radius: 6px; border-left: 4px solid ${screen.color};">`;
-    html += `<h3 style="color: #fff; margin-bottom: 4px; font-size: 16px;">${screen.name}</h3>`;
+    html += `<h3 style="color: #fff; margin-bottom: 4px; font-size: 16px; font-family: 'Bangers', cursive;">${screen.name}</h3>`;
 
     // === EQUIPMENT ===
-    html += sectionHdr('Equipment', '#4ecdc4');
+    html += sectionHdr('Equipment');
     if(isFirstScreenInGroup && processorGroup && processorGroup.processorCount > 0) {
       html += gearLine('Processor:', `${processorGroup.processorCount}x ${calcData.processorName || ''}`);
       if(processorGroup.distBoxCount > 0) {
@@ -18941,7 +18941,7 @@ function generateGearList() {
     // === RIGGING HARDWARE ===
     const hasRigging = bumper1wCount > 0 || bumper2wCount > 0 || bumper4wCount > 0 || plates4way > 0 || plates2way > 0;
     if(hasRigging) {
-      html += sectionHdr('Rigging Hardware', '#ff9800');
+      html += sectionHdr('Rigging Hardware');
       html += gearLine('1W Bumpers:', bumper1wCount);
       html += gearLine('2W Bumpers:', bumper2wCount);
       html += gearLine('4W Bumpers:', bumper4wCount);
@@ -18968,7 +18968,7 @@ function generateGearList() {
     // === GROUND SUPPORT ===
     const hasGS = groundSupport.totalRearTruss > 0 || groundSupport.totalBaseTruss > 0 || groundSupport.totalBridgeClamps > 0 || groundSupport.totalSandbags > 0 || groundSupport.totalPipes > 0 || groundSupport.totalSwivelCheeseboroughs > 0 || groundSupport.totalRearBridgeClampAdapters > 0;
     if(hasGS) {
-      html += sectionHdr('Ground Support', '#78909c');
+      html += sectionHdr('Ground Support');
       html += gearLine('Rear Truss:', groundSupport.totalRearTruss);
       html += gearLine('Base Truss:', groundSupport.totalBaseTruss);
       html += gearLine('Bridge Clamps:', groundSupport.totalBridgeClamps);
@@ -18982,7 +18982,7 @@ function generateGearList() {
     if(screen.calculatedData && screen.calculatedData.floorFrames) {
       const ff = screen.calculatedData.floorFrames;
       if(ff.frame_1x1 > 0 || ff.frame_2x1 > 0 || ff.frame_2x2 > 0 || ff.frame_3x2 > 0) {
-        html += sectionHdr('Floor Hardware', '#4ecdc4');
+        html += sectionHdr('Floor Hardware');
         if(ff.frame_3x2 > 0) html += gearLine('3×2 Frame:', ff.frame_3x2);
         if(ff.frame_2x2 > 0) html += gearLine('2×2 Frame:', ff.frame_2x2);
         if(ff.frame_2x1 > 0) html += gearLine('2×1 Frame:', ff.frame_2x1);
@@ -18994,7 +18994,7 @@ function generateGearList() {
     }
 
     // === DATA CABLES ===
-    html += sectionHdr('Data Cables', '#4ecdc4');
+    html += sectionHdr('Data Cables');
     // Jumpers and couplers
     if(!jumpersBuiltin && dataJumperLen) {
       html += gearLine(`Jumpers ${dataJumperLen}':`, activePanels);
@@ -19033,7 +19033,7 @@ function generateGearList() {
     }
 
     // === POWER CABLES ===
-    html += sectionHdr('Power Cables', '#ff9800');
+    html += sectionHdr('Power Cables');
     if(!jumpersBuiltin && powerJumperLen) {
       html += gearLine(`Jumpers ${powerJumperLen}':`, activePanels);
     }
@@ -19066,7 +19066,7 @@ function generateGearList() {
 
     // === PROCESSOR → DIST BOX ===
     if(cabling && cabling.distBoxCables.length > 0) {
-      html += sectionHdr('Processor → Dist Box', '#e040fb');
+      html += sectionHdr('Processor → Dist Box');
       const mainBoxCables = cabling.distBoxCables.filter(c => c.label === 'main');
       const boxCableType = mainBoxCables[0]?.type || 'cat6a';
       const boxCableRounded = mainBoxCables[0]?.roundedFt || 0;
@@ -19078,7 +19078,7 @@ function generateGearList() {
 
     // === SIGNAL CABLES (first screen only) ===
     if(isFirstScreen) {
-      html += sectionHdr('Signal Cables', '#e040fb');
+      html += sectionHdr('Signal Cables');
       const procCount = processorGroup ? processorGroup.processorCount : 0;
       const sdiPerProcessor = procCount * 2;
       // Determine if canvas is HD (1920x1080) or higher
@@ -19130,7 +19130,7 @@ function generateGearList() {
 
     // === UTILITY (first screen only) ===
     if(isFirstScreen) {
-      html += sectionHdr('Utility', '#78909c');
+      html += sectionHdr('Utility');
       html += gearLine("UG 10':", 8);
       html += gearLine("UG 25':", 6);
       html += gearLine("UG 50':", 6);
@@ -19139,7 +19139,7 @@ function generateGearList() {
     }
 
     // === SPARES ===
-    html += sectionHdr('SPARES', '#999');
+    html += sectionHdr('SPARES');
     html += gearLine('Spare Soca Splays:', '');
     html += gearLine('Spare Panel Count:', '');
     if(!jumpersBuiltin && dataJumperLen) html += gearLine(`Spare Data Jumpers ${dataJumperLen}':`, '');

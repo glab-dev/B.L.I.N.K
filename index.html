@@ -3509,7 +3509,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.6';
+const APP_VERSION = '2.5.7';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Set version number in menu when DOM is ready
@@ -18942,11 +18942,10 @@ function generateGearList() {
     } else if(processorGroup && processorGroup.firstScreenName && processorGroup.firstScreenId !== screenId) {
       html += `<div style="margin-left: 12px; color: #fff;">Processor: See ${processorGroup.firstScreenName}</div>`;
     }
-    html += gearLine('Panel Count:', activePanels);
-    html += `<div style="margin-left: 24px; font-size: 12px; color: #fff;">${activeFullPanels}x ${p.brand} ${p.name}</div>`;
+    html += gearLine(`${p.brand} ${p.name}:`, activeFullPanels);
     if(activeHalfPanels > 0) {
       const halfPanel = allPanelsObj['CB5_MKII_HALF'];
-      html += `<div style="margin-left: 24px; font-size: 12px; color: #fff;">${activeHalfPanels}x ${p.brand} ${halfPanel ? halfPanel.name : 'CB5 MKII Half Panel'}</div>`;
+      html += gearLine(`${p.brand} ${halfPanel ? halfPanel.name : 'CB5 MKII Half Panel'}:`, activeHalfPanels);
     }
 
     // === RIGGING HARDWARE ===

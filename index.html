@@ -1255,7 +1255,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.54';
+const APP_VERSION = '2.5.55';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 
@@ -4260,6 +4260,10 @@ document.addEventListener('DOMContentLoaded', function() {
       // Initial check on page load
       updateMX40ModeToggleVisibility();
     }
+  } catch(err) {
+    console.error('DOMContentLoaded initialization error:', err);
+    showAlert('Error initializing calculator: ' + err.message);
+  }
 });
 
 

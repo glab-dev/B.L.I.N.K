@@ -1,3 +1,21 @@
+// ==================== GEAR VIEW ====================
+// Cabling calculation system, gear list, and gear view activation.
+// Called by switchMobileView() in the navigation dispatcher.
+
+function activateGearView() {
+  // Show gear list tab
+  const gearListContainer = document.getElementById('gearListContainer');
+  if(gearListContainer) gearListContainer.style.display = 'block';
+  // Save current screen data first
+  if(typeof saveCurrentScreenData === 'function') {
+    saveCurrentScreenData();
+  }
+  // Initialize gear view with screen toggles
+  if(typeof initGearView === 'function') {
+    initGearView();
+  }
+}
+
 // ==================== CABLING CALCULATION SYSTEM ====================
 
 function roundUpToStandard(lengthFt) {

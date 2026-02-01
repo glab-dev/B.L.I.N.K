@@ -1214,9 +1214,13 @@
 <script src="layouts/data.js"></script>
 <script src="layouts/structure.js"></script>
 
+<!-- Navigation View Activators -->
+<script src="nav/complex.js"></script>
+<script src="nav/simple.js"></script>
+
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.35';
+const APP_VERSION = '2.5.36';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // ==================== SECURITY UTILITIES ====================
@@ -18216,32 +18220,11 @@ function switchMobileView(view) {
 
   switch(view) {
     case 'complex':
-      // Show full app - all sections visible
-      if(mainContainer) mainContainer.style.display = 'block';
-      if(resultsEl) resultsEl.style.display = 'block';
-      if(specWarningEl) specWarningEl.style.display = 'block';
-      if(screenTabsContainer) screenTabsContainer.style.display = 'flex';
-      // Show all config sections
-      if(powerSection) powerSection.style.display = 'block';
-      if(structureSection) structureSection.style.display = 'block';
-      if(dataDirectionRow) dataDirectionRow.style.display = 'block';
-      if(dataTogglesRow) dataTogglesRow.style.display = 'flex';
+      activateComplexView();
       break;
 
     case 'simple':
-      // Simple mode - show config, specs, canvas. No layouts, no cabling, no structure
-      if(mainContainer) mainContainer.style.display = 'block';
-      if(resultsEl) resultsEl.style.display = 'block';
-      if(specWarningEl) specWarningEl.style.display = 'block';
-      if(screenTabsContainer) screenTabsContainer.style.display = 'flex';
-      // Show power section
-      if(powerSection) powerSection.style.display = 'block';
-      // Hide structure
-      if(structureSection) structureSection.style.display = 'none';
-      // Simplify data section
-      if(dataDirectionRow) dataDirectionRow.style.display = 'none';
-      if(dataTogglesRow) dataTogglesRow.style.display = 'none';
-      // No layouts in simple mode (standardContainer, powerContainer, dataContainer, structureContainer already hidden)
+      activateSimpleView();
       break;
 
     case 'combined':

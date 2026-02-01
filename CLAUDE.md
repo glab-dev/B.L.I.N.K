@@ -4,25 +4,25 @@ Claude reads this file automatically at the start of every session.
 
 ## Architecture
 
-Modular PWA: `index.html` (~2,365 lines) + 30 external JS modules across 7 directories.
+Modular PWA: `index.html` (~1,405 lines) + 32 external JS modules across 9 directories.
 
 | Region | Location | Content |
 |--------|----------|---------|
 | CSS | `styles.css` + inline `<style>` | Styling |
 | HTML | `index.html` ~1–1200 | DOM structure |
-| Inline JS | `index.html` ~1256–2365 | Globals, DOMContentLoaded handlers, touch gestures |
-| External JS | 30 files in 7 dirs | All application logic (loaded via `<script>` tags) |
+| Inline JS | `index.html` ~1255–1377 | APP_VERSION, global variable declarations, screen globals |
+| External JS | 32 files in 9 dirs | All application logic (loaded via `<script>` tags) |
 
 **JS module directories:**
 ```
-core/       — modals, utils, state, undo, calculate
+core/       — modals, utils, update, state, undo, calculate, init
 specs/      — panels, processors, custom-panels, custom-processors
 layouts/    — standard, power, data, structure
 structure/  — bumpers, plates, weight, drawing
-interact/   — standard-canvas
-nav/        — complex, simple, gear, canvas, combined, navigation
+interact/   — standard-canvas, touch-gestures
+nav/        — gear, canvas, combined, navigation
 export/     — pdf, canvas-export, resolume
-config/     — setup, save-load
+config/     — setup, save-load, dom-setup
 screens/    — multi-screen
 ```
 
@@ -49,7 +49,7 @@ PWA: offline-capable after first load, installable on mobile via manifest (base6
 **Three places to update on EVERY version change:**
 
 1. `version.json` → `"version"` field + `"updated"` date (YYYY-MM-DD)
-2. `index.html` → `const APP_VERSION = 'X.X.X';` (around line 1258)
+2. `index.html` → `const APP_VERSION = 'X.X.X';` (around line 1257)
 
 Both must match. Default: increment patch (e.g., 2.5.25 → 2.5.26).
 

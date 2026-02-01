@@ -278,7 +278,7 @@
 
       <div class="modal-input-group">
         <label>Additional Info (optional)</label>
-        <textarea id="requestNotes" placeholder="Any other details, specs, or links to spec sheets..." style="width: 100%; min-height: 60px; resize: vertical; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #2a2a2a; color: #fff;"></textarea>
+        <textarea id="requestNotes" placeholder="Any other details, specs, or links to spec sheets..."></textarea>
       </div>
 
       <div class="hint" style="margin-top: 8px; text-align: center; color: #888;">
@@ -711,7 +711,10 @@
 
           <!-- Row 4: Toggle buttons (complex mode only) -->
           <div id="dataTogglesRow" class="toggle-group" style="gap: 6px;">
-            <button type="button" class="toggle-btn active" id="showArrowsBtn" onclick="toggleShowArrows()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Arrows</button>
+            <div style="display: flex; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">
+              <button type="button" class="toggle-btn active" id="showArrowsBtn" onclick="toggleShowArrows()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; border-right: 1px solid #000; box-shadow: none;">Arrows</button>
+              <button type="button" class="toggle-btn" id="dataFlipBtn" onclick="toggleDataFlip()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; border-left: 1px solid #000; box-shadow: none;">Flip</button>
+            </div>
             <button type="button" class="toggle-btn active" id="redundancyBtn" onclick="toggleRedundancy()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Data Redun.</button>
             <button type="button" class="toggle-btn" id="processorRedundancyBtn" onclick="toggleProcessorRedundancy()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Proc Redun.</button>
           </div>
@@ -1198,9 +1201,16 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous"></script>
+
+<!-- LED Panel & Processor Specifications -->
+<script src="specs/panels.js"></script>
+<script src="specs/processors.js"></script>
+<script src="specs/custom-panels.js"></script>
+<script src="specs/custom-processors.js"></script>
+
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.32';
+const APP_VERSION = '2.5.33';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // ==================== SECURITY UTILITIES ====================
@@ -1410,20 +1420,20 @@ function formatLength(meters, decimals = 2) {
   }
 }
 
-function formatWeight(kg, decimals = 2) {
+function formatWeight(kg) {
   if(displayWeightUnit === 'lbs') {
-    return (kg * KG_TO_LBS).toFixed(decimals) + ' lbs';
+    return Math.ceil(kg * KG_TO_LBS) + ' lbs';
   } else {
-    return kg.toFixed(decimals) + ' kg';
+    return Math.ceil(kg) + ' kg';
   }
 }
 
-function formatWeightValue(kg, decimals = 0) {
+function formatWeightValue(kg) {
   // Returns just the number without unit label
   if(displayWeightUnit === 'lbs') {
-    return (kg * KG_TO_LBS).toFixed(decimals);
+    return Math.ceil(kg * KG_TO_LBS);
   } else {
-    return kg.toFixed(decimals);
+    return Math.ceil(kg);
   }
 }
 
@@ -1626,6 +1636,23 @@ let showArrowsEnabled = true;
 function toggleShowArrows() {
   showArrowsEnabled = !showArrowsEnabled;
   document.getElementById('showArrowsBtn').classList.toggle('active', showArrowsEnabled);
+  const flipBtn = document.getElementById('dataFlipBtn');
+  if(flipBtn) flipBtn.style.display = showArrowsEnabled ? '' : 'none';
+  if(!showArrowsEnabled && dataFlipEnabled) {
+    dataFlipEnabled = false;
+    if(flipBtn) flipBtn.classList.remove('active');
+  }
+  calculate();
+}
+
+// Data flip toggle
+let dataFlipEnabled = false;
+function toggleDataFlip() {
+  dataFlipEnabled = !dataFlipEnabled;
+  document.getElementById('dataFlipBtn').classList.toggle('active', dataFlipEnabled);
+  if(screens[currentScreenId]) {
+    screens[currentScreenId].data.dataFlip = dataFlipEnabled;
+  }
   calculate();
 }
 
@@ -2001,284 +2028,6 @@ const standardColors = [
   '#800000'   // Red at 50% brightness
 ];
 
-// ----------- Specs (updated from spec sheet) -----------
-const panels = {
-  "BP2_V2": {brand:"ROE Visual", name:"Black Pearl BP2 V2", pixel_pitch_mm:2.84, width_m:0.5, height_m:0.5, depth_mm:90, res_x:176, res_y:176, weight_kg:9.35, power_max_w:190, power_avg_w:95, brightness_nits:1500, max_hanging:20, max_stacking:12, bumper_1w_lbs:7.38, bumper_2w_lbs:17.1, max_panels_per_circuit:8, max_panels_per_data:16, power_jumper_ft:"1'", data_jumper_ft:"1'", data_cross_jumper_ft:"2'", jumpers_builtin:false},
-  "CB5_MKII": {brand:"ROE Visual", name:"Carbon CB5 MKII", pixel_pitch_mm:5.77, width_m:0.6, height_m:1.2, depth_mm:80, res_x:104, res_y:208, weight_kg:19.908, power_max_w:480, power_avg_w:240, brightness_nits:6000, max_hanging:12, max_stacking:5, bumper_1w_lbs:13.9, bumper_2w_lbs:27.5, bumper_4w_lbs:66.15, max_panels_per_circuit:3, max_panels_per_data:24, power_jumper_ft:null, data_jumper_ft:null, data_cross_jumper_ft:"3'", jumpers_builtin:true},
-  "CB5_MKII_HALF": {brand:"ROE Visual", name:"Carbon CB5 MKII Half Panel", pixel_pitch_mm:5.77, width_m:0.6, height_m:0.6, depth_mm:79, res_x:104, res_y:104, weight_kg:11.748, power_max_w:250, power_avg_w:125, brightness_nits:6000, max_hanging:24, max_stacking:10, bumper_1w_lbs:13.9, bumper_2w_lbs:27.5, bumper_4w_lbs:66.15, max_panels_per_circuit:6, max_panels_per_data:48, power_jumper_ft:null, data_jumper_ft:null, data_cross_jumper_ft:"3'", jumpers_builtin:true},
-  "MC7H": {brand:"ROE Visual", name:"MC7H", pixel_pitch_mm:7.5, width_m:0.6, height_m:0.6, depth_mm:90, res_x:80, res_y:80, weight_kg:14.8, power_max_w:420, power_avg_w:210, brightness_nits:5000, max_hanging:20, max_stacking:8, bumper_1w_lbs:15.44, bumper_2w_lbs:28.22, max_panels_per_circuit:4, max_panels_per_data:82, power_jumper_ft:null, data_jumper_ft:null, data_cross_jumper_ft:"3'", jumpers_builtin:true},
-  "BO3": {brand:"ROE Visual", name:"Black Onyx BO3", pixel_pitch_mm:3.47, width_m:0.5, height_m:0.5, depth_mm:90, res_x:144, res_y:144, weight_kg:9.35, power_max_w:170, power_avg_w:85, brightness_nits:1500, max_hanging:20, max_stacking:8, bumper_1w_lbs:7.38, bumper_2w_lbs:17.1, max_panels_per_circuit:9, max_panels_per_data:25, power_jumper_ft:"1'", data_jumper_ft:"1'", data_cross_jumper_ft:"2'", jumpers_builtin:false},
-  "BM4_MATTE": {brand:"ROE Visual", name:"Black Marble BM4 (Matte)", pixel_pitch_mm:4.76, width_m:0.61, height_m:0.61, depth_mm:140, res_x:128, res_y:128, weight_kg:17.5, power_max_w:280, power_avg_w:140, brightness_nits:2000, max_hanging:null, max_stacking:null, bumper_1w_lbs:null, bumper_2w_lbs:null, max_panels_per_circuit:5, max_panels_per_data:32, power_jumper_ft:"4'", data_jumper_ft:"4'", data_cross_jumper_ft:"4'", jumpers_builtin:false, uses_bumpers:false, is_floor_panel:true, floor_frames:{frame_1x1:{name:"1x1 (1 panel)", panels:1, weight_lbs:26.5}, frame_2x1:{name:"2x1 (2 panels)", panels:2, weight_lbs:41.9}, frame_2x2:{name:"2x2 (4 panels)", panels:4, weight_lbs:62.8}, frame_3x2:{name:"3x2 (6 panels)", panels:6, weight_lbs:80.5}}},
-  "DM2_6": {brand:"ROE Visual", name:"DM2.6", pixel_pitch_mm:2.6, width_m:0.5, height_m:0.5, depth_mm:80, res_x:192, res_y:192, weight_kg:5.76, power_max_w:180, power_avg_w:90, brightness_nits:1500, max_hanging:20, max_stacking:12, bumper_1w_lbs:7.38, bumper_2w_lbs:17.1, max_panels_per_circuit:8, max_panels_per_data:14, power_jumper_ft:"1.5'", data_jumper_ft:"1.5'", data_cross_jumper_ft:"3'", jumpers_builtin:false},
-  "INFILED_AMT8_3": {brand:"INFiLED", name:"AMT 8.3", pixel_pitch_mm:8.33, width_m:1.0, height_m:1.0, depth_mm:107, res_x:120, res_y:120, weight_kg:15.8, power_max_w:720, power_avg_w:360, brightness_nits:5000, max_hanging:18, max_stacking:18, bumper_1w_lbs:null, bumper_2w_lbs:null, max_panels_per_circuit:2, max_panels_per_data:36, power_jumper_ft:"1.5'", data_jumper_ft:"1.5'", data_cross_jumper_ft:"4'", jumpers_builtin:false}
-};
-
-const processors = {
-  "Brompton_SX40": {name:"Brompton SX40", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, pixels_per_10g:9000000, total_pixels:9000000, outputs:"4 × 10G trunks"},
-  "Brompton_S8": {name:"Brompton S8", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, total_pixels:4500000, outputs:"8 × 1G"},
-  "Brompton_M2": {name:"Brompton M2", base_pixels_1g:500000, base_framerate:60, base_bitdepth:8, total_pixels:2000000, outputs:"4 × 1G"},
-  "Brompton_S4": {name:"Brompton S4", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, total_pixels:2070000, outputs:"4 × 1G"},
-  "Brompton_T1": {name:"Brompton T1", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, total_pixels:525000, outputs:"1 × 1G"},
-  "Brompton_SQ200": {name:"Brompton SQ200", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, total_pixels:36000000, outputs:"Dual 100G QSFP28"},
-  "NovaStar_MX40_Pro": {name:"NovaStar MX40 Pro", base_pixels_1g:659722, base_framerate:60, base_bitdepth:8, total_pixels:9000000, outputs:"20 × 1G + 4 × 10G", pixels_1g_by_bitdepth:{8:659722, 10:494792, 12:329861}, ports_1g:20, ports_10g:4},
-};
-
-// ==================== CUSTOM PANELS AND PROCESSORS SYSTEM v24 ====================
-
-// Storage keys
-const STORAGE_KEY_CUSTOM_PANELS = 'ledcalc_custom_panels';
-const STORAGE_KEY_CUSTOM_PROCESSORS = 'ledcalc_custom_processors';
-
-// Custom panels storage
-let customPanels = {};
-let customProcessors = {};
-
-// Load custom data from localStorage
-function validateCustomData(parsed) {
-  if(!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-  const safe = {};
-  const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
-  Object.keys(parsed).forEach(key => {
-    if(dangerousKeys.includes(key)) return;
-    const entry = parsed[key];
-    if(!entry || typeof entry !== 'object') return;
-    if(typeof entry.brand !== 'string' || typeof entry.name !== 'string') return;
-    safe[key] = entry;
-  });
-  return safe;
-}
-
-function loadCustomData() {
-  try {
-    const panelsData = localStorage.getItem(STORAGE_KEY_CUSTOM_PANELS);
-    if(panelsData) {
-      customPanels = validateCustomData(JSON.parse(panelsData));
-      console.log('Loaded custom panels:', Object.keys(customPanels).length);
-    }
-
-    const processorsData = localStorage.getItem(STORAGE_KEY_CUSTOM_PROCESSORS);
-    if(processorsData) {
-      customProcessors = validateCustomData(JSON.parse(processorsData));
-      console.log('Loaded custom processors:', Object.keys(customProcessors).length);
-    }
-  } catch(err) {
-    console.error('Error loading custom data:', err);
-  }
-}
-
-// Save custom data to localStorage
-function saveCustomPanels() {
-  try {
-    localStorage.setItem(STORAGE_KEY_CUSTOM_PANELS, JSON.stringify(customPanels));
-  } catch(err) {
-    console.error('Error saving custom panels:', err);
-    showAlert('Error saving custom panel data');
-  }
-}
-
-function saveCustomProcessors() {
-  try {
-    localStorage.setItem(STORAGE_KEY_CUSTOM_PROCESSORS, JSON.stringify(customProcessors));
-  } catch(err) {
-    console.error('Error saving custom processors:', err);
-    showAlert('Error saving custom processor data');
-  }
-}
-
-// Get all panels (built-in + custom)
-function getAllPanels() {
-  return {...panels, ...customPanels};
-}
-
-// Get all processors (built-in + custom)
-function getAllProcessors() {
-  return {...processors, ...customProcessors};
-}
-
-// Get panel height ratio (for CB5_MKII full panels which are 2:1 aspect ratio)
-function getPanelHeightRatio(panelType) {
-  // CB5_MKII full panels are 0.6m x 1.2m (width x height), so height = 2x width
-  if(panelType === 'CB5_MKII') {
-    return 2;
-  }
-  // All other panels are square (1:1 aspect ratio)
-  return 1;
-}
-
-// Load custom data from localStorage on startup
-loadCustomData();
-
-// Helper functions to get current selections
-function getCurrentPanel() {
-  const allPanels = getAllPanels();
-  const panelType = document.getElementById('panelType')?.value;
-  return panelType ? allPanels[panelType] : null;
-}
-
-function getCurrentProcessor() {
-  const allProcessors = getAllProcessors();
-  const processorType = document.getElementById('processor')?.value;
-  return processorType ? allProcessors[processorType] : null;
-}
-
-// Update panel dropdowns
-function updatePanelDropdowns() {
-  const panelSelect = document.getElementById('panelType');
-  if(!panelSelect) return;
-
-  const currentValue = panelSelect.value;
-  const allPanels = getAllPanels();
-
-  // Clear and rebuild
-  panelSelect.innerHTML = '';
-
-  // Group built-in panels by brand
-  const builtInByBrand = {};
-  Object.keys(panels).forEach(key => {
-    const brand = panels[key].brand || 'Other';
-    if(!builtInByBrand[brand]) builtInByBrand[brand] = [];
-    builtInByBrand[brand].push({key, panel: panels[key]});
-  });
-
-  // Add built-in panels grouped by brand
-  Object.keys(builtInByBrand).sort().forEach(brand => {
-    const brandGroup = document.createElement('optgroup');
-    brandGroup.label = brand;
-    builtInByBrand[brand].forEach(({key, panel}) => {
-      const option = document.createElement('option');
-      option.value = key;
-      option.textContent = panel.name;
-      brandGroup.appendChild(option);
-    });
-    panelSelect.appendChild(brandGroup);
-  });
-
-  // Group custom panels by brand
-  if(Object.keys(customPanels).length > 0) {
-    const customByBrand = {};
-    Object.keys(customPanels).forEach(key => {
-      const brand = customPanels[key].brand || 'Custom';
-      if(!customByBrand[brand]) customByBrand[brand] = [];
-      customByBrand[brand].push({key, panel: customPanels[key]});
-    });
-
-    // Add custom panels grouped by brand
-    Object.keys(customByBrand).sort().forEach(brand => {
-      const brandGroup = document.createElement('optgroup');
-      brandGroup.label = `${brand} (Custom)`;
-      customByBrand[brand].forEach(({key, panel}) => {
-        const option = document.createElement('option');
-        option.value = key;
-        option.textContent = panel.name;
-        brandGroup.appendChild(option);
-      });
-      panelSelect.appendChild(brandGroup);
-    });
-  }
-
-  // Add "Add Custom Panel" option
-  const addOption = document.createElement('option');
-  addOption.value = '__ADD_CUSTOM__';
-  addOption.textContent = '+ Add Custom Panel...';
-  addOption.style.fontWeight = 'bold';
-  addOption.style.color = '#4a9eff';
-  panelSelect.appendChild(addOption);
-
-  // Restore selection
-  if(currentValue && allPanels[currentValue]) {
-    panelSelect.value = currentValue;
-  }
-}
-
-// Update processor dropdowns
-function updateProcessorDropdowns() {
-  const processorSelect = document.getElementById('processor');
-  if(!processorSelect) return;
-
-  const currentValue = processorSelect.value;
-  const allProcessors = getAllProcessors();
-
-  // Clear and rebuild
-  processorSelect.innerHTML = '';
-
-  // Helper to extract brand from processor key or name
-  function getProcessorBrand(key, proc) {
-    if(proc.brand) return proc.brand;
-    // Extract brand from key (e.g., "Brompton_SX40" -> "Brompton")
-    if(key.startsWith('Brompton')) return 'Brompton';
-    if(key.startsWith('NovaStar')) return 'NovaStar';
-    if(key.startsWith('Megapixel')) return 'Megapixel';
-    if(key.startsWith('ROE')) return 'ROE Visual';
-    // Try to extract from name
-    if(proc.name && proc.name.startsWith('Brompton')) return 'Brompton';
-    if(proc.name && proc.name.startsWith('NovaStar')) return 'NovaStar';
-    if(proc.name && proc.name.startsWith('Megapixel')) return 'Megapixel';
-    if(proc.name && proc.name.startsWith('ROE')) return 'ROE Visual';
-    return 'Other';
-  }
-
-  // Helper to get display name (without brand prefix)
-  function getProcessorDisplayName(proc, brand) {
-    let name = proc.name;
-    // Remove brand prefix from name if present
-    if(name.startsWith(brand + ' ')) {
-      name = name.substring(brand.length + 1);
-    }
-    return name;
-  }
-
-  // Group built-in processors by brand
-  const builtInByBrand = {};
-  Object.keys(processors).forEach(key => {
-    const brand = getProcessorBrand(key, processors[key]);
-    if(!builtInByBrand[brand]) builtInByBrand[brand] = [];
-    builtInByBrand[brand].push({key, proc: processors[key], brand});
-  });
-
-  // Add built-in processors grouped by brand
-  Object.keys(builtInByBrand).sort().forEach(brand => {
-    const brandGroup = document.createElement('optgroup');
-    brandGroup.label = brand;
-    builtInByBrand[brand].forEach(({key, proc, brand}) => {
-      const option = document.createElement('option');
-      option.value = key;
-      let displayName = getProcessorDisplayName(proc, brand);
-      // Keep "(in development)" in the name for development processors
-      option.textContent = displayName;
-      brandGroup.appendChild(option);
-    });
-    processorSelect.appendChild(brandGroup);
-  });
-
-  // Group custom processors by brand
-  if(Object.keys(customProcessors).length > 0) {
-    const customByBrand = {};
-    Object.keys(customProcessors).forEach(key => {
-      const brand = customProcessors[key].brand || 'Custom';
-      if(!customByBrand[brand]) customByBrand[brand] = [];
-      customByBrand[brand].push({key, proc: customProcessors[key]});
-    });
-
-    // Add custom processors grouped by brand
-    Object.keys(customByBrand).sort().forEach(brand => {
-      const brandGroup = document.createElement('optgroup');
-      brandGroup.label = `${brand} (Custom)`;
-      customByBrand[brand].forEach(({key, proc}) => {
-        const option = document.createElement('option');
-        option.value = key;
-        option.textContent = proc.name;
-        brandGroup.appendChild(option);
-      });
-      processorSelect.appendChild(brandGroup);
-    });
-  }
-
-  // Restore selection
-  if(currentValue && allProcessors[currentValue]) {
-    processorSelect.value = currentValue;
-  }
-}
-
 // ==================== END CUSTOM STORAGE SYSTEM ====================
 
 // Bumper weights (in kg, converted from lbs where needed)
@@ -2483,7 +2232,7 @@ function updateWeightDisplay() {
           panelWeight += 2 * halfPanelWeightKg; // 2 half panels per 2W bumper
         }
         const totalWeight = panelWeight + bumper2wKg;
-        html += `<div class="weight-item">Cols ${col1 + 1}-${col2 + 1} (2W): ${totalWeight.toFixed(1)} kg (${(totalWeight * 2.20462).toFixed(1)} lbs)</div>`;
+        html += `<div class="weight-item">Cols ${col1 + 1}-${col2 + 1} (2W): ${Math.ceil(totalWeight)} kg (${Math.ceil(totalWeight * 2.20462)} lbs)</div>`;
       }
 
       // Show 1W bumper if needed
@@ -2500,7 +2249,7 @@ function updateWeightDisplay() {
           panelWeight += halfPanelWeightKg; // 1 half panel for 1W bumper
         }
         const totalWeight = panelWeight + bumper1wKg;
-        html += `<div class="weight-item">Col ${lastCol + 1} (1W): ${totalWeight.toFixed(1)} kg (${(totalWeight * 2.20462).toFixed(1)} lbs)</div>`;
+        html += `<div class="weight-item">Col ${lastCol + 1} (1W): ${Math.ceil(totalWeight)} kg (${Math.ceil(totalWeight * 2.20462)} lbs)</div>`;
       }
     }
 
@@ -2525,7 +2274,7 @@ function updateWeightDisplay() {
           panelWeight += 2 * halfPanelWeightKg; // 2 half panels per 2W bumper
         }
         const totalWeight = panelWeight + bumper2wKg;
-        html += `<div class="weight-item">Cols ${col1 + 1}-${col2 + 1} (2W): ${totalWeight.toFixed(1)} kg (${(totalWeight * 2.20462).toFixed(1)} lbs)</div>`;
+        html += `<div class="weight-item">Cols ${col1 + 1}-${col2 + 1} (2W): ${Math.ceil(totalWeight)} kg (${Math.ceil(totalWeight * 2.20462)} lbs)</div>`;
       }
 
       // Show 1W bumper if needed
@@ -2542,7 +2291,7 @@ function updateWeightDisplay() {
           panelWeight += halfPanelWeightKg; // 1 half panel for 1W bumper
         }
         const totalWeight = panelWeight + bumper1wKg;
-        html += `<div class="weight-item">Col ${lastCol + 1} (1W): ${totalWeight.toFixed(1)} kg (${(totalWeight * 2.20462).toFixed(1)} lbs)</div>`;
+        html += `<div class="weight-item">Col ${lastCol + 1} (1W): ${Math.ceil(totalWeight)} kg (${Math.ceil(totalWeight * 2.20462)} lbs)</div>`;
       }
     }
   }
@@ -2580,7 +2329,7 @@ function updateWeightDisplay() {
         const bumper4wWeight = bumper4wKg;      // One 4W bumper (66.15 lbs for CB5)
         const totalWeight = panelWeight + bumper2wWeight + bumper4wWeight;
 
-        html += `<div class="weight-item">Cols ${col1 + 1}-${col4 + 1} (4W): ${totalWeight.toFixed(1)} kg (${(totalWeight * 2.20462).toFixed(1)} lbs)</div>`;
+        html += `<div class="weight-item">Cols ${col1 + 1}-${col4 + 1} (4W): ${Math.ceil(totalWeight)} kg (${Math.ceil(totalWeight * 2.20462)} lbs)</div>`;
       }
     }
 
@@ -2615,7 +2364,7 @@ function updateWeightDisplay() {
         const bumper4wWeight = bumper4wKg;      // One 4W bumper (66.15 lbs for CB5)
         const totalWeight = panelWeight + bumper2wWeight + bumper4wWeight;
 
-        html += `<div class="weight-item">Cols ${col1 + 1}-${col4 + 1} (4W): ${totalWeight.toFixed(1)} kg (${(totalWeight * 2.20462).toFixed(1)} lbs)</div>`;
+        html += `<div class="weight-item">Cols ${col1 + 1}-${col4 + 1} (4W): ${Math.ceil(totalWeight)} kg (${Math.ceil(totalWeight * 2.20462)} lbs)</div>`;
       }
     }
   }
@@ -3774,6 +3523,7 @@ function resetCalculator() {
       maxPanelsPerData: '',
       dataStartDir: 'top',
       showArrows: true,
+      dataFlip: false,
       redundancy: true,
       processorRedundancy: false,
       structureType: 'hanging',
@@ -3818,7 +3568,11 @@ function resetCalculator() {
   
   showArrowsEnabled = true;
   document.getElementById('showArrowsBtn')?.classList.add('active');
-  
+
+  dataFlipEnabled = false;
+  const dataFlipBtnReset = document.getElementById('dataFlipBtn');
+  if(dataFlipBtnReset) { dataFlipBtnReset.classList.remove('active'); dataFlipBtnReset.style.display = ''; }
+
   snapModeEnabled = true;
   document.getElementById('snapModeBtn')?.classList.add('active');
   
@@ -4145,18 +3899,15 @@ function calculate(){
     let plateWeight = 0;
     
     if (useConnectingPlates) {
-      // Connecting plate weights (constants)
-      const plate2wayKg = 0.141; // 2-way plate weight (0.31 lbs)
-      const plate4wayKg = 0.249; // 4-way plate weight (0.55 lbs)
-      const plates = calculateConnectingPlates(pw, ph, plate2wayKg, plate4wayKg);
+      const plates = calculateConnectingPlates(pw, ph, PLATE_WEIGHTS.plate2wayKg, PLATE_WEIGHTS.plate4wayKg);
       plateWeight = plates.totalPlateWeight;
-      updatePlatesDisplay(true, pw, ph, plate2wayKg, plate4wayKg);
+      updatePlatesDisplay(true, pw, ph, PLATE_WEIGHTS.plate2wayKg, PLATE_WEIGHTS.plate4wayKg);
     } else {
       updatePlatesDisplay(false, 0, 0, 0, 0);
     }
-    
+
     totalWeight = panelWeight + bumperWeight + plateWeight;
-    
+
     const perPanelW = powerType==='max' ? p.power_max_w : (p.power_avg_w||p.power_max_w*0.5);
     const perHalfPanelW = powerType==='max' ? halfPanel.power_max_w : (halfPanel.power_avg_w||halfPanel.power_max_w*0.5);
     totalPowerW = (mainPanelCount * perPanelW) + (halfPanelCount * perHalfPanelW);
@@ -4186,18 +3937,15 @@ function calculate(){
     let plateWeight = 0;
     
     if (useConnectingPlates) {
-      // Connecting plate weights (constants)
-      const plate2wayKg = 0.141; // 2-way plate weight (0.31 lbs)
-      const plate4wayKg = 0.249; // 4-way plate weight (0.55 lbs)
-      const plates = calculateConnectingPlates(pw, ph, plate2wayKg, plate4wayKg);
+      const plates = calculateConnectingPlates(pw, ph, PLATE_WEIGHTS.plate2wayKg, PLATE_WEIGHTS.plate4wayKg);
       plateWeight = plates.totalPlateWeight;
-      updatePlatesDisplay(true, pw, ph, plate2wayKg, plate4wayKg);
+      updatePlatesDisplay(true, pw, ph, PLATE_WEIGHTS.plate2wayKg, PLATE_WEIGHTS.plate4wayKg);
     } else {
       updatePlatesDisplay(false, 0, 0, 0, 0);
     }
-    
+
     totalWeight = panelWeight + bumperWeight + plateWeight;
-    
+
     const perPanelW = powerType==='max' ? p.power_max_w : (p.power_avg_w||p.power_max_w*0.5);
     totalPowerW = totalPanels * perPanelW;
     adjustedWallHM = wallHM;
@@ -4358,10 +4106,10 @@ function calculate(){
   const wallWidthDisplay = displayLengthUnit === 'ft' ? wallWF.toFixed(2) : wallWM.toFixed(2);
   const wallHeightDisplay = displayLengthUnit === 'ft' ? adjustedWallHF.toFixed(2) : adjustedWallHM.toFixed(2);
   const perPanelWeightKg = getPanelWeight(panelType, useConnectingPlatesForWeight);
-  const panelWeightDisplay = displayWeightUnit === 'lbs' ? (perPanelWeightKg * KG_TO_LBS).toFixed(2) : perPanelWeightKg.toFixed(2);
-  const totalWeightDisplay = displayWeightUnit === 'lbs' ? totalWeightLbs.toFixed(2) : totalWeight.toFixed(2);
-  const panelOnlyWeightDisplay = displayWeightUnit === 'lbs' ? (panelWeightOnly * KG_TO_LBS).toFixed(2) : panelWeightOnly.toFixed(2);
-  const bumperWeightDisplay = displayWeightUnit === 'lbs' ? (bumperWeight * KG_TO_LBS).toFixed(2) : bumperWeight.toFixed(2);
+  const panelWeightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(perPanelWeightKg * KG_TO_LBS) : Math.ceil(perPanelWeightKg);
+  const totalWeightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(totalWeightLbs) : Math.ceil(totalWeight);
+  const panelOnlyWeightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(panelWeightOnly * KG_TO_LBS) : Math.ceil(panelWeightOnly);
+  const bumperWeightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(bumperWeight * KG_TO_LBS) : Math.ceil(bumperWeight);
 
   // Check if we're in simple mode
   const isSimpleMode = typeof currentAppMode !== 'undefined' && currentAppMode === 'simple';
@@ -4412,8 +4160,8 @@ function calculate(){
     if(p.max_hanging !== null && p.max_hanging !== undefined) html += `<div class="result-row"><strong>Max hanging:</strong> ${p.max_hanging} Panels</div>`;
     if(p.max_stacking !== null && p.max_stacking !== undefined) html += `<div class="result-row"><strong>Max Stacking:</strong> ${p.max_stacking} Panels</div>`;
     if(p.bumper_1w_lbs !== null && p.bumper_1w_lbs !== undefined) {
-      const b1w = displayWeightUnit === 'lbs' ? p.bumper_1w_lbs.toFixed(1) : (p.bumper_1w_lbs * LBS_TO_KG).toFixed(1);
-      const b2w = displayWeightUnit === 'lbs' ? p.bumper_2w_lbs.toFixed(1) : (p.bumper_2w_lbs * LBS_TO_KG).toFixed(1);
+      const b1w = displayWeightUnit === 'lbs' ? Math.ceil(p.bumper_1w_lbs) : Math.ceil(p.bumper_1w_lbs * LBS_TO_KG);
+      const b2w = displayWeightUnit === 'lbs' ? Math.ceil(p.bumper_2w_lbs) : Math.ceil(p.bumper_2w_lbs * LBS_TO_KG);
       html += `<div class="result-row"><strong>Bumper Weights:</strong> 1W= ${b1w} ${wtUnit}, 2W= ${b2w} ${wtUnit}</div>`;
     }
 
@@ -4448,11 +4196,9 @@ function calculate(){
       // Add connecting plates weight if applicable
       const useConnectingPlatesForDisplay = shouldUseConnectingPlates(panelType);
       if(useConnectingPlatesForDisplay) {
-        const plate2wayKg = 0.141;
-        const plate4wayKg = 0.249;
         // Account for half panel row if CB5 with half row enabled
         const effectivePhForPlates = hasCB5HalfRow ? ph + 1 : ph;
-        const plates = calculateConnectingPlates(pw, effectivePhForPlates, plate2wayKg, plate4wayKg);
+        const plates = calculateConnectingPlates(pw, effectivePhForPlates, PLATE_WEIGHTS.plate2wayKg, PLATE_WEIGHTS.plate4wayKg);
         structureWeightKg += plates.totalPlateWeight;
       }
 
@@ -4466,8 +4212,8 @@ function calculate(){
     }
 
     const adjustedTotalWeightKg = panelWeightOnly + structureWeightKg;
-    const adjustedTotalWeightDisplay = displayWeightUnit === 'lbs' ? (adjustedTotalWeightKg * KG_TO_LBS).toFixed(2) : adjustedTotalWeightKg.toFixed(2);
-    const structureWeightDisplay = displayWeightUnit === 'lbs' ? (structureWeightKg * KG_TO_LBS).toFixed(2) : structureWeightKg.toFixed(2);
+    const adjustedTotalWeightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(adjustedTotalWeightKg * KG_TO_LBS) : Math.ceil(adjustedTotalWeightKg);
+    const structureWeightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(structureWeightKg * KG_TO_LBS) : Math.ceil(structureWeightKg);
 
     html += `<div class="result-row"><strong>Total weight:</strong> ${adjustedTotalWeightDisplay} ${wtUnit}</div>`;
     // Show weight breakdown if there's any structure weight
@@ -5975,7 +5721,8 @@ function generateLayout(mode){
           // Draw arrow for each column
           columnGroups.forEach((columnPoints) => {
             if(columnPoints.length >= 2) {
-              drawArrowPath(ctx, columnPoints, '#000000');
+              const arrowPts = dataFlipEnabled ? [...columnPoints].reverse() : columnPoints;
+              drawArrowPath(ctx, arrowPts, '#000000');
             }
           });
         }
@@ -6021,7 +5768,8 @@ function generateLayout(mode){
           
           // Draw each segment
           segments.forEach(segment => {
-            drawArrowPath(ctx, segment, '#000000');
+            const arrowPts = dataFlipEnabled ? [...segment].reverse() : segment;
+            drawArrowPath(ctx, arrowPts, '#000000');
           });
         }
       }
@@ -6136,14 +5884,6 @@ function getFloorFrameCounts(frames) {
 
   return counts;
 }
-
-// Colors for different frame types
-const floorFrameColors = {
-  frame_1x1: '#ff6b6b', // Red
-  frame_2x1: '#4ecdc4', // Teal
-  frame_2x2: '#ffe66d', // Yellow
-  frame_3x2: '#b794f4'  // Purple
-};
 
 // Structure View generation
 function generateStructureLayout(){
@@ -6805,14 +6545,14 @@ function updatePickupWeightSummary() {
       totalWeightKg += weight.kg;
       const label = bumper.type === '4w' ? '4W' : bumper.type === '2w' ? '2W' : '1W';
       const color = bumper.type === '4w' ? '#FF6B35' : bumper.type === '2w' ? '#4CAF50' : '#2196F3';
-      const weightDisplay = displayWeightUnit === 'lbs' ? weight.lbs.toFixed(0) : weight.kg.toFixed(0);
+      const weightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(weight.lbs) : Math.ceil(weight.kg);
       html += `<div class="weight-row">
         <span class="weight-label" style="color: ${color};">${label} #${counts[bumper.type]}</span>
         <span class="weight-value">${weightDisplay} ${wtUnit}</span>
       </div>`;
     });
   }
-  
+
   // Show ALL bottom bumpers (ground stacking) - skip 2W bumpers under 4W
   if(bottomBumpers.length > 0) {
     if(topBumpers.length > 0 && html.length > 0) {
@@ -6839,16 +6579,16 @@ function updatePickupWeightSummary() {
       totalWeightKg += weight.kg;
       const label = bumper.type === '4w' ? '4W' : bumper.type === '2w' ? '2W' : '1W';
       const color = bumper.type === '4w' ? '#FF6B35' : bumper.type === '2w' ? '#FF9800' : '#2196F3';
-      const weightDisplay = displayWeightUnit === 'lbs' ? weight.lbs.toFixed(0) : weight.kg.toFixed(0);
+      const weightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(weight.lbs) : Math.ceil(weight.kg);
       html += `<div class="weight-row">
         <span class="weight-label" style="color: ${color};">${label} #${counts[bumper.type]}</span>
         <span class="weight-value">${weightDisplay} ${wtUnit}</span>
       </div>`;
     });
   }
-  
+
   // Add total
-  const totalDisplay = displayWeightUnit === 'lbs' ? (totalWeightKg * KG_TO_LBS).toFixed(0) : totalWeightKg.toFixed(0);
+  const totalDisplay = displayWeightUnit === 'lbs' ? Math.ceil(totalWeightKg * KG_TO_LBS) : Math.ceil(totalWeightKg);
   html += `<div class="weight-row" style="border-top: 1px solid #4a9eff; margin-top: 6px; padding-top: 6px;">
     <span class="weight-label" style="color: #fff;">Total</span>
     <span class="weight-value" style="color: #4a9eff;">${totalDisplay} ${wtUnit}</span>
@@ -6877,17 +6617,13 @@ function updateStructurePlatesDisplay() {
   if(!useConnectingPlates || pw === 0 || ph === 0) {
     platesBox.style.display = 'none';
   } else {
-    // Plate weights in kg
-    const plate2wayKg = 0.141; // 0.31 lbs
-    const plate4wayKg = 0.249; // 0.55 lbs
-    
-    const plates = calculateConnectingPlates(pw, ph, plate2wayKg, plate4wayKg);
+    const plates = calculateConnectingPlates(pw, ph, PLATE_WEIGHTS.plate2wayKg, PLATE_WEIGHTS.plate4wayKg);
     platesData = plates; // Store the calculated values
     
     const wtUnit = getWeightUnitLabel();
-    const weightDisplay = displayWeightUnit === 'lbs' 
-      ? (plates.totalPlateWeight * KG_TO_LBS).toFixed(1) 
-      : plates.totalPlateWeight.toFixed(1);
+    const weightDisplay = displayWeightUnit === 'lbs'
+      ? Math.ceil(plates.totalPlateWeight * KG_TO_LBS)
+      : Math.ceil(plates.totalPlateWeight);
     
     let html = '';
     
@@ -7040,9 +6776,9 @@ function updateGroundSupportDisplay() {
   </div>`;
   
   // Add total weight
-  const totalWeightDisplay = displayWeightUnit === 'lbs' 
-    ? hardware.totalWeightLbs.toFixed(1) 
-    : hardware.totalWeightKg.toFixed(1);
+  const totalWeightDisplay = displayWeightUnit === 'lbs'
+    ? Math.ceil(hardware.totalWeightLbs)
+    : Math.ceil(hardware.totalWeightKg);
   
   html += `<div class="plates-row plates-total" style="border-top: 1px solid #00CED1; margin-top: 6px; padding-top: 6px;">
     <span class="plates-label" style="color: #fff;">Total Weight</span>
@@ -7163,8 +6899,8 @@ function updateFloorFramesDisplay() {
 
   // Add total weight
   const totalWeightDisplay = displayWeightUnit === 'lbs'
-    ? totalWeightLbs.toFixed(1)
-    : totalWeightKg.toFixed(1);
+    ? Math.ceil(totalWeightLbs)
+    : Math.ceil(totalWeightKg);
 
   html += `<div class="plates-row plates-total" style="border-top: 1px solid #4ecdc4; margin-top: 6px; padding-top: 6px;">
     <span class="plates-label" style="color: #fff;">Total Weight</span>
@@ -7208,9 +6944,7 @@ function updateTotalStructureWeight() {
   const bumperHardwareWeightKg = calculateTotalBumperWeight(pw, ph);
   
   if(useConnectingPlates && pw > 0 && ph > 0) {
-    const plate2wayKg = 0.141;
-    const plate4wayKg = 0.249;
-    const plates = calculateConnectingPlates(pw, ph, plate2wayKg, plate4wayKg);
+    const plates = calculateConnectingPlates(pw, ph, PLATE_WEIGHTS.plate2wayKg, PLATE_WEIGHTS.plate4wayKg);
     platesWeightKg = plates.totalPlateWeight || 0;
   }
   
@@ -7266,8 +7000,8 @@ function updateTotalStructureWeight() {
   // Show breakdown - skip bumpers for floor mode
   if(!isFloorMode && bumperHardwareWeightKg > 0) {
     const bumperDisplay = displayWeightUnit === 'lbs'
-      ? (bumperHardwareWeightKg * KG_TO_LBS).toFixed(1)
-      : bumperHardwareWeightKg.toFixed(1);
+      ? Math.ceil(bumperHardwareWeightKg * KG_TO_LBS)
+      : Math.ceil(bumperHardwareWeightKg);
     html += `<div class="weight-row">
       <span class="weight-label" style="color: #4a9eff;">Bumpers</span>
       <span class="weight-value">${bumperDisplay} ${wtUnit}</span>
@@ -7276,8 +7010,8 @@ function updateTotalStructureWeight() {
 
   if(platesWeightKg > 0) {
     const platesDisplay = displayWeightUnit === 'lbs'
-      ? (platesWeightKg * KG_TO_LBS).toFixed(1)
-      : platesWeightKg.toFixed(1);
+      ? Math.ceil(platesWeightKg * KG_TO_LBS)
+      : Math.ceil(platesWeightKg);
     html += `<div class="weight-row">
       <span class="weight-label" style="color: #6fc276;">Connecting Plates</span>
       <span class="weight-value">${platesDisplay} ${wtUnit}</span>
@@ -7286,8 +7020,8 @@ function updateTotalStructureWeight() {
 
   if(groundSupportWeightKg > 0) {
     const gsDisplay = displayWeightUnit === 'lbs'
-      ? (groundSupportWeightKg * KG_TO_LBS).toFixed(1)
-      : groundSupportWeightKg.toFixed(1);
+      ? Math.ceil(groundSupportWeightKg * KG_TO_LBS)
+      : Math.ceil(groundSupportWeightKg);
     html += `<div class="weight-row">
       <span class="weight-label" style="color: #00CED1;">Ground Support</span>
       <span class="weight-value">${gsDisplay} ${wtUnit}</span>
@@ -7296,8 +7030,8 @@ function updateTotalStructureWeight() {
 
   if(floorFramesWeightKg > 0) {
     const floorDisplay = displayWeightUnit === 'lbs'
-      ? (floorFramesWeightKg * KG_TO_LBS).toFixed(1)
-      : floorFramesWeightKg.toFixed(1);
+      ? Math.ceil(floorFramesWeightKg * KG_TO_LBS)
+      : Math.ceil(floorFramesWeightKg);
     html += `<div class="weight-row">
       <span class="weight-label" style="color: #4ecdc4;">Floor Frames</span>
       <span class="weight-value">${floorDisplay} ${wtUnit}</span>
@@ -7306,8 +7040,8 @@ function updateTotalStructureWeight() {
 
   // Total
   const totalDisplay = displayWeightUnit === 'lbs'
-    ? totalWeightLbs.toFixed(0)
-    : totalWeightKg.toFixed(0);
+    ? Math.ceil(totalWeightLbs)
+    : Math.ceil(totalWeightKg);
   html += `<div class="weight-row" style="border-top: 1px solid #FFD700; margin-top: 6px; padding-top: 6px;">
     <span class="weight-label" style="color: #fff; font-weight: bold;">TOTAL</span>
     <span class="weight-value" style="color: #FFD700; font-weight: bold;">${totalDisplay} ${wtUnit}</span>
@@ -7322,16 +7056,7 @@ function calculateGroundSupportHardware(pw, ph) {
   const ladderHeightPanels = 2;
   const maxPanelsBeforeSecondBase = 8; // If more than 8 panels high, add 2nd base
   
-  // Hardware weights in lbs
-  const weights = {
-    rearTruss: 10.1,          // per rear truss piece (1000mm)
-    baseTruss: 28.2,          // per base truss (1000mm)
-    bridgeClamp: 2.2,         // per bridge clamp
-    rearBridgeClampAdapter: 1.1, // per adapter (DM2.6 only)
-    pipe: 5.0,                // per pipe
-    swivelCheeseborough: 1.2, // per swivel cheeseborough
-    sandbag: 25.0             // per sandbag (25lb sandbags)
-  };
+  const weights = GROUND_SUPPORT_WEIGHTS;
   
   let totalRearTruss = 0;
   let totalBridgeClamps = 0;
@@ -7645,7 +7370,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
     if(isSmallBumper || (isMobile && bumper.type === '4w')) {
       // Only show weight (centered)
       ctx.font = 'bold 9px Arial';
-      const weightValue = displayWeightUnit === 'lbs' ? pickupWeight.lbs.toFixed(0) : pickupWeight.kg.toFixed(0);
+      const weightValue = displayWeightUnit === 'lbs' ? Math.ceil(pickupWeight.lbs) : Math.ceil(pickupWeight.kg);
       const weightText = `${weightValue}${displayWeightUnit}`;
       ctx.fillText(weightText, x + width/2, y + height/2);
     } else {
@@ -7655,7 +7380,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
 
       // Draw weight below label using selected unit
       ctx.font = '9px Arial';
-      const weightValue = displayWeightUnit === 'lbs' ? pickupWeight.lbs.toFixed(0) : pickupWeight.kg.toFixed(0);
+      const weightValue = displayWeightUnit === 'lbs' ? Math.ceil(pickupWeight.lbs) : Math.ceil(pickupWeight.kg);
       const weightText = `${weightValue}${displayWeightUnit}`;
       ctx.fillText(weightText, x + width/2, y + height/2 + 6);
     }
@@ -9220,11 +8945,9 @@ function switchToCanvas(canvasId) {
   showCanvasView();
 }
 
-async function deleteCanvas(canvasId) {
+function deleteCanvas(canvasId) {
   const canvasIds = Object.keys(canvases);
   if(canvasIds.length <= 1) return;
-
-  if(!await showConfirm(`Delete "${canvases[canvasId].name}"?`)) return;
 
   delete canvases[canvasId];
 
@@ -11869,7 +11592,7 @@ function exportPDF(){
 
           // Use stored panel-only weight (already calculated without bumpers)
           const panelOnlyWeightKg = calcData.panelWeightOnlyKg || (activePanels * getPanelWeight(panelType, exportUseConnectingPlates));
-          const panelOnlyWeightLbs = (panelOnlyWeightKg * 2.20462).toFixed(1);
+          const panelOnlyWeightLbs = Math.ceil(panelOnlyWeightKg * 2.20462);
 
           // Calculate power (stored as power_max_w, power_avg_w in panels object)
           const powerType = data.powerType || 'max';
@@ -11892,7 +11615,7 @@ function exportPDF(){
           const panelWidthM = p.width_m.toFixed(3);
           const panelHeightM = p.height_m.toFixed(3);
           const exportPanelWeightKg = getPanelWeight(panelType, exportUseConnectingPlates);
-          const panelWeightLbs = (exportPanelWeightKg * 2.20462).toFixed(2);
+          const panelWeightLbs = Math.ceil(exportPanelWeightKg * 2.20462);
 
           // Only add specs if enabled in export options
           if(pdfExportOptions.specs) {
@@ -11908,16 +11631,16 @@ function exportPDF(){
           if(showComplexDetails) {
             // Complex mode: show additional panel specs
             if(p.brightness_nits) addSpecLine('Brightness:', `${p.brightness_nits} nits`);
-            if(exportPanelWeightKg) addSpecLine('Weight/Panel:', `${panelWeightLbs} lbs (${exportPanelWeightKg.toFixed(2)} kg)`);
+            if(exportPanelWeightKg) addSpecLine('Weight/Panel:', `${panelWeightLbs} lbs (${Math.ceil(exportPanelWeightKg)} kg)`);
             addSpecLine('Panel Power:', `${p.power_max_w} W / ${p.power_avg_w} W (Max/Avg)`);
             if(p.max_hanging !== null && p.max_hanging !== undefined) addSpecLine('Max Hanging:', `${p.max_hanging} panels`);
             if(p.max_stacking !== null && p.max_stacking !== undefined) addSpecLine('Max Stacking:', `${p.max_stacking} panels`);
             if(p.bumper_1w_lbs !== null && p.bumper_1w_lbs !== undefined) {
-              addSpecLine('Bumper Weights:', `1W=${p.bumper_1w_lbs.toFixed(1)} lbs, 2W=${p.bumper_2w_lbs.toFixed(1)} lbs`);
+              addSpecLine('Bumper Weights:', `1W=${Math.ceil(p.bumper_1w_lbs)} lbs, 2W=${Math.ceil(p.bumper_2w_lbs)} lbs`);
             }
           } else {
             // Simple mode: just weight per panel
-            if(exportPanelWeightKg) addSpecLine('Weight/Panel:', `${panelWeightLbs} lbs (${exportPanelWeightKg.toFixed(2)} kg)`);
+            if(exportPanelWeightKg) addSpecLine('Weight/Panel:', `${panelWeightLbs} lbs (${Math.ceil(exportPanelWeightKg)} kg)`);
           }
 
           // WALL section
@@ -11959,17 +11682,17 @@ function exportPDF(){
             }
 
             const totalWeightKg = panelOnlyWeightKg + structureWeightKg;
-            const totalWeightLbs = (totalWeightKg * 2.20462).toFixed(1);
+            const totalWeightLbs = Math.ceil(totalWeightKg * 2.20462);
 
-            addSpecLine('Total Weight:', `${totalWeightLbs} lbs (${totalWeightKg.toFixed(1)} kg)`);
+            addSpecLine('Total Weight:', `${totalWeightLbs} lbs (${Math.ceil(totalWeightKg)} kg)`);
             if(structureWeightKg > 0 || structureType === 'floor') {
-              addSpecLine('  Panels:', `${panelOnlyWeightLbs} lbs (${panelOnlyWeightKg.toFixed(1)} kg)`);
-              const structureWeightLbs = (structureWeightKg * 2.20462).toFixed(1);
-              addSpecLine('  Structure:', `${structureWeightLbs} lbs (${structureWeightKg.toFixed(1)} kg)`);
+              addSpecLine('  Panels:', `${panelOnlyWeightLbs} lbs (${Math.ceil(panelOnlyWeightKg)} kg)`);
+              const structureWeightLbs = Math.ceil(structureWeightKg * 2.20462);
+              addSpecLine('  Structure:', `${structureWeightLbs} lbs (${Math.ceil(structureWeightKg)} kg)`);
             }
           } else {
             // Simple mode: show panel-only weight
-            addSpecLine('Wall Weight:', `${panelOnlyWeightLbs} lbs (${panelOnlyWeightKg.toFixed(1)} kg)`);
+            addSpecLine('Wall Weight:', `${panelOnlyWeightLbs} lbs (${Math.ceil(panelOnlyWeightKg)} kg)`);
           }
 
           // POWER section
@@ -12619,13 +12342,13 @@ function exportPDF(){
               const weight = calculateBumperPickupWeight(bumper);
               pickupWeightKg += weight.kg;
               const label = bumper.type === '4w' ? '4W' : bumper.type === '2w' ? '2W' : '1W';
-              const weightDisplay = displayWeightUnit === 'lbs' ? weight.lbs.toFixed(0) : weight.kg.toFixed(0);
+              const weightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(weight.lbs) : Math.ceil(weight.kg);
               pdf.text(`${label} #${counts[bumper.type]}`, col1X + colLabelX, col1Y);
               pdf.text(`${weightDisplay} ${wtUnit}`, col1X + colValueX, col1Y, { align: 'right' });
               col1Y += 3.5;
             });
           }
-          
+
           // Bottom bumpers (skip 2W under 4W)
           if(bottomBumpers.length > 0) {
             const sortedBottom = [...bottomBumpers].sort((a, b) => {
@@ -12642,20 +12365,20 @@ function exportPDF(){
               const weight = calculateBumperPickupWeight(bumper);
               pickupWeightKg += weight.kg;
               const label = bumper.type === '4w' ? '4W' : bumper.type === '2w' ? '2W' : '1W';
-              const weightDisplay = displayWeightUnit === 'lbs' ? weight.lbs.toFixed(0) : weight.kg.toFixed(0);
+              const weightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(weight.lbs) : Math.ceil(weight.kg);
               pdf.text(`${label} #${counts[bumper.type]}`, col1X + colLabelX, col1Y);
               pdf.text(`${weightDisplay} ${wtUnit}`, col1X + colValueX, col1Y, { align: 'right' });
               col1Y += 3.5;
             });
           }
-          
+
           // Total line
           pdf.setDrawColor(100, 100, 100);
           pdf.line(col1X + colLabelX, col1Y, col1X + colValueX, col1Y);
           col1Y += 3;
           pdf.setFont(undefined, 'bold');
           pdf.text('Total', col1X + colLabelX, col1Y);
-          const totalPickupDisplay = displayWeightUnit === 'lbs' ? (pickupWeightKg * KG_TO_LBS).toFixed(0) : pickupWeightKg.toFixed(0);
+          const totalPickupDisplay = displayWeightUnit === 'lbs' ? Math.ceil(pickupWeightKg * KG_TO_LBS) : Math.ceil(pickupWeightKg);
           pdf.text(`${totalPickupDisplay} ${wtUnit}`, col1X + colValueX, col1Y, { align: 'right' });
           pdf.setFont(undefined, 'normal');
           col1Y += 6;
@@ -12720,7 +12443,7 @@ function exportPDF(){
             pdf.setFont(undefined, 'bold');
             pdf.text('Total Weight', col1X + colLabelX, col1Y);
             groundSupportWeightKg = hardware.totalWeightKg;
-            const gsWeightDisplay = displayWeightUnit === 'lbs' ? hardware.totalWeightLbs.toFixed(1) : hardware.totalWeightKg.toFixed(1);
+            const gsWeightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(hardware.totalWeightLbs) : Math.ceil(hardware.totalWeightKg);
             pdf.text(`${gsWeightDisplay} ${wtUnit}`, col1X + colValueX, col1Y, { align: 'right' });
             pdf.setFont(undefined, 'normal');
             col1Y += 6;
@@ -12781,7 +12504,7 @@ function exportPDF(){
             col1Y += 3;
             pdf.setFont(undefined, 'bold');
             pdf.text('Total Weight', col1X + colLabelX, col1Y);
-            const floorWeightDisplay = displayWeightUnit === 'lbs' ? totalWeightLbs.toFixed(1) : floorFramesWeightKg.toFixed(1);
+            const floorWeightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(totalWeightLbs) : Math.ceil(floorFramesWeightKg);
             pdf.text(`${floorWeightDisplay} ${wtUnit}`, col1X + colValueX, col1Y, { align: 'right' });
             pdf.setFont(undefined, 'normal');
             col1Y += 6;
@@ -12798,9 +12521,7 @@ function exportPDF(){
           pdf.text('Connecting Plates', col2X, col2Y);
           col2Y += 5;
           
-          const plate2wayKg = 0.141;
-          const plate4wayKg = 0.249;
-          const plates = calculateConnectingPlates(pw, ph, plate2wayKg, plate4wayKg);
+          const plates = calculateConnectingPlates(pw, ph, PLATE_WEIGHTS.plate2wayKg, PLATE_WEIGHTS.plate4wayKg);
           platesWeightKg = plates.totalPlateWeight;
           
           pdf.setFontSize(9);
@@ -12822,7 +12543,7 @@ function exportPDF(){
           col2Y += 3;
           pdf.setFont(undefined, 'bold');
           pdf.text('Total Weight', col2X + colLabelX, col2Y);
-          const platesWeightDisplay = displayWeightUnit === 'lbs' ? (platesWeightKg * KG_TO_LBS).toFixed(1) : platesWeightKg.toFixed(1);
+          const platesWeightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(platesWeightKg * KG_TO_LBS) : Math.ceil(platesWeightKg);
           pdf.text(`${platesWeightDisplay} ${wtUnit}`, col2X + colValueX, col2Y, { align: 'right' });
           pdf.setFont(undefined, 'normal');
           col2Y += 6;
@@ -12845,25 +12566,25 @@ function exportPDF(){
 
           if(bumperHardwareWeightKg > 0 && !isFloorMode) {
             pdf.text('Bumpers', col2X + colLabelX, col2Y);
-            const bumperDisplay = displayWeightUnit === 'lbs' ? (bumperHardwareWeightKg * KG_TO_LBS).toFixed(1) : bumperHardwareWeightKg.toFixed(1);
+            const bumperDisplay = displayWeightUnit === 'lbs' ? Math.ceil(bumperHardwareWeightKg * KG_TO_LBS) : Math.ceil(bumperHardwareWeightKg);
             pdf.text(`${bumperDisplay} ${wtUnit}`, col2X + colValueX, col2Y, { align: 'right' });
             col2Y += 3.5;
           }
           if(platesWeightKg > 0) {
             pdf.text('Connecting Plates', col2X + colLabelX, col2Y);
-            const platesDisplay = displayWeightUnit === 'lbs' ? (platesWeightKg * KG_TO_LBS).toFixed(1) : platesWeightKg.toFixed(1);
+            const platesDisplay = displayWeightUnit === 'lbs' ? Math.ceil(platesWeightKg * KG_TO_LBS) : Math.ceil(platesWeightKg);
             pdf.text(`${platesDisplay} ${wtUnit}`, col2X + colValueX, col2Y, { align: 'right' });
             col2Y += 3.5;
           }
           if(groundSupportWeightKg > 0) {
             pdf.text('Ground Support', col2X + colLabelX, col2Y);
-            const gsDisplay = displayWeightUnit === 'lbs' ? (groundSupportWeightKg * KG_TO_LBS).toFixed(1) : groundSupportWeightKg.toFixed(1);
+            const gsDisplay = displayWeightUnit === 'lbs' ? Math.ceil(groundSupportWeightKg * KG_TO_LBS) : Math.ceil(groundSupportWeightKg);
             pdf.text(`${gsDisplay} ${wtUnit}`, col2X + colValueX, col2Y, { align: 'right' });
             col2Y += 3.5;
           }
           if(floorFramesWeightKg > 0) {
             pdf.text('Floor Frames', col2X + colLabelX, col2Y);
-            const floorDisplay = displayWeightUnit === 'lbs' ? (floorFramesWeightKg * KG_TO_LBS).toFixed(1) : floorFramesWeightKg.toFixed(1);
+            const floorDisplay = displayWeightUnit === 'lbs' ? Math.ceil(floorFramesWeightKg * KG_TO_LBS) : Math.ceil(floorFramesWeightKg);
             pdf.text(`${floorDisplay} ${wtUnit}`, col2X + colValueX, col2Y, { align: 'right' });
             col2Y += 3.5;
           }
@@ -12873,7 +12594,7 @@ function exportPDF(){
           col2Y += 3;
           pdf.setFont(undefined, 'bold');
           pdf.text('Total', col2X + colLabelX, col2Y);
-          const totalDisplay = displayWeightUnit === 'lbs' ? (totalStructureWeightKg * KG_TO_LBS).toFixed(0) : totalStructureWeightKg.toFixed(0);
+          const totalDisplay = displayWeightUnit === 'lbs' ? Math.ceil(totalStructureWeightKg * KG_TO_LBS) : Math.ceil(totalStructureWeightKg);
           pdf.text(`${totalDisplay} ${wtUnit}`, col2X + colValueX, col2Y, { align: 'right' });
           pdf.setFont(undefined, 'normal');
           col2Y += 4;
@@ -13858,352 +13579,6 @@ function setupLive(){
   }
 }
 
-// Custom Panel Modal
-function openCustomPanelModal(editKey = null) {
-  const modal = document.getElementById('customPanelModal');
-  const title = document.getElementById('customPanelModalTitle');
-
-  // Update labels based on current unit system
-  const isMetric = displayLengthUnit === 'm';
-  const lengthUnit = isMetric ? 'mm' : 'in';
-  const weightUnit = isMetric ? 'kg' : 'lbs';
-
-  // Update dimension labels
-  document.getElementById('labelPixelPitch').textContent = 'Pixel Pitch (mm)'; // Always mm
-  document.getElementById('labelPanelWidth').textContent = `Panel Width (${lengthUnit})`;
-  document.getElementById('labelPanelHeight').textContent = `Panel Height (${lengthUnit})`;
-  document.getElementById('labelPanelDepth').textContent = `Panel Depth (${lengthUnit})`;
-
-  // Update weight labels
-  document.getElementById('labelPanelWeight').textContent = `Panel Weight (${weightUnit})`;
-  document.getElementById('labelFrameWeight').textContent = `Frame Weight (${weightUnit})`;
-  document.getElementById('labelWeightNoFrame').textContent = `Weight Without Frame (${weightUnit})`;
-  document.getElementById('label1wBumper').textContent = `1W Bumper Weight (${weightUnit})`;
-  document.getElementById('label2wBumper').textContent = `2W Bumper Weight (${weightUnit})`;
-
-  // Conversion constants
-  const MM_TO_IN = 0.0393701;
-  const IN_TO_MM = 25.4;
-
-  if(editKey) {
-    title.textContent = 'Edit Custom Panel';
-    const panel = customPanels[editKey];
-    document.getElementById('customPanelBrand').value = panel.brand || '';
-    document.getElementById('customPanelName').value = panel.name || '';
-    document.getElementById('customPanelPixelPitch').value = panel.pixel_pitch_mm || '';
-
-    // Convert dimensions based on unit system (stored in mm internally)
-    const widthMm = (panel.width_m * 1000) || '';
-    const heightMm = (panel.height_m * 1000) || '';
-    const depthMm = panel.depth_mm || '';
-
-    if(isMetric) {
-      document.getElementById('customPanelWidth').value = widthMm;
-      document.getElementById('customPanelHeight').value = heightMm;
-      document.getElementById('customPanelDepth').value = depthMm;
-    } else {
-      document.getElementById('customPanelWidth').value = widthMm ? (widthMm * MM_TO_IN).toFixed(2) : '';
-      document.getElementById('customPanelHeight').value = heightMm ? (heightMm * MM_TO_IN).toFixed(2) : '';
-      document.getElementById('customPanelDepth').value = depthMm ? (depthMm * MM_TO_IN).toFixed(2) : '';
-    }
-
-    document.getElementById('customPanelResX').value = panel.res_x || '';
-    document.getElementById('customPanelResY').value = panel.res_y || '';
-    document.getElementById('customPanelPowerMax').value = panel.power_max_w || '';
-    document.getElementById('customPanelPowerAvg').value = panel.power_avg_w || '';
-    document.getElementById('customPanelBrightness').value = panel.brightness_nits || '';
-    document.getElementById('customPanelMaxHanging').value = panel.max_hanging || '';
-    document.getElementById('customPanelMaxStacking').value = panel.max_stacking || '';
-
-    // Convert weights based on unit system (stored in kg internally, bumpers in lbs)
-    if(isMetric) {
-      document.getElementById('customPanelWeight').value = panel.weight_kg || '';
-      document.getElementById('customPanelFrameWeight').value = panel.frame_weight_kg || '';
-      document.getElementById('customPanelWeightNoFrame').value = panel.weight_no_frame_kg || '';
-      // Convert bumper weights from lbs to kg for display
-      document.getElementById('customPanel1wBumper').value = panel.bumper_1w_lbs ? (panel.bumper_1w_lbs * LBS_TO_KG).toFixed(2) : '';
-      document.getElementById('customPanel2wBumper').value = panel.bumper_2w_lbs ? (panel.bumper_2w_lbs * LBS_TO_KG).toFixed(2) : '';
-    } else {
-      // Convert kg to lbs for display
-      document.getElementById('customPanelWeight').value = panel.weight_kg ? (panel.weight_kg * KG_TO_LBS).toFixed(2) : '';
-      document.getElementById('customPanelFrameWeight').value = panel.frame_weight_kg ? (panel.frame_weight_kg * KG_TO_LBS).toFixed(2) : '';
-      document.getElementById('customPanelWeightNoFrame').value = panel.weight_no_frame_kg ? (panel.weight_no_frame_kg * KG_TO_LBS).toFixed(2) : '';
-      // Bumper weights already stored in lbs
-      document.getElementById('customPanel1wBumper').value = panel.bumper_1w_lbs || '';
-      document.getElementById('customPanel2wBumper').value = panel.bumper_2w_lbs || '';
-    }
-
-    document.getElementById('customPanelRemovableFrame').checked = panel.removable_frame || false;
-    modal.dataset.editKey = editKey;
-  } else {
-    title.textContent = 'Add Custom Panel';
-    // Clear all fields
-    document.getElementById('customPanelBrand').value = '';
-    document.getElementById('customPanelName').value = '';
-    document.getElementById('customPanelPixelPitch').value = '';
-    document.getElementById('customPanelWidth').value = '';
-    document.getElementById('customPanelHeight').value = '';
-    document.getElementById('customPanelDepth').value = '';
-    document.getElementById('customPanelResX').value = '';
-    document.getElementById('customPanelResY').value = '';
-    document.getElementById('customPanelPowerMax').value = '';
-    document.getElementById('customPanelPowerAvg').value = '';
-    document.getElementById('customPanelBrightness').value = '';
-    document.getElementById('customPanelMaxHanging').value = '';
-    document.getElementById('customPanelMaxStacking').value = '';
-    document.getElementById('customPanelWeight').value = '';
-    document.getElementById('customPanelRemovableFrame').checked = false;
-    document.getElementById('customPanelFrameWeight').value = '';
-    document.getElementById('customPanelWeightNoFrame').value = '';
-    document.getElementById('customPanel1wBumper').value = '';
-    document.getElementById('customPanel2wBumper').value = '';
-
-    delete modal.dataset.editKey;
-  }
-
-  modal.classList.add('active');
-  updateFrameWeightFields();
-}
-
-function closeCustomPanelModal() {
-  const modal = document.getElementById('customPanelModal');
-  modal.classList.remove('active');
-}
-
-function updateFrameWeightFields() {
-  const hasFrame = document.getElementById('customPanelRemovableFrame').checked;
-  const frameFields = document.getElementById('frameWeightFields');
-  frameFields.style.display = hasFrame ? 'block' : 'none';
-}
-
-function saveCustomPanel() {
-  const brand = document.getElementById('customPanelBrand').value.trim();
-  const name = document.getElementById('customPanelName').value.trim();
-
-  if(!brand || !name) {
-    showAlert('Please enter brand and name');
-    return;
-  }
-
-  const modal = document.getElementById('customPanelModal');
-  const editKey = modal.dataset.editKey;
-  const key = editKey || `CUSTOM_${brand.replace(/\s+/g, '_')}_${name.replace(/\s+/g, '_')}`;
-
-  // Check current unit system for conversion
-  const isMetric = displayLengthUnit === 'm';
-  const IN_TO_MM = 25.4;
-
-  // Get raw input values
-  const widthInput = parseFloat(document.getElementById('customPanelWidth').value) || null;
-  const heightInput = parseFloat(document.getElementById('customPanelHeight').value) || null;
-  const depthInput = parseFloat(document.getElementById('customPanelDepth').value) || null;
-  const weightInput = parseFloat(document.getElementById('customPanelWeight').value) || null;
-  const frameWeightInput = parseFloat(document.getElementById('customPanelFrameWeight').value) || null;
-  const weightNoFrameInput = parseFloat(document.getElementById('customPanelWeightNoFrame').value) || null;
-  const bumper1wInput = parseFloat(document.getElementById('customPanel1wBumper').value) || null;
-  const bumper2wInput = parseFloat(document.getElementById('customPanel2wBumper').value) || null;
-
-  // Convert dimensions to mm (stored as meters for width/height)
-  let widthMm, heightMm, depthMm;
-  if(isMetric) {
-    // Input is in mm
-    widthMm = widthInput;
-    heightMm = heightInput;
-    depthMm = depthInput;
-  } else {
-    // Input is in inches, convert to mm
-    widthMm = widthInput ? widthInput * IN_TO_MM : null;
-    heightMm = heightInput ? heightInput * IN_TO_MM : null;
-    depthMm = depthInput ? depthInput * IN_TO_MM : null;
-  }
-
-  // Convert weights to kg (panel weights) and lbs (bumper weights)
-  let weightKg, frameWeightKg, weightNoFrameKg, bumper1wLbs, bumper2wLbs;
-  if(isMetric) {
-    // Input is in kg
-    weightKg = weightInput;
-    frameWeightKg = frameWeightInput;
-    weightNoFrameKg = weightNoFrameInput;
-    // Bumper input is in kg, convert to lbs for storage
-    bumper1wLbs = bumper1wInput ? bumper1wInput * KG_TO_LBS : null;
-    bumper2wLbs = bumper2wInput ? bumper2wInput * KG_TO_LBS : null;
-  } else {
-    // Input is in lbs, convert to kg for panel weights
-    weightKg = weightInput ? weightInput * LBS_TO_KG : null;
-    frameWeightKg = frameWeightInput ? frameWeightInput * LBS_TO_KG : null;
-    weightNoFrameKg = weightNoFrameInput ? weightNoFrameInput * LBS_TO_KG : null;
-    // Bumper weights stay in lbs
-    bumper1wLbs = bumper1wInput;
-    bumper2wLbs = bumper2wInput;
-  }
-
-  const panel = {
-    brand: brand,
-    name: name,
-    pixel_pitch_mm: parseFloat(document.getElementById('customPanelPixelPitch').value) || null,
-    width_m: widthMm ? widthMm / 1000 : null,
-    height_m: heightMm ? heightMm / 1000 : null,
-    depth_mm: depthMm,
-    res_x: parseInt(document.getElementById('customPanelResX').value) || null,
-    res_y: parseInt(document.getElementById('customPanelResY').value) || null,
-    power_max_w: parseFloat(document.getElementById('customPanelPowerMax').value) || null,
-    power_avg_w: parseFloat(document.getElementById('customPanelPowerAvg').value) || null,
-    brightness_nits: parseInt(document.getElementById('customPanelBrightness').value) || null,
-    max_hanging: parseInt(document.getElementById('customPanelMaxHanging').value) || null,
-    max_stacking: parseInt(document.getElementById('customPanelMaxStacking').value) || null,
-    weight_kg: weightKg,
-    removable_frame: document.getElementById('customPanelRemovableFrame').checked,
-    frame_weight_kg: frameWeightKg,
-    weight_no_frame_kg: weightNoFrameKg,
-    bumper_1w_lbs: bumper1wLbs,
-    bumper_2w_lbs: bumper2wLbs,
-    bumper_4w_lbs: 66.15, // Default 4W bumper weight
-    custom: true
-  };
-
-  customPanels[key] = panel;
-  saveCustomPanels();
-  updatePanelDropdowns();
-
-  // Select the new/edited panel
-  const panelSelect = document.getElementById('panelType');
-  if(panelSelect) {
-    panelSelect.value = key;
-  }
-
-  closeCustomPanelModal();
-  showAlert(`Custom panel "${brand} ${name}" saved successfully!`);
-}
-
-// Request Item Modal
-let currentRequestType = 'panel';
-
-function setRequestType(type) {
-  currentRequestType = type;
-  document.getElementById('requestTypePanelBtn').classList.toggle('active', type === 'panel');
-  document.getElementById('requestTypeProcessorBtn').classList.toggle('active', type === 'processor');
-}
-
-function openRequestItemModal() {
-  const modal = document.getElementById('requestItemModal');
-  document.getElementById('requestBrand').value = '';
-  document.getElementById('requestModel').value = '';
-  document.getElementById('requestNotes').value = '';
-  setRequestType('panel');
-  modal.classList.add('active');
-}
-
-function openProcessorRequestModal() {
-  const modal = document.getElementById('requestItemModal');
-  document.getElementById('requestBrand').value = '';
-  document.getElementById('requestModel').value = '';
-  document.getElementById('requestNotes').value = '';
-  setRequestType('processor');
-  modal.classList.add('active');
-}
-
-function closeRequestItemModal() {
-  const modal = document.getElementById('requestItemModal');
-  modal.classList.remove('active');
-}
-
-function sendItemRequest() {
-  const brand = document.getElementById('requestBrand').value.trim();
-  const model = document.getElementById('requestModel').value.trim();
-  const notes = document.getElementById('requestNotes').value.trim();
-
-  if(!brand || !model) {
-    showAlert('Please enter both brand and model name');
-    return;
-  }
-
-  const typeLabel = currentRequestType === 'panel' ? 'Panel' : 'Processor';
-  const subject = encodeURIComponent(`LED Calculator - ${typeLabel} Request: ${brand} ${model}`);
-
-  // Use %0D%0A for line breaks (works better on mobile email clients)
-  const nl = '%0D%0A';
-  let body = `Hi Gabriel,${nl}${nl}`;
-  body += `I'd like to request adding a new ${typeLabel.toLowerCase()} to the LED Calculator app.${nl}${nl}`;
-  body += `Type: ${typeLabel}${nl}`;
-  body += `Brand: ${brand}${nl}`;
-  body += `Model: ${model}${nl}`;
-  if(notes) {
-    body += `${nl}Additional Info:${nl}${encodeURIComponent(notes)}${nl}`;
-  }
-  body += `${nl}Thank you!`;
-
-  const mailtoLink = `mailto:fearlesswandererproductions@gmail.com?subject=${subject}&body=${body}`;
-  window.location.href = mailtoLink;
-
-  closeRequestItemModal();
-}
-
-// Delete custom panel
-async function deleteCustomPanel(key) {
-  const panel = customPanels[key];
-  if(await showConfirm(`Delete custom panel "${panel.brand} ${panel.name}"?`)) {
-    delete customPanels[key];
-    saveCustomPanels();
-    updatePanelDropdowns();
-    closeManageCustomModal();
-  }
-}
-
-// Delete custom processor
-async function deleteCustomProcessor(key) {
-  const proc = customProcessors[key];
-  if(await showConfirm(`Delete custom processor "${proc.name}"?`)) {
-    delete customProcessors[key];
-    saveCustomProcessors();
-    updateProcessorDropdowns();
-    closeManageCustomModal();
-  }
-}
-
-// Manage Custom Panels Modal
-function openManageCustomModal() {
-  const modal = document.getElementById('manageCustomModal');
-
-  // Populate panels list
-  const panelsContent = document.getElementById('manageCustomPanelsContent');
-  let panelsHtml = '';
-  if(Object.keys(customPanels).length === 0) {
-    panelsHtml = '<p style="color: #888; text-align: center; padding: 20px;">No custom panels saved yet.</p>';
-  } else {
-    panelsHtml = '<div class="custom-item-list">';
-    Object.keys(customPanels).forEach(key => {
-      const panel = customPanels[key];
-      panelsHtml += `
-        <div class="custom-item">
-          <div class="custom-item-name">${escapeHtml(panel.brand)} ${escapeHtml(panel.name)}</div>
-          <div class="custom-item-actions">
-            <button class="btn-small" onclick="openCustomPanelModal('${escapeJsString(key)}'); closeManageCustomModal();">Edit</button>
-            <button class="btn-small danger" onclick="deleteCustomPanel('${escapeJsString(key)}')">Delete</button>
-          </div>
-        </div>
-      `;
-    });
-    panelsHtml += '</div>';
-  }
-  panelsContent.innerHTML = panelsHtml;
-
-  modal.classList.add('active');
-}
-
-function closeManageCustomModal() {
-  const modal = document.getElementById('manageCustomModal');
-  modal.classList.remove('active');
-}
-
-// Setup removable frame checkbox listener
-document.addEventListener('DOMContentLoaded', function() {
-  const frameCheckbox = document.getElementById('customPanelRemovableFrame');
-  if(frameCheckbox) {
-    frameCheckbox.addEventListener('change', updateFrameWeightFields);
-  }
-});
-
-// ==================== END CUSTOM MODAL FUNCTIONS ====================
 
 // Canvas movement history functions
 function saveCanvasMoveState() {
@@ -14421,6 +13796,7 @@ async function saveConfiguration() {
         maxPanelsPerData: data.maxPanelsPerData,
         dataStartDir: data.dataStartDir,
         showArrows: data.showArrows,
+        dataFlip: data.dataFlip,
         redundancy: data.redundancy,
         processorRedundancy: data.processorRedundancy,
         structureType: data.structureType,
@@ -14703,6 +14079,7 @@ function loadConfiguration(event) {
         document.getElementById('maxPanelsPerData').value = config.maxPanelsPerData || '';
         document.getElementById('dataStartDir').value = config.dataStartDir || 'top';
         showArrowsEnabled = config.showArrows !== undefined ? config.showArrows : true;
+        dataFlipEnabled = config.dataFlip || false;
         document.getElementById('frameRate').value = config.frameRate || '60';
         document.getElementById('bitDepth').value = config.bitDepth || '8';
         redundancyEnabled = config.redundancy || false;
@@ -15432,6 +14809,7 @@ function getDefaultScreenData() {
     maxPanelsPerData: '',
     dataStartDir: 'top',
     showArrows: true,
+    dataFlip: false,
     redundancy: true,
     processorRedundancy: false,
     
@@ -15589,6 +14967,7 @@ function saveCurrentScreenData() {
   data.maxPanelsPerData = document.getElementById('maxPanelsPerData').value;
   data.dataStartDir = document.getElementById('dataStartDir').value;
   data.showArrows = showArrowsEnabled;
+  data.dataFlip = dataFlipEnabled;
   data.redundancy = redundancyEnabled;
   data.processorRedundancy = processorRedundancyEnabled;
   data.mx40ConnectionMode = mx40ConnectionMode;
@@ -15708,6 +15087,7 @@ function loadScreenData(screenId) {
   document.getElementById('maxPanelsPerData').value = data.maxPanelsPerData || '';
   document.getElementById('dataStartDir').value = data.dataStartDir || 'top';
   showArrowsEnabled = data.showArrows !== false;
+  dataFlipEnabled = data.dataFlip || false;
   redundancyEnabled = data.redundancy !== false; // Default to true if undefined
   processorRedundancyEnabled = data.processorRedundancy || false;
   
@@ -15737,7 +15117,12 @@ function loadScreenData(screenId) {
   if(showArrowsBtn) {
     showArrowsBtn.classList.toggle('active', showArrowsEnabled);
   }
-  
+  const dataFlipBtn = document.getElementById('dataFlipBtn');
+  if(dataFlipBtn) {
+    dataFlipBtn.classList.toggle('active', dataFlipEnabled);
+    dataFlipBtn.style.display = showArrowsEnabled ? '' : 'none';
+  }
+
   // Structure
   document.getElementById('structureType').value = data.structureType || 'hanging';
   
@@ -17118,9 +16503,6 @@ function generateGearList() {
         if(ff.frame_2x2 > 0) html += gearLine('2×2 Frame:', ff.frame_2x2);
         if(ff.frame_2x1 > 0) html += gearLine('2×1 Frame:', ff.frame_2x1);
         if(ff.frame_1x1 > 0) html += gearLine('1×1 Frame:', ff.frame_1x1);
-        const wtUnit = getWeightUnitLabel();
-        const wtDisplay = displayWeightUnit === 'lbs' ? ff.totalWeightLbs.toFixed(1) : ff.totalWeightKg.toFixed(1);
-        html += `<div style="margin-left: 12px; color: #4ecdc4;"><strong>Frame Weight:</strong> ${wtDisplay} ${wtUnit}</div>`;
       }
     }
 
@@ -19585,7 +18967,7 @@ function renderCombinedSpecs(selectedScreenIds) {
   // Format values
   const widthDisplay = isImperial ? (totalWidth * 3.28084).toFixed(2) + ' ft' : totalWidth.toFixed(2) + ' m';
   const heightDisplay = isImperial ? (maxHeight * 3.28084).toFixed(2) + ' ft' : maxHeight.toFixed(2) + ' m';
-  const weightDisplay = weightUnit === 'lbs' ? (totalWeight * 2.20462).toFixed(1) + ' lbs' : totalWeight.toFixed(1) + ' kg';
+  const weightDisplay = weightUnit === 'lbs' ? Math.ceil(totalWeight * 2.20462) + ' lbs' : Math.ceil(totalWeight) + ' kg';
 
   // Helper to shorten panel type names for display
   function shortenPanelName(fullName) {
@@ -19680,6 +19062,8 @@ function renderCombinedGearList(selectedScreenIds) {
   let totalFrame2x1 = 0;
   let totalFrame2x2 = 0;
   let totalFrame3x2 = 0;
+  let totalFloorWeightLbs = 0;
+  let totalFloorWeightKg = 0;
 
   // Track panel info for jumpers
   let hasJumpersBuiltin = false;
@@ -19689,6 +19073,7 @@ function renderCombinedGearList(selectedScreenIds) {
   let needsShacklesAndCheeseye = false;
   let hasHangingScreen = false;
   let hasFloorScreen = false;
+  let has4KCanvas = false;
 
   selectedScreenIds.forEach(screenId => {
     const screen = screens[screenId];
@@ -19776,7 +19161,16 @@ function renderCombinedGearList(selectedScreenIds) {
       totalFrame2x1 += ff.frame_2x1 || 0;
       totalFrame2x2 += ff.frame_2x2 || 0;
       totalFrame3x2 += ff.frame_3x2 || 0;
+      totalFloorWeightLbs += ff.totalWeightLbs || 0;
+      totalFloorWeightKg += ff.totalWeightKg || 0;
     }
+
+    // Track canvas size for SDI type determination
+    const canvasSize = data.canvasSize || '4K_UHD';
+    const isHDCanvas = canvasSize === 'HD' || (canvasSize === 'custom' &&
+      (parseInt(data.customCanvasWidth) || 1920) <= 1920 &&
+      (parseInt(data.customCanvasHeight) || 1080) <= 1080);
+    if(!isHDCanvas) has4KCanvas = true;
 
     // Panel-specific info for data/power jumpers
     if(panel.jumpers_builtin) hasJumpersBuiltin = true;
@@ -19808,6 +19202,66 @@ function renderCombinedGearList(selectedScreenIds) {
     }
   });
 
+  // Build processor groups for signal cable calculation (same logic as gear tab)
+  const processorGroups = {};
+  selectedScreenIds.forEach(sid => {
+    const sc = screens[sid];
+    if(!sc || !sc.data) return;
+    const procType = sc.data.processor || 'Brompton_SX40';
+    const cd = sc.calculatedData || {};
+    const dl = cd.dataLines || 0;
+    if(!processorGroups[procType]) {
+      processorGroups[procType] = {
+        screens: [], totalMainPorts: 0, totalPixels: 0,
+        hasAnyRedundancy: false, hasAnyProcessorRedundancy: false, hasAnyIndirectMode: false
+      };
+    }
+    processorGroups[procType].screens.push({ screenId: sid, mainPorts: dl, totalPixels: cd.totalPixels || 0 });
+    processorGroups[procType].totalMainPorts += dl;
+    processorGroups[procType].totalPixels += (cd.totalPixels || 0);
+    if(sc.data.redundancy) processorGroups[procType].hasAnyRedundancy = true;
+    if(sc.data.processorRedundancy) processorGroups[procType].hasAnyProcessorRedundancy = true;
+    if(sc.data.mx40ConnectionMode === 'indirect') processorGroups[procType].hasAnyIndirectMode = true;
+  });
+
+  // Calculate processor counts per group
+  let totalGroupedProcessors = 0;
+  Object.keys(processorGroups).forEach(procType => {
+    const group = processorGroups[procType];
+    const totalMainPorts = group.totalMainPorts;
+    const hasRedundancy = group.hasAnyRedundancy;
+    const hasProcessorRedundancy = group.hasAnyProcessorRedundancy;
+    let processorCount = 0;
+
+    if(procType === 'Brompton_SX40') {
+      const mainXDs = totalMainPorts > 0 ? Math.ceil(totalMainPorts / 10) : 0;
+      const distBoxCount = hasRedundancy ? mainXDs * 2 : mainXDs;
+      processorCount = distBoxCount > 0 ? Math.ceil(distBoxCount / 4) : 0;
+    } else if(procType === 'Brompton_S8') {
+      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
+      processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 8) : 0;
+    } else if(procType === 'Brompton_M2' || procType === 'Brompton_S4') {
+      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
+      processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 4) : 0;
+    } else if(procType === 'NovaStar_MX40_Pro') {
+      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
+      const processorsByPixels = group.totalPixels > 0 ? Math.ceil(group.totalPixels / 9000000) : 0;
+      if(group.hasAnyIndirectMode) {
+        const distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 10) : 0;
+        processorCount = Math.max(processorsByPixels, Math.ceil(distBoxCount / 4));
+      } else {
+        const processorsByPorts = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 20) : 0;
+        processorCount = Math.max(processorsByPixels, processorsByPorts);
+      }
+    } else {
+      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
+      processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 8) : group.screens.length;
+    }
+    if(hasProcessorRedundancy && processorCount > 0) processorCount *= 2;
+    group.processorCount = processorCount;
+    totalGroupedProcessors += processorCount;
+  });
+
   // Helper to add a gear line only if value > 0
   function addGearLine(label, value) {
     if(value > 0) {
@@ -19832,7 +19286,6 @@ function renderCombinedGearList(selectedScreenIds) {
     }
   }
   html += addGearLine('Power Circuits:', totalCircuits);
-  html += addGearLine('Data Lines:', totalDataLines);
 
   // Rigging Hardware Section
   const hasRiggingHardware = total1wBumpers > 0 || total2wBumpers > 0 || total4wBumpers > 0 ||
@@ -19872,100 +19325,160 @@ function renderCombinedGearList(selectedScreenIds) {
     html += addGearLine('1×1 Frame:', totalFrame1x1);
   }
 
-  // Data Cables Section
-  const hasDataCables = totalDataJumpers > 0 || totalDataCrossJumpers > 0 || totalCat5Couplers > 0;
-  if(hasDataCables) {
-    html += addGearHeader('Data Cables');
-    if(totalDataJumpers > 0 && dataJumperLen) {
-      html += addGearLine(`Data Jumpers ${dataJumperLen}:`, totalDataJumpers);
-    }
-    if(totalDataCrossJumpers > 0 && dataCrossJumperLen) {
-      html += addGearLine(`Data Cross Jumpers ${dataCrossJumperLen}:`, totalDataCrossJumpers);
-    }
-    html += addGearLine('Cat5 Couplers:', totalCat5Couplers);
-  }
+  // Aggregate cable lengths across all screens before rendering cable sections
+  const combinedSocaByLength = {};
+  const combinedDataByLength = {};
+  const combinedDistBoxByType = {};
+  let combinedServerCables = [];
 
-  // Power Cables Section
-  const hasPowerCables = totalSocaSplays > 0 || totalPowerJumpers > 0 || totalTrue1Twofers > 0;
-  if(hasPowerCables) {
-    html += addGearHeader('Power Cables');
-    if(totalPowerJumpers > 0 && powerJumperLen) {
-      html += addGearLine(`Power Jumpers ${powerJumperLen}:`, totalPowerJumpers);
-    }
-    html += addGearLine('Soca Splays:', totalSocaSplays);
-    html += addGearLine('True1 Twofer:', totalTrue1Twofers);
-  }
-
-  // Cabling Section - per-screen cable length calculations
-  let hasCablingData = false;
   selectedScreenIds.forEach(screenId => {
     const screen = screens[screenId];
     if(!screen) return;
     const cabling = calculateCabling(screenId);
     if(!cabling) return;
-    hasCablingData = true;
+
+    // Aggregate SOCA cables by length
+    (cabling.socaCables || []).forEach(s => {
+      combinedSocaByLength[s.roundedFt] = (combinedSocaByLength[s.roundedFt] || 0) + 1;
+    });
+
+    // Aggregate ALL data cables by length (primary + backup + knockout)
+    (cabling.dataCables || []).forEach(c => {
+      combinedDataByLength[c.roundedFt] = (combinedDataByLength[c.roundedFt] || 0) + 1;
+    });
+    (cabling.knockoutBridgeCables || []).forEach(c => {
+      combinedDataByLength[c.roundedFt] = (combinedDataByLength[c.roundedFt] || 0) + 1;
+    });
+
+    // Aggregate dist box cables
+    (cabling.distBoxCables || []).forEach(c => {
+      const key = `${c.type === 'fiber' ? 'Fiber' : 'Cat6A'} ${c.roundedFt}'`;
+      combinedDistBoxByType[key] = (combinedDistBoxByType[key] || 0) + 1;
+    });
+
+    // Collect server cables
+    if(cabling.serverCable) {
+      combinedServerCables.push(cabling.serverCable.lengthFt);
+    }
   });
 
-  if(hasCablingData) {
-    html += addGearHeader('Cable Runs');
-    selectedScreenIds.forEach(screenId => {
-      const screen = screens[screenId];
-      if(!screen) return;
-      const cabling = screen.calculatedData?.cabling;
-      if(!cabling) return;
+  const hasCatCables = Object.keys(combinedDataByLength).length > 0;
+  const hasDistBox = Object.keys(combinedDistBoxByType).length > 0;
+  const hasSocaRuns = Object.keys(combinedSocaByLength).length > 0;
 
-      const combinedCableColor = safeColor(screen.color);
-      html += `<div style="background: var(--comic-panel); border: 1px solid ${combinedCableColor}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
-      html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${combinedCableColor}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${combinedCableColor}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${escapeHtml(screen.name)}</div>`;
-
-      // SOCA
-      if(cabling.socaCables.length > 0) {
-        const socaByLength = {};
-        cabling.socaCables.forEach(s => {
-          if(!socaByLength[s.roundedFt]) socaByLength[s.roundedFt] = 0;
-          socaByLength[s.roundedFt]++;
-        });
-        html += `<div style="margin-left: 8px; color: #ff9800;"><strong>SOCA:</strong></div>`;
-        for(const [len, count] of Object.entries(socaByLength).sort((a,b) => a[0] - b[0])) {
-          html += `<div style="margin-left: 16px;">${count}x ${len}'</div>`;
-        }
+  // Data Cables Section
+  const hasDataCables = totalDataJumpers > 0 || totalDataCrossJumpers > 0 || totalCat5Couplers > 0 || hasCatCables || hasDistBox;
+  if(hasDataCables) {
+    html += addGearHeader('Data Cables');
+    if(totalDataJumpers > 0 && dataJumperLen) {
+      html += addGearLine(`Jumpers ${dataJumperLen}':`, totalDataJumpers);
+    }
+    if(totalDataCrossJumpers > 0 && dataCrossJumperLen) {
+      html += addGearLine(`Cross Jumpers ${dataCrossJumperLen}':`, totalDataCrossJumpers);
+    }
+    html += addGearLine('Cat5 Couplers:', totalCat5Couplers);
+    if(hasCatCables) {
+      for(const [len, count] of Object.entries(combinedDataByLength).sort((a,b) => a[0] - b[0])) {
+        html += `<div style="margin-left: 12px;"><strong>${count}x ${len}' Cat6</strong></div>`;
       }
-
-      // Data cables (including knockout bridge cables)
-      const primaryCables = cabling.dataCables.filter(c => !c.backup);
-      const backupCables = cabling.dataCables.filter(c => c.backup);
-      const knockoutCables = cabling.knockoutBridgeCables || [];
-      if(primaryCables.length > 0 || knockoutCables.length > 0) {
-        const allDataByLength = {};
-        primaryCables.forEach(c => {
-          if(!allDataByLength[c.roundedFt]) allDataByLength[c.roundedFt] = 0;
-          allDataByLength[c.roundedFt]++;
-        });
-        knockoutCables.forEach(c => {
-          if(!allDataByLength[c.roundedFt]) allDataByLength[c.roundedFt] = 0;
-          allDataByLength[c.roundedFt]++;
-        });
-        html += `<div style="margin-left: 8px; color: #4ecdc4;"><strong>Data:</strong></div>`;
-        for(const [len, count] of Object.entries(allDataByLength).sort((a,b) => a[0] - b[0])) {
-          html += `<div style="margin-left: 16px;">${count}x ${len}'</div>`;
-        }
-        if(backupCables.length > 0) {
-          html += `<div style="margin-left: 16px; color: #999;">+ ${backupCables.length}x Backup</div>`;
-        }
+    }
+    if(hasDistBox) {
+      for(const [desc, count] of Object.entries(combinedDistBoxByType)) {
+        html += `<div style="margin-left: 12px;"><strong>Proc → Dist Box:</strong> ${count}x ${desc}</div>`;
       }
-
-      // Dist box cables
-      if(cabling.distBoxCables.length > 0) {
-        const boxType = cabling.distBoxCables[0]?.type === 'fiber' ? 'Fiber' : 'Cat6A';
-        const boxLen = cabling.distBoxCables[0]?.roundedFt || 0;
-        html += `<div style="margin-left: 8px; color: #e040fb;"><strong>Proc→Dist Box:</strong> ${cabling.distBoxCables.length}x ${boxType} ${boxLen}'</div>`;
-      }
-
-      // Server cable
-      html += `<div style="margin-left: 8px; color: #78909c;"><strong>Server→Proc:</strong> ${cabling.serverCable.lengthFt}'</div>`;
-      html += `</div>`;
-    });
+    }
   }
+
+  // Power Cables Section
+  const hasPowerCables = totalSocaSplays > 0 || totalPowerJumpers > 0 || totalTrue1Twofers > 0 || hasSocaRuns;
+  if(hasPowerCables) {
+    html += addGearHeader('Power Cables');
+    if(totalPowerJumpers > 0 && powerJumperLen) {
+      html += addGearLine(`Jumpers ${powerJumperLen}':`, totalPowerJumpers);
+    }
+    html += addGearLine('Soca Splays:', totalSocaSplays);
+    if(hasSocaRuns) {
+      for(const [len, count] of Object.entries(combinedSocaByLength).sort((a,b) => a[0] - b[0])) {
+        html += `<div style="margin-left: 12px;"><strong>${count}x ${len}' SOCA</strong></div>`;
+      }
+    }
+    html += `<div style="margin-top: 8px;"></div>`;
+    html += addGearLine("25' True1:", totalSocaSplays);
+    html += addGearLine("10' True1:", totalSocaSplays);
+    html += addGearLine("5' True1:", totalSocaSplays * 2);
+    html += addGearLine('True1 Twofer:', totalTrue1Twofers);
+  }
+
+  // Processor → Dist Box Section (if any screen uses dist boxes)
+  if(hasDistBox) {
+    // Already shown in Data Cables above
+  }
+
+  // Signal Cables Section
+  if(totalGroupedProcessors > 0) {
+    html += addGearHeader('Signal Cables');
+    const sdiPerProcessor = totalGroupedProcessors * 2;
+    const sdiType = has4KCanvas ? '12G SDI' : '3G SDI';
+    const sdiCounts = {};
+    if(!has4KCanvas) {
+      sdiCounts[100] = sdiPerProcessor;
+      sdiCounts[50] = sdiPerProcessor;
+      sdiCounts[25] = sdiPerProcessor;
+      sdiCounts[10] = 6;
+      sdiCounts[3] = 6;
+    } else {
+      sdiCounts[100] = sdiPerProcessor;
+      sdiCounts[50] = sdiPerProcessor;
+      sdiCounts[25] = sdiPerProcessor;
+    }
+    // Merge server cables into SDI counts
+    let serverFiberLines = [];
+    combinedServerCables.forEach(serverLen => {
+      if(serverLen > 0) {
+        if(serverLen > 300) {
+          const fiberLen = Math.max(500, Math.ceil(serverLen / 100) * 100);
+          serverFiberLines.push(fiberLen);
+        } else {
+          const sdiLen = roundUpToStandard(serverLen);
+          sdiCounts[sdiLen] = (sdiCounts[sdiLen] || 0) + 2;
+        }
+      }
+    });
+    // Render SDI lines sorted by length descending
+    for(const len of Object.keys(sdiCounts).map(Number).sort((a,b) => b - a)) {
+      if(sdiCounts[len] > 0) {
+        html += addGearLine(`${len}' ${sdiType}:`, sdiCounts[len]);
+      }
+    }
+    // Fiber lines if any server cable was too long for SDI
+    if(serverFiberLines.length > 0) {
+      const fiberByLength = {};
+      serverFiberLines.forEach(len => { fiberByLength[len] = (fiberByLength[len] || 0) + 2; });
+      for(const [len, count] of Object.entries(fiberByLength).sort((a,b) => b[0] - a[0])) {
+        html += addGearLine(`${len}' Fiber:`, count);
+      }
+    }
+    html += addGearLine("25' HDMI:", 6);
+    html += addGearLine("10' HDMI:", 6);
+    html += addGearLine("6' HDMI:", 6);
+  }
+
+  // Utility Section
+  html += addGearHeader('Utility');
+  html += addGearLine("UG 10':", 8);
+  html += addGearLine("UG 25':", 6);
+  html += addGearLine("UG 50':", 6);
+  html += addGearLine('UG Twofers:', 8);
+  html += addGearLine('Power Bars:', 8);
+
+  // Spares Section
+  html += addGearHeader('SPARES');
+  html += addGearLine('Spare Soca Splays:', '');
+  html += addGearLine('Spare Panel Count:', '');
+  if(!hasJumpersBuiltin && dataJumperLen) html += addGearLine(`Spare Data Jumpers ${dataJumperLen}':`, '');
+  if(dataCrossJumperLen) html += addGearLine(`Spare Data Cross Jumpers ${dataCrossJumperLen}':`, '');
+  if(hasJumpersBuiltin) html += addGearLine('Spare Cat5 Couplers:', '');
+  if(!hasJumpersBuiltin && powerJumperLen) html += addGearLine(`Spare Power Jumpers ${powerJumperLen}':`, '');
 
   html += '</div>';
 

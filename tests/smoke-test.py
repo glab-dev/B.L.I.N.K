@@ -8,7 +8,10 @@ Usage: python3 tests/smoke-test.py
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 from html.parser import HTMLParser
 
 # Paths relative to project root
@@ -315,7 +318,103 @@ def check_js_syntax():
 
 
 # ---------------------------------------------------------------------------
-# 7. Dangerous patterns check
+# 7. JS parse validation via Node.js
+# ---------------------------------------------------------------------------
+def check_js_parse():
+    """Use Node.js to actually parse JS and catch real syntax errors.
+
+    Unlike bracket counting, this catches structural errors like try-without-catch,
+    misplaced else, unclosed strings, etc.
+    """
+    print("\n--- JS parse validation (Node.js) ---")
+
+    node_path = shutil.which("node")
+    if not node_path:
+        warn("Node.js not found on PATH — skipping parse validation")
+        return
+
+    if not os.path.exists(INDEX_HTML):
+        fail("index.html not found")
+        return
+
+    with open(INDEX_HTML, "r") as f:
+        content = f.read()
+
+    # Find inline script blocks (skip src= external scripts)
+    blocks = []
+    for m in re.finditer(r"<script(?:\s[^>]*)?>(([\s\S]*?))</script>", content):
+        tag_open = m.group(0)[: m.group(0).index(">")]
+        if "src=" in tag_open:
+            continue
+        blocks.append(m.group(1))
+
+    # Validate each inline block
+    inline_ok = True
+    for i, block in enumerate(blocks):
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix=".js")
+        try:
+            with os.fdopen(tmp_fd, "w") as tmp:
+                tmp.write(block)
+            result = subprocess.run(
+                [
+                    node_path,
+                    "-e",
+                    'try { new Function(require("fs").readFileSync('
+                    + repr(tmp_path)
+                    + ',"utf8")); }'
+                    " catch(e) { console.error(e.message); process.exit(1); }",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode != 0:
+                err = (result.stderr.strip() or result.stdout.strip()).split("\n")[0]
+                fail(f"Inline script block {i}: {err}")
+                inline_ok = False
+        except subprocess.TimeoutExpired:
+            fail(f"Inline script block {i}: Node.js parse timed out")
+            inline_ok = False
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+    if inline_ok and blocks:
+        ok(f"All {len(blocks)} inline script blocks parse successfully")
+
+    # Validate each extracted .js module
+    js_files = get_all_js_files()
+    bad = []
+    for js_file in js_files:
+        rel = os.path.relpath(js_file, PROJECT_ROOT)
+        try:
+            result = subprocess.run(
+                [
+                    node_path,
+                    "-e",
+                    'try { new Function(require("fs").readFileSync('
+                    + repr(js_file)
+                    + ',"utf8")); }'
+                    " catch(e) { console.error(e.message); process.exit(1); }",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode != 0:
+                err = (result.stderr.strip() or result.stdout.strip()).split("\n")[0]
+                fail(f"{rel}: {err}")
+                bad.append(rel)
+        except subprocess.TimeoutExpired:
+            fail(f"{rel}: Node.js parse timed out")
+            bad.append(rel)
+
+    if not bad and js_files:
+        ok(f"All {len(js_files)} extracted JS modules parse successfully")
+
+
+# ---------------------------------------------------------------------------
+# 8. Dangerous patterns check
 # ---------------------------------------------------------------------------
 def check_dangerous_patterns():
     print("\n--- Dangerous patterns ---")
@@ -368,6 +467,7 @@ def main():
     check_section_headers()
     check_localstorage_keys()
     check_js_syntax()
+    check_js_parse()
     check_dangerous_patterns()
 
     print("\n" + "=" * 60)

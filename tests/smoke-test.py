@@ -17,7 +17,7 @@ INDEX_HTML = os.path.join(PROJECT_ROOT, "index.html")
 VERSION_JSON = os.path.join(PROJECT_ROOT, "version.json")
 
 # External JS module directories to scan
-JS_MODULE_DIRS = ["specs", "layouts", "nav"]
+JS_MODULE_DIRS = ["core", "specs", "layouts", "structure", "interact", "nav", "export", "config", "screens"]
 
 
 def get_all_js_files():

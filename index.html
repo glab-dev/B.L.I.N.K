@@ -1202,6 +1202,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous"></script>
 
+<!-- Core Utilities -->
+<script src="core/modals.js"></script>
+
 <!-- LED Panel & Processor Specifications -->
 <script src="specs/panels.js"></script>
 <script src="specs/processors.js"></script>
@@ -1224,7 +1227,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.5.41';
+const APP_VERSION = '2.5.42';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // ==================== SECURITY UTILITIES ====================
@@ -7491,38 +7494,6 @@ function closePdfExportModal() {
   }
 }
 
-// Custom Alert/Confirm Modal Functions
-let _customAlertResolve = null;
-
-function showAlert(message, title) {
-  return new Promise(resolve => {
-    _customAlertResolve = resolve;
-    document.getElementById('customAlertTitle').textContent = title || 'Notice';
-    document.getElementById('customAlertMessage').textContent = message;
-    document.getElementById('customAlertCancelBtn').style.display = 'none';
-    document.getElementById('customAlertOkBtn').textContent = 'OK';
-    document.getElementById('customAlertModal').classList.add('active');
-  });
-}
-
-function showConfirm(message, title) {
-  return new Promise(resolve => {
-    _customAlertResolve = resolve;
-    document.getElementById('customAlertTitle').textContent = title || 'Confirm';
-    document.getElementById('customAlertMessage').textContent = message;
-    document.getElementById('customAlertCancelBtn').style.display = '';
-    document.getElementById('customAlertOkBtn').textContent = 'OK';
-    document.getElementById('customAlertModal').classList.add('active');
-  });
-}
-
-function closeCustomAlert(result) {
-  document.getElementById('customAlertModal').classList.remove('active');
-  if (_customAlertResolve) {
-    _customAlertResolve(result !== false && result !== undefined ? true : false);
-    _customAlertResolve = null;
-  }
-}
 
 // Send Gear List Email
 function sendGearListToJared() {

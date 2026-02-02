@@ -46,249 +46,141 @@ function sendGearListToJared() {
     return;
   }
 
-  const configName = document.getElementById('configName').value.trim() || 'LED Wall Config';
+  // Build gear data from shared module
+  const gearData = buildGearListData(screenIds);
+
   const nl = '\n';
   const line = (label, value) => { if(value === 0 || value === '' || value === null || value === undefined || value === '0') return ''; return ` - ${label} ${value}${nl}`; };
   const hdr = (title) => `${nl}${title.toUpperCase()}${nl}${'-'.repeat(title.length)}${nl}`;
 
   let text = `LED GEAR LIST${nl}`;
-  text += `Project: ${configName}${nl}`;
+  text += `Project: ${gearData.configName}${nl}`;
   text += `======================================${nl}`;
 
-  // Build processor groups (same as generateGearList)
-  const processorGroups = {};
-  screenIds.forEach(sid => {
-    const s = screens[sid];
-    const pt = s.data.processor || 'Brompton_SX40';
-    if(!processorGroups[pt]) processorGroups[pt] = { screens: [], firstScreenId: sid, firstScreenName: s.name, processorCount: 0, distBoxCount: 0, distBoxName: '' };
-    processorGroups[pt].screens.push(sid);
-  });
-  for(const pt in processorGroups) {
-    const grp = processorGroups[pt];
-    let totalPanels = 0;
-    grp.screens.forEach(sid => { totalPanels += (screens[sid].calculatedData || {}).activePanels || 0; });
-    const pr = processors[pt] || processors['Brompton_SX40'];
-    if(pr) {
-      const portsPerProc = pr.ports || 1;
-      const maxPixPerPort = pr.base_pixels_1g || 525000;
-      const firstData = screens[grp.screens[0]].data;
-      const firstPanel = {...panels, ...customPanels}[firstData.panelType || 'CB5_MKII'];
-      if(firstPanel) {
-        const ppp = Math.max(1, Math.floor(maxPixPerPort / (firstPanel.res_x * firstPanel.res_y)));
-        const portsNeeded = Math.ceil(totalPanels / ppp);
-        grp.processorCount = Math.ceil(portsNeeded / portsPerProc);
-        grp.distBoxCount = pr.uses_distbox ? Math.ceil(portsNeeded / (pr.distbox_ports || 4)) : 0;
-        grp.distBoxName = pr.distbox_name || 'Dist Box';
-      }
-    }
-  }
-
-  let isFirstScreen = true;
-  screenIds.forEach(screenId => {
-    const screen = screens[screenId];
-    const data = screen.data;
-    const calcData = screen.calculatedData || {};
-    const W = data.panelsWide;
-    const H = data.panelsHigh;
-    if(W === 0 || H === 0) return;
-
-    const panelType = data.panelType || 'CB5_MKII';
-    const allPanelsObj = {...panels, ...customPanels};
-    const p = allPanelsObj[panelType];
-    if(!p) return;
-
-    const processorType = data.processor || 'Brompton_SX40';
-    const processorGroup = processorGroups[processorType] || null;
-    const isFirstScreenInGroup = processorGroup && processorGroup.firstScreenId === screenId;
-
-    const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
-    const activePanels = calcData.activePanels || calcData.panelCount || 0;
-    const activeHalfPanels = hasCB5HalfRow ? W : 0;
-    const activeFullPanels = activePanels - activeHalfPanels;
-
-    const bumper1wCount = calcData.bumper1wCount || 0;
-    const bumper2wCount = calcData.bumper2wCount || 0;
-    const bumper4wCount = calcData.bumper4wCount || 0;
-    const plates2way = calcData.plates2way || 0;
-    const plates4way = calcData.plates4way || 0;
-    const useBumpers = data.useBumpers !== false;
-    const socaCount = calcData.socaCount || 0;
-    const circuitsNeeded = calcData.circuitsNeeded || 0;
-    const columnsPerCircuit = calcData.columnsPerCircuit || 1;
-    const dataJumperLen = p.data_jumper_ft || '';
-    const dataCrossJumperLen = p.data_cross_jumper_ft || '';
-    const powerJumperLen = p.power_jumper_ft || '';
-    const jumpersBuiltin = p.jumpers_builtin || false;
-    const dataLinesCount = calcData.dataLines || 0;
+  gearData.screens.forEach(sd => {
+    const eq = sd.equipment;
+    const rig = sd.rigging;
+    const gs = sd.groundSupport;
+    const fh = sd.floorHardware;
+    const dc = sd.dataCables;
+    const pc = sd.powerCables;
+    const p2d = sd.processorToDistBox;
+    const sig = sd.signalCables;
+    const util = sd.utility;
+    const sp = sd.spares;
 
     // Screen header
     text += `${nl}${nl}`;
-    text += `${screen.name.toUpperCase()}${nl}`;
+    text += `${sd.screenName.toUpperCase()}${nl}`;
     text += `======================================${nl}`;
 
     // Equipment
     text += hdr('Equipment');
-    if(isFirstScreenInGroup && processorGroup && processorGroup.processorCount > 0) {
-      text += line('Processor:', `${processorGroup.processorCount}x ${calcData.processorName || ''}`);
-      if(processorGroup.distBoxCount > 0) text += line(`${processorGroup.distBoxName}:`, processorGroup.distBoxCount);
-    } else if(processorGroup && processorGroup.firstScreenId !== screenId) {
-      text += ` - Processor: See ${processorGroup.firstScreenName}${nl}`;
+    if(eq.isFirstScreenInGroup && eq.processorCount > 0) {
+      text += line('Processor:', `${eq.processorCount}x ${eq.processorName}`);
+      if(eq.distBoxCount > 0) text += line(`${eq.distBoxName}:`, eq.distBoxCount);
+    } else if(eq.referencesScreenName) {
+      text += ` - Processor: See ${eq.referencesScreenName}${nl}`;
     }
-    text += ` - Panels: ${activeFullPanels} x ${p.brand} ${p.name}${nl}`;
-    if(activeHalfPanels > 0) text += ` - Half Panels: ${activeHalfPanels} x ${p.brand} CB5 MKII Half Panel${nl}`;
+    text += ` - Panels: ${eq.activeFullPanels} x ${eq.panelBrand} ${eq.panelName}${nl}`;
+    if(eq.activeHalfPanels > 0) text += ` - Half Panels: ${eq.activeHalfPanels} x ${eq.panelBrand} ${eq.halfPanelName}${nl}`;
 
     // Rigging Hardware
-    const hasRigging = bumper1wCount > 0 || bumper2wCount > 0 || bumper4wCount > 0 || plates4way > 0 || plates2way > 0;
-    if(hasRigging) {
+    if(rig.hasRigging) {
       text += hdr('Rigging Hardware');
-      text += line('1W Bumpers:', bumper1wCount);
-      text += line('2W Bumpers:', bumper2wCount);
-      text += line('4W Bumpers:', bumper4wCount);
-      text += line('4W Connecting Plates:', plates4way);
-      text += line('2W Connecting Plates:', plates2way);
-      const needsSC = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3'].includes(panelType);
-      const isHanging = (data.structureType || 'hanging') === 'hanging';
-      if(needsSC && isHanging && useBumpers) {
-        let shackleCount = 0;
-        if(panelType === 'INFILED_AMT8_3') shackleCount = bumper1wCount + (bumper2wCount * 2);
-        else shackleCount = bumper1wCount + bumper2wCount;
-        text += line('5/8" Shackles:', shackleCount);
-        text += line('Cheeseye:', shackleCount);
-      }
+      text += line('1W Bumpers:', rig.bumper1w);
+      text += line('2W Bumpers:', rig.bumper2w);
+      text += line('4W Bumpers:', rig.bumper4w);
+      text += line('4W Connecting Plates:', rig.plates4way);
+      text += line('2W Connecting Plates:', rig.plates2way);
+      text += line('5/8" Shackles:', rig.shackles);
+      text += line('Cheeseye:', rig.cheeseye);
     }
 
     // Ground Support
-    const gs = calcData.groundSupport || {};
-    const hasGS = gs.totalRearTruss > 0 || gs.totalBaseTruss > 0 || gs.totalBridgeClamps > 0 || gs.totalSandbags > 0 || gs.totalPipes > 0 || gs.totalSwivelCheeseboroughs > 0 || gs.totalRearBridgeClampAdapters > 0;
-    if(hasGS) {
+    if(gs.hasGS) {
       text += hdr('Ground Support');
-      text += line('Rear Truss:', gs.totalRearTruss);
-      text += line('Base Truss:', gs.totalBaseTruss);
-      text += line('Bridge Clamps:', gs.totalBridgeClamps);
-      text += line('Rear Bridge Adapter:', gs.totalRearBridgeClampAdapters);
-      text += line('Sandbags:', gs.totalSandbags);
-      text += line('Swivel Cheeseborough:', gs.totalSwivelCheeseboroughs);
-      if(gs.totalPipes > 0) {
-        let pipeStr = '';
-        if(gs.pipeInfo && gs.pipeInfo.length > 0) {
-          const uLen = [...new Set(gs.pipeInfo.map(pi => pi.pipeLengthFt))];
-          pipeStr = ' (' + uLen.map(l => l + 'ft').join(', ') + ')';
-        }
-        text += line('Pipe' + pipeStr + ':', gs.totalPipes);
-      }
+      text += line('Rear Truss:', gs.rearTruss);
+      text += line('Base Truss:', gs.baseTruss);
+      text += line('Bridge Clamps:', gs.bridgeClamps);
+      text += line('Rear Bridge Adapter:', gs.rearBridgeAdapters);
+      text += line('Sandbags:', gs.sandbags);
+      text += line('Swivel Cheeseborough:', gs.swivelCheeseboroughs);
+      if(gs.pipes > 0) text += line('Pipe' + gs.pipeLengthStr + ':', gs.pipes);
     }
 
     // Floor Hardware
-    if(calcData.floorFrames) {
-      const ff = calcData.floorFrames;
-      if(ff.frame_1x1 > 0 || ff.frame_2x1 > 0 || ff.frame_2x2 > 0 || ff.frame_3x2 > 0) {
-        text += hdr('Floor Hardware');
-        if(ff.frame_3x2 > 0) text += line('3x2 Frame:', ff.frame_3x2);
-        if(ff.frame_2x2 > 0) text += line('2x2 Frame:', ff.frame_2x2);
-        if(ff.frame_2x1 > 0) text += line('2x1 Frame:', ff.frame_2x1);
-        if(ff.frame_1x1 > 0) text += line('1x1 Frame:', ff.frame_1x1);
-      }
+    if(fh.hasFloorFrames) {
+      text += hdr('Floor Hardware');
+      if(fh.frame3x2 > 0) text += line('3x2 Frame:', fh.frame3x2);
+      if(fh.frame2x2 > 0) text += line('2x2 Frame:', fh.frame2x2);
+      if(fh.frame2x1 > 0) text += line('2x1 Frame:', fh.frame2x1);
+      if(fh.frame1x1 > 0) text += line('1x1 Frame:', fh.frame1x1);
     }
 
     // Data Cables
     text += hdr('Data Cables');
-    if(!jumpersBuiltin && dataJumperLen) text += line(`Jumpers ${dataJumperLen}':`, activePanels);
-    if(dataCrossJumperLen) text += line(`Cross Jumpers ${dataCrossJumperLen}':`, '');
-    if(jumpersBuiltin) text += line('Cat5 Couplers:', dataLinesCount);
-    const cabling = calculateCabling(screenId);
-    if(cabling) {
-      const allDataCables = cabling.dataCables || [];
-      const knockoutCables = cabling.knockoutBridgeCables || [];
-      if(allDataCables.length > 0 || knockoutCables.length > 0) {
-        const allDataByLength = {};
-        allDataCables.forEach(c => { allDataByLength[c.roundedFt] = (allDataByLength[c.roundedFt] || 0) + 1; });
-        knockoutCables.forEach(c => { allDataByLength[c.roundedFt] = (allDataByLength[c.roundedFt] || 0) + 1; });
-        for(const [len, count] of Object.entries(allDataByLength).sort((a,b) => a[0] - b[0])) {
-          text += ` - ${count}x ${len}' Cat6${nl}`;
-        }
-      }
+    if(dc.jumperCount > 0) text += line(`Jumpers ${dc.dataJumperLen}':`, dc.jumperCount);
+    if(dc.crossJumperLen && dc.crossJumperCount > 0) text += line(`Cross Jumpers ${dc.crossJumperLen}':`, dc.crossJumperCount);
+    if(dc.jumpersBuiltin && dc.cat5CouplerCount > 0) text += line('Cat5 Couplers:', dc.cat5CouplerCount);
+    const cat6Lengths = Object.entries(dc.cat6ByLength).sort((a,b) => a[0] - b[0]);
+    for(const [len, count] of cat6Lengths) {
+      text += ` - ${count}x ${len}' Cat6${nl}`;
     }
 
     // Power Cables
     text += hdr('Power Cables');
-    if(!jumpersBuiltin && powerJumperLen) text += line(`Jumpers ${powerJumperLen}':`, activePanels);
-    text += line('Soca Splays:', socaCount);
-    if(cabling && cabling.socaCables.length > 0) {
-      const socaByLength = {};
-      cabling.socaCables.forEach(s => { socaByLength[s.roundedFt] = (socaByLength[s.roundedFt] || 0) + 1; });
-      for(const [len, count] of Object.entries(socaByLength).sort((a,b) => a[0] - b[0])) {
-        text += ` - ${count}x ${len}' Soca${nl}`;
-      }
+    if(pc.jumperCount > 0) text += line(`Jumpers ${pc.powerJumperLen}':`, pc.jumperCount);
+    text += line('Soca Splays:', pc.socaSplays);
+    const socaLengths = Object.entries(pc.socaByLength).sort((a,b) => a[0] - b[0]);
+    for(const [len, count] of socaLengths) {
+      text += ` - ${count}x ${len}' Soca${nl}`;
     }
-    text += line("25' True1:", socaCount);
-    text += line("10' True1:", socaCount);
-    text += line("5' True1:", socaCount * 2);
-    if(columnsPerCircuit > 1) text += line('True1 Twofer:', circuitsNeeded * columnsPerCircuit);
+    text += line("25' True1:", pc.true1_25);
+    text += line("10' True1:", pc.true1_10);
+    text += line("5' True1:", pc.true1_5);
+    text += line('True1 Twofer:', pc.true1Twofer);
 
     // Processor -> Dist Box
-    if(cabling && cabling.distBoxCables.length > 0) {
+    if(p2d.count > 0) {
       text += hdr('Processor to Dist Box');
-      const mainBoxCables = cabling.distBoxCables.filter(c => c.label === 'main');
-      const boxCableType = mainBoxCables[0]?.type || 'cat6a';
-      const boxCableRounded = mainBoxCables[0]?.roundedFt || 0;
-      text += ` - ${cabling.distBoxCables.length}x ${boxCableType === 'fiber' ? 'Fiber' : 'Cat6A'} ${boxCableRounded}'${nl}`;
+      text += ` - ${p2d.count}x ${p2d.cableType} ${p2d.cableLength}'${nl}`;
     }
 
     // Signal Cables (first screen only)
-    if(isFirstScreen) {
+    if(sig) {
       text += hdr('Signal Cables');
-      const procCount = processorGroup ? processorGroup.processorCount : 0;
-      const sdiPerProcessor = procCount * 2;
-      const canvasSize = data.canvasSize || '4K_UHD';
-      const isHDCanvas = canvasSize === 'HD' || (canvasSize === 'custom' &&
-        (parseInt(data.customCanvasWidth) || 1920) <= 1920 &&
-        (parseInt(data.customCanvasHeight) || 1080) <= 1080);
-      const sdiType = isHDCanvas ? '3G SDI' : '12G SDI';
-      const sdiCounts = {};
-      if(isHDCanvas) {
-        sdiCounts[100] = sdiPerProcessor; sdiCounts[50] = sdiPerProcessor;
-        sdiCounts[25] = sdiPerProcessor; sdiCounts[10] = 6; sdiCounts[3] = 6;
-      } else {
-        sdiCounts[100] = sdiPerProcessor; sdiCounts[50] = sdiPerProcessor; sdiCounts[25] = sdiPerProcessor;
+      for(const len of Object.keys(sig.sdiByLength).map(Number).sort((a,b) => b - a)) {
+        if(sig.sdiByLength[len] > 0) text += line(`${len}' ${sig.sdiType}:`, sig.sdiByLength[len]);
       }
-      if(cabling && cabling.serverCable) {
-        const serverLen = cabling.serverCable.lengthFt || 0;
-        if(serverLen > 0 && serverLen <= 300) {
-          const sdiLen = roundUpToStandard(serverLen);
-          sdiCounts[sdiLen] = (sdiCounts[sdiLen] || 0) + 2;
-        }
-      }
-      for(const len of Object.keys(sdiCounts).map(Number).sort((a,b) => b - a)) {
-        if(sdiCounts[len] > 0) text += line(`${len}' ${sdiType}:`, sdiCounts[len]);
-      }
-      text += line("25' HDMI:", 6);
-      text += line("10' HDMI:", 6);
-      text += line("6' HDMI:", 6);
+      if(sig.serverFiberLine) text += line(`${sig.serverFiberLine.label}:`, sig.serverFiberLine.count);
+      text += line("25' HDMI:", sig.hdmi[25]);
+      text += line("10' HDMI:", sig.hdmi[10]);
+      text += line("6' HDMI:", sig.hdmi[6]);
     }
 
     // Utility (first screen only)
-    if(isFirstScreen) {
+    if(util) {
       text += hdr('Utility');
-      text += line("UG 10':", 8);
-      text += line("UG 25':", 6);
-      text += line("UG 50':", 6);
-      text += line('UG Twofers:', 8);
-      text += line('Power Bars:', 8);
+      text += line("UG 10':", util.ug10);
+      text += line("UG 25':", util.ug25);
+      text += line("UG 50':", util.ug50);
+      text += line('UG Twofers:', util.ugTwofers);
+      text += line('Power Bars:', util.powerBars);
     }
 
     // Spares
     text += hdr('Spares');
     text += ` - Spare Soca Splays:${nl}`;
     text += ` - Spare Panel Count:${nl}`;
-    if(!jumpersBuiltin && dataJumperLen) text += ` - Spare Data Jumpers ${dataJumperLen}':${nl}`;
-    if(jumpersBuiltin) text += ` - Spare Cat5 Couplers:${nl}`;
-    if(!jumpersBuiltin && powerJumperLen) text += ` - Spare Power Jumpers ${powerJumperLen}':${nl}`;
-
-    isFirstScreen = false;
+    if(sp.dataJumpers) text += ` - Spare Data Jumpers ${sp.dataJumperLen}':${nl}`;
+    if(sp.crossJumpers) text += ` - Spare Data Cross Jumpers ${sp.crossJumperLen}':${nl}`;
+    if(sp.cat5Couplers) text += ` - Spare Cat5 Couplers:${nl}`;
+    if(sp.powerJumpers) text += ` - Spare Power Jumpers ${sp.powerJumperLen}':${nl}`;
   });
 
   const email = 'JYoung@apexsound.com';
-  const subject = encodeURIComponent(`LED Gear List - ${configName}`);
+  const subject = encodeURIComponent(`LED Gear List - ${gearData.configName}`);
   const encodedBody = encodeURIComponent(text);
 
   let mailtoUrl = `mailto:${email}?subject=${subject}&body=${encodedBody}`;
@@ -438,133 +330,9 @@ function exportPDF(){
       return numA - numB;
     });
     
-    // ========== CALCULATE PROCESSOR GROUPS ACROSS ALL SCREENS ==========
-    // Group screens by processor type and calculate combined totals
-    const processorGroups = {}; // { processorType: { screens: [], totalMainPorts: 0, hasAnyRedundancy: false, firstScreenId: null } }
-    
-    screenIds.forEach(screenId => {
-      const screen = screens[screenId];
-      if(!screen || !screen.data) return;
-      
-      const processorType = screen.data.processor || 'Brompton_SX40';
-      const calcData = screen.calculatedData || {};
-      const dataLines = calcData.dataLines || 0;
-      const hasRedundancy = screen.data.redundancy || false;
-      const hasProcessorRedundancy = screen.data.processorRedundancy || false;
-      const isIndirectMode = screen.data.mx40ConnectionMode === 'indirect';
-
-      if(!processorGroups[processorType]) {
-        processorGroups[processorType] = {
-          screens: [],
-          totalMainPorts: 0,
-          totalPixels: 0,
-          hasAnyRedundancy: false,
-          hasAnyProcessorRedundancy: false,
-          hasAnyIndirectMode: false,
-          firstScreenId: screenId,
-          firstScreenName: screen.name
-        };
-      }
-
-      const screenPixels = calcData.totalPixels || 0;
-
-      processorGroups[processorType].screens.push({
-        screenId: screenId,
-        screenName: screen.name,
-        mainPorts: dataLines,
-        hasRedundancy: hasRedundancy,
-        totalPixels: screenPixels
-      });
-      processorGroups[processorType].totalMainPorts += dataLines;
-      processorGroups[processorType].totalPixels += screenPixels;
-      if(hasRedundancy) {
-        processorGroups[processorType].hasAnyRedundancy = true;
-      }
-      if(hasProcessorRedundancy) {
-        processorGroups[processorType].hasAnyProcessorRedundancy = true;
-      }
-      if(isIndirectMode) {
-        processorGroups[processorType].hasAnyIndirectMode = true;
-      }
-    });
-    
-    // Calculate processor and distribution box counts for each group
-    // IMPORTANT: For redundancy, we double the distribution box count (not the port count)
-    // because each XD/distro box is dedicated to either main OR backup - can't mix
-    // For processor redundancy, we double the processor count at the end
-    Object.keys(processorGroups).forEach(processorType => {
-      const group = processorGroups[processorType];
-      const totalMainPorts = group.totalMainPorts;
-      const hasRedundancy = group.hasAnyRedundancy;
-      const hasProcessorRedundancy = group.hasAnyProcessorRedundancy;
-      
-      let processorCount = 0;
-      let distBoxCount = 0;
-      let distBoxName = '';
-      
-      if(processorType === 'Brompton_SX40') {
-        // SX40: Each XD has 10 ports, each SX40 supports 4 XDs
-        // Calculate XDs needed for main lines first
-        const mainXDs = totalMainPorts > 0 ? Math.ceil(totalMainPorts / 10) : 0;
-        // If redundancy, double the XD count (separate XDs for backup)
-        distBoxCount = hasRedundancy ? mainXDs * 2 : mainXDs;
-        processorCount = distBoxCount > 0 ? Math.ceil(distBoxCount / 4) : 0;
-        distBoxName = 'XD';
-      } else if(processorType === 'Brompton_S8') {
-        // S8: 8 ports per processor
-        const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-        processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 8) : 0;
-        distBoxCount = 0;
-      } else if(processorType === 'Brompton_M2') {
-        // M2: 4 ports per processor
-        const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-        processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 4) : 0;
-        distBoxCount = 0;
-      } else if(processorType === 'Brompton_S4') {
-        // S4: 4 ports per processor
-        const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-        processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 4) : 0;
-        distBoxCount = 0;
-      } else if(processorType === 'NovaStar_MX40_Pro') {
-        // MX40 Pro logic:
-        // Direct mode: 20 ports per processor
-        // Indirect mode: 10 ports per CVT box, 4 CVTs per processor max
-        const groupTotalPixels = group.totalPixels || 0;
-        const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-        const processorsByPixels = groupTotalPixels > 0 ? Math.ceil(groupTotalPixels / 9000000) : 0;
-
-        if(group.hasAnyIndirectMode) {
-          // Indirect mode: CVT boxes needed
-          distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 10) : 0;
-          distBoxName = 'CVT-10 Pro';
-          // Processor count: max of pixels needed OR CVT boxes needed (4 CVTs per processor)
-          const processorsByCVTs = Math.ceil(distBoxCount / 4);
-          processorCount = Math.max(processorsByPixels, processorsByCVTs);
-        } else {
-          // Direct mode: no CVT boxes, processor count based on ports AND pixels
-          const processorsByPorts = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 20) : 0;
-          processorCount = Math.max(processorsByPixels, processorsByPorts);
-        }
-      } else {
-        // Default/custom processor - use per-screen calculation
-        const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-        processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 8) : group.screens.length;
-        distBoxCount = 0;
-      }
-      
-      // If processor redundancy is enabled, double the processor count
-      if(hasProcessorRedundancy && processorCount > 0) {
-        processorCount *= 2;
-      }
-      
-      group.processorCount = processorCount;
-      group.distBoxCount = distBoxCount;
-      group.distBoxName = distBoxName;
-      // Store for display purposes
-      group.totalPorts = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-    });
-    
-    console.log('Processor groups calculated:', processorGroups);
+    // ========== GEAR LIST DATA (shared with gear tab and email export) ==========
+    const gearData = buildGearListData(screenIds);
+    const processorGroups = gearData.processorGroups;
     
     // Add summary of all screens (count only, no names)
     pdf.setFontSize(10);
@@ -816,7 +584,10 @@ function exportPDF(){
 
         // ========== RIGHT COLUMN: GEAR LIST ==========
         if(pdfExportOptions.gearList) {
-          addGearListToColumn(screenId, screen.name, col2X, col2Y, colWidth, lineHeight, processorGroups);
+          const screenGearData = gearData.screens.find(s => s.screenId === screenId);
+          if(screenGearData) {
+            addGearListToColumn(screenGearData, col2X, col2Y, colWidth, lineHeight);
+          }
         }
 
         // Include layouts if any layout option is selected
@@ -865,162 +636,21 @@ function exportPDF(){
     }
 
     // Add gear list content to a column (inline version for page 1)
-    function addGearListToColumn(screenId, screenName, colX, startY, colWidth, lineHeight, processorGroups) {
+    // Consumes pre-built screen data from buildGearListData()
+    function addGearListToColumn(sd, colX, startY, colWidth, lineHeight) {
       let colY = startY;
+      if(!sd) return;
 
-      const screen = screens[screenId];
-      if(!screen || !screen.data) return;
-
-      const allPanels = getAllPanels();
-      const data = screen.data;
-      const calcData = screen.calculatedData || {};
-      const panelType = data.panelType || 'CB5_MKII';
-      const p = allPanels[panelType];
-      const pw = parseInt(data.panelsWide) || 0;
-      const ph = parseInt(data.panelsHigh) || 0;
-      const isFirstScreen = (screenIndex === 0);
-
-      // Check if canvas is 4K (need 12G SDI cables)
-      const canvasSize = data.canvasSize || '4K_UHD';
-      const is4KCanvas = (canvasSize === '4K_UHD' || canvasSize === '4K_DCI');
-
-      // Equipment data
-      const processorType = data.processor || 'Brompton_SX40';
-      const processorGroup = processorGroups[processorType] || null;
-      const isFirstScreenInGroup = processorGroup && processorGroup.firstScreenId === screenId;
-      const processorName = calcData.processorName || '';
-      const activePanels = calcData.activePanels || calcData.panelCount || 0;
-
-      // Rigging
-      const bumper1wCount = calcData.bumper1wCount || 0;
-      const bumper2wCount = calcData.bumper2wCount || 0;
-      const bumper4wCount = calcData.bumper4wCount || 0;
-      const plates2way = calcData.plates2way || 0;
-      const plates4way = calcData.plates4way || 0;
-      const useBumpers = data.useBumpers !== false;
-
-      // Ground Support
-      const groundSupport = calcData.groundSupport || {
-        totalRearTruss: 0,
-        totalBaseTruss: 0,
-        totalBridgeClamps: 0,
-        totalRearBridgeClampAdapters: 0,
-        totalSandbags: 0,
-        totalSwivelCheeseboroughs: 0,
-        totalPipes: 0,
-        pipeInfo: []
-      };
-
-      // Power
-      const socaCount = calcData.socaCount || 0;
-      const circuitsNeeded = calcData.circuitsNeeded || 0;
-      const columnsPerCircuit = calcData.columnsPerCircuit || 1;
-
-      // Data cross jumpers calculation
-      let dataCrossJumperCount = 0;
-      if(pw > 0 && ph > 0) {
-        const pr = processors[data.processor] || processors['Brompton_SX40'];
-        const portCapacity = pr ? pr.base_pixels_1g : 525000;
-        const frameRate = parseInt(data.frameRate) || 60;
-        const bitDepth = parseInt(data.bitDepth) || 8;
-
-        let adjustedCapacity = portCapacity;
-        if(frameRate > 60) adjustedCapacity = Math.floor(portCapacity * (60 / frameRate));
-        if(bitDepth > 8) adjustedCapacity = Math.floor(adjustedCapacity * (8 / bitDepth));
-
-        const pixelsPerPanel = p ? (p.res_x * p.res_y) : 1;
-        let capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
-        // Cap at 500 panels per port (Brompton Tessera hardware limit)
-        capacityBasedPanelsPerData = Math.min(capacityBasedPanelsPerData, 500);
-        const panelSpecificDataLimit = p ? p.max_panels_per_data : null;
-        const suggestedPanelsPerData = panelSpecificDataLimit
-          ? Math.min(capacityBasedPanelsPerData, panelSpecificDataLimit)
-          : capacityBasedPanelsPerData;
-        const userMaxPanelsPerData = parseInt(data.maxPanelsPerData) || 0;
-        const panelsPerDataLine = userMaxPanelsPerData > 0 ? userMaxPanelsPerData : suggestedPanelsPerData;
-
-        const startDir = data.dataStartDir || 'top';
-        const customDataLines = data.customDataLineAssignments;
-        const hasCustomDataLines = customDataLines && customDataLines.size > 0;
-        const deletedPanels = data.deletedPanels;
-
-        if(startDir !== 'all_top' && startDir !== 'all_bottom') {
-          const dataLineColumns = new Map();
-          const usedCustomDataLines = new Set();
-          if(hasCustomDataLines) {
-            for(let c = 0; c < pw; c++) {
-              for(let r = 0; r < ph; r++) {
-                const panelKey = `${c},${r}`;
-                const isDeleted = deletedPanels && deletedPanels.has && deletedPanels.has(panelKey);
-                if(!isDeleted && customDataLines.has(panelKey)) {
-                  usedCustomDataLines.add(customDataLines.get(panelKey) - 1);
-                }
-              }
-            }
-          }
-
-          let autoDataLineCounter = 0;
-          let panelsInCurrentAutoDataLine = 0;
-          while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
-
-          let serpentineGoingDown = (startDir === 'top');
-          for(let c = 0; c < pw; c++) {
-            const rows = serpentineGoingDown
-              ? Array.from({length: ph}, (_, i) => i)
-              : Array.from({length: ph}, (_, i) => ph - 1 - i);
-
-            for(const r of rows) {
-              const panelKey = `${c},${r}`;
-              if(deletedPanels && deletedPanels.has && deletedPanels.has(panelKey)) continue;
-
-              let dataLine;
-              if(hasCustomDataLines && customDataLines.has(panelKey)) {
-                dataLine = customDataLines.get(panelKey) - 1;
-              } else {
-                while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
-                dataLine = autoDataLineCounter;
-                panelsInCurrentAutoDataLine++;
-                if(panelsInCurrentAutoDataLine >= panelsPerDataLine) {
-                  autoDataLineCounter++;
-                  panelsInCurrentAutoDataLine = 0;
-                  while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
-                }
-              }
-
-              if(!dataLineColumns.has(dataLine)) dataLineColumns.set(dataLine, new Set());
-              dataLineColumns.get(dataLine).add(c);
-            }
-            serpentineGoingDown = !serpentineGoingDown;
-          }
-
-          dataLineColumns.forEach((columns, dataLine) => {
-            if(columns.size > 1) dataCrossJumperCount += (columns.size - 1);
-          });
-        }
-      }
-
-      // Pipe length string
-      let pipeLengthStr = '';
-      if(groundSupport.totalPipes > 0 && groundSupport.pipeInfo && groundSupport.pipeInfo.length > 0) {
-        const uniqueLengths = [...new Set(groundSupport.pipeInfo.map(pi => pi.pipeLengthFt))];
-        pipeLengthStr = ' (' + uniqueLengths.map(l => l + 'ft').join(', ') + ')';
-      }
-
-      // Computed cable lengths from calculateCabling
-      const computedCabling = (typeof calculateCabling === 'function') ? calculateCabling(screenId) : null;
-      const computedSocaByLength = {};
-      const computedDataByLength = {};
-      if(computedCabling) {
-        // Group SOCA cables by rounded length
-        (computedCabling.socaCables || []).forEach(s => {
-          computedSocaByLength[s.roundedFt] = (computedSocaByLength[s.roundedFt] || 0) + 1;
-        });
-        // Group data cables (primary + knockout) by rounded length
-        const primaryData = (computedCabling.dataCables || []).filter(c => !c.backup);
-        const knockoutData = computedCabling.knockoutBridgeCables || [];
-        primaryData.forEach(c => { computedDataByLength[c.roundedFt] = (computedDataByLength[c.roundedFt] || 0) + 1; });
-        knockoutData.forEach(c => { computedDataByLength[c.roundedFt] = (computedDataByLength[c.roundedFt] || 0) + 1; });
-      }
+      const eq = sd.equipment;
+      const rig = sd.rigging;
+      const gs = sd.groundSupport;
+      const fh = sd.floorHardware;
+      const dc = sd.dataCables;
+      const pc = sd.powerCables;
+      const p2d = sd.processorToDistBox;
+      const sig = sd.signalCables;
+      const util = sd.utility;
+      const sp = sd.spares;
 
       function addGearLine(label, value) {
         if(value === '0' || value === '' || value === null || value === undefined) return;
@@ -1048,182 +678,134 @@ function exportPDF(){
 
       // Equipment
       addGearHeader('Equipment');
-      if(isFirstScreenInGroup && processorGroup && processorGroup.processorCount > 0) {
-        addGearLine('Processor:', `${processorGroup.processorCount}x ${processorName}`);
-        if(processorGroup.distBoxCount > 0) {
-          addGearLine(`${processorGroup.distBoxName}:`, processorGroup.distBoxCount.toString());
+      if(eq.isFirstScreenInGroup && eq.processorCount > 0) {
+        addGearLine('Processor:', `${eq.processorCount}x ${eq.processorName}`);
+        if(eq.distBoxCount > 0) {
+          addGearLine(`${eq.distBoxName}:`, eq.distBoxCount.toString());
         }
-      } else if(processorGroup && processorGroup.firstScreenName) {
+      } else if(eq.referencesScreenName) {
         pdf.setFontSize(8);
         pdf.setFont(undefined, 'normal');
-        pdf.text(`Processor: See ${processorGroup.firstScreenName}`, colX, colY);
+        pdf.text(`Processor: See ${eq.referencesScreenName}`, colX, colY);
         colY += lineHeight;
       }
-      addGearLine('Panel Count:', activePanels.toString());
-
-      // Rigging
-      addGearHeader('Rigging Hardware');
-      addGearLine('1W Bumpers:', bumper1wCount.toString());
-      addGearLine('2W Bumpers:', bumper2wCount.toString());
-      addGearLine('4W Bumpers:', bumper4wCount.toString());
-      addGearLine('4W Connecting Plates:', plates4way.toString());
-      addGearLine('2W Connecting Plates:', plates2way.toString());
-
-      // 5/8" Shackles and Cheeseye
-      const needsShacklesAndCheeseye = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3'].includes(panelType);
-      const isHanging = data.structureType === 'hanging';
-      if(needsShacklesAndCheeseye && isHanging && useBumpers) {
-        let shackleCount = 0;
-        let cheeseyeCount = 0;
-        if(panelType === 'INFILED_AMT8_3') {
-          shackleCount = bumper1wCount + (bumper2wCount * 2);
-          cheeseyeCount = bumper1wCount + (bumper2wCount * 2);
-        } else {
-          shackleCount = bumper1wCount + bumper2wCount;
-          cheeseyeCount = bumper1wCount + bumper2wCount;
-        }
-        if(shackleCount > 0) addGearLine('5/8" Shackles:', shackleCount.toString());
-        if(cheeseyeCount > 0) addGearLine('Cheeseye:', cheeseyeCount.toString());
+      // Panel display — brand + half split when CB5 half row exists
+      if(eq.activeHalfPanels > 0) {
+        addGearLine(`${eq.panelBrand} ${eq.panelName}:`, eq.activeFullPanels.toString());
+        addGearLine(`${eq.panelBrand} ${eq.halfPanelName}:`, eq.activeHalfPanels.toString());
+      } else {
+        addGearLine('Panel Count:', eq.activePanels.toString());
       }
 
-      // Ground Support
-      addGearHeader('Ground Support');
-      addGearLine('Rear Truss:', groundSupport.totalRearTruss.toString());
-      addGearLine('Base Truss:', groundSupport.totalBaseTruss.toString());
-      addGearLine('Bridge Clamps:', groundSupport.totalBridgeClamps.toString());
-      addGearLine('Rear Bridge Adapter:', groundSupport.totalRearBridgeClampAdapters.toString());
-      addGearLine('Sandbags:', groundSupport.totalSandbags.toString());
-      addGearLine('Swivel Cheeseborough:', groundSupport.totalSwivelCheeseboroughs.toString());
-      addGearLine('Pipe' + pipeLengthStr + ':', groundSupport.totalPipes.toString());
+      // Rigging (hide section if empty)
+      if(rig.hasRigging) {
+        addGearHeader('Rigging Hardware');
+        addGearLine('1W Bumpers:', rig.bumper1w.toString());
+        addGearLine('2W Bumpers:', rig.bumper2w.toString());
+        addGearLine('4W Bumpers:', rig.bumper4w.toString());
+        addGearLine('4W Connecting Plates:', rig.plates4way.toString());
+        addGearLine('2W Connecting Plates:', rig.plates2way.toString());
+        if(rig.shackles > 0) addGearLine('5/8" Shackles:', rig.shackles.toString());
+        if(rig.cheeseye > 0) addGearLine('Cheeseye:', rig.cheeseye.toString());
+      }
 
-      // Floor Hardware - calculate fresh since it might not be in calculatedData yet
-      const structureType = data.structureType || 'hanging';
-      if(structureType === 'floor' && p && p.is_floor_panel && p.floor_frames && pw > 0 && ph > 0) {
-        const deletedPanelsSet = data.deletedPanels || new Set();
-        const frames = calculateFloorFrames(pw, ph, deletedPanelsSet);
-        const frameCounts = getFloorFrameCounts(frames);
-        const hasFloorFrames = frameCounts.frame_1x1 > 0 || frameCounts.frame_2x1 > 0 ||
-                               frameCounts.frame_2x2 > 0 || frameCounts.frame_3x2 > 0;
-        if(hasFloorFrames) {
-          addGearHeader('Floor Hardware');
-          if(frameCounts.frame_3x2 > 0) addGearLine('3×2 Frame:', frameCounts.frame_3x2.toString());
-          if(frameCounts.frame_2x2 > 0) addGearLine('2×2 Frame:', frameCounts.frame_2x2.toString());
-          if(frameCounts.frame_2x1 > 0) addGearLine('2×1 Frame:', frameCounts.frame_2x1.toString());
-          if(frameCounts.frame_1x1 > 0) addGearLine('1×1 Frame:', frameCounts.frame_1x1.toString());
-        }
+      // Ground Support (hide section if empty)
+      if(gs.hasGS) {
+        addGearHeader('Ground Support');
+        addGearLine('Rear Truss:', gs.rearTruss.toString());
+        addGearLine('Base Truss:', gs.baseTruss.toString());
+        addGearLine('Bridge Clamps:', gs.bridgeClamps.toString());
+        addGearLine('Rear Bridge Adapter:', gs.rearBridgeAdapters.toString());
+        addGearLine('Sandbags:', gs.sandbags.toString());
+        addGearLine('Swivel Cheeseborough:', gs.swivelCheeseboroughs.toString());
+        addGearLine('Pipe' + gs.pipeLengthStr + ':', gs.pipes.toString());
+      }
+
+      // Floor Hardware (hide if empty)
+      if(fh.hasFloorFrames) {
+        addGearHeader('Floor Hardware');
+        if(fh.frame3x2 > 0) addGearLine('3×2 Frame:', fh.frame3x2.toString());
+        if(fh.frame2x2 > 0) addGearLine('2×2 Frame:', fh.frame2x2.toString());
+        if(fh.frame2x1 > 0) addGearLine('2×1 Frame:', fh.frame2x1.toString());
+        if(fh.frame1x1 > 0) addGearLine('1×1 Frame:', fh.frame1x1.toString());
       }
 
       // Data Cables
       addGearHeader('Data Cables');
-      const dataJumperLen = p && p.data_jumper_ft ? p.data_jumper_ft : '';
-      const dataCrossJumperLen = p && p.data_cross_jumper_ft ? p.data_cross_jumper_ft : '';
-      const jumpersBuiltin = p && p.jumpers_builtin;
-
-      if(!jumpersBuiltin && dataJumperLen) {
-        addGearLine(`Data Jumpers ${dataJumperLen}:`, activePanels.toString());
+      if(dc.jumperCount > 0) {
+        addGearLine(`Data Jumpers ${dc.dataJumperLen}:`, dc.jumperCount.toString());
       }
-      if(dataCrossJumperLen && dataCrossJumperCount > 0) {
-        addGearLine(`Data Cross Jumpers ${dataCrossJumperLen}:`, dataCrossJumperCount.toString());
+      if(dc.crossJumperCount > 0 && dc.crossJumperLen) {
+        addGearLine(`Data Cross Jumpers ${dc.crossJumperLen}:`, dc.crossJumperCount.toString());
       }
-      if(jumpersBuiltin) {
-        const dataLinesCount = calcData.dataLines || 0;
-        const totalCat5Couplers = dataCrossJumperCount + dataLinesCount;
-        if(totalCat5Couplers > 0) addGearLine('Cat5 Couplers:', totalCat5Couplers.toString());
+      if(dc.cat5CouplerCount > 0) {
+        addGearLine('Cat5 Couplers:', dc.cat5CouplerCount.toString());
       }
-      addGearLine("200' Cat6:", (computedDataByLength[200] || '').toString());
-      addGearLine("100' Cat6:", (computedDataByLength[100] || '').toString());
-      addGearLine("75' Cat6:", (computedDataByLength[75] || '').toString());
-      addGearLine("50' Cat6:", (computedDataByLength[50] || '').toString());
-      addGearLine("25' Cat6:", (computedDataByLength[25] || '').toString());
-      addGearLine("10' Cat6:", (computedDataByLength[10] || '').toString());
-      addGearLine("5' Cat6:", (computedDataByLength[5] || '').toString());
+      // Dynamic cat6 lengths — only show lengths that exist
+      const cat6Lengths = Object.keys(dc.cat6ByLength).map(Number).sort((a, b) => b - a);
+      cat6Lengths.forEach(len => {
+        addGearLine(`${len}' Cat6:`, dc.cat6ByLength[len].toString());
+      });
 
       // Power Cables
       addGearHeader('Power Cables');
-      const powerJumperLen = p && p.power_jumper_ft ? p.power_jumper_ft : '';
-      if(!jumpersBuiltin && powerJumperLen) {
-        addGearLine(`Power Jumpers ${powerJumperLen}:`, activePanels.toString());
+      if(pc.jumperCount > 0) {
+        addGearLine(`Power Jumpers ${pc.powerJumperLen}:`, pc.jumperCount.toString());
       }
-      addGearLine('Soca Splays:', socaCount.toString());
-      addGearLine("100' Soca:", (computedSocaByLength[100] || '').toString());
-      addGearLine("75' Soca:", (computedSocaByLength[75] || '').toString());
-      addGearLine("50' Soca:", (computedSocaByLength[50] || '').toString());
-      addGearLine("25' Soca:", (computedSocaByLength[25] || '').toString());
-      addGearLine("50' True1:", '');
-      addGearLine("25' True1:", socaCount.toString());
-      addGearLine("10' True1:", socaCount.toString());
-      addGearLine("5' True1:", (socaCount * 2).toString());
-      addGearLine("3' True1:", '');
-      addGearLine('True1 Twofer:', columnsPerCircuit > 1 ? (circuitsNeeded * columnsPerCircuit).toString() : '');
+      addGearLine('Soca Splays:', pc.socaSplays.toString());
+      // Dynamic soca lengths — only show lengths that exist
+      const socaLengths = Object.keys(pc.socaByLength).map(Number).sort((a, b) => b - a);
+      socaLengths.forEach(len => {
+        addGearLine(`${len}' Soca:`, pc.socaByLength[len].toString());
+      });
+      addGearLine("25' True1:", pc.true1_25.toString());
+      addGearLine("10' True1:", pc.true1_10.toString());
+      addGearLine("5' True1:", pc.true1_5.toString());
+      if(pc.true1Twofer > 0) addGearLine('True1 Twofer:', pc.true1Twofer.toString());
 
-      // Processor to Dist Box cables (computed)
-      if(computedCabling && computedCabling.distBoxCables && computedCabling.distBoxCables.length > 0) {
+      // Processor → Dist Box
+      if(p2d.count > 0) {
         addGearHeader('Processor → Dist Box');
-        const boxType = computedCabling.distBoxCables[0]?.type === 'fiber' ? 'Fiber' : 'Cat6A';
-        const boxLen = computedCabling.distBoxCables[0]?.roundedFt || 0;
-        addGearLine(`${boxType} ${boxLen}':`, computedCabling.distBoxCables.length.toString());
+        addGearLine(`${p2d.cableType} ${p2d.cableLength}':`, p2d.count.toString());
       }
 
-      // Server to Processor cable (computed)
-      if(computedCabling && computedCabling.serverCable) {
-        addGearHeader('Server → Processor');
-        addGearLine('Cable:', `${computedCabling.serverCable.lengthFt}'`);
-      }
-
-      // Signal Cables (only on first screen)
-      if(isFirstScreen) {
+      // Signal Cables (first screen only)
+      if(sig) {
         addGearHeader('Signal Cables');
-        addGearLine("500' Fiber Opticon:", '');
-        addGearLine('Fiber 4ch Opticon Splay:', '');
-        const processorCount = processorGroup ? processorGroup.processorCount : 0;
-        const sdiPerProcessor = processorCount * 2;
-        if(is4KCanvas) {
-          addGearLine("100' 12G SDI:", sdiPerProcessor.toString());
-          addGearLine("75' 12G SDI:", '');
-          addGearLine("50' 12G SDI:", sdiPerProcessor.toString());
-          addGearLine("25' 12G SDI:", sdiPerProcessor.toString());
-        } else {
-          addGearLine("100' SDI:", sdiPerProcessor.toString());
-          addGearLine("75' SDI:", '');
-          addGearLine("50' SDI:", sdiPerProcessor.toString());
-          addGearLine("25' SDI:", sdiPerProcessor.toString());
-          addGearLine("10' SDI:", '6');
-          addGearLine("3' SDI:", '6');
+        if(sig.serverFiberLine) {
+          addGearLine(`${sig.serverFiberLine.label}:`, sig.serverFiberLine.count.toString());
         }
-        addGearLine("25' HDMI:", '6');
-        addGearLine("10' HDMI:", '6');
-        addGearLine("6' HDMI:", '6');
+        // Dynamic SDI lengths with proper 3G/12G labels
+        const sdiLengths = Object.keys(sig.sdiByLength).map(Number).sort((a, b) => b - a);
+        sdiLengths.forEach(len => {
+          addGearLine(`${len}' ${sig.sdiType}:`, sig.sdiByLength[len].toString());
+        });
+        addGearLine("25' HDMI:", sig.hdmi[25].toString());
+        addGearLine("10' HDMI:", sig.hdmi[10].toString());
+        addGearLine("6' HDMI:", sig.hdmi[6].toString());
       }
 
-      // Utility (only on first screen)
-      if(isFirstScreen) {
+      // Utility (first screen only)
+      if(util) {
         addGearHeader('Utility');
-        addGearLine("UG 10':", '8');
-        addGearLine("UG 25':", '6');
-        addGearLine("UG 50':", '6');
-        addGearLine('UG Twofers:', '8');
-        addGearLine('Power Bars:', '8');
+        addGearLine("UG 10':", util.ug10.toString());
+        addGearLine("UG 25':", util.ug25.toString());
+        addGearLine("UG 50':", util.ug50.toString());
+        addGearLine('UG Twofers:', util.ugTwofers.toString());
+        addGearLine('Power Bars:', util.powerBars.toString());
       }
 
       // Spares
       addGearHeader('SPARES');
-      addGearLine('Spare Soca Splays:', '');
-      addGearLine('Spare Panel Count:', '');
-      if(!jumpersBuiltin && dataJumperLen) {
-        addGearLine(`Spare Data Jumpers ${dataJumperLen}:`, '');
-      }
-      if(dataCrossJumperLen) {
-        addGearLine(`Spare Data Cross Jumpers ${dataCrossJumperLen}:`, '');
-      }
-      if(jumpersBuiltin) {
-        addGearLine('Spare Cat5 Couplers:', '');
-      }
-      if(!jumpersBuiltin && powerJumperLen) {
-        addGearLine(`Spare Power Jumpers ${powerJumperLen}:`, '');
-      }
-      addGearLine('Spare Soca:', '');
-      addGearLine('Spare Data:', '');
-      addGearLine('Spare Fiber:', '');
+      if(sp.socaSplays) addGearLine('Spare Soca Splays:', '');
+      if(sp.panelCount) addGearLine('Spare Panel Count:', '');
+      if(sp.dataJumpers) addGearLine(`Spare Data Jumpers ${sp.dataJumperLen}:`, '');
+      if(sp.crossJumpers) addGearLine(`Spare Data Cross Jumpers ${sp.crossJumperLen}:`, '');
+      if(sp.cat5Couplers) addGearLine('Spare Cat5 Couplers:', '');
+      if(sp.powerJumpers) addGearLine(`Spare Power Jumpers ${sp.powerJumperLen}:`, '');
+      if(sp.soca) addGearLine('Spare Soca:', '');
+      if(sp.data) addGearLine('Spare Data:', '');
+      if(sp.fiber) addGearLine('Spare Fiber:', '');
     }
 
     function addScreenLayouts(screenId, screenName) {
@@ -1683,537 +1265,6 @@ function exportPDF(){
         console.error('Error adding structure view page:', err);
       }
       
-      if(callback) setTimeout(callback, 10);
-    }
-    
-    // Add gear list page for a screen
-    function addGearListPage(screenId, screenName, processorGroups, callback) {
-      console.log('addGearListPage called:', screenId, screenName);
-      try {
-        // Start new page for gear list
-        pdf.addPage();
-        yOffset = margin;
-        
-        // Title
-        pdf.setFontSize(16);
-        pdf.setFont(undefined, 'bold');
-        pdf.setTextColor(0, 0, 0);
-        pdf.text(`Gear List - ${screenName}`, margin, yOffset);
-        yOffset += 10;
-        
-        console.log('Title added, yOffset:', yOffset);
-        
-        // Get screen data directly
-        const screen = screens[screenId];
-        if(!screen || !screen.data) {
-          console.error('No screen data found for:', screenId);
-          if(callback) setTimeout(callback, 10);
-          return;
-        }
-        
-        const allPanels = getAllPanels();
-        const data = screen.data;
-        const calcData = screen.calculatedData || {};
-        console.log('Screen data:', data);
-        console.log('Calculated data:', calcData);
-
-        const panelType = data.panelType || 'CB5_MKII';
-        const p = allPanels[panelType];
-
-        const pw = parseInt(data.panelsWide) || 0;
-        const ph = parseInt(data.panelsHigh) || 0;
-        
-        // Check if this is the first screen (for SDI/HDMI/UG which only appear once)
-        const isFirstScreen = (screenIndex === 0);
-        
-        // Check if canvas is 4K (need 12G SDI cables)
-        const canvasSize = data.canvasSize || '4K_UHD';
-        const is4KCanvas = (canvasSize === '4K_UHD' || canvasSize === '4K_DCI');
-        
-        // ========== PROCESSOR GROUP INFO FOR THIS SCREEN ==========
-        const processorType = data.processor || 'Brompton_SX40';
-        const processorGroup = processorGroups[processorType] || null;
-        const isFirstScreenInGroup = processorGroup && processorGroup.firstScreenId === screenId;
-        
-        // ========== READ FROM CALCULATED DATA ==========
-        
-        // Equipment - use combined processor group data instead of per-screen
-        const processorName = calcData.processorName || '';
-        const activePanels = calcData.activePanels || calcData.panelCount || 0;
-        
-        // Rigging Hardware - read from calculatedData (set by calculate())
-        const bumper1wCount = calcData.bumper1wCount || 0;
-        const bumper2wCount = calcData.bumper2wCount || 0;
-        const bumper4wCount = calcData.bumper4wCount || 0;
-        
-        // Connecting Plates - read from calculatedData (set by updateStructurePlatesDisplay())
-        const plates2way = calcData.plates2way || 0;
-        const plates4way = calcData.plates4way || 0;
-        
-        // Ground Support - read from calculatedData (set by updateGroundSupportDisplay())
-        const groundSupport = calcData.groundSupport || {
-          totalRearTruss: 0,
-          totalBaseTruss: 0,
-          totalBridgeClamps: 0,
-          totalRearBridgeClampAdapters: 0,
-          totalSandbags: 0,
-          totalSwivelCheeseboroughs: 0,
-          totalPipes: 0,
-          pipeInfo: []
-        };
-        
-        // Power - read from calculatedData (set by calculate())
-        const socaCount = calcData.socaCount || 0;
-        const circuitsNeeded = calcData.circuitsNeeded || 0;
-        const columnsPerCircuit = calcData.columnsPerCircuit || 1;
-        
-        // ========== CALCULATE DATA CROSS JUMPERS ==========
-        // Count column transitions for each data line
-        let dataCrossJumperCount = 0;
-        
-        if(pw > 0 && ph > 0) {
-          // Get data calculation parameters from screen data
-          const pr = processors[data.processor] || processors['Brompton_SX40'];
-          const portCapacity = pr ? pr.base_pixels_1g : 525000;
-          const frameRate = parseInt(data.frameRate) || 60;
-          const bitDepth = parseInt(data.bitDepth) || 8;
-          
-          // Calculate adjusted port capacity
-          let adjustedCapacity = portCapacity;
-          if(frameRate > 60) {
-            adjustedCapacity = Math.floor(portCapacity * (60 / frameRate));
-          }
-          if(bitDepth > 8) {
-            adjustedCapacity = Math.floor(adjustedCapacity * (8 / bitDepth));
-          }
-          
-          // Calculate panels per data line
-          const pixelsPerPanel = p ? (p.res_x * p.res_y) : 1;
-          let capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
-          // Cap at 500 panels per port (Brompton Tessera hardware limit)
-          capacityBasedPanelsPerData = Math.min(capacityBasedPanelsPerData, 500);
-          const panelSpecificDataLimit = p ? p.max_panels_per_data : null;
-          const suggestedPanelsPerData = panelSpecificDataLimit
-            ? Math.min(capacityBasedPanelsPerData, panelSpecificDataLimit)
-            : capacityBasedPanelsPerData;
-          const userMaxPanelsPerData = parseInt(data.maxPanelsPerData) || 0;
-          const panelsPerDataLine = userMaxPanelsPerData > 0 ? userMaxPanelsPerData : suggestedPanelsPerData;
-          
-          const startDir = data.dataStartDir || 'top';
-          const customDataLines = data.customDataLineAssignments;
-          const hasCustomDataLines = customDataLines && customDataLines.size > 0;
-          const deletedPanels = data.deletedPanels;
-          
-          if(startDir === 'all_top' || startDir === 'all_bottom') {
-            // Each column is its own data line - no cross jumpers needed
-            dataCrossJumperCount = 0;
-          } else {
-            // Serpentine layout - need to track which columns each data line spans
-            // Build a map of data line -> set of columns it spans
-            const dataLineColumns = new Map(); // dataLineNumber -> Set of column numbers
-            
-            // Collect custom data line numbers in use
-            const usedCustomDataLines = new Set();
-            if(hasCustomDataLines) {
-              for(let c = 0; c < pw; c++) {
-                for(let r = 0; r < ph; r++) {
-                  const panelKey = `${c},${r}`;
-                  const isDeleted = deletedPanels && deletedPanels.has && deletedPanels.has(panelKey);
-                  if(!isDeleted && customDataLines.has(panelKey)) {
-                    usedCustomDataLines.add(customDataLines.get(panelKey) - 1);
-                  }
-                }
-              }
-            }
-            
-            let autoDataLineCounter = 0;
-            let panelsInCurrentAutoDataLine = 0;
-            
-            // Skip initial custom data lines
-            while(usedCustomDataLines.has(autoDataLineCounter)) {
-              autoDataLineCounter++;
-            }
-            
-            // Build serpentine path and track columns per data line
-            let serpentineGoingDown = (startDir === 'top');
-            for(let c = 0; c < pw; c++) {
-              const rows = serpentineGoingDown 
-                ? Array.from({length: ph}, (_, i) => i) 
-                : Array.from({length: ph}, (_, i) => ph - 1 - i);
-              
-              for(const r of rows) {
-                const panelKey = `${c},${r}`;
-                if(deletedPanels && deletedPanels.has && deletedPanels.has(panelKey)) continue;
-                
-                let dataLine;
-                if(hasCustomDataLines && customDataLines.has(panelKey)) {
-                  dataLine = customDataLines.get(panelKey) - 1;
-                } else {
-                  // Find next available data line number
-                  while(usedCustomDataLines.has(autoDataLineCounter)) {
-                    autoDataLineCounter++;
-                  }
-                  
-                  dataLine = autoDataLineCounter;
-                  panelsInCurrentAutoDataLine++;
-                  
-                  // Move to next data line when we reach the limit
-                  if(panelsInCurrentAutoDataLine >= panelsPerDataLine) {
-                    autoDataLineCounter++;
-                    panelsInCurrentAutoDataLine = 0;
-                    
-                    while(usedCustomDataLines.has(autoDataLineCounter)) {
-                      autoDataLineCounter++;
-                    }
-                  }
-                }
-                
-                // Track which column this data line spans
-                if(!dataLineColumns.has(dataLine)) {
-                  dataLineColumns.set(dataLine, new Set());
-                }
-                dataLineColumns.get(dataLine).add(c);
-              }
-              
-              serpentineGoingDown = !serpentineGoingDown;
-            }
-            
-            // Count cross jumpers: for each data line, count (columns spanned - 1)
-            dataLineColumns.forEach((columns, dataLine) => {
-              const columnCount = columns.size;
-              if(columnCount > 1) {
-                dataCrossJumperCount += (columnCount - 1);
-              }
-            });
-          }
-        }
-        
-        // Pipe length string
-        let pipeLengthStr = '';
-        if(groundSupport.totalPipes > 0 && groundSupport.pipeInfo && groundSupport.pipeInfo.length > 0) {
-          const uniqueLengths = [...new Set(groundSupport.pipeInfo.map(pi => pi.pipeLengthFt))];
-          pipeLengthStr = ' (' + uniqueLengths.map(l => l + 'ft').join(', ') + ')';
-        }
-
-        // Computed cable lengths from calculateCabling
-        const computedCabling2 = (typeof calculateCabling === 'function') ? calculateCabling(screenId) : null;
-        const computedSocaByLength2 = {};
-        const computedDataByLength2 = {};
-        if(computedCabling2) {
-          (computedCabling2.socaCables || []).forEach(s => {
-            computedSocaByLength2[s.roundedFt] = (computedSocaByLength2[s.roundedFt] || 0) + 1;
-          });
-          const primaryData2 = (computedCabling2.dataCables || []).filter(c => !c.backup);
-          const knockoutData2 = computedCabling2.knockoutBridgeCables || [];
-          primaryData2.forEach(c => { computedDataByLength2[c.roundedFt] = (computedDataByLength2[c.roundedFt] || 0) + 1; });
-          knockoutData2.forEach(c => { computedDataByLength2[c.roundedFt] = (computedDataByLength2[c.roundedFt] || 0) + 1; });
-        }
-
-        // === TWO-COLUMN LAYOUT SETUP ===
-        const colWidth = 90; // Width of each column in mm
-        const col1X = margin;
-        const col2X = margin + colWidth + 5; // 5mm gap between columns
-        const lineHeight = 4.5;
-        const labelValueGap = 2; // Gap between label and value (closer)
-        const sectionGap = 2;
-        
-        let currentCol = 1;
-        let col1Y = yOffset;
-        let col2Y = yOffset;
-        const startY = yOffset;
-        
-        function getCurrentY() {
-          return currentCol === 1 ? col1Y : col2Y;
-        }
-        
-        function setCurrentY(y) {
-          if(currentCol === 1) col1Y = y;
-          else col2Y = y;
-        }
-        
-        function getLabelX() {
-          return currentCol === 1 ? col1X : col2X;
-        }
-        
-        function addLine(label, value) {
-          // Skip items with value 0 or empty
-          if(value === '0' || value === '' || value === null || value === undefined) {
-            return;
-          }
-          const y = getCurrentY();
-          if(y > pageHeight - margin - 10) {
-            // Column overflow - would need new page, but we're designing to fit
-            return;
-          }
-          pdf.setFontSize(9);
-          pdf.setFont(undefined, 'normal');
-          pdf.setTextColor(0, 0, 0);
-          const labelX = getLabelX();
-          pdf.text(label, labelX, y);
-          // Value right after label with small gap
-          const labelWidth = pdf.getTextWidth(label);
-          pdf.text(String(value), labelX + labelWidth + labelValueGap, y);
-          setCurrentY(y + lineHeight);
-        }
-        
-        function addSectionHeader(title) {
-          const y = getCurrentY();
-          if(y > pageHeight - margin - 15) {
-            return;
-          }
-          setCurrentY(y + sectionGap);
-          pdf.setFontSize(10);
-          pdf.setFont(undefined, 'bold');
-          pdf.setTextColor(0, 0, 0);
-          pdf.text(title, getLabelX(), getCurrentY());
-          setCurrentY(getCurrentY() + 5);
-        }
-        
-        function switchToColumn2() {
-          currentCol = 2;
-          col2Y = startY; // Start at same Y as column 1
-        }
-        
-        console.log('Gear List Debug:', {
-          panelType, pw, ph, activePanels,
-          bumper1wCount, bumper2wCount, bumper4wCount,
-          plates2way, plates4way,
-          processorName, processorGroup, isFirstScreenInGroup,
-          isFirstScreen, is4KCanvas
-        });
-        
-        // ========== COLUMN 1 ==========
-        
-        // === EQUIPMENT SECTION ===
-        addSectionHeader('Equipment');
-
-        // Processor and Distribution Box - show combined totals on first screen of each processor group
-        if(isFirstScreenInGroup && processorGroup) {
-          const groupProcessorCount = processorGroup.processorCount || 0;
-          const groupDistBoxCount = processorGroup.distBoxCount || 0;
-          const distBoxName = processorGroup.distBoxName || 'Distribution Box';
-
-          // Show processor count with name
-          if(groupProcessorCount > 0) {
-            addLine('Processor:', `${groupProcessorCount}x ${processorName}`);
-          }
-
-          // Show distribution box count with name (XD, CVT, etc.)
-          if(groupDistBoxCount > 0) {
-            addLine(`${distBoxName}:`, groupDistBoxCount.toString());
-          }
-        } else if(processorGroup && processorGroup.firstScreenName) {
-          // This screen is tied to another screen's processor - show reference
-          addLine('Processor:', `See ${processorGroup.firstScreenName}`);
-        }
-
-        addLine('Panel Count:', activePanels.toString());
-        
-        // === RIGGING SECTION ===
-        addSectionHeader('Rigging Hardware');
-        addLine('1W Bumpers:', bumper1wCount.toString());
-        addLine('2W Bumpers:', bumper2wCount.toString());
-        addLine('4W Bumpers:', bumper4wCount.toString());
-        addLine('4W Connecting Plates:', plates4way.toString());
-        addLine('2W Connecting Plates:', plates2way.toString());
-        
-        // 5/8" Shackles and Cheeseye - only for CB5, CB5 Half, MC7, and AMT 8.3 (hanging only)
-        const needsShacklesAndCheeseye = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3'].includes(panelType);
-        const isHanging = data.structureType === 'hanging';
-        
-        if(needsShacklesAndCheeseye && isHanging && useBumpers) {
-          let shackleCount = 0;
-          let cheeseyeCount = 0;
-          
-          if(panelType === 'INFILED_AMT8_3') {
-            // AMT 8.3: 1 per 1W bumper, 2 per 2W bumper
-            shackleCount = bumper1wCount + (bumper2wCount * 2);
-            cheeseyeCount = bumper1wCount + (bumper2wCount * 2);
-          } else {
-            // CB5, CB5 Half, MC7: 1 per 1W bumper, 1 per 2W bumper
-            shackleCount = bumper1wCount + bumper2wCount;
-            cheeseyeCount = bumper1wCount + bumper2wCount;
-          }
-          
-          if(shackleCount > 0) {
-            addLine('5/8" Shackles:', shackleCount.toString());
-          }
-          if(cheeseyeCount > 0) {
-            addLine('Cheeseye:', cheeseyeCount.toString());
-          }
-        }
-        
-        // === GROUND SUPPORT SECTION ===
-        addSectionHeader('Ground Support');
-        addLine('Rear Truss:', groundSupport.totalRearTruss.toString());
-        addLine('Base Truss:', groundSupport.totalBaseTruss.toString());
-        addLine('Bridge Clamps:', groundSupport.totalBridgeClamps.toString());
-        addLine('Rear Bridge Adapter:', groundSupport.totalRearBridgeClampAdapters.toString());
-        addLine('Sandbags:', groundSupport.totalSandbags.toString());
-        addLine('Swivel Cheeseborough:', groundSupport.totalSwivelCheeseboroughs.toString());
-        addLine('Pipe' + pipeLengthStr + ':', groundSupport.totalPipes.toString());
-
-        // === FLOOR HARDWARE SECTION ===
-        const floorFrames = calcData.floorFrames || {
-          frame_1x1: 0,
-          frame_2x1: 0,
-          frame_2x2: 0,
-          frame_3x2: 0,
-          totalWeightLbs: 0
-        };
-        const hasFloorFrames = floorFrames.frame_1x1 > 0 || floorFrames.frame_2x1 > 0 ||
-                               floorFrames.frame_2x2 > 0 || floorFrames.frame_3x2 > 0;
-        if(hasFloorFrames) {
-          addSectionHeader('Floor Hardware');
-          if(floorFrames.frame_3x2 > 0) addLine('3×2 Frame:', floorFrames.frame_3x2.toString());
-          if(floorFrames.frame_2x2 > 0) addLine('2×2 Frame:', floorFrames.frame_2x2.toString());
-          if(floorFrames.frame_2x1 > 0) addLine('2×1 Frame:', floorFrames.frame_2x1.toString());
-          if(floorFrames.frame_1x1 > 0) addLine('1×1 Frame:', floorFrames.frame_1x1.toString());
-        }
-
-        // === DATA CABLES SECTION (now includes Cat6) ===
-        addSectionHeader('Data Cables');
-        // Get cable lengths from panel specs
-        const dataJumperLen = p && p.data_jumper_ft ? p.data_jumper_ft : '';
-        const dataCrossJumperLen = p && p.data_cross_jumper_ft ? p.data_cross_jumper_ft : '';
-        const jumpersBuiltin = p && p.jumpers_builtin;
-        
-        // Only show data jumpers if not built-in to panel
-        if(!jumpersBuiltin && dataJumperLen) {
-          addLine(`Data Jumpers ${dataJumperLen}:`, activePanels.toString());
-        }
-        if(dataCrossJumperLen && dataCrossJumperCount > 0) {
-          addLine(`Data Cross Jumpers ${dataCrossJumperLen}:`, dataCrossJumperCount.toString());
-        }
-        // Cat5 Couplers - needed for CB5, CB5 Half, MC7 panels
-        // Count = data cross jumpers (column transitions) + data lines (one per line to connect to distro)
-        if(jumpersBuiltin) {
-          const dataLinesCount = calcData.dataLines || 0;
-          const totalCat5Couplers = dataCrossJumperCount + dataLinesCount;
-          if(totalCat5Couplers > 0) {
-            addLine('Cat5 Couplers:', totalCat5Couplers.toString());
-          }
-        }
-        addLine("200' Cat6:", (computedDataByLength2[200] || '').toString());
-        addLine("100' Cat6:", (computedDataByLength2[100] || '').toString());
-        addLine("75' Cat6:", (computedDataByLength2[75] || '').toString());
-        addLine("50' Cat6:", (computedDataByLength2[50] || '').toString());
-        addLine("25' Cat6:", (computedDataByLength2[25] || '').toString());
-        addLine("10' Cat6:", (computedDataByLength2[10] || '').toString());
-        addLine("5' Cat6:", (computedDataByLength2[5] || '').toString());
-        
-        // === POWER CABLES SECTION ===
-        addSectionHeader('Power Cables');
-        // Get power jumper length from panel specs
-        const powerJumperLen = p && p.power_jumper_ft ? p.power_jumper_ft : '';
-        
-        // Only show power jumpers if not built-in to panel
-        if(!jumpersBuiltin && powerJumperLen) {
-          addLine(`Power Jumpers ${powerJumperLen}:`, activePanels.toString());
-        }
-        addLine('Soca Splays:', socaCount.toString());
-        addLine("100' Soca:", (computedSocaByLength2[100] || '').toString());
-        addLine("75' Soca:", (computedSocaByLength2[75] || '').toString());
-        addLine("50' Soca:", (computedSocaByLength2[50] || '').toString());
-        addLine("25' Soca:", (computedSocaByLength2[25] || '').toString());
-        addLine("50' True1:", '');
-        addLine("25' True1:", socaCount.toString());
-        addLine("10' True1:", socaCount.toString());
-        addLine("5' True1:", (socaCount * 2).toString());
-        addLine("3' True1:", '');
-        addLine('True1 Twofer:', columnsPerCircuit > 1 ? (circuitsNeeded * columnsPerCircuit).toString() : '');
-
-        // Processor to Dist Box cables (computed)
-        if(computedCabling2 && computedCabling2.distBoxCables && computedCabling2.distBoxCables.length > 0) {
-          addSectionHeader('Processor → Dist Box');
-          const boxType2 = computedCabling2.distBoxCables[0]?.type === 'fiber' ? 'Fiber' : 'Cat6A';
-          const boxLen2 = computedCabling2.distBoxCables[0]?.roundedFt || 0;
-          addLine(`${boxType2} ${boxLen2}':`, computedCabling2.distBoxCables.length.toString());
-        }
-
-        // Server to Processor cable (computed)
-        if(computedCabling2 && computedCabling2.serverCable) {
-          addSectionHeader('Server → Processor');
-          addLine('Cable:', `${computedCabling2.serverCable.lengthFt}'`);
-        }
-
-        // ========== COLUMN 2 ==========
-        switchToColumn2();
-
-        // === SIGNAL CABLES SECTION (only on first screen) ===
-        if(isFirstScreen) {
-          addSectionHeader('Signal Cables');
-          addLine("500' Fiber Opticon:", '');
-          addLine('Fiber 4ch Opticon Splay:', '');
-          
-          const processorCount = processorGroup ? processorGroup.processorCount : 0;
-          const sdiPerProcessor = processorCount * 2;
-          if(is4KCanvas) {
-            // 4K canvas needs 12G SDI cables (25ft or longer only)
-            addLine("100' 12G SDI:", sdiPerProcessor.toString());
-            addLine("75' 12G SDI:", '');
-            addLine("50' 12G SDI:", sdiPerProcessor.toString());
-            addLine("25' 12G SDI:", sdiPerProcessor.toString());
-          } else {
-            // HD canvas uses regular SDI
-            addLine("100' SDI:", sdiPerProcessor.toString());
-            addLine("75' SDI:", '');
-            addLine("50' SDI:", sdiPerProcessor.toString());
-            addLine("25' SDI:", sdiPerProcessor.toString());
-            addLine("10' SDI:", '6');
-            addLine("3' SDI:", '6');
-          }
-          
-          // HDMI
-          addLine("25' HDMI:", '6');
-          addLine("10' HDMI:", '6');
-          addLine("6' HDMI:", '6');
-        }
-        
-        // === UTILITY SECTION (only on first screen) ===
-        if(isFirstScreen) {
-          addSectionHeader('Utility');
-          addLine("UG 10':", '8');
-          addLine("UG 25':", '6');
-          addLine("UG 50':", '6');
-          addLine('UG Twofers:', '8');
-          addLine('Power Bars:', '8');
-        }
-        
-        // === SPARES SECTION ===
-        addSectionHeader('SPARES');
-        addLine('Spare Soca Splays:', '');
-        addLine('Spare Panel Count:', '');
-        // Only show spare jumpers if not built-in to panel
-        if(!jumpersBuiltin && dataJumperLen) {
-          addLine(`Spare Data Jumpers ${dataJumperLen}:`, '');
-        }
-        if(dataCrossJumperLen) {
-          addLine(`Spare Data Cross Jumpers ${dataCrossJumperLen}:`, '');
-        }
-        // Spare Cat5 couplers only for panels with built-in jumpers
-        if(jumpersBuiltin) {
-          addLine('Spare Cat5 Couplers:', '');
-        }
-        if(!jumpersBuiltin && powerJumperLen) {
-          addLine(`Spare Power Jumpers ${powerJumperLen}:`, '');
-        }
-        addLine('Spare Soca:', '');
-        addLine('Spare Data:', '');
-        addLine('Spare Fiber:', '');
-        
-        // Set final yOffset to the max of both columns
-        yOffset = Math.max(col1Y, col2Y);
-        
-        console.log('Gear list completed, final yOffset:', yOffset);
-        
-      } catch(e) {
-        console.error('Error generating gear list:', e);
-        console.error('Stack trace:', e.stack);
-      }
-      
-      // Call callback when done
-      console.log('Calling gear list callback');
       if(callback) setTimeout(callback, 10);
     }
     

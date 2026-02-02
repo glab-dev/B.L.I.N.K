@@ -615,71 +615,8 @@ function generateGearList() {
     ? allScreenIds.filter(id => gearSelectedScreens.has(id))
     : allScreenIds;
 
-  // Build processor groups (same logic as PDF export)
-  const processorGroups = {};
-  screenIds.forEach(sid => {
-    const sc = screens[sid];
-    if(!sc || !sc.data) return;
-    const procType = sc.data.processor || 'Brompton_SX40';
-    const cd = sc.calculatedData || {};
-    const dl = cd.dataLines || 0;
-    if(!processorGroups[procType]) {
-      processorGroups[procType] = {
-        screens: [], totalMainPorts: 0, totalPixels: 0,
-        hasAnyRedundancy: false, hasAnyProcessorRedundancy: false, hasAnyIndirectMode: false,
-        firstScreenId: sid, firstScreenName: sc.name
-      };
-    }
-    processorGroups[procType].screens.push({ screenId: sid, mainPorts: dl, totalPixels: cd.totalPixels || 0 });
-    processorGroups[procType].totalMainPorts += dl;
-    processorGroups[procType].totalPixels += (cd.totalPixels || 0);
-    if(sc.data.redundancy) processorGroups[procType].hasAnyRedundancy = true;
-    if(sc.data.processorRedundancy) processorGroups[procType].hasAnyProcessorRedundancy = true;
-    if(sc.data.mx40ConnectionMode === 'indirect') processorGroups[procType].hasAnyIndirectMode = true;
-  });
-
-  // Calculate processor and dist box counts per group
-  Object.keys(processorGroups).forEach(procType => {
-    const group = processorGroups[procType];
-    const totalMainPorts = group.totalMainPorts;
-    const hasRedundancy = group.hasAnyRedundancy;
-    const hasProcessorRedundancy = group.hasAnyProcessorRedundancy;
-    let processorCount = 0, distBoxCount = 0, distBoxName = '';
-
-    if(procType === 'Brompton_SX40') {
-      const mainXDs = totalMainPorts > 0 ? Math.ceil(totalMainPorts / 10) : 0;
-      distBoxCount = hasRedundancy ? mainXDs * 2 : mainXDs;
-      processorCount = distBoxCount > 0 ? Math.ceil(distBoxCount / 4) : 0;
-      distBoxName = 'XD';
-    } else if(procType === 'Brompton_S8') {
-      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-      processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 8) : 0;
-    } else if(procType === 'Brompton_M2') {
-      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-      processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 4) : 0;
-    } else if(procType === 'Brompton_S4') {
-      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-      processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 4) : 0;
-    } else if(procType === 'NovaStar_MX40_Pro') {
-      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-      const processorsByPixels = group.totalPixels > 0 ? Math.ceil(group.totalPixels / 9000000) : 0;
-      if(group.hasAnyIndirectMode) {
-        distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 10) : 0;
-        distBoxName = 'CVT-10 Pro';
-        processorCount = Math.max(processorsByPixels, Math.ceil(distBoxCount / 4));
-      } else {
-        const processorsByPorts = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 20) : 0;
-        processorCount = Math.max(processorsByPixels, processorsByPorts);
-      }
-    } else {
-      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-      processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 8) : group.screens.length;
-    }
-    if(hasProcessorRedundancy && processorCount > 0) processorCount *= 2;
-    group.processorCount = processorCount;
-    group.distBoxCount = distBoxCount;
-    group.distBoxName = distBoxName;
-  });
+  // Build gear data from shared module
+  const gearData = buildGearListData(screenIds);
 
   // Helpers
   const sectionHdr = (title) => `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #444; margin-bottom: 4px;"><strong style="color: #10b981; font-size: 13px;">${title}</strong></div>`;
@@ -689,232 +626,97 @@ function generateGearList() {
   };
 
   let html = '<div style="font-size: 14px;">';
-  let isFirstScreen = true;
 
-  screenIds.forEach(screenId => {
-    const screen = screens[screenId];
-    const data = screen.data;
-    const calcData = screen.calculatedData || {};
-    const W = data.panelsWide;
-    const H = data.panelsHigh;
-
-    if(W === 0 || H === 0) return;
-
-    const panelType = data.panelType || document.getElementById('panelType').value;
-    const allPanelsObj = {...panels, ...customPanels};
-    const p = allPanelsObj[panelType];
-    if(!p) return;
-
-    const processorType = data.processor || 'Brompton_SX40';
-    const processorGroup = processorGroups[processorType] || null;
-    const isFirstScreenInGroup = processorGroup && processorGroup.firstScreenId === screenId;
-
-    const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
-    // Use calcData.activePanels directly (same as PDF export) — already accounts for deletions
-    const activePanels = calcData.activePanels || calcData.panelCount || 0;
-    const activeHalfPanels = hasCB5HalfRow ? W : 0;
-    const activeFullPanels = activePanels - activeHalfPanels;
-
-    // Rigging data
-    const bumper1wCount = calcData.bumper1wCount || 0;
-    const bumper2wCount = calcData.bumper2wCount || 0;
-    const bumper4wCount = calcData.bumper4wCount || 0;
-    const plates2way = calcData.plates2way || 0;
-    const plates4way = calcData.plates4way || 0;
-    const useBumpers = data.useBumpers !== false;
-
-    // Power data
-    const socaCount = calcData.socaCount || 0;
-    const circuitsNeeded = calcData.circuitsNeeded || 0;
-    const columnsPerCircuit = calcData.columnsPerCircuit || 1;
-
-    // Data cable items
-    const dataJumperLen = p.data_jumper_ft || '';
-    const dataCrossJumperLen = p.data_cross_jumper_ft || '';
-    const powerJumperLen = p.power_jumper_ft || '';
-    const jumpersBuiltin = p.jumpers_builtin || false;
-    const dataLinesCount = calcData.dataLines || 0;
-
-    // Data cross jumper count (replay serpentine to count multi-column data lines)
-    let dataCrossJumperCount = 0;
-    if(W > 0 && H > 0) {
-      const pr = processors[data.processor] || processors['Brompton_SX40'];
-      const portCapacity = pr ? pr.base_pixels_1g : 525000;
-      const frameRate = parseInt(data.frameRate) || 60;
-      const bitDepth = parseInt(data.bitDepth) || 8;
-      let adjustedCapacity = portCapacity;
-      if(frameRate > 60) adjustedCapacity = Math.floor(portCapacity * (60 / frameRate));
-      if(bitDepth > 8) adjustedCapacity = Math.floor(adjustedCapacity * (8 / bitDepth));
-      const pixelsPerPanel = p.res_x * p.res_y;
-      let capacityBasedPPD = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
-      capacityBasedPPD = Math.min(capacityBasedPPD, 500);
-      const panelSpecificLimit = p.max_panels_per_data || null;
-      const suggestedPPD = panelSpecificLimit ? Math.min(capacityBasedPPD, panelSpecificLimit) : capacityBasedPPD;
-      const userMaxPPD = parseInt(data.maxPanelsPerData) || 0;
-      const panelsPerDataLine = userMaxPPD > 0 ? userMaxPPD : suggestedPPD;
-
-      const startDir = data.dataStartDir || 'top';
-      const deletedPanels = data.deletedPanels;
-      const customDataLines = data.customDataLineAssignments;
-      const hasCustomDataLines = customDataLines && customDataLines.size > 0;
-
-      if(startDir !== 'all_top' && startDir !== 'all_bottom') {
-        const dataLineColumns = new Map();
-        const usedCustomDataLines = new Set();
-        if(hasCustomDataLines) {
-          for(let c = 0; c < W; c++) {
-            for(let r = 0; r < H; r++) {
-              const pk = `${c},${r}`;
-              const isDeleted = deletedPanels && deletedPanels.has && deletedPanels.has(pk);
-              if(!isDeleted && customDataLines.has(pk)) usedCustomDataLines.add(customDataLines.get(pk) - 1);
-            }
-          }
-        }
-        let autoCounter = 0, panelsInCurrent = 0;
-        while(usedCustomDataLines.has(autoCounter)) autoCounter++;
-        let goingDown = (startDir === 'top');
-        for(let c = 0; c < W; c++) {
-          const rows = goingDown ? Array.from({length: H}, (_, i) => i) : Array.from({length: H}, (_, i) => H - 1 - i);
-          for(const r of rows) {
-            const pk = `${c},${r}`;
-            if(deletedPanels && deletedPanels.has && deletedPanels.has(pk)) continue;
-            let dl;
-            if(hasCustomDataLines && customDataLines.has(pk)) {
-              dl = customDataLines.get(pk) - 1;
-            } else {
-              while(usedCustomDataLines.has(autoCounter)) autoCounter++;
-              dl = autoCounter;
-              panelsInCurrent++;
-              if(panelsInCurrent >= panelsPerDataLine) { autoCounter++; panelsInCurrent = 0; while(usedCustomDataLines.has(autoCounter)) autoCounter++; }
-            }
-            if(!dataLineColumns.has(dl)) dataLineColumns.set(dl, new Set());
-            dataLineColumns.get(dl).add(c);
-          }
-          goingDown = !goingDown;
-        }
-        dataLineColumns.forEach((columns) => { if(columns.size > 1) dataCrossJumperCount += (columns.size - 1); });
-      }
-    }
-
-    // Ground support
-    const groundSupport = calcData.groundSupport || { totalRearTruss: 0, totalBaseTruss: 0, totalBridgeClamps: 0, totalRearBridgeClampAdapters: 0, totalSandbags: 0, totalSwivelCheeseboroughs: 0, totalPipes: 0, pipeInfo: [] };
-    let pipeLengthStr = '';
-    if(groundSupport.totalPipes > 0 && groundSupport.pipeInfo && groundSupport.pipeInfo.length > 0) {
-      const uniqueLengths = [...new Set(groundSupport.pipeInfo.map(pi => pi.pipeLengthFt))];
-      pipeLengthStr = ' (' + uniqueLengths.map(l => l + 'ft').join(', ') + ')';
-    }
-
-    // 4K canvas check for signal cables
-    const canvasSize = data.canvasSize || '4K_UHD';
-    const is4KCanvas = (canvasSize === '4K_UHD' || canvasSize === '4K_DCI');
+  gearData.screens.forEach(sd => {
+    const eq = sd.equipment;
+    const rig = sd.rigging;
+    const gs = sd.groundSupport;
+    const fh = sd.floorHardware;
+    const dc = sd.dataCables;
+    const pc = sd.powerCables;
+    const p2d = sd.processorToDistBox;
+    const sig = sd.signalCables;
+    const util = sd.utility;
+    const sp = sd.spares;
 
     // --- BEGIN PER-SCREEN CONTAINER ---
-    const gearScreenColor = safeColor(screen.color);
+    const gearScreenColor = safeColor(sd.screenColor);
     html += `<div style="background: var(--comic-panel); border: 1px solid ${gearScreenColor}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
-    html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${gearScreenColor}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${gearScreenColor}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${escapeHtml(screen.name)}</div>`;
+    html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${gearScreenColor}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${gearScreenColor}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${escapeHtml(sd.screenName)}</div>`;
 
     // === EQUIPMENT ===
     html += sectionHdr('Equipment');
-    if(isFirstScreenInGroup && processorGroup && processorGroup.processorCount > 0) {
-      html += gearLine('Processor:', `${processorGroup.processorCount}x ${escapeHtml(calcData.processorName || '')}`);
-      if(processorGroup.distBoxCount > 0) {
-        html += gearLine(`${escapeHtml(processorGroup.distBoxName)}:`, processorGroup.distBoxCount);
+    if(eq.isFirstScreenInGroup && eq.processorCount > 0) {
+      html += gearLine('Processor:', `${eq.processorCount}x ${escapeHtml(eq.processorName)}`);
+      if(eq.distBoxCount > 0) {
+        html += gearLine(`${escapeHtml(eq.distBoxName)}:`, eq.distBoxCount);
       }
-    } else if(processorGroup && processorGroup.firstScreenName && processorGroup.firstScreenId !== screenId) {
-      html += `<div style="margin-left: 12px; color: #fff;">Processor: See ${escapeHtml(processorGroup.firstScreenName)}</div>`;
+    } else if(eq.referencesScreenName) {
+      html += `<div style="margin-left: 12px; color: #fff;">Processor: See ${escapeHtml(eq.referencesScreenName)}</div>`;
     }
-    html += `<div style="margin-left: 12px;"><span style="color: #fff;">Panels:</span> ${activeFullPanels} x ${escapeHtml(p.brand)} ${escapeHtml(p.name)}</div>`;
-    if(activeHalfPanels > 0) {
-      const halfPanel = allPanelsObj['CB5_MKII_HALF'];
-      html += `<div style="margin-left: 12px;"><span style="color: #fff;">Half Panels:</span> ${activeHalfPanels} x ${escapeHtml(p.brand)} ${escapeHtml(halfPanel ? halfPanel.name : 'CB5 MKII Half Panel')}</div>`;
+    html += `<div style="margin-left: 12px;"><span style="color: #fff;">Panels:</span> ${eq.activeFullPanels} x ${escapeHtml(eq.panelBrand)} ${escapeHtml(eq.panelName)}</div>`;
+    if(eq.activeHalfPanels > 0) {
+      html += `<div style="margin-left: 12px;"><span style="color: #fff;">Half Panels:</span> ${eq.activeHalfPanels} x ${escapeHtml(eq.panelBrand)} ${escapeHtml(eq.halfPanelName)}</div>`;
     }
 
     // === RIGGING HARDWARE ===
-    const hasRigging = bumper1wCount > 0 || bumper2wCount > 0 || bumper4wCount > 0 || plates4way > 0 || plates2way > 0;
-    if(hasRigging) {
+    if(rig.hasRigging) {
       html += sectionHdr('Rigging Hardware');
-      html += gearLine('1W Bumpers:', bumper1wCount);
-      html += gearLine('2W Bumpers:', bumper2wCount);
-      html += gearLine('4W Bumpers:', bumper4wCount);
-      html += gearLine('4W Connecting Plates:', plates4way);
-      html += gearLine('2W Connecting Plates:', plates2way);
-
-      // Shackles and Cheeseye
-      const needsSC = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3'].includes(panelType);
-      const isHanging = (data.structureType || 'hanging') === 'hanging';
-      if(needsSC && isHanging && useBumpers) {
-        let shackleCount = 0, cheeseyeCount = 0;
-        if(panelType === 'INFILED_AMT8_3') {
-          shackleCount = bumper1wCount + (bumper2wCount * 2);
-          cheeseyeCount = bumper1wCount + (bumper2wCount * 2);
-        } else {
-          shackleCount = bumper1wCount + bumper2wCount;
-          cheeseyeCount = bumper1wCount + bumper2wCount;
-        }
-        html += gearLine('5/8" Shackles:', shackleCount);
-        html += gearLine('Cheeseye:', cheeseyeCount);
-      }
+      html += gearLine('1W Bumpers:', rig.bumper1w);
+      html += gearLine('2W Bumpers:', rig.bumper2w);
+      html += gearLine('4W Bumpers:', rig.bumper4w);
+      html += gearLine('4W Connecting Plates:', rig.plates4way);
+      html += gearLine('2W Connecting Plates:', rig.plates2way);
+      html += gearLine('5/8" Shackles:', rig.shackles);
+      html += gearLine('Cheeseye:', rig.cheeseye);
     }
 
     // === GROUND SUPPORT ===
-    const hasGS = groundSupport.totalRearTruss > 0 || groundSupport.totalBaseTruss > 0 || groundSupport.totalBridgeClamps > 0 || groundSupport.totalSandbags > 0 || groundSupport.totalPipes > 0 || groundSupport.totalSwivelCheeseboroughs > 0 || groundSupport.totalRearBridgeClampAdapters > 0;
-    if(hasGS) {
+    if(gs.hasGS) {
       html += sectionHdr('Ground Support');
-      html += gearLine('Rear Truss:', groundSupport.totalRearTruss);
-      html += gearLine('Base Truss:', groundSupport.totalBaseTruss);
-      html += gearLine('Bridge Clamps:', groundSupport.totalBridgeClamps);
-      html += gearLine('Rear Bridge Adapter:', groundSupport.totalRearBridgeClampAdapters);
-      html += gearLine('Sandbags:', groundSupport.totalSandbags);
-      html += gearLine('Swivel Cheeseborough:', groundSupport.totalSwivelCheeseboroughs);
-      if(groundSupport.totalPipes > 0) html += gearLine('Pipe' + pipeLengthStr + ':', groundSupport.totalPipes);
+      html += gearLine('Rear Truss:', gs.rearTruss);
+      html += gearLine('Base Truss:', gs.baseTruss);
+      html += gearLine('Bridge Clamps:', gs.bridgeClamps);
+      html += gearLine('Rear Bridge Adapter:', gs.rearBridgeAdapters);
+      html += gearLine('Sandbags:', gs.sandbags);
+      html += gearLine('Swivel Cheeseborough:', gs.swivelCheeseboroughs);
+      if(gs.pipes > 0) html += gearLine('Pipe' + gs.pipeLengthStr + ':', gs.pipes);
     }
 
     // === FLOOR HARDWARE ===
-    if(screen.calculatedData && screen.calculatedData.floorFrames) {
-      const ff = screen.calculatedData.floorFrames;
-      if(ff.frame_1x1 > 0 || ff.frame_2x1 > 0 || ff.frame_2x2 > 0 || ff.frame_3x2 > 0) {
-        html += sectionHdr('Floor Hardware');
-        if(ff.frame_3x2 > 0) html += gearLine('3×2 Frame:', ff.frame_3x2);
-        if(ff.frame_2x2 > 0) html += gearLine('2×2 Frame:', ff.frame_2x2);
-        if(ff.frame_2x1 > 0) html += gearLine('2×1 Frame:', ff.frame_2x1);
-        if(ff.frame_1x1 > 0) html += gearLine('1×1 Frame:', ff.frame_1x1);
-      }
+    if(fh.hasFloorFrames) {
+      html += sectionHdr('Floor Hardware');
+      if(fh.frame3x2 > 0) html += gearLine('3×2 Frame:', fh.frame3x2);
+      if(fh.frame2x2 > 0) html += gearLine('2×2 Frame:', fh.frame2x2);
+      if(fh.frame2x1 > 0) html += gearLine('2×1 Frame:', fh.frame2x1);
+      if(fh.frame1x1 > 0) html += gearLine('1×1 Frame:', fh.frame1x1);
     }
 
     // === DATA CABLES ===
     html += sectionHdr('Data Cables');
-    // Jumpers and couplers
-    if(!jumpersBuiltin && dataJumperLen) {
-      html += gearLine(`Jumpers ${dataJumperLen}':`, activePanels);
+    if(dc.jumperCount > 0) {
+      html += gearLine(`Jumpers ${dc.dataJumperLen}':`, dc.jumperCount);
     }
-    if(dataCrossJumperLen && dataCrossJumperCount > 0) {
-      html += gearLine(`Cross Jumpers ${dataCrossJumperLen}':`, dataCrossJumperCount);
+    if(dc.crossJumperLen && dc.crossJumperCount > 0) {
+      html += gearLine(`Cross Jumpers ${dc.crossJumperLen}':`, dc.crossJumperCount);
     }
-    if(jumpersBuiltin) {
-      const totalCat5Couplers = dataCrossJumperCount + dataLinesCount;
-      html += gearLine('Cat5 Couplers:', totalCat5Couplers);
+    if(dc.jumpersBuiltin && dc.cat5CouplerCount > 0) {
+      html += gearLine('Cat5 Couplers:', dc.cat5CouplerCount);
     }
-    // Computed data cable lengths from calculateCabling
-    const cabling = calculateCabling(screenId);
-    if(cabling) {
-      const allDataCables = cabling.dataCables || [];
-      const knockoutCables = cabling.knockoutBridgeCables || [];
-      if(allDataCables.length > 0 || knockoutCables.length > 0) {
-        // Merge all cables (primary + backup + knockout) into totals by length
-        const allDataByLength = {};
-        allDataCables.forEach(c => { allDataByLength[c.roundedFt] = (allDataByLength[c.roundedFt] || 0) + 1; });
-        knockoutCables.forEach(c => { allDataByLength[c.roundedFt] = (allDataByLength[c.roundedFt] || 0) + 1; });
-        for(const [len, count] of Object.entries(allDataByLength).sort((a,b) => a[0] - b[0])) {
-          html += `<div style="margin-left: 12px; color: #fff;">${count}x ${len}' Cat6</div>`;
-        }
-        // Detail dropdown at end of section
-        const primaryCables = allDataCables.filter(c => !c.backup);
+    // Dynamic Cat6 cable lengths
+    const cat6Lengths = Object.entries(dc.cat6ByLength).sort((a,b) => a[0] - b[0]);
+    if(cat6Lengths.length > 0) {
+      for(const [len, count] of cat6Lengths) {
+        html += `<div style="margin-left: 12px; color: #fff;">${count}x ${len}' Cat6</div>`;
+      }
+      // Detail dropdown
+      if(dc.cableDetail.length > 0 || dc.knockoutDetail.length > 0) {
         html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #fff; font-size: 12px;">Detail</summary>`;
-        primaryCables.forEach(c => {
+        dc.cableDetail.forEach(c => {
           html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">Line ${c.lineIndex}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
         });
-        knockoutCables.forEach((c, idx) => {
-          html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">Knockout ${idx + 1} (P${c.fromPanel} → P${c.toPanel}): ${c.lengthFt}' → ${c.roundedFt}'</div>`;
+        dc.knockoutDetail.forEach(c => {
+          html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">Knockout ${c.index + 1} (P${c.fromPanel} → P${c.toPanel}): ${c.lengthFt}' → ${c.roundedFt}'</div>`;
         });
         html += `</details>`;
       }
@@ -922,121 +724,76 @@ function generateGearList() {
 
     // === POWER CABLES ===
     html += sectionHdr('Power Cables');
-    if(!jumpersBuiltin && powerJumperLen) {
-      html += gearLine(`Jumpers ${powerJumperLen}':`, activePanels);
+    if(pc.jumperCount > 0) {
+      html += gearLine(`Jumpers ${pc.powerJumperLen}':`, pc.jumperCount);
     }
-    html += gearLine('Soca Splays:', socaCount);
-    // Computed SOCA cable lengths
-    let hasSocaDetail = false;
-    if(cabling && cabling.socaCables.length > 0) {
-      hasSocaDetail = true;
-      const socaByLength = {};
-      cabling.socaCables.forEach(s => { socaByLength[s.roundedFt] = (socaByLength[s.roundedFt] || 0) + 1; });
-      for(const [len, count] of Object.entries(socaByLength).sort((a,b) => a[0] - b[0])) {
-        html += `<div style="margin-left: 12px; color: #fff;">${count}x ${len}' Soca</div>`;
-      }
+    html += gearLine('Soca Splays:', pc.socaSplays);
+    // Dynamic SOCA cable lengths
+    const socaLengths = Object.entries(pc.socaByLength).sort((a,b) => a[0] - b[0]);
+    for(const [len, count] of socaLengths) {
+      html += `<div style="margin-left: 12px; color: #fff;">${count}x ${len}' Soca</div>`;
     }
     // True1 cables
-    html += gearLine("25' True1:", socaCount);
-    html += gearLine("10' True1:", socaCount);
-    html += gearLine("5' True1:", socaCount * 2);
-    if(columnsPerCircuit > 1) {
-      html += gearLine('True1 Twofer:', circuitsNeeded * columnsPerCircuit);
-    }
-    // SOCA detail dropdown at end of section
-    if(hasSocaDetail) {
+    html += gearLine("25' True1:", pc.true1_25);
+    html += gearLine("10' True1:", pc.true1_10);
+    html += gearLine("5' True1:", pc.true1_5);
+    html += gearLine('True1 Twofer:', pc.true1Twofer);
+    // SOCA detail dropdown
+    if(pc.socaDetail.length > 0) {
       html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #fff; font-size: 12px;">Detail</summary>`;
-      cabling.socaCables.forEach(s => {
+      pc.socaDetail.forEach(s => {
         html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">SOCA ${s.index}: ${s.lengthFt}' → ${s.roundedFt}'</div>`;
       });
       html += `</details>`;
     }
 
     // === PROCESSOR → DIST BOX ===
-    if(cabling && cabling.distBoxCables.length > 0) {
+    if(p2d.count > 0) {
       html += sectionHdr('Processor → Dist Box');
-      const mainBoxCables = cabling.distBoxCables.filter(c => c.label === 'main');
-      const boxCableType = mainBoxCables[0]?.type || 'cat6a';
-      const boxCableRounded = mainBoxCables[0]?.roundedFt || 0;
-      html += `<div style="margin-left: 12px; color: #fff;">${cabling.distBoxCables.length}x ${boxCableType === 'fiber' ? 'Fiber' : 'Cat6A'} ${boxCableRounded}'</div>`;
-      if(boxCableType === 'fiber') {
+      html += `<div style="margin-left: 12px; color: #fff;">${p2d.count}x ${p2d.cableType} ${p2d.cableLength}'</div>`;
+      if(p2d.cableType === 'Fiber') {
         html += `<div style="margin-left: 12px; color: #e040fb; font-size: 12px;">(Fiber required: distance > 200')</div>`;
       }
     }
 
     // === SIGNAL CABLES (first screen only) ===
-    if(isFirstScreen) {
+    if(sig) {
       html += sectionHdr('Signal Cables');
-      const procCount = processorGroup ? processorGroup.processorCount : 0;
-      const sdiPerProcessor = procCount * 2;
-      // Determine if canvas is HD (1920x1080) or higher
-      const isHDCanvas = canvasSize === 'HD' || (canvasSize === 'custom' &&
-        (parseInt(data.customCanvasWidth) || 1920) <= 1920 &&
-        (parseInt(data.customCanvasHeight) || 1080) <= 1080);
-      // Build SDI counts by length, then merge server cable into matching bucket
-      const sdiType = isHDCanvas ? '3G SDI' : '12G SDI';
-      const sdiCounts = {};
-      if(isHDCanvas) {
-        sdiCounts[100] = sdiPerProcessor;
-        sdiCounts[50] = sdiPerProcessor;
-        sdiCounts[25] = sdiPerProcessor;
-        sdiCounts[10] = 6;
-        sdiCounts[3] = 6;
-      } else {
-        sdiCounts[100] = sdiPerProcessor;
-        sdiCounts[50] = sdiPerProcessor;
-        sdiCounts[25] = sdiPerProcessor;
-      }
-      // Server → Processor cable (primary + backup = 2) merged into SDI counts
-      let serverFiberLine = '';
-      if(cabling && cabling.serverCable) {
-        const serverLen = cabling.serverCable.lengthFt || 0;
-        if(serverLen > 0) {
-          if(serverLen > 300) {
-            const fiberLen = Math.max(500, Math.ceil(serverLen / 100) * 100);
-            serverFiberLine = `${fiberLen}' Fiber`;
-          } else {
-            const sdiLen = roundUpToStandard(serverLen);
-            sdiCounts[sdiLen] = (sdiCounts[sdiLen] || 0) + 2;
-          }
-        }
-      }
-      // Render SDI lines sorted by length descending
-      for(const len of Object.keys(sdiCounts).map(Number).sort((a,b) => b - a)) {
-        if(sdiCounts[len] > 0) {
-          html += gearLine(`${len}' ${sdiType}:`, sdiCounts[len]);
+      // SDI lines sorted by length descending
+      for(const len of Object.keys(sig.sdiByLength).map(Number).sort((a,b) => b - a)) {
+        if(sig.sdiByLength[len] > 0) {
+          html += gearLine(`${len}' ${sig.sdiType}:`, sig.sdiByLength[len]);
         }
       }
       // Fiber line if server cable was too long for SDI
-      if(serverFiberLine) {
-        html += gearLine(`${serverFiberLine}:`, 2);
+      if(sig.serverFiberLine) {
+        html += gearLine(`${sig.serverFiberLine.label}:`, sig.serverFiberLine.count);
       }
-      html += gearLine("25' HDMI:", 6);
-      html += gearLine("10' HDMI:", 6);
-      html += gearLine("6' HDMI:", 6);
+      html += gearLine("25' HDMI:", sig.hdmi[25]);
+      html += gearLine("10' HDMI:", sig.hdmi[10]);
+      html += gearLine("6' HDMI:", sig.hdmi[6]);
     }
 
     // === UTILITY (first screen only) ===
-    if(isFirstScreen) {
+    if(util) {
       html += sectionHdr('Utility');
-      html += gearLine("UG 10':", 8);
-      html += gearLine("UG 25':", 6);
-      html += gearLine("UG 50':", 6);
-      html += gearLine('UG Twofers:', 8);
-      html += gearLine('Power Bars:', 8);
+      html += gearLine("UG 10':", util.ug10);
+      html += gearLine("UG 25':", util.ug25);
+      html += gearLine("UG 50':", util.ug50);
+      html += gearLine('UG Twofers:', util.ugTwofers);
+      html += gearLine('Power Bars:', util.powerBars);
     }
 
     // === SPARES ===
     html += sectionHdr('SPARES');
     html += gearLine('Spare Soca Splays:', '');
     html += gearLine('Spare Panel Count:', '');
-    if(!jumpersBuiltin && dataJumperLen) html += gearLine(`Spare Data Jumpers ${dataJumperLen}':`, '');
-    if(dataCrossJumperLen) html += gearLine(`Spare Data Cross Jumpers ${dataCrossJumperLen}':`, '');
-    if(jumpersBuiltin) html += gearLine('Spare Cat5 Couplers:', '');
-    if(!jumpersBuiltin && powerJumperLen) html += gearLine(`Spare Power Jumpers ${powerJumperLen}':`, '');
+    if(sp.dataJumpers) html += gearLine(`Spare Data Jumpers ${sp.dataJumperLen}':`, '');
+    if(sp.crossJumpers) html += gearLine(`Spare Data Cross Jumpers ${sp.crossJumperLen}':`, '');
+    if(sp.cat5Couplers) html += gearLine('Spare Cat5 Couplers:', '');
+    if(sp.powerJumpers) html += gearLine(`Spare Power Jumpers ${sp.powerJumperLen}':`, '');
 
     html += `</div>`; // close per-screen container
-    isFirstScreen = false;
   });
 
   html += '</div>';

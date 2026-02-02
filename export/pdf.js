@@ -50,7 +50,15 @@ function sendGearListToJared() {
   const gearData = buildGearListData(screenIds);
 
   const nl = '\n';
-  const line = (label, value) => { if(value === 0 || value === '' || value === null || value === undefined || value === '0') return ''; return ` - ${label} ${value}${nl}`; };
+  const line = (label, value) => {
+    if(value === 0 || value === '' || value === null || value === undefined || value === '0') return '';
+    // If value is a number, format as "countx label" — otherwise keep as "label value" for pre-formatted strings
+    if(typeof value === 'number') {
+      const cleanLabel = label.replace(/:$/, '').trim(); // Remove trailing colon
+      return ` - ${value}x ${cleanLabel}${nl}`;
+    }
+    return ` - ${label} ${value}${nl}`;
+  };
   const hdr = (title) => `${nl}${title.toUpperCase()}${nl}${'-'.repeat(title.length)}${nl}`;
 
   let text = `LED GEAR LIST${nl}`;

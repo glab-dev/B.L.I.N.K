@@ -2609,6 +2609,11 @@ function renderCombinedGearList(selectedScreenIds) {
   // Helper to add a gear line only if value > 0
   function addGearLine(label, value) {
     if(value > 0) {
+      // If value is a number, format as "countx label" — otherwise keep as "label value" for pre-formatted strings
+      if(typeof value === 'number') {
+        const cleanLabel = label.replace(/:$/, '').trim(); // Remove trailing colon
+        return `<div style="margin-left: 12px;"><strong>${value}x ${cleanLabel}</strong></div>`;
+      }
       return `<div style="margin-left: 12px;"><strong>${label}</strong> ${value}</div>`;
     }
     return '';

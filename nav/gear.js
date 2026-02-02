@@ -622,6 +622,11 @@ function generateGearList() {
   const sectionHdr = (title) => `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #444; margin-bottom: 4px;"><strong style="color: #10b981; font-size: 13px;">${title}</strong></div>`;
   const gearLine = (label, value) => {
     if(value === 0 || value === '' || value === null || value === undefined || value === '0') return '';
+    // If value is a number, format as "countx label" — otherwise keep as "label value" for pre-formatted strings
+    if(typeof value === 'number') {
+      const cleanLabel = label.replace(/:$/, '').trim(); // Remove trailing colon
+      return `<div style="margin-left: 12px; color: #fff;">${value}x ${cleanLabel}</div>`;
+    }
     return `<div style="margin-left: 12px;"><span style="color: #fff;">${label}</span> ${value}</div>`;
   };
 

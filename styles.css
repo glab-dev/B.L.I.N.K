@@ -1455,10 +1455,13 @@ canvas:focus {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.8);
-  display: none;
+  display: flex;
   justify-content: center;
   align-items: center;
   z-index: 10000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease-in-out, visibility 0.15s ease-in-out;
 }
 
 #requestItemModal {
@@ -1466,7 +1469,8 @@ canvas:focus {
 }
 
 .modal-overlay.active {
-  display: flex;
+  opacity: 1;
+  visibility: visible;
 }
 
 .modal-dialog {
@@ -1575,6 +1579,13 @@ canvas:focus {
   gap: 8px;
   padding-top: 10px;
   border-top: 1px solid #444;
+}
+
+/* Ensure modal footer buttons stay side-by-side on mobile */
+.modal-footer button {
+  width: auto;
+  flex-shrink: 0;
+  min-width: 100px;
 }
 
 .modal-input-group {

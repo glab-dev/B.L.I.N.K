@@ -96,6 +96,23 @@ Use HEREDOC format for multi-line commit messages.
 
 ---
 
+## Root Cause Analysis — ALWAYS Follow
+
+When fixing bugs or addressing issues:
+
+- **Identify the root cause** — don't just patch symptoms
+- **Trace the issue to its source** — follow the data flow backwards
+- **Ask "why" repeatedly** — understand why the bug exists, not just what it does
+- **Fix the underlying problem** — ensure the fix prevents recurrence
+- **Consider related cases** — if it failed here, could it fail elsewhere?
+- **Verify all affected areas** — check if the root cause impacts other features
+
+**Example:** If a calculation is wrong, don't just fix the output display — trace back through the calculation logic, input validation, and data sources to find where the error originates.
+
+**Anti-pattern:** Applying quick fixes that mask problems without addressing the underlying issue leads to technical debt and recurring bugs.
+
+---
+
 ## Security — ALWAYS Check When Writing Code
 
 - Never use `eval()`, `Function()` constructor, or `document.write()`

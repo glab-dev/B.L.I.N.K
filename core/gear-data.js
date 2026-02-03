@@ -77,9 +77,21 @@ function buildGearListData(screenIds) {
     group.distBoxName = distBoxName;
   });
 
+  // Server → Processor cable is system-wide (one connection: main + backup = 2 cables)
+  // Use the longest serverToProcessor value across all screens
+  let serverCableLength = 0;
+  screenIds.forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+    const cablingCheck = (typeof calculateCabling === 'function') ? calculateCabling(screenId) : null;
+    if(cablingCheck && cablingCheck.serverCable) {
+      const len = cablingCheck.serverCable.lengthFt || 0;
+      if(len > serverCableLength) serverCableLength = len;
+    }
+  });
+
   // === PER-SCREEN DATA ===
   const screenDataList = [];
-  let isFirstScreen = true;
 
   screenIds.forEach(screenId => {
     const screen = screens[screenId];
@@ -106,12 +118,14 @@ function buildGearListData(screenIds) {
     const halfPanelObj = allPanelsObj['CB5_MKII_HALF'];
 
     const equipment = {
+      processorType: processorType,
       processorCount: (isFirstScreenInGroup && processorGroup) ? processorGroup.processorCount : 0,
       processorName: calcData.processorName || '',
       distBoxCount: (isFirstScreenInGroup && processorGroup) ? processorGroup.distBoxCount : 0,
       distBoxName: (isFirstScreenInGroup && processorGroup) ? processorGroup.distBoxName : '',
       isFirstScreenInGroup: isFirstScreenInGroup,
       referencesScreenName: (!isFirstScreenInGroup && processorGroup && processorGroup.firstScreenName) ? processorGroup.firstScreenName : null,
+      panelType: panelType,
       activePanels: activePanels,
       activeFullPanels: activeFullPanels,
       activeHalfPanels: activeHalfPanels,
@@ -321,62 +335,7 @@ function buildGearListData(screenIds) {
       };
     }
 
-    // --- SIGNAL CABLES (first screen only) ---
-    let signalCables = null;
-    if(isFirstScreen) {
-      const canvasSize = data.canvasSize || '4K_UHD';
-      const isHDCanvas = canvasSize === 'HD' || (canvasSize === 'custom' &&
-        (parseInt(data.customCanvasWidth) || 1920) <= 1920 &&
-        (parseInt(data.customCanvasHeight) || 1080) <= 1080);
-      const sdiType = isHDCanvas ? '3G SDI' : '12G SDI';
-      const procCount = processorGroup ? processorGroup.processorCount : 0;
-      const sdiPerProcessor = procCount * 2;
-
-      const sdiByLength = {};
-      if(isHDCanvas) {
-        sdiByLength[100] = sdiPerProcessor;
-        sdiByLength[50] = sdiPerProcessor;
-        sdiByLength[25] = sdiPerProcessor;
-        sdiByLength[10] = 6;
-        sdiByLength[3] = 6;
-      } else {
-        sdiByLength[100] = sdiPerProcessor;
-        sdiByLength[50] = sdiPerProcessor;
-        sdiByLength[25] = sdiPerProcessor;
-      }
-
-      // Server → Processor cable merged into SDI counts (or fiber if > 300')
-      let serverFiberLine = null;
-      if(cabling && cabling.serverCable) {
-        const serverLen = cabling.serverCable.lengthFt || 0;
-        if(serverLen > 0) {
-          if(serverLen > 300) {
-            const fiberLen = Math.max(500, Math.ceil(serverLen / 100) * 100);
-            serverFiberLine = { label: fiberLen + "' Fiber", count: 2 };
-          } else {
-            const sdiLen = roundUpToStandard(serverLen);
-            sdiByLength[sdiLen] = (sdiByLength[sdiLen] || 0) + 2;
-          }
-        }
-      }
-
-      signalCables = {
-        isHDCanvas: isHDCanvas,
-        sdiType: sdiType,
-        sdiByLength: sdiByLength,
-        serverFiberLine: serverFiberLine,
-        hdmi: { 25: 6, 10: 6, 6: 6 }
-      };
-    }
-
-    // --- UTILITY (first screen only) ---
-    let utility = null;
-    if(isFirstScreen) {
-      utility = {
-        ug10: 8, ug25: 6, ug50: 6,
-        ugTwofers: 8, powerBars: 8
-      };
-    }
+    // (Signal cables and utility are now computed at the system level — see below)
 
     // --- SPARES ---
     const spares = {
@@ -398,7 +357,6 @@ function buildGearListData(screenIds) {
       screenId: screenId,
       screenName: screen.name,
       screenColor: screen.color,
-      isFirstScreen: isFirstScreen,
       equipment: equipment,
       rigging: rigging,
       groundSupport: groundSupport,
@@ -406,17 +364,78 @@ function buildGearListData(screenIds) {
       dataCables: dataCables,
       powerCables: powerCables,
       processorToDistBox: processorToDistBox,
-      signalCables: signalCables,
-      utility: utility,
       spares: spares
     });
-
-    isFirstScreen = false;
   });
+
+  // === SYSTEM-WIDE: SIGNAL CABLES ===
+  let signalCables = null;
+  if(screenDataList.length > 0) {
+    // Determine SDI type: use 4K/12G if ANY screen has 4K+ canvas
+    let isHDCanvas = true;
+    screenIds.forEach(sid => {
+      const sc = screens[sid];
+      if(!sc || !sc.data) return;
+      const canvasSize = sc.data.canvasSize || '4K_UHD';
+      const isHD = canvasSize === 'HD' || (canvasSize === 'custom' &&
+        (parseInt(sc.data.customCanvasWidth) || 1920) <= 1920 &&
+        (parseInt(sc.data.customCanvasHeight) || 1080) <= 1080);
+      if(!isHD) isHDCanvas = false;
+    });
+    const sdiType = isHDCanvas ? '3G SDI' : '12G SDI';
+
+    // Sum ALL processor counts across all groups
+    let totalProcessors = 0;
+    Object.keys(processorGroups).forEach(procType => {
+      totalProcessors += processorGroups[procType].processorCount || 0;
+    });
+    const sdiPerProcessor = totalProcessors * 2;
+
+    const sdiByLength = {};
+    if(isHDCanvas) {
+      sdiByLength[100] = sdiPerProcessor;
+      sdiByLength[50] = sdiPerProcessor;
+      sdiByLength[25] = sdiPerProcessor;
+      sdiByLength[10] = 6;
+      sdiByLength[3] = 6;
+    } else {
+      sdiByLength[100] = sdiPerProcessor;
+      sdiByLength[50] = sdiPerProcessor;
+      sdiByLength[25] = sdiPerProcessor;
+    }
+
+    // Server → Processor cable: single run + backup (2 cables total)
+    let serverFiberLine = null;
+    if(serverCableLength > 0) {
+      if(serverCableLength > 300) {
+        const fiberLen = Math.max(500, Math.ceil(serverCableLength / 100) * 100);
+        serverFiberLine = { label: fiberLen + "' Fiber", count: 2 };
+      } else {
+        const sdiLen = roundUpToStandard(serverCableLength);
+        sdiByLength[sdiLen] = (sdiByLength[sdiLen] || 0) + 2;
+      }
+    }
+
+    signalCables = {
+      isHDCanvas: isHDCanvas,
+      sdiType: sdiType,
+      sdiByLength: sdiByLength,
+      serverFiberLine: serverFiberLine,
+      hdmi: { 25: 6, 10: 6, 6: 6 }
+    };
+  }
+
+  // === SYSTEM-WIDE: UTILITY ===
+  const utility = screenDataList.length > 0 ? {
+    ug10: 8, ug25: 6, ug50: 6,
+    ugTwofers: 8, powerBars: 8
+  } : null;
 
   return {
     configName: configName,
     processorGroups: processorGroups,
-    screens: screenDataList
+    screens: screenDataList,
+    signalCables: signalCables,
+    utility: utility
   };
 }

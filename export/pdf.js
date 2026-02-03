@@ -73,8 +73,6 @@ function sendGearListToJared() {
     const dc = sd.dataCables;
     const pc = sd.powerCables;
     const p2d = sd.processorToDistBox;
-    const sig = sd.signalCables;
-    const util = sd.utility;
     const sp = sd.spares;
 
     // Screen header
@@ -155,28 +153,6 @@ function sendGearListToJared() {
       text += ` - ${p2d.count}x ${p2d.cableType} ${p2d.cableLength}'${nl}`;
     }
 
-    // Signal Cables (first screen only)
-    if(sig) {
-      text += hdr('Signal Cables');
-      for(const len of Object.keys(sig.sdiByLength).map(Number).sort((a,b) => b - a)) {
-        if(sig.sdiByLength[len] > 0) text += line(`${len}' ${sig.sdiType}:`, sig.sdiByLength[len]);
-      }
-      if(sig.serverFiberLine) text += line(`${sig.serverFiberLine.label}:`, sig.serverFiberLine.count);
-      text += line("25' HDMI:", sig.hdmi[25]);
-      text += line("10' HDMI:", sig.hdmi[10]);
-      text += line("6' HDMI:", sig.hdmi[6]);
-    }
-
-    // Utility (first screen only)
-    if(util) {
-      text += hdr('Utility');
-      text += line("UG 10':", util.ug10);
-      text += line("UG 25':", util.ug25);
-      text += line("UG 50':", util.ug50);
-      text += line('UG Twofers:', util.ugTwofers);
-      text += line('Power Bars:', util.powerBars);
-    }
-
     // Spares
     text += hdr('Spares');
     text += ` - Spare Soca Splays:${nl}`;
@@ -187,22 +163,274 @@ function sendGearListToJared() {
     if(sp.powerJumpers) text += ` - Spare Power Jumpers ${sp.powerJumperLen}':${nl}`;
   });
 
-  const email = 'JYoung@apexsound.com';
-  const subject = encodeURIComponent(`LED Gear List - ${gearData.configName}`);
-  const body = encodeURIComponent(text);
-
-  let mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
-  if(mailtoUrl.length > 16000) {
-    const truncNote = '\n\n(Gear list truncated due to email length limits - see full list in app)';
-    const maxBodyLen = 14000 - subject.length - email.length;
-    const truncBody = encodeURIComponent(text.substring(0, maxBodyLen) + truncNote);
-    mailtoUrl = `mailto:${email}?subject=${subject}&body=${truncBody}`;
+  // System-wide: Signal Cables
+  const sig = gearData.signalCables;
+  if(sig) {
+    text += `${nl}${nl}`;
+    text += `SIGNAL CABLES${nl}`;
+    text += `======================================${nl}`;
+    for(const len of Object.keys(sig.sdiByLength).map(Number).sort((a,b) => b - a)) {
+      if(sig.sdiByLength[len] > 0) text += line(`${len}' ${sig.sdiType}:`, sig.sdiByLength[len]);
+    }
+    if(sig.serverFiberLine) text += line(`${sig.serverFiberLine.label}:`, sig.serverFiberLine.count);
+    text += line("25' HDMI:", sig.hdmi[25]);
+    text += line("10' HDMI:", sig.hdmi[10]);
+    text += line("6' HDMI:", sig.hdmi[6]);
   }
 
-  // Use anchor click to trigger mailto — more reliable than window.location.href
-  const a = document.createElement('a');
+  // System-wide: Utility
+  const util = gearData.utility;
+  if(util) {
+    text += hdr('Utility');
+    text += line("UG 10':", util.ug10);
+    text += line("UG 25':", util.ug25);
+    text += line("UG 50':", util.ug50);
+    text += line('UG Twofers:', util.ugTwofers);
+    text += line('Power Bars:', util.powerBars);
+  }
+
+  // Build inventory file for sharing
+  const inventoryContent = buildGearInventoryContent(gearData);
+  const fileName = gearData.configName.replace(/[^a-zA-Z0-9 _-]/g, '') + '.txt';
+  const inventoryFile = new File([inventoryContent], fileName, { type: 'text/plain' });
+
+  // Only use Web Share API on mobile (touch + small screen or mobile UA)
+  const isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
+                         (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+
+  if(isMobileDevice && navigator.share && navigator.canShare && navigator.canShare({ files: [inventoryFile] })) {
+    navigator.share({
+      title: 'LED Gear List - ' + gearData.configName,
+      text: text,
+      files: [inventoryFile]
+    }).catch(function(err) {
+      // User cancelled share — no action needed
+      if(err.name !== 'AbortError') {
+        openMailtoWithDownload(gearData.configName, text, inventoryContent, fileName);
+      }
+    });
+  } else {
+    // Desktop: mailto (no file attachment) + separate file download
+    openMailtoWithDownload(gearData.configName, text, inventoryContent, fileName);
+  }
+}
+
+function openMailtoWithDownload(configName, text, inventoryContent, fileName) {
+  var subject = encodeURIComponent('LED Gear List - ' + configName);
+  var body = encodeURIComponent(text);
+  var mailtoUrl = 'mailto:?subject=' + subject + '&body=' + body;
+  if(mailtoUrl.length > 16000) {
+    var truncNote = '\n\n(Gear list truncated due to email length limits - see full list in app)';
+    var maxBodyLen = 14000 - subject.length;
+    var truncBody = encodeURIComponent(text.substring(0, maxBodyLen) + truncNote);
+    mailtoUrl = 'mailto:?subject=' + subject + '&body=' + truncBody;
+  }
+  var a = document.createElement('a');
   a.href = mailtoUrl;
   a.click();
+
+  // Download the inventory text file separately
+  var blob = new Blob([inventoryContent], { type: 'text/plain' });
+  var url = URL.createObjectURL(blob);
+  var dl = document.createElement('a');
+  dl.href = url;
+  dl.download = fileName;
+  document.body.appendChild(dl);
+  dl.click();
+  document.body.removeChild(dl);
+  URL.revokeObjectURL(url);
+}
+
+// Build gear inventory content as tab-delimited string (matching Apex format)
+function buildGearInventoryContent(gearData) {
+  if(!gearData || !gearData.screens || gearData.screens.length === 0) return;
+
+  const items = new Map();
+  function addItem(code, desc, qty) {
+    if(!qty || qty <= 0) return;
+    const key = (code || '') + '|' + desc;
+    if(items.has(key)) {
+      items.get(key).qty += qty;
+    } else {
+      items.set(key, { code: code || '', desc: desc, qty: qty });
+    }
+  }
+
+  // Lookup tables
+  var procCodes = {
+    'Brompton_SX40': { code: 'BROMSX40', desc: 'Brompton SX40 LED Controller' },
+    'Brompton_S8': { code: 'BROMPTS8', desc: 'Brompton S8 LED Controller' },
+    'Brompton_S4': { code: 'BROMPTS4', desc: 'Brompton S4 LED Controller' },
+    'Brompton_M2': { code: 'BROMPTM2', desc: 'Brompton M2 LED Controller' },
+    'NovaStar_MX40_Pro': { code: '', desc: 'NovaStar MX40 Pro LED Controller' }
+  };
+  var panelCodes = {
+    'CB5_MKII': { code: 'CB5MK2FU', desc: 'ROE CB5 MKII 1200 x 600 Panel' },
+    'CB5_MKII_HALF': { code: 'CB5MK2HA', desc: 'ROE CB5 MKII 600 x 600 Panel' },
+    'BP2_V2': { code: 'BP2V2', desc: 'ROE Black Pearl V2 2.8mm 500mm x 500mm' },
+    'DM2_6': { code: 'DM2.6', desc: 'ROE Black Diamond 2.6mm 500mm x 500mm' },
+    'MC7H': { code: 'MC7HW', desc: 'ROE MC7H 7mm LED Panel 600mm x 600mm' },
+    'INFILED_AMT8_3': { code: 'AMT8.3', desc: 'INFiLED AMT 8.33mm 1000mm x 1000mm' },
+    'BM4_MATTE': { code: 'BM4', desc: 'ROE BM4 Floor Panel Matte Finish' },
+    'BO3': { code: 'BO3', desc: 'ROE Black Onyx 3.4mm 500mm x 500mm' }
+  };
+  var bumperCodes = {
+    'BP2_V2': { b1w: { code: 'BOBUMP1W', desc: 'ROE BO/BP Hanging Bumper 1 Wide' }, b2w: { code: 'BOBUMP2W', desc: 'ROE BO/BP Hanging Bumper 2 Wide' } },
+    'BO3': { b1w: { code: 'BOBUMP1W', desc: 'ROE BO/BP Hanging Bumper 1 Wide' }, b2w: { code: 'BOBUMP2W', desc: 'ROE BO/BP Hanging Bumper 2 Wide' } },
+    'CB5_MKII': { b1w: { code: 'CBHANG1W', desc: 'ROE CB Hanging Bumper 1W' }, b2w: { code: 'CBHANG2W', desc: 'ROE CB Hanging Bumper 2W' }, b4w: { code: 'CBHANG4W', desc: 'ROE CB Pick Point 4W' } },
+    'CB5_MKII_HALF': { b1w: { code: 'CBHANG1W', desc: 'ROE CB Hanging Bumper 1W' }, b2w: { code: 'CBHANG2W', desc: 'ROE CB Hanging Bumper 2W' }, b4w: { code: 'CBHANG4W', desc: 'ROE CB Pick Point 4W' } },
+    'DM2_6': { b1w: { code: 'DMBUMP1W', desc: 'ROE DM Hanging Bumper 1 Wide' }, b2w: { code: 'DMBUMP2W', desc: 'ROE DM Hanging Bumper 2 Wide' } },
+    'MC7H': { b1w: { code: 'MCBASE1', desc: 'ROE MC7 Flying/Ground Bumper SINGLE' }, b2w: { code: 'MCBASE2', desc: 'ROE MC7 Flying/Ground Bumper DOUBLE' } },
+    'INFILED_AMT8_3': { b1w: { code: 'AMTHANG1', desc: 'INFiLED AMT Hanging Bar 1M' }, b2w: { code: 'AMTHANG2', desc: 'INFiLED AMT Hanging Bar 2M' } }
+  };
+  var baseCodes = {
+    'BP2_V2': { code: 'BOBASE2W', desc: 'ROE BO/BP DOUBLE Ground Support Bar 1M' },
+    'BO3': { code: 'BOBASE2W', desc: 'ROE BO/BP DOUBLE Ground Support Bar 1M' },
+    'CB5_MKII': { code: 'CBBASE2W', desc: 'ROE CB Base Bar 2W' },
+    'CB5_MKII_HALF': { code: 'CBBASE2W', desc: 'ROE CB Base Bar 2W' },
+    'DM2_6': { code: 'DMBASE2W', desc: 'ROE DM Ground Support Bar 2 Wide' },
+    'INFILED_AMT8_3': { code: 'AMTFOOT1', desc: 'INFiLED AMT Footer Base Bar 1M' }
+  };
+  var cat6Map = { 1: 'CAT6P001', 1.5: 'CAT6P1.5', 2: 'CAT6P002', 3: 'CAT6P003', 6: 'CAT6P006', 10: 'CAT6P010', 15: 'CAT6P015', 25: 'CAT6P025', 50: 'CAT6P050', 100: 'CAT6P100', 200: 'CAT6P200', 300: 'CAT6P300' };
+  var sdi12GMap = { 5: 'SDI4K005', 15: 'SDI4K015', 25: 'SDI4K025', 50: 'SDI4K050', 100: 'SDI4K100', 200: 'SDI4K200', 300: 'SDI4K300' };
+  var fiberMap = { 500: 'FI4O500', 1000: 'FI4O1000', 1500: 'FI4O1500' };
+
+  // Per-screen data
+  gearData.screens.forEach(function(sd) {
+    var eq = sd.equipment;
+    var rig = sd.rigging;
+    var gs = sd.groundSupport;
+    var fh = sd.floorHardware;
+    var dc = sd.dataCables;
+    var pc = sd.powerCables;
+    var p2d = sd.processorToDistBox;
+    var pt = eq.panelType;
+
+    // Processors (only for first screen in processor group)
+    if(eq.isFirstScreenInGroup && eq.processorCount > 0) {
+      var proc = procCodes[eq.processorType] || { code: '', desc: eq.processorName };
+      addItem(proc.code, proc.desc, eq.processorCount);
+      if(eq.distBoxCount > 0) {
+        addItem('', eq.distBoxName + ' Distribution Box', eq.distBoxCount);
+      }
+    }
+
+    // Panels
+    if(eq.activeFullPanels > 0) {
+      var panel = panelCodes[pt] || { code: '', desc: eq.panelBrand + ' ' + eq.panelName };
+      addItem(panel.code, panel.desc, eq.activeFullPanels);
+    }
+    if(eq.activeHalfPanels > 0) {
+      addItem('CB5MK2HA', 'ROE CB5 MKII 600 x 600 Panel', eq.activeHalfPanels);
+    }
+
+    // Rigging
+    if(rig.hasRigging) {
+      var bc = bumperCodes[pt] || {};
+      if(rig.bumper1w > 0 && bc.b1w) addItem(bc.b1w.code, bc.b1w.desc, rig.bumper1w);
+      if(rig.bumper2w > 0 && bc.b2w) addItem(bc.b2w.code, bc.b2w.desc, rig.bumper2w);
+      if(rig.bumper4w > 0 && bc.b4w) addItem(bc.b4w.code, bc.b4w.desc, rig.bumper4w);
+      if(rig.plates4way > 0) addItem('CP4FIXED', 'ROE CB/DM Fixed QUAD Connection Plate', rig.plates4way);
+      if(rig.plates2way > 0) addItem('CP2FIXED', 'ROE CB/DM Fixed DOUBLE Connection Plate', rig.plates2way);
+      if(rig.shackles > 0) addItem('', '5/8" Shackle', rig.shackles);
+      if(rig.cheeseye > 0) addItem('', 'Cheeseye', rig.cheeseye);
+    }
+
+    // Ground Support
+    if(gs.hasGS) {
+      if(gs.rearTruss > 0) addItem('BOREARTS', 'ROE Ground Support Rear Ladder Truss', gs.rearTruss);
+      if(gs.baseTruss > 0) {
+        var base = baseCodes[pt] || { code: '', desc: 'Ground Support Base Bar' };
+        addItem(base.code, base.desc, gs.baseTruss);
+      }
+      if(gs.bridgeClamps > 0) addItem('BOREARBC', 'ROE Rear Bridge Clamp', gs.bridgeClamps);
+      if(gs.rearBridgeAdapters > 0) addItem('DMREARAD', 'ROE DM Rear Adapter for Ground Support', gs.rearBridgeAdapters);
+      if(gs.sandbags > 0) addItem('', 'Sandbag', gs.sandbags);
+      if(gs.swivelCheeseboroughs > 0) addItem('', 'Swivel Cheeseborough', gs.swivelCheeseboroughs);
+      if(gs.pipes > 0) addItem('', 'Pipe' + gs.pipeLengthStr, gs.pipes);
+    }
+
+    // Floor Hardware
+    if(fh.hasFloorFrames) {
+      if(fh.frame3x2 > 0) addItem('BFBM46PC', 'ROE BM4 Base Frame 6 Panel (BLUE)', fh.frame3x2);
+      if(fh.frame2x2 > 0) addItem('BFBM44PC', 'ROE BM4 Base Frame 4 Panel (YELLOW)', fh.frame2x2);
+      if(fh.frame2x1 > 0) addItem('BFBM42PC', 'ROE BM4 Base Frame 2 Panel (RED)', fh.frame2x1);
+      if(fh.frame1x1 > 0) addItem('BFBM41PC', 'ROE BM4 Base Frame 1 Panel (GREEN)', fh.frame1x1);
+    }
+
+    // Data Cables
+    if(dc.jumperCount > 0) addItem('', "Data Jumper " + dc.dataJumperLen + "'", dc.jumperCount);
+    if(dc.crossJumperCount > 0) addItem('', "Data Cross Jumper " + dc.crossJumperLen + "'", dc.crossJumperCount);
+    if(dc.cat5CouplerCount > 0) addItem('CATFF', 'NE8FF EtherCON Coupler', dc.cat5CouplerCount);
+    Object.keys(dc.cat6ByLength).forEach(function(len) {
+      var count = dc.cat6ByLength[len];
+      if(count > 0) addItem(cat6Map[parseFloat(len)] || '', "CAT6A EtherCON Cable " + len + "'", count);
+    });
+
+    // Power Cables
+    if(pc.jumperCount > 0) addItem('', "Power Jumper " + pc.powerJumperLen + "'", pc.jumperCount);
+    if(pc.socaSplays > 0) addItem('', 'Soca Splay', pc.socaSplays);
+    Object.keys(pc.socaByLength).forEach(function(len) {
+      var count = pc.socaByLength[len];
+      if(count > 0) addItem('', "Soca Cable " + len + "'", count);
+    });
+    if(pc.true1_25 > 0) addItem('', "True1 25'", pc.true1_25);
+    if(pc.true1_10 > 0) addItem('', "True1 10'", pc.true1_10);
+    if(pc.true1_5 > 0) addItem('', "True1 5'", pc.true1_5);
+    if(pc.true1Twofer > 0) addItem('', 'True1 Twofer', pc.true1Twofer);
+
+    // Processor → Dist Box
+    if(p2d.count > 0) {
+      if(p2d.cableType === 'Fiber') {
+        addItem(fiberMap[p2d.cableLength] || '', "4 Strand Single-Mode OpticalCON Fiber " + p2d.cableLength + "'", p2d.count);
+      } else {
+        addItem(cat6Map[p2d.cableLength] || '', "CAT6A EtherCON Cable " + p2d.cableLength + "'", p2d.count);
+      }
+    }
+  });
+
+  // Signal Cables (system-wide)
+  var sig = gearData.signalCables;
+  if(sig) {
+    var is12G = !sig.isHDCanvas;
+    Object.keys(sig.sdiByLength).forEach(function(len) {
+      var count = sig.sdiByLength[len];
+      if(count > 0) {
+        var lengthNum = parseInt(len);
+        if(is12G) {
+          addItem(sdi12GMap[lengthNum] || '', "SDI 12G 4K BNC Cable " + len + "'", count);
+        } else {
+          addItem('SDI-' + len, "HD-SDI BNC Video Cable " + len + "'", count);
+        }
+      }
+    });
+    if(sig.serverFiberLine && sig.serverFiberLine.count > 0) {
+      var fiberLabel = sig.serverFiberLine.label;
+      var fiberLen = parseInt(fiberLabel);
+      addItem(fiberMap[fiberLen] || '', "4 Strand Single-Mode OpticalCON Fiber " + fiberLabel, sig.serverFiberLine.count);
+    }
+    if(sig.hdmi[25] > 0) addItem('HDMI-25', "HDMI Cable 25' Black", sig.hdmi[25]);
+    if(sig.hdmi[10] > 0) addItem('HDMI-10', "HDMI Cable 10' Black", sig.hdmi[10]);
+    if(sig.hdmi[6] > 0) addItem('HDMI-6', "HDMI Cable 6' Black", sig.hdmi[6]);
+  }
+
+  // Utility (system-wide)
+  var util = gearData.utility;
+  if(util) {
+    if(util.ug10 > 0) addItem('UG-10', "15A 120V Edison Power Cable 10'", util.ug10);
+    if(util.ug25 > 0) addItem('UG-25', "15A 120V Edison Power Cable 25'", util.ug25);
+    if(util.ug50 > 0) addItem('UG-50', "15A 120V Edison Power Cable 50'", util.ug50);
+    if(util.ugTwofers > 0) addItem('UGTWOFER', '15A 120V UG Twofer', util.ugTwofers);
+    if(util.powerBars > 0) addItem('POWERBAR', 'Power Bar 120V', util.powerBars);
+  }
+
+  // Build tab-delimited content
+  var content = 'Type\tCode\tDescription\tQty\tRate\tPrice\tPackLevel\tWarehouse\tClient\n';
+  items.forEach(function(item) {
+    content += '\t' + item.code + '\t' + item.desc + '\t' + item.qty + '\t0.00\t0.00\t0\tY\tY\n';
+  });
+
+  return content;
 }
 
 function confirmPdfExport() {
@@ -659,8 +887,6 @@ function exportPDF(){
       const dc = sd.dataCables;
       const pc = sd.powerCables;
       const p2d = sd.processorToDistBox;
-      const sig = sd.signalCables;
-      const util = sd.utility;
       const sp = sd.spares;
 
       function addGearLine(label, value) {
@@ -780,30 +1006,31 @@ function exportPDF(){
         addGearLine(`${p2d.cableType} ${p2d.cableLength}':`, p2d.count.toString());
       }
 
-      // Signal Cables (first screen only)
-      if(sig) {
+      // Signal Cables (system-wide)
+      const pdfSig = gearData.signalCables;
+      if(pdfSig) {
         addGearHeader('Signal Cables');
-        if(sig.serverFiberLine) {
-          addGearLine(`${sig.serverFiberLine.label}:`, sig.serverFiberLine.count.toString());
+        if(pdfSig.serverFiberLine) {
+          addGearLine(`${pdfSig.serverFiberLine.label}:`, pdfSig.serverFiberLine.count.toString());
         }
-        // Dynamic SDI lengths with proper 3G/12G labels
-        const sdiLengths = Object.keys(sig.sdiByLength).map(Number).sort((a, b) => b - a);
+        const sdiLengths = Object.keys(pdfSig.sdiByLength).map(Number).sort((a, b) => b - a);
         sdiLengths.forEach(len => {
-          addGearLine(`${len}' ${sig.sdiType}:`, sig.sdiByLength[len].toString());
+          addGearLine(`${len}' ${pdfSig.sdiType}:`, pdfSig.sdiByLength[len].toString());
         });
-        addGearLine("25' HDMI:", sig.hdmi[25].toString());
-        addGearLine("10' HDMI:", sig.hdmi[10].toString());
-        addGearLine("6' HDMI:", sig.hdmi[6].toString());
+        addGearLine("25' HDMI:", pdfSig.hdmi[25].toString());
+        addGearLine("10' HDMI:", pdfSig.hdmi[10].toString());
+        addGearLine("6' HDMI:", pdfSig.hdmi[6].toString());
       }
 
-      // Utility (first screen only)
-      if(util) {
+      // Utility (system-wide)
+      const pdfUtil = gearData.utility;
+      if(pdfUtil) {
         addGearHeader('Utility');
-        addGearLine("UG 10':", util.ug10.toString());
-        addGearLine("UG 25':", util.ug25.toString());
-        addGearLine("UG 50':", util.ug50.toString());
-        addGearLine('UG Twofers:', util.ugTwofers.toString());
-        addGearLine('Power Bars:', util.powerBars.toString());
+        addGearLine("UG 10':", pdfUtil.ug10.toString());
+        addGearLine("UG 25':", pdfUtil.ug25.toString());
+        addGearLine("UG 50':", pdfUtil.ug50.toString());
+        addGearLine('UG Twofers:', pdfUtil.ugTwofers.toString());
+        addGearLine('Power Bars:', pdfUtil.powerBars.toString());
       }
 
       // Spares

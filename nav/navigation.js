@@ -20,14 +20,6 @@ function reopenMenuIfNeeded() {
   }
 }
 
-// Open modal from menu with smooth transition
-function openModalFromMenu(modalFunction) {
-  modalOpenedFromMenu = true;
-  closeMobileMenu();
-  // Wait for menu close transition (300ms) before opening modal
-  setTimeout(modalFunction, 300);
-}
-
 // Hard refresh - reloads the app with cache bypass
 function hardRefreshApp() {
   // Get the version we're updating to from the banner

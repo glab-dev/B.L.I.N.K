@@ -355,9 +355,9 @@
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Custom Items</div>
-        <button class="mobile-menu-btn" onclick="openProcessorRequestModal(); closeMobileMenu();">Request New Item</button>
-        <button class="mobile-menu-btn" onclick="openCustomPanelModal(); closeMobileMenu();">Add Custom Panel</button>
-        <button class="mobile-menu-btn accent" onclick="openManageCustomModal(); closeMobileMenu();">Manage Custom Panels</button>
+        <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openProcessorRequestModal(); closeMobileMenu();">Request New Item</button>
+        <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openCustomPanelModal(); closeMobileMenu();">Add Custom Panel</button>
+        <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openManageCustomModal(); closeMobileMenu();">Manage Custom Panels</button>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label" style="color: var(--accent-color);">App Info</div>
@@ -1257,7 +1257,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.6.6';
+const APP_VERSION = '2.6.7';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -1274,6 +1274,7 @@ let customCircuitAssignments = new Map(); // stores "col,row" -> circuit number
 let customDataLineAssignments = new Map(); // stores "col,row" -> data line number
 let isDragging = false;
 let dragStartX = 0;
+let modalOpenedFromMenu = false; // Track if current modal came from hamburger menu
 
 // Eco-friendly print mode - uses lighter colors and white backgrounds
 let ecoPrintMode = false;

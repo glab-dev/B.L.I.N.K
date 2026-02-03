@@ -13,6 +13,13 @@ function closeMobileMenu() {
   document.body.style.overflow = '';
 }
 
+function reopenMenuIfNeeded() {
+  if (modalOpenedFromMenu) {
+    modalOpenedFromMenu = false; // Reset flag first
+    toggleMobileMenu(); // Reopen menu with proper state restoration
+  }
+}
+
 // Hard refresh - reloads the app with cache bypass
 function hardRefreshApp() {
   // Get the version we're updating to from the banner

@@ -143,6 +143,7 @@ function openProcessorRequestModal() {
 function closeRequestItemModal() {
   const modal = document.getElementById('requestItemModal');
   modal.classList.remove('active');
+  reopenMenuIfNeeded(); // Restore menu if modal came from menu
 }
 
 function sendItemRequest() {

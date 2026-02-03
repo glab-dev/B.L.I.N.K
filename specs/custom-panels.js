@@ -257,6 +257,7 @@ function openCustomPanelModal(editKey = null) {
 function closeCustomPanelModal() {
   const modal = document.getElementById('customPanelModal');
   modal.classList.remove('active');
+  reopenMenuIfNeeded(); // Restore menu if modal came from menu
 }
 
 function updateFrameWeightFields() {
@@ -408,6 +409,7 @@ function openManageCustomModal() {
 function closeManageCustomModal() {
   const modal = document.getElementById('manageCustomModal');
   modal.classList.remove('active');
+  reopenMenuIfNeeded(); // Restore menu if modal came from menu
 }
 
 // Setup removable frame checkbox listener

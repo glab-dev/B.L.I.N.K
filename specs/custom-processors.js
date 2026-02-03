@@ -119,6 +119,7 @@ function setRequestType(type) {
   currentRequestType = type;
   document.getElementById('requestTypePanelBtn').classList.toggle('active', type === 'panel');
   document.getElementById('requestTypeProcessorBtn').classList.toggle('active', type === 'processor');
+  document.getElementById('requestTypeOtherBtn').classList.toggle('active', type === 'other');
 }
 
 function openRequestItemModal() {
@@ -154,7 +155,8 @@ function sendItemRequest() {
     return;
   }
 
-  const typeLabel = currentRequestType === 'panel' ? 'Panel' : 'Processor';
+  const typeLabel = currentRequestType === 'panel' ? 'Panel' :
+                    currentRequestType === 'processor' ? 'Processor' : 'Other';
   const subject = encodeURIComponent(`LED Calculator - ${typeLabel} Request: ${brand} ${model}`);
 
   // Use %0D%0A for line breaks (works better on mobile email clients)

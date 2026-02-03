@@ -355,9 +355,9 @@
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Custom Items</div>
-        <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openProcessorRequestModal(); closeMobileMenu();">Request New Item</button>
-        <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openCustomPanelModal(); closeMobileMenu();">Add Custom Panel</button>
-        <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openManageCustomModal(); closeMobileMenu();">Manage Custom Panels</button>
+        <button class="mobile-menu-btn" onclick="openModalFromMenu(openProcessorRequestModal);">Request New Item</button>
+        <button class="mobile-menu-btn" onclick="openModalFromMenu(openCustomPanelModal);">Add Custom Panel</button>
+        <button class="mobile-menu-btn accent" onclick="openModalFromMenu(openManageCustomModal);">Manage Custom Panels</button>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label" style="color: var(--accent-color);">App Info</div>
@@ -1257,7 +1257,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.6.8';
+const APP_VERSION = '2.6.9';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -15,8 +15,16 @@ function closeMobileMenu() {
 
 function reopenMenuIfNeeded() {
   if (modalOpenedFromMenu) {
-    modalOpenedFromMenu = false; // Reset flag first
-    toggleMobileMenu(); // Reopen menu with proper state restoration
+    modalOpenedFromMenu = false;
+    const overlay = document.getElementById('mobileMenuOverlay');
+    // Add instant class to disable transitions
+    overlay.classList.add('instant');
+    // Reopen menu instantly
+    toggleMobileMenu();
+    // Remove instant class after menu is open (next frame)
+    requestAnimationFrame(() => {
+      overlay.classList.remove('instant');
+    });
   }
 }
 

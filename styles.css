@@ -2112,6 +2112,12 @@ canvas:focus {
   transform: translateX(0);
 }
 
+/* Instant open when returning from modal - no transition */
+.mobile-menu-overlay.instant,
+.mobile-menu-overlay.instant .mobile-menu {
+  transition: none;
+}
+
 .mobile-menu-header {
   display: flex;
   justify-content: space-between;

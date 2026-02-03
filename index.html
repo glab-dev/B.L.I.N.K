@@ -300,8 +300,7 @@
     <div class="modal-body">
       <div id="manageCustomPanelsContent" class="manage-tab-content"></div>
     </div>
-    <div class="modal-footer" style="justify-content: space-between;">
-      <button class="btn-secondary" onclick="openRequestItemModal()" style="background: transparent; border: 1px solid var(--accent-color); color: var(--accent-color);">Request New Item</button>
+    <div class="modal-footer">
       <button class="btn-primary" onclick="closeManageCustomModal()">Done</button>
     </div>
   </div>
@@ -355,7 +354,7 @@
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Custom Items</div>
-        <button class="mobile-menu-btn" onclick="openProcessorRequestModal(); closeMobileMenu();">Request Custom Processor</button>
+        <button class="mobile-menu-btn" onclick="openProcessorRequestModal(); closeMobileMenu();">Request New Item</button>
         <button class="mobile-menu-btn" onclick="openCustomPanelModal(); closeMobileMenu();">Add Custom Panel</button>
         <button class="mobile-menu-btn accent" onclick="openManageCustomModal(); closeMobileMenu();">Manage Custom Panels</button>
       </div>
@@ -363,7 +362,7 @@
         <div class="mobile-menu-label" style="color: var(--accent-color);">App Info</div>
         <div class="mobile-menu-info">An LED wall calculator for planning LED video wall installations. Calculate equipment needs, visualize layouts, generate gear lists, and export detailed PDF reports.</div>
         <hr style="border: none; border-top: 1px solid #444; margin: 12px 0;">
-        <div class="mobile-menu-info"><strong style="text-decoration: underline;">Disclaimer</strong><br>This software provides decision-support and planning estimates for LED system design. All results must be verified and approved by qualified professionals before real-world use. The user assumes full responsibility for final design, safety compliance, and implementation. No warranty is provided, and the developer assumes no liability for resulting damages or losses.</div>
+        <div class="mobile-menu-info" style="color: var(--accent-color);"><strong style="text-decoration: underline;">Disclaimer</strong><br>This software provides decision-support and planning estimates for LED system design. All results must be verified and approved by qualified professionals before real-world use. The user assumes full responsibility for final design, safety compliance, and implementation. No warranty is provided, and the developer assumes no liability for resulting damages or losses.</div>
         <hr style="border: none; border-top: 1px solid #444; margin: 12px 0;">
         <div class="mobile-menu-info">© 2025 Gabriel Labrecque<br>Fearless Wanderer Productions</div>
         <button class="mobile-menu-btn install-btn" id="installPwaBtn" style="display: none;" onclick="installPwa()">📲 Install App</button>
@@ -1257,7 +1256,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.6.3';
+const APP_VERSION = '2.6.4';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

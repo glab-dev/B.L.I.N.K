@@ -49,7 +49,7 @@ function sendGearListToJared() {
   // Build gear data from shared module
   const gearData = buildGearListData(screenIds);
 
-  const nl = '%0D%0A';  // CRLF encoding for cross-platform email compatibility
+  const nl = '\r\n';  // Line break - will be encoded by encodeURIComponent
   const line = (label, value) => {
     if(value === 0 || value === '' || value === null || value === undefined || value === '0') return '';
     // If value is a number, format as "countx label" — otherwise keep as "label value" for pre-formatted strings

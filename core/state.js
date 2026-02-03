@@ -330,6 +330,9 @@ let processorRedundancyEnabled = false;
 function toggleProcessorRedundancy() {
   processorRedundancyEnabled = !processorRedundancyEnabled;
   document.getElementById('processorRedundancyBtn').classList.toggle('active', processorRedundancyEnabled);
+  if(screens[currentScreenId]) {
+    screens[currentScreenId].data.processorRedundancy = processorRedundancyEnabled;
+  }
   calculate();
 }
 

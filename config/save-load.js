@@ -186,6 +186,11 @@ function loadConfiguration(event) {
         throw new Error('Invalid configuration file');
       }
 
+      // Restore config name into input field
+      if(config.name) {
+        document.getElementById('configName').value = config.name;
+      }
+
       // Check if this is a v2.0 multi-screen config
       if(config.version === '2.0' && config.screens) {
         // Validate config.screens is a plain object

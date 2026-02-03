@@ -194,7 +194,7 @@ function sendGearListToJared() {
   const fileName = gearData.configName.replace(/[^a-zA-Z0-9 _-]/g, '') + '.txt';
   const inventoryFile = new File([inventoryContent], fileName, { type: 'text/plain' });
 
-  // Only use Web Share API on mobile (touch + small screen or mobile UA)
+  // Use Web Share API on mobile only (macOS Mail ignores the title/subject field)
   const isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
                          (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
 

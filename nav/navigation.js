@@ -28,7 +28,7 @@ function reopenMenuIfNeeded() {
   }
 }
 
-// Hard refresh - reloads the app with cache bypass
+// Hard refresh - clears all caches and reloads the app
 function hardRefreshApp() {
   // Get the version we're updating to from the banner
   const banner = document.getElementById('updateBanner');
@@ -39,10 +39,17 @@ function hardRefreshApp() {
     localStorage.setItem('dismissedUpdateVersion', targetVersion);
   }
 
-  // Simple cache-busting reload
-  const url = new URL(window.location.origin + window.location.pathname);
-  url.searchParams.set('_v', Date.now());
-  window.location.href = url.toString();
+  // Clear all caches before reload
+  if ('caches' in window) {
+    caches.keys().then(names => {
+      names.forEach(name => caches.delete(name));
+    });
+  }
+
+  // Force hard reload from server (bypasses cache)
+  setTimeout(() => {
+    window.location.reload(true);
+  }, 100);
 }
 
 // Mobile View Switching

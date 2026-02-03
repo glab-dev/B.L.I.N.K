@@ -200,5 +200,12 @@ The smoke test includes:
 - PDF pipeline: `exportPDF()` → html2canvas captures → jsPDF assembles pages
 - Multi-screen PDFs iterate all visible screens
 - Resolume XML export: must match Arena 7 format
-- .ledconfig files: JSON with full screen state — save/load must be symmetric
+- .led/.ledconfig files: JSON with full screen state — save/load must be symmetric
 - When changing calculation outputs: verify they appear correctly in PDF and gear list
+- **Export parity** — all exports (PDF, PNG, email, .led/.ledconfig, Resolume XML) must produce identical results on desktop and mobile
+- **Cross-format consistency** — when data appears in multiple export formats, it must match:
+  - Gear list: gear tab display, PDF gear list column, and email body must show the same items and counts
+  - Specs/calculations: PDF specs page must match the values shown in the app UI and saved in .led files
+  - Canvas visuals: PDF canvas pages and PNG export must render the same layout
+  - Screen data: multi-screen exports (PDF, email, Resolume, .led) must all iterate screens consistently
+- When modifying any export pipeline: test the same configuration across all affected export formats to confirm matching output

@@ -49,7 +49,7 @@ function sendGearListToJared() {
   // Build gear data from shared module
   const gearData = buildGearListData(screenIds);
 
-  const nl = '\r\n';  // Line break - will be encoded by encodeURIComponent
+  const nl = '\n';
   const line = (label, value) => {
     if(value === 0 || value === '' || value === null || value === undefined || value === '0') return '';
     // If value is a number, format as "countx label" — otherwise keep as "label value" for pre-formatted strings
@@ -189,9 +189,9 @@ function sendGearListToJared() {
 
   const email = 'JYoung@apexsound.com';
   const subject = encodeURIComponent(`LED Gear List - ${gearData.configName}`);
-  const encodedBody = encodeURIComponent(text);
+  const body = encodeURIComponent(text);
 
-  let mailtoUrl = `mailto:${email}?subject=${subject}&body=${encodedBody}`;
+  let mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
   if(mailtoUrl.length > 16000) {
     const truncNote = '\n\n(Gear list truncated due to email length limits - see full list in app)';
     const maxBodyLen = 14000 - subject.length - email.length;
@@ -199,7 +199,10 @@ function sendGearListToJared() {
     mailtoUrl = `mailto:${email}?subject=${subject}&body=${truncBody}`;
   }
 
-  window.location.href = mailtoUrl;
+  // Use anchor click to trigger mailto — more reliable than window.location.href
+  const a = document.createElement('a');
+  a.href = mailtoUrl;
+  a.click();
 }
 
 function confirmPdfExport() {

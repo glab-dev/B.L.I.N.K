@@ -36,11 +36,26 @@ External deps (CDN only — no npm):
 
 PWA: offline-capable after first load, installable on mobile via manifest (base64-encoded inline).
 
-**App Store goal:** This app is intended for paid distribution on iOS App Store and Google Play. Keep this in mind when making architectural decisions:
-- CDN dependencies must eventually be bundled locally (app stores may reject external script loading)
-- A native wrapper (e.g., Capacitor) will be needed for store submission
-- All features must work fully offline with no network dependency
-- The modularization effort directly supports this — clean file structure is easier to wrap for native distribution
+**Deployment Strategy:** This app is deployed as a self-hosted web application with premium features. The architecture supports:
+
+**Hosting & Infrastructure:**
+- **Netlify** — Static site hosting with automatic deployments from GitHub
+- **Custom Domain** — Professional branding via custom domain with SSL
+- **GitHub** — Version control, CI/CD triggers, collaboration
+- **PWA Support** — Installable on mobile/desktop, offline-capable after first load
+
+**Premium Features (Planned):**
+- **Stripe** — Payment processing for premium features/subscriptions
+- **Supabase** — Backend services (authentication, database, storage)
+  - User accounts and saved projects
+  - Cloud sync across devices
+  - Team collaboration features
+
+**Current Architecture Benefits:**
+- Zero build system = instant Netlify deployments
+- CDN dependencies = fast global loading
+- localStorage = works offline immediately
+- Modular structure = easy to add Supabase integration
 
 ---
 
@@ -60,7 +75,7 @@ Use the `/commit` command to handle this automatically.
 ## Commit Conventions — ALWAYS Follow
 
 - Format: `<Description in present tense> (vX.X.X)`
-- Trailer: `Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>`
+- Trailer: `Co-Authored-By: Claude <noreply@anthropic.com>`
 - Description: concise (8–15 words), starts with a verb
 - Example: `Fix cable count for dual-link SDI configurations (v2.5.26)`
 
@@ -136,6 +151,18 @@ The smoke test includes:
 - [ ] localStorage persistence survives page reload
 - [ ] PDF export includes the changed content correctly
 - [ ] No regressions in adjacent features
+
+**Playwright Tests (Optional - Comprehensive):**
+- Run `npm run test:smoke` — Quick functional tests (~2 min)
+- Run `npm test` — Full test suite (~10 min with current tests)
+- Playwright tests cover:
+  - UI interactions (dimensions, power, data, structure)
+  - Canvas rendering and interactions
+  - Multi-screen workflows
+  - Export functionality (PDF, PNG, config save/load)
+  - Mobile and desktop browsers
+- See `tests/playwright/README.md` for full documentation
+- Note: Requires `npm install` and `npx playwright install --with-deps` first
 
 ---
 

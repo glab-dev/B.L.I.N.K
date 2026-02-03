@@ -1,0 +1,34 @@
+{
+  "name": "led-calculator-e2e-tests",
+  "version": "1.0.0",
+  "description": "End-to-end tests for LED Wall Calculator PWA",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:mobile": "playwright test --grep @mobile",
+    "test:desktop": "playwright test --grep @desktop",
+    "test:critical": "playwright test --grep @critical",
+    "test:smoke": "playwright test tests/playwright/smoke/",
+    "test:features": "playwright test tests/playwright/features/",
+    "test:workflows": "playwright test tests/playwright/workflows/",
+    "test:export": "playwright test tests/playwright/export/",
+    "test:interactions": "playwright test tests/playwright/interactions/",
+    "test:report": "playwright show-report",
+    "test:codegen": "playwright codegen http://localhost:8000"
+  },
+  "keywords": [
+    "playwright",
+    "e2e",
+    "testing",
+    "pwa",
+    "led-calculator"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}

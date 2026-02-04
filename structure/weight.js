@@ -58,10 +58,13 @@ function updateWeightDisplay() {
   const needsOneW = W % 2 === 1;
   const num2WBumpers = Math.floor(W / 2);
 
-  // Check if 4-way bumpers are enabled for CB5
+  // Check if 4-way bumpers are enabled
   const use4Way = use4WayBumpersEnabled;
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
-  const show4WayOnly = use4Way && isCB5;
+  const allPnlsWt = getAllPanels();
+  const pnlWt = allPnlsWt[panelType];
+  const supports4wWt = isCB5 || (pnlWt && pnlWt.custom && pnlWt.supports_4w_bumpers);
+  const show4WayOnly = use4Way && supports4wWt;
   
   // Only show 2-way bumpers if NOT using 4-way bumpers
   if(!show4WayOnly) {
@@ -254,17 +257,18 @@ function calculateTotalBumperWeight(W, H) {
   const bumper4wKg = p.bumper_4w_lbs ? (p.bumper_4w_lbs * 0.453592) : 0;
   
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
-  
+  const supports4wCalc = isCB5 || (p.custom && p.supports_4w_bumpers);
+
   const bumperDistSelect = document.getElementById('bumperDistribution');
   const bumperDist = bumperDistSelect ? bumperDistSelect.value : 'auto';
-  
+
   // Only calculate bumper weights if in auto mode
   if(bumperDist !== 'auto') {
     return 0;
   }
-  
-  // When 4-way bumpers are enabled for CB5, use different calculation
-  if(use4Way && isCB5 && (showTopBumper || showBottomBumper) && bumper4wKg > 0) {
+
+  // When 4-way bumpers are enabled, use different calculation
+  if(use4Way && supports4wCalc && (showTopBumper || showBottomBumper) && bumper4wKg > 0) {
     const fourWayCount = Math.floor(W / 4);  // Each 4W covers 4 columns
     const remainingCols = W % 4;              // Leftover columns after 4W bumpers
     
@@ -1026,8 +1030,10 @@ function calculateGroundSupportHardware(pw, ph) {
     });
   }
 
-  // Rear bridge clamp adapters for DM2.6 only (1 per bridge clamp)
-  if(isDM26) {
+  // Rear bridge clamp adapters for DM2.6 and custom panels that need them
+  const allPnlsGS = getAllPanels();
+  const pnlGS = allPnlsGS[panelType];
+  if(isDM26 || (pnlGS && pnlGS.custom && pnlGS.needs_bridge_adapters)) {
     totalRearBridgeClampAdapters = totalBridgeClamps;
   }
   

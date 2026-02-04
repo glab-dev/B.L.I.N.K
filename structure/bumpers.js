@@ -90,8 +90,11 @@ function initializeBumpers() {
   const use4Way = use4WayBumpersEnabled;
   const panelType = document.getElementById('panelType').value;
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
-  
-  console.log('Initializing bumpers:', {pw, ph, use4Way, isCB5, showTopBumper, showBottomBumper});
+  const allP = getAllPanels();
+  const pSpec = allP[panelType];
+  const supports4w = isCB5 || (pSpec && pSpec.custom && pSpec.supports_4w_bumpers);
+
+  console.log('Initializing bumpers:', {pw, ph, use4Way, supports4w, showTopBumper, showBottomBumper});
   
   bumpers = [];
   nextBumperId = 1;
@@ -110,7 +113,7 @@ function initializeBumpers() {
   // Initialize top bumpers
   if(showTopBumper) {
     console.log('Adding top bumpers...');
-    if(use4Way && isCB5) {
+    if(use4Way && supports4w) {
       // Add 4W bumpers first - each spans from center of one 2W to center of next 2W
       // This covers 2 columns (2 panel widths) per 4W bumper
       const fourWayCount = Math.floor(pw / 4);
@@ -178,7 +181,7 @@ function initializeBumpers() {
   // Initialize bottom bumpers
   if(showBottomBumper) {
     console.log('Adding bottom bumpers...');
-    if(use4Way && isCB5) {
+    if(use4Way && supports4w) {
       // Add 2W bumpers - one per pair of columns
       const num2WBumpers = Math.floor(pw / 2);
       for(let i = 0; i < num2WBumpers; i++) {
@@ -441,11 +444,14 @@ function getStructurePanelAtMouse(canvas, clientX, clientY) {
   const fourWayGap = Math.max(3, size * 0.1);
   const use4Way = use4WayBumpersEnabled;
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
-  
+  const allPnls = getAllPanels();
+  const pnlSpec = allPnls[panelType];
+  const supports4wViz = isCB5 || (pnlSpec && pnlSpec.custom && pnlSpec.supports_4w_bumpers);
+
   let panelYOffset = 0;
   if(showTopBumper) {
     panelYOffset += bumperHeight;
-    if(use4Way && isCB5) panelYOffset += fourWayHeight + fourWayGap;
+    if(use4Way && supports4wViz) panelYOffset += fourWayHeight + fourWayGap;
   }
   
   // Check if click is in panel area
@@ -492,13 +498,16 @@ function getStructurePanelsInRect(startX, startY, endX, endY) {
   const use4Way = use4WayBumpersEnabled;
   const panelType = document.getElementById('panelType').value;
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
-  
+  const allPnls2 = getAllPanels();
+  const pnlSpec2 = allPnls2[panelType];
+  const supports4wViz2 = isCB5 || (pnlSpec2 && pnlSpec2.custom && pnlSpec2.supports_4w_bumpers);
+
   let panelYOffset = 0;
   if(showTopBumper) {
     panelYOffset += bumperHeight;
-    if(use4Way && isCB5) panelYOffset += fourWayHeight + fourWayGap;
+    if(use4Way && supports4wViz2) panelYOffset += fourWayHeight + fourWayGap;
   }
-  
+
   const panels = [];
   
   for(let col = 0; col < pw; col++) {
@@ -700,8 +709,11 @@ function showEmptyAreaContextMenu(position, column, x, y) {
   const use4Way = use4WayBumpersEnabled;
   const panelType = document.getElementById('panelType').value;
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
+  const allPnlsCtx = getAllPanels();
+  const pnlCtx = allPnlsCtx[panelType];
+  const supports4wCtx = isCB5 || (pnlCtx && pnlCtx.custom && pnlCtx.supports_4w_bumpers);
   const pw = parseInt(document.getElementById('panelsWide').value) || 0;
-  
+
   const menu = document.createElement('div');
   menu.id = 'bumperContextMenu';
   menu.style.cssText = `
@@ -729,8 +741,8 @@ function showEmptyAreaContextMenu(position, column, x, y) {
     }
   ];
   
-  // Add 4W option for CB5 panels
-  if(isCB5 && column + 1 < pw) {
+  // Add 4W option for CB5 and custom panels with 4W support
+  if(supports4wCtx && column + 1 < pw) {
     options.push({
       label: `Add 4W Bumper at Columns ${column + 1}-${column + 2}`,
       action: () => addBumperAtColumn(position, '4w', column)

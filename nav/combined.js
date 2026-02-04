@@ -2469,7 +2469,7 @@ function renderCombinedGearList(selectedScreenIds) {
     totalPlates4way += data.use4WayBumpers ? Math.floor(pw / 2) : 0;
 
     // Shackles and Cheeseye
-    const needsShackles = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3'].includes(panelType);
+    const needsShackles = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3'].includes(panelType) || (panel.custom && panel.needs_shackles);
     const structureType = data.structureType || 'hanging';
     const isHanging = structureType === 'hanging';
     if(isHanging) hasHangingScreen = true;
@@ -2477,7 +2477,7 @@ function renderCombinedGearList(selectedScreenIds) {
 
     if(needsShackles && isHanging && useBumpers) {
       needsShacklesAndCheeseye = true;
-      if(panelType === 'INFILED_AMT8_3') {
+      if(panelType === 'INFILED_AMT8_3' || (panel.custom && panel.double_shackles)) {
         totalShackles += screenBumper1w + (screenBumper2w * 2);
         totalCheeseye += screenBumper1w + (screenBumper2w * 2);
       } else {

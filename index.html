@@ -248,6 +248,7 @@
         <button type="button" class="slider-toggle-btn active" id="cpTabSpecsBtn" onclick="switchCustomPanelTab('specs')">Specs</button>
         <button type="button" class="slider-toggle-btn" id="cpTabCablesBtn" onclick="switchCustomPanelTab('cables')">Cables</button>
         <button type="button" class="slider-toggle-btn" id="cpTabStructureBtn" onclick="switchCustomPanelTab('structure')">Structure</button>
+        <button type="button" class="slider-toggle-btn" id="cpTabGearBtn" onclick="switchCustomPanelTab('gear')">Gear</button>
       </div>
 
       <!-- Tab 1: Specs (all existing fields) -->
@@ -446,6 +447,51 @@
           </div>
         </div>
       </div>
+
+      <!-- Tab 4: Gear (Complex mode only) -->
+      <div id="cpTabGear" class="cp-tab-content" style="display: none;">
+        <div class="cp-toggle-row">
+          <label class="cp-toggle-label">Needs Shackles & Cheeseyes</label>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="cpNeedsShackles" onchange="setCustomPanelShackleMode(this.checked)">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <div id="cpShackleFields" style="display: none;">
+          <div class="cp-toggle-row">
+            <label class="cp-toggle-label">Double Shackles per 2W Bumper</label>
+            <label class="cp-mini-toggle">
+              <input type="checkbox" id="cpDoubleShackles">
+              <span class="cp-mini-toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="cp-toggle-row">
+          <label class="cp-toggle-label">Uses Connecting Plates</label>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="cpUsesConnectingPlates">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="cp-toggle-row">
+          <label class="cp-toggle-label">Supports 4W Bumpers</label>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="cpSupports4wBumpers">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="cp-toggle-row">
+          <label class="cp-toggle-label">Needs Bridge Clamp Adapters</label>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="cpNeedsBridgeAdapters">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeCustomPanelModal()">Cancel</button>
@@ -705,11 +751,11 @@
 
 <!-- Mobile Header -->
 <header class="mobile-header">
-  <button class="mobile-header-btn" onclick="showWelcomePage()" title="Home">
-    <span class="material-symbols-outlined">home</span>
-  </button>
   <h1>CALCULATOR</h1>
   <div class="mobile-header-actions">
+    <button class="mobile-header-btn" onclick="showWelcomePage()" title="Home">
+      <span class="material-symbols-outlined">home</span>
+    </button>
     <button class="mobile-header-btn" onclick="document.getElementById('loadConfigInput').click()" title="Load Config">
       <span class="material-symbols-outlined">folder</span>
     </button>
@@ -1664,7 +1710,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.7.2';
+const APP_VERSION = '2.7.3';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

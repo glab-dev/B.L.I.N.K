@@ -171,9 +171,9 @@ function buildGearListData(screenIds) {
 
     let shackleCount = 0;
     let cheeseyeCount = 0;
-    const needsSC = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3'].includes(panelType);
+    const needsSC = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3'].includes(panelType) || (p.custom && p.needs_shackles);
     if(needsSC && isHanging && useBumpers) {
-      if(panelType === 'INFILED_AMT8_3') {
+      if(panelType === 'INFILED_AMT8_3' || (p.custom && p.double_shackles)) {
         shackleCount = bumper1wCount + (bumper2wCount * 2);
         cheeseyeCount = bumper1wCount + (bumper2wCount * 2);
       } else {

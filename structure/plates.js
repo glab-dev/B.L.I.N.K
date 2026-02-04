@@ -6,8 +6,8 @@ function getPanelWeight(panelType, useConnectingPlates) {
   const allPanels = getAllPanels();
   const p = allPanels[panelType];
   if (!p) return 0;
-  
-  // If using connecting plates, CB5 panels don't have air frames
+
+  // If using connecting plates, panels don't have air frames
   if (useConnectingPlates) {
     if (panelType === 'CB5_MKII') {
       // Full CB5 panel WITHOUT air frame is 26.74 lbs = 12.13 kg
@@ -15,9 +15,11 @@ function getPanelWeight(panelType, useConnectingPlates) {
     } else if (panelType === 'CB5_MKII_HALF') {
       // Half CB5 panel WITHOUT air frame is 14.75 lbs = 6.69 kg
       return 6.69;
+    } else if (p.custom && p.removable_frame && p.weight_no_frame_kg) {
+      return p.weight_no_frame_kg;
     }
   }
-  
+
   // Return standard weight with air frame
   return p.weight_kg || 0;
 }
@@ -27,12 +29,19 @@ function shouldUseConnectingPlates(panelType) {
   if (panelType === 'DM2_6') {
     return true;
   }
-  
+
   // CB5 MKII and CB5 MKII HALF can choose
   if (panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF') {
     return connectionMethod === 'plates';
   }
-  
+
+  // Custom panels with connecting plates support
+  const allP = getAllPanels();
+  const p = allP[panelType];
+  if (p && p.custom && p.uses_connecting_plates) {
+    return connectionMethod === 'plates';
+  }
+
   return false;
 }
 
@@ -90,22 +99,27 @@ function updateConnectingPlatesVisibility(panelType) {
   const platesSection = document.getElementById('connectingPlatesSection');
   const cb5Choice = document.getElementById('cb5ConnectionChoice');
   const dm26Info = document.getElementById('dm26ConnectionInfo');
-  
+
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
   const isDM26 = panelType === 'DM2_6';
-  
-  if (isCB5 || isDM26) {
+
+  // Check if custom panel supports connecting plates
+  const allP = getAllPanels();
+  const pSpec = allP[panelType];
+  const isCustomWithPlates = pSpec && pSpec.custom && pSpec.uses_connecting_plates;
+
+  if (isCB5 || isDM26 || isCustomWithPlates) {
     platesSection.style.display = 'block';
-    
-    if (isCB5) {
-      // CB5 can choose between air frame and connecting plates
+
+    if (isCB5 || isCustomWithPlates) {
+      // CB5 and custom panels can choose between air frame and connecting plates
       cb5Choice.style.display = 'block';
       dm26Info.style.display = 'none';
     } else if (isDM26) {
       // DM2.6 always uses plates (no choice)
       cb5Choice.style.display = 'none';
       dm26Info.style.display = 'block';
-      
+
       // Force plates selection for DM2.6
       const platesRadio = document.querySelector('input[name="connectionMethod"][value="plates"]');
       if (platesRadio) platesRadio.checked = true;

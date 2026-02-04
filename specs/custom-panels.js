@@ -170,9 +170,10 @@ function switchCustomPanelTab(tabName) {
   document.getElementById('cpTabSpecsBtn').classList.remove('active');
   document.getElementById('cpTabCablesBtn').classList.remove('active');
   document.getElementById('cpTabStructureBtn').classList.remove('active');
+  document.getElementById('cpTabGearBtn').classList.remove('active');
 
-  var tabMap = { specs: 'cpTabSpecs', cables: 'cpTabCables', structure: 'cpTabStructure' };
-  var btnMap = { specs: 'cpTabSpecsBtn', cables: 'cpTabCablesBtn', structure: 'cpTabStructureBtn' };
+  var tabMap = { specs: 'cpTabSpecs', cables: 'cpTabCables', structure: 'cpTabStructure', gear: 'cpTabGear' };
+  var btnMap = { specs: 'cpTabSpecsBtn', cables: 'cpTabCablesBtn', structure: 'cpTabStructureBtn', gear: 'cpTabGearBtn' };
   document.getElementById(tabMap[tabName]).style.display = 'block';
   document.getElementById(btnMap[tabName]).classList.add('active');
 }
@@ -187,6 +188,10 @@ function setCustomPanelBumpers(usesBumpers) {
 
 function setCustomPanelFloor(isFloor) {
   document.getElementById('cpFloorFrameFields').style.display = isFloor ? 'block' : 'none';
+}
+
+function setCustomPanelShackleMode(needsShackles) {
+  document.getElementById('cpShackleFields').style.display = needsShackles ? 'block' : 'none';
 }
 
 // Custom Panel Modal
@@ -317,6 +322,14 @@ function openCustomPanelModal(editKey = null) {
       document.getElementById('customPanelFrameCustomWeight').value = '';
     }
 
+    // Gear fields
+    document.getElementById('cpNeedsShackles').checked = panel.needs_shackles || false;
+    document.getElementById('cpDoubleShackles').checked = panel.double_shackles || false;
+    document.getElementById('cpUsesConnectingPlates').checked = panel.uses_connecting_plates || false;
+    document.getElementById('cpSupports4wBumpers').checked = panel.supports_4w_bumpers || false;
+    document.getElementById('cpNeedsBridgeAdapters').checked = panel.needs_bridge_adapters || false;
+    setCustomPanelShackleMode(panel.needs_shackles || false);
+
     modal.dataset.editKey = editKey;
   } else {
     title.textContent = 'Add Custom Panel';
@@ -362,13 +375,22 @@ function openCustomPanelModal(editKey = null) {
     document.getElementById('customPanelFramePanels').value = '';
     document.getElementById('customPanelFrameCustomWeight').value = '';
 
+    // Gear fields
+    document.getElementById('cpNeedsShackles').checked = false;
+    document.getElementById('cpDoubleShackles').checked = false;
+    document.getElementById('cpUsesConnectingPlates').checked = false;
+    document.getElementById('cpSupports4wBumpers').checked = false;
+    document.getElementById('cpNeedsBridgeAdapters').checked = false;
+    setCustomPanelShackleMode(false);
+
     delete modal.dataset.editKey;
   }
 
-  // In simple mode, hide Cables and Structure tabs — show only Specs
+  // In simple mode, hide Cables, Structure, and Gear tabs — show only Specs
   const isSimple = typeof currentAppMode !== 'undefined' && currentAppMode === 'simple';
   document.getElementById('cpTabCablesBtn').style.display = isSimple ? 'none' : '';
   document.getElementById('cpTabStructureBtn').style.display = isSimple ? 'none' : '';
+  document.getElementById('cpTabGearBtn').style.display = isSimple ? 'none' : '';
 
   switchCustomPanelTab('specs');
   modal.classList.add('active');
@@ -480,6 +502,12 @@ function saveCustomPanel() {
     // Structure
     uses_bumpers: document.getElementById('cpUsesBumpers').checked,
     is_floor_panel: document.getElementById('cpFloorPanel').checked,
+    // Gear
+    needs_shackles: document.getElementById('cpNeedsShackles').checked,
+    double_shackles: document.getElementById('cpDoubleShackles').checked,
+    uses_connecting_plates: document.getElementById('cpUsesConnectingPlates').checked,
+    supports_4w_bumpers: document.getElementById('cpSupports4wBumpers').checked,
+    needs_bridge_adapters: document.getElementById('cpNeedsBridgeAdapters').checked,
     custom: true
   };
 

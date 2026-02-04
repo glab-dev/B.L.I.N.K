@@ -108,8 +108,9 @@ function updateProcessorDropdowns() {
   // Add "Add Custom Processor" option at the end
   const addCustomOption = document.createElement('option');
   addCustomOption.value = '__ADD_CUSTOM_PROCESSOR__';
-  addCustomOption.textContent = '+ Add Custom Processor...';
-  addCustomOption.style.fontStyle = 'italic';
+  addCustomOption.textContent = 'Add Custom Processor...';
+  addCustomOption.style.fontWeight = 'bold';
+  addCustomOption.style.color = '#4a9eff';
   processorSelect.appendChild(addCustomOption);
 
   // Restore selection

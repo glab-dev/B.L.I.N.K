@@ -153,7 +153,7 @@ function updatePanelDropdowns() {
   // Add "Add Custom Panel" option
   const addOption = document.createElement('option');
   addOption.value = '__ADD_CUSTOM__';
-  addOption.textContent = '+ Add Custom Panel...';
+  addOption.textContent = 'Add Custom Panel...';
   addOption.style.fontWeight = 'bold';
   addOption.style.color = '#4a9eff';
   panelSelect.appendChild(addOption);

@@ -68,8 +68,34 @@ function buildGearListData(screenIds) {
         processorCount = Math.max(processorsByPixels, processorsByPorts);
       }
     } else {
+      // Check if it's a custom processor with known properties
+      const allProcs = getAllProcessors();
+      const proc = allProcs[procType];
       const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-      processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 8) : group.screens.length;
+
+      if(proc && proc.custom && proc.supports_direct && proc.uses_distribution_box) {
+        // Custom dual-mode processor (direct + indirect)
+        const processorsByPixels = group.totalPixels > 0 ? Math.ceil(group.totalPixels / proc.total_pixels) : 0;
+        if(group.hasAnyIndirectMode) {
+          const portsPerBox = proc.distribution_box_ports || 10;
+          distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerBox) : 0;
+          distBoxName = proc.distribution_box_name || '';
+          processorCount = Math.max(processorsByPixels, Math.ceil(distBoxCount / (proc.output_ports || 4)));
+        } else {
+          const portsPerProcessor = proc.output_ports || 4;
+          const processorsByPorts = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerProcessor) : 0;
+          processorCount = Math.max(processorsByPixels, processorsByPorts);
+        }
+      } else if(proc && proc.uses_distribution_box && proc.distribution_box_name) {
+        // Custom processor with distribution box only
+        const portsPerBox = proc.distribution_box_ports || 10;
+        distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerBox) : 0;
+        distBoxName = proc.distribution_box_name;
+        processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / (proc.output_ports || 8)) : group.screens.length;
+      } else {
+        const portsPerProcessor = (proc && proc.output_ports) || 8;
+        processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerProcessor) : group.screens.length;
+      }
     }
     if(hasProcessorRedundancy && processorCount > 0) processorCount *= 2;
     group.processorCount = processorCount;

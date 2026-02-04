@@ -67,112 +67,310 @@
       <button class="modal-close" onclick="closeCustomPanelModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <div class="modal-input-group">
-        <label>Panel Brand</label>
-        <input type="text" id="customPanelBrand" placeholder="e.g., ROE Visual">
-      </div>
-      
-      <div class="modal-input-group">
-        <label>Panel Name</label>
-        <input type="text" id="customPanelName" placeholder="e.g., Black Pearl BP2">
-      </div>
-      
-      <div class="modal-input-group">
-        <label id="labelPixelPitch">Pixel Pitch (mm)</label>
-        <input type="number" id="customPanelPixelPitch" step="0.01" placeholder="e.g., 2.84">
+      <!-- Tab Navigation -->
+      <div class="slider-toggle" style="margin-bottom: 12px;">
+        <button type="button" class="slider-toggle-btn active" id="cpTabSpecsBtn" onclick="switchCustomPanelTab('specs')">Specs</button>
+        <button type="button" class="slider-toggle-btn" id="cpTabCablesBtn" onclick="switchCustomPanelTab('cables')">Cables</button>
+        <button type="button" class="slider-toggle-btn" id="cpTabStructureBtn" onclick="switchCustomPanelTab('structure')">Structure</button>
       </div>
 
-      <div class="modal-input-row">
+      <!-- Tab 1: Specs (all existing fields) -->
+      <div id="cpTabSpecs" class="cp-tab-content">
         <div class="modal-input-group">
-          <label id="labelPanelWidth">Panel Width (mm)</label>
-          <input type="number" id="customPanelWidth" step="0.1" placeholder="e.g., 500">
+          <label>Panel Brand</label>
+          <input type="text" id="customPanelBrand" placeholder="e.g., ROE Visual">
         </div>
-        <div class="modal-input-group">
-          <label id="labelPanelHeight">Panel Height (mm)</label>
-          <input type="number" id="customPanelHeight" step="0.1" placeholder="e.g., 500">
-        </div>
-      </div>
 
-      <div class="modal-input-group">
-        <label id="labelPanelDepth">Panel Depth (mm)</label>
-        <input type="number" id="customPanelDepth" step="0.1" placeholder="e.g., 90">
-      </div>
-      
-      <div class="modal-input-row">
         <div class="modal-input-group">
-          <label>Resolution Width (px)</label>
-          <input type="number" id="customPanelResX" placeholder="e.g., 176">
+          <label>Panel Name</label>
+          <input type="text" id="customPanelName" placeholder="e.g., Black Pearl BP2">
         </div>
-        <div class="modal-input-group">
-          <label>Resolution Height (px)</label>
-          <input type="number" id="customPanelResY" placeholder="e.g., 176">
-        </div>
-      </div>
-      
-      <div class="modal-input-row">
-        <div class="modal-input-group">
-          <label>Max Power (W)</label>
-          <input type="number" id="customPanelPowerMax" step="1" placeholder="e.g., 250">
-        </div>
-        <div class="modal-input-group">
-          <label>Avg Power (W)</label>
-          <input type="number" id="customPanelPowerAvg" step="1" placeholder="e.g., 125">
-        </div>
-      </div>
-      
-      <div class="modal-input-group">
-        <label>Brightness (nits)</label>
-        <input type="number" id="customPanelBrightness" placeholder="e.g., 5000">
-      </div>
-      
-      <div class="modal-input-row">
-        <div class="modal-input-group">
-          <label>Max Panels Hanging</label>
-          <input type="number" id="customPanelMaxHanging" placeholder="e.g., 20">
-        </div>
-        <div class="modal-input-group">
-          <label>Max Panels Stacking</label>
-          <input type="number" id="customPanelMaxStacking" placeholder="e.g., 12">
-        </div>
-      </div>
 
-      <div class="modal-input-group">
-        <label id="labelPanelWeight">Panel Weight (kg)</label>
-        <input type="number" id="customPanelWeight" step="0.1" placeholder="e.g., 8.5">
-      </div>
+        <div class="modal-input-group">
+          <label id="labelPixelPitch">Pixel Pitch (mm)</label>
+          <input type="number" id="customPanelPixelPitch" step="0.01" placeholder="e.g., 2.84">
+        </div>
 
-      <div class="checkbox-group">
-        <input type="checkbox" id="customPanelRemovableFrame" onchange="updateFrameWeightFields()">
-        <label for="customPanelRemovableFrame">Has Removable Frame</label>
-      </div>
-
-      <div id="frameWeightFields" style="display: none;">
         <div class="modal-input-row">
           <div class="modal-input-group">
-            <label id="labelFrameWeight">Frame Weight (kg)</label>
-            <input type="number" id="customPanelFrameWeight" step="0.1" placeholder="e.g., 1.2">
+            <label id="labelPanelWidth">Panel Width (mm)</label>
+            <input type="number" id="customPanelWidth" step="0.1" placeholder="e.g., 500">
           </div>
           <div class="modal-input-group">
-            <label id="labelWeightNoFrame">Weight Without Frame (kg)</label>
-            <input type="number" id="customPanelWeightNoFrame" step="0.1" placeholder="e.g., 7.3">
+            <label id="labelPanelHeight">Panel Height (mm)</label>
+            <input type="number" id="customPanelHeight" step="0.1" placeholder="e.g., 500">
           </div>
+        </div>
+
+        <div class="modal-input-group">
+          <label id="labelPanelDepth">Panel Depth (mm)</label>
+          <input type="number" id="customPanelDepth" step="0.1" placeholder="e.g., 90">
+        </div>
+
+        <div class="modal-input-row">
+          <div class="modal-input-group">
+            <label>Resolution Width (px)</label>
+            <input type="number" id="customPanelResX" placeholder="e.g., 176">
+          </div>
+          <div class="modal-input-group">
+            <label>Resolution Height (px)</label>
+            <input type="number" id="customPanelResY" placeholder="e.g., 176">
+          </div>
+        </div>
+
+        <div class="modal-input-row">
+          <div class="modal-input-group">
+            <label>Max Power (W)</label>
+            <input type="number" id="customPanelPowerMax" step="1" placeholder="e.g., 250">
+          </div>
+          <div class="modal-input-group">
+            <label>Avg Power (W)</label>
+            <input type="number" id="customPanelPowerAvg" step="1" placeholder="e.g., 125">
+          </div>
+        </div>
+
+        <div class="modal-input-group">
+          <label>Brightness (nits)</label>
+          <input type="number" id="customPanelBrightness" placeholder="e.g., 5000">
+        </div>
+
+        <div class="modal-input-group">
+          <label id="labelPanelWeight">Panel Weight (kg)</label>
+          <input type="number" id="customPanelWeight" step="0.1" placeholder="e.g., 8.5">
+        </div>
+
+        <div class="checkbox-group">
+          <input type="checkbox" id="customPanelRemovableFrame" onchange="updateFrameWeightFields()">
+          <label for="customPanelRemovableFrame">Has Removable Frame</label>
+        </div>
+
+        <div id="frameWeightFields" style="display: none;">
+          <div class="modal-input-row">
+            <div class="modal-input-group">
+              <label id="labelFrameWeight">Frame Weight (kg)</label>
+              <input type="number" id="customPanelFrameWeight" step="0.1" placeholder="e.g., 1.2">
+            </div>
+            <div class="modal-input-group">
+              <label id="labelWeightNoFrame">Weight Without Frame (kg)</label>
+              <input type="number" id="customPanelWeightNoFrame" step="0.1" placeholder="e.g., 7.3">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Tab 2: Cables -->
+      <div id="cpTabCables" class="cp-tab-content" style="display: none;">
+        <div class="cp-toggle-row">
+          <label class="cp-toggle-label">Built-in Jumpers</label>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="cpJumpersBuiltin" onchange="setCustomPanelJumperType(this.checked)">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+
+        <div id="cpExternalJumperFields">
+          <div class="modal-input-row">
+            <div class="modal-input-group">
+              <label>Data Jumper Length</label>
+              <input type="text" id="customPanelDataJumper" placeholder="e.g., 1'">
+            </div>
+            <div class="modal-input-group">
+              <label>Power Jumper Length</label>
+              <input type="text" id="customPanelPowerJumper" placeholder="e.g., 1'">
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-input-group">
+          <label>Data Cross Jumper Length</label>
+          <input type="text" id="customPanelCrossJumper" placeholder="e.g., 2'">
         </div>
       </div>
 
-      <div class="modal-input-row">
-        <div class="modal-input-group">
-          <label id="label1wBumper">1W Bumper Weight (lbs)</label>
-          <input type="number" id="customPanel1wBumper" step="0.1" placeholder="e.g., 5.5">
+      <!-- Tab 3: Structure -->
+      <div id="cpTabStructure" class="cp-tab-content" style="display: none;">
+        <div class="cp-toggle-row">
+          <label class="cp-toggle-label">Hanging / Ground Stack</label>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="cpUsesBumpers" checked onchange="setCustomPanelBumpers(this.checked)">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
         </div>
-        <div class="modal-input-group">
-          <label id="label2wBumper">2W Bumper Weight (lbs)</label>
-          <input type="number" id="customPanel2wBumper" step="0.1" placeholder="e.g., 8.8">
+
+        <div id="cpBumperWeightFields">
+          <div class="modal-input-row" style="margin-top: 4px;">
+            <div class="modal-input-group">
+              <label>Max Panels Hanging</label>
+              <input type="number" id="customPanelMaxHanging" placeholder="e.g., 20">
+            </div>
+            <div class="modal-input-group">
+              <label>Max Panels Stacking</label>
+              <input type="number" id="customPanelMaxStacking" placeholder="e.g., 12">
+            </div>
+          </div>
+          <div class="modal-input-row">
+            <div class="modal-input-group">
+              <label id="label1wBumper">1W Bumper Weight (lbs)</label>
+              <input type="number" id="customPanel1wBumper" step="0.1" placeholder="e.g., 5.5">
+            </div>
+            <div class="modal-input-group">
+              <label id="label2wBumper">2W Bumper Weight (lbs)</label>
+              <input type="number" id="customPanel2wBumper" step="0.1" placeholder="e.g., 8.8">
+            </div>
+          </div>
+          <div class="modal-input-group">
+            <label id="label4wBumper">4W Bumper Weight (lbs)</label>
+            <input type="number" id="customPanel4wBumper" step="0.1" placeholder="e.g., 66.15">
+          </div>
+        </div>
+
+        <div class="cp-toggle-row">
+          <label class="cp-toggle-label">Floor Panel</label>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="cpFloorPanel" onchange="setCustomPanelFloor(this.checked)">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+
+        <div id="cpFloorFrameFields" style="display: none;">
+          <div class="modal-input-row" style="margin-top: 10px;">
+            <div class="modal-input-group">
+              <label id="labelFrame1x1">1x1 Frame Weight (lbs)</label>
+              <input type="number" id="customPanelFrame1x1" step="0.1" placeholder="e.g., 26.5">
+            </div>
+            <div class="modal-input-group">
+              <label id="labelFrame2x1">2x1 Frame Weight (lbs)</label>
+              <input type="number" id="customPanelFrame2x1" step="0.1" placeholder="e.g., 41.9">
+            </div>
+          </div>
+          <div class="modal-input-row">
+            <div class="modal-input-group">
+              <label id="labelFrame2x2">2x2 Frame Weight (lbs)</label>
+              <input type="number" id="customPanelFrame2x2" step="0.1" placeholder="e.g., 62.8">
+            </div>
+            <div class="modal-input-group">
+              <label id="labelFrame3x2">3x2 Frame Weight (lbs)</label>
+              <input type="number" id="customPanelFrame3x2" step="0.1" placeholder="e.g., 80.5">
+            </div>
+          </div>
+          <div class="modal-input-row">
+            <div class="modal-input-group">
+              <label>Custom Frame Name</label>
+              <input type="text" id="customPanelFrameName" placeholder="e.g., 4x3">
+            </div>
+            <div class="modal-input-group">
+              <label>Panels in Frame</label>
+              <input type="number" id="customPanelFramePanels" step="1" placeholder="e.g., 12">
+            </div>
+          </div>
+          <div class="modal-input-group">
+            <label id="labelFrameCustom">Custom Frame Weight (lbs)</label>
+            <input type="number" id="customPanelFrameCustomWeight" step="0.1" placeholder="e.g., 95.0">
+          </div>
         </div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeCustomPanelModal()">Cancel</button>
       <button class="btn-primary" onclick="saveCustomPanel()">Save Panel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Custom Processor Modal -->
+<div id="customProcessorModal" class="modal-overlay">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h2 class="modal-title" id="customProcessorModalTitle">Add Custom Processor</h2>
+      <button class="modal-close" onclick="closeCustomProcessorModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-input-row">
+        <div class="modal-input-group">
+          <label>Brand</label>
+          <input type="text" id="customProcessorBrand" placeholder="e.g., Brompton">
+        </div>
+        <div class="modal-input-group">
+          <label>Name</label>
+          <input type="text" id="customProcessorName" placeholder="e.g., SX40">
+        </div>
+      </div>
+
+      <div class="modal-input-row">
+        <div class="modal-input-group">
+          <label>Port Type</label>
+          <select id="customProcessorPortType" onchange="updateProcessorPortLabel()">
+            <option value="1g">1G</option>
+            <option value="10g">10G</option>
+          </select>
+        </div>
+        <div class="modal-input-group">
+          <label id="labelPixelsPerPort">Pixels per Port</label>
+          <input type="number" id="customProcessorPixelsPerPort" placeholder="e.g., 525000">
+        </div>
+      </div>
+
+      <div class="modal-input-row">
+        <div class="modal-input-group">
+          <label>Base Frame Rate</label>
+          <input type="number" id="customProcessorFrameRate" placeholder="60" value="60">
+        </div>
+        <div class="modal-input-group">
+          <label>Base Bit Depth</label>
+          <input type="number" id="customProcessorBitDepth" placeholder="8" value="8">
+        </div>
+      </div>
+
+      <div class="modal-input-row">
+        <div class="modal-input-group">
+          <label>Total Pixel Capacity</label>
+          <input type="number" id="customProcessorTotalPixels" placeholder="e.g., 9000000">
+        </div>
+        <div class="modal-input-group">
+          <label>Number of Output Ports</label>
+          <input type="number" id="customProcessorOutputPorts" placeholder="e.g., 4">
+        </div>
+      </div>
+
+      <div class="cp-toggle-row">
+        <label class="cp-toggle-label">Direct Mode</label>
+        <label class="cp-mini-toggle">
+          <input type="checkbox" id="cpProcessorDirect" checked>
+          <span class="cp-mini-toggle-slider"></span>
+        </label>
+      </div>
+      <div class="cp-toggle-row">
+        <label class="cp-toggle-label">Indirect Mode (Distribution Box)</label>
+        <label class="cp-mini-toggle">
+          <input type="checkbox" id="cpProcessorDistBox" onchange="setCustomProcessorDistBox(this.checked)">
+          <span class="cp-mini-toggle-slider"></span>
+        </label>
+      </div>
+      <div id="cpProcessorDistBoxFields" style="display: none;">
+        <div class="modal-input-row">
+          <div class="modal-input-group">
+            <label>Distribution Box Name</label>
+            <input type="text" id="customProcessorDistBoxName" placeholder="e.g., Brompton XD">
+          </div>
+          <div class="modal-input-group">
+            <label>Ports per Box</label>
+            <input type="number" id="customProcessorDistBoxPorts" placeholder="e.g., 10">
+          </div>
+        </div>
+      </div>
+
+      <div class="cp-toggle-row">
+        <label class="cp-toggle-label">Ports Configurable as Backup</label>
+        <label class="cp-mini-toggle">
+          <input type="checkbox" id="cpProcessorBackup">
+          <span class="cp-mini-toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeCustomProcessorModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveCustomProcessor()">Save Processor</button>
     </div>
   </div>
 </div>
@@ -295,11 +493,16 @@
 <div id="manageCustomModal" class="modal-overlay">
   <div class="modal-dialog">
     <div class="modal-header">
-      <h2 class="modal-title">Manage Custom Panels</h2>
+      <h2 class="modal-title">Manage Custom Items</h2>
       <button class="modal-close" onclick="closeManageCustomModal()">&times;</button>
     </div>
     <div class="modal-body">
+      <div class="slider-toggle" style="margin-bottom: 12px;">
+        <button type="button" class="slider-toggle-btn active" id="manageTabPanelsBtn" onclick="switchManageTab('panels')" style="padding: 8px 16px;">Panels</button>
+        <button type="button" class="slider-toggle-btn" id="manageTabProcessorsBtn" onclick="switchManageTab('processors')" style="padding: 8px 16px;">Processors</button>
+      </div>
       <div id="manageCustomPanelsContent" class="manage-tab-content"></div>
+      <div id="manageCustomProcessorsContent" class="manage-tab-content" style="display: none;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn-primary" onclick="closeManageCustomModal()">Done</button>
@@ -357,7 +560,8 @@
         <div class="mobile-menu-label">Custom Items</div>
         <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openProcessorRequestModal(); closeMobileMenu();">Request New Item</button>
         <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openCustomPanelModal(); closeMobileMenu();">Add Custom Panel</button>
-        <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openManageCustomModal(); closeMobileMenu();">Manage Custom Panels</button>
+        <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openCustomProcessorModal(); closeMobileMenu();">Add Custom Processor</button>
+        <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openManageCustomModal(); closeMobileMenu();">Manage Custom Items</button>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label" style="color: var(--accent-color);">App Info</div>
@@ -1257,7 +1461,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.6.16';
+const APP_VERSION = '2.6.17';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

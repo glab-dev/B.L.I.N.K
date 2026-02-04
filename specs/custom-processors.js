@@ -105,10 +105,156 @@ function updateProcessorDropdowns() {
     });
   }
 
+  // Add "Add Custom Processor" option at the end
+  const addCustomOption = document.createElement('option');
+  addCustomOption.value = '__ADD_CUSTOM_PROCESSOR__';
+  addCustomOption.textContent = '+ Add Custom Processor...';
+  addCustomOption.style.fontStyle = 'italic';
+  processorSelect.appendChild(addCustomOption);
+
   // Restore selection
   if(currentValue && allProcessors[currentValue]) {
     processorSelect.value = currentValue;
   }
+}
+
+// ==================== CUSTOM PROCESSOR MODAL ====================
+
+let editingProcessorKey = null;
+
+function openCustomProcessorModal(editKey = null) {
+  const modal = document.getElementById('customProcessorModal');
+  const title = document.getElementById('customProcessorModalTitle');
+  editingProcessorKey = editKey;
+
+  if(editKey && customProcessors[editKey]) {
+    // Editing existing processor
+    title.textContent = 'Edit Custom Processor';
+    const proc = customProcessors[editKey];
+    document.getElementById('customProcessorBrand').value = proc.brand || '';
+    document.getElementById('customProcessorName').value = proc.name || '';
+    document.getElementById('customProcessorPortType').value = proc.port_type || '1g';
+    document.getElementById('customProcessorPixelsPerPort').value = proc.base_pixels_1g || '';
+    document.getElementById('customProcessorFrameRate').value = proc.base_framerate || 60;
+    document.getElementById('customProcessorBitDepth').value = proc.base_bitdepth || 8;
+    document.getElementById('customProcessorTotalPixels').value = proc.total_pixels || '';
+    document.getElementById('customProcessorOutputPorts').value = proc.output_ports || '';
+    document.getElementById('cpProcessorDirect').checked = proc.supports_direct !== false;
+    document.getElementById('cpProcessorDistBox').checked = proc.uses_distribution_box || false;
+    setCustomProcessorDistBox(proc.uses_distribution_box || false);
+    document.getElementById('customProcessorDistBoxName').value = proc.distribution_box_name || '';
+    document.getElementById('customProcessorDistBoxPorts').value = proc.distribution_box_ports || '';
+    document.getElementById('cpProcessorBackup').checked = proc.backup_configurable || false;
+  } else {
+    // New processor
+    title.textContent = 'Add Custom Processor';
+    document.getElementById('customProcessorBrand').value = '';
+    document.getElementById('customProcessorName').value = '';
+    document.getElementById('customProcessorPortType').value = '1g';
+    document.getElementById('customProcessorPixelsPerPort').value = '';
+    document.getElementById('customProcessorFrameRate').value = '60';
+    document.getElementById('customProcessorBitDepth').value = '8';
+    document.getElementById('customProcessorTotalPixels').value = '';
+    document.getElementById('customProcessorOutputPorts').value = '';
+    document.getElementById('cpProcessorDirect').checked = true;
+    document.getElementById('cpProcessorDistBox').checked = false;
+    setCustomProcessorDistBox(false);
+    document.getElementById('customProcessorDistBoxName').value = '';
+    document.getElementById('customProcessorDistBoxPorts').value = '';
+    document.getElementById('cpProcessorBackup').checked = false;
+  }
+
+  updateProcessorPortLabel();
+  modal.classList.add('active');
+}
+
+function closeCustomProcessorModal() {
+  const modal = document.getElementById('customProcessorModal');
+  modal.classList.remove('active');
+  reopenMenuIfNeeded();
+}
+
+function setCustomProcessorDistBox(enabled) {
+  const fields = document.getElementById('cpProcessorDistBoxFields');
+  if(fields) fields.style.display = enabled ? 'block' : 'none';
+}
+
+function updateProcessorPortLabel() {
+  const label = document.getElementById('labelPixelsPerPort');
+  if(label) {
+    label.textContent = 'Pixels per Port';
+  }
+}
+
+function saveCustomProcessor() {
+  const brand = document.getElementById('customProcessorBrand').value.trim();
+  const name = document.getElementById('customProcessorName').value.trim();
+
+  if(!brand || !name) {
+    showAlert('Please enter both brand and name');
+    return;
+  }
+
+  const portType = document.getElementById('customProcessorPortType').value;
+  const pixelsPerPort = parseInt(document.getElementById('customProcessorPixelsPerPort').value) || 0;
+  const frameRate = parseInt(document.getElementById('customProcessorFrameRate').value) || 60;
+  const bitDepth = parseInt(document.getElementById('customProcessorBitDepth').value) || 8;
+  const totalPixels = parseInt(document.getElementById('customProcessorTotalPixels').value) || 0;
+  const outputPorts = parseInt(document.getElementById('customProcessorOutputPorts').value) || 0;
+  const supportsDirect = document.getElementById('cpProcessorDirect').checked;
+  const usesDistBox = document.getElementById('cpProcessorDistBox').checked;
+  const distBoxName = document.getElementById('customProcessorDistBoxName').value.trim();
+  const distBoxPorts = parseInt(document.getElementById('customProcessorDistBoxPorts').value) || null;
+  const backupConfigurable = document.getElementById('cpProcessorBackup').checked;
+
+  if(!pixelsPerPort || !totalPixels) {
+    showAlert('Please enter pixels per port and total pixel capacity');
+    return;
+  }
+
+  const key = editingProcessorKey || `custom_${brand.replace(/\s+/g, '_')}_${name.replace(/\s+/g, '_')}`;
+
+  // Check for duplicate key (only when creating new)
+  if(!editingProcessorKey && (customProcessors[key] || processors[key])) {
+    showAlert('A processor with this brand and name already exists');
+    return;
+  }
+
+  // Generate display string from port count + type
+  const portLabel = portType === '10g' ? '10G' : '1G';
+  const outputsStr = outputPorts ? `${outputPorts} × ${portLabel}` : '';
+
+  const processorObj = {
+    brand: brand,
+    name: `${brand} ${name}`,
+    port_type: portType,
+    base_pixels_1g: pixelsPerPort,
+    base_framerate: frameRate,
+    base_bitdepth: bitDepth,
+    total_pixels: totalPixels,
+    output_ports: outputPorts,
+    outputs: outputsStr,
+    supports_direct: supportsDirect,
+    uses_distribution_box: usesDistBox,
+    distribution_box_name: usesDistBox ? distBoxName : null,
+    distribution_box_ports: usesDistBox ? distBoxPorts : null,
+    backup_configurable: backupConfigurable,
+    custom: true
+  };
+
+  customProcessors[key] = processorObj;
+  saveCustomProcessors();
+  updateProcessorDropdowns();
+
+  // Select the new/edited processor
+  const processorSelect = document.getElementById('processor');
+  if(processorSelect) {
+    processorSelect.value = key;
+    processorSelect.dispatchEvent(new Event('change'));
+  }
+
+  closeCustomProcessorModal();
+  calculate();
 }
 
 // ==================== REQUEST ITEM MODAL ====================

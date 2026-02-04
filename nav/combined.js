@@ -2598,8 +2598,25 @@ function renderCombinedGearList(selectedScreenIds) {
         processorCount = Math.max(processorsByPixels, processorsByPorts);
       }
     } else {
+      const allProcs = getAllProcessors();
+      const proc = allProcs[procType];
       const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-      processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 8) : group.screens.length;
+
+      if(proc && proc.custom && proc.supports_direct && proc.uses_distribution_box) {
+        const processorsByPixels = group.totalPixels > 0 ? Math.ceil(group.totalPixels / proc.total_pixels) : 0;
+        if(group.hasAnyIndirectMode) {
+          const portsPerBox = proc.distribution_box_ports || 10;
+          const distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerBox) : 0;
+          processorCount = Math.max(processorsByPixels, Math.ceil(distBoxCount / (proc.output_ports || 4)));
+        } else {
+          const portsPerProcessor = proc.output_ports || 4;
+          const processorsByPorts = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerProcessor) : 0;
+          processorCount = Math.max(processorsByPixels, processorsByPorts);
+        }
+      } else {
+        const portsPerProcessor = (proc && proc.output_ports) || 8;
+        processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerProcessor) : group.screens.length;
+      }
     }
     if(hasProcessorRedundancy && processorCount > 0) processorCount *= 2;
     group.processorCount = processorCount;
@@ -2678,7 +2695,7 @@ function renderCombinedGearList(selectedScreenIds) {
   const combinedSocaByLength = {};
   const combinedDataByLength = {};
   const combinedDistBoxByType = {};
-  let combinedServerCables = [];
+  let combinedServerCableLength = 0;
 
   selectedScreenIds.forEach(screenId => {
     const screen = screens[screenId];
@@ -2705,9 +2722,9 @@ function renderCombinedGearList(selectedScreenIds) {
       combinedDistBoxByType[key] = (combinedDistBoxByType[key] || 0) + 1;
     });
 
-    // Collect server cables
-    if(cabling.serverCable) {
-      combinedServerCables.push(cabling.serverCable.lengthFt);
+    // Server cable: use longest value (system-wide, one run + backup)
+    if(cabling.serverCable && cabling.serverCable.lengthFt > combinedServerCableLength) {
+      combinedServerCableLength = cabling.serverCable.lengthFt;
     }
   });
 
@@ -2763,6 +2780,9 @@ function renderCombinedGearList(selectedScreenIds) {
     // Already shown in Data Cables above
   }
 
+  // === SYSTEM-WIDE SECTION ===
+  html += `<div style="margin-top: 16px; padding-top: 8px; border-top: 2px solid #10b981;"><span style="font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: #10b981; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">System</span></div>`;
+
   // Signal Cables Section
   if(totalGroupedProcessors > 0) {
     html += addGearHeader('Signal Cables');
@@ -2780,32 +2800,26 @@ function renderCombinedGearList(selectedScreenIds) {
       sdiCounts[50] = sdiPerProcessor;
       sdiCounts[25] = sdiPerProcessor;
     }
-    // Merge server cables into SDI counts
-    let serverFiberLines = [];
-    combinedServerCables.forEach(serverLen => {
-      if(serverLen > 0) {
-        if(serverLen > 300) {
-          const fiberLen = Math.max(500, Math.ceil(serverLen / 100) * 100);
-          serverFiberLines.push(fiberLen);
-        } else {
-          const sdiLen = roundUpToStandard(serverLen);
-          sdiCounts[sdiLen] = (sdiCounts[sdiLen] || 0) + 2;
-        }
+    // Server → Processor cable: single run + backup (2 cables total)
+    let serverFiberLine = null;
+    if(combinedServerCableLength > 0) {
+      if(combinedServerCableLength > 300) {
+        const fiberLen = Math.max(500, Math.ceil(combinedServerCableLength / 100) * 100);
+        serverFiberLine = { label: fiberLen + "' Fiber", count: 2 };
+      } else {
+        const sdiLen = roundUpToStandard(combinedServerCableLength);
+        sdiCounts[sdiLen] = (sdiCounts[sdiLen] || 0) + 2;
       }
-    });
+    }
     // Render SDI lines sorted by length descending
     for(const len of Object.keys(sdiCounts).map(Number).sort((a,b) => b - a)) {
       if(sdiCounts[len] > 0) {
         html += addGearLine(`${len}' ${sdiType}:`, sdiCounts[len]);
       }
     }
-    // Fiber lines if any server cable was too long for SDI
-    if(serverFiberLines.length > 0) {
-      const fiberByLength = {};
-      serverFiberLines.forEach(len => { fiberByLength[len] = (fiberByLength[len] || 0) + 2; });
-      for(const [len, count] of Object.entries(fiberByLength).sort((a,b) => b[0] - a[0])) {
-        html += addGearLine(`${len}' Fiber:`, count);
-      }
+    // Fiber line if server cable was too long for SDI
+    if(serverFiberLine) {
+      html += addGearLine(`${serverFiberLine.label}:`, serverFiberLine.count);
     }
     html += addGearLine("25' HDMI:", 6);
     html += addGearLine("10' HDMI:", 6);

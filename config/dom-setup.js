@@ -147,6 +147,20 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           customInputs.style.display = 'none';
         }
+        // Save and propagate canvas size to all screens (system-wide setting)
+        saveCurrentScreenData();
+        const allScreenIds = Object.keys(screens);
+        const canvasVal = this.value;
+        const customW = document.getElementById('customCanvasWidth').value;
+        const customH = document.getElementById('customCanvasHeight').value;
+        allScreenIds.forEach(sid => {
+          if(screens[sid] && screens[sid].data) {
+            screens[sid].data.canvasSize = canvasVal;
+            screens[sid].data.customCanvasWidth = customW;
+            screens[sid].data.customCanvasHeight = customH;
+          }
+        });
+        generateGearList();
         // Update export filename placeholder
         updateExportFilenamePlaceholder();
       });
@@ -375,12 +389,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Cabling input listeners - save current screen data then update gear list
+    // When all screens are toggled on in gear view, apply cabling changes to ALL screens
     const cablingInputIds = ['wallToFloor', 'distroToWall', 'processorToWall', 'serverToProcessor', 'cablePick'];
     cablingInputIds.forEach(id => {
       const el = document.getElementById(id);
       if(el) {
         const updateCabling = function() {
           saveCurrentScreenData();
+          // If all screens are toggled on in gear view, apply cabling to all screens
+          const allScreenIds = Object.keys(screens);
+          if(typeof gearSelectedScreens !== 'undefined' &&
+             allScreenIds.length > 1 &&
+             gearSelectedScreens.size === allScreenIds.length &&
+             allScreenIds.every(sid => gearSelectedScreens.has(sid))) {
+            const currentData = screens[currentScreenId].data;
+            const cablingKeys = ['wallToFloor', 'distroToWall', 'processorToWall', 'serverToProcessor', 'cablePick'];
+            allScreenIds.forEach(sid => {
+              if(sid !== currentScreenId && screens[sid] && screens[sid].data) {
+                cablingKeys.forEach(key => {
+                  screens[sid].data[key] = currentData[key];
+                });
+              }
+            });
+          }
           generateGearList();
         };
         el.addEventListener('input', updateCabling);
@@ -400,6 +431,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add event listener for processor dropdown
     const processorSelect = document.getElementById('processor');
     if(processorSelect) {
+      // Handle "Add Custom Processor" selection
+      processorSelect.addEventListener('change', function() {
+        if(this.value === '__ADD_CUSTOM_PROCESSOR__') {
+          openCustomProcessorModal();
+          // Reset to previous value or first option
+          const options = this.querySelectorAll('option:not([value="__ADD_CUSTOM_PROCESSOR__"])');
+          if(options.length > 0) {
+            this.value = options[0].value;
+          }
+          return;
+        }
+      });
+
       processorSelect.addEventListener('change', function() {
         // Show/hide MX40 mode toggle for MX40 Pro
         updateMX40ModeToggleVisibility();

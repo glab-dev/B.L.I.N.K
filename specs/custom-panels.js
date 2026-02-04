@@ -71,6 +71,23 @@ function getPanelHeightRatio(panelType) {
 // Load custom data from localStorage on startup
 loadCustomData();
 
+// Migrate existing custom panels to include new properties
+function migrateCustomPanels() {
+  var needsSave = false;
+  Object.keys(customPanels).forEach(function(key) {
+    var panel = customPanels[key];
+    if(panel.jumpers_builtin === undefined) { panel.jumpers_builtin = false; needsSave = true; }
+    if(panel.data_jumper_ft === undefined) { panel.data_jumper_ft = null; needsSave = true; }
+    if(panel.power_jumper_ft === undefined) { panel.power_jumper_ft = null; needsSave = true; }
+    if(panel.data_cross_jumper_ft === undefined) { panel.data_cross_jumper_ft = null; needsSave = true; }
+    if(panel.uses_bumpers === undefined) { panel.uses_bumpers = true; needsSave = true; }
+    if(panel.is_floor_panel === undefined) { panel.is_floor_panel = false; needsSave = true; }
+    if(panel.floor_frames === undefined) { panel.floor_frames = null; needsSave = true; }
+  });
+  if(needsSave) saveCustomPanels();
+}
+migrateCustomPanels();
+
 // Helper functions to get current selections
 function getCurrentPanel() {
   const allPanels = getAllPanels();
@@ -147,6 +164,31 @@ function updatePanelDropdowns() {
   }
 }
 
+// Custom Panel Modal — Tab Switching
+function switchCustomPanelTab(tabName) {
+  document.querySelectorAll('.cp-tab-content').forEach(function(el) { el.style.display = 'none'; });
+  document.getElementById('cpTabSpecsBtn').classList.remove('active');
+  document.getElementById('cpTabCablesBtn').classList.remove('active');
+  document.getElementById('cpTabStructureBtn').classList.remove('active');
+
+  var tabMap = { specs: 'cpTabSpecs', cables: 'cpTabCables', structure: 'cpTabStructure' };
+  var btnMap = { specs: 'cpTabSpecsBtn', cables: 'cpTabCablesBtn', structure: 'cpTabStructureBtn' };
+  document.getElementById(tabMap[tabName]).style.display = 'block';
+  document.getElementById(btnMap[tabName]).classList.add('active');
+}
+
+function setCustomPanelJumperType(builtin) {
+  document.getElementById('cpExternalJumperFields').style.display = builtin ? 'none' : 'block';
+}
+
+function setCustomPanelBumpers(usesBumpers) {
+  document.getElementById('cpBumperWeightFields').style.display = usesBumpers ? 'block' : 'none';
+}
+
+function setCustomPanelFloor(isFloor) {
+  document.getElementById('cpFloorFrameFields').style.display = isFloor ? 'block' : 'none';
+}
+
 // Custom Panel Modal
 function openCustomPanelModal(editKey = null) {
   const modal = document.getElementById('customPanelModal');
@@ -169,6 +211,14 @@ function openCustomPanelModal(editKey = null) {
   document.getElementById('labelWeightNoFrame').textContent = `Weight Without Frame (${weightUnit})`;
   document.getElementById('label1wBumper').textContent = `1W Bumper Weight (${weightUnit})`;
   document.getElementById('label2wBumper').textContent = `2W Bumper Weight (${weightUnit})`;
+  document.getElementById('label4wBumper').textContent = `4W Bumper Weight (${weightUnit})`;
+
+  // Update floor frame weight labels
+  document.getElementById('labelFrame1x1').textContent = `1x1 Frame Weight (${weightUnit})`;
+  document.getElementById('labelFrame2x1').textContent = `2x1 Frame Weight (${weightUnit})`;
+  document.getElementById('labelFrame2x2').textContent = `2x2 Frame Weight (${weightUnit})`;
+  document.getElementById('labelFrame3x2').textContent = `3x2 Frame Weight (${weightUnit})`;
+  document.getElementById('labelFrameCustom').textContent = `Custom Frame Weight (${weightUnit})`;
 
   // Conversion constants
   const MM_TO_IN = 0.0393701;
@@ -212,6 +262,7 @@ function openCustomPanelModal(editKey = null) {
       // Convert bumper weights from lbs to kg for display
       document.getElementById('customPanel1wBumper').value = panel.bumper_1w_lbs ? (panel.bumper_1w_lbs * LBS_TO_KG).toFixed(2) : '';
       document.getElementById('customPanel2wBumper').value = panel.bumper_2w_lbs ? (panel.bumper_2w_lbs * LBS_TO_KG).toFixed(2) : '';
+      document.getElementById('customPanel4wBumper').value = panel.bumper_4w_lbs ? (panel.bumper_4w_lbs * LBS_TO_KG).toFixed(2) : '';
     } else {
       // Convert kg to lbs for display
       document.getElementById('customPanelWeight').value = panel.weight_kg ? (panel.weight_kg * KG_TO_LBS).toFixed(2) : '';
@@ -220,9 +271,52 @@ function openCustomPanelModal(editKey = null) {
       // Bumper weights already stored in lbs
       document.getElementById('customPanel1wBumper').value = panel.bumper_1w_lbs || '';
       document.getElementById('customPanel2wBumper').value = panel.bumper_2w_lbs || '';
+      document.getElementById('customPanel4wBumper').value = panel.bumper_4w_lbs || '';
     }
 
     document.getElementById('customPanelRemovableFrame').checked = panel.removable_frame || false;
+
+    // Cable fields
+    document.getElementById('cpJumpersBuiltin').checked = panel.jumpers_builtin || false;
+    setCustomPanelJumperType(panel.jumpers_builtin || false);
+    document.getElementById('customPanelDataJumper').value = panel.data_jumper_ft || '';
+    document.getElementById('customPanelPowerJumper').value = panel.power_jumper_ft || '';
+    document.getElementById('customPanelCrossJumper').value = panel.data_cross_jumper_ft || '';
+
+    // Structure fields
+    document.getElementById('cpUsesBumpers').checked = panel.uses_bumpers !== false;
+    setCustomPanelBumpers(panel.uses_bumpers !== false);
+    document.getElementById('cpFloorPanel').checked = panel.is_floor_panel || false;
+    setCustomPanelFloor(panel.is_floor_panel || false);
+
+    // Floor frame weights (stored in lbs, convert for display if metric)
+    if(panel.floor_frames) {
+      var ff = panel.floor_frames;
+      if(isMetric) {
+        document.getElementById('customPanelFrame1x1').value = ff.frame_1x1 ? (ff.frame_1x1.weight_lbs * LBS_TO_KG).toFixed(2) : '';
+        document.getElementById('customPanelFrame2x1').value = ff.frame_2x1 ? (ff.frame_2x1.weight_lbs * LBS_TO_KG).toFixed(2) : '';
+        document.getElementById('customPanelFrame2x2').value = ff.frame_2x2 ? (ff.frame_2x2.weight_lbs * LBS_TO_KG).toFixed(2) : '';
+        document.getElementById('customPanelFrame3x2').value = ff.frame_3x2 ? (ff.frame_3x2.weight_lbs * LBS_TO_KG).toFixed(2) : '';
+        document.getElementById('customPanelFrameCustomWeight').value = ff.frame_custom ? (ff.frame_custom.weight_lbs * LBS_TO_KG).toFixed(2) : '';
+      } else {
+        document.getElementById('customPanelFrame1x1').value = ff.frame_1x1 ? ff.frame_1x1.weight_lbs : '';
+        document.getElementById('customPanelFrame2x1').value = ff.frame_2x1 ? ff.frame_2x1.weight_lbs : '';
+        document.getElementById('customPanelFrame2x2').value = ff.frame_2x2 ? ff.frame_2x2.weight_lbs : '';
+        document.getElementById('customPanelFrame3x2').value = ff.frame_3x2 ? ff.frame_3x2.weight_lbs : '';
+        document.getElementById('customPanelFrameCustomWeight').value = ff.frame_custom ? ff.frame_custom.weight_lbs : '';
+      }
+      document.getElementById('customPanelFrameName').value = ff.frame_custom ? ff.frame_custom.name : '';
+      document.getElementById('customPanelFramePanels').value = ff.frame_custom ? ff.frame_custom.panels : '';
+    } else {
+      document.getElementById('customPanelFrame1x1').value = '';
+      document.getElementById('customPanelFrame2x1').value = '';
+      document.getElementById('customPanelFrame2x2').value = '';
+      document.getElementById('customPanelFrame3x2').value = '';
+      document.getElementById('customPanelFrameName').value = '';
+      document.getElementById('customPanelFramePanels').value = '';
+      document.getElementById('customPanelFrameCustomWeight').value = '';
+    }
+
     modal.dataset.editKey = editKey;
   } else {
     title.textContent = 'Add Custom Panel';
@@ -246,10 +340,32 @@ function openCustomPanelModal(editKey = null) {
     document.getElementById('customPanelWeightNoFrame').value = '';
     document.getElementById('customPanel1wBumper').value = '';
     document.getElementById('customPanel2wBumper').value = '';
+    document.getElementById('customPanel4wBumper').value = '';
+
+    // Cable fields
+    document.getElementById('cpJumpersBuiltin').checked = false;
+    setCustomPanelJumperType(false);
+    document.getElementById('customPanelDataJumper').value = '';
+    document.getElementById('customPanelPowerJumper').value = '';
+    document.getElementById('customPanelCrossJumper').value = '';
+
+    // Structure fields
+    document.getElementById('cpUsesBumpers').checked = true;
+    setCustomPanelBumpers(true);
+    document.getElementById('cpFloorPanel').checked = false;
+    setCustomPanelFloor(false);
+    document.getElementById('customPanelFrame1x1').value = '';
+    document.getElementById('customPanelFrame2x1').value = '';
+    document.getElementById('customPanelFrame2x2').value = '';
+    document.getElementById('customPanelFrame3x2').value = '';
+    document.getElementById('customPanelFrameName').value = '';
+    document.getElementById('customPanelFramePanels').value = '';
+    document.getElementById('customPanelFrameCustomWeight').value = '';
 
     delete modal.dataset.editKey;
   }
 
+  switchCustomPanelTab('specs');
   modal.classList.add('active');
   updateFrameWeightFields();
 }
@@ -292,6 +408,7 @@ function saveCustomPanel() {
   const weightNoFrameInput = parseFloat(document.getElementById('customPanelWeightNoFrame').value) || null;
   const bumper1wInput = parseFloat(document.getElementById('customPanel1wBumper').value) || null;
   const bumper2wInput = parseFloat(document.getElementById('customPanel2wBumper').value) || null;
+  const bumper4wInput = parseFloat(document.getElementById('customPanel4wBumper').value) || null;
 
   // Convert dimensions to mm (stored as meters for width/height)
   let widthMm, heightMm, depthMm;
@@ -308,7 +425,7 @@ function saveCustomPanel() {
   }
 
   // Convert weights to kg (panel weights) and lbs (bumper weights)
-  let weightKg, frameWeightKg, weightNoFrameKg, bumper1wLbs, bumper2wLbs;
+  let weightKg, frameWeightKg, weightNoFrameKg, bumper1wLbs, bumper2wLbs, bumper4wLbs;
   if(isMetric) {
     // Input is in kg
     weightKg = weightInput;
@@ -317,6 +434,7 @@ function saveCustomPanel() {
     // Bumper input is in kg, convert to lbs for storage
     bumper1wLbs = bumper1wInput ? bumper1wInput * KG_TO_LBS : null;
     bumper2wLbs = bumper2wInput ? bumper2wInput * KG_TO_LBS : null;
+    bumper4wLbs = bumper4wInput ? bumper4wInput * KG_TO_LBS : null;
   } else {
     // Input is in lbs, convert to kg for panel weights
     weightKg = weightInput ? weightInput * LBS_TO_KG : null;
@@ -325,6 +443,7 @@ function saveCustomPanel() {
     // Bumper weights stay in lbs
     bumper1wLbs = bumper1wInput;
     bumper2wLbs = bumper2wInput;
+    bumper4wLbs = bumper4wInput;
   }
 
   const panel = {
@@ -347,9 +466,47 @@ function saveCustomPanel() {
     weight_no_frame_kg: weightNoFrameKg,
     bumper_1w_lbs: bumper1wLbs,
     bumper_2w_lbs: bumper2wLbs,
-    bumper_4w_lbs: 66.15, // Default 4W bumper weight
+    bumper_4w_lbs: bumper4wLbs,
+    // Cable configuration
+    jumpers_builtin: document.getElementById('cpJumpersBuiltin').checked,
+    data_jumper_ft: document.getElementById('customPanelDataJumper').value.trim() || null,
+    power_jumper_ft: document.getElementById('customPanelPowerJumper').value.trim() || null,
+    data_cross_jumper_ft: document.getElementById('customPanelCrossJumper').value.trim() || null,
+    // Structure
+    uses_bumpers: document.getElementById('cpUsesBumpers').checked,
+    is_floor_panel: document.getElementById('cpFloorPanel').checked,
     custom: true
   };
+
+  // Build floor_frames if floor panel is enabled
+  if(panel.is_floor_panel) {
+    var f1x1 = parseFloat(document.getElementById('customPanelFrame1x1').value) || null;
+    var f2x1 = parseFloat(document.getElementById('customPanelFrame2x1').value) || null;
+    var f2x2 = parseFloat(document.getElementById('customPanelFrame2x2').value) || null;
+    var f3x2 = parseFloat(document.getElementById('customPanelFrame3x2').value) || null;
+    var fCustomWeight = parseFloat(document.getElementById('customPanelFrameCustomWeight').value) || null;
+    var fCustomName = document.getElementById('customPanelFrameName').value.trim() || null;
+    var fCustomPanels = parseInt(document.getElementById('customPanelFramePanels').value) || null;
+
+    // Convert kg to lbs if metric (floor_frames stores weight_lbs)
+    if(isMetric) {
+      if(f1x1) f1x1 = f1x1 * KG_TO_LBS;
+      if(f2x1) f2x1 = f2x1 * KG_TO_LBS;
+      if(f2x2) f2x2 = f2x2 * KG_TO_LBS;
+      if(f3x2) f3x2 = f3x2 * KG_TO_LBS;
+      if(fCustomWeight) fCustomWeight = fCustomWeight * KG_TO_LBS;
+    }
+
+    panel.floor_frames = {
+      frame_1x1: f1x1 ? { name: '1x1 (1 panel)', panels: 1, weight_lbs: f1x1 } : null,
+      frame_2x1: f2x1 ? { name: '2x1 (2 panels)', panels: 2, weight_lbs: f2x1 } : null,
+      frame_2x2: f2x2 ? { name: '2x2 (4 panels)', panels: 4, weight_lbs: f2x2 } : null,
+      frame_3x2: f3x2 ? { name: '3x2 (6 panels)', panels: 6, weight_lbs: f3x2 } : null,
+      frame_custom: (fCustomName && fCustomPanels && fCustomWeight) ? { name: fCustomName, panels: fCustomPanels, weight_lbs: fCustomWeight } : null
+    };
+  } else {
+    panel.floor_frames = null;
+  }
 
   customPanels[key] = panel;
   saveCustomPanels();
@@ -376,7 +533,26 @@ async function deleteCustomPanel(key) {
   }
 }
 
-// Manage Custom Panels Modal
+// Manage Custom Items Modal
+function switchManageTab(tabName) {
+  const panelsBtn = document.getElementById('manageTabPanelsBtn');
+  const processorsBtn = document.getElementById('manageTabProcessorsBtn');
+  const panelsContent = document.getElementById('manageCustomPanelsContent');
+  const processorsContent = document.getElementById('manageCustomProcessorsContent');
+
+  if(tabName === 'panels') {
+    panelsBtn.classList.add('active');
+    processorsBtn.classList.remove('active');
+    panelsContent.style.display = 'block';
+    processorsContent.style.display = 'none';
+  } else {
+    panelsBtn.classList.remove('active');
+    processorsBtn.classList.add('active');
+    panelsContent.style.display = 'none';
+    processorsContent.style.display = 'block';
+  }
+}
+
 function openManageCustomModal() {
   const modal = document.getElementById('manageCustomModal');
 
@@ -403,6 +579,31 @@ function openManageCustomModal() {
   }
   panelsContent.innerHTML = panelsHtml;
 
+  // Populate processors list
+  const processorsContent = document.getElementById('manageCustomProcessorsContent');
+  let processorsHtml = '';
+  if(Object.keys(customProcessors).length === 0) {
+    processorsHtml = '<p style="color: #888; text-align: center; padding: 20px;">No custom processors saved yet.</p>';
+  } else {
+    processorsHtml = '<div class="custom-item-list">';
+    Object.keys(customProcessors).forEach(key => {
+      const proc = customProcessors[key];
+      processorsHtml += `
+        <div class="custom-item">
+          <div class="custom-item-name">${escapeHtml(proc.name)}</div>
+          <div class="custom-item-actions">
+            <button class="btn-small" onclick="openCustomProcessorModal('${escapeJsString(key)}'); closeManageCustomModal();">Edit</button>
+            <button class="btn-small danger" onclick="deleteCustomProcessor('${escapeJsString(key)}')">Delete</button>
+          </div>
+        </div>
+      `;
+    });
+    processorsHtml += '</div>';
+  }
+  processorsContent.innerHTML = processorsHtml;
+
+  // Default to panels tab
+  switchManageTab('panels');
   modal.classList.add('active');
 }
 

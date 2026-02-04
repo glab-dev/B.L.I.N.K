@@ -466,6 +466,12 @@ function setCableDropPosition(position) {
   if(screens[currentScreenId]) {
     screens[currentScreenId].data.cableDropPosition = position;
   }
+  // Propagate to all screens when all are toggled on
+  const allIds = Object.keys(screens);
+  if(typeof gearSelectedScreens !== 'undefined' && allIds.length > 1 &&
+     gearSelectedScreens.size === allIds.length && allIds.every(id => gearSelectedScreens.has(id))) {
+    allIds.forEach(sid => { if(screens[sid] && screens[sid].data) screens[sid].data.cableDropPosition = position; });
+  }
   generateGearList();
 }
 
@@ -476,6 +482,12 @@ function toggleDistBoxOnWall() {
   document.getElementById('distBoxOnWallBtn').classList.toggle('active', distBoxOnWallEnabled);
   if(screens[currentScreenId]) {
     screens[currentScreenId].data.distBoxOnWall = distBoxOnWallEnabled;
+  }
+  // Propagate to all screens when all are toggled on
+  const allIds = Object.keys(screens);
+  if(typeof gearSelectedScreens !== 'undefined' && allIds.length > 1 &&
+     gearSelectedScreens.size === allIds.length && allIds.every(id => gearSelectedScreens.has(id))) {
+    allIds.forEach(sid => { if(screens[sid] && screens[sid].data) screens[sid].data.distBoxOnWall = distBoxOnWallEnabled; });
   }
   generateGearList();
 }

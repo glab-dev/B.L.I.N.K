@@ -787,8 +787,22 @@ function calculate(){
       const processorsByCVTs = Math.ceil(distributionCount / 4);
       mx40ProcessorCount = Math.max(processorsByPixels, processorsByCVTs);
     }
+  } else if(pr.custom && pr.supports_direct && pr.uses_distribution_box && portsNeeded > 0) {
+    // Custom processor supporting both direct and indirect modes
+    if(mx40ConnectionMode === 'direct') {
+      // Direct mode: no distribution boxes, use output_ports per processor
+      const portsPerProcessor = pr.output_ports || 4;
+      const processorsByPorts = Math.ceil(portsNeededFinal / portsPerProcessor);
+      const processorsByPixels = Math.ceil(totalPixels / pr.total_pixels);
+      mx40ProcessorCount = Math.max(processorsByPorts, processorsByPixels);
+    } else {
+      // Indirect mode: use distribution boxes
+      const portsPerBox = pr.distribution_box_ports || 10;
+      distributionCount = Math.ceil(portsNeededFinal / portsPerBox);
+      distributionBoxName = pr.distribution_box_name;
+    }
   } else if(pr.uses_distribution_box && pr.distribution_box_name && portsNeeded > 0) {
-    // Custom processor with distribution box
+    // Custom processor with distribution box only (no direct mode)
     const portsPerBox = pr.distribution_box_ports || 10;
     distributionCount = Math.ceil(portsNeededFinal / portsPerBox);
     distributionBoxName = pr.distribution_box_name;

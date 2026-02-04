@@ -419,12 +419,21 @@ function loadConfiguration(event) {
   reader.readAsText(file);
 }
 
-// Show/hide MX40 mode toggle based on processor selection
+// Show/hide connection mode toggle based on processor selection
 function updateMX40ModeToggleVisibility() {
   const processorSelect = document.getElementById('processor');
   const mx40ModeToggleRow = document.getElementById('mx40ModeToggleRow');
   if(processorSelect && mx40ModeToggleRow) {
     const isMX40Pro = processorSelect.value === 'NovaStar_MX40_Pro';
-    mx40ModeToggleRow.style.display = isMX40Pro ? 'block' : 'none';
+    // Also show for custom processors that support both direct and indirect modes
+    let isCustomDualMode = false;
+    if(!isMX40Pro) {
+      const allProcs = getAllProcessors();
+      const proc = allProcs[processorSelect.value];
+      if(proc && proc.supports_direct && proc.uses_distribution_box) {
+        isCustomDualMode = true;
+      }
+    }
+    mx40ModeToggleRow.style.display = (isMX40Pro || isCustomDualMode) ? 'block' : 'none';
   }
 }

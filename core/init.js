@@ -67,10 +67,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize canvas undo/redo button states
     updateCanvasUndoRedoButtons();
 
-    // Perform initial calculation on page load
-    setTimeout(() => {
-      calculate();
-    }, 100);
+    // Defer calculation and canvas if welcome page is visible
+    if(typeof isWelcomePageVisible === 'undefined' || !isWelcomePageVisible) {
+      setTimeout(() => { calculate(); }, 100);
+    }
 
     // Initialize v29 multi-screen system
     initializeScreenSystem();
@@ -83,9 +83,9 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSuggestedDataLimit();
 
     // Update canvas view to ensure correct positioning
-    setTimeout(() => {
-      showCanvasView();
-    }, 150);
+    if(typeof isWelcomePageVisible === 'undefined' || !isWelcomePageVisible) {
+      setTimeout(() => { showCanvasView(); }, 150);
+    }
 
     // Initialize canvas wheel zoom
     initCanvasWheelZoom();

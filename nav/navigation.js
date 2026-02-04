@@ -361,12 +361,14 @@ function initMobileUI() {
     }
   });
 
-  // Initialize on simple view (default mode)
-  switchMobileView('simple');
-
-  // Make sure calculate runs
-  if(typeof calculate === 'function') {
-    setTimeout(calculate, 100);
+  // Show welcome page on load, or fall back to simple view
+  if(typeof isWelcomePageVisible !== 'undefined' && isWelcomePageVisible) {
+    showWelcomePage();
+  } else {
+    switchMobileView('simple');
+    if(typeof calculate === 'function') {
+      setTimeout(calculate, 100);
+    }
   }
 
   // Setup Combined canvas handlers for panel selection and screen dragging

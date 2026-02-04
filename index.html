@@ -59,6 +59,182 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+<!-- Welcome Page -->
+<div id="welcomePage" class="welcome-page">
+  <div class="welcome-content">
+    <div class="welcome-logo-container">
+      <h1 class="welcome-title">B.L.I.N.K.</h1>
+    </div>
+    <p class="welcome-subtitle">Build Layout Intelligence for Networked Kits</p>
+    <p class="welcome-subtitle"><span class="welcome-paren">&ldquo;</span> LED Calculator <span class="welcome-paren">&rdquo;</span></p>
+
+    <div class="welcome-buttons">
+      <button class="welcome-btn welcome-btn-simple" onclick="enterSimpleMode()">
+        <span class="welcome-btn-title">Simple</span>
+        <span class="welcome-btn-desc">Quick setup with essential tools</span>
+      </button>
+      <button class="welcome-btn welcome-btn-complex" onclick="enterComplexMode()">
+        <span class="welcome-btn-title">Complex</span>
+        <span class="welcome-btn-desc">Full suite with layouts, gear & combined view</span>
+      </button>
+    </div>
+
+    <button class="welcome-btn-signin" onclick="showAlert('Sign in coming soon!')">
+      <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">login</span>
+      Sign In
+    </button>
+
+    <button class="welcome-btn-help" onclick="openHelpModal()">
+      <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">help_outline</span>
+      How to Use This App
+    </button>
+
+    <div class="welcome-footer">
+      <span id="welcomeVersionNumber"></span>
+      <span>&copy; 2025 Gabriel Labrecque &bull; Fearless Wanderer Productions</span>
+    </div>
+  </div>
+</div>
+
+<!-- Help Modal -->
+<div id="helpModal" class="modal-overlay">
+  <div class="modal-dialog" style="max-width: 560px; max-height: 85vh;">
+    <div class="modal-header">
+      <h2 class="modal-title">How to Use B.L.I.N.K.</h2>
+      <button class="modal-close" onclick="closeHelpModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="overflow-y: auto; max-height: calc(85vh - 80px); padding: 16px;">
+      <div class="help-content">
+        <h3 class="help-section-title">Getting Started</h3>
+        <ol class="help-list">
+          <li>Select a Panel Type from the dropdown</li>
+          <li>Enter Dimensions — panels wide/high or target wall size</li>
+          <li>Configure Power — voltage, breaker, and phase settings</li>
+          <li>Configure Data — processor, frame rate, and bit depth</li>
+          <li>Review Results — check calculated specifications</li>
+          <li>View Layouts — explore Power, Data, and Structure layouts</li>
+          <li>Export PDF — generate a professional report</li>
+        </ol>
+
+        <h3 class="help-section-title">Mode Features</h3>
+        <div class="slider-toggle" style="margin-bottom: 12px;">
+          <button type="button" class="slider-toggle-btn help-tab-btn active" data-tab="simple" onclick="switchHelpTab('simple')">Simple</button>
+          <button type="button" class="slider-toggle-btn help-tab-btn" data-tab="complex" onclick="switchHelpTab('complex')">Complex</button>
+        </div>
+        <div id="helpSimpleContent">
+          <p class="help-text" style="margin-bottom: 8px; color: var(--primary); font-weight: 700;">Streamlined interface with essential tools</p>
+          <ul class="help-list">
+            <li>Panel selection — full built-in + custom panel library</li>
+            <li>Dimensions — panels or target size with aspect ratio lock</li>
+            <li>Power calculations — voltage, breaker, phase, circuit distribution</li>
+            <li>Data calculations — processor, frame rate, bit depth</li>
+            <li>Condensed specs display</li>
+            <li>Canvas view — multi-screen positioning</li>
+            <li>All exports — PDF, PNG, email, Resolume XML, .ledconfig</li>
+            <li>Unit conversion — Imperial / Metric</li>
+            <li>Multi-screen projects</li>
+            <li>Custom panels &amp; processors</li>
+          </ul>
+          <p class="help-text" style="font-size: 11px; color: var(--muted-color);">Tabs: Simple, Canvas</p>
+        </div>
+        <div id="helpComplexContent" style="display: none;">
+          <p class="help-text" style="margin-bottom: 8px; color: var(--primary); font-weight: 700;">Full suite — everything in Simple, plus:</p>
+          <ul class="help-list">
+            <li>Full detailed specifications display</li>
+            <li>Combined multi-screen view with aggregated specs</li>
+            <li>Dedicated gear list tab</li>
+            <li>Structure calculations — bumpers, pickup weights, ground support</li>
+            <li>Data direction controls — Top→Bottom, Bottom→Top, etc.</li>
+            <li>Data &amp; Processor redundancy options</li>
+            <li>4 layout views — Standard, Power, Data, Structure</li>
+            <li>Bumper bar management — auto + manual positioning</li>
+            <li>Ground stack vs hanging configuration</li>
+          </ul>
+          <p class="help-text" style="font-size: 11px; color: var(--muted-color);">Tabs: Complex | Combined, Gear, Canvas</p>
+        </div>
+
+        <h3 class="help-section-title">Complex Tab</h3>
+        <p class="help-text">The Complex tab shows your full configuration with all inputs and results. Scroll down past the specs to find the layout views.</p>
+        <ul class="help-list">
+          <li><strong>Panel Type</strong> — select built-in or custom panels from the dropdown</li>
+          <li><strong>Dimensions</strong> — toggle between Panels or Size input mode</li>
+          <li><strong>Power</strong> — set voltage, breaker, phase, power basis (Max/Avg)</li>
+          <li><strong>Data</strong> — choose processor, frame rate, bit depth, data direction</li>
+          <li><strong>Structure</strong> — choose Hanging or Ground Stack, configure bumpers</li>
+        </ul>
+
+        <h3 class="help-section-title">Layout Views</h3>
+        <p class="help-text">In Complex mode, toggle between layouts using the buttons below the specs:</p>
+        <ul class="help-list">
+          <li><strong>Standard</strong> — panel grid with checkerboard coloring, click to delete/restore panels</li>
+          <li><strong>Power</strong> — color-coded circuit distribution with circuit numbers</li>
+          <li><strong>Data</strong> — data routing paths with line numbers and direction arrows</li>
+          <li><strong>Structure</strong> — bumper positions, pickup weights, and ground support hardware</li>
+        </ul>
+        <p class="help-text">Tap a layout section title to collapse/expand it.</p>
+
+        <h3 class="help-section-title">Gear List</h3>
+        <ul class="help-list">
+          <li>Switch to the <strong>Gear</strong> tab in the bottom nav</li>
+          <li>Toggle screens on/off to filter the gear list</li>
+          <li><strong>Wall to Floor</strong> — enter distance for cable length calculations</li>
+          <li><strong>Distro to Wall</strong> — enter distance from power distro to wall</li>
+          <li>Gear is organized by: Equipment, Rigging, and Cabling</li>
+        </ul>
+
+        <h3 class="help-section-title">Canvas View</h3>
+        <p class="help-text">Position multiple screens visually on a virtual canvas.</p>
+        <ul class="help-list">
+          <li><strong>Canvas Size</strong> — choose 4K UHD, 4K DCI, HD, or Custom dimensions</li>
+          <li><strong>Drag screens</strong> — tap and drag to reposition screens on the canvas</li>
+          <li><strong>X/Y Pos</strong> — set exact pixel positions with the number inputs</li>
+          <li><strong>Fine (px)</strong> — set arrow key increment for precise adjustments</li>
+          <li><strong>Snap</strong> — toggle snapping to other screens and canvas edges</li>
+          <li><strong>Zoom</strong> — use +/- buttons, type a %, or Ctrl+Scroll (desktop)</li>
+          <li><strong>Pan</strong> — drag empty space to pan when zoomed in</li>
+          <li><strong>Screen toggles</strong> — show/hide individual screens</li>
+          <li><strong>Export</strong> — save as PNG, JPEG, or Resolume XML with a custom filename</li>
+        </ul>
+
+        <h3 class="help-section-title">Mobile (Touch)</h3>
+        <ul class="help-list">
+          <li><strong>Tap</strong> — Select panels, buttons, controls</li>
+          <li><strong>Long-press</strong> — Right-click equivalent (e.g., bumper options)</li>
+          <li><strong>Drag</strong> — Move screens in canvas view</li>
+          <li><strong>Pinch zoom</strong> — Zoom in/out on canvas</li>
+          <li><strong>Hamburger menu</strong> — Access all options</li>
+        </ul>
+
+        <h3 class="help-section-title">Desktop (Mouse)</h3>
+        <ul class="help-list">
+          <li><strong>Click / Drag</strong> — Select and move panels</li>
+          <li><strong>Right-click</strong> — Context menus for bumpers and panels</li>
+          <li><strong>Ctrl+Scroll</strong> — Zoom canvas</li>
+        </ul>
+
+        <h3 class="help-section-title">Keyboard Shortcuts</h3>
+        <table class="help-table">
+          <tr><td>Ctrl+Z</td><td>Undo</td></tr>
+          <tr><td>Ctrl+Y</td><td>Redo</td></tr>
+          <tr><td>Arrow Keys</td><td>Fine position adjustment in Canvas</td></tr>
+          <tr><td>Ctrl+Scroll</td><td>Zoom in/out in Canvas</td></tr>
+          <tr><td>Delete</td><td>Remove selected panels</td></tr>
+        </table>
+
+        <h3 class="help-section-title">Tips</h3>
+        <ul class="help-list">
+          <li>Select your panel first — it affects all calculations</li>
+          <li>Data Redundancy is enabled by default for professional installs</li>
+          <li>Verify circuit counts match your available power</li>
+          <li>Save configurations frequently using the Save button</li>
+          <li>Use multiple screens to organize complex setups</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Custom Panel Modal -->
 <div id="customPanelModal" class="modal-overlay">
   <div class="modal-dialog">
@@ -545,6 +721,12 @@
       <button class="mobile-menu-close" onclick="closeMobileMenu()">&times;</button>
     </div>
     <div class="mobile-menu-content">
+      <div class="mobile-menu-section">
+        <button class="mobile-menu-btn" onclick="closeMobileMenu(); showWelcomePage();">
+          <span class="material-symbols-outlined" style="font-size: 16px; margin-right: 6px; vertical-align: middle;">home</span>
+          Welcome Page
+        </button>
+      </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Configuration</div>
         <input type="text" id="configName" placeholder="Config name..." style="margin-bottom: 12px;">
@@ -1448,6 +1630,7 @@
 <script src="nav/canvas.js"></script>
 <script src="nav/combined.js"></script>
 <script src="nav/navigation.js"></script>
+<script src="nav/welcome.js"></script>
 
 <!-- Export Functions -->
 <script src="export/canvas-export.js"></script>
@@ -1461,7 +1644,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.6.17';
+const APP_VERSION = '2.7.1';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -1479,6 +1662,7 @@ let customDataLineAssignments = new Map(); // stores "col,row" -> data line numb
 let isDragging = false;
 let dragStartX = 0;
 let modalOpenedFromMenu = false; // Track if current modal came from hamburger menu
+let isWelcomePageVisible = true; // Welcome page shown on initial load
 
 // Eco-friendly print mode - uses lighter colors and white backgrounds
 let ecoPrintMode = false;
@@ -1584,23 +1768,30 @@ let isLoadingScreenData = false; // Flag to prevent resetCalculator during scree
 
 </script>
 
-<!-- Bottom Navigation - Toggle for Complex/Simple/Combined + Canvas button -->
+<!-- Bottom Navigation -->
 <nav class="bottom-nav">
-  <div class="nav-mode-toggle">
+  <!-- Complex mode groups -->
+  <div class="nav-mode-toggle nav-complex-group" style="flex: 2;">
     <button class="nav-toggle-btn active" data-mode="complex" onclick="switchAppMode('complex')">
       <span>Complex</span>
-    </button>
-    <button class="nav-toggle-btn" data-mode="simple" onclick="switchAppMode('simple')">
-      <span>Simple</span>
     </button>
     <button class="nav-toggle-btn" data-mode="combined" onclick="switchAppMode('combined')">
       <span>Combined</span>
     </button>
   </div>
-  <div class="nav-mode-toggle" style="flex: 1;">
+  <div class="nav-mode-toggle nav-complex-group" style="flex: 1;">
     <button class="nav-toggle-btn" data-mode="gear" onclick="switchAppMode('gear')">
       <span>Gear</span>
     </button>
+  </div>
+  <!-- Simple mode group (hidden by default) -->
+  <div class="nav-mode-toggle nav-simple-group" style="flex: 1; display: none;">
+    <button class="nav-toggle-btn" data-mode="simple" onclick="switchAppMode('simple')">
+      <span>Simple</span>
+    </button>
+  </div>
+  <!-- Canvas (always visible) -->
+  <div class="nav-mode-toggle" style="flex: 1;">
     <button class="nav-toggle-btn" data-view="canvas" onclick="switchMobileView('canvas')">
       <span>Canvas</span>
     </button>

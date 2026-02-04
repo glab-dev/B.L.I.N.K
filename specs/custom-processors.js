@@ -263,9 +263,33 @@ let currentRequestType = 'panel';
 
 function setRequestType(type) {
   currentRequestType = type;
-  document.getElementById('requestTypePanelBtn').classList.toggle('active', type === 'panel');
-  document.getElementById('requestTypeProcessorBtn').classList.toggle('active', type === 'processor');
-  document.getElementById('requestTypeOtherBtn').classList.toggle('active', type === 'other');
+
+  // Remove active from all tabs
+  document.getElementById('requestTypePanelBtn').classList.remove('active');
+  document.getElementById('requestTypeProcessorBtn').classList.remove('active');
+  document.getElementById('requestTypeOtherBtn').classList.remove('active');
+  document.getElementById('requestTypeFeatureBtn').classList.remove('active');
+
+  // Add active to selected tab
+  if(type === 'panel') document.getElementById('requestTypePanelBtn').classList.add('active');
+  else if(type === 'processor') document.getElementById('requestTypeProcessorBtn').classList.add('active');
+  else if(type === 'other') document.getElementById('requestTypeOtherBtn').classList.add('active');
+  else if(type === 'feature') document.getElementById('requestTypeFeatureBtn').classList.add('active');
+
+  // Toggle field sections based on type
+  var itemFields = document.getElementById('requestItemFields');
+  var otherFields = document.getElementById('requestOtherFields');
+  var featureFields = document.getElementById('requestFeatureFields');
+  var title = document.getElementById('requestItemModalTitle');
+  var useItemFields = (type === 'panel' || type === 'processor');
+  if(itemFields) itemFields.style.display = useItemFields ? '' : 'none';
+  if(otherFields) otherFields.style.display = type === 'other' ? '' : 'none';
+  if(featureFields) featureFields.style.display = type === 'feature' ? '' : 'none';
+  if(title) {
+    if(type === 'feature') title.textContent = 'Feature Request';
+    else if(type === 'other') title.textContent = 'Other Request';
+    else title.textContent = 'Request Panel/Processor';
+  }
 }
 
 function openRequestItemModal() {
@@ -273,6 +297,8 @@ function openRequestItemModal() {
   document.getElementById('requestBrand').value = '';
   document.getElementById('requestModel').value = '';
   document.getElementById('requestNotes').value = '';
+  document.getElementById('requestOtherText').value = '';
+  document.getElementById('requestFeatureText').value = '';
   setRequestType('panel');
   modal.classList.add('active');
 }
@@ -282,6 +308,8 @@ function openProcessorRequestModal() {
   document.getElementById('requestBrand').value = '';
   document.getElementById('requestModel').value = '';
   document.getElementById('requestNotes').value = '';
+  document.getElementById('requestOtherText').value = '';
+  document.getElementById('requestFeatureText').value = '';
   setRequestType('processor');
   modal.classList.add('active');
 }
@@ -293,6 +321,39 @@ function closeRequestItemModal() {
 }
 
 function sendItemRequest() {
+  const nl = '%0D%0A';
+
+  if(currentRequestType === 'feature') {
+    // Feature request mode
+    const text = document.getElementById('requestFeatureText').value.trim();
+    if(!text) {
+      showAlert('Please describe your feature request.');
+      return;
+    }
+    const subject = encodeURIComponent('B.L.I.N.K. Feature Request');
+    const body = `Hi Gabriel,${nl}${nl}${encodeURIComponent(text)}${nl}${nl}Thank you!`;
+    const mailtoLink = `mailto:fearlesswandererproductions@gmail.com?subject=${subject}&body=${body}`;
+    window.location.href = mailtoLink;
+    closeRequestItemModal();
+    return;
+  }
+
+  if(currentRequestType === 'other') {
+    // Other request mode
+    const text = document.getElementById('requestOtherText').value.trim();
+    if(!text) {
+      showAlert('Please describe your request.');
+      return;
+    }
+    const subject = encodeURIComponent('B.L.I.N.K. Other Request');
+    const body = `Hi Gabriel,${nl}${nl}${encodeURIComponent(text)}${nl}${nl}Thank you!`;
+    const mailtoLink = `mailto:fearlesswandererproductions@gmail.com?subject=${subject}&body=${body}`;
+    window.location.href = mailtoLink;
+    closeRequestItemModal();
+    return;
+  }
+
+  // Item request mode (panel/processor)
   const brand = document.getElementById('requestBrand').value.trim();
   const model = document.getElementById('requestModel').value.trim();
   const notes = document.getElementById('requestNotes').value.trim();
@@ -302,12 +363,10 @@ function sendItemRequest() {
     return;
   }
 
-  const typeLabel = currentRequestType === 'panel' ? 'Panel' :
-                    currentRequestType === 'processor' ? 'Processor' : 'Other';
+  const typeLabel = currentRequestType === 'panel' ? 'Panel' : 'Processor';
   const subject = encodeURIComponent(`LED Calculator - ${typeLabel} Request: ${brand} ${model}`);
 
   // Use %0D%0A for line breaks (works better on mobile email clients)
-  const nl = '%0D%0A';
   let body = `Hi Gabriel,${nl}${nl}`;
   body += `I'd like to request adding a new ${typeLabel.toLowerCase()} to the LED Calculator app.${nl}${nl}`;
   body += `Type: ${typeLabel}${nl}`;

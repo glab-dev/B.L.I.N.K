@@ -365,6 +365,11 @@ function openCustomPanelModal(editKey = null) {
     delete modal.dataset.editKey;
   }
 
+  // In simple mode, hide Cables and Structure tabs — show only Specs
+  const isSimple = typeof currentAppMode !== 'undefined' && currentAppMode === 'simple';
+  document.getElementById('cpTabCablesBtn').style.display = isSimple ? 'none' : '';
+  document.getElementById('cpTabStructureBtn').style.display = isSimple ? 'none' : '';
+
   switchCustomPanelTab('specs');
   modal.classList.add('active');
   updateFrameWeightFields();

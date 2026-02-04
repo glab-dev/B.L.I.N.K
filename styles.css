@@ -1465,6 +1465,10 @@ canvas:focus {
   z-index: 10001;
 }
 
+#customAlertModal {
+  z-index: 10002;
+}
+
 .modal-overlay.active {
   display: flex;
 }

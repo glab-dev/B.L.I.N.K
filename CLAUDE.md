@@ -131,6 +131,11 @@ When fixing bugs or addressing issues:
 - Mobile-first responsive: 768px tablet breakpoint
 - Fixed header + bottom nav with safe-area-inset padding
 - New UI elements must match existing visual weight, spacing, and color patterns
+- **Responsive layout constraints** — UI elements must display consistently across mobile and desktop:
+  - Buttons in flex containers: use `flex: 0 0 auto` to prevent stretching
+  - Containers with scrollable content: use `overflow-x: hidden` to prevent horizontal scrollbars
+  - Test new UI in both mobile and desktop viewport sizes before committing
+  - Elements should look the same at any width — avoid viewport-specific font/padding changes
 
 ---
 

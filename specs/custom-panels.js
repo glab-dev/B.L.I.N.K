@@ -398,6 +398,20 @@ function openCustomPanelModal(editKey = null) {
   modal.classList.add('active');
   updateFrameWeightFields();
   updateSharePanelButton(editKey);
+  updateSavePanelButton(editKey);
+}
+
+// Update save button text based on whether panel is shared
+function updateSavePanelButton(editKey) {
+  const saveBtn = document.getElementById('customPanelSaveBtn');
+  if(!saveBtn) return;
+
+  // Show "Update" if editing a shared panel (not community-sourced, but shared by user)
+  if(editKey && customPanels[editKey]?.is_shared) {
+    saveBtn.textContent = 'Update';
+  } else {
+    saveBtn.textContent = 'Save';
+  }
 }
 
 function closeCustomPanelModal() {
@@ -544,6 +558,14 @@ function saveCustomPanel() {
     panel.floor_frames = null;
   }
 
+  // Check if this panel was previously shared (for update messaging)
+  const wasShared = editKey && customPanels[editKey]?.is_shared;
+
+  // Preserve shared status if editing
+  if(wasShared) {
+    panel.is_shared = true;
+  }
+
   customPanels[key] = panel;
   saveCustomPanels();
   updatePanelDropdowns();
@@ -553,6 +575,18 @@ function saveCustomPanel() {
     upsertCustomPanel(key, panel).catch(err => console.error('Cloud sync error:', err));
   }
 
+  // If panel is shared, also update the community version
+  if(panel.is_shared && typeof updateCommunityPanel === 'function' && typeof isAuthenticated === 'function' && isAuthenticated()) {
+    updateCommunityPanel(key, panel)
+      .then(() => {
+        console.log('Community panel updated');
+      })
+      .catch(err => {
+        console.error('Community update error:', err);
+        // Don't show error alert - local save succeeded
+      });
+  }
+
   // Select the new/edited panel
   const panelSelect = document.getElementById('panelType');
   if(panelSelect) {
@@ -560,7 +594,13 @@ function saveCustomPanel() {
   }
 
   closeCustomPanelModal();
-  showAlert(`Custom panel "${brand} ${name}" saved successfully!`);
+
+  // Show appropriate message
+  if(panel.is_shared) {
+    showAlert(`Panel "${brand} ${name}" updated in your library and the community!`);
+  } else {
+    showAlert(`Custom panel "${brand} ${name}" saved successfully!`);
+  }
 }
 
 // Delete custom panel
@@ -723,11 +763,14 @@ async function loadPendingItems() {
 
       pendingPanels.forEach(panel => {
         const data = panel.panel_data || {};
+        const updateCount = panel.update_count || 0;
+        const updateBadge = updateCount > 0 ? `<span class="update-count">Updated ${updateCount}x</span>` : '';
         html += `
           <div class="custom-item pending-item">
             <div class="custom-item-name">
               <span class="pending-badge">Panel</span>
               ${escapeHtml(data.brand || '')} ${escapeHtml(data.name || panel.panel_key)}
+              ${updateBadge}
             </div>
             <div class="custom-item-actions">
               <button class="btn-small test" onclick="handleTestPendingPanel('${panel.id}')">Test</button>
@@ -740,11 +783,14 @@ async function loadPendingItems() {
 
       pendingProcessors.forEach(proc => {
         const data = proc.processor_data || {};
+        const updateCount = proc.update_count || 0;
+        const updateBadge = updateCount > 0 ? `<span class="update-count">Updated ${updateCount}x</span>` : '';
         html += `
           <div class="custom-item pending-item">
             <div class="custom-item-name">
               <span class="pending-badge">Processor</span>
               ${escapeHtml(data.name || proc.processor_key)}
+              ${updateBadge}
             </div>
             <div class="custom-item-actions">
               <button class="btn-small test" onclick="handleTestPendingProcessor('${proc.id}')">Test</button>
@@ -1021,7 +1067,7 @@ let cachedCommunityProcessors = [];
 
 async function handleDownloadCommunityPanel(panelId) {
   if(!isAuthenticated || !isAuthenticated()) {
-    showAlert('Please sign in to download community items');
+    showSignInPrompt('Please sign in to download community items');
     return;
   }
 
@@ -1046,7 +1092,7 @@ async function handleDownloadCommunityPanel(panelId) {
 
 async function handleDownloadCommunityProcessor(processorId) {
   if(!isAuthenticated || !isAuthenticated()) {
-    showAlert('Please sign in to download community items');
+    showSignInPrompt('Please sign in to download community items');
     return;
   }
 
@@ -1081,7 +1127,7 @@ async function shareCustomPanelToCommunity() {
   }
 
   if(!isAuthenticated || !isAuthenticated()) {
-    showAlert('Please sign in to share to the community');
+    showSignInPrompt('Please sign in to share to the community');
     return;
   }
 
@@ -1096,6 +1142,9 @@ async function shareCustomPanelToCommunity() {
   if(await showConfirm(`Share "${panel.brand} ${panel.name}" to the community library?\n\nYour panel will be submitted for approval before appearing publicly.`)) {
     try {
       await submitPanelToCommunity(editKey, panel);
+      // Mark as shared locally so future saves update the community version
+      customPanels[editKey].is_shared = true;
+      saveCustomPanels();
       showAlert('Panel submitted for community approval!');
       closeCustomPanelModal();
     } catch(err) {
@@ -1112,10 +1161,11 @@ function updateSharePanelButton(editKey) {
   // Show button only if:
   // 1. User is logged in
   // 2. Editing an existing custom panel
-  // 3. Panel is not already from community
+  // 3. Panel is not already from community (is_community)
+  // 4. Panel is not already shared by user (is_shared)
   if(isAuthenticated && isAuthenticated() && editKey && customPanels[editKey]) {
     const panel = customPanels[editKey];
-    if(!panel.is_community && !panel.community_id) {
+    if(!panel.is_community && !panel.community_id && !panel.is_shared) {
       shareBtn.style.display = '';
       return;
     }

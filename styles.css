@@ -1862,6 +1862,7 @@ canvas:focus {
   margin-top: 12px;
   max-height: 300px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .community-item {
@@ -1904,6 +1905,8 @@ canvas:focus {
 }
 
 .community-download-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
   background: var(--primary) !important;
   color: #fff !important;
   text-shadow:
@@ -1943,6 +1946,14 @@ canvas:focus {
   padding: 4px 8px;
   font-size: 11px;
   white-space: nowrap;
+}
+
+/* Update count badge (admin view) */
+.update-count {
+  font-size: 11px;
+  color: #888;
+  margin-left: 8px;
+  font-weight: 400;
 }
 
 .btn-small.approve {

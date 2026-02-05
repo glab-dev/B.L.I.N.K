@@ -10,7 +10,8 @@ let authModalOpenedFromMenu = false;
 
 function openAuthModal(mode) {
   // If already logged in, show account modal instead
-  if(isAuthenticated() && mode !== 'reset') {
+  // Exception: 'newpassword' mode is used during password recovery flow when user is temporarily authenticated
+  if(isAuthenticated() && mode !== 'reset' && mode !== 'newpassword') {
     openAccountModal();
     return;
   }

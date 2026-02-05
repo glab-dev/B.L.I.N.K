@@ -170,6 +170,20 @@ function openCustomProcessorModal(editKey = null) {
   updateProcessorPortLabel();
   modal.classList.add('active');
   updateShareProcessorButton(editKey);
+  updateSaveProcessorButton(editKey);
+}
+
+// Update save button text based on whether processor is shared
+function updateSaveProcessorButton(editKey) {
+  const saveBtn = document.getElementById('customProcessorSaveBtn');
+  if(!saveBtn) return;
+
+  // Show "Update" if editing a shared processor (not community-sourced, but shared by user)
+  if(editKey && customProcessors[editKey]?.is_shared) {
+    saveBtn.textContent = 'Update';
+  } else {
+    saveBtn.textContent = 'Save';
+  }
 }
 
 function closeCustomProcessorModal() {
@@ -246,6 +260,14 @@ function saveCustomProcessor() {
     custom: true
   };
 
+  // Check if this processor was previously shared (for update messaging)
+  const wasShared = editingProcessorKey && customProcessors[editingProcessorKey]?.is_shared;
+
+  // Preserve shared status if editing
+  if(wasShared) {
+    processorObj.is_shared = true;
+  }
+
   customProcessors[key] = processorObj;
   saveCustomProcessors();
   updateProcessorDropdowns();
@@ -253,6 +275,18 @@ function saveCustomProcessor() {
   // Sync to cloud if logged in
   if(typeof upsertCustomProcessor === 'function' && typeof isAuthenticated === 'function' && isAuthenticated()) {
     upsertCustomProcessor(key, processorObj).catch(err => console.error('Cloud sync error:', err));
+  }
+
+  // If processor is shared, also update the community version
+  if(processorObj.is_shared && typeof updateCommunityProcessor === 'function' && typeof isAuthenticated === 'function' && isAuthenticated()) {
+    updateCommunityProcessor(key, processorObj)
+      .then(() => {
+        console.log('Community processor updated');
+      })
+      .catch(err => {
+        console.error('Community update error:', err);
+        // Don't show error alert - local save succeeded
+      });
   }
 
   // Select the new/edited processor
@@ -263,7 +297,13 @@ function saveCustomProcessor() {
   }
 
   closeCustomProcessorModal();
-  calculate();
+
+  // Show appropriate message
+  if(processorObj.is_shared) {
+    showAlert(`Processor "${name}" updated in your library and the community!`);
+  } else {
+    calculate();
+  }
 }
 
 // ==================== REQUEST ITEM MODAL ====================
@@ -417,7 +457,7 @@ async function shareCustomProcessorToCommunity() {
   }
 
   if(!isAuthenticated || !isAuthenticated()) {
-    showAlert('Please sign in to share to the community');
+    showSignInPrompt('Please sign in to share to the community');
     return;
   }
 
@@ -432,6 +472,9 @@ async function shareCustomProcessorToCommunity() {
   if(await showConfirm(`Share "${proc.name}" to the community library?\n\nYour processor will be submitted for approval before appearing publicly.`)) {
     try {
       await submitProcessorToCommunity(editingProcessorKey, proc);
+      // Mark as shared locally so future saves update the community version
+      customProcessors[editingProcessorKey].is_shared = true;
+      saveCustomProcessors();
       showAlert('Processor submitted for community approval!');
       closeCustomProcessorModal();
     } catch(err) {
@@ -448,10 +491,11 @@ function updateShareProcessorButton(editKey) {
   // Show button only if:
   // 1. User is logged in
   // 2. Editing an existing custom processor
-  // 3. Processor is not already from community
+  // 3. Processor is not already from community (is_community)
+  // 4. Processor is not already shared by user (is_shared)
   if(isAuthenticated && isAuthenticated() && editKey && customProcessors[editKey]) {
     const proc = customProcessors[editKey];
-    if(!proc.is_community && !proc.community_id) {
+    if(!proc.is_community && !proc.community_id && !proc.is_shared) {
       shareBtn.style.display = '';
       return;
     }

@@ -198,10 +198,13 @@ function updateAuthUI() {
     }
   }
 
-  // Update auth modal if open
+  // Update auth modal if open (don't close during password recovery flow)
   const authModal = document.getElementById('authModal');
   if(authModal && authModal.classList.contains('active') && isAuthenticated()) {
-    closeAuthModal();
+    // Don't close if user is in the middle of setting a new password
+    if(typeof currentAuthMode === 'undefined' || currentAuthMode !== 'newpassword') {
+      closeAuthModal();
+    }
   }
 }
 
@@ -490,15 +493,19 @@ async function submitPanelToCommunity(panelKey, panelData) {
     throw new Error('Must be logged in to submit');
   }
 
+  // Filter to specs only before submitting
+  const specsOnly = extractPanelSpecsForCommunity(panelData);
+
   const { data, error } = await supabaseClient
     .from('community_panels')
     .insert({
       submitted_by: currentUser.id,
       panel_key: panelKey,
-      panel_data: panelData,
+      panel_data: specsOnly,
       status: 'pending',
       submitted_at: new Date().toISOString(),
-      download_count: 0
+      download_count: 0,
+      update_count: 0
     })
     .select()
     .single();
@@ -519,15 +526,19 @@ async function submitProcessorToCommunity(processorKey, processorData) {
     throw new Error('Must be logged in to submit');
   }
 
+  // Filter to specs only before submitting
+  const specsOnly = extractProcessorSpecsForCommunity(processorData);
+
   const { data, error } = await supabaseClient
     .from('community_processors')
     .insert({
       submitted_by: currentUser.id,
       processor_key: processorKey,
-      processor_data: processorData,
+      processor_data: specsOnly,
       status: 'pending',
       submitted_at: new Date().toISOString(),
-      download_count: 0
+      download_count: 0,
+      update_count: 0
     })
     .select()
     .single();
@@ -630,6 +641,136 @@ async function downloadCommunityProcessor(communityProcessor) {
   await upsertCustomProcessor(key, processorData);
 
   return processorData;
+}
+
+// ==================== COMMUNITY UPDATE FUNCTIONS ====================
+
+// Extract only specs for community sharing (filter out personal config)
+function extractPanelSpecsForCommunity(panel) {
+  return {
+    brand: panel.brand,
+    name: panel.name,
+    width: panel.width,
+    height: panel.height,
+    depth: panel.depth,
+    weight: panel.weight,
+    frameWeight: panel.frameWeight,
+    removableFrame: panel.removableFrame,
+    power: panel.power,
+    dataPort: panel.dataPort,
+    maxDataPorts: panel.maxDataPorts
+    // Explicitly NOT including: cables, structure, gear preferences
+  };
+}
+
+// Extract only specs for processor community sharing
+function extractProcessorSpecsForCommunity(processor) {
+  return {
+    name: processor.name,
+    brand: processor.brand,
+    ports: processor.ports,
+    maxWidth: processor.maxWidth,
+    maxHeight: processor.maxHeight,
+    hasDistBox: processor.hasDistBox,
+    distBoxName: processor.distBoxName,
+    distBoxPorts: processor.distBoxPorts,
+    hasBackup: processor.hasBackup
+    // Explicitly NOT including any personal workflow preferences
+  };
+}
+
+// Update community panel (original submitter only)
+async function updateCommunityPanel(panelKey, panelData) {
+  if(!supabaseClient || !currentUser) {
+    throw new Error('Must be logged in to update');
+  }
+
+  // First get current update_count
+  const { data: existing } = await supabaseClient
+    .from('community_panels')
+    .select('update_count, status')
+    .eq('panel_key', panelKey)
+    .eq('submitted_by', currentUser.id)
+    .single();
+
+  if(!existing) {
+    throw new Error('Panel not found or you are not the original submitter');
+  }
+
+  // Don't allow updating rejected panels
+  if(existing.status === 'rejected') {
+    throw new Error('Cannot update a rejected panel. Please delete and re-submit.');
+  }
+
+  const newCount = (existing.update_count || 0) + 1;
+
+  // Filter to specs only
+  const specsOnly = extractPanelSpecsForCommunity(panelData);
+
+  const { data, error } = await supabaseClient
+    .from('community_panels')
+    .update({
+      panel_data: specsOnly,
+      updated_at: new Date().toISOString(),
+      update_count: newCount
+    })
+    .eq('panel_key', panelKey)
+    .eq('submitted_by', currentUser.id)
+    .select();
+
+  if(error) throw error;
+  if(!data || data.length === 0) {
+    throw new Error('Update failed - panel not found or blocked by policy');
+  }
+
+  return data[0];
+}
+
+// Update community processor (original submitter only)
+async function updateCommunityProcessor(processorKey, processorData) {
+  if(!supabaseClient || !currentUser) {
+    throw new Error('Must be logged in to update');
+  }
+
+  // First get current update_count
+  const { data: existing } = await supabaseClient
+    .from('community_processors')
+    .select('update_count, status')
+    .eq('processor_key', processorKey)
+    .eq('submitted_by', currentUser.id)
+    .single();
+
+  if(!existing) {
+    throw new Error('Processor not found or you are not the original submitter');
+  }
+
+  // Don't allow updating rejected processors
+  if(existing.status === 'rejected') {
+    throw new Error('Cannot update a rejected processor. Please delete and re-submit.');
+  }
+
+  const newCount = (existing.update_count || 0) + 1;
+
+  // Filter to specs only
+  const specsOnly = extractProcessorSpecsForCommunity(processorData);
+
+  const { data, error } = await supabaseClient
+    .from('community_processors')
+    .update({
+      processor_data: specsOnly,
+      updated_at: new Date().toISOString(),
+      update_count: newCount
+    })
+    .eq('processor_key', processorKey)
+    .eq('submitted_by', currentUser.id)
+    .select();
+
+  if(error) throw error;
+  if(!data || data.length === 0) {
+    throw new Error('Update failed - processor not found or blocked by policy');
+  }
+
+  return data[0];
 }
 
 // ==================== ADMIN FUNCTIONS ====================

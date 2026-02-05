@@ -1,0 +1,3 @@
+# Redirect old Netlify subdomain to custom domain
+https://glabledcalculator.netlify.app/* https://blink-led.com/:splat 301!
+http://glabledcalculator.netlify.app/* https://blink-led.com/:splat 301!

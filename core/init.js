@@ -92,6 +92,11 @@ document.addEventListener('DOMContentLoaded', function() {
     initCanvasPanning();
     initCanvasTouchPanZoom();
 
+    // Initialize Supabase (cloud sync & auth)
+    if(typeof initSupabase === 'function') {
+      initSupabase();
+    }
+
     console.log('Initialization complete - v55.6 Multi-Screen');
   } catch(err) {
     console.error('Initialization error:', err);

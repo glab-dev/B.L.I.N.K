@@ -143,7 +143,9 @@ function updatePanelDropdowns() {
       customByBrand[brand].forEach(({key, panel}) => {
         const option = document.createElement('option');
         option.value = key;
-        option.textContent = panel.name;
+        // Add star indicator for community-sourced panels
+        const communityBadge = (panel.is_community || panel.community_id) ? ' ★' : '';
+        option.textContent = panel.name + communityBadge;
         brandGroup.appendChild(option);
       });
       panelSelect.appendChild(brandGroup);
@@ -395,6 +397,7 @@ function openCustomPanelModal(editKey = null) {
   switchCustomPanelTab('specs');
   modal.classList.add('active');
   updateFrameWeightFields();
+  updateSharePanelButton(editKey);
 }
 
 function closeCustomPanelModal() {
@@ -545,6 +548,11 @@ function saveCustomPanel() {
   saveCustomPanels();
   updatePanelDropdowns();
 
+  // Sync to cloud if logged in
+  if(typeof upsertCustomPanel === 'function' && typeof isAuthenticated === 'function' && isAuthenticated()) {
+    upsertCustomPanel(key, panel).catch(err => console.error('Cloud sync error:', err));
+  }
+
   // Select the new/edited panel
   const panelSelect = document.getElementById('panelType');
   if(panelSelect) {
@@ -562,7 +570,12 @@ async function deleteCustomPanel(key) {
     delete customPanels[key];
     saveCustomPanels();
     updatePanelDropdowns();
-    closeManageCustomModal();
+    refreshManageCustomLists(); // Stay in modal, just refresh the lists
+
+    // Sync deletion to cloud if logged in
+    if(typeof deleteCustomPanelFromCloud === 'function' && typeof isAuthenticated === 'function' && isAuthenticated()) {
+      deleteCustomPanelFromCloud(key).catch(err => console.error('Cloud sync error:', err));
+    }
   }
 }
 
@@ -570,25 +583,34 @@ async function deleteCustomPanel(key) {
 function switchManageTab(tabName) {
   const panelsBtn = document.getElementById('manageTabPanelsBtn');
   const processorsBtn = document.getElementById('manageTabProcessorsBtn');
+  const communityBtn = document.getElementById('manageTabCommunityBtn');
   const panelsContent = document.getElementById('manageCustomPanelsContent');
   const processorsContent = document.getElementById('manageCustomProcessorsContent');
+  const communityContent = document.getElementById('manageCustomCommunityContent');
+
+  // Remove active from all
+  panelsBtn.classList.remove('active');
+  processorsBtn.classList.remove('active');
+  communityBtn.classList.remove('active');
+  panelsContent.style.display = 'none';
+  processorsContent.style.display = 'none';
+  communityContent.style.display = 'none';
 
   if(tabName === 'panels') {
     panelsBtn.classList.add('active');
-    processorsBtn.classList.remove('active');
     panelsContent.style.display = 'block';
-    processorsContent.style.display = 'none';
-  } else {
-    panelsBtn.classList.remove('active');
+  } else if(tabName === 'processors') {
     processorsBtn.classList.add('active');
-    panelsContent.style.display = 'none';
     processorsContent.style.display = 'block';
+  } else if(tabName === 'community') {
+    communityBtn.classList.add('active');
+    communityContent.style.display = 'block';
+    loadCommunityTabContent();
   }
 }
 
-function openManageCustomModal() {
-  const modal = document.getElementById('manageCustomModal');
-
+// Refresh lists without changing tabs or closing modal
+function refreshManageCustomLists() {
   // Populate panels list
   const panelsContent = document.getElementById('manageCustomPanelsContent');
   let panelsHtml = '';
@@ -634,6 +656,13 @@ function openManageCustomModal() {
     processorsHtml += '</div>';
   }
   processorsContent.innerHTML = processorsHtml;
+}
+
+function openManageCustomModal() {
+  const modal = document.getElementById('manageCustomModal');
+
+  // Populate the lists
+  refreshManageCustomLists();
 
   // Default to panels tab
   switchManageTab('panels');
@@ -644,6 +673,455 @@ function closeManageCustomModal() {
   const modal = document.getElementById('manageCustomModal');
   modal.classList.remove('active');
   reopenMenuIfNeeded(); // Restore menu if modal came from menu
+}
+
+// ==================== COMMUNITY TAB & BROWSER ====================
+
+async function loadCommunityTabContent() {
+  const content = document.getElementById('manageCustomCommunityContent');
+  if(!content) return;
+
+  let html = '';
+
+  // Show admin pending section if admin
+  if(typeof isAdmin === 'function' && isAdmin()) {
+    html += '<h3 style="color: var(--primary); font-size: 14px; margin-bottom: 8px;">Pending Approval</h3>';
+    html += '<div id="pendingItemsSection"><p style="color: #888; font-size: 12px;">Loading pending items...</p></div>';
+    html += '<hr style="border-color: #444; margin: 16px 0;">';
+  }
+
+  // Browse community button
+  html += `
+    <div style="text-align: center; padding: 16px 0;">
+      <p style="color: #888; margin-bottom: 12px;">Discover panels and processors shared by the community</p>
+      <button class="btn-primary" onclick="openCommunityBrowserModal()">Browse Community Library</button>
+    </div>
+  `;
+
+  content.innerHTML = html;
+
+  // Load pending items for admin
+  if(typeof isAdmin === 'function' && isAdmin()) {
+    loadPendingItems();
+  }
+}
+
+async function loadPendingItems() {
+  const section = document.getElementById('pendingItemsSection');
+  if(!section) return;
+
+  let html = '';
+
+  try {
+    const pendingPanels = typeof fetchPendingPanels === 'function' ? await fetchPendingPanels() : [];
+    const pendingProcessors = typeof fetchPendingProcessors === 'function' ? await fetchPendingProcessors() : [];
+
+    if(pendingPanels.length === 0 && pendingProcessors.length === 0) {
+      html = '<p style="color: #888; font-size: 12px;">No items pending approval</p>';
+    } else {
+      html = '<div class="custom-item-list" style="max-height: 150px;">';
+
+      pendingPanels.forEach(panel => {
+        const data = panel.panel_data || {};
+        html += `
+          <div class="custom-item pending-item">
+            <div class="custom-item-name">
+              <span class="pending-badge">Panel</span>
+              ${escapeHtml(data.brand || '')} ${escapeHtml(data.name || panel.panel_key)}
+            </div>
+            <div class="custom-item-actions">
+              <button class="btn-small test" onclick="handleTestPendingPanel('${panel.id}')">Test</button>
+              <button class="btn-small approve" onclick="handleApprovePanel('${panel.id}')">Approve</button>
+              <button class="btn-small danger" onclick="handleRejectPanel('${panel.id}')">Reject</button>
+            </div>
+          </div>
+        `;
+      });
+
+      pendingProcessors.forEach(proc => {
+        const data = proc.processor_data || {};
+        html += `
+          <div class="custom-item pending-item">
+            <div class="custom-item-name">
+              <span class="pending-badge">Processor</span>
+              ${escapeHtml(data.name || proc.processor_key)}
+            </div>
+            <div class="custom-item-actions">
+              <button class="btn-small test" onclick="handleTestPendingProcessor('${proc.id}')">Test</button>
+              <button class="btn-small approve" onclick="handleApproveProcessor('${proc.id}')">Approve</button>
+              <button class="btn-small danger" onclick="handleRejectProcessor('${proc.id}')">Reject</button>
+            </div>
+          </div>
+        `;
+      });
+
+      html += '</div>';
+    }
+  } catch(err) {
+    console.error('Load pending items error:', err);
+    html = '<p style="color: #ff6b6b; font-size: 12px;">Error loading pending items</p>';
+  }
+
+  section.innerHTML = html;
+}
+
+async function handleApprovePanel(panelId) {
+  try {
+    console.log('Approving panel:', panelId);
+    await approveCommunityPanel(panelId);
+    console.log('Panel approved successfully');
+    showAlert('Panel approved!');
+    loadPendingItems();
+  } catch(err) {
+    console.error('Approve panel error:', err);
+    showAlert('Error: ' + err.message);
+  }
+}
+
+async function handleRejectPanel(panelId) {
+  if(await showConfirm('Reject this panel?')) {
+    try {
+      await rejectCommunityPanel(panelId);
+      showAlert('Panel rejected');
+      loadPendingItems();
+    } catch(err) {
+      showAlert('Error: ' + err.message);
+    }
+  }
+}
+
+async function handleApproveProcessor(processorId) {
+  try {
+    await approveCommunityProcessor(processorId);
+    showAlert('Processor approved!');
+    loadPendingItems();
+  } catch(err) {
+    showAlert('Error: ' + err.message);
+  }
+}
+
+async function handleRejectProcessor(processorId) {
+  if(await showConfirm('Reject this processor?')) {
+    try {
+      await rejectCommunityProcessor(processorId);
+      showAlert('Processor rejected');
+      loadPendingItems();
+    } catch(err) {
+      showAlert('Error: ' + err.message);
+    }
+  }
+}
+
+// Store pending items for test functionality
+let cachedPendingPanels = [];
+let cachedPendingProcessors = [];
+
+async function handleTestPendingPanel(panelId) {
+  try {
+    // Fetch pending panels if not cached
+    if(cachedPendingPanels.length === 0) {
+      cachedPendingPanels = typeof fetchPendingPanels === 'function' ? await fetchPendingPanels() : [];
+    }
+
+    const panel = cachedPendingPanels.find(p => p.id === panelId);
+    if(!panel) {
+      showAlert('Panel not found');
+      return;
+    }
+
+    // Temporarily add to local customPanels for testing
+    const panelData = {
+      ...panel.panel_data,
+      is_test: true,
+      pending_id: panel.id
+    };
+
+    const testKey = `__TEST_${panel.panel_key}`;
+    customPanels[testKey] = panelData;
+    saveCustomPanels();
+    updatePanelDropdowns();
+
+    // Select the test panel
+    const panelSelect = document.getElementById('panelType');
+    if(panelSelect) {
+      panelSelect.value = testKey;
+      panelSelect.dispatchEvent(new Event('change'));
+    }
+
+    closeManageCustomModal();
+    showAlert('Panel added for testing. Select it from the dropdown to try it out. Remove it from Manage Custom Items when done.');
+  } catch(err) {
+    console.error('Test panel error:', err);
+    showAlert('Error: ' + err.message);
+  }
+}
+
+async function handleTestPendingProcessor(processorId) {
+  try {
+    // Fetch pending processors if not cached
+    if(cachedPendingProcessors.length === 0) {
+      cachedPendingProcessors = typeof fetchPendingProcessors === 'function' ? await fetchPendingProcessors() : [];
+    }
+
+    const processor = cachedPendingProcessors.find(p => p.id === processorId);
+    if(!processor) {
+      showAlert('Processor not found');
+      return;
+    }
+
+    // Temporarily add to local customProcessors for testing
+    const processorData = {
+      ...processor.processor_data,
+      is_test: true,
+      pending_id: processor.id
+    };
+
+    const testKey = `__TEST_${processor.processor_key}`;
+    customProcessors[testKey] = processorData;
+    saveCustomProcessors();
+    updateProcessorDropdowns();
+
+    // Select the test processor
+    const processorSelect = document.getElementById('processor');
+    if(processorSelect) {
+      processorSelect.value = testKey;
+      processorSelect.dispatchEvent(new Event('change'));
+    }
+
+    closeManageCustomModal();
+    showAlert('Processor added for testing. Select it from the dropdown to try it out. Remove it from Manage Custom Items when done.');
+  } catch(err) {
+    console.error('Test processor error:', err);
+    showAlert('Error: ' + err.message);
+  }
+}
+
+// ==================== COMMUNITY BROWSER MODAL ====================
+
+function openCommunityBrowserModal() {
+  const modal = document.getElementById('communityBrowserModal');
+  if(!modal) return;
+
+  modal.classList.add('active');
+  switchCommunityTab('panels');
+}
+
+function closeCommunityBrowserModal() {
+  const modal = document.getElementById('communityBrowserModal');
+  if(modal) {
+    modal.classList.remove('active');
+  }
+}
+
+function switchCommunityTab(tabName) {
+  const panelsBtn = document.getElementById('communityTabPanelsBtn');
+  const processorsBtn = document.getElementById('communityTabProcessorsBtn');
+  const panelsContent = document.getElementById('communityPanelsContent');
+  const processorsContent = document.getElementById('communityProcessorsContent');
+
+  panelsBtn.classList.remove('active');
+  processorsBtn.classList.remove('active');
+  panelsContent.style.display = 'none';
+  processorsContent.style.display = 'none';
+
+  if(tabName === 'panels') {
+    panelsBtn.classList.add('active');
+    panelsContent.style.display = 'block';
+    loadCommunityPanels();
+  } else {
+    processorsBtn.classList.add('active');
+    processorsContent.style.display = 'block';
+    loadCommunityProcessors();
+  }
+}
+
+async function loadCommunityPanels() {
+  const content = document.getElementById('communityPanelsContent');
+  if(!content) return;
+
+  content.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">Loading...</p>';
+
+  try {
+    const panels = typeof fetchCommunityPanels === 'function' ? await fetchCommunityPanels() : [];
+
+    if(panels.length === 0) {
+      content.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">No community panels available yet. Be the first to share!</p>';
+      return;
+    }
+
+    let html = '<div class="community-item-list">';
+    panels.forEach(panel => {
+      const data = panel.panel_data || {};
+      html += `
+        <div class="community-item">
+          <div class="community-item-info">
+            <div class="community-item-name">${escapeHtml(data.brand || '')} ${escapeHtml(data.name || panel.panel_key)}</div>
+            <div class="community-item-meta">
+              <span class="download-count">${panel.download_count || 0} downloads</span>
+            </div>
+          </div>
+          <button class="btn-small community-download-btn" onclick="handleDownloadCommunityPanel('${panel.id}')">
+            Add to Library
+          </button>
+        </div>
+      `;
+    });
+    html += '</div>';
+
+    content.innerHTML = html;
+  } catch(err) {
+    console.error('Load community panels error:', err);
+    content.innerHTML = '<p style="color: #ff6b6b; text-align: center; padding: 20px;">Error loading community panels</p>';
+  }
+}
+
+async function loadCommunityProcessors() {
+  const content = document.getElementById('communityProcessorsContent');
+  if(!content) return;
+
+  content.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">Loading...</p>';
+
+  try {
+    const processors = typeof fetchCommunityProcessors === 'function' ? await fetchCommunityProcessors() : [];
+
+    if(processors.length === 0) {
+      content.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">No community processors available yet. Be the first to share!</p>';
+      return;
+    }
+
+    let html = '<div class="community-item-list">';
+    processors.forEach(proc => {
+      const data = proc.processor_data || {};
+      html += `
+        <div class="community-item">
+          <div class="community-item-info">
+            <div class="community-item-name">${escapeHtml(data.name || proc.processor_key)}</div>
+            <div class="community-item-meta">
+              <span class="download-count">${proc.download_count || 0} downloads</span>
+            </div>
+          </div>
+          <button class="btn-small community-download-btn" onclick="handleDownloadCommunityProcessor('${proc.id}')">
+            Add to Library
+          </button>
+        </div>
+      `;
+    });
+    html += '</div>';
+
+    content.innerHTML = html;
+  } catch(err) {
+    console.error('Load community processors error:', err);
+    content.innerHTML = '<p style="color: #ff6b6b; text-align: center; padding: 20px;">Error loading community processors</p>';
+  }
+}
+
+// Store fetched community items for download reference
+let cachedCommunityPanels = [];
+let cachedCommunityProcessors = [];
+
+async function handleDownloadCommunityPanel(panelId) {
+  if(!isAuthenticated || !isAuthenticated()) {
+    showAlert('Please sign in to download community items');
+    return;
+  }
+
+  try {
+    // Fetch the panel data
+    const panels = typeof fetchCommunityPanels === 'function' ? await fetchCommunityPanels() : [];
+    const panel = panels.find(p => p.id === panelId);
+
+    if(!panel) {
+      showAlert('Panel not found');
+      return;
+    }
+
+    await downloadCommunityPanel(panel);
+    showAlert('Panel added to your library!');
+    closeCommunityBrowserModal();
+  } catch(err) {
+    console.error('Download panel error:', err);
+    showAlert('Error: ' + err.message);
+  }
+}
+
+async function handleDownloadCommunityProcessor(processorId) {
+  if(!isAuthenticated || !isAuthenticated()) {
+    showAlert('Please sign in to download community items');
+    return;
+  }
+
+  try {
+    // Fetch the processor data
+    const processors = typeof fetchCommunityProcessors === 'function' ? await fetchCommunityProcessors() : [];
+    const processor = processors.find(p => p.id === processorId);
+
+    if(!processor) {
+      showAlert('Processor not found');
+      return;
+    }
+
+    await downloadCommunityProcessor(processor);
+    showAlert('Processor added to your library!');
+    closeCommunityBrowserModal();
+  } catch(err) {
+    console.error('Download processor error:', err);
+    showAlert('Error: ' + err.message);
+  }
+}
+
+// ==================== SHARE TO COMMUNITY ====================
+
+async function shareCustomPanelToCommunity() {
+  const modal = document.getElementById('customPanelModal');
+  const editKey = modal.dataset.editKey;
+
+  if(!editKey || !customPanels[editKey]) {
+    showAlert('Please save the panel first before sharing');
+    return;
+  }
+
+  if(!isAuthenticated || !isAuthenticated()) {
+    showAlert('Please sign in to share to the community');
+    return;
+  }
+
+  const panel = customPanels[editKey];
+
+  // Check if already shared
+  if(panel.is_community || panel.community_id) {
+    showAlert('This panel is already from the community library');
+    return;
+  }
+
+  if(await showConfirm(`Share "${panel.brand} ${panel.name}" to the community library?\n\nYour panel will be submitted for approval before appearing publicly.`)) {
+    try {
+      await submitPanelToCommunity(editKey, panel);
+      showAlert('Panel submitted for community approval!');
+      closeCustomPanelModal();
+    } catch(err) {
+      console.error('Share panel error:', err);
+      showAlert('Error: ' + err.message);
+    }
+  }
+}
+
+function updateSharePanelButton(editKey) {
+  const shareBtn = document.getElementById('sharePanelBtn');
+  if(!shareBtn) return;
+
+  // Show button only if:
+  // 1. User is logged in
+  // 2. Editing an existing custom panel
+  // 3. Panel is not already from community
+  if(isAuthenticated && isAuthenticated() && editKey && customPanels[editKey]) {
+    const panel = customPanels[editKey];
+    if(!panel.is_community && !panel.community_id) {
+      shareBtn.style.display = '';
+      return;
+    }
+  }
+
+  shareBtn.style.display = 'none';
 }
 
 // Setup removable frame checkbox listener

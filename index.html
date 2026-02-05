@@ -80,10 +80,11 @@
       </button>
     </div>
 
-    <button class="welcome-btn-signin" onclick="showAlert('Sign in coming soon!')">
+    <button class="welcome-btn-signin" onclick="openAuthModal('signin')">
       <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">login</span>
       Sign In
     </button>
+    <p class="welcome-signin-desc">Sign in for device sync and community sharing</p>
 
     <button class="welcome-btn-help" onclick="openHelpModal()">
       <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">help_outline</span>
@@ -493,8 +494,9 @@
       </div>
 
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" style="gap: 8px;">
       <button class="btn-secondary" onclick="closeCustomPanelModal()">Cancel</button>
+      <button class="btn-secondary" id="sharePanelBtn" onclick="shareCustomPanelToCommunity()" style="display: none;">Share to Community</button>
       <button class="btn-primary" onclick="saveCustomPanel()">Save Panel</button>
     </div>
   </div>
@@ -590,8 +592,9 @@
         </label>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" style="gap: 8px;">
       <button class="btn-secondary" onclick="closeCustomProcessorModal()">Cancel</button>
+      <button class="btn-secondary" id="shareProcessorBtn" onclick="shareCustomProcessorToCommunity()" style="display: none;">Share to Community</button>
       <button class="btn-primary" onclick="saveCustomProcessor()">Save Processor</button>
     </div>
   </div>
@@ -739,12 +742,39 @@
       <div class="slider-toggle" style="margin-bottom: 12px;">
         <button type="button" class="slider-toggle-btn active" id="manageTabPanelsBtn" onclick="switchManageTab('panels')" style="padding: 8px 16px;">Panels</button>
         <button type="button" class="slider-toggle-btn" id="manageTabProcessorsBtn" onclick="switchManageTab('processors')" style="padding: 8px 16px;">Processors</button>
+        <button type="button" class="slider-toggle-btn" id="manageTabCommunityBtn" onclick="switchManageTab('community')" style="padding: 8px 16px;">Community</button>
       </div>
       <div id="manageCustomPanelsContent" class="manage-tab-content"></div>
       <div id="manageCustomProcessorsContent" class="manage-tab-content" style="display: none;"></div>
+      <div id="manageCustomCommunityContent" class="manage-tab-content" style="display: none;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn-primary" onclick="closeManageCustomModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Community Browser Modal -->
+<div id="communityBrowserModal" class="modal-overlay">
+  <div class="modal-dialog" style="max-width: 500px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Community Library</h2>
+      <button class="modal-close" onclick="closeCommunityBrowserModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="slider-toggle" style="margin-bottom: 12px;">
+        <button type="button" class="slider-toggle-btn active" id="communityTabPanelsBtn" onclick="switchCommunityTab('panels')" style="padding: 8px 16px;">Panels</button>
+        <button type="button" class="slider-toggle-btn" id="communityTabProcessorsBtn" onclick="switchCommunityTab('processors')" style="padding: 8px 16px;">Processors</button>
+      </div>
+      <div id="communityPanelsContent" class="community-tab-content">
+        <p style="color: #888; text-align: center; padding: 20px;">Loading...</p>
+      </div>
+      <div id="communityProcessorsContent" class="community-tab-content" style="display: none;">
+        <p style="color: #888; text-align: center; padding: 20px;">Loading...</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeCommunityBrowserModal()">Close</button>
     </div>
   </div>
 </div>
@@ -1649,6 +1679,9 @@
   </div>
 </div>
 
+<!-- Supabase Client (Cloud Sync & Auth) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous"></script>
 
@@ -1656,6 +1689,8 @@
 <script src="core/modals.js"></script>
 <script src="core/utils.js"></script>
 <script src="core/update.js"></script>
+<script src="core/supabase.js"></script>
+<script src="core/auth-ui.js"></script>
 
 <!-- LED Panel & Processor Specifications -->
 <script src="specs/panels.js"></script>
@@ -1710,7 +1745,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.7.4';
+const APP_VERSION = '2.7.5';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -1863,6 +1898,37 @@ let isLoadingScreenData = false; // Flag to prevent resetCalculator during scree
     </button>
   </div>
 </nav>
+
+<!-- Auth Modal -->
+<div id="authModal" class="modal-overlay">
+  <div class="modal-dialog auth-modal-dialog">
+    <div class="modal-header">
+      <h2 class="modal-title" id="authModalTitle">Sign In</h2>
+      <button class="modal-close" onclick="closeAuthModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="authTabs" class="auth-tabs">
+        <button id="authTabSignIn" class="auth-tab active" onclick="switchAuthMode('signin')">Sign In</button>
+        <button id="authTabSignUp" class="auth-tab" onclick="switchAuthMode('signup')">Sign Up</button>
+      </div>
+      <div id="authError" class="auth-error" style="display: none;"></div>
+      <div class="modal-input-group">
+        <label for="authEmail">Email</label>
+        <input type="email" id="authEmail" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <div class="modal-input-group">
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password">
+      </div>
+      <div id="authPasswordConfirmGroup" class="modal-input-group" style="display: none;">
+        <label for="authPasswordConfirm">Confirm Password</label>
+        <input type="password" id="authPasswordConfirm" placeholder="Confirm password" autocomplete="new-password">
+      </div>
+      <button id="authSubmitBtn" class="btn-primary auth-submit-btn" onclick="handleAuthSubmit()">Sign In</button>
+      <a id="authForgotLink" class="auth-forgot-link" onclick="switchAuthMode('reset')">Forgot password?</a>
+    </div>
+  </div>
+</div>
 
 <script src="interact/touch-gestures.js"></script>
 

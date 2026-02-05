@@ -98,7 +98,9 @@ function updateProcessorDropdowns() {
       customByBrand[brand].forEach(({key, proc}) => {
         const option = document.createElement('option');
         option.value = key;
-        option.textContent = proc.name;
+        // Add star indicator for community-sourced processors
+        const communityBadge = (proc.is_community || proc.community_id) ? ' ★' : '';
+        option.textContent = proc.name + communityBadge;
         brandGroup.appendChild(option);
       });
       processorSelect.appendChild(brandGroup);
@@ -167,6 +169,7 @@ function openCustomProcessorModal(editKey = null) {
 
   updateProcessorPortLabel();
   modal.classList.add('active');
+  updateShareProcessorButton(editKey);
 }
 
 function closeCustomProcessorModal() {
@@ -246,6 +249,11 @@ function saveCustomProcessor() {
   customProcessors[key] = processorObj;
   saveCustomProcessors();
   updateProcessorDropdowns();
+
+  // Sync to cloud if logged in
+  if(typeof upsertCustomProcessor === 'function' && typeof isAuthenticated === 'function' && isAuthenticated()) {
+    upsertCustomProcessor(key, processorObj).catch(err => console.error('Cloud sync error:', err));
+  }
 
   // Select the new/edited processor
   const processorSelect = document.getElementById('processor');
@@ -391,6 +399,63 @@ async function deleteCustomProcessor(key) {
     delete customProcessors[key];
     saveCustomProcessors();
     updateProcessorDropdowns();
-    closeManageCustomModal();
+    refreshManageCustomLists(); // Stay in modal, just refresh the lists
+
+    // Sync deletion to cloud if logged in
+    if(typeof deleteCustomProcessorFromCloud === 'function' && typeof isAuthenticated === 'function' && isAuthenticated()) {
+      deleteCustomProcessorFromCloud(key).catch(err => console.error('Cloud sync error:', err));
+    }
   }
+}
+
+// ==================== SHARE TO COMMUNITY ====================
+
+async function shareCustomProcessorToCommunity() {
+  if(!editingProcessorKey || !customProcessors[editingProcessorKey]) {
+    showAlert('Please save the processor first before sharing');
+    return;
+  }
+
+  if(!isAuthenticated || !isAuthenticated()) {
+    showAlert('Please sign in to share to the community');
+    return;
+  }
+
+  const proc = customProcessors[editingProcessorKey];
+
+  // Check if already shared
+  if(proc.is_community || proc.community_id) {
+    showAlert('This processor is already from the community library');
+    return;
+  }
+
+  if(await showConfirm(`Share "${proc.name}" to the community library?\n\nYour processor will be submitted for approval before appearing publicly.`)) {
+    try {
+      await submitProcessorToCommunity(editingProcessorKey, proc);
+      showAlert('Processor submitted for community approval!');
+      closeCustomProcessorModal();
+    } catch(err) {
+      console.error('Share processor error:', err);
+      showAlert('Error: ' + err.message);
+    }
+  }
+}
+
+function updateShareProcessorButton(editKey) {
+  const shareBtn = document.getElementById('shareProcessorBtn');
+  if(!shareBtn) return;
+
+  // Show button only if:
+  // 1. User is logged in
+  // 2. Editing an existing custom processor
+  // 3. Processor is not already from community
+  if(isAuthenticated && isAuthenticated() && editKey && customProcessors[editKey]) {
+    const proc = customProcessors[editKey];
+    if(!proc.is_community && !proc.community_id) {
+      shareBtn.style.display = '';
+      return;
+    }
+  }
+
+  shareBtn.style.display = 'none';
 }

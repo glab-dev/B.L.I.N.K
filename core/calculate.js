@@ -427,10 +427,7 @@ function resetCalculator() {
   // Hide pickup weight summary
   const pickupSummary = document.getElementById('pickupWeightSummary');
   if(pickupSummary) pickupSummary.style.display = 'none';
-  
-  // Update visibility of CB5-specific options
-  updateCB5HalfPanelVisibility();
-  
+
   // Update 4-way bumper visibility
   const fourWayOption = document.getElementById('fourWayBumperOption');
   const panelType = document.getElementById('panelType').value;

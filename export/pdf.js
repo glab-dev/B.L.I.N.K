@@ -550,7 +550,7 @@ function exportPDF(){
     pdf.setFontSize(16);
     pdf.setFont(undefined, 'bold');
     pdf.setTextColor(0, 0, 0);
-    pdf.text('LED Wall Calculator Report', margin, yOffset);
+    pdf.text('B.L.I.N.K. Report', margin, yOffset);
     
     // Add timestamp to the right of the title
     pdf.setFontSize(9);

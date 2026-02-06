@@ -1910,10 +1910,13 @@ canvas:focus {
 
 .community-download-btn {
   flex: 0 0 auto;
+  width: auto;
+  min-height: auto;
   white-space: nowrap;
   padding: 4px 8px !important;
   font-size: 11px !important;
   margin-left: 8px;
+  margin-bottom: 0;
   background: var(--primary) !important;
   color: #fff !important;
   text-shadow:

@@ -1889,6 +1889,7 @@ canvas:focus {
 
 .community-item-info {
   flex: 1;
+  min-width: 0;
 }
 
 .community-item-name {
@@ -1910,8 +1911,9 @@ canvas:focus {
 .community-download-btn {
   flex: 0 0 auto;
   white-space: nowrap;
-  padding: 4px 8px;
-  font-size: 11px;
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  margin-left: 8px;
   background: var(--primary) !important;
   color: #fff !important;
   text-shadow:

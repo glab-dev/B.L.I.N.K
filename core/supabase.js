@@ -54,6 +54,14 @@ function initSupabase() {
 
     // Check for existing session
     checkSession();
+
+    // Re-check session when app regains focus (PWA resuming from background)
+    document.addEventListener('visibilitychange', function() {
+      if(!document.hidden && supabaseClient) {
+        checkSession();
+      }
+    });
+
     console.log('Supabase initialized');
   } catch(err) {
     console.error('Supabase initialization error:', err);
@@ -183,18 +191,6 @@ function updateAuthUI() {
       welcomeSignInBtn.onclick = function() { openAuthModal('signin'); };
       // Show the description when signed out
       if(welcomeSignInDesc) welcomeSignInDesc.style.display = '';
-    }
-  }
-
-  // Update mobile header user button
-  const userBtn = document.getElementById('userMenuBtn');
-  if(userBtn) {
-    if(isAuthenticated()) {
-      userBtn.classList.add('logged-in');
-      userBtn.title = getUserEmail();
-    } else {
-      userBtn.classList.remove('logged-in');
-      userBtn.title = 'Sign In';
     }
   }
 

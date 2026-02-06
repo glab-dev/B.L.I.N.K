@@ -37,6 +37,11 @@ function showWelcomePage() {
   if(versionEl && typeof APP_VERSION !== 'undefined') {
     versionEl.textContent = 'v' + APP_VERSION;
   }
+
+  // Sync sign-in/sign-out button with current auth state
+  if(typeof updateAuthUI === 'function') {
+    updateAuthUI();
+  }
 }
 
 function hideWelcomePage() {

@@ -1764,7 +1764,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.8.6';
+const APP_VERSION = '2.8.7';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -1782,6 +1782,7 @@ let customDataLineAssignments = new Map(); // stores "col,row" -> data line numb
 let isDragging = false;
 let dragStartX = 0;
 let modalOpenedFromMenu = false; // Track if current modal came from hamburger menu
+let modalReturnTo = null; // Callback to invoke when current modal closes (modal-to-modal return)
 let isWelcomePageVisible = true; // Welcome page shown on initial load
 
 // Eco-friendly print mode - uses lighter colors and white backgrounds

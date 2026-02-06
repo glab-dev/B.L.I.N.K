@@ -2,6 +2,30 @@
 // Storage infrastructure for both custom panels and processors,
 // plus all custom panel CRUD, modals, and dropdown management.
 
+// ==================== MODAL NAVIGATION HELPERS ====================
+
+// Open a child modal from a parent modal with return navigation
+function openSubModal(parentModalId, parentOpenFn, childOpenFn) {
+  // Silently close parent (don't trigger menu reopen)
+  document.getElementById(parentModalId).classList.remove('active');
+  // Set return target to parent's open function
+  modalReturnTo = parentOpenFn;
+  // Open child modal
+  childOpenFn();
+}
+
+// Close a modal with return-to-parent or fall back to menu reopen
+function handleModalClose(modalId) {
+  document.getElementById(modalId).classList.remove('active');
+  if(modalReturnTo) {
+    var returnFn = modalReturnTo;
+    modalReturnTo = null;
+    returnFn();
+    return;
+  }
+  reopenMenuIfNeeded();
+}
+
 // Storage keys
 const STORAGE_KEY_CUSTOM_PANELS = 'ledcalc_custom_panels';
 const STORAGE_KEY_CUSTOM_PROCESSORS = 'ledcalc_custom_processors';
@@ -415,9 +439,7 @@ function updateSavePanelButton(editKey) {
 }
 
 function closeCustomPanelModal() {
-  const modal = document.getElementById('customPanelModal');
-  modal.classList.remove('active');
-  reopenMenuIfNeeded(); // Restore menu if modal came from menu
+  handleModalClose('customPanelModal');
 }
 
 function updateFrameWeightFields() {
@@ -664,7 +686,7 @@ function refreshManageCustomLists() {
         <div class="custom-item">
           <div class="custom-item-name">${escapeHtml(panel.brand)} ${escapeHtml(panel.name)}</div>
           <div class="custom-item-actions">
-            <button class="btn-small" onclick="openCustomPanelModal('${escapeJsString(key)}'); closeManageCustomModal();">Edit</button>
+            <button class="btn-small" onclick="openSubModal('manageCustomModal', openManageCustomModal, function(){ openCustomPanelModal('${escapeJsString(key)}'); });">Edit</button>
             <button class="btn-small danger" onclick="deleteCustomPanel('${escapeJsString(key)}')">Delete</button>
           </div>
         </div>
@@ -687,7 +709,7 @@ function refreshManageCustomLists() {
         <div class="custom-item">
           <div class="custom-item-name">${escapeHtml(proc.name)}</div>
           <div class="custom-item-actions">
-            <button class="btn-small" onclick="openCustomProcessorModal('${escapeJsString(key)}'); closeManageCustomModal();">Edit</button>
+            <button class="btn-small" onclick="openSubModal('manageCustomModal', openManageCustomModal, function(){ openCustomProcessorModal('${escapeJsString(key)}'); });">Edit</button>
             <button class="btn-small danger" onclick="deleteCustomProcessor('${escapeJsString(key)}')">Delete</button>
           </div>
         </div>
@@ -710,9 +732,7 @@ function openManageCustomModal() {
 }
 
 function closeManageCustomModal() {
-  const modal = document.getElementById('manageCustomModal');
-  modal.classList.remove('active');
-  reopenMenuIfNeeded(); // Restore menu if modal came from menu
+  handleModalClose('manageCustomModal');
 }
 
 // ==================== COMMUNITY TAB & BROWSER ====================

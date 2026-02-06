@@ -187,9 +187,7 @@ function updateSaveProcessorButton(editKey) {
 }
 
 function closeCustomProcessorModal() {
-  const modal = document.getElementById('customProcessorModal');
-  modal.classList.remove('active');
-  reopenMenuIfNeeded();
+  handleModalClose('customProcessorModal');
 }
 
 function setCustomProcessorDistBox(enabled) {
@@ -364,9 +362,7 @@ function openProcessorRequestModal() {
 }
 
 function closeRequestItemModal() {
-  const modal = document.getElementById('requestItemModal');
-  modal.classList.remove('active');
-  reopenMenuIfNeeded(); // Restore menu if modal came from menu
+  handleModalClose('requestItemModal');
 }
 
 function sendItemRequest() {

@@ -2845,7 +2845,6 @@ canvas:focus {
 
 /* Desktop-only sections — hidden on mobile */
 .welcome-features { display: none; }
-.welcome-whats-new { display: none; }
 .welcome-faq { display: none; }
 
 /* Footer */
@@ -3073,35 +3072,6 @@ canvas:focus {
     font-size: 11px;
     color: var(--muted-color);
     line-height: 1.4;
-  }
-
-  /* Quick Stats Strip */
-  /* What's New Badge */
-  .welcome-whats-new {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 20px;
-  }
-
-  .welcome-whats-new-badge {
-    font-family: 'Roboto Condensed', sans-serif;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    background: none;
-    color: var(--primary);
-    padding: 0;
-    border: none;
-    box-shadow: none;
-  }
-
-  .welcome-whats-new-text {
-    font-family: 'Roboto Condensed', sans-serif;
-    font-size: 12px;
-    color: var(--muted-color);
   }
 
   /* FAQ Section */

@@ -135,13 +135,6 @@
       </div>
     </div>
 
-    <!-- Quick Stats Strip (desktop only via CSS) -->
-    <!-- What's New Badge (desktop only via CSS) -->
-    <div class="welcome-whats-new">
-      <span class="welcome-whats-new-badge">NEW</span>
-      <span class="welcome-whats-new-text" id="welcomeWhatsNewText"></span>
-    </div>
-
     <!-- FAQ Section (desktop only via CSS) -->
     <div class="welcome-faq">
       <h3 class="welcome-faq-title">FAQ</h3>
@@ -176,7 +169,7 @@
         <button class="welcome-footer-link" onclick="window.location.href='mailto:info@blink-led.com'">Contact</button>
       </div>
       <div class="welcome-footer-meta">
-        <span id="welcomeVersionNumber"></span>
+        <span id="welcomeVersionLine"></span>
         <span>&copy; 2025 Gabriel Labrecque &bull; Fearless Wanderer Productions</span>
       </div>
     </div>
@@ -1882,7 +1875,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.8.11';
+const APP_VERSION = '2.8.12';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

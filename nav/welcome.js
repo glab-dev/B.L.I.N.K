@@ -32,26 +32,30 @@ function showWelcomePage() {
 
   document.body.style.overflow = 'hidden';
 
-  // Set version number
-  var versionEl = document.getElementById('welcomeVersionNumber');
-  if(versionEl && typeof APP_VERSION !== 'undefined') {
-    versionEl.textContent = 'v' + APP_VERSION;
+  // Set version line (show NEW badge if user hasn't seen this version yet)
+  var versionLine = document.getElementById('welcomeVersionLine');
+  if(versionLine && typeof APP_VERSION !== 'undefined') {
+    var lastSeen = localStorage.getItem('lastSeenWelcomeVersion');
+    if(lastSeen !== APP_VERSION) {
+      versionLine.innerHTML = '<span style="color: var(--primary); font-weight: 700; letter-spacing: 1px;">NEW</span>&nbsp;&nbsp;v' + APP_VERSION + ' \u2014 Welcome page redesign';
+    } else {
+      versionLine.textContent = 'v' + APP_VERSION;
+    }
   }
 
   // Sync sign-in/sign-out button with current auth state
   if(typeof updateAuthUI === 'function') {
     updateAuthUI();
   }
-
-  // Set "What's New" text
-  var whatsNewText = document.getElementById('welcomeWhatsNewText');
-  if(whatsNewText && typeof APP_VERSION !== 'undefined') {
-    whatsNewText.textContent = 'v' + APP_VERSION + ' \u2014 Welcome page redesign';
-  }
 }
 
 function hideWelcomePage() {
   isWelcomePageVisible = false;
+
+  // Mark version as seen so NEW badge won't show again for this version
+  if(typeof APP_VERSION !== 'undefined') {
+    localStorage.setItem('lastSeenWelcomeVersion', APP_VERSION);
+  }
 
   var welcomePage = document.getElementById('welcomePage');
   var header = document.querySelector('.mobile-header');

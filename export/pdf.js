@@ -510,7 +510,7 @@ function exportPDF(){
     overlay.innerHTML = `
       <div style="font-size: 24px; margin-bottom: 20px;">Generating PDF...</div>
       <div id="pdfProgress" style="font-size: 16px; color: #888;">Preparing...</div>
-      <div style="width: 200px; height: 4px; background: #333; border-radius: 2px; margin-top: 20px; overflow: hidden;">
+      <div style="width: 200px; height: 4px; background: #2a2a2a; border-radius: 2px; margin-top: 20px; overflow: hidden;">
         <div id="pdfProgressBar" style="width: 0%; height: 100%; background: #4CAF50; transition: width 0.3s;"></div>
       </div>
     `;

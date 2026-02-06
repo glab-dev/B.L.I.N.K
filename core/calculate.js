@@ -809,7 +809,7 @@ function calculate(){
   let html = '';
 
   // Add Specs header at the top of results (positioned to sit on the top border)
-  html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid var(--primary); padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--primary); transform: rotate(-2deg);">Specs</div>`;
+  html += `<div style="position: absolute; top: -16px; left: 16px; background: #1a1a1a; border: 1px solid var(--primary); padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--primary); transform: rotate(-2deg);">Specs</div>`;
 
   // Get unit labels for display
   const lenUnit = getLengthUnitLabel();

@@ -3,6 +3,7 @@
 // Must load before specs/custom-panels.js which calls showAlert/showConfirm.
 
 let _customAlertResolve = null;
+let _customAlertIsPrompt = false;
 
 function showAlert(message, title) {
   return new Promise(resolve => {
@@ -26,12 +27,37 @@ function showConfirm(message, title) {
   });
 }
 
+function showPrompt(message, defaultValue, title) {
+  return new Promise(resolve => {
+    _customAlertResolve = resolve;
+    _customAlertIsPrompt = true;
+    document.getElementById('customAlertTitle').textContent = title || 'Input';
+    document.getElementById('customAlertMessage').textContent = message;
+    const input = document.getElementById('customAlertInput');
+    input.style.display = '';
+    input.value = defaultValue || '';
+    document.getElementById('customAlertCancelBtn').style.display = '';
+    document.getElementById('customAlertOkBtn').textContent = 'OK';
+    document.getElementById('customAlertModal').classList.add('active');
+    setTimeout(() => { input.focus(); input.select(); }, 50);
+  });
+}
+
 function closeCustomAlert(result) {
-  document.getElementById('customAlertModal').classList.remove('active');
+  const input = document.getElementById('customAlertInput');
+  const modal = document.getElementById('customAlertModal');
+  modal.classList.remove('active');
   if (_customAlertResolve) {
-    _customAlertResolve(result !== false && result !== undefined ? true : false);
+    if (_customAlertIsPrompt) {
+      _customAlertResolve(result === false ? null : input.value);
+    } else {
+      _customAlertResolve(result !== false && result !== undefined ? true : false);
+    }
     _customAlertResolve = null;
   }
+  _customAlertIsPrompt = false;
+  input.style.display = 'none';
+  input.value = '';
 }
 
 // Show a sign-in prompt with a Sign In button

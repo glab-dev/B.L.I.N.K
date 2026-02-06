@@ -11,10 +11,10 @@
   --primary: #10b981;
   --primary-hover: #059669;
   --accent-color: #10b981;
-  --bg-color: #111827;
+  --bg-color: #121212;
   --comic-dark: #1a1a1a;
-  --comic-panel: #262626;
-  --card-bg: #262626;
+  --comic-panel: #1e1e1e;
+  --card-bg: #1e1e1e;
   --border-color: #000000;
   --text-color: #e0e0e0;
   --muted-color: #9ca3af;
@@ -38,6 +38,31 @@ body {
   position: relative;
 }
 
+/* Dark scrollbars — WebKit (Chrome/Safari/Edge) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #121212;
+}
+::-webkit-scrollbar-thumb {
+  background: #383838;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
+}
+::-webkit-scrollbar-corner {
+  background: #121212;
+}
+
+/* Dark scrollbars — Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #383838 #121212;
+}
+
 /* Halftone pattern overlay */
 body::before {
   content: '';
@@ -46,7 +71,7 @@ body::before {
   pointer-events: none;
   z-index: 0;
   opacity: 0.15;
-  background-image: radial-gradient(circle, #333 1px, transparent 1px);
+  background-image: radial-gradient(circle, #2a2a2a 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
@@ -261,7 +286,7 @@ body::after {
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
   border: 2px solid #000;
-  background: #333;
+  background: #2a2a2a;
   border-radius: 4px;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
   transition: all 0.1s;
@@ -269,7 +294,7 @@ body::after {
 }
 
 .nav-item:hover {
-  background: #444;
+  background: #383838;
 }
 
 .nav-item:active {
@@ -295,7 +320,7 @@ body::after {
   border-radius: 4px;
   overflow: hidden;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
-  background: #333;
+  background: #2a2a2a;
 }
 
 .nav-toggle-btn {
@@ -304,7 +329,7 @@ body::after {
   align-items: center;
   justify-content: center;
   padding: 8px 4px;
-  background: #333;
+  background: #2a2a2a;
   color: var(--primary);
   border: none;
   border-right: 2px solid #000;
@@ -322,7 +347,7 @@ body::after {
 }
 
 .nav-toggle-btn:hover {
-  background: #444;
+  background: #383838;
 }
 
 .nav-toggle-btn.active {
@@ -350,7 +375,7 @@ body::after {
 .layouts-toggle-container {
   position: sticky;
   top: calc(var(--header-height) + var(--safe-area-top));
-  background: #222;
+  background: #1a1a1a;
   padding: 12px;
   z-index: 100;
   border-bottom: 4px solid #000;
@@ -388,7 +413,7 @@ h1 {
   border: none;
   padding: 0;
   border-radius: 2px;
-  background: #222;
+  background: #1a1a1a;
   border: 4px solid #000;
   border-top: 0;
   position: relative;
@@ -421,7 +446,7 @@ h1 {
   position: absolute;
   top: -16px;
   left: 16px;
-  background: #222;
+  background: #1a1a1a;
   border: 1px solid var(--primary);
   padding: 4px 10px;
   margin: 0;
@@ -488,7 +513,7 @@ input[type="number"], input[type="text"], select {
   padding: 12px 14px;
   font-size: 16px; /* Prevents iOS zoom on focus */
   font-family: 'Roboto Condensed', sans-serif;
-  background: #333;
+  background: #2a2a2a;
   color: #fff;
   border: 2px solid #000;
   border-radius: 0;
@@ -829,7 +854,7 @@ canvas:focus {
   position: absolute;
   top: -16px;
   left: 16px;
-  background: #222;
+  background: #1a1a1a;
   border: 1px solid var(--primary);
   padding: 4px 10px;
   padding-right: 32px;
@@ -859,7 +884,7 @@ canvas:focus {
   padding: 6px 12px;
   font-size: 11px;
   font-family: 'Roboto Condensed', sans-serif;
-  background: #333;
+  background: #2a2a2a;
   color: #e0e0e0;
   border: 2px solid #000;
   border-radius: 0;
@@ -870,7 +895,7 @@ canvas:focus {
 }
 
 .undo-redo-btn:hover:not(:disabled) {
-  background: #444;
+  background: #383838;
   color: var(--primary);
 }
 
@@ -952,7 +977,7 @@ canvas:focus {
   font-size: 14px;
   font-weight: bold;
   font-family: 'Roboto Condensed', sans-serif;
-  background: #333;
+  background: #2a2a2a;
   color: #e0e0e0;
   border: 2px solid #000;
   border-radius: 0;
@@ -964,7 +989,7 @@ canvas:focus {
 }
 
 .zoom-btn:hover {
-  background: #444;
+  background: #383838;
   color: var(--primary);
 }
 
@@ -978,7 +1003,7 @@ canvas:focus {
   padding: 6px;
   font-size: 12px;
   text-align: center;
-  background: #333;
+  background: #2a2a2a;
   color: #fff;
   border: 2px solid #000;
   border-radius: 0;
@@ -1012,7 +1037,7 @@ canvas:focus {
 .secondary-button {
   width: 100%;
   padding: 10px;
-  background: #333;
+  background: #2a2a2a;
   color: var(--primary);
   border: 2px solid #000;
   border-radius: 0;
@@ -1028,7 +1053,7 @@ canvas:focus {
 }
 
 .secondary-button:hover {
-  background: #444;
+  background: #383838;
 }
 
 .secondary-button:active {
@@ -1064,7 +1089,7 @@ canvas:focus {
 .bumper-controls {
   margin-top: 10px;
   padding: 10px;
-  background: #333;
+  background: #2a2a2a;
   border-radius: 4px;
 }
 
@@ -1089,7 +1114,7 @@ canvas:focus {
 
 .weight-item {
   padding: 4px 0;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #2a2a2a;
 }
 
 .weight-item:last-child {
@@ -1103,7 +1128,7 @@ canvas:focus {
   gap: 10px;
   margin-bottom: 12px;
   padding: 8px 12px;
-  background: #333;
+  background: #2a2a2a;
   border-radius: 6px;
 }
 
@@ -1171,7 +1196,7 @@ canvas:focus {
   position: absolute;
   top: -16px;
   left: 16px;
-  background: #222;
+  background: #1a1a1a;
   padding: 4px 10px;
   margin: 0;
   font-family: 'Bangers', cursive;
@@ -1197,7 +1222,7 @@ canvas:focus {
   display: flex;
   justify-content: space-between;
   padding: 4px 0;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #2a2a2a;
 }
 
 .weight-row:last-child {
@@ -1264,7 +1289,7 @@ canvas:focus {
   font-size: 13px;
   font-family: 'Roboto Condensed', sans-serif;
   font-weight: 700;
-  background: #333;
+  background: #2a2a2a;
   color: #9ca3af;
   border: 2px solid #000;
   border-radius: 0;
@@ -1283,7 +1308,7 @@ canvas:focus {
 
 .toggle-btn:hover, .unit-toggle-btn:hover {
   color: var(--primary);
-  background: #444;
+  background: #383838;
 }
 
 /* Slider toggle (merged toggle buttons) */
@@ -1291,7 +1316,7 @@ canvas:focus {
   display: flex;
   border: 2px solid #000;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
-  background: #333;
+  background: #2a2a2a;
 }
 
 .slider-toggle-btn {
@@ -1346,7 +1371,7 @@ canvas:focus {
 }
 
 .slider-toggle-btn:hover:not(.active) {
-  background: #444;
+  background: #383838;
   color: var(--primary);
 }
 
@@ -1355,7 +1380,7 @@ canvas:focus {
   display: flex;
   border: 2px solid #000;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
-  background: #333;
+  background: #2a2a2a;
 }
 
 .number-input-with-arrows input {
@@ -1382,7 +1407,7 @@ canvas:focus {
   display: flex;
   flex-direction: column;
   border-left: 2px solid #000;
-  background: #222;
+  background: #1a1a1a;
   width: 28px;
 }
 
@@ -1410,11 +1435,11 @@ canvas:focus {
 }
 
 .number-input-arrows button:hover {
-  background: #333;
+  background: #2a2a2a;
 }
 
 .number-input-arrows button:active {
-  background: #444;
+  background: #383838;
   transform: none;
 }
 
@@ -1549,20 +1574,23 @@ canvas:focus {
 
 .modal-body {
   margin-bottom: 12px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: calc(90vh - 120px);
 }
 
 .manage-custom-tabs {
   display: flex;
   gap: 4px;
   margin-bottom: 12px;
-  border-bottom: 2px solid #444;
+  border-bottom: 2px solid #383838;
   padding-bottom: 8px;
 }
 
 .manage-tab {
   flex: 1;
   padding: 8px 12px;
-  background: #333;
+  background: #2a2a2a;
   border: 2px solid #000;
   color: #888;
   font-family: 'Roboto Condensed', sans-serif;
@@ -1579,7 +1607,7 @@ canvas:focus {
 }
 
 .manage-tab:hover:not(.active) {
-  background: #444;
+  background: #383838;
   color: var(--primary);
 }
 
@@ -1592,7 +1620,7 @@ canvas:focus {
   justify-content: flex-end;
   gap: 8px;
   padding-top: 10px;
-  border-top: 1px solid #444;
+  border-top: 1px solid #383838;
 }
 
 /* Ensure modal footer buttons stay side-by-side on mobile */
@@ -1621,7 +1649,7 @@ canvas:focus {
   padding: 12px 14px;
   font-size: 16px;
   font-family: 'Roboto Condensed', sans-serif;
-  background: #333;
+  background: #2a2a2a;
   color: #fff;
   border: 2px solid #000;
   border-radius: 0;
@@ -1660,7 +1688,7 @@ canvas:focus {
   justify-content: space-between;
   padding: 10px 0;
   margin-bottom: 8px;
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid #383838;
 }
 
 .cp-toggle-row label.cp-toggle-label {
@@ -1777,7 +1805,7 @@ canvas:focus {
 }
 
 .btn-secondary {
-  background: #333;
+  background: #2a2a2a;
   color: #e0e0e0;
   border: 2px solid #000;
   padding: 8px 16px;
@@ -1795,7 +1823,7 @@ canvas:focus {
 }
 
 .btn-secondary:hover {
-  background: #444;
+  background: #383838;
   color: var(--primary);
 }
 
@@ -1847,7 +1875,7 @@ canvas:focus {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #2a2a2a;
+  background: #242424;
   border: 2px solid #000;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
   margin-bottom: 8px;
@@ -1858,7 +1886,7 @@ canvas:focus {
 }
 
 .custom-item:hover {
-  background: #333;
+  background: #2a2a2a;
   color: var(--primary);
 }
 
@@ -1889,7 +1917,7 @@ canvas:focus {
   justify-content: space-between;
   align-items: center;
   padding: 12px;
-  background: #2a2a2a;
+  background: #242424;
   border: 2px solid #000;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
   margin-bottom: 8px;
@@ -1900,7 +1928,7 @@ canvas:focus {
 }
 
 .community-item:hover {
-  background: #333;
+  background: #2a2a2a;
   color: var(--primary);
 }
 
@@ -2041,7 +2069,7 @@ canvas:focus {
   border-radius: 0;
   cursor: pointer;
   border: 2px solid #000;
-  background: #333;
+  background: #2a2a2a;
   color: #e0e0e0;
   transition: all 0.1s;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
@@ -2097,7 +2125,7 @@ canvas:focus {
 }
 
 .context-menu-item:hover {
-  background: #3a3a3a;
+  background: #303030;
   color: var(--primary);
 }
 
@@ -2142,7 +2170,7 @@ canvas:focus {
 }
 
 .screen-tab:hover {
-  background: #333;
+  background: #2a2a2a;
 }
 
 .screen-tab.active {
@@ -2264,7 +2292,7 @@ canvas:focus {
 .config-buttons input[type="text"] {
   padding: 6px 10px;
   font-size: 12px;
-  background: #333;
+  background: #2a2a2a;
   color: #fff;
   border: 1px solid #555;
   border-radius: 4px;
@@ -2469,7 +2497,7 @@ canvas:focus {
   width: 100%;
   padding: 10px 12px;
   margin-bottom: 8px;
-  background: #333;
+  background: #2a2a2a;
   border: 2px solid #000;
   border-radius: 0; /* Removed to fix diagonal line artifacts on Windows */
   color: var(--primary);
@@ -2582,7 +2610,7 @@ canvas:focus {
   flex: 1;
   min-width: 70px;
   padding: 12px;
-  background: #333;
+  background: #2a2a2a;
   border: 2px solid #000;
   border-radius: 0;
   color: var(--text-color);
@@ -2594,7 +2622,7 @@ canvas:focus {
 }
 
 .touch-zoom-btn:hover {
-  background: #444;
+  background: #383838;
   color: var(--primary);
 }
 
@@ -2623,7 +2651,7 @@ canvas:focus {
   min-height: 48px;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid #383838;
 }
 
 /* Mobile hint text */
@@ -2666,7 +2694,7 @@ canvas:focus {
   pointer-events: none;
   z-index: 0;
   opacity: 0.15;
-  background-image: radial-gradient(circle, #333 1px, transparent 1px);
+  background-image: radial-gradient(circle, #2a2a2a 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
@@ -2731,11 +2759,11 @@ canvas:focus {
 .welcome-btn {
   width: 100%;
   padding: 16px 20px;
-  background: #333;
-  border: 4px solid #000;
+  background: transparent;
+  border: 2px solid #000;
   border-radius: 2px;
   cursor: pointer;
-  box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
   transition: all 0.1s;
   text-align: left;
   display: flex;
@@ -2745,7 +2773,7 @@ canvas:focus {
 
 .welcome-btn:active {
   box-shadow: none;
-  transform: translate(4px, 4px);
+  transform: translate(2px, 2px);
 }
 
 .welcome-btn-title {
@@ -2773,7 +2801,7 @@ canvas:focus {
 }
 
 .welcome-btn:hover {
-  background: #3a3a3a;
+  background: rgba(255,255,255,0.05);
 }
 
 /* Sign In */
@@ -2836,7 +2864,7 @@ canvas:focus {
 .welcome-footer-link {
   display: inline-flex;
   align-items: center;
-  background: #333;
+  background: transparent;
   border: 2px solid #000;
   border-radius: 0;
   color: var(--muted-color);
@@ -2857,7 +2885,7 @@ canvas:focus {
 }
 
 .welcome-footer-link:hover {
-  background: #333;
+  background: rgba(255,255,255,0.05);
   color: var(--primary);
 }
 
@@ -2871,7 +2899,7 @@ canvas:focus {
   flex-direction: column;
   gap: 2px;
   font-size: 10px;
-  color: rgba(255,255,255,0.3);
+  color: var(--muted-color);
   font-family: 'Roboto Condensed', sans-serif;
 }
 
@@ -2923,7 +2951,7 @@ canvas:focus {
 
 .help-table td {
   padding: 6px 10px;
-  border: 1px solid #444;
+  border: 1px solid #383838;
   font-size: 12px;
 }
 
@@ -3002,7 +3030,7 @@ canvas:focus {
   }
 
   .welcome-feature-card {
-    background: rgba(51, 51, 51, 0.6);
+    background: transparent;
     border: 2px solid #000;
     border-radius: 2px;
     padding: 14px 10px;
@@ -3082,7 +3110,7 @@ canvas:focus {
     text-align: left;
     margin: 8px 0 20px 0;
     border: 2px solid #000;
-    background: rgba(51, 51, 51, 0.4);
+    background: transparent;
     box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
   }
 
@@ -3173,7 +3201,7 @@ canvas:focus {
   margin-bottom: 16px;
   border: 2px solid #000;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
-  background: #333;
+  background: #2a2a2a;
 }
 
 .auth-tab {
@@ -3197,7 +3225,7 @@ canvas:focus {
 }
 
 .auth-tab:hover:not(.active) {
-  background: #444;
+  background: #383838;
   color: var(--primary);
 }
 
@@ -3231,7 +3259,7 @@ canvas:focus {
   padding: 12px 14px;
   font-size: 16px;
   font-family: 'Roboto Condensed', sans-serif;
-  background: #333;
+  background: #2a2a2a;
   color: #fff;
   border: 2px solid #000;
   border-radius: 0;
@@ -3254,7 +3282,7 @@ canvas:focus {
 #authModal .modal-input-group input:-webkit-autofill:hover,
 #authModal .modal-input-group input:-webkit-autofill:focus,
 #authModal .modal-input-group input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 30px #2a2a2a inset, 2px 2px 0px 0px rgba(0,0,0,1) !important;
+  -webkit-box-shadow: 0 0 0 30px #242424 inset, 2px 2px 0px 0px rgba(0,0,0,1) !important;
   -webkit-text-fill-color: #fff !important;
   caret-color: #fff;
   transition: background-color 5000s ease-in-out 0s;

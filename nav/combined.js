@@ -525,7 +525,7 @@ function showCombinedPanelContextMenu(x, y, panelInfo) {
   menu.style.position = 'fixed';
   menu.style.left = x + 'px';
   menu.style.top = y + 'px';
-  menu.style.background = '#2a2a2a';
+  menu.style.background = '#242424';
   menu.style.border = '2px solid ' + (screen.color || '#10b981');
   menu.style.borderRadius = '6px';
   menu.style.padding = '4px 0';
@@ -544,7 +544,7 @@ function showCombinedPanelContextMenu(x, y, panelInfo) {
   header.style.color = screen.color || '#10b981';
   header.style.fontWeight = 'bold';
   header.style.fontSize = '13px';
-  header.style.borderBottom = '1px solid #444';
+  header.style.borderBottom = '1px solid #383838';
   menu.appendChild(header);
 
   // Helper to create menu option
@@ -604,7 +604,7 @@ function showCombinedPanelContextMenu(x, y, panelInfo) {
       menu.remove();
     }
   );
-  toggleOption.style.borderTop = '1px solid #444';
+  toggleOption.style.borderTop = '1px solid #383838';
   menu.appendChild(toggleOption);
 
   // Go to screen option (only for single selection)
@@ -618,7 +618,7 @@ function showCombinedPanelContextMenu(x, y, panelInfo) {
         switchMobileView('complex');
       }
     );
-    goToOption.style.borderTop = '1px solid #444';
+    goToOption.style.borderTop = '1px solid #383838';
     menu.appendChild(goToOption);
   }
 
@@ -1086,7 +1086,7 @@ function initCombinedView() {
       btn.style.color = '#fff';
       btn.style.textShadow = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000';
     } else {
-      btn.style.background = '#333';
+      btn.style.background = '#2a2a2a';
       btn.style.color = '#9ca3af';
       btn.style.textShadow = 'none';
     }
@@ -1119,9 +1119,10 @@ function initCombinedView() {
         ctx.fillStyle = '#1a1a1a';
         ctx.fillRect(0, 0, 100, 100);
         ctx.fillStyle = '#888';
-        ctx.font = '12px Arial';
+        ctx.font = '10px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('No screens selected', 50, 50);
+        ctx.fillText('No screens', 50, 45);
+        ctx.fillText('selected', 50, 58);
       }
     });
   }

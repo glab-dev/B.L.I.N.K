@@ -419,7 +419,7 @@ function updatePickupWeightSummary() {
   // Show ALL bottom bumpers (ground stacking) - skip 2W bumpers under 4W
   if(bottomBumpers.length > 0) {
     if(topBumpers.length > 0 && html.length > 0) {
-      html += '<div style="border-top: 1px solid #444; margin: 6px 0;"></div>';
+      html += '<div style="border-top: 1px solid #383838; margin: 6px 0;"></div>';
     }
     
     // Sort by type: 4W first, then 2W, then 1W

@@ -173,7 +173,7 @@
       <div class="welcome-footer-links">
         <button class="welcome-footer-link" onclick="openHelpModal()">Help</button>
         <button class="welcome-footer-link" onclick="openTermsModal()">Terms of Use</button>
-        <button class="welcome-footer-link" onclick="window.location.href='mailto:fearlesswandererproductions@gmail.com'">Contact</button>
+        <button class="welcome-footer-link" onclick="window.location.href='mailto:info@blink-led.com'">Contact</button>
       </div>
       <div class="welcome-footer-meta">
         <span id="welcomeVersionNumber"></span>
@@ -366,7 +366,7 @@
         <h3 class="help-section-title">Disclaimer</h3>
         <p class="help-text">B.L.I.N.K. is provided without warranty of any kind. The developer is not liable for any damages arising from the use of this tool. Power, structural, and data calculations should be verified by qualified professionals.</p>
         <h3 class="help-section-title">Contact</h3>
-        <p class="help-text">Questions or licensing inquiries: <a href="mailto:fearlesswandererproductions@gmail.com" style="color: var(--primary);">fearlesswandererproductions@gmail.com</a></p>
+        <p class="help-text">Questions or licensing inquiries: <a href="mailto:info@blink-led.com" style="color: var(--primary);">info@blink-led.com</a></p>
       </div>
     </div>
   </div>
@@ -771,7 +771,7 @@
           <span style="font-size: 12px;">Structure Layout</span>
         </label>
       </div>
-      <hr style="border: none; border-top: 1px solid #444; margin: 14px 0 10px 0;">
+      <hr style="border: none; border-top: 1px solid #383838; margin: 14px 0 10px 0;">
       <p style="color: #888; font-size: 11px; margin-bottom: 10px;">Print options:</p>
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
@@ -799,6 +799,7 @@
     </div>
     <div class="modal-body" style="margin-bottom: 10px;">
       <p id="customAlertMessage" style="color: #e0e0e0; font-size: 13px; line-height: 1.5; margin: 0;"></p>
+      <input type="text" id="customAlertInput" style="display: none; width: 100%; margin-top: 8px; box-sizing: border-box;" onkeydown="if(event.key==='Enter'){event.preventDefault();closeCustomAlert(true);}">
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" id="customAlertCancelBtn" onclick="closeCustomAlert(false)" style="display: none;">Cancel</button>
@@ -980,9 +981,9 @@
       <div class="mobile-menu-section">
         <div class="mobile-menu-label" style="color: var(--accent-color);">App Info</div>
         <div class="mobile-menu-info">An LED wall calculator for planning LED video wall installations. Calculate equipment needs, visualize layouts, generate gear lists, and export detailed PDF reports.</div>
-        <hr style="border: none; border-top: 1px solid #444; margin: 12px 0;">
+        <hr style="border: none; border-top: 1px solid #383838; margin: 12px 0;">
         <div class="mobile-menu-info"><strong style="text-decoration: underline; color: var(--accent-color);">Disclaimer</strong><br>This software provides decision-support and planning estimates for LED system design. All results must be verified and approved by qualified professionals before real-world use. The user assumes full responsibility for final design, safety compliance, and implementation. No warranty is provided, and the developer assumes no liability for resulting damages or losses.</div>
-        <hr style="border: none; border-top: 1px solid #444; margin: 12px 0;">
+        <hr style="border: none; border-top: 1px solid #383838; margin: 12px 0;">
         <div class="mobile-menu-info">© 2025 Gabriel Labrecque<br>Fearless Wanderer Productions</div>
         <button class="mobile-menu-btn install-btn" id="installPwaBtn" style="display: none;" onclick="installPwa()">📲 Install App</button>
       </div>
@@ -1022,15 +1023,15 @@
         <div class="modal-input-group">
           <label>Primary Color</label>
           <div style="display: flex; gap: 10px; align-items: center;">
-            <input type="color" id="screenColorInput" style="width: 60px; height: 40px; border: 1px solid #444; border-radius: 4px; background: #2a2a2a; cursor: pointer;">
-            <span id="screenColorPreview" style="flex: 1; padding: 8px 12px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; font-family: monospace; font-size: 12px;"></span>
+            <input type="color" id="screenColorInput" style="width: 60px; height: 40px; border: 1px solid #383838; border-radius: 4px; background: #242424; cursor: pointer;">
+            <span id="screenColorPreview" style="flex: 1; padding: 8px 12px; background: #242424; border: 1px solid #383838; border-radius: 4px; font-family: monospace; font-size: 12px;"></span>
           </div>
         </div>
         <div class="modal-input-group">
           <label>Secondary Color</label>
           <div style="display: flex; gap: 10px; align-items: center;">
-            <input type="color" id="screenColor2Input" style="width: 60px; height: 40px; border: 1px solid #444; border-radius: 4px; background: #2a2a2a; cursor: pointer;">
-            <span id="screenColor2Preview" style="flex: 1; padding: 8px 12px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; font-family: monospace; font-size: 12px;"></span>
+            <input type="color" id="screenColor2Input" style="width: 60px; height: 40px; border: 1px solid #383838; border-radius: 4px; background: #242424; cursor: pointer;">
+            <span id="screenColor2Preview" style="flex: 1; padding: 8px 12px; background: #242424; border: 1px solid #383838; border-radius: 4px; font-family: monospace; font-size: 12px;"></span>
           </div>
           <div class="hint">Panels alternate between primary and secondary colors in Standard Layout and Canvas View</div>
         </div>
@@ -1481,7 +1482,7 @@
       </div>
       
       <!-- Context Menu for Bumpers -->
-      <div id="bumperContextMenu" style="display:none; position:fixed; background:#2a2a2a; border:1px solid #555; border-radius:4px; padding:4px 0; box-shadow:0 2px 8px rgba(0,0,0,0.5); z-index:10000;">
+      <div id="bumperContextMenu" style="display:none; position:fixed; background:#242424; border:1px solid #555; border-radius:4px; padding:4px 0; box-shadow:0 2px 8px rgba(0,0,0,0.5); z-index:10000;">
         <div class="context-menu-item" onclick="changeBumperType('1w')">Change to 1W</div>
         <div class="context-menu-item" onclick="changeBumperType('2w')">Change to 2W</div>
         <div class="context-menu-item" onclick="deleteBumper()" style="color:#ff6b6b;">Delete Bumper</div>
@@ -1706,7 +1707,7 @@
   <div style="display: flex; flex-direction: column; gap: 16px;">
     <!-- Canvas View -->
     <div>
-      <div id="canvasViewWrapper" style="width: 100%; padding-bottom: 56.25%; /* 16:9 */ height: 0; overflow: hidden; border: 2px solid #444; background: #000; position: relative;">
+      <div id="canvasViewWrapper" style="width: 100%; padding-bottom: 56.25%; /* 16:9 */ height: 0; overflow: hidden; border: 2px solid #383838; background: #000; position: relative;">
         <div id="canvasViewport" style="position: absolute; top:0; left:0; width:100%; height:100%; transform-origin: 0 0; cursor: grab;">
           <canvas id="canvasView" style="display: block; width:100%; height:100%;"></canvas>
         </div>
@@ -1795,7 +1796,7 @@
 
         <!-- Row 3: Filename -->
         <div style="margin-bottom: 8px;">
-          <input type="text" id="canvasExportFilename" placeholder="Filename..." style="width: 100%; padding: 10px; font-size: 13px; background: #333; color: #fff; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); min-height: 48px; box-sizing: border-box;">
+          <input type="text" id="canvasExportFilename" placeholder="Filename..." style="width: 100%; padding: 10px; font-size: 13px; background: #2a2a2a; color: #fff; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); min-height: 48px; box-sizing: border-box;">
         </div>
 
         <!-- Row 4: PNG dropdown, Export button -->
@@ -1881,7 +1882,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.8.10';
+const APP_VERSION = '2.8.11';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -270,7 +270,7 @@ function showContextMenu(x, y) {
   menu.style.position = 'fixed';
   menu.style.left = x + 'px';
   menu.style.top = y + 'px';
-  menu.style.background = '#2a2a2a';
+  menu.style.background = '#242424';
   menu.style.border = '1px solid #555';
   menu.style.borderRadius = '4px';
   menu.style.padding = '4px 0';
@@ -285,7 +285,7 @@ function showContextMenu(x, y) {
   assignCircuitOption.style.cursor = 'pointer';
   assignCircuitOption.style.color = '#e0e0e0';
   assignCircuitOption.style.fontSize = '13px';
-  assignCircuitOption.style.borderBottom = '1px solid #444';
+  assignCircuitOption.style.borderBottom = '1px solid #383838';
   assignCircuitOption.addEventListener('mouseover', function() {
     assignCircuitOption.style.background = '#0a66c2';
   });
@@ -304,7 +304,7 @@ function showContextMenu(x, y) {
   assignDataLineOption.style.cursor = 'pointer';
   assignDataLineOption.style.color = '#e0e0e0';
   assignDataLineOption.style.fontSize = '13px';
-  assignDataLineOption.style.borderBottom = '1px solid #444';
+  assignDataLineOption.style.borderBottom = '1px solid #383838';
   assignDataLineOption.addEventListener('mouseover', function() {
     assignDataLineOption.style.background = '#0a66c2';
   });

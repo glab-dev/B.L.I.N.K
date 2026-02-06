@@ -747,7 +747,7 @@ async function loadCommunityTabContent() {
   if(typeof isAdmin === 'function' && isAdmin()) {
     html += '<h3 style="color: var(--primary); font-size: 14px; margin-bottom: 8px;">Pending Approval</h3>';
     html += '<div id="pendingItemsSection"><p style="color: #888; font-size: 12px;">Loading pending items...</p></div>';
-    html += '<hr style="border-color: #444; margin: 16px 0;">';
+    html += '<hr style="border-color: #383838; margin: 16px 0;">';
   }
 
   // Browse community button

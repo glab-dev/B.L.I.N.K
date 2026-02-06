@@ -138,6 +138,13 @@ When fixing bugs or addressing issues:
   - Containers with scrollable content: use `overflow-x: hidden` to prevent horizontal scrollbars
   - Test new UI in both mobile and desktop viewport sizes before committing
   - Elements should look the same at any width — avoid viewport-specific font/padding changes
+- **Button override checklist** — The global `button` rule (styles.css ~line 595) styles ALL `<button>` elements as full-width green comic-book buttons. Any non-standard button (footer links, FAQ toggles, tab buttons, etc.) MUST explicitly override ALL of these properties:
+  ```
+  background, border, border-radius, padding, min-height, width,
+  margin-bottom, box-shadow, text-shadow, font-size, font-weight,
+  color, letter-spacing, -webkit-tap-highlight-color, touch-action
+  ```
+  If even one property is missed, the global rule bleeds through and breaks the button's appearance. Always read the global `button` rule before adding new buttons.
 
 ---
 

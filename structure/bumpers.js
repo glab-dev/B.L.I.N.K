@@ -278,7 +278,7 @@ function showBumperContextMenu(bumper, x, y) {
     position: fixed;
     left: ${x}px;
     top: ${y}px;
-    background: #2a2a2a;
+    background: #242424;
     border: 1px solid #555;
     border-radius: 6px;
     padding: 4px 0;
@@ -325,7 +325,7 @@ function showBumperContextMenu(bumper, x, y) {
   options.forEach(opt => {
     if(opt.separator) {
       const sep = document.createElement('div');
-      sep.style.cssText = 'height: 1px; background: #444; margin: 4px 0;';
+      sep.style.cssText = 'height: 1px; background: #383838; margin: 4px 0;';
       menu.appendChild(sep);
     } else {
       const item = document.createElement('div');
@@ -720,7 +720,7 @@ function showEmptyAreaContextMenu(position, column, x, y) {
     position: fixed;
     left: ${x}px;
     top: ${y}px;
-    background: #2a2a2a;
+    background: #242424;
     border: 1px solid #555;
     border-radius: 6px;
     padding: 4px 0;

@@ -127,10 +127,10 @@ function deleteCanvas(canvasId) {
   showCanvasView();
 }
 
-function openCanvasRenameModal(canvasId) {
+async function openCanvasRenameModal(canvasId) {
   const canvas = canvases[canvasId];
   if(!canvas) return;
-  const newName = prompt('Rename canvas:', canvas.name);
+  const newName = await showPrompt('Rename canvas:', canvas.name);
   if(newName && newName.trim()) {
     canvas.name = newName.trim().substring(0, 50);
     renderCanvasTabs();
@@ -2218,7 +2218,7 @@ function updateCanvasScreenToggles() {
   const container = document.getElementById('canvasScreenToggles');
   if(!container) return;
 
-  let html = '<div style="margin-top: 16px; margin-bottom: 12px; display: inline-block; background: #222; border: 1px solid var(--primary); padding: 4px 10px; font-family: Bangers, cursive; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; color: var(--primary); transform: rotate(-2deg);">Visible Screens</div>';
+  let html = '<div style="margin-top: 16px; margin-bottom: 12px; display: inline-block; background: #1a1a1a; border: 1px solid var(--primary); padding: 4px 10px; font-family: Bangers, cursive; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; color: var(--primary); transform: rotate(-2deg);">Visible Screens</div>';
 
   // Sort screen IDs numerically
   const screenIds = Object.keys(screens).sort((a, b) => {
@@ -2236,7 +2236,7 @@ function updateCanvasScreenToggles() {
     const safeScreenColor = safeColor(screen.color);
     const safeScreenId = escapeJsString(screenId);
     html += `
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; padding: 4px 6px; background: #333; border-radius: 4px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; padding: 4px 6px; background: #2a2a2a; border-radius: 4px;">
         <button type="button" class="toggle-btn ${screen.visible ? 'active' : ''}"
                 style="padding: 3px 6px; font-size: 10px; min-height: 24px; line-height: 1; display: inline-flex; align-items: center; gap: 4px; width: 110px; justify-content: flex-start; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${screen.visible ? textOutline : ''}"
                 onclick="toggleScreenVisibility('${safeScreenId}', ${!screen.visible})">

@@ -377,7 +377,7 @@ function sendItemRequest() {
     }
     const subject = encodeURIComponent('B.L.I.N.K. Feature Request');
     const body = `Hi Gabriel,${nl}${nl}${encodeURIComponent(text)}${nl}${nl}Thank you!`;
-    const mailtoLink = `mailto:fearlesswandererproductions@gmail.com?subject=${subject}&body=${body}`;
+    const mailtoLink = `mailto:info@blink-led.com?subject=${subject}&body=${body}`;
     window.location.href = mailtoLink;
     closeRequestItemModal();
     return;
@@ -392,7 +392,7 @@ function sendItemRequest() {
     }
     const subject = encodeURIComponent('B.L.I.N.K. Other Request');
     const body = `Hi Gabriel,${nl}${nl}${encodeURIComponent(text)}${nl}${nl}Thank you!`;
-    const mailtoLink = `mailto:fearlesswandererproductions@gmail.com?subject=${subject}&body=${body}`;
+    const mailtoLink = `mailto:info@blink-led.com?subject=${subject}&body=${body}`;
     window.location.href = mailtoLink;
     closeRequestItemModal();
     return;
@@ -422,7 +422,7 @@ function sendItemRequest() {
   }
   body += `${nl}Thank you!`;
 
-  const mailtoLink = `mailto:fearlesswandererproductions@gmail.com?subject=${subject}&body=${body}`;
+  const mailtoLink = `mailto:info@blink-led.com?subject=${subject}&body=${body}`;
   window.location.href = mailtoLink;
 
   closeRequestItemModal();

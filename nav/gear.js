@@ -574,7 +574,7 @@ function initGearView() {
       btn.style.color = '#fff';
       btn.style.textShadow = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000';
     } else {
-      btn.style.background = '#333';
+      btn.style.background = '#2a2a2a';
       btn.style.color = '#9ca3af';
       btn.style.textShadow = 'none';
     }
@@ -619,7 +619,7 @@ function generateGearList() {
   const gearData = buildGearListData(screenIds);
 
   // Helpers
-  const sectionHdr = (title) => `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #444; margin-bottom: 4px;"><strong style="color: #10b981; font-size: 13px;">${title}</strong></div>`;
+  const sectionHdr = (title) => `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #383838; margin-bottom: 4px;"><strong style="color: #10b981; font-size: 13px;">${title}</strong></div>`;
   const gearLine = (label, value) => {
     if(value === 0 || value === '' || value === null || value === undefined || value === '0') return '';
     // If value is a number, format as "countx label" — otherwise keep as "label value" for pre-formatted strings
@@ -645,7 +645,7 @@ function generateGearList() {
     // --- BEGIN PER-SCREEN CONTAINER ---
     const gearScreenColor = safeColor(sd.screenColor);
     html += `<div style="background: var(--comic-panel); border: 1px solid ${gearScreenColor}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
-    html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid ${gearScreenColor}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${gearScreenColor}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${escapeHtml(sd.screenName)}</div>`;
+    html += `<div style="position: absolute; top: -16px; left: 16px; background: #1a1a1a; border: 1px solid ${gearScreenColor}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${gearScreenColor}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${escapeHtml(sd.screenName)}</div>`;
 
     // === EQUIPMENT ===
     html += sectionHdr('Equipment');
@@ -775,7 +775,7 @@ function generateGearList() {
   const sig = gearData.signalCables;
   const util = gearData.utility;
   html += `<div style="background: var(--comic-panel); border: 1px solid #10b981; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
-  html += `<div style="position: absolute; top: -16px; left: 16px; background: #222; border: 1px solid #10b981; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: #10b981; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">System</div>`;
+  html += `<div style="position: absolute; top: -16px; left: 16px; background: #1a1a1a; border: 1px solid #10b981; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: #10b981; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">System</div>`;
 
   if(sig) {
     html += sectionHdr('Signal Cables');

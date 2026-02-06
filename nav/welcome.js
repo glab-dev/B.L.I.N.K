@@ -42,6 +42,12 @@ function showWelcomePage() {
   if(typeof updateAuthUI === 'function') {
     updateAuthUI();
   }
+
+  // Set "What's New" text
+  var whatsNewText = document.getElementById('welcomeWhatsNewText');
+  if(whatsNewText && typeof APP_VERSION !== 'undefined') {
+    whatsNewText.textContent = 'v' + APP_VERSION + ' \u2014 Welcome page redesign';
+  }
 }
 
 function hideWelcomePage() {
@@ -113,6 +119,42 @@ function switchHelpTab(tab) {
   var complexContent = document.getElementById('helpComplexContent');
   if(simpleContent) simpleContent.style.display = tab === 'simple' ? 'block' : 'none';
   if(complexContent) complexContent.style.display = tab === 'complex' ? 'block' : 'none';
+}
+
+// ==================== FAQ ACCORDION ====================
+
+function toggleWelcomeFaq(btn) {
+  var answer = btn.nextElementSibling;
+  if(!answer) return;
+  var isOpen = answer.classList.contains('open');
+  // Close all FAQs first
+  document.querySelectorAll('.welcome-faq-a').forEach(function(a) { a.classList.remove('open'); });
+  document.querySelectorAll('.welcome-faq-q').forEach(function(q) { q.classList.remove('open'); });
+  // Open clicked one (if it was closed)
+  if(!isOpen) {
+    answer.classList.add('open');
+    btn.classList.add('open');
+  }
+}
+
+// ==================== TERMS MODAL ====================
+
+function openTermsModal() {
+  var modal = document.getElementById('termsModal');
+  if(modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeTermsModal() {
+  var modal = document.getElementById('termsModal');
+  if(modal) {
+    modal.classList.remove('active');
+    if(!isWelcomePageVisible) {
+      document.body.style.overflow = '';
+    }
+  }
 }
 
 // Browser back button support — return to welcome page

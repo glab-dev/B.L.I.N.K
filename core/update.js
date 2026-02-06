@@ -1,6 +1,7 @@
 // ==================== UPDATE CHECK ====================
-// Checks version.json for newer versions and shows an update banner.
-// Depends on: APP_VERSION (declared inline in index.html).
+// Checks version.json for newer versions and auto-refreshes if outdated.
+// Depends on: APP_VERSION (declared inline in index.html),
+//             hardRefreshApp() (declared in nav/navigation.js).
 
 // Check for updates on app load
 async function checkForUpdates() {
@@ -22,7 +23,12 @@ async function checkForUpdates() {
     console.log('Version check: Current=' + APP_VERSION + ', Latest=' + latestVersion);
 
     if (latestVersion && latestVersion !== APP_VERSION) {
-      showUpdateBanner(latestVersion);
+      console.log('Version check: Update found, hard refreshing to v' + latestVersion);
+      if (typeof hardRefreshApp === 'function') {
+        hardRefreshApp();
+      } else {
+        window.location.reload(true);
+      }
     } else if (latestVersion === APP_VERSION) {
       // App is up to date - clear any dismissed version tracking
       localStorage.removeItem('dismissedUpdateVersion');

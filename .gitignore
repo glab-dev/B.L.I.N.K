@@ -2,7 +2,6 @@
 .claude/
 CLAUDE.md
 README.md
-tests/
 
 # Reference docs & plans — keep local
 Implementation Plans/
@@ -11,3 +10,13 @@ Gear List Inventory.txt
 ROADMAP.md
 PLAYWRIGHT_SETUP.md
 CSS-NOTES.md
+
+# Node / Playwright artifacts
+node_modules/
+playwright-report/
+test-results/
+tests/playwright/temp/
+
+# Environment
+.env
+.env.local

@@ -20,7 +20,7 @@ export class GearList {
 
   constructor(page: Page) {
     this.page = page;
-    this.gearListContainer = page.locator('#gearList');
+    this.gearListContainer = page.locator('#gearListContent');
     this.wallToFloorInput = page.locator('#wallToFloor');
     this.distroToWallInput = page.locator('#distroToWall');
     this.processorToWallInput = page.locator('#processorToWall');

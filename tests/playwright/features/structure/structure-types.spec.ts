@@ -1,13 +1,13 @@
 import { test, expect } from '../../fixtures/base';
+import { AppHelpers } from '../../helpers/app-helpers';
 
 /**
  * Feature Test: Structure Types
  * Tests hanging, ground support, and floor configurations
  */
 test.describe('Structure Types', () => {
-  test.beforeEach(async ({ page, clearLocalStorage }) => {
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
+  test.beforeEach(async ({ page }) => {
+    await AppHelpers.setupApp(page);
   });
 
   test('should configure hanging structure with bumpers @critical @desktop', async ({

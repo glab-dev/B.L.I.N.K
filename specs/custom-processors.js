@@ -335,7 +335,8 @@ function setRequestType(type) {
   if(title) {
     if(type === 'feature') title.textContent = 'Feature Request';
     else if(type === 'other') title.textContent = 'Other Request';
-    else title.textContent = 'Request Panel/Processor';
+    else if(type === 'panel') title.textContent = 'Request Panel';
+    else if(type === 'processor') title.textContent = 'Request Processor';
   }
 }
 

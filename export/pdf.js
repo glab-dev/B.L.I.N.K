@@ -256,44 +256,11 @@ function buildGearInventoryContent(gearData) {
     }
   }
 
-  // Lookup tables
-  var procCodes = {
-    'Brompton_SX40': { code: 'BROMSX40', desc: 'Brompton SX40 LED Controller' },
-    'Brompton_S8': { code: 'BROMPTS8', desc: 'Brompton S8 LED Controller' },
-    'Brompton_S4': { code: 'BROMPTS4', desc: 'Brompton S4 LED Controller' },
-    'Brompton_M2': { code: 'BROMPTM2', desc: 'Brompton M2 LED Controller' },
-    'NovaStar_MX40_Pro': { code: '', desc: 'NovaStar MX40 Pro LED Controller' }
-  };
-  var panelCodes = {
-    'CB5_MKII': { code: 'CB5MK2FU', desc: 'ROE CB5 MKII 1200 x 600 Panel' },
-    'CB5_MKII_HALF': { code: 'CB5MK2HA', desc: 'ROE CB5 MKII 600 x 600 Panel' },
-    'BP2_V2': { code: 'BP2V2', desc: 'ROE Black Pearl V2 2.8mm 500mm x 500mm' },
-    'DM2_6': { code: 'DM2.6', desc: 'ROE Black Diamond 2.6mm 500mm x 500mm' },
-    'MC7H': { code: 'MC7HW', desc: 'ROE MC7H 7mm LED Panel 600mm x 600mm' },
-    'INFILED_AMT8_3': { code: 'AMT8.3', desc: 'INFiLED AMT 8.33mm 1000mm x 1000mm' },
-    'BM4_MATTE': { code: 'BM4', desc: 'ROE BM4 Floor Panel Matte Finish' },
-    'BO3': { code: 'BO3', desc: 'ROE Black Onyx 3.4mm 500mm x 500mm' }
-  };
-  var bumperCodes = {
-    'BP2_V2': { b1w: { code: 'BOBUMP1W', desc: 'ROE BO/BP Hanging Bumper 1 Wide' }, b2w: { code: 'BOBUMP2W', desc: 'ROE BO/BP Hanging Bumper 2 Wide' } },
-    'BO3': { b1w: { code: 'BOBUMP1W', desc: 'ROE BO/BP Hanging Bumper 1 Wide' }, b2w: { code: 'BOBUMP2W', desc: 'ROE BO/BP Hanging Bumper 2 Wide' } },
-    'CB5_MKII': { b1w: { code: 'CBHANG1W', desc: 'ROE CB Hanging Bumper 1W' }, b2w: { code: 'CBHANG2W', desc: 'ROE CB Hanging Bumper 2W' }, b4w: { code: 'CBHANG4W', desc: 'ROE CB Pick Point 4W' } },
-    'CB5_MKII_HALF': { b1w: { code: 'CBHANG1W', desc: 'ROE CB Hanging Bumper 1W' }, b2w: { code: 'CBHANG2W', desc: 'ROE CB Hanging Bumper 2W' }, b4w: { code: 'CBHANG4W', desc: 'ROE CB Pick Point 4W' } },
-    'DM2_6': { b1w: { code: 'DMBUMP1W', desc: 'ROE DM Hanging Bumper 1 Wide' }, b2w: { code: 'DMBUMP2W', desc: 'ROE DM Hanging Bumper 2 Wide' } },
-    'MC7H': { b1w: { code: 'MCBASE1', desc: 'ROE MC7 Flying/Ground Bumper SINGLE' }, b2w: { code: 'MCBASE2', desc: 'ROE MC7 Flying/Ground Bumper DOUBLE' } },
-    'INFILED_AMT8_3': { b1w: { code: 'AMTHANG1', desc: 'INFiLED AMT Hanging Bar 1M' }, b2w: { code: 'AMTHANG2', desc: 'INFiLED AMT Hanging Bar 2M' } }
-  };
-  var baseCodes = {
-    'BP2_V2': { code: 'BOBASE2W', desc: 'ROE BO/BP DOUBLE Ground Support Bar 1M' },
-    'BO3': { code: 'BOBASE2W', desc: 'ROE BO/BP DOUBLE Ground Support Bar 1M' },
-    'CB5_MKII': { code: 'CBBASE2W', desc: 'ROE CB Base Bar 2W' },
-    'CB5_MKII_HALF': { code: 'CBBASE2W', desc: 'ROE CB Base Bar 2W' },
-    'DM2_6': { code: 'DMBASE2W', desc: 'ROE DM Ground Support Bar 2 Wide' },
-    'INFILED_AMT8_3': { code: 'AMTFOOT1', desc: 'INFiLED AMT Footer Base Bar 1M' }
-  };
-  var cat6Map = { 1: 'CAT6P001', 1.5: 'CAT6P1.5', 2: 'CAT6P002', 3: 'CAT6P003', 6: 'CAT6P006', 10: 'CAT6P010', 15: 'CAT6P015', 25: 'CAT6P025', 50: 'CAT6P050', 100: 'CAT6P100', 200: 'CAT6P200', 300: 'CAT6P300' };
-  var sdi12GMap = { 5: 'SDI4K005', 15: 'SDI4K015', 25: 'SDI4K025', 50: 'SDI4K050', 100: 'SDI4K100', 200: 'SDI4K200', 300: 'SDI4K300' };
-  var fiberMap = { 500: 'FI4O500', 1000: 'FI4O1000', 1500: 'FI4O1500' };
+  // Helper: resolve code from user gear code mappings, with fallback description
+  function gc(key, fallbackDesc) {
+    var resolved = resolveGearCode(key);
+    return { code: resolved.code || '', desc: resolved.desc || fallbackDesc };
+  }
 
   // Per-screen data
   gearData.screens.forEach(function(sd) {
@@ -308,83 +275,83 @@ function buildGearInventoryContent(gearData) {
 
     // Processors (only for first screen in processor group)
     if(eq.isFirstScreenInGroup && eq.processorCount > 0) {
-      var proc = procCodes[eq.processorType] || { code: '', desc: eq.processorName };
+      var proc = gc('proc.' + eq.processorType, eq.processorName);
       addItem(proc.code, proc.desc, eq.processorCount);
       if(eq.distBoxCount > 0) {
-        addItem('', eq.distBoxName + ' Distribution Box', eq.distBoxCount);
+        var dist = gc('dist.' + eq.processorType, eq.distBoxName + ' Distribution Box');
+        addItem(dist.code, dist.desc, eq.distBoxCount);
       }
     }
 
     // Panels
     if(eq.activeFullPanels > 0) {
-      var panel = panelCodes[pt] || { code: '', desc: eq.panelBrand + ' ' + eq.panelName };
+      var panel = gc('panel.' + pt, eq.panelBrand + ' ' + eq.panelName);
       addItem(panel.code, panel.desc, eq.activeFullPanels);
     }
     if(eq.activeHalfPanels > 0) {
-      addItem('CB5MK2HA', 'ROE CB5 MKII 600 x 600 Panel', eq.activeHalfPanels);
+      var half = gc('panel.CB5_MKII_HALF', 'ROE CB5 MKII 600 x 600 Panel');
+      addItem(half.code, half.desc, eq.activeHalfPanels);
     }
 
     // Rigging
     if(rig.hasRigging) {
-      var bc = bumperCodes[pt] || {};
-      if(rig.bumper1w > 0 && bc.b1w) addItem(bc.b1w.code, bc.b1w.desc, rig.bumper1w);
-      if(rig.bumper2w > 0 && bc.b2w) addItem(bc.b2w.code, bc.b2w.desc, rig.bumper2w);
-      if(rig.bumper4w > 0 && bc.b4w) addItem(bc.b4w.code, bc.b4w.desc, rig.bumper4w);
-      if(rig.plates4way > 0) addItem('CP4FIXED', 'ROE CB/DM Fixed QUAD Connection Plate', rig.plates4way);
-      if(rig.plates2way > 0) addItem('CP2FIXED', 'ROE CB/DM Fixed DOUBLE Connection Plate', rig.plates2way);
-      if(rig.shackles > 0) addItem('', '5/8" Shackle', rig.shackles);
-      if(rig.cheeseye > 0) addItem('', 'Cheeseye', rig.cheeseye);
+      if(rig.bumper1w > 0) { var b = gc('bumper.' + pt + '.1w', eq.panelName + ' Bumper 1W'); addItem(b.code, b.desc, rig.bumper1w); }
+      if(rig.bumper2w > 0) { var b = gc('bumper.' + pt + '.2w', eq.panelName + ' Bumper 2W'); addItem(b.code, b.desc, rig.bumper2w); }
+      if(rig.bumper4w > 0) { var b = gc('bumper.' + pt + '.4w', eq.panelName + ' Bumper 4W'); addItem(b.code, b.desc, rig.bumper4w); }
+      if(rig.plates4way > 0) { var r = gc('rig.plate4way', '4-Way Fixed Connection Plate'); addItem(r.code, r.desc, rig.plates4way); }
+      if(rig.plates2way > 0) { var r = gc('rig.plate2way', '2-Way Fixed Connection Plate'); addItem(r.code, r.desc, rig.plates2way); }
+      if(rig.shackles > 0) { var r = gc('rig.shackle', 'Shackle'); addItem(r.code, r.desc, rig.shackles); }
+      if(rig.cheeseye > 0) { var r = gc('rig.cheeseye', 'Cheeseye'); addItem(r.code, r.desc, rig.cheeseye); }
     }
 
     // Ground Support
     if(gs.hasGS) {
-      if(gs.rearTruss > 0) addItem('BOREARTS', 'ROE Ground Support Rear Ladder Truss', gs.rearTruss);
-      if(gs.baseTruss > 0) {
-        var base = baseCodes[pt] || { code: '', desc: 'Ground Support Base Bar' };
-        addItem(base.code, base.desc, gs.baseTruss);
-      }
-      if(gs.bridgeClamps > 0) addItem('BOREARBC', 'ROE Rear Bridge Clamp', gs.bridgeClamps);
-      if(gs.rearBridgeAdapters > 0) addItem('DMREARAD', 'ROE DM Rear Adapter for Ground Support', gs.rearBridgeAdapters);
-      if(gs.sandbags > 0) addItem('', 'Sandbag', gs.sandbags);
-      if(gs.swivelCheeseboroughs > 0) addItem('', 'Swivel Cheeseborough', gs.swivelCheeseboroughs);
-      if(gs.pipes > 0) addItem('', 'Pipe' + gs.pipeLengthStr, gs.pipes);
+      if(gs.rearTruss > 0) { var r = gc('gs.rearTruss', 'Rear Ladder Truss'); addItem(r.code, r.desc, gs.rearTruss); }
+      if(gs.baseTruss > 0) { var r = gc('gs.baseTruss.' + pt, 'Ground Support Base Bar'); addItem(r.code, r.desc, gs.baseTruss); }
+      if(gs.bridgeClamps > 0) { var r = gc('gs.bridgeClamp', 'Rear Bridge Clamp'); addItem(r.code, r.desc, gs.bridgeClamps); }
+      if(gs.rearBridgeAdapters > 0) { var r = gc('gs.rearBridgeAdapter', 'Rear Bridge Adapter'); addItem(r.code, r.desc, gs.rearBridgeAdapters); }
+      if(gs.sandbags > 0) { var r = gc('gs.sandbag', 'Sandbag'); addItem(r.code, r.desc, gs.sandbags); }
+      if(gs.swivelCheeseboroughs > 0) { var r = gc('gs.swivelCheeseborough', 'Swivel Cheeseborough'); addItem(r.code, r.desc, gs.swivelCheeseboroughs); }
+      if(gs.pipes > 0) { var r = gc('gs.pipe', 'Pipe' + gs.pipeLengthStr); addItem(r.code, r.desc, gs.pipes); }
     }
 
     // Floor Hardware
     if(fh.hasFloorFrames) {
-      if(fh.frame3x2 > 0) addItem('BFBM46PC', 'ROE BM4 Base Frame 6 Panel (BLUE)', fh.frame3x2);
-      if(fh.frame2x2 > 0) addItem('BFBM44PC', 'ROE BM4 Base Frame 4 Panel (YELLOW)', fh.frame2x2);
-      if(fh.frame2x1 > 0) addItem('BFBM42PC', 'ROE BM4 Base Frame 2 Panel (RED)', fh.frame2x1);
-      if(fh.frame1x1 > 0) addItem('BFBM41PC', 'ROE BM4 Base Frame 1 Panel (GREEN)', fh.frame1x1);
+      if(fh.frame3x2 > 0) { var r = gc('floor.frame3x2', 'Floor Frame 3x2 (6 Panel)'); addItem(r.code, r.desc, fh.frame3x2); }
+      if(fh.frame2x2 > 0) { var r = gc('floor.frame2x2', 'Floor Frame 2x2 (4 Panel)'); addItem(r.code, r.desc, fh.frame2x2); }
+      if(fh.frame2x1 > 0) { var r = gc('floor.frame2x1', 'Floor Frame 2x1 (2 Panel)'); addItem(r.code, r.desc, fh.frame2x1); }
+      if(fh.frame1x1 > 0) { var r = gc('floor.frame1x1', 'Floor Frame 1x1 (1 Panel)'); addItem(r.code, r.desc, fh.frame1x1); }
     }
 
     // Data Cables
-    if(dc.jumperCount > 0) addItem('', "Data Jumper " + dc.dataJumperLen + "'", dc.jumperCount);
-    if(dc.crossJumperCount > 0) addItem('', "Data Cross Jumper " + dc.crossJumperLen + "'", dc.crossJumperCount);
-    if(dc.cat5CouplerCount > 0) addItem('CATFF', 'NE8FF EtherCON Coupler', dc.cat5CouplerCount);
+    if(dc.jumperCount > 0) { var r = gc('data.jumper', "Data Jumper " + dc.dataJumperLen + "'"); addItem(r.code, r.desc, dc.jumperCount); }
+    if(dc.crossJumperCount > 0) { var r = gc('data.crossJumper', "Data Cross Jumper " + dc.crossJumperLen + "'"); addItem(r.code, r.desc, dc.crossJumperCount); }
+    if(dc.cat5CouplerCount > 0) { var r = gc('data.cat5Coupler', 'NE8FF EtherCON Coupler'); addItem(r.code, r.desc, dc.cat5CouplerCount); }
     Object.keys(dc.cat6ByLength).forEach(function(len) {
       var count = dc.cat6ByLength[len];
-      if(count > 0) addItem(cat6Map[parseFloat(len)] || '', "CAT6A EtherCON Cable " + len + "'", count);
+      if(count > 0) { var r = gc('data.cat6a.' + parseFloat(len), "CAT6A EtherCON Cable " + len + "'"); addItem(r.code, r.desc, count); }
     });
 
     // Power Cables
-    if(pc.jumperCount > 0) addItem('', "Power Jumper " + pc.powerJumperLen + "'", pc.jumperCount);
-    if(pc.socaSplays > 0) addItem('', 'Soca Splay', pc.socaSplays);
+    if(pc.jumperCount > 0) { var r = gc('power.jumper', "Power Jumper " + pc.powerJumperLen + "'"); addItem(r.code, r.desc, pc.jumperCount); }
+    if(pc.socaSplays > 0) { var r = gc('power.socaSplay', 'Soca Splay'); addItem(r.code, r.desc, pc.socaSplays); }
     Object.keys(pc.socaByLength).forEach(function(len) {
       var count = pc.socaByLength[len];
-      if(count > 0) addItem('', "Soca Cable " + len + "'", count);
+      if(count > 0) { var r = gc('power.soca.' + parseInt(len), "Soca Cable " + len + "'"); addItem(r.code, r.desc, count); }
     });
-    if(pc.true1_25 > 0) addItem('', "True1 25'", pc.true1_25);
-    if(pc.true1_10 > 0) addItem('', "True1 10'", pc.true1_10);
-    if(pc.true1_5 > 0) addItem('', "True1 5'", pc.true1_5);
-    if(pc.true1Twofer > 0) addItem('', 'True1 Twofer', pc.true1Twofer);
+    if(pc.true1_25 > 0) { var r = gc('power.true1.25', "True1 25'"); addItem(r.code, r.desc, pc.true1_25); }
+    if(pc.true1_10 > 0) { var r = gc('power.true1.10', "True1 10'"); addItem(r.code, r.desc, pc.true1_10); }
+    if(pc.true1_5 > 0) { var r = gc('power.true1.5', "True1 5'"); addItem(r.code, r.desc, pc.true1_5); }
+    if(pc.true1Twofer > 0) { var r = gc('power.true1Twofer', 'True1 Twofer'); addItem(r.code, r.desc, pc.true1Twofer); }
 
     // Processor → Dist Box
     if(p2d.count > 0) {
       if(p2d.cableType === 'Fiber') {
-        addItem(fiberMap[p2d.cableLength] || '', "4 Strand Single-Mode OpticalCON Fiber " + p2d.cableLength + "'", p2d.count);
+        var r = gc('p2d.fiber.' + p2d.cableLength, "Fiber OpticalCON " + p2d.cableLength + "'");
+        addItem(r.code, r.desc, p2d.count);
       } else {
-        addItem(cat6Map[p2d.cableLength] || '', "CAT6A EtherCON Cable " + p2d.cableLength + "'", p2d.count);
+        var r = gc('data.cat6a.' + p2d.cableLength, "CAT6A EtherCON Cable " + p2d.cableLength + "'");
+        addItem(r.code, r.desc, p2d.count);
       }
     }
   });
@@ -398,30 +365,33 @@ function buildGearInventoryContent(gearData) {
       if(count > 0) {
         var lengthNum = parseInt(len);
         if(is12G) {
-          addItem(sdi12GMap[lengthNum] || '', "SDI 12G 4K BNC Cable " + len + "'", count);
+          var r = gc('signal.sdi12g.' + lengthNum, "SDI 12G 4K BNC Cable " + len + "'");
+          addItem(r.code, r.desc, count);
         } else {
-          addItem('SDI-' + len, "HD-SDI BNC Video Cable " + len + "'", count);
+          var r = gc('signal.sdi3g.' + lengthNum, "HD-SDI BNC Video Cable " + len + "'");
+          addItem(r.code, r.desc, count);
         }
       }
     });
     if(sig.serverFiberLine && sig.serverFiberLine.count > 0) {
       var fiberLabel = sig.serverFiberLine.label;
       var fiberLen = parseInt(fiberLabel);
-      addItem(fiberMap[fiberLen] || '', "4 Strand Single-Mode OpticalCON Fiber " + fiberLabel, sig.serverFiberLine.count);
+      var r = gc('signal.fiber.' + fiberLen, "Fiber OpticalCON " + fiberLabel);
+      addItem(r.code, r.desc, sig.serverFiberLine.count);
     }
-    if(sig.hdmi[25] > 0) addItem('HDMI-25', "HDMI Cable 25' Black", sig.hdmi[25]);
-    if(sig.hdmi[10] > 0) addItem('HDMI-10', "HDMI Cable 10' Black", sig.hdmi[10]);
-    if(sig.hdmi[6] > 0) addItem('HDMI-6', "HDMI Cable 6' Black", sig.hdmi[6]);
+    if(sig.hdmi[25] > 0) { var r = gc('signal.hdmi.25', "HDMI Cable 25'"); addItem(r.code, r.desc, sig.hdmi[25]); }
+    if(sig.hdmi[10] > 0) { var r = gc('signal.hdmi.10', "HDMI Cable 10'"); addItem(r.code, r.desc, sig.hdmi[10]); }
+    if(sig.hdmi[6] > 0) { var r = gc('signal.hdmi.6', "HDMI Cable 6'"); addItem(r.code, r.desc, sig.hdmi[6]); }
   }
 
   // Utility (system-wide)
   var util = gearData.utility;
   if(util) {
-    if(util.ug10 > 0) addItem('UG-10', "15A 120V Edison Power Cable 10'", util.ug10);
-    if(util.ug25 > 0) addItem('UG-25', "15A 120V Edison Power Cable 25'", util.ug25);
-    if(util.ug50 > 0) addItem('UG-50', "15A 120V Edison Power Cable 50'", util.ug50);
-    if(util.ugTwofers > 0) addItem('UGTWOFER', '15A 120V UG Twofer', util.ugTwofers);
-    if(util.powerBars > 0) addItem('POWERBAR', 'Power Bar 120V', util.powerBars);
+    if(util.ug10 > 0) { var r = gc('util.ug.10', "Edison Power Cable 10'"); addItem(r.code, r.desc, util.ug10); }
+    if(util.ug25 > 0) { var r = gc('util.ug.25', "Edison Power Cable 25'"); addItem(r.code, r.desc, util.ug25); }
+    if(util.ug50 > 0) { var r = gc('util.ug.50', "Edison Power Cable 50'"); addItem(r.code, r.desc, util.ug50); }
+    if(util.ugTwofers > 0) { var r = gc('util.ugTwofer', 'UG Twofer'); addItem(r.code, r.desc, util.ugTwofers); }
+    if(util.powerBars > 0) { var r = gc('util.powerBar', 'Power Bar'); addItem(r.code, r.desc, util.powerBars); }
   }
 
   // Build tab-delimited content

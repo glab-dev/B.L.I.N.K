@@ -909,6 +909,43 @@
   </div>
 </div>
 
+<!-- Gear Code Mapping Modal -->
+<div id="gearCodeModal" class="modal-overlay">
+  <div class="modal-dialog" style="max-width: 850px; height: 85vh; display: flex; flex-direction: column;">
+    <div class="modal-header" style="flex-shrink: 0;">
+      <h2 class="modal-title">Gear Code Mapping</h2>
+      <button class="modal-close" onclick="closeGearCodeModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="flex: 1 1 auto; overflow-y: auto; min-height: 0; padding: 0; -webkit-overflow-scrolling: touch; margin-bottom: 0;">
+      <div class="slider-toggle" style="margin: 12px 16px;">
+        <button type="button" class="slider-toggle-btn active" id="gcTabEquipmentBtn" onclick="switchGearCodeTab('equipment')" style="padding: 8px 16px;">Equipment</button>
+        <button type="button" class="slider-toggle-btn" id="gcTabRiggingBtn" onclick="switchGearCodeTab('rigging')" style="padding: 8px 16px;">Rigging</button>
+        <button type="button" class="slider-toggle-btn" id="gcTabCablesBtn" onclick="switchGearCodeTab('cables')" style="padding: 8px 16px;">Cables</button>
+      </div>
+      <div style="padding: 0 16px 8px;">
+        <input type="text" id="gearCodeSearch" placeholder="Filter items..." oninput="filterGearCodeItems(this.value)" style="width: 100%; box-sizing: border-box;">
+      </div>
+      <div style="padding: 0 16px 8px; display: flex; gap: 8px; align-items: center;">
+        <label style="color: #888; font-size: 12px; font-family: 'Roboto Condensed', sans-serif;">Scope:</label>
+        <div class="slider-toggle" style="flex: 0 0 auto;">
+          <button type="button" class="slider-toggle-btn active" id="gcScopeGlobal" onclick="switchGearCodeScope('global')" style="padding: 6px 12px; font-size: 12px;">Global</button>
+          <button type="button" class="slider-toggle-btn" id="gcScopeProject" onclick="switchGearCodeScope('project')" style="padding: 6px 12px; font-size: 12px;">This Project</button>
+        </div>
+      </div>
+      <div id="gearCodeContent" style="padding: 0 16px 16px; overflow-x: hidden;"></div>
+    </div>
+    <div class="modal-footer" style="display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; flex-shrink: 0;">
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-secondary" onclick="document.getElementById('gearCodeImportInput').click()">Import File</button>
+        <input type="file" id="gearCodeImportInput" accept=".txt,.csv,.tsv" style="display: none;" onchange="importGearCodesFromFile(event)">
+        <button class="btn-secondary" onclick="exportGearCodes()">Export</button>
+        <button class="btn-secondary" style="color: #ef4444;" onclick="clearGearCodes()">Clear</button>
+      </div>
+      <button class="btn-primary" onclick="closeGearCodeModal()">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- Mobile Header -->
 <header class="mobile-header">
   <h1>CALCULATOR</h1>
@@ -966,10 +1003,18 @@
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Custom Items</div>
-        <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openProcessorRequestModal(); closeMobileMenu();">Request New Item</button>
-        <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openCustomPanelModal(); closeMobileMenu();">Add Custom Panel</button>
-        <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openCustomProcessorModal(); closeMobileMenu();">Add Custom Processor</button>
-        <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openManageCustomModal(); closeMobileMenu();">Manage Custom Items</button>
+        <div class="mobile-menu-btn-row">
+          <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openCustomPanelModal(); closeMobileMenu();">Add Panel</button>
+          <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openCustomProcessorModal(); closeMobileMenu();">Add Processor</button>
+        </div>
+        <div class="mobile-menu-btn-row">
+          <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openManageCustomModal(); closeMobileMenu();">Manage Items</button>
+          <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openProcessorRequestModal(); closeMobileMenu();">Requests</button>
+        </div>
+      </div>
+      <div class="mobile-menu-section">
+        <div class="mobile-menu-label">Inventory</div>
+        <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openGearCodeModal(); closeMobileMenu();">Gear Code Mapping</button>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label" style="color: var(--accent-color);">App Info</div>
@@ -1870,12 +1915,13 @@
 <!-- Config -->
 <script src="config/setup.js"></script>
 <script src="config/save-load.js"></script>
+<script src="config/gear-codes.js"></script>
 <script src="config/dom-setup.js"></script>
 <script src="core/init.js"></script>
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.8.20';
+const APP_VERSION = '2.8.21';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

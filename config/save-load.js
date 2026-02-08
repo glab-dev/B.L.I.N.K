@@ -112,7 +112,9 @@ async function saveConfiguration() {
     screens: screensData,
     // Global settings
     displayLengthUnit: displayLengthUnit,
-    displayWeightUnit: displayWeightUnit
+    displayWeightUnit: displayWeightUnit,
+    // Per-project gear code overrides (if any)
+    gearCodeOverrides: (typeof getGearCodeOverridesForSave === 'function') ? getGearCodeOverridesForSave() : undefined
   };
   
   // Convert to JSON and save via file picker
@@ -289,6 +291,11 @@ function loadConfiguration(event) {
         // Restore global settings with validation
         displayLengthUnit = (config.displayLengthUnit === 'ft' || config.displayLengthUnit === 'm') ? config.displayLengthUnit : 'ft';
         displayWeightUnit = (config.displayWeightUnit === 'lbs' || config.displayWeightUnit === 'kg') ? config.displayWeightUnit : 'lbs';
+
+        // Restore per-project gear code overrides
+        if(typeof loadProjectGearCodeOverrides === 'function') {
+          loadProjectGearCodeOverrides(config.gearCodeOverrides || {});
+        }
         
         // Update unit buttons
         const isImperial = displayLengthUnit === 'ft';

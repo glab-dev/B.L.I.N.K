@@ -2,6 +2,14 @@
 
 Claude reads this file automatically at the start of every session.
 
+## Session Startup — ALWAYS Do First
+
+Start the local dev server and open the browser at the beginning of every session:
+```
+python3 -m http.server 8000 &   # run in background
+open http://localhost:8000        # open in browser
+```
+
 ## Architecture
 
 Modular PWA: `index.html` (~1,405 lines) + 32 external JS modules across 9 directories.
@@ -116,6 +124,7 @@ When fixing bugs or addressing issues:
 ## Security — ALWAYS Check When Writing Code
 
 - Never use `eval()`, `Function()` constructor, or `document.write()`
+- **Never use native `alert()`, `confirm()`, or `prompt()`** — use the styled equivalents in `core/modals.js`: `showAlert(message, title)`, `showConfirm(message, title)`, `showPrompt(message, defaultValue, title)`. These return Promises, so use `await` in async functions.
 - Sanitize user input before DOM insertion (custom panel/processor names, file imports)
 - Prefer `textContent` over `innerHTML` for user-provided strings
 - Validate localStorage data on read (handle malformed JSON, unexpected types)

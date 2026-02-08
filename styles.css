@@ -1863,6 +1863,110 @@ canvas:focus {
   transform: translate(2px, 2px);
 }
 
+/* Gear Code Mapping Modal */
+.gear-code-header {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 2px solid #383838;
+  color: #888;
+  font-size: 11px;
+  font-family: 'Roboto Condensed', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  align-items: center;
+}
+
+.gear-code-row {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #2a2a2a;
+  align-items: center;
+}
+
+.gear-code-row:hover {
+  background: #2a2a2a;
+}
+
+.gear-code-label {
+  flex: 0 0 40%;
+  color: #e0e0e0;
+  font-size: 13px;
+  font-family: 'Roboto Condensed', sans-serif;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#gearCodeContent .gear-code-input,
+#gearCodeContent .gear-code-desc-input {
+  padding: 6px 8px;
+  font-size: 13px;
+  background: #2a2a2a;
+  border: 2px solid #000;
+  border-radius: 0;
+  color: #fff;
+  min-height: auto;
+  margin-bottom: 0;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  text-shadow: none;
+  letter-spacing: normal;
+  font-weight: normal;
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+}
+
+#gearCodeContent .gear-code-input {
+  width: 0;
+  flex: 0 0 20%;
+  font-family: monospace;
+}
+
+#gearCodeContent .gear-code-desc-input {
+  width: 0;
+  flex: 0 0 36%;
+  min-width: 0;
+  font-family: 'Roboto Condensed', sans-serif;
+}
+
+#gearCodeContent .gear-code-input:focus,
+#gearCodeContent .gear-code-desc-input:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3), 2px 2px 0px 0px rgba(0,0,0,1);
+}
+
+.gear-code-override-badge {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-color, #f59e0b);
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+@media (max-width: 768px) {
+  .gear-code-row {
+    flex-wrap: wrap;
+  }
+  .gear-code-label {
+    flex: 1 0 100%;
+    margin-bottom: 4px;
+  }
+  #gearCodeContent .gear-code-input {
+    width: 90px;
+    flex: 0 0 90px;
+  }
+  #gearCodeContent .gear-code-desc-input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 .custom-item-list {
   margin-top: 12px;
   max-height: 200px;

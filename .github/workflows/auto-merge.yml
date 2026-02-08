@@ -16,7 +16,8 @@ jobs:
   auto-merge:
     if: >
       github.event_name == 'check_suite' &&
-      github.event.check_suite.conclusion == 'success'
+      (github.event.check_suite.conclusion == 'success' ||
+       github.event.check_suite.conclusion == 'neutral')
     runs-on: ubuntu-latest
     steps:
       - name: Auto-merge passing PRs
@@ -43,7 +44,7 @@ jobs:
 
               const allPassed = checks.data.check_runs.length > 0 &&
                 checks.data.check_runs.every(
-                  run => run.conclusion === 'success' || run.conclusion === 'skipped'
+                  run => run.conclusion === 'success' || run.conclusion === 'skipped' || run.conclusion === 'neutral'
                 );
 
               if (allPassed) {

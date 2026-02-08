@@ -148,7 +148,7 @@ function exportResolumeXML(filename) {
 
     // Create blob and download/share
     const blob = new Blob([xml], { type: 'application/xml' });
-    const xmlFilename = filename + '.xml';
+    const xmlFilename = String(filename).replace(/[<>:"/\\|?*]/g, '_') + '.xml';
 
     // Mobile: use share API for native "Save to Files" option
     if(navigator.canShare) {

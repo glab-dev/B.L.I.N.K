@@ -16,10 +16,10 @@ export class PowerSection {
 
   constructor(page: Page) {
     this.page = page;
-    this.powerMaxBtn = page.locator('button:has-text("Max")').first();
-    this.powerAvgBtn = page.locator('button:has-text("Avg")').first();
-    this.phase3Btn = page.locator('button:has-text("3Ø")');
-    this.phase1Btn = page.locator('button:has-text("1Ø")');
+    this.powerMaxBtn = page.locator('#powerMaxBtn');
+    this.powerAvgBtn = page.locator('#powerAvgBtn');
+    this.phase3Btn = page.locator('#phase3Btn');
+    this.phase1Btn = page.locator('#phase1Btn');
     this.voltageInput = page.locator('#voltage');
     this.breakerInput = page.locator('#breaker');
     this.maxPanelsPerCircuitInput = page.locator('#maxPanelsPerCircuit');

@@ -22,13 +22,11 @@ export class DataSection {
     this.frameRateSelect = page.locator('#frameRate');
     this.bitDepthSelect = page.locator('#bitDepth');
     this.maxPanelsPerDataInput = page.locator('#maxPanelsPerData');
-    this.dataDirectionSelect = page.locator('#dataDirection');
-    this.showArrowsBtn = page.locator('button:has-text("Arrows")');
-    this.dataFlipBtn = page.locator('button:has-text("Flip")');
-    this.dataRedundancyBtn = page.locator('button:has-text("Data Redundancy")');
-    this.processorRedundancyBtn = page.locator(
-      'button:has-text("Processor Redundancy")'
-    );
+    this.dataDirectionSelect = page.locator('#dataStartDir');
+    this.showArrowsBtn = page.locator('#showArrowsBtn');
+    this.dataFlipBtn = page.locator('#dataFlipBtn');
+    this.dataRedundancyBtn = page.locator('#redundancyBtn');
+    this.processorRedundancyBtn = page.locator('#processorRedundancyBtn');
   }
 
   async setProcessor(processor: string) {

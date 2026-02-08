@@ -14,11 +14,9 @@ export class StructureSection {
   constructor(page: Page) {
     this.page = page;
     this.structureTypeSelect = page.locator('#structureType');
-    this.useBumpersBtn = page.locator('button:has-text("Bumpers")').first();
-    this.use4WayBumpersBtn = page.locator('button:has-text("4-Way Bumpers")');
-    this.manualBumperModeBtn = page.locator(
-      'button:has-text("Manual Mode")'
-    );
+    this.useBumpersBtn = page.locator('#useBumpersBtn');
+    this.use4WayBumpersBtn = page.locator('#use4WayBumpersBtn');
+    this.manualBumperModeBtn = page.locator('#manualBumperToggle');
   }
 
   async setStructureType(type: 'hanging' | 'ground' | 'floor') {

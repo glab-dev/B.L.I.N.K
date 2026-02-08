@@ -1,0 +1,513 @@
+{
+  "version": "2.0",
+  "timestamp": "2026-01-21T01:19:58.551Z",
+  "name": "combined test",
+  "currentScreenId": "screen_3",
+  "screenIdCounter": 3,
+  "screens": {
+    "screen_1": {
+      "name": "SR",
+      "color": "#800080",
+      "color2": "#008080",
+      "visible": true,
+      "data": {
+        "panelsWide": 4,
+        "panelsHigh": 5,
+        "wallWidth": "",
+        "wallHeight": "",
+        "lengthUnit": "ft",
+        "weightUnit": "lbs",
+        "dimensionMode": "panels",
+        "panelType": "INFILED_AMT8_3",
+        "voltage": 208,
+        "breaker": 20,
+        "phase": "3",
+        "powerType": "max",
+        "maxPanelsPerCircuit": "",
+        "processor": "Brompton_SX40",
+        "frameRate": 60,
+        "bitDepth": 8,
+        "maxPanelsPerData": "",
+        "dataStartDir": "top",
+        "showArrows": true,
+        "redundancy": true,
+        "processorRedundancy": false,
+        "structureType": "hanging",
+        "useBumpers": true,
+        "use4WayBumpers": false,
+        "addCB5HalfRow": false,
+        "trimHeight": 20,
+        "wallToFloor": 5,
+        "distroToWall": 10,
+        "processorToWall": 15,
+        "fohToProcessor": 50,
+        "canvasX": 0,
+        "canvasY": 0,
+        "canvasSize": "4K_UHD",
+        "customCanvasWidth": "",
+        "customCanvasHeight": "",
+        "bumpers": [
+          {
+            "id": 1,
+            "type": "2w",
+            "position": "top",
+            "startCol": 0,
+            "endCol": 1,
+            "x": 0,
+            "y": 0,
+            "width": 160,
+            "height": 64
+          },
+          {
+            "id": 2,
+            "type": "2w",
+            "position": "top",
+            "startCol": 2,
+            "endCol": 3,
+            "x": 160,
+            "y": 0,
+            "width": 160,
+            "height": 64
+          }
+        ],
+        "bumpersInitialized": false,
+        "nextBumperId": 1,
+        "deletedPanels": [
+          "3,1",
+          "3,2",
+          "3,3",
+          "6,1",
+          "6,2",
+          "6,3"
+        ],
+        "customCircuitAssignments": [
+          [
+            "3,4",
+            3
+          ],
+          [
+            "2,0",
+            3
+          ],
+          [
+            "2,1",
+            3
+          ],
+          [
+            "2,2",
+            3
+          ],
+          [
+            "2,3",
+            3
+          ],
+          [
+            "2,4",
+            3
+          ]
+        ],
+        "customDataLineAssignments": []
+      },
+      "calculatedData": {
+        "processorName": "Brompton SX40",
+        "processorCount": 1,
+        "distributionBoxCount": 2,
+        "distributionBoxName": "Brompton XD",
+        "mx40ProcessorCount": 0,
+        "panelCount": 14,
+        "activePanels": 14,
+        "panelWeightOnlyKg": 221.20000000000002,
+        "bumperWeightKg": 0,
+        "bumper1wCount": 0,
+        "bumper2wCount": 2,
+        "bumper4wCount": 0,
+        "dataLines": 1,
+        "portsNeeded": 1,
+        "portsNeededFinal": 2,
+        "panelsPerDataLine": 36,
+        "totalPixels": 201600,
+        "circuitsNeeded": 4,
+        "socaCount": 1,
+        "columnsPerCircuit": 1,
+        "plates2way": 0,
+        "plates4way": 0,
+        "platesWeightKg": 0,
+        "groundSupport": {
+          "totalRearTruss": 0,
+          "totalBaseTruss": 0,
+          "totalBridgeClamps": 0,
+          "totalRearBridgeClampAdapters": 0,
+          "totalPipes": 0,
+          "totalSwivelCheeseboroughs": 0,
+          "totalSandbags": 0,
+          "totalWeightKg": 0,
+          "totalWeightLbs": 0,
+          "pipeInfo": []
+        },
+        "groundSupportWeightKg": 0,
+        "floorFrames": {
+          "frame_1x1": 0,
+          "frame_2x1": 0,
+          "frame_2x2": 0,
+          "frame_3x2": 0,
+          "totalWeightLbs": 0,
+          "totalWeightKg": 0
+        }
+      }
+    },
+    "screen_2": {
+      "name": "C",
+      "color": "#804040",
+      "color2": "#808080",
+      "visible": true,
+      "data": {
+        "panelsWide": 4,
+        "panelsHigh": 4,
+        "wallWidth": "",
+        "wallHeight": "",
+        "lengthUnit": "ft",
+        "weightUnit": "lbs",
+        "dimensionMode": "panels",
+        "panelType": "INFILED_AMT8_3",
+        "voltage": 208,
+        "breaker": 20,
+        "phase": "3",
+        "powerType": "max",
+        "maxPanelsPerCircuit": "",
+        "processor": "Brompton_SX40",
+        "frameRate": 60,
+        "bitDepth": 8,
+        "maxPanelsPerData": "",
+        "dataStartDir": "top",
+        "showArrows": true,
+        "redundancy": true,
+        "processorRedundancy": false,
+        "structureType": "hanging",
+        "useBumpers": true,
+        "use4WayBumpers": false,
+        "addCB5HalfRow": false,
+        "trimHeight": 20,
+        "wallToFloor": 5,
+        "distroToWall": 10,
+        "processorToWall": 15,
+        "fohToProcessor": 50,
+        "canvasX": 480,
+        "canvasY": 60,
+        "canvasSize": "HD",
+        "customCanvasWidth": "",
+        "customCanvasHeight": "",
+        "bumpers": [
+          {
+            "id": 1,
+            "type": "2w",
+            "position": "top",
+            "startCol": 1,
+            "endCol": 2,
+            "x": 80,
+            "y": 0,
+            "width": 160,
+            "height": 64
+          }
+        ],
+        "bumpersInitialized": true,
+        "nextBumperId": 3,
+        "deletedPanels": [
+          "0,0",
+          "3,0",
+          "3,3",
+          "0,3"
+        ],
+        "customCircuitAssignments": [
+          [
+            "0,1",
+            5
+          ],
+          [
+            "0,2",
+            5
+          ],
+          [
+            "1,0",
+            5
+          ],
+          [
+            "1,1",
+            5
+          ],
+          [
+            "1,2",
+            5
+          ],
+          [
+            "1,3",
+            5
+          ],
+          [
+            "2,0",
+            6
+          ],
+          [
+            "2,1",
+            6
+          ],
+          [
+            "2,2",
+            6
+          ],
+          [
+            "2,3",
+            6
+          ],
+          [
+            "3,1",
+            6
+          ],
+          [
+            "3,2",
+            6
+          ]
+        ],
+        "customDataLineAssignments": []
+      },
+      "calculatedData": {
+        "processorName": "Brompton SX40",
+        "processorCount": 1,
+        "distributionBoxCount": 2,
+        "distributionBoxName": "Brompton XD",
+        "mx40ProcessorCount": 0,
+        "panelCount": 12,
+        "activePanels": 12,
+        "panelWeightOnlyKg": 189.60000000000002,
+        "bumperWeightKg": 0,
+        "bumper1wCount": 0,
+        "bumper2wCount": 1,
+        "bumper4wCount": 0,
+        "dataLines": 1,
+        "portsNeeded": 1,
+        "portsNeededFinal": 2,
+        "panelsPerDataLine": 36,
+        "totalPixels": 172800,
+        "circuitsNeeded": 4,
+        "socaCount": 1,
+        "columnsPerCircuit": 1,
+        "plates2way": 0,
+        "plates4way": 0,
+        "platesWeightKg": 0,
+        "groundSupport": {
+          "totalRearTruss": 0,
+          "totalBaseTruss": 0,
+          "totalBridgeClamps": 0,
+          "totalRearBridgeClampAdapters": 0,
+          "totalPipes": 0,
+          "totalSwivelCheeseboroughs": 0,
+          "totalSandbags": 0,
+          "totalWeightKg": 0,
+          "totalWeightLbs": 0,
+          "pipeInfo": []
+        },
+        "groundSupportWeightKg": 0,
+        "floorFrames": {
+          "frame_1x1": 0,
+          "frame_2x1": 0,
+          "frame_2x2": 0,
+          "frame_3x2": 0,
+          "totalWeightLbs": 0,
+          "totalWeightKg": 0
+        }
+      }
+    },
+    "screen_3": {
+      "name": "SL",
+      "color": "#408040",
+      "color2": "#808080",
+      "visible": true,
+      "data": {
+        "panelsWide": 4,
+        "panelsHigh": 5,
+        "wallWidth": "",
+        "wallHeight": "",
+        "lengthUnit": "ft",
+        "weightUnit": "lbs",
+        "dimensionMode": "panels",
+        "panelType": "INFILED_AMT8_3",
+        "voltage": 208,
+        "breaker": 20,
+        "phase": "3",
+        "powerType": "max",
+        "maxPanelsPerCircuit": "",
+        "processor": "Brompton_SX40",
+        "frameRate": 60,
+        "bitDepth": 8,
+        "maxPanelsPerData": "",
+        "dataStartDir": "top",
+        "showArrows": true,
+        "redundancy": true,
+        "processorRedundancy": false,
+        "structureType": "hanging",
+        "useBumpers": true,
+        "use4WayBumpers": false,
+        "addCB5HalfRow": false,
+        "trimHeight": 20,
+        "wallToFloor": 5,
+        "distroToWall": 10,
+        "processorToWall": 15,
+        "fohToProcessor": 50,
+        "canvasX": 960,
+        "canvasY": 0,
+        "canvasSize": "4K_UHD",
+        "customCanvasWidth": "",
+        "customCanvasHeight": "",
+        "bumpers": [
+          {
+            "id": 1,
+            "type": "2w",
+            "position": "top",
+            "startCol": 0,
+            "endCol": 1,
+            "x": 0,
+            "y": 0,
+            "width": 160,
+            "height": 64
+          },
+          {
+            "id": 2,
+            "type": "2w",
+            "position": "top",
+            "startCol": 2,
+            "endCol": 3,
+            "x": 160,
+            "y": 0,
+            "width": 160,
+            "height": 64
+          }
+        ],
+        "bumpersInitialized": true,
+        "nextBumperId": 3,
+        "deletedPanels": [
+          "0,1",
+          "0,2",
+          "0,3"
+        ],
+        "customCircuitAssignments": [
+          [
+            "3,0",
+            4
+          ],
+          [
+            "3,1",
+            4
+          ],
+          [
+            "3,2",
+            4
+          ],
+          [
+            "3,3",
+            4
+          ],
+          [
+            "3,4",
+            4
+          ],
+          [
+            "2,0",
+            3
+          ],
+          [
+            "2,1",
+            3
+          ],
+          [
+            "2,2",
+            3
+          ],
+          [
+            "2,3",
+            3
+          ],
+          [
+            "2,4",
+            3
+          ],
+          [
+            "1,0",
+            2
+          ],
+          [
+            "1,1",
+            2
+          ],
+          [
+            "1,2",
+            2
+          ],
+          [
+            "1,3",
+            2
+          ],
+          [
+            "1,4",
+            2
+          ],
+          [
+            "0,0",
+            1
+          ],
+          [
+            "0,4",
+            2
+          ]
+        ],
+        "customDataLineAssignments": []
+      },
+      "calculatedData": {
+        "processorName": "Brompton SX40",
+        "processorCount": 1,
+        "distributionBoxCount": 2,
+        "distributionBoxName": "Brompton XD",
+        "mx40ProcessorCount": 0,
+        "panelCount": 17,
+        "activePanels": 17,
+        "panelWeightOnlyKg": 268.6,
+        "bumperWeightKg": 0,
+        "bumper1wCount": 0,
+        "bumper2wCount": 2,
+        "bumper4wCount": 0,
+        "dataLines": 1,
+        "portsNeeded": 1,
+        "portsNeededFinal": 2,
+        "panelsPerDataLine": 36,
+        "totalPixels": 244800,
+        "circuitsNeeded": 4,
+        "socaCount": 1,
+        "columnsPerCircuit": 1,
+        "plates2way": 0,
+        "plates4way": 0,
+        "platesWeightKg": 0,
+        "groundSupport": {
+          "totalRearTruss": 0,
+          "totalBaseTruss": 0,
+          "totalBridgeClamps": 0,
+          "totalRearBridgeClampAdapters": 0,
+          "totalPipes": 0,
+          "totalSwivelCheeseboroughs": 0,
+          "totalSandbags": 0,
+          "totalWeightKg": 0,
+          "totalWeightLbs": 0,
+          "pipeInfo": []
+        },
+        "groundSupportWeightKg": 0,
+        "floorFrames": {
+          "frame_1x1": 0,
+          "frame_2x1": 0,
+          "frame_2x2": 0,
+          "frame_3x2": 0,
+          "totalWeightLbs": 0,
+          "totalWeightKg": 0
+        }
+      }
+    }
+  },
+  "displayLengthUnit": "ft",
+  "displayWeightUnit": "lbs"
+}

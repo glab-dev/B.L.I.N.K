@@ -706,13 +706,8 @@ function calculate(){
   const MAX_PANELS_PER_PORT = 500;
   capacityBasedPanelsPerData = Math.min(capacityBasedPanelsPerData, MAX_PANELS_PER_PORT);
 
-  // Use the panel-specific limit if available, otherwise use capacity-based calculation
-  // The auto value is the MINIMUM of capacity-based calculation and panel-specific limit
-  // Apply panel's max_panels_per_data limit even when mixing with half panels
-  const panelSpecificDataLimit = p.max_panels_per_data || null;
-  const suggestedPanelsPerData = panelSpecificDataLimit
-    ? Math.min(capacityBasedPanelsPerData, panelSpecificDataLimit)
-    : capacityBasedPanelsPerData;
+  // Max panels per data = port capacity based (varies with frame rate + bit depth)
+  const suggestedPanelsPerData = capacityBasedPanelsPerData;
   
   const userMax = parseInt(document.getElementById('maxPanelsPerData').value);
   const panelsPerDataLine = userMax>0 ? userMax : suggestedPanelsPerData;
@@ -1389,7 +1384,9 @@ function createOutlineOnlyDataCanvas() {
   const frameRate = parseInt(document.getElementById('frameRate').value) || 60;
   const bitDepth = parseInt(document.getElementById('bitDepth').value) || 8;
   const adjustedCapacity = calculateAdjustedPixelCapacity(pr, frameRate, bitDepth);
-  const suggestedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
+  let suggestedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
+  const MAX_PANELS_PER_PORT = 500;
+  suggestedPanelsPerData = Math.min(suggestedPanelsPerData, MAX_PANELS_PER_PORT);
   const userMax = parseInt(document.getElementById('maxPanelsPerData').value);
   const panelsPerDataLine = userMax > 0 ? userMax : suggestedPanelsPerData;
   
@@ -1650,12 +1647,8 @@ function generateLayout(mode){
   const MAX_PANELS_PER_PORT = 500;
   capacityBasedPanelsPerData = Math.min(capacityBasedPanelsPerData, MAX_PANELS_PER_PORT);
 
-  // Apply panel-specific max_panels_per_data limit (same logic as calculate())
-  // Apply panel's max_panels_per_data limit even when mixing with half panels
-  const panelSpecificDataLimit = p.max_panels_per_data || null;
-  const suggestedPanelsPerData = panelSpecificDataLimit
-    ? Math.min(capacityBasedPanelsPerData, panelSpecificDataLimit)
-    : capacityBasedPanelsPerData;
+  // Max panels per data = port capacity based (varies with frame rate + bit depth)
+  const suggestedPanelsPerData = capacityBasedPanelsPerData;
   
   const userMax = parseInt(document.getElementById('maxPanelsPerData').value);
   const panelsPerDataLine = (mode==='data') ? (userMax>0?userMax:suggestedPanelsPerData) : null;

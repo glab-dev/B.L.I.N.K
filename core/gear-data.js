@@ -244,8 +244,7 @@ function buildGearListData(screenIds) {
       const pixelsPerPanel = p.res_x * p.res_y;
       let capacityBasedPPD = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
       capacityBasedPPD = Math.min(capacityBasedPPD, 500);
-      const panelSpecificLimit = p.max_panels_per_data || null;
-      const suggestedPPD = panelSpecificLimit ? Math.min(capacityBasedPPD, panelSpecificLimit) : capacityBasedPPD;
+      const suggestedPPD = capacityBasedPPD;
       const userMaxPPD = parseInt(data.maxPanelsPerData) || 0;
       const panelsPerDataLine = userMaxPPD > 0 ? userMaxPPD : suggestedPPD;
 

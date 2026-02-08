@@ -490,12 +490,8 @@ function updateSuggestedDataLimit(){
   const MAX_PANELS_PER_PORT = 500;
   capacityBasedLimit = Math.min(capacityBasedLimit, MAX_PANELS_PER_PORT);
 
-  // Use the panel-specific limit if available, otherwise use capacity-based calculation
-  // Apply panel's max_panels_per_data limit even when mixing with half panels
-  const panelSpecificLimit = p.max_panels_per_data || null;
-  const suggested = panelSpecificLimit
-    ? Math.min(capacityBasedLimit, panelSpecificLimit)
-    : capacityBasedLimit;
+  // Max panels per data = port capacity based (varies with frame rate + bit depth)
+  const suggested = capacityBasedLimit;
 
   const input = document.getElementById('maxPanelsPerData');
   if(!input.value){ input.placeholder = suggested; }

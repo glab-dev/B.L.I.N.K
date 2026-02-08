@@ -794,7 +794,7 @@ function exportPDF(){
           // DATA section
           addSpecHeader('DATA');
           const portCapacity = pr.base_pixels_1g || 0;
-          const maxPanelsPerData = p.max_panels_per_data || calcData.panelsPerDataLine || 0;
+          const maxPanelsPerData = calcData.panelsPerDataLine || 0;
 
           if(showComplexDetails) {
             // Complex mode: show all data specs

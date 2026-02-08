@@ -35,6 +35,11 @@ export default defineConfig({
 
     // Increase timeout for complex canvas operations
     actionTimeout: 10000,
+
+    // SlowMo: set SLOW_MO env var (ms) to slow down actions for visual following
+    launchOptions: {
+      slowMo: parseInt(process.env.SLOW_MO || '0', 10),
+    },
   },
 
   // Test timeout (2 minutes per test)

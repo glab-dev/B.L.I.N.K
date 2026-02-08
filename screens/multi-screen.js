@@ -463,18 +463,9 @@ function loadScreenData(screenId) {
     fourWayOption.style.display = isCB5 && useBumpers ? 'block' : 'none';
   }
   
-  // Update placeholders to show panel-specific defaults
-  // Circuit limit is calculated dynamically based on power settings
-  // Data limit uses panel-specific maximum
-  const allPanels = getAllPanels();
-  const p = allPanels[panelType];
-  if(p) {
-    // Update max panels per data placeholder (panel-specific)
-    const dataInput = document.getElementById('maxPanelsPerData');
-    if(dataInput && p.max_panels_per_data) {
-      dataInput.placeholder = p.max_panels_per_data.toString();
-    }
-  }
+  // Update placeholders to show dynamic defaults
+  // Data limit uses port capacity calculation (varies with frame rate + bit depth)
+  updateSuggestedDataLimit();
   // Update circuit limit after a short delay to ensure power settings are loaded
   setTimeout(() => {
     updateSuggestedCircuitLimit();

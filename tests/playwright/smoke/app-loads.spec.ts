@@ -73,7 +73,7 @@ test.describe('App Loads @critical @smoke', () => {
     const isMobile = page.viewportSize()!.width < 768;
     if (isMobile) {
       await expect(
-        page.locator('button[data-view="standard"]')
+        page.locator('button[data-mode="complex"]')
       ).toBeVisible();
     }
   });

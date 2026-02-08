@@ -66,7 +66,10 @@ export const test = base.extend<TestFixtures>({
   },
 
   clearLocalStorage: async ({ page }, use) => {
-    await page.evaluate(() => localStorage.clear());
+    // Use addInitScript so localStorage is cleared after navigation, not on about:blank
+    await page.addInitScript(() => {
+      try { localStorage.clear(); } catch (e) { /* ignore if not accessible */ }
+    });
     await use();
   },
 });

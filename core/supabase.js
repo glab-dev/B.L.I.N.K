@@ -248,6 +248,7 @@ async function syncCustomPanels() {
 
   // Add cloud panels to local (overwrite if exists)
   cloudPanels.forEach(cp => {
+    if(!isSafeKey(cp.panel_key)) return;
     if(!cp.is_deleted) {
       merged[cp.panel_key] = cp.panel_data;
     } else {
@@ -352,6 +353,7 @@ async function syncCustomProcessors() {
 
   // Add cloud processors to local
   cloudProcessors.forEach(cp => {
+    if(!isSafeKey(cp.processor_key)) return;
     if(!cp.is_deleted) {
       merged[cp.processor_key] = cp.processor_data;
     } else {
@@ -573,15 +575,20 @@ async function downloadCommunityPanel(communityPanel) {
     .update({ download_count: (communityPanel.download_count || 0) + 1 })
     .eq('id', communityPanel.id);
 
-  // Add to local customPanels with community flag
+  // Add to local customPanels with community flag (filter dangerous keys)
+  const safePanelSource = {};
+  if(communityPanel.panel_data && typeof communityPanel.panel_data === 'object') {
+    Object.keys(communityPanel.panel_data).forEach(k => { if(isSafeKey(k)) safePanelSource[k] = communityPanel.panel_data[k]; });
+  }
   const panelData = {
-    ...communityPanel.panel_data,
+    ...safePanelSource,
     is_community: true,
     community_id: communityPanel.id,
     community_author: communityPanel.submitted_by
   };
 
   const key = communityPanel.panel_key;
+  if(!isSafeKey(key)) throw new Error('Invalid panel key');
   if(typeof customPanels !== 'undefined') {
     customPanels[key] = panelData;
     if(typeof saveCustomPanels === 'function') saveCustomPanels();
@@ -618,15 +625,20 @@ async function downloadCommunityProcessor(communityProcessor) {
     .update({ download_count: (communityProcessor.download_count || 0) + 1 })
     .eq('id', communityProcessor.id);
 
-  // Add to local customProcessors with community flag
+  // Add to local customProcessors with community flag (filter dangerous keys)
+  const safeProcSource = {};
+  if(communityProcessor.processor_data && typeof communityProcessor.processor_data === 'object') {
+    Object.keys(communityProcessor.processor_data).forEach(k => { if(isSafeKey(k)) safeProcSource[k] = communityProcessor.processor_data[k]; });
+  }
   const processorData = {
-    ...communityProcessor.processor_data,
+    ...safeProcSource,
     is_community: true,
     community_id: communityProcessor.id,
     community_author: communityProcessor.submitted_by
   };
 
   const key = communityProcessor.processor_key;
+  if(!isSafeKey(key)) throw new Error('Invalid processor key');
   if(typeof customProcessors !== 'undefined') {
     customProcessors[key] = processorData;
     if(typeof saveCustomProcessors === 'function') saveCustomProcessors();

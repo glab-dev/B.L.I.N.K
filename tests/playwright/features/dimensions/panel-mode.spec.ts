@@ -1,15 +1,14 @@
 import { test, expect } from '../../fixtures/base';
 import { CanvasHelpers } from '../../helpers/canvas-helpers';
+import { AppHelpers } from '../../helpers/app-helpers';
 
 /**
  * Feature Test: Dimensions - Panel Mode
  * Tests panel count input and calculations
  */
 test.describe('Dimensions - Panel Mode', () => {
-  test.beforeEach(async ({ page, clearLocalStorage }) => {
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.waitForSelector('#panelsWide', { state: 'visible' });
+  test.beforeEach(async ({ page }) => {
+    await AppHelpers.setupApp(page);
   });
 
   test('should set panel count and calculate dimensions @critical @desktop', async ({
@@ -22,11 +21,10 @@ test.describe('Dimensions - Panel Mode', () => {
     // Set 10x10 panels
     await dimensions.setPanelCount(10, 10);
 
-    // Verify results appear
+    // Verify results appear with dimension info
     const results = page.locator('#results');
     await expect(results).toBeVisible();
-    await expect(results).toContainText('10 wide');
-    await expect(results).toContainText('10 high');
+    await expect(results).toContainText('10 × 10 panels');
 
     // Verify canvas renders
     const standardCanvas = page.locator('#standardCanvas');
@@ -119,8 +117,7 @@ test.describe('Dimensions - Panel Mode', () => {
     await dimensions.setPanelCount(32, 18); // 576 panels
 
     // Verify results
-    await expect(page.locator('#results')).toContainText('32 wide');
-    await expect(page.locator('#results')).toContainText('18 high');
+    await expect(page.locator('#results')).toContainText('32 × 18 panels');
 
     // Verify canvas renders (may take longer for large configs)
     const standardCanvas = page.locator('#standardCanvas');

@@ -38,9 +38,8 @@ let customProcessors = {};
 function validateCustomData(parsed) {
   if(!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
   const safe = {};
-  const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
   Object.keys(parsed).forEach(key => {
-    if(dangerousKeys.includes(key)) return;
+    if(!isSafeKey(key)) return;
     const entry = parsed[key];
     if(!entry || typeof entry !== 'object') return;
     if(typeof entry.brand !== 'string' || typeof entry.name !== 'string') return;
@@ -783,7 +782,7 @@ async function loadPendingItems() {
 
       pendingPanels.forEach(panel => {
         const data = panel.panel_data || {};
-        const updateCount = panel.update_count || 0;
+        const updateCount = parseInt(panel.update_count, 10) || 0;
         const updateBadge = updateCount > 0 ? `<span class="update-count">Updated ${updateCount}x</span>` : '';
         html += `
           <div class="custom-item pending-item">
@@ -793,9 +792,9 @@ async function loadPendingItems() {
               ${updateBadge}
             </div>
             <div class="custom-item-actions">
-              <button class="btn-small test" onclick="handleTestPendingPanel('${panel.id}')">Test</button>
-              <button class="btn-small approve" onclick="handleApprovePanel('${panel.id}')">Approve</button>
-              <button class="btn-small danger" onclick="handleRejectPanel('${panel.id}')">Reject</button>
+              <button class="btn-small test" onclick="handleTestPendingPanel('${escapeJsString(panel.id)}')">Test</button>
+              <button class="btn-small approve" onclick="handleApprovePanel('${escapeJsString(panel.id)}')">Approve</button>
+              <button class="btn-small danger" onclick="handleRejectPanel('${escapeJsString(panel.id)}')">Reject</button>
             </div>
           </div>
         `;
@@ -803,7 +802,7 @@ async function loadPendingItems() {
 
       pendingProcessors.forEach(proc => {
         const data = proc.processor_data || {};
-        const updateCount = proc.update_count || 0;
+        const updateCount = parseInt(proc.update_count, 10) || 0;
         const updateBadge = updateCount > 0 ? `<span class="update-count">Updated ${updateCount}x</span>` : '';
         html += `
           <div class="custom-item pending-item">
@@ -813,9 +812,9 @@ async function loadPendingItems() {
               ${updateBadge}
             </div>
             <div class="custom-item-actions">
-              <button class="btn-small test" onclick="handleTestPendingProcessor('${proc.id}')">Test</button>
-              <button class="btn-small approve" onclick="handleApproveProcessor('${proc.id}')">Approve</button>
-              <button class="btn-small danger" onclick="handleRejectProcessor('${proc.id}')">Reject</button>
+              <button class="btn-small test" onclick="handleTestPendingProcessor('${escapeJsString(proc.id)}')">Test</button>
+              <button class="btn-small approve" onclick="handleApproveProcessor('${escapeJsString(proc.id)}')">Approve</button>
+              <button class="btn-small danger" onclick="handleRejectProcessor('${escapeJsString(proc.id)}')">Reject</button>
             </div>
           </div>
         `;
@@ -1023,10 +1022,10 @@ async function loadCommunityPanels() {
           <div class="community-item-info">
             <div class="community-item-name">${escapeHtml(data.brand || '')} ${escapeHtml(data.name || panel.panel_key)}</div>
             <div class="community-item-meta">
-              <span class="download-count">${panel.download_count || 0} downloads</span>
+              <span class="download-count">${parseInt(panel.download_count, 10) || 0} downloads</span>
             </div>
           </div>
-          <button class="btn-small community-download-btn" onclick="handleDownloadCommunityPanel('${panel.id}')">
+          <button class="btn-small community-download-btn" onclick="handleDownloadCommunityPanel('${escapeJsString(panel.id)}')">
             Add to Library
           </button>
         </div>
@@ -1063,10 +1062,10 @@ async function loadCommunityProcessors() {
           <div class="community-item-info">
             <div class="community-item-name">${escapeHtml(data.name || proc.processor_key)}</div>
             <div class="community-item-meta">
-              <span class="download-count">${proc.download_count || 0} downloads</span>
+              <span class="download-count">${parseInt(proc.download_count, 10) || 0} downloads</span>
             </div>
           </div>
-          <button class="btn-small community-download-btn" onclick="handleDownloadCommunityProcessor('${proc.id}')">
+          <button class="btn-small community-download-btn" onclick="handleDownloadCommunityProcessor('${escapeJsString(proc.id)}')">
             Add to Library
           </button>
         </div>

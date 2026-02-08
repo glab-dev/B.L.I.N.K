@@ -67,7 +67,15 @@ function loadCombinedPositions() {
     if(data) {
       const parsed = JSON.parse(data);
       if(parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        combinedScreenPositions = parsed;
+        const safe = {};
+        Object.keys(parsed).forEach(key => {
+          if(!isSafeKey(key)) return;
+          const val = parsed[key];
+          if(val && typeof val === 'object' && typeof val.x === 'number' && typeof val.y === 'number') {
+            safe[key] = val;
+          }
+        });
+        combinedScreenPositions = safe;
       }
     }
   } catch(e) {

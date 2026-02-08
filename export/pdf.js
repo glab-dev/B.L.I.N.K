@@ -1523,7 +1523,7 @@ function exportPDF(){
 
         // Save the PDF
         const date = new Date().toISOString().slice(0,10);
-        const configName = document.getElementById('configName').value.trim();
+        const configName = document.getElementById('configName').value.trim().replace(/[<>:"/\\|?*]/g, '_');
         const filename = configName
           ? `${configName}_${date}.pdf`
           : `LED_Wall_Calculator_${date}.pdf`;

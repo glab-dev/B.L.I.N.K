@@ -24,18 +24,18 @@ export class DimensionsSection {
 
   constructor(page: Page) {
     this.page = page;
-    this.dimModePanelsBtn = page.locator('button:has-text("Panels")').first();
-    this.dimModeSizeBtn = page.locator('button:has-text("Size")').first();
-    this.unitImperialBtn = page.locator('button:has-text("Imperial")');
-    this.unitMetricBtn = page.locator('button:has-text("Metric")');
+    this.dimModePanelsBtn = page.locator('#dimModePanelsBtn');
+    this.dimModeSizeBtn = page.locator('#dimModeSizeBtn');
+    this.unitImperialBtn = page.locator('#unitImperial');
+    this.unitMetricBtn = page.locator('#unitMetric');
     this.panelsWideInput = page.locator('#panelsWide');
     this.panelsHighInput = page.locator('#panelsHigh');
     this.wallWidthInput = page.locator('#wallWidth');
     this.wallHeightInput = page.locator('#wallHeight');
-    this.aspectRatioNoneBtn = page.locator('button:has-text("None")').first();
-    this.aspectRatio169Btn = page.locator('button:has-text("16:9")');
-    this.aspectRatio43Btn = page.locator('button:has-text("4:3")');
-    this.aspectRatioCustomBtn = page.locator('button:has-text("Custom")').first();
+    this.aspectRatioNoneBtn = page.locator('#arNoneBtn');
+    this.aspectRatio169Btn = page.locator('#ar169Btn');
+    this.aspectRatio43Btn = page.locator('#ar43Btn');
+    this.aspectRatioCustomBtn = page.locator('#arCustomBtn');
     this.customARWidthInput = page.locator('#customARWidth');
     this.customARHeightInput = page.locator('#customARHeight');
     this.panelTypeSelect = page.locator('#panelType');

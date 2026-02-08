@@ -2,46 +2,41 @@ import { Page, Locator } from '@playwright/test';
 
 /**
  * Page Object for Bottom Navigation
- * Handles switching between Standard, Power, Data, Structure, Gear, Canvas views
+ *
+ * Bottom nav modes (via data-mode attribute):
+ *   - complex: Shows all layout views (standard, power, data, structure) simultaneously
+ *   - combined: Combined multi-screen canvas view
+ *   - gear: Gear list view
+ *   - simple: Simple mode (single layout at a time)
+ *   - canvas: Canvas export view (uses data-view="canvas")
+ *
+ * Note: In Complex mode, standard/power/data/structure layouts are all visible
+ * on the same page — there are no separate navigation buttons for them.
  */
 export class Navigation {
   readonly page: Page;
-  readonly standardBtn: Locator;
-  readonly powerBtn: Locator;
-  readonly dataBtn: Locator;
-  readonly structureBtn: Locator;
-  readonly gearBtn: Locator;
-  readonly canvasBtn: Locator;
+  readonly complexBtn: Locator;
   readonly combinedBtn: Locator;
+  readonly gearBtn: Locator;
+  readonly simpleBtn: Locator;
+  readonly canvasBtn: Locator;
 
   constructor(page: Page) {
     this.page = page;
-    this.standardBtn = page.locator('button[data-view="standard"]');
-    this.powerBtn = page.locator('button[data-view="power"]');
-    this.dataBtn = page.locator('button[data-view="data"]');
-    this.structureBtn = page.locator('button[data-view="structure"]');
-    this.gearBtn = page.locator('button[data-view="gear"]');
+    this.complexBtn = page.locator('button[data-mode="complex"]');
+    this.combinedBtn = page.locator('button[data-mode="combined"]');
+    this.gearBtn = page.locator('button[data-mode="gear"]');
+    this.simpleBtn = page.locator('button[data-mode="simple"]');
     this.canvasBtn = page.locator('button[data-view="canvas"]');
-    this.combinedBtn = page.locator('button[data-view="combined"]');
   }
 
-  async switchToStandard() {
-    await this.standardBtn.click();
+  async switchToComplex() {
+    await this.complexBtn.click();
     await this.page.waitForTimeout(200);
   }
 
-  async switchToPower() {
-    await this.powerBtn.click();
-    await this.page.waitForTimeout(200);
-  }
-
-  async switchToData() {
-    await this.dataBtn.click();
-    await this.page.waitForTimeout(200);
-  }
-
-  async switchToStructure() {
-    await this.structureBtn.click();
+  async switchToCombined() {
+    await this.combinedBtn.click();
     await this.page.waitForTimeout(200);
   }
 
@@ -50,13 +45,19 @@ export class Navigation {
     await this.page.waitForTimeout(200);
   }
 
+  async switchToSimple() {
+    await this.simpleBtn.click();
+    await this.page.waitForTimeout(200);
+  }
+
   async switchToCanvas() {
     await this.canvasBtn.click();
     await this.page.waitForTimeout(200);
   }
 
-  async switchToCombined() {
-    await this.combinedBtn.click();
-    await this.page.waitForTimeout(200);
-  }
+  // Legacy aliases for backward compatibility
+  async switchToStandard() { await this.switchToComplex(); }
+  async switchToPower() { await this.switchToComplex(); }
+  async switchToData() { await this.switchToComplex(); }
+  async switchToStructure() { await this.switchToComplex(); }
 }

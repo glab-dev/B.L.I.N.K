@@ -27,6 +27,11 @@ function safeColor(color, fallback) {
   return isValidHexColor(color) ? color : (fallback || '#10b981');
 }
 
+const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
+function isSafeKey(key) {
+  return !DANGEROUS_KEYS.includes(key);
+}
+
 // Set version number in menu when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
   const menuVersion = document.getElementById('menuVersionNumber');

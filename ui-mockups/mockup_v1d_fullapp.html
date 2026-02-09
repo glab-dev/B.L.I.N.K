@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <title>B.L.I.N.K. - Mockup V1D: Holographic Full App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="styles_cyberpunk_v1d_fullapp.css">
+  <style>
+    /* Mockup-only: make all sections visible for evaluation */
+    .welcome-page { display: none !important; }
+    .modal-overlay.mockup-visible { display: flex !important; position: relative !important; z-index: 1 !important; margin: 32px 0 !important; }
+    .modal-overlay.mockup-visible .modal-dialog { position: relative !important; }
+    .mobile-menu-overlay.mockup-visible { display: block !important; position: relative !important; z-index: 1 !important; margin: 32px 0 !important; height: auto !important; }
+    .mobile-menu-overlay.mockup-visible .mobile-menu { position: relative !important; transform: none !important; height: auto !important; }
+    .bottom-nav.mockup-visible { position: relative !important; margin-top: 32px !important; }
+    .layout-container { display: block !important; }
+    .view-container { display: block !important; }
+    /* Section dividers for clarity */
+    .mockup-divider {
+      text-align: center;
+      padding: 24px 0 12px;
+      font-family: 'Michroma', sans-serif;
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: rgba(16, 185, 129, 0.3);
+      text-transform: uppercase;
+      border-top: 1px solid rgba(16, 185, 129, 0.08);
+      margin-top: 32px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ========== MOBILE HEADER ========== -->
+<header class="mobile-header">
+  <h1>CALCULATOR</h1>
+  <div class="mobile-header-actions">
+    <button class="mobile-header-btn" title="Home">
+      <span class="material-symbols-outlined">home</span>
+    </button>
+    <button class="mobile-header-btn" title="Load Config">
+      <span class="material-symbols-outlined">folder</span>
+    </button>
+    <button class="mobile-header-btn" title="Save Config">
+      <span class="material-symbols-outlined">save</span>
+    </button>
+    <button class="mobile-header-btn" title="Menu">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+  </div>
+</header>
+
+<!-- ========== SCREEN TABS ========== -->
+<div class="mockup-divider">Screen Tabs</div>
+<div id="screenTabsContainer" style="display: flex; align-items: flex-end; gap: 4px;">
+  <div class="screen-tabs" style="display: flex; gap: 4px; align-items: flex-end;">
+    <div class="screen-tab active" style="display: flex; align-items: center; gap: 8px;">
+      <span class="screen-tab-name">Main IMAG</span>
+      <button class="screen-tab-edit" title="Edit">
+        <span class="material-symbols-outlined" style="font-size: 14px;">edit</span>
+      </button>
+      <button class="screen-tab-close">&times;</button>
+    </div>
+    <div class="screen-tab" style="display: flex; align-items: center; gap: 8px;">
+      <span class="screen-tab-name">Stage Left</span>
+      <button class="screen-tab-edit" title="Edit">
+        <span class="material-symbols-outlined" style="font-size: 14px;">edit</span>
+      </button>
+      <button class="screen-tab-close">&times;</button>
+    </div>
+    <div class="screen-tab" style="display: flex; align-items: center; gap: 8px;">
+      <span class="screen-tab-name">Floor</span>
+      <button class="screen-tab-edit" title="Edit">
+        <span class="material-symbols-outlined" style="font-size: 14px;">edit</span>
+      </button>
+      <button class="screen-tab-close">&times;</button>
+    </div>
+  </div>
+  <div class="screen-tab-add" title="Add new screen" style="flex-shrink: 0; margin-left: auto;">+</div>
+</div>
+
+<!-- ========== MAIN CONTAINER ========== -->
+<div class="main-container">
+  <div class="two-column-layout">
+
+    <!-- LEFT COLUMN -->
+    <div>
+
+      <!-- Panel Type -->
+      <div class="section-box">
+        <div class="section-title">Panel Type</div>
+        <label style="margin-bottom: 0;">
+          <select style="width: 100%; font-size: 14px;">
+            <option selected>ROE Black Pearl BP2 V2</option>
+            <option>ROE Carbon CB5 MKII</option>
+            <option>ROE MC7H</option>
+            <option>ROE Black Onyx BO3</option>
+            <option>ROE Black Marble BM4</option>
+            <option>ROE DM2.6</option>
+            <option>INFiLED AMT 8.3</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- Dimensions -->
+      <div class="section-box">
+        <div class="section-title">Dimensions</div>
+        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+          <div class="slider-toggle">
+            <button type="button" class="slider-toggle-btn active">Panels</button>
+            <button type="button" class="slider-toggle-btn">Size</button>
+          </div>
+          <div class="slider-toggle">
+            <button type="button" class="slider-toggle-btn active">Imperial</button>
+            <button type="button" class="slider-toggle-btn">Metric</button>
+          </div>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Aspect Ratio Lock</span>
+          <div class="slider-toggle">
+            <button type="button" class="slider-toggle-btn active" style="padding: 8px 10px; font-size: 12px;">None</button>
+            <button type="button" class="slider-toggle-btn" style="padding: 8px 10px; font-size: 12px;">16:9</button>
+            <button type="button" class="slider-toggle-btn" style="padding: 8px 10px; font-size: 12px;">4:3</button>
+            <button type="button" class="slider-toggle-btn" style="padding: 8px 10px; font-size: 12px;">Custom</button>
+          </div>
+        </div>
+        <div class="two-inputs" style="max-width: 200px;">
+          <label>
+            <span>Panels Wide</span>
+            <input type="number" value="8">
+          </label>
+          <label>
+            <span>Panels High</span>
+            <input type="number" value="4">
+          </label>
+        </div>
+      </div>
+
+      <!-- Power -->
+      <div class="section-box">
+        <div class="section-title">Power</div>
+        <div class="compact-row" style="margin-bottom: 12px;">
+          <div style="flex: 0 0 auto;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Power Basis</span>
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active">Max</button>
+              <button type="button" class="slider-toggle-btn">Avg</button>
+            </div>
+          </div>
+          <div style="flex: 0 0 auto;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Phase</span>
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active">3&#x00D8;</button>
+              <button type="button" class="slider-toggle-btn">1&#x00D8;</button>
+            </div>
+          </div>
+        </div>
+        <div class="compact-row">
+          <div style="flex: 0 0 auto;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Voltage</span>
+            <div class="number-input-with-arrows">
+              <input type="number" value="208">
+              <div class="number-input-arrows">
+                <button type="button"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+                <button type="button"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+              </div>
+            </div>
+          </div>
+          <div style="flex: 0 0 auto;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Breaker</span>
+            <div class="number-input-with-arrows">
+              <input type="number" value="20">
+              <div class="number-input-arrows">
+                <button type="button"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+                <button type="button"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+              </div>
+            </div>
+          </div>
+          <div style="flex: 0 0 auto;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Max/Circuit</span>
+            <div class="number-input-with-arrows">
+              <input type="number" placeholder="21">
+              <div class="number-input-arrows">
+                <button type="button"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+                <button type="button"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data -->
+      <div class="section-box">
+        <div class="section-title">Data</div>
+        <div style="margin-bottom: 8px;">
+          <label style="margin-bottom: 0;">
+            <span>Processor</span>
+            <select style="width: 100%;">
+              <option selected>Brompton SX40</option>
+              <option>Brompton S8</option>
+              <option>Brompton M2</option>
+              <option>NovaStar MX40 Pro</option>
+            </select>
+          </label>
+        </div>
+        <div class="compact-row" style="margin-bottom: 8px; flex-wrap: nowrap; gap: 8px;">
+          <div style="flex: 1; min-width: 0;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Frame Rate</span>
+            <select style="width: 100%; font-size: 14px;">
+              <option>24 Hz</option>
+              <option>30 Hz</option>
+              <option selected>60 Hz</option>
+            </select>
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Bit Depth</span>
+            <select style="width: 100%; font-size: 14px;">
+              <option selected>8 bit</option>
+              <option>10 bit</option>
+              <option>12 bit</option>
+            </select>
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Max/Data</span>
+            <div class="number-input-with-arrows" style="width: 100%; min-height: 48px;">
+              <input type="number" placeholder="Auto" style="padding: 12px 8px;">
+              <div class="number-input-arrows">
+                <button type="button"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+                <button type="button"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-bottom: 8px;">
+          <label style="margin-bottom: 0;">
+            <span>Data Direction</span>
+            <select style="width: 100%;">
+              <option selected>Top &rarr; Bottom</option>
+              <option>Bottom &rarr; Top</option>
+              <option>All from Top</option>
+              <option>All from Bottom</option>
+            </select>
+          </label>
+        </div>
+        <div class="toggle-group" style="gap: 6px;">
+          <div style="display: flex;">
+            <button type="button" class="toggle-btn active" style="padding: 8px 10px; font-size: 11px; min-width: auto; margin: 0;">Arrows</button>
+            <button type="button" class="toggle-btn" style="padding: 8px 10px; font-size: 11px; min-width: auto; margin: 0;">Flip</button>
+          </div>
+          <button type="button" class="toggle-btn active" style="padding: 8px 10px; font-size: 11px; min-width: auto;">Data Redun.</button>
+          <button type="button" class="toggle-btn" style="padding: 8px 10px; font-size: 11px; min-width: auto;">Proc Redun.</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div>
+
+      <!-- Structure -->
+      <div class="section-box">
+        <div class="section-title">Structure</div>
+        <div style="margin-bottom: 8px;">
+          <label style="margin-bottom: 0;">
+            <span>Config Type</span>
+            <select style="width: 100%;">
+              <option selected>Hanging</option>
+              <option>Ground Stack</option>
+              <option>Floor</option>
+            </select>
+          </label>
+        </div>
+        <div class="toggle-group" style="margin-bottom: 8px;">
+          <button type="button" class="toggle-btn active" style="padding: 8px 12px; font-size: 12px;">Bumpers</button>
+          <button type="button" class="toggle-btn" style="padding: 8px 12px; font-size: 12px;">4-Way</button>
+        </div>
+        <div class="hint">Bumper configuration is auto-calculated based on wall dimensions</div>
+      </div>
+
+      <!-- Results -->
+      <div class="result">
+        <div class="section-title" style="top: -16px; left: 16px;">Specifications</div>
+
+        <div class="result-section">
+          <div class="result-section-title">Wall Dimensions</div>
+          <div class="result-row"><strong>Wall Size:</strong> 13.1' x 6.6' (4000mm x 2000mm)</div>
+          <div class="result-row"><strong>Resolution:</strong> 1408 x 704 px</div>
+          <div class="result-row"><strong>Total Panels:</strong> 32</div>
+          <div class="result-row"><strong>Total Pixels:</strong> 991,232</div>
+        </div>
+
+        <div class="result-section">
+          <div class="result-section-title">Power</div>
+          <div class="result-row"><strong>Total Power:</strong> 8,000W (Max)</div>
+          <div class="result-row"><strong>Total Amps:</strong> 38.5A @ 208V</div>
+          <div class="result-row"><strong>Circuits Needed:</strong> 2 x 20A (3-Phase)</div>
+          <div class="result-row"><strong>Panels/Circuit:</strong> 16</div>
+        </div>
+
+        <div class="result-section">
+          <div class="result-section-title">Data</div>
+          <div class="result-row"><strong>Processor:</strong> Brompton SX40</div>
+          <div class="result-row"><strong>Ports Used:</strong> 2 of 4</div>
+          <div class="result-row"><strong>Processors Needed:</strong> 1</div>
+          <div class="result-row"><strong>Data Lines:</strong> 2</div>
+        </div>
+
+        <div class="result-section">
+          <div class="result-section-title">Weight</div>
+          <div class="result-row"><strong>Panel Weight:</strong> 272 lbs (123.4 kg)</div>
+          <div class="result-row"><strong>Bumper Weight:</strong> 44.8 lbs (20.3 kg)</div>
+          <div class="result-row"><strong>Total Weight:</strong> 316.8 lbs (143.7 kg)</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ========== LAYOUT CONTAINERS ========== -->
+<div class="mockup-divider">Layout Views</div>
+
+<!-- Standard Layout (expanded) -->
+<div class="layout-container">
+  <div class="layout-title">
+    <span class="layout-title-text">Standard Layout
+      <button class="layout-collapse-btn">&#9660;</button>
+    </span>
+    <div class="undo-redo-buttons">
+      <button class="undo-redo-btn" disabled>Undo</button>
+      <button class="undo-redo-btn" disabled>Redo</button>
+    </div>
+  </div>
+  <div class="layout-content">
+    <div class="mobile-hint">Tap a panel to select it. Long press or right-click for options.</div>
+    <canvas width="600" height="300" style="background: #111;"></canvas>
+  </div>
+</div>
+
+<!-- Power Layout (collapsed) -->
+<div class="layout-container collapsed">
+  <div class="layout-title">
+    <span class="layout-title-text">Power Layout
+      <button class="layout-collapse-btn collapsed">&#9660;</button>
+    </span>
+  </div>
+</div>
+
+<!-- Data Layout (collapsed) -->
+<div class="layout-container collapsed">
+  <div class="layout-title">
+    <span class="layout-title-text">Data Layout
+      <button class="layout-collapse-btn collapsed">&#9660;</button>
+    </span>
+  </div>
+</div>
+
+<!-- Structure Layout (collapsed) -->
+<div class="layout-container collapsed">
+  <div class="layout-title">
+    <span class="layout-title-text">Structure Layout
+      <button class="layout-collapse-btn collapsed">&#9660;</button>
+    </span>
+  </div>
+</div>
+
+<!-- ========== SAMPLE MODAL ========== -->
+<div class="mockup-divider">Modal Example</div>
+
+<div class="modal-overlay mockup-visible">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Custom Panel</h2>
+      <button class="modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <!-- Tabs -->
+      <div class="slider-toggle" style="margin-bottom: 12px;">
+        <button type="button" class="slider-toggle-btn active" style="padding: 8px 16px;">Specs</button>
+        <button type="button" class="slider-toggle-btn" style="padding: 8px 16px;">Cables</button>
+        <button type="button" class="slider-toggle-btn" style="padding: 8px 16px;">Structure</button>
+        <button type="button" class="slider-toggle-btn" style="padding: 8px 16px;">Gear</button>
+      </div>
+
+      <div class="modal-input-group">
+        <label>Panel Brand</label>
+        <input type="text" placeholder="e.g., ROE Visual">
+      </div>
+      <div class="modal-input-group">
+        <label>Panel Name</label>
+        <input type="text" placeholder="e.g., Black Pearl BP2">
+      </div>
+      <div class="modal-input-group">
+        <label>Pixel Pitch (mm)</label>
+        <input type="number" placeholder="e.g., 2.84">
+      </div>
+      <div class="modal-input-row">
+        <div class="modal-input-group">
+          <label>Panel Width (mm)</label>
+          <input type="number" placeholder="e.g., 500">
+        </div>
+        <div class="modal-input-group">
+          <label>Panel Height (mm)</label>
+          <input type="number" placeholder="e.g., 500">
+        </div>
+      </div>
+      <div class="modal-input-row">
+        <div class="modal-input-group">
+          <label>Max Power (W)</label>
+          <input type="number" placeholder="e.g., 250">
+        </div>
+        <div class="modal-input-group">
+          <label>Avg Power (W)</label>
+          <input type="number" placeholder="e.g., 125">
+        </div>
+      </div>
+
+      <!-- Toggle rows -->
+      <div class="cp-toggle-row">
+        <label class="cp-toggle-label">Has Removable Frame</label>
+        <label class="cp-mini-toggle">
+          <input type="checkbox">
+          <span class="cp-mini-toggle-slider"></span>
+        </label>
+      </div>
+      <div class="cp-toggle-row">
+        <label class="cp-toggle-label">Built-in Jumpers</label>
+        <label class="cp-mini-toggle">
+          <input type="checkbox" checked>
+          <span class="cp-mini-toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer" style="gap: 8px;">
+      <button class="btn-secondary">Cancel</button>
+      <button class="btn-primary">Save Panel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== ALERT MODAL ========== -->
+<div class="modal-overlay mockup-visible">
+  <div class="modal-dialog" style="max-width: 300px; padding: 12px;">
+    <div class="modal-header" style="margin-bottom: 8px; padding-bottom: 6px;">
+      <h2 class="modal-title">Confirm</h2>
+    </div>
+    <div class="modal-body" style="margin-bottom: 10px;">
+      <p style="color: #e0e0e0; font-size: 13px; line-height: 1.5; margin: 0;">Are you sure you want to delete this screen?</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary">Cancel</button>
+      <button class="btn-primary">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== EXPORT MODAL ========== -->
+<div class="modal-overlay mockup-visible">
+  <div class="modal-dialog" style="max-width: 360px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Export Options</h2>
+      <button class="modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="color: #888; font-size: 11px; margin-bottom: 10px;">Select which sections to include:</p>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" checked style="width: 16px; height: 16px;">
+          <span style="font-size: 12px;">Specifications</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" checked style="width: 16px; height: 16px;">
+          <span style="font-size: 12px;">Gear List</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" checked style="width: 16px; height: 16px;">
+          <span style="font-size: 12px;">Standard Layout</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" checked style="width: 16px; height: 16px;">
+          <span style="font-size: 12px;">Power Layout</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" style="width: 16px; height: 16px;">
+          <span style="font-size: 12px;">Data Layout</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" style="width: 16px; height: 16px;">
+          <span style="font-size: 12px;">Structure Layout</span>
+        </label>
+      </div>
+      <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.03); margin: 14px 0 10px 0;">
+      <p style="color: #888; font-size: 11px; margin-bottom: 10px;">Print options:</p>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" style="width: 16px; height: 16px;">
+          <span style="font-size: 12px;">Eco Friendly</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" style="width: 16px; height: 16px;">
+          <span style="font-size: 12px;">Greyscale</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary">Cancel</button>
+      <button class="btn-primary">Export</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MOBILE MENU ========== -->
+<div class="mockup-divider">Mobile Menu</div>
+
+<div class="mobile-menu-overlay mockup-visible">
+  <div class="mobile-menu">
+    <div class="mobile-menu-header">
+      <div style="display: flex; flex-direction: column; align-items: flex-start;">
+        <span>Settings</span>
+        <span style="font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 2px;">v2.8.22</span>
+      </div>
+      <button class="mobile-menu-refresh" title="Refresh App">&#x21bb;</button>
+      <button class="mobile-menu-close">&times;</button>
+    </div>
+    <div class="mobile-menu-content">
+      <div class="mobile-menu-section">
+        <button class="mobile-menu-btn">
+          <span class="material-symbols-outlined" style="font-size: 16px; margin-right: 6px; vertical-align: middle;">home</span>
+          Welcome Page
+        </button>
+      </div>
+      <div class="mobile-menu-section">
+        <div class="mobile-menu-label">Configuration</div>
+        <input type="text" placeholder="Config name..." style="margin-bottom: 12px;">
+        <div class="mobile-menu-btn-row">
+          <button class="mobile-menu-btn">Save</button>
+          <button class="mobile-menu-btn">Load</button>
+          <button class="mobile-menu-btn accent">Export</button>
+        </div>
+      </div>
+      <div class="mobile-menu-section">
+        <div class="mobile-menu-label">Custom Items</div>
+        <div class="mobile-menu-btn-row">
+          <button class="mobile-menu-btn">Add Panel</button>
+          <button class="mobile-menu-btn">Add Processor</button>
+        </div>
+        <div class="mobile-menu-btn-row">
+          <button class="mobile-menu-btn accent">Manage Items</button>
+          <button class="mobile-menu-btn">Requests</button>
+        </div>
+      </div>
+      <div class="mobile-menu-section">
+        <div class="mobile-menu-label">Inventory</div>
+        <button class="mobile-menu-btn">Gear Code Mapping</button>
+      </div>
+      <div class="mobile-menu-section">
+        <div class="mobile-menu-label" style="color: var(--tech-primary);">App Info</div>
+        <div class="mobile-menu-info">An LED wall calculator for planning LED video wall installations.</div>
+        <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.03); margin: 12px 0;">
+        <div class="mobile-menu-info">&copy; 2025 Gabriel Labrecque &bull; Fearless Wanderer Productions</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== BOTTOM NAVIGATION ========== -->
+<div class="mockup-divider">Bottom Navigation</div>
+
+<nav class="bottom-nav mockup-visible">
+  <div class="nav-mode-toggle">
+    <button class="nav-toggle-btn active">
+      <span class="nav-item-label">Complex</span>
+    </button>
+    <button class="nav-toggle-btn">
+      <span class="nav-item-label">Combined</span>
+    </button>
+  </div>
+  <div class="nav-item">
+    <span class="nav-item-label">Gear</span>
+  </div>
+  <div class="nav-item active">
+    <span class="nav-item-label">Canvas</span>
+  </div>
+</nav>
+
+</body>
+</html>

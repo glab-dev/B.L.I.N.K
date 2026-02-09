@@ -1,0 +1,320 @@
+/* Cyberpunk Tech Theme - Variant 1: Digital Matrix */
+/* Inspired by Tech.AI design - Dark, Clean, Professional */
+@import url('https://fonts.googleapis.com/css2?family=Michroma&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+:root {
+    /* Core Colors - Deep tech dark with emerald accents */
+    --tech-primary: #10b981;
+    --tech-primary-light: #34d399;
+    --tech-primary-dark: #059669;
+    --bg-darkest: #050505;
+    --bg-darker: #0a0a0a;
+    --bg-dark: #0d1117;
+    --bg-panel: #111318;
+    --bg-card: #161b22;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-accent: rgba(16, 185, 129, 0.3);
+    --text-primary: #ffffff;
+    --text-secondary: #c9d1d9;
+    --text-muted: #6e7681;
+    --futuristic-font: 'Michroma', sans-serif;
+    --clean-font: 'Rajdhani', sans-serif;
+}
+
+/* ==================== WELCOME PAGE OVERRIDES ==================== */
+
+.welcome-page {
+    background: linear-gradient(180deg, var(--bg-darkest) 0%, var(--bg-dark) 50%, var(--bg-darker) 100%) !important;
+    font-family: var(--clean-font) !important;
+}
+
+/* Tech grid pattern background */
+.welcome-page::before {
+    background-image:
+        linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px) !important;
+    background-size: 60px 60px !important;
+    opacity: 1 !important;
+}
+
+/* Content container */
+.welcome-content {
+    max-width: 500px !important;
+}
+
+/* Hero Section */
+.welcome-hero {
+    margin-bottom: 32px !important;
+}
+
+.welcome-title {
+    font-family: var(--futuristic-font) !important;
+    font-size: 56px !important;
+    color: #fff !important;
+    letter-spacing: 6px !important;
+    text-shadow: none !important;
+    -webkit-text-stroke: 0 !important;
+    margin-bottom: 16px !important;
+    font-weight: 400 !important;
+    background: linear-gradient(180deg, #ffffff 0%, #a0a0a0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.welcome-subtitle {
+    font-family: var(--clean-font) !important;
+    font-size: 14px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 4px !important;
+    color: var(--tech-primary) !important;
+    font-weight: 600 !important;
+    text-shadow: none !important;
+}
+
+.welcome-paren {
+    color: var(--text-muted) !important;
+    opacity: 0.7;
+}
+
+/* Mode Selection Cards */
+.welcome-modes {
+    gap: 16px !important;
+    margin-bottom: 24px !important;
+}
+
+.welcome-btn {
+    background: var(--bg-panel) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    padding: 24px !important;
+    transition: all 0.3s ease !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.welcome-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--tech-primary), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.welcome-btn:hover {
+    border-color: var(--border-accent) !important;
+    background: rgba(16, 185, 129, 0.05) !important;
+    transform: translateY(-2px) !important;
+}
+
+.welcome-btn:hover::before {
+    opacity: 1;
+}
+
+.welcome-btn:active {
+    transform: translateY(0) !important;
+}
+
+.welcome-btn-title {
+    font-family: var(--futuristic-font) !important;
+    color: var(--tech-primary) !important;
+    text-shadow: none !important;
+    font-size: 20px !important;
+    letter-spacing: 2px !important;
+    text-transform: uppercase !important;
+    font-weight: 400 !important;
+}
+
+.welcome-btn-desc {
+    color: var(--text-muted) !important;
+    text-shadow: none !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+}
+
+.welcome-btn-features {
+    margin-top: 16px !important;
+}
+
+.welcome-btn-features li {
+    color: var(--text-muted) !important;
+    font-size: 12px !important;
+    padding: 4px 0 !important;
+}
+
+.welcome-btn-features li::before {
+    content: '›' !important;
+    color: var(--tech-primary) !important;
+    margin-right: 8px !important;
+    font-weight: 700 !important;
+}
+
+/* Sign In Button */
+.welcome-btn-signin {
+    background: transparent !important;
+    border: 1px solid var(--text-secondary) !important;
+    color: var(--text-secondary) !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    text-transform: uppercase !important;
+    letter-spacing: 3px !important;
+    font-weight: 600 !important;
+    font-family: var(--clean-font) !important;
+    font-size: 12px !important;
+    padding: 14px 28px !important;
+    transition: all 0.3s ease !important;
+    text-shadow: none !important;
+}
+
+.welcome-btn-signin:hover {
+    background: var(--text-primary) !important;
+    color: var(--bg-darkest) !important;
+    border-color: var(--text-primary) !important;
+}
+
+.welcome-signin-desc {
+    color: var(--text-muted) !important;
+    font-size: 11px !important;
+}
+
+/* Feature Showcase */
+.welcome-features {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+    margin-top: 32px !important;
+    justify-content: center !important;
+}
+
+.welcome-feature-card {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid var(--border-subtle) !important;
+    padding: 16px 20px !important;
+    border-radius: 6px !important;
+    transition: all 0.3s ease !important;
+    flex: 1 !important;
+    min-width: 180px !important;
+    max-width: 220px !important;
+}
+
+.welcome-feature-card:hover {
+    border-color: var(--border-accent) !important;
+    background: rgba(16, 185, 129, 0.03) !important;
+}
+
+.welcome-feature-icon {
+    color: var(--tech-primary) !important;
+    font-size: 28px !important;
+    margin-bottom: 8px !important;
+}
+
+.welcome-feature-title {
+    font-family: var(--futuristic-font) !important;
+    font-size: 10px !important;
+    color: var(--text-primary) !important;
+    text-shadow: none !important;
+    letter-spacing: 1px !important;
+    text-transform: uppercase !important;
+}
+
+.welcome-feature-desc {
+    font-size: 11px !important;
+    color: var(--text-muted) !important;
+    margin-top: 4px !important;
+}
+
+/* FAQ Section */
+.welcome-faq {
+    background: var(--bg-panel) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 8px !important;
+    margin-top: 32px !important;
+    padding: 24px !important;
+}
+
+.welcome-faq-title {
+    font-family: var(--futuristic-font) !important;
+    font-size: 12px !important;
+    color: var(--text-primary) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 2px !important;
+    padding-bottom: 16px !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+    margin-bottom: 16px !important;
+}
+
+.welcome-faq-q {
+    font-weight: 500 !important;
+    color: var(--text-secondary) !important;
+    transition: color 0.2s !important;
+}
+
+.welcome-faq-q:hover {
+    color: var(--tech-primary) !important;
+}
+
+.welcome-faq-a {
+    color: var(--text-muted) !important;
+    font-size: 13px !important;
+}
+
+/* Footer */
+.welcome-footer-links {
+    gap: 12px !important;
+}
+
+.welcome-footer-link {
+    border: 1px solid var(--border-subtle) !important;
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    padding: 8px 16px !important;
+    font-family: var(--clean-font) !important;
+    font-weight: 500 !important;
+    text-shadow: none !important;
+    transition: all 0.2s !important;
+}
+
+.welcome-footer-link:hover {
+    border-color: var(--tech-primary) !important;
+    color: var(--tech-primary) !important;
+}
+
+.welcome-footer-meta {
+    color: var(--text-muted) !important;
+    opacity: 0.7 !important;
+}
+
+/* Desktop Responsive */
+@media (min-width: 768px) {
+    .welcome-content {
+        max-width: 900px !important;
+    }
+
+    .welcome-title {
+        font-size: 72px !important;
+        letter-spacing: 10px !important;
+    }
+
+    .welcome-subtitle {
+        font-size: 16px !important;
+    }
+
+    .welcome-btn {
+        min-height: 220px !important;
+    }
+
+    .welcome-features {
+        display: flex !important;
+    }
+
+    .welcome-faq {
+        display: block !important;
+    }
+}

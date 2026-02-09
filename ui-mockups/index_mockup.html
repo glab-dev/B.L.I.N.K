@@ -1,0 +1,2391 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  B.L.I.N.K. — LED Wall Calculator
+  © 2025 Gabriel Labrecque
+  Fearless Wanderer Productions
+
+  This software is licensed:
+  - Commercial use, redistribution, or sale requires a commercial license from Gabriel Labrecque.
+
+  All rights reserved. Unauthorized copying, modification, distribution, or use outside the terms of these licenses is prohibited.
+  ============================================================================
+-->
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="B.L.I.N.K.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="description" content="B.L.I.N.K. - Professional LED wall calculator and configuration tool">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://blink-led.com">
+  <meta property="og:title" content="B.L.I.N.K. - LED Wall Calculator">
+  <meta property="og:description"
+    content="Professional LED wall calculator for planning video wall installations. Calculate power, data, structure, and generate exportable layouts.">
+  <meta property="og:image" content="https://blink-led.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="B.L.I.N.K. - LED Wall Calculator">
+  <meta name="twitter:description" content="Professional LED wall calculator for planning video wall installations.">
+  <meta name="twitter:image" content="https://blink-led.com/og-image.png">
+  <!-- Cache control - prevent aggressive caching -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>B.L.I.N.K. - LED Wall Calculator</title>
+
+  <!-- PWA Manifest (inline base64) -->
+  <link rel="manifest"
+    href="data:application/json;base64,ewogICJuYW1lIjogIkIuTC5JLk4uSy4gLSBMRUQgV2FsbCBDYWxjdWxhdG9yIiwKICAic2hvcnRfbmFtZSI6ICJCLkwuSS5OLksuIiwKICAiZGVzY3JpcHRpb24iOiAiUHJvZmVzc2lvbmFsIExFRCB3YWxsIGNhbGN1bGF0b3IgYW5kIGNvbmZpZ3VyYXRpb24gdG9vbCIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMGEwYTBhIiwKICAidGhlbWVfY29sb3IiOiAiIzBhMGEwYSIsCiAgIm9yaWVudGF0aW9uIjogImFueSIKfQo=">
+
+  <!-- iOS Icons - Generated PNG via canvas for iOS compatibility -->
+  <link rel="apple-touch-icon" id="appleTouchIcon" href="">
+  <script>
+    (function () {
+      var canvas = document.createElement('canvas');
+      canvas.width = 180;
+      canvas.height = 180;
+      var ctx = canvas.getContext('2d');
+      // Dark background with rounded corners (drawn as full rect since iOS clips it)
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0, 0, 180, 180);
+      // Green "LED" text
+      ctx.fillStyle = '#10b981';
+      ctx.font = 'bold 52px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('LED', 90, 95);
+      // Set the icon
+      var link = document.getElementById('appleTouchIcon');
+      if (link) link.href = canvas.toDataURL('image/png');
+    })();
+  </script>
+
+  <!-- Comic book style fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Roboto+Condensed:wght@400;700&display=swap"
+    rel="stylesheet" crossorigin="anonymous">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" crossorigin="anonymous">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="styles_cyberpunk.css">
+</head>
+
+<body>
+
+  <script>
+    window.addEventListener('load', () => {
+      // Hide Welcome, Show Main
+      document.getElementById('welcomePage').style.display = 'none';
+      document.querySelector('.mobile-header').style.display = 'flex';
+      document.querySelector('.bottom-nav').style.display = 'flex';
+      document.querySelector('.main-container').style.display = 'block';
+
+      // Show Standard Layout
+      document.getElementById('standardContainer').style.display = 'block';
+
+      // Draw on Canvas
+      const canvas = document.getElementById('standardCanvas');
+      if (canvas) {
+        canvas.width = 800;
+        canvas.height = 400;
+        const ctx = canvas.getContext('2d');
+
+        // Background Grid
+        ctx.fillStyle = '#101010';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+
+        for (let i = 0; i < canvas.width; i += 40) {
+          ctx.beginPath();
+          ctx.moveTo(i, 0);
+          ctx.lineTo(i, canvas.height);
+          ctx.stroke();
+        }
+        for (let j = 0; j < canvas.height; j += 40) {
+          ctx.beginPath();
+          ctx.moveTo(0, j);
+          ctx.lineTo(canvas.width, j);
+          ctx.stroke();
+        }
+
+        // Draw some "Panels" in Tech Green
+        ctx.fillStyle = '#10b981';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+
+        for (let r = 2; r < 6; r++) {
+          for (let c = 3; c < 10; c++) {
+            ctx.fillRect(c * 40 + 2, r * 40 + 2, 36, 36);
+            ctx.strokeRect(c * 40 + 2, r * 40 + 2, 36, 36);
+          }
+        }
+
+        // Add text overlay
+        ctx.fillStyle = '#fff';
+        ctx.font = '20px Michroma';
+        ctx.fillText('STANDARD LAYOUT', 20, 30);
+      }
+    });
+  </script>
+
+
+  <!-- Welcome Page -->
+  <div id="welcomePage" class="welcome-page">
+    <div class="welcome-content">
+
+      <!-- Hero Section -->
+      <div class="welcome-hero">
+        <div class="welcome-logo-container">
+          <h1 class="welcome-title">B.L.I.N.K.</h1>
+        </div>
+        <p class="welcome-subtitle">Build Layout Intelligence for Networked Kits</p>
+        <p class="welcome-subtitle"><span class="welcome-paren">&ldquo;</span> LED Calculator <span
+            class="welcome-paren">&rdquo;</span></p>
+      </div>
+
+      <!-- Mode Selection Cards -->
+      <div class="welcome-modes">
+        <button class="welcome-btn welcome-btn-simple" onclick="enterSimpleMode()">
+          <span class="welcome-btn-title">Simple</span>
+          <span class="welcome-btn-desc">Quick setup with essential tools</span>
+          <ul class="welcome-btn-features">
+            <li>Panel Selection</li>
+            <li>Dimensions</li>
+            <li>Power &amp; Data</li>
+            <li>Specs &amp; Canvas</li>
+            <li>All Exports</li>
+          </ul>
+        </button>
+        <button class="welcome-btn welcome-btn-complex" onclick="enterComplexMode()">
+          <span class="welcome-btn-title">Complex</span>
+          <span class="welcome-btn-desc">Full suite with layouts, gear &amp; combined view</span>
+          <ul class="welcome-btn-features">
+            <li>Everything in Simple +</li>
+            <li>4 Layout Views</li>
+            <li>Gear List &amp; Structure</li>
+            <li>Combined View</li>
+            <li>Bumper Management</li>
+          </ul>
+        </button>
+      </div>
+
+      <!-- Sign In -->
+      <button class="welcome-btn-signin" onclick="openAuthModal('signin')">
+        <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">login</span>
+        Sign In
+      </button>
+      <p class="welcome-signin-desc">Sign in for device sync and community sharing</p>
+
+      <!-- Feature Showcase (desktop only via CSS) -->
+      <div class="welcome-features">
+        <div class="welcome-feature-card">
+          <span class="material-symbols-outlined welcome-feature-icon">dashboard</span>
+          <span class="welcome-feature-title">Professional Layouts</span>
+          <span class="welcome-feature-desc">Power, Data, Structure, and Canvas layout views</span>
+        </div>
+        <div class="welcome-feature-card">
+          <span class="material-symbols-outlined welcome-feature-icon">devices</span>
+          <span class="welcome-feature-title">Multi-Screen</span>
+          <span class="welcome-feature-desc">Add multiple screens to visualize and compare specs</span>
+        </div>
+        <div class="welcome-feature-card">
+          <span class="material-symbols-outlined welcome-feature-icon">view_carousel</span>
+          <span class="welcome-feature-title">Multi-Canvas</span>
+          <span class="welcome-feature-desc">Organize screens across multiple canvas views</span>
+        </div>
+        <div class="welcome-feature-card">
+          <span class="material-symbols-outlined welcome-feature-icon">download</span>
+          <span class="welcome-feature-title">Export Options</span>
+          <span class="welcome-feature-desc">PDF, PNG, Email, Resolume XML</span>
+        </div>
+        <div class="welcome-feature-card">
+          <span class="material-symbols-outlined welcome-feature-icon">group</span>
+          <span class="welcome-feature-title">Community Library</span>
+          <span class="welcome-feature-desc">Share and download custom panels &amp; processors</span>
+        </div>
+      </div>
+
+      <!-- FAQ Section (desktop only via CSS) -->
+      <div class="welcome-faq">
+        <h3 class="welcome-faq-title">FAQ</h3>
+        <div class="welcome-faq-item">
+          <button class="welcome-faq-q" onclick="toggleWelcomeFaq(this)">
+            <span>What is B.L.I.N.K.?</span>
+            <span class="welcome-faq-arrow">&#9660;</span>
+          </button>
+          <div class="welcome-faq-a">B.L.I.N.K. is a professional LED wall calculator for planning LED video wall
+            installations. It calculates power, data, structure, and generates exportable layouts for your crew.</div>
+        </div>
+        <div class="welcome-faq-item">
+          <button class="welcome-faq-q" onclick="toggleWelcomeFaq(this)">
+            <span>How is my data handled?</span>
+            <span class="welcome-faq-arrow">&#9660;</span>
+          </button>
+          <div class="welcome-faq-a">All data stays on your device by default. Cloud sync is opt-in and requires signing
+            in. We don't track usage or sell data. Custom items you share to the community are visible to other users.
+          </div>
+        </div>
+        <div class="welcome-faq-item">
+          <button class="welcome-faq-q" onclick="toggleWelcomeFaq(this)">
+            <span>Can I use B.L.I.N.K. offline?</span>
+            <span class="welcome-faq-arrow">&#9660;</span>
+          </button>
+          <div class="welcome-faq-a">Yes. B.L.I.N.K. is a PWA that works fully offline after the first load. Install it
+            to your home screen for a native app experience &mdash; perfect for on-site work without wifi.</div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="welcome-footer">
+        <div class="welcome-footer-links">
+          <button class="welcome-footer-link" onclick="openHelpModal()">Help</button>
+          <button class="welcome-footer-link" onclick="openTermsModal()">Terms of Use</button>
+          <button class="welcome-footer-link"
+            onclick="window.location.href='mailto:info@blink-led.com'">Contact</button>
+        </div>
+        <div class="welcome-footer-meta">
+          <span id="welcomeVersionLine"></span>
+          <span>&copy; 2025 Gabriel Labrecque &bull; Fearless Wanderer Productions</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="modal-overlay">
+    <div class="modal-dialog" style="max-width: 560px; max-height: 85vh;">
+      <div class="modal-header">
+        <h2 class="modal-title">How to Use B.L.I.N.K.</h2>
+        <button class="modal-close" onclick="closeHelpModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; max-height: calc(85vh - 80px); padding: 16px;">
+        <div class="help-content">
+          <h3 class="help-section-title">Getting Started</h3>
+          <ol class="help-list">
+            <li>Select a Panel Type from the dropdown</li>
+            <li>Enter Dimensions — panels wide/high or target wall size</li>
+            <li>Configure Power — voltage, breaker, and phase settings</li>
+            <li>Configure Data — processor, frame rate, and bit depth</li>
+            <li>Review Results — check calculated specifications</li>
+            <li>View Layouts — explore Power, Data, and Structure layouts</li>
+            <li>Export PDF — generate a professional report</li>
+          </ol>
+
+          <h3 class="help-section-title">Mode Features</h3>
+          <div class="slider-toggle" style="margin-bottom: 12px;">
+            <button type="button" class="slider-toggle-btn help-tab-btn active" data-tab="simple"
+              onclick="switchHelpTab('simple')">Simple</button>
+            <button type="button" class="slider-toggle-btn help-tab-btn" data-tab="complex"
+              onclick="switchHelpTab('complex')">Complex</button>
+          </div>
+          <div id="helpSimpleContent">
+            <p class="help-text" style="margin-bottom: 8px; color: var(--primary); font-weight: 700;">Streamlined
+              interface with essential tools</p>
+            <ul class="help-list">
+              <li>Panel selection — full built-in + custom panel library</li>
+              <li>Dimensions — panels or target size with aspect ratio lock</li>
+              <li>Power calculations — voltage, breaker, phase, circuit distribution</li>
+              <li>Data calculations — processor, frame rate, bit depth</li>
+              <li>Condensed specs display</li>
+              <li>Canvas view — multi-screen positioning</li>
+              <li>All exports — PDF, PNG, email, Resolume XML, .ledconfig</li>
+              <li>Unit conversion — Imperial / Metric</li>
+              <li>Multi-screen projects</li>
+              <li>Custom panels &amp; processors</li>
+            </ul>
+            <p class="help-text" style="font-size: 11px; color: var(--muted-color);">Tabs: Simple, Canvas</p>
+          </div>
+          <div id="helpComplexContent" style="display: none;">
+            <p class="help-text" style="margin-bottom: 8px; color: var(--primary); font-weight: 700;">Full suite —
+              everything in Simple, plus:</p>
+            <ul class="help-list">
+              <li>Full detailed specifications display</li>
+              <li>Combined multi-screen view with aggregated specs</li>
+              <li>Dedicated gear list tab</li>
+              <li>Structure calculations — bumpers, pickup weights, ground support</li>
+              <li>Data direction controls — Top→Bottom, Bottom→Top, etc.</li>
+              <li>Data &amp; Processor redundancy options</li>
+              <li>4 layout views — Standard, Power, Data, Structure</li>
+              <li>Bumper bar management — auto + manual positioning</li>
+              <li>Ground stack vs hanging configuration</li>
+            </ul>
+            <p class="help-text" style="font-size: 11px; color: var(--muted-color);">Tabs: Complex | Combined, Gear,
+              Canvas</p>
+          </div>
+
+          <h3 class="help-section-title">Complex Tab</h3>
+          <p class="help-text">The Complex tab shows your full configuration with all inputs and results. Scroll down
+            past the specs to find the layout views.</p>
+          <ul class="help-list">
+            <li><strong>Panel Type</strong> — select built-in or custom panels from the dropdown</li>
+            <li><strong>Dimensions</strong> — toggle between Panels or Size input mode</li>
+            <li><strong>Power</strong> — set voltage, breaker, phase, power basis (Max/Avg)</li>
+            <li><strong>Data</strong> — choose processor, frame rate, bit depth, data direction</li>
+            <li><strong>Structure</strong> — choose Hanging or Ground Stack, configure bumpers</li>
+          </ul>
+
+          <h3 class="help-section-title">Layout Views</h3>
+          <p class="help-text">In Complex mode, toggle between layouts using the buttons below the specs:</p>
+          <ul class="help-list">
+            <li><strong>Standard</strong> — panel grid with checkerboard coloring, click to delete/restore panels</li>
+            <li><strong>Power</strong> — color-coded circuit distribution with circuit numbers</li>
+            <li><strong>Data</strong> — data routing paths with line numbers and direction arrows</li>
+            <li><strong>Structure</strong> — bumper positions, pickup weights, and ground support hardware</li>
+          </ul>
+          <p class="help-text">Tap a layout section title to collapse/expand it.</p>
+
+          <h3 class="help-section-title">Gear List</h3>
+          <ul class="help-list">
+            <li>Switch to the <strong>Gear</strong> tab in the bottom nav</li>
+            <li>Toggle screens on/off to filter the gear list</li>
+            <li><strong>Wall to Floor</strong> — enter distance for cable length calculations</li>
+            <li><strong>Distro to Wall</strong> — enter distance from power distro to wall</li>
+            <li>Gear is organized by: Equipment, Rigging, and Cabling</li>
+          </ul>
+
+          <h3 class="help-section-title">Canvas View</h3>
+          <p class="help-text">Position multiple screens visually on a virtual canvas.</p>
+          <ul class="help-list">
+            <li><strong>Canvas Size</strong> — choose 4K UHD, 4K DCI, HD, or Custom dimensions</li>
+            <li><strong>Drag screens</strong> — tap and drag to reposition screens on the canvas</li>
+            <li><strong>X/Y Pos</strong> — set exact pixel positions with the number inputs</li>
+            <li><strong>Fine (px)</strong> — set arrow key increment for precise adjustments</li>
+            <li><strong>Snap</strong> — toggle snapping to other screens and canvas edges</li>
+            <li><strong>Zoom</strong> — use +/- buttons, type a %, or Ctrl+Scroll (desktop)</li>
+            <li><strong>Pan</strong> — drag empty space to pan when zoomed in</li>
+            <li><strong>Screen toggles</strong> — show/hide individual screens</li>
+            <li><strong>Export</strong> — save as PNG, JPEG, or Resolume XML with a custom filename</li>
+          </ul>
+
+          <h3 class="help-section-title">Mobile (Touch)</h3>
+          <ul class="help-list">
+            <li><strong>Tap</strong> — Select panels, buttons, controls</li>
+            <li><strong>Long-press</strong> — Right-click equivalent (e.g., bumper options)</li>
+            <li><strong>Drag</strong> — Move screens in canvas view</li>
+            <li><strong>Pinch zoom</strong> — Zoom in/out on canvas</li>
+            <li><strong>Hamburger menu</strong> — Access all options</li>
+          </ul>
+
+          <h3 class="help-section-title">Desktop (Mouse)</h3>
+          <ul class="help-list">
+            <li><strong>Click / Drag</strong> — Select and move panels</li>
+            <li><strong>Right-click</strong> — Context menus for bumpers and panels</li>
+            <li><strong>Ctrl+Scroll</strong> — Zoom canvas</li>
+          </ul>
+
+          <h3 class="help-section-title">Keyboard Shortcuts</h3>
+          <table class="help-table">
+            <tr>
+              <td>Ctrl+Z</td>
+              <td>Undo</td>
+            </tr>
+            <tr>
+              <td>Ctrl+Y</td>
+              <td>Redo</td>
+            </tr>
+            <tr>
+              <td>Arrow Keys</td>
+              <td>Fine position adjustment in Canvas</td>
+            </tr>
+            <tr>
+              <td>Ctrl+Scroll</td>
+              <td>Zoom in/out in Canvas</td>
+            </tr>
+            <tr>
+              <td>Delete</td>
+              <td>Remove selected panels</td>
+            </tr>
+          </table>
+
+          <h3 class="help-section-title">Sign In &amp; Cloud Sync</h3>
+          <p class="help-text">Sign in to sync custom panels and processors across devices.</p>
+          <ul class="help-list">
+            <li><strong>Sign In</strong> — Tap "Sign In" on the welcome page or in the menu</li>
+            <li><strong>Create Account</strong> — Switch to the "Create Account" tab to register</li>
+            <li><strong>Device Sync</strong> — Your custom items sync automatically when signed in</li>
+            <li><strong>Sign Out</strong> — Welcome page shows "Sign Out" when logged in</li>
+          </ul>
+
+          <h3 class="help-section-title">Community Sharing</h3>
+          <p class="help-text">Share your custom panels and processors with the community.</p>
+          <ul class="help-list">
+            <li><strong>Share</strong> — Edit a custom item and tap the purple Share button</li>
+            <li><strong>Browse</strong> — Menu → Manage Custom Items → Community tab</li>
+            <li><strong>Download</strong> — Tap "Add" to add community items to your library</li>
+            <li><strong>★ Indicator</strong> — Community items show a star in the dropdown</li>
+          </ul>
+
+          <h3 class="help-section-title">Tips</h3>
+          <ul class="help-list">
+            <li>Select your panel first — it affects all calculations</li>
+            <li>Data Redundancy is enabled by default for professional installs</li>
+            <li>Verify circuit counts match your available power</li>
+            <li>Save configurations frequently using the Save button</li>
+            <li>Use multiple screens to organize complex setups</li>
+            <li>Sign in for device sync and community sharing</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Terms of Use Modal -->
+  <div id="termsModal" class="modal-overlay">
+    <div class="modal-dialog" style="max-width: 480px; max-height: 85vh;">
+      <div class="modal-header">
+        <h2 class="modal-title">Terms of Use</h2>
+        <button class="modal-close" onclick="closeTermsModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; max-height: calc(85vh - 80px); padding: 16px;">
+        <div class="help-content">
+          <h3 class="help-section-title">Usage</h3>
+          <ul class="help-list">
+            <li>Calculations are estimates &mdash; always verify with manufacturer specs</li>
+            <li>Export results for your crew, but do not redistribute the software itself</li>
+          </ul>
+          <h3 class="help-section-title">Your Data</h3>
+          <ul class="help-list">
+            <li>All project data is stored locally on your device</li>
+            <li>Cloud sync (sign-in) stores your custom panels/processors, syncs devices, and syncs projects across
+              signed-in devices</li>
+            <li>We do not track, sell, or share your data</li>
+          </ul>
+          <h3 class="help-section-title">Ownership</h3>
+          <p class="help-text">&copy; 2025 Gabriel Labrecque. All rights reserved. The software, code, design, and
+            content are the intellectual property of Gabriel Labrecque / Fearless Wanderer Productions.</p>
+          <h3 class="help-section-title">Disclaimer</h3>
+          <p class="help-text">B.L.I.N.K. is provided without warranty of any kind. The developer is not liable for any
+            damages arising from the use of this tool. Power, structural, and data calculations should be verified by
+            qualified professionals.</p>
+          <h3 class="help-section-title">Contact</h3>
+          <p class="help-text">Questions or licensing inquiries: <a href="mailto:info@blink-led.com"
+              style="color: var(--primary);">info@blink-led.com</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Panel Modal -->
+  <div id="customPanelModal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title" id="customPanelModalTitle">Add Custom Panel</h2>
+        <button class="modal-close" onclick="closeCustomPanelModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Tab Navigation -->
+        <div class="slider-toggle" style="margin-bottom: 12px;">
+          <button type="button" class="slider-toggle-btn active" id="cpTabSpecsBtn"
+            onclick="switchCustomPanelTab('specs')">Specs</button>
+          <button type="button" class="slider-toggle-btn" id="cpTabCablesBtn"
+            onclick="switchCustomPanelTab('cables')">Cables</button>
+          <button type="button" class="slider-toggle-btn" id="cpTabStructureBtn"
+            onclick="switchCustomPanelTab('structure')">Structure</button>
+          <button type="button" class="slider-toggle-btn" id="cpTabGearBtn"
+            onclick="switchCustomPanelTab('gear')">Gear</button>
+        </div>
+
+        <!-- Tab 1: Specs (all existing fields) -->
+        <div id="cpTabSpecs" class="cp-tab-content">
+          <div class="modal-input-group">
+            <label>Panel Brand</label>
+            <input type="text" id="customPanelBrand" placeholder="e.g., ROE Visual">
+          </div>
+
+          <div class="modal-input-group">
+            <label>Panel Name</label>
+            <input type="text" id="customPanelName" placeholder="e.g., Black Pearl BP2">
+          </div>
+
+          <div class="modal-input-group">
+            <label id="labelPixelPitch">Pixel Pitch (mm)</label>
+            <input type="number" id="customPanelPixelPitch" step="0.01" placeholder="e.g., 2.84">
+          </div>
+
+          <div class="modal-input-row">
+            <div class="modal-input-group">
+              <label id="labelPanelWidth">Panel Width (mm)</label>
+              <input type="number" id="customPanelWidth" step="0.1" placeholder="e.g., 500">
+            </div>
+            <div class="modal-input-group">
+              <label id="labelPanelHeight">Panel Height (mm)</label>
+              <input type="number" id="customPanelHeight" step="0.1" placeholder="e.g., 500">
+            </div>
+          </div>
+
+          <div class="modal-input-group">
+            <label id="labelPanelDepth">Panel Depth (mm)</label>
+            <input type="number" id="customPanelDepth" step="0.1" placeholder="e.g., 90">
+          </div>
+
+          <div class="modal-input-row">
+            <div class="modal-input-group">
+              <label>Resolution Width (px)</label>
+              <input type="number" id="customPanelResX" placeholder="e.g., 176">
+            </div>
+            <div class="modal-input-group">
+              <label>Resolution Height (px)</label>
+              <input type="number" id="customPanelResY" placeholder="e.g., 176">
+            </div>
+          </div>
+
+          <div class="modal-input-row">
+            <div class="modal-input-group">
+              <label>Max Power (W)</label>
+              <input type="number" id="customPanelPowerMax" step="1" placeholder="e.g., 250">
+            </div>
+            <div class="modal-input-group">
+              <label>Avg Power (W)</label>
+              <input type="number" id="customPanelPowerAvg" step="1" placeholder="e.g., 125">
+            </div>
+          </div>
+
+          <div class="modal-input-group">
+            <label>Brightness (nits)</label>
+            <input type="number" id="customPanelBrightness" placeholder="e.g., 5000">
+          </div>
+
+          <div class="modal-input-group">
+            <label id="labelPanelWeight">Panel Weight (kg)</label>
+            <input type="number" id="customPanelWeight" step="0.1" placeholder="e.g., 8.5">
+          </div>
+
+          <div class="checkbox-group">
+            <input type="checkbox" id="customPanelRemovableFrame" onchange="updateFrameWeightFields()">
+            <label for="customPanelRemovableFrame">Has Removable Frame</label>
+          </div>
+
+          <div id="frameWeightFields" style="display: none;">
+            <div class="modal-input-row">
+              <div class="modal-input-group">
+                <label id="labelFrameWeight">Frame Weight (kg)</label>
+                <input type="number" id="customPanelFrameWeight" step="0.1" placeholder="e.g., 1.2">
+              </div>
+              <div class="modal-input-group">
+                <label id="labelWeightNoFrame">Weight Without Frame (kg)</label>
+                <input type="number" id="customPanelWeightNoFrame" step="0.1" placeholder="e.g., 7.3">
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Tab 2: Cables -->
+        <div id="cpTabCables" class="cp-tab-content" style="display: none;">
+          <div class="cp-toggle-row">
+            <label class="cp-toggle-label">Built-in Jumpers</label>
+            <label class="cp-mini-toggle">
+              <input type="checkbox" id="cpJumpersBuiltin" onchange="setCustomPanelJumperType(this.checked)">
+              <span class="cp-mini-toggle-slider"></span>
+            </label>
+          </div>
+
+          <div id="cpExternalJumperFields">
+            <div class="modal-input-row">
+              <div class="modal-input-group">
+                <label>Data Jumper Length</label>
+                <input type="text" id="customPanelDataJumper" placeholder="e.g., 1'">
+              </div>
+              <div class="modal-input-group">
+                <label>Power Jumper Length</label>
+                <input type="text" id="customPanelPowerJumper" placeholder="e.g., 1'">
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-input-group">
+            <label>Data Cross Jumper Length</label>
+            <input type="text" id="customPanelCrossJumper" placeholder="e.g., 2'">
+          </div>
+        </div>
+
+        <!-- Tab 3: Structure -->
+        <div id="cpTabStructure" class="cp-tab-content" style="display: none;">
+          <div class="cp-toggle-row">
+            <label class="cp-toggle-label">Hanging / Ground Stack</label>
+            <label class="cp-mini-toggle">
+              <input type="checkbox" id="cpUsesBumpers" checked onchange="setCustomPanelBumpers(this.checked)">
+              <span class="cp-mini-toggle-slider"></span>
+            </label>
+          </div>
+
+          <div id="cpBumperWeightFields">
+            <div class="modal-input-row" style="margin-top: 4px;">
+              <div class="modal-input-group">
+                <label>Max Panels Hanging</label>
+                <input type="number" id="customPanelMaxHanging" placeholder="e.g., 20">
+              </div>
+              <div class="modal-input-group">
+                <label>Max Panels Stacking</label>
+                <input type="number" id="customPanelMaxStacking" placeholder="e.g., 12">
+              </div>
+            </div>
+            <div class="modal-input-row">
+              <div class="modal-input-group">
+                <label id="label1wBumper">1W Bumper Weight (lbs)</label>
+                <input type="number" id="customPanel1wBumper" step="0.1" placeholder="e.g., 5.5">
+              </div>
+              <div class="modal-input-group">
+                <label id="label2wBumper">2W Bumper Weight (lbs)</label>
+                <input type="number" id="customPanel2wBumper" step="0.1" placeholder="e.g., 8.8">
+              </div>
+            </div>
+            <div class="modal-input-group">
+              <label id="label4wBumper">4W Bumper Weight (lbs)</label>
+              <input type="number" id="customPanel4wBumper" step="0.1" placeholder="e.g., 66.15">
+            </div>
+          </div>
+
+          <div class="cp-toggle-row">
+            <label class="cp-toggle-label">Floor Panel</label>
+            <label class="cp-mini-toggle">
+              <input type="checkbox" id="cpFloorPanel" onchange="setCustomPanelFloor(this.checked)">
+              <span class="cp-mini-toggle-slider"></span>
+            </label>
+          </div>
+
+          <div id="cpFloorFrameFields" style="display: none;">
+            <div class="modal-input-row" style="margin-top: 10px;">
+              <div class="modal-input-group">
+                <label id="labelFrame1x1">1x1 Frame Weight (lbs)</label>
+                <input type="number" id="customPanelFrame1x1" step="0.1" placeholder="e.g., 26.5">
+              </div>
+              <div class="modal-input-group">
+                <label id="labelFrame2x1">2x1 Frame Weight (lbs)</label>
+                <input type="number" id="customPanelFrame2x1" step="0.1" placeholder="e.g., 41.9">
+              </div>
+            </div>
+            <div class="modal-input-row">
+              <div class="modal-input-group">
+                <label id="labelFrame2x2">2x2 Frame Weight (lbs)</label>
+                <input type="number" id="customPanelFrame2x2" step="0.1" placeholder="e.g., 62.8">
+              </div>
+              <div class="modal-input-group">
+                <label id="labelFrame3x2">3x2 Frame Weight (lbs)</label>
+                <input type="number" id="customPanelFrame3x2" step="0.1" placeholder="e.g., 80.5">
+              </div>
+            </div>
+            <div class="modal-input-row">
+              <div class="modal-input-group">
+                <label>Custom Frame Name</label>
+                <input type="text" id="customPanelFrameName" placeholder="e.g., 4x3">
+              </div>
+              <div class="modal-input-group">
+                <label>Panels in Frame</label>
+                <input type="number" id="customPanelFramePanels" step="1" placeholder="e.g., 12">
+              </div>
+            </div>
+            <div class="modal-input-group">
+              <label id="labelFrameCustom">Custom Frame Weight (lbs)</label>
+              <input type="number" id="customPanelFrameCustomWeight" step="0.1" placeholder="e.g., 95.0">
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Gear (Complex mode only) -->
+        <div id="cpTabGear" class="cp-tab-content" style="display: none;">
+          <div class="cp-toggle-row">
+            <label class="cp-toggle-label">Needs Shackles & Cheeseyes</label>
+            <label class="cp-mini-toggle">
+              <input type="checkbox" id="cpNeedsShackles" onchange="setCustomPanelShackleMode(this.checked)">
+              <span class="cp-mini-toggle-slider"></span>
+            </label>
+          </div>
+          <div id="cpShackleFields" style="display: none;">
+            <div class="cp-toggle-row">
+              <label class="cp-toggle-label">Double Shackles per 2W Bumper</label>
+              <label class="cp-mini-toggle">
+                <input type="checkbox" id="cpDoubleShackles">
+                <span class="cp-mini-toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="cp-toggle-row">
+            <label class="cp-toggle-label">Uses Connecting Plates</label>
+            <label class="cp-mini-toggle">
+              <input type="checkbox" id="cpUsesConnectingPlates">
+              <span class="cp-mini-toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="cp-toggle-row">
+            <label class="cp-toggle-label">Supports 4W Bumpers</label>
+            <label class="cp-mini-toggle">
+              <input type="checkbox" id="cpSupports4wBumpers">
+              <span class="cp-mini-toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="cp-toggle-row">
+            <label class="cp-toggle-label">Needs Bridge Clamp Adapters</label>
+            <label class="cp-mini-toggle">
+              <input type="checkbox" id="cpNeedsBridgeAdapters">
+              <span class="cp-mini-toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer" style="gap: 8px;">
+        <button class="btn-secondary" onclick="closeCustomPanelModal()">Cancel</button>
+        <button class="btn-secondary" id="sharePanelBtn" onclick="shareCustomPanelToCommunity()"
+          style="display: none;">Share to Community</button>
+        <button class="btn-primary" onclick="saveCustomPanel()">Save Panel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Processor Modal -->
+  <div id="customProcessorModal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title" id="customProcessorModalTitle">Add Custom Processor</h2>
+        <button class="modal-close" onclick="closeCustomProcessorModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-input-row">
+          <div class="modal-input-group">
+            <label>Brand</label>
+            <input type="text" id="customProcessorBrand" placeholder="e.g., Brompton">
+          </div>
+          <div class="modal-input-group">
+            <label>Name</label>
+            <input type="text" id="customProcessorName" placeholder="e.g., SX40">
+          </div>
+        </div>
+
+        <div class="modal-input-row">
+          <div class="modal-input-group">
+            <label>Port Type</label>
+            <select id="customProcessorPortType" onchange="updateProcessorPortLabel()">
+              <option value="1g">1G</option>
+              <option value="10g">10G</option>
+            </select>
+          </div>
+          <div class="modal-input-group">
+            <label id="labelPixelsPerPort">Pixels per Port</label>
+            <input type="number" id="customProcessorPixelsPerPort" placeholder="e.g., 525000">
+          </div>
+        </div>
+
+        <div class="modal-input-row">
+          <div class="modal-input-group">
+            <label>Base Frame Rate</label>
+            <input type="number" id="customProcessorFrameRate" placeholder="60" value="60">
+          </div>
+          <div class="modal-input-group">
+            <label>Base Bit Depth</label>
+            <input type="number" id="customProcessorBitDepth" placeholder="8" value="8">
+          </div>
+        </div>
+
+        <div class="modal-input-row">
+          <div class="modal-input-group">
+            <label>Total Pixel Capacity</label>
+            <input type="number" id="customProcessorTotalPixels" placeholder="e.g., 9000000">
+          </div>
+          <div class="modal-input-group">
+            <label>Number of Output Ports</label>
+            <input type="number" id="customProcessorOutputPorts" placeholder="e.g., 4">
+          </div>
+        </div>
+
+        <div class="cp-toggle-row">
+          <label class="cp-toggle-label">Direct Mode</label>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="cpProcessorDirect" checked>
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="cp-toggle-row">
+          <label class="cp-toggle-label">Indirect Mode (Distribution Box)</label>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="cpProcessorDistBox" onchange="setCustomProcessorDistBox(this.checked)">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <div id="cpProcessorDistBoxFields" style="display: none;">
+          <div class="modal-input-row">
+            <div class="modal-input-group">
+              <label>Distribution Box Name</label>
+              <input type="text" id="customProcessorDistBoxName" placeholder="e.g., Brompton XD">
+            </div>
+            <div class="modal-input-group">
+              <label>Ports per Box</label>
+              <input type="number" id="customProcessorDistBoxPorts" placeholder="e.g., 10">
+            </div>
+          </div>
+        </div>
+
+        <div class="cp-toggle-row">
+          <label class="cp-toggle-label">Ports Configurable as Backup</label>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="cpProcessorBackup">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer" style="gap: 8px;">
+        <button class="btn-secondary" onclick="closeCustomProcessorModal()">Cancel</button>
+        <button class="btn-secondary" id="shareProcessorBtn" onclick="shareCustomProcessorToCommunity()"
+          style="display: none;">Share to Community</button>
+        <button class="btn-primary" onclick="saveCustomProcessor()">Save Processor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDF Export Options Modal -->
+  <div id="pdfExportModal" class="modal-overlay">
+    <div class="modal-dialog" style="max-width: 360px;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="pdfExportModalTitle">Export Options</h2>
+        <button class="modal-close" onclick="closePdfExportModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: #888; font-size: 11px; margin-bottom: 10px;">Select which sections to include:</p>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="pdfExportSpecs" checked
+              style="width: 16px; height: 16px; accent-color: var(--primary);">
+            <span style="font-size: 12px;">Specifications</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="pdfExportGearList" checked
+              style="width: 16px; height: 16px; accent-color: var(--primary);">
+            <span style="font-size: 12px;">Gear List</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="pdfExportStandard" checked
+              style="width: 16px; height: 16px; accent-color: var(--primary);">
+            <span style="font-size: 12px;">Standard Layout</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="pdfExportPower" checked
+              style="width: 16px; height: 16px; accent-color: var(--primary);">
+            <span style="font-size: 12px;">Power Layout</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="pdfExportData" checked
+              style="width: 16px; height: 16px; accent-color: var(--primary);">
+            <span style="font-size: 12px;">Data Layout</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="pdfExportStructure" checked
+              style="width: 16px; height: 16px; accent-color: var(--primary);">
+            <span style="font-size: 12px;">Structure Layout</span>
+          </label>
+        </div>
+        <hr style="border: none; border-top: 1px solid #383838; margin: 14px 0 10px 0;">
+        <p style="color: #888; font-size: 11px; margin-bottom: 10px;">Print options:</p>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="pdfExportEcoFriendly"
+              style="width: 16px; height: 16px; accent-color: var(--primary);"
+              onchange="if(this.checked) document.getElementById('pdfExportGreyscale').checked = false;">
+            <span style="font-size: 12px;">Eco Friendly</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="pdfExportGreyscale"
+              style="width: 16px; height: 16px; accent-color: var(--primary);"
+              onchange="if(this.checked) document.getElementById('pdfExportEcoFriendly').checked = false;">
+            <span style="font-size: 12px;">Greyscale</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closePdfExportModal()">Cancel</button>
+        <button class="btn-primary" id="pdfExportModalBtn" onclick="confirmPdfExport()">Export</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Alert/Confirm Modal -->
+  <div id="customAlertModal" class="modal-overlay">
+    <div class="modal-dialog" style="max-width: 300px; padding: 12px;">
+      <div class="modal-header" style="margin-bottom: 8px; padding-bottom: 6px;">
+        <h2 class="modal-title" id="customAlertTitle">Notice</h2>
+      </div>
+      <div class="modal-body" style="margin-bottom: 10px;">
+        <p id="customAlertMessage" style="color: #e0e0e0; font-size: 13px; line-height: 1.5; margin: 0;"></p>
+        <input type="text" id="customAlertInput"
+          style="display: none; width: 100%; margin-top: 8px; box-sizing: border-box;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();closeCustomAlert(true);}">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="customAlertCancelBtn" onclick="closeCustomAlert(false)"
+          style="display: none;">Cancel</button>
+        <button class="btn-primary" id="customAlertOkBtn" onclick="closeCustomAlert(true)">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Request Item Modal -->
+  <div id="requestItemModal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title" id="requestItemModalTitle">Request Panel/Processor</h2>
+        <button class="modal-close" onclick="closeRequestItemModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-input-group">
+          <label>Request Type</label>
+          <div class="slider-toggle" style="margin-top: 4px;">
+            <button type="button" class="slider-toggle-btn active" id="requestTypePanelBtn"
+              onclick="setRequestType('panel')" style="padding: 8px 16px;">Panel</button>
+            <button type="button" class="slider-toggle-btn" id="requestTypeProcessorBtn"
+              onclick="setRequestType('processor')" style="padding: 8px 16px;">Processor</button>
+            <button type="button" class="slider-toggle-btn" id="requestTypeOtherBtn" onclick="setRequestType('other')"
+              style="padding: 8px 16px;">Other</button>
+            <button type="button" class="slider-toggle-btn" id="requestTypeFeatureBtn"
+              onclick="setRequestType('feature')" style="padding: 8px 16px;">Feature</button>
+          </div>
+        </div>
+
+        <div id="requestItemFields">
+          <div class="modal-input-group">
+            <label>Brand / Manufacturer</label>
+            <input type="text" id="requestBrand" placeholder="e.g., ROE Visual, Brompton, NovaStar">
+          </div>
+
+          <div class="modal-input-group">
+            <label>Model Name</label>
+            <input type="text" id="requestModel" placeholder="e.g., Black Pearl 2, Tessera SX40">
+          </div>
+
+          <div class="modal-input-group">
+            <label>Additional Info (optional)</label>
+            <textarea id="requestNotes" placeholder="Any other details, specs, or links to spec sheets..."></textarea>
+          </div>
+        </div>
+
+        <div id="requestOtherFields" style="display: none;">
+          <div class="modal-input-group">
+            <label>Describe your request</label>
+            <textarea id="requestOtherText" rows="10" style="min-height: 200px;"
+              placeholder="I'd like to request..."></textarea>
+          </div>
+        </div>
+
+        <div id="requestFeatureFields" style="display: none;">
+          <div class="modal-input-group">
+            <label>Describe your feature request</label>
+            <textarea id="requestFeatureText" rows="10" style="min-height: 200px;"
+              placeholder="I'd like to see..."></textarea>
+          </div>
+        </div>
+
+        <div class="hint" style="margin-top: 8px; text-align: center; color: #888;">
+          This will open your email app with a pre-filled request.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeRequestItemModal()">Cancel</button>
+        <button class="btn-primary" onclick="sendItemRequest()">Send Request</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manage Custom Items Modal -->
+  <div id="manageCustomModal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title">Manage Custom Items</h2>
+        <button class="modal-close" onclick="closeManageCustomModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="slider-toggle" style="margin-bottom: 12px;">
+          <button type="button" class="slider-toggle-btn active" id="manageTabPanelsBtn"
+            onclick="switchManageTab('panels')" style="padding: 8px 16px;">Panels</button>
+          <button type="button" class="slider-toggle-btn" id="manageTabProcessorsBtn"
+            onclick="switchManageTab('processors')" style="padding: 8px 16px;">Processors</button>
+          <button type="button" class="slider-toggle-btn" id="manageTabCommunityBtn"
+            onclick="switchManageTab('community')" style="padding: 8px 16px;">Community</button>
+        </div>
+        <div id="manageCustomPanelsContent" class="manage-tab-content"></div>
+        <div id="manageCustomProcessorsContent" class="manage-tab-content" style="display: none;"></div>
+        <div id="manageCustomCommunityContent" class="manage-tab-content" style="display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" onclick="closeManageCustomModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Community Browser Modal -->
+  <div id="communityBrowserModal" class="modal-overlay">
+    <div class="modal-dialog" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2 class="modal-title">Community Library</h2>
+        <button class="modal-close" onclick="closeCommunityBrowserModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="slider-toggle" style="margin-bottom: 12px;">
+          <button type="button" class="slider-toggle-btn active" id="communityTabPanelsBtn"
+            onclick="switchCommunityTab('panels')" style="padding: 8px 16px;">Panels</button>
+          <button type="button" class="slider-toggle-btn" id="communityTabProcessorsBtn"
+            onclick="switchCommunityTab('processors')" style="padding: 8px 16px;">Processors</button>
+        </div>
+        <div id="communityPanelsContent" class="community-tab-content">
+          <p style="color: #888; text-align: center; padding: 20px;">Loading...</p>
+        </div>
+        <div id="communityProcessorsContent" class="community-tab-content" style="display: none;">
+          <p style="color: #888; text-align: center; padding: 20px;">Loading...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeCommunityBrowserModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gear Code Mapping Modal -->
+  <div id="gearCodeModal" class="modal-overlay">
+    <div class="modal-dialog" style="max-width: 850px; height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="flex-shrink: 0;">
+        <h2 class="modal-title">Gear Code Mapping</h2>
+        <button class="modal-close" onclick="closeGearCodeModal()">&times;</button>
+      </div>
+      <div class="modal-body"
+        style="flex: 1 1 auto; overflow-y: auto; min-height: 0; padding: 0; -webkit-overflow-scrolling: touch; margin-bottom: 0;">
+        <div class="slider-toggle" style="margin: 12px 16px;">
+          <button type="button" class="slider-toggle-btn active" id="gcTabEquipmentBtn"
+            onclick="switchGearCodeTab('equipment')" style="padding: 8px 16px;">Equipment</button>
+          <button type="button" class="slider-toggle-btn" id="gcTabRiggingBtn" onclick="switchGearCodeTab('rigging')"
+            style="padding: 8px 16px;">Rigging</button>
+          <button type="button" class="slider-toggle-btn" id="gcTabCablesBtn" onclick="switchGearCodeTab('cables')"
+            style="padding: 8px 16px;">Cables</button>
+        </div>
+        <div style="padding: 0 16px 8px;">
+          <input type="text" id="gearCodeSearch" placeholder="Filter items..." oninput="filterGearCodeItems(this.value)"
+            style="width: 100%; box-sizing: border-box;">
+        </div>
+        <div style="padding: 0 16px 8px; display: flex; gap: 8px; align-items: center;">
+          <label style="color: #888; font-size: 12px; font-family: 'Roboto Condensed', sans-serif;">Scope:</label>
+          <div class="slider-toggle" style="flex: 0 0 auto;">
+            <button type="button" class="slider-toggle-btn active" id="gcScopeGlobal"
+              onclick="switchGearCodeScope('global')" style="padding: 6px 12px; font-size: 12px;">Global</button>
+            <button type="button" class="slider-toggle-btn" id="gcScopeProject" onclick="switchGearCodeScope('project')"
+              style="padding: 6px 12px; font-size: 12px;">This Project</button>
+          </div>
+        </div>
+        <div id="gearCodeContent" style="padding: 0 16px 16px; overflow-x: hidden;"></div>
+      </div>
+      <div class="modal-footer"
+        style="display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; flex-shrink: 0;">
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-secondary" onclick="document.getElementById('gearCodeImportInput').click()">Import
+            File</button>
+          <input type="file" id="gearCodeImportInput" accept=".txt,.csv,.tsv" style="display: none;"
+            onchange="importGearCodesFromFile(event)">
+          <button class="btn-secondary" onclick="exportGearCodes()">Export</button>
+          <button class="btn-secondary" style="color: #ef4444;" onclick="clearGearCodes()">Clear</button>
+        </div>
+        <button class="btn-primary" onclick="closeGearCodeModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Header -->
+  <header class="mobile-header">
+    <h1>CALCULATOR</h1>
+    <div class="mobile-header-actions">
+      <button class="mobile-header-btn" onclick="showWelcomePage()" title="Home">
+        <span class="material-symbols-outlined">home</span>
+      </button>
+      <button class="mobile-header-btn" onclick="document.getElementById('loadConfigInput').click()"
+        title="Load Config">
+        <span class="material-symbols-outlined">folder</span>
+      </button>
+      <button class="mobile-header-btn" onclick="saveConfiguration()" title="Save Config">
+        <span class="material-symbols-outlined">save</span>
+      </button>
+      <button class="mobile-header-btn" onclick="toggleMobileMenu()" title="Menu">
+        <span class="material-symbols-outlined">menu</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Update Available Banner -->
+  <div id="updateBanner" class="update-banner">
+    <span class="update-banner-text">New version <span id="updateVersionText"></span></span>
+    <button class="update-banner-btn" onclick="hardRefreshApp()">Tap to Update</button>
+    <button class="update-banner-close" onclick="hideUpdateBanner()">&times;</button>
+  </div>
+
+  <!-- Mobile Menu Overlay -->
+  <div id="mobileMenuOverlay" class="mobile-menu-overlay" onclick="closeMobileMenu()">
+    <div class="mobile-menu" onclick="event.stopPropagation()">
+      <div class="mobile-menu-header">
+        <div style="display: flex; flex-direction: column; align-items: flex-start;">
+          <span>Settings</span>
+          <span id="menuVersionNumber" style="font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 2px;"></span>
+        </div>
+        <button class="mobile-menu-refresh" onclick="hardRefreshApp();" title="Refresh App">&#x21bb;</button>
+        <button class="mobile-menu-close" onclick="closeMobileMenu()">&times;</button>
+      </div>
+      <div class="mobile-menu-content">
+        <div class="mobile-menu-section">
+          <button class="mobile-menu-btn" onclick="closeMobileMenu(); showWelcomePage();">
+            <span class="material-symbols-outlined"
+              style="font-size: 16px; margin-right: 6px; vertical-align: middle;">home</span>
+            Welcome Page
+          </button>
+        </div>
+        <div class="mobile-menu-section">
+          <div class="mobile-menu-label">Configuration</div>
+          <input type="text" id="configName" placeholder="Config name..." style="margin-bottom: 12px;">
+          <div class="mobile-menu-btn-row">
+            <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save</button>
+            <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load</button>
+            <input type="file" id="loadConfigInput" accept=".led,.ledconfig" style="display: none;"
+              onchange="loadConfiguration(event); closeMobileMenu();">
+            <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="closeMobileMenu();">Export</button>
+          </div>
+          <button class="mobile-menu-btn accent" onclick="sendGearListToJared(); closeMobileMenu();"
+            style="margin-top: 8px;">Send to Jared</button>
+        </div>
+        <div class="mobile-menu-section">
+          <div class="mobile-menu-label">Custom Items</div>
+          <div class="mobile-menu-btn-row">
+            <button class="mobile-menu-btn"
+              onclick="modalOpenedFromMenu = true; openCustomPanelModal(); closeMobileMenu();">Add Panel</button>
+            <button class="mobile-menu-btn"
+              onclick="modalOpenedFromMenu = true; openCustomProcessorModal(); closeMobileMenu();">Add
+              Processor</button>
+          </div>
+          <div class="mobile-menu-btn-row">
+            <button class="mobile-menu-btn accent"
+              onclick="modalOpenedFromMenu = true; openManageCustomModal(); closeMobileMenu();">Manage Items</button>
+            <button class="mobile-menu-btn"
+              onclick="modalOpenedFromMenu = true; openProcessorRequestModal(); closeMobileMenu();">Requests</button>
+          </div>
+        </div>
+        <div class="mobile-menu-section">
+          <div class="mobile-menu-label">Inventory</div>
+          <button class="mobile-menu-btn"
+            onclick="modalOpenedFromMenu = true; openGearCodeModal(); closeMobileMenu();">Gear Code Mapping</button>
+        </div>
+        <div class="mobile-menu-section">
+          <div class="mobile-menu-label" style="color: var(--accent-color);">App Info</div>
+          <div class="mobile-menu-info">An LED wall calculator for planning LED video wall installations. Calculate
+            equipment needs, visualize layouts, generate gear lists, and export detailed PDF reports.</div>
+          <hr style="border: none; border-top: 1px solid #383838; margin: 12px 0;">
+          <div class="mobile-menu-info"><strong
+              style="text-decoration: underline; color: var(--accent-color);">Disclaimer</strong><br>This software
+            provides decision-support and planning estimates for LED system design. All results must be verified and
+            approved by qualified professionals before real-world use. The user assumes full responsibility for final
+            design, safety compliance, and implementation. No warranty is provided, and the developer assumes no
+            liability for resulting damages or losses.</div>
+          <hr style="border: none; border-top: 1px solid #383838; margin: 12px 0;">
+          <div class="mobile-menu-info">© 2025 Gabriel Labrecque<br>Fearless Wanderer Productions</div>
+          <button class="mobile-menu-btn install-btn" id="installPwaBtn" style="display: none;"
+            onclick="installPwa()">📲 Install App</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legacy page header (hidden on mobile) -->
+  <div class="page-header desktop-only">
+    <div>
+      <!-- Title and description hidden - they're in the background image -->
+    </div>
+    <div class="header-buttons-row">
+      <div class="config-buttons">
+        <button class="config-btn save" onclick="saveConfiguration()">💾 Save</button>
+        <button class="config-btn load" onclick="document.getElementById('loadConfigInput').click()">📂 Load</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Screen Tabs Container -->
+  <div id="screenTabsContainer" style="display: flex; align-items: flex-end; gap: 4px;">
+    <div id="screenAddBtn" class="screen-tab-add" onclick="addNewScreen()" title="Add new screen"
+      style="flex-shrink: 0; margin-left: auto;">+</div>
+  </div>
+
+  <!-- Screen Rename Modal -->
+  <div id="screenRenameModal" class="modal-overlay">
+    <div class="modal-dialog" style="max-width: 400px;">
+      <div class="modal-header">
+        <h2 class="modal-title">Edit Screen</h2>
+        <button class="modal-close" onclick="closeScreenRenameModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-input-group">
+          <label>Screen Name</label>
+          <input type="text" id="screenRenameInput" placeholder="e.g., Main IMAG">
+        </div>
+        <div class="modal-input-group">
+          <label>Primary Color</label>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="color" id="screenColorInput"
+              style="width: 60px; height: 40px; border: 1px solid #383838; border-radius: 4px; background: #242424; cursor: pointer;">
+            <span id="screenColorPreview"
+              style="flex: 1; padding: 8px 12px; background: #242424; border: 1px solid #383838; border-radius: 4px; font-family: monospace; font-size: 12px;"></span>
+          </div>
+        </div>
+        <div class="modal-input-group">
+          <label>Secondary Color</label>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="color" id="screenColor2Input"
+              style="width: 60px; height: 40px; border: 1px solid #383838; border-radius: 4px; background: #242424; cursor: pointer;">
+            <span id="screenColor2Preview"
+              style="flex: 1; padding: 8px 12px; background: #242424; border: 1px solid #383838; border-radius: 4px; font-family: monospace; font-size: 12px;"></span>
+          </div>
+          <div class="hint">Panels alternate between primary and secondary colors in Standard Layout and Canvas View
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button class="btn-secondary" onclick="closeScreenRenameModal()">Cancel</button>
+        <button class="btn-primary" onclick="saveScreenRename()">Save</button>
+        <button class="btn-secondary" onclick="duplicateScreen()"
+          style="background: #3498db; color: #fff; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">Duplicate</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <div class="two-column-layout">
+
+      <!-- LEFT COLUMN -->
+      <div>
+
+        <!-- Panel Type -->
+        <div class="section-box">
+          <div class="section-title">Panel Type</div>
+          <label style="margin-bottom: 0;">
+            <select id="panelType" style="width: 100%; font-size: 14px;">
+              <option value="BP2_V2">ROE Black Pearl BP2 V2</option>
+              <option value="CB5_MKII">ROE Carbon CB5 MKII</option>
+              <option value="CB5_MKII_HALF">ROE Carbon CB5 MKII Half</option>
+              <option value="MC7H">ROE MC7H</option>
+              <option value="BO3">ROE Black Onyx BO3</option>
+              <option value="BM4_MATTE">ROE Black Marble BM4</option>
+              <option value="DM2_6">ROE DM2.6</option>
+              <option value="INFILED_AMT8_3">INFiLED AMT 8.3</option>
+            </select>
+          </label>
+        </div>
+
+        <!-- CB5 Half Panel Row Toggle (only visible when CB5 MKII is selected) -->
+        <div id="cb5HalfPanelToggle" style="display: none; margin-top: 8px;">
+          <div class="toggle-group">
+            <button type="button" class="toggle-btn" id="addCB5HalfRowBtn" onclick="toggleCB5HalfRow()">+ Half Panel
+              Row</button>
+          </div>
+        </div>
+
+        <!-- Connecting Plates Section (CB5 MKII / DM2.6) -->
+        <div id="connectingPlatesSection" style="display: none; margin-top: 8px;">
+          <div class="section-box">
+            <div class="section-title">Panel Connection Method</div>
+
+            <!-- CB5 MKII can choose -->
+            <div id="cb5ConnectionChoice" style="display: none;">
+              <div class="toggle-group">
+                <button type="button" class="toggle-btn active" id="connectionAirframeBtn"
+                  onclick="setConnectionMethod('airframe')">Air Frame</button>
+                <button type="button" class="toggle-btn" id="connectionPlatesBtn"
+                  onclick="setConnectionMethod('plates')">Plates</button>
+              </div>
+            </div>
+
+            <!-- DM2.6 always uses plates -->
+            <div id="dm26ConnectionInfo" style="display: none;">
+              <button type="button" class="toggle-btn active"
+                style="pointer-events: none; opacity: 1; width: auto; padding: 8px 16px;">Connecting Plates</button>
+              <div class="hint" style="color: #888; margin-top: 6px;">
+                DM2.6 panels use connecting plates only
+              </div>
+            </div>
+
+            <!-- Plate Weight Inputs (hidden - now auto-calculated) -->
+            <div id="plateWeightInputs" style="display: none;">
+              <!-- Plate weights are now automatically calculated:
+                   2-Way Plate: 0.5 kg each
+                   4-Way Plate: 0.8 kg each
+              -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Dimensions Section -->
+        <div class="section-box">
+          <div class="section-title">Dimensions</div>
+
+          <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active" id="dimModePanelsBtn"
+                onclick="setDimensionMode('panels')">Panels</button>
+              <button type="button" class="slider-toggle-btn" id="dimModeSizeBtn"
+                onclick="setDimensionMode('size')">Size</button>
+            </div>
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active" id="unitImperial"
+                onclick="setUnitSystem('imperial')">Imperial</button>
+              <button type="button" class="slider-toggle-btn" id="unitMetric"
+                onclick="setUnitSystem('metric')">Metric</button>
+            </div>
+          </div>
+
+          <!-- Aspect Ratio Lock -->
+          <div style="margin-bottom: 12px;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Aspect Ratio Lock
+              <span id="arHint" style="color: #10b981; font-style: italic; display: none;">(input width for auto
+                height)</span></span>
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active" id="arNoneBtn" onclick="setAspectRatio('none')"
+                style="padding: 8px 10px; font-size: 12px;">None</button>
+              <button type="button" class="slider-toggle-btn" id="ar169Btn" onclick="setAspectRatio('16:9')"
+                style="padding: 8px 10px; font-size: 12px;">16:9</button>
+              <button type="button" class="slider-toggle-btn" id="ar43Btn" onclick="setAspectRatio('4:3')"
+                style="padding: 8px 10px; font-size: 12px;">4:3</button>
+              <button type="button" class="slider-toggle-btn" id="arCustomBtn" onclick="setAspectRatio('custom')"
+                style="padding: 8px 10px; font-size: 12px;">Custom</button>
+            </div>
+            <!-- Custom Aspect Ratio Inputs (hidden by default) -->
+            <div id="customAspectRatioInputs" style="display: none; margin-top: 8px;">
+              <div class="two-inputs" style="max-width: 160px;">
+                <label>
+                  <span>Width</span>
+                  <input type="number" id="customARWidth" min="1" placeholder="16" style="width: 60px; color: #6b7280;"
+                    onfocus="this.style.color='#fff'" onblur="if(!this.value)this.style.color='#6b7280'">
+                </label>
+                <label>
+                  <span>Height</span>
+                  <input type="number" id="customARHeight" min="1" placeholder="10" style="width: 60px; color: #6b7280;"
+                    onfocus="this.style.color='#fff'" onblur="if(!this.value)this.style.color='#6b7280'">
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div id="panelCountInputs">
+            <div class="two-inputs" style="max-width: 200px;">
+              <label>
+                <span>Panels Wide</span>
+                <input type="number" id="panelsWide" min="1">
+              </label>
+              <label>
+                <span>Panels High</span>
+                <input type="number" id="panelsHigh" min="1">
+              </label>
+            </div>
+          </div>
+
+          <div id="wallSizeInputs" style="display: none;">
+            <div class="two-inputs" style="max-width: 200px;">
+              <label>
+                <span>Wall Width</span>
+                <input type="number" id="wallWidth" min="0.1" step="0.01">
+              </label>
+              <label>
+                <span>Wall Height</span>
+                <input type="number" id="wallHeight" min="0.1" step="0.01">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Power Section -->
+        <div class="section-box" id="powerSection">
+          <div class="section-title">Power</div>
+
+          <!-- Row 1: Power Basis and Phase toggles -->
+          <div class="compact-row" style="margin-bottom: 12px;">
+            <div style="flex: 0 0 auto;">
+              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Power Basis</span>
+              <div class="slider-toggle">
+                <button type="button" class="slider-toggle-btn active" id="powerMaxBtn"
+                  onclick="setPowerType('max')">Max</button>
+                <button type="button" class="slider-toggle-btn" id="powerAvgBtn"
+                  onclick="setPowerType('avg')">Avg</button>
+              </div>
+              <select id="powerType" style="display: none;">
+                <option value="max" selected>Max</option>
+                <option value="avg">Average</option>
+              </select>
+            </div>
+            <div style="flex: 0 0 auto;">
+              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Phase</span>
+              <div class="slider-toggle">
+                <button type="button" class="slider-toggle-btn active" id="phase3Btn" onclick="setPhase(3)">3Ø</button>
+                <button type="button" class="slider-toggle-btn" id="phase1Btn" onclick="setPhase(1)">1Ø</button>
+              </div>
+              <select id="phase" style="display: none;">
+                <option value="1">1-phase</option>
+                <option value="3" selected>3-phase</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Row 2: Voltage, Breaker, Max/Circuit -->
+          <div class="compact-row">
+            <div style="flex: 0 0 auto;">
+              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Voltage</span>
+              <div class="number-input-with-arrows">
+                <input type="number" id="voltage" value="208">
+                <div class="number-input-arrows">
+                  <button type="button" onclick="adjustNumberInput('voltage', 1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span>
+                  </button>
+                  <button type="button" onclick="adjustNumberInput('voltage', -1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div style="flex: 0 0 auto;">
+              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Breaker</span>
+              <div class="number-input-with-arrows">
+                <input type="number" id="breaker" value="20">
+                <div class="number-input-arrows">
+                  <button type="button" onclick="adjustNumberInput('breaker', 1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span>
+                  </button>
+                  <button type="button" onclick="adjustNumberInput('breaker', -1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div style="flex: 0 0 auto;">
+              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Max/Circuit</span>
+              <div class="number-input-with-arrows">
+                <input type="number" id="maxPanelsPerCircuit" min="1" step="1" placeholder="21">
+                <div class="number-input-arrows">
+                  <button type="button" onclick="adjustNumberInput('maxPanelsPerCircuit', 1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span>
+                  </button>
+                  <button type="button" onclick="adjustNumberInput('maxPanelsPerCircuit', -1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Section -->
+        <div class="section-box" id="dataSection">
+          <div class="section-title">Data</div>
+
+          <!-- Row 1: Processor -->
+          <div style="margin-bottom: 8px;">
+            <label style="margin-bottom: 0;">
+              <span>Processor</span>
+              <select id="processor" style="width: 100%;">
+                <option value="Brompton_SX40">Brompton SX40</option>
+                <option value="Brompton_S8">Brompton S8</option>
+                <option value="Brompton_M2">Brompton M2</option>
+                <option value="Brompton_S4">Brompton S4</option>
+                <option value="Brompton_T1">Brompton T1</option>
+                <option value="Brompton_SQ200">Brompton SQ200</option>
+                <option value="NovaStar_MX40_Pro">NovaStar MX40 Pro</option>
+              </select>
+            </label>
+          </div>
+
+          <!-- Direct/Indirect Mode Toggle (MX40 Pro only) -->
+          <div id="mx40ModeToggleRow" style="display: none; margin-bottom: 8px;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Connection
+              Mode</span>
+            <div class="slider-toggle" style="display: inline-flex;">
+              <button type="button" class="slider-toggle-btn active" id="mx40DirectBtn" onclick="setMX40Mode('direct')"
+                style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Direct</button>
+              <button type="button" class="slider-toggle-btn" id="mx40IndirectBtn" onclick="setMX40Mode('indirect')"
+                style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Indirect</button>
+            </div>
+          </div>
+
+          <!-- Row 2: Frame Rate, Bit Depth, Max/Data -->
+          <div class="compact-row" style="margin-bottom: 8px; flex-wrap: nowrap; gap: 8px;">
+            <div style="flex: 1; min-width: 0;">
+              <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Frame Rate</span>
+              <select id="frameRate" style="width: 100%; font-size: 14px;">
+                <option value="24">24 Hz</option>
+                <option value="25">25 Hz</option>
+                <option value="30">30 Hz</option>
+                <option value="50">50 Hz</option>
+                <option value="60" selected>60 Hz</option>
+              </select>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Bit Depth</span>
+              <select id="bitDepth" style="width: 100%; font-size: 14px;">
+                <option value="8" selected>8 bit</option>
+                <option value="10">10 bit</option>
+                <option value="12">12 bit</option>
+              </select>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Max/Data</span>
+              <div class="number-input-with-arrows" style="width: 100%; min-height: 48px;">
+                <input type="number" id="maxPanelsPerData" min="1" step="1" placeholder="Auto"
+                  style="padding: 12px 8px;">
+                <div class="number-input-arrows">
+                  <button type="button" onclick="adjustNumberInput('maxPanelsPerData', 1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span>
+                  </button>
+                  <button type="button" onclick="adjustNumberInput('maxPanelsPerData', -1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 3: Data Direction (complex mode only) -->
+          <div id="dataDirectionRow" style="margin-bottom: 8px;">
+            <label style="margin-bottom: 0;">
+              <span>Data Direction</span>
+              <select id="dataStartDir" style="width: 100%;">
+                <option value="top">Top → Bottom</option>
+                <option value="bottom">Bottom → Top</option>
+                <option value="all_top">All from Top</option>
+                <option value="all_bottom">All from Bottom</option>
+              </select>
+            </label>
+          </div>
+
+          <!-- Row 4: Toggle buttons (complex mode only) -->
+          <div id="dataTogglesRow" class="toggle-group" style="gap: 6px;">
+            <div style="display: flex; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">
+              <button type="button" class="toggle-btn active" id="showArrowsBtn" onclick="toggleShowArrows()"
+                style="padding: 8px 10px; font-size: 11px; min-width: auto; margin: 0; border: 2px solid #000; border-right: 0; box-shadow: none;">Arrows</button>
+              <button type="button" class="toggle-btn" id="dataFlipBtn" onclick="toggleDataFlip()"
+                style="padding: 8px 10px; font-size: 11px; min-width: auto; margin: 0; border: 2px solid #000; box-shadow: none;">Flip</button>
+            </div>
+            <button type="button" class="toggle-btn active" id="redundancyBtn" onclick="toggleRedundancy()"
+              style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Data
+              Redun.</button>
+            <button type="button" class="toggle-btn" id="processorRedundancyBtn" onclick="toggleProcessorRedundancy()"
+              style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Proc
+              Redun.</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div>
+
+        <!-- Structure Section -->
+        <div class="section-box" id="structureSection">
+          <div class="section-title">Structure</div>
+
+          <div style="margin-bottom: 8px;">
+            <label style="display: block; margin-bottom: 8px;">
+              <span>Config Type</span>
+              <select id="structureType" style="width: 100%; max-width: 180px;">
+                <option value="hanging">Hanging</option>
+                <option value="ground">Ground Stack</option>
+                <option value="floor">Floor</option>
+              </select>
+            </label>
+            <!-- Bumper Toggles Row -->
+            <div class="toggle-group" style="gap: 6px;">
+              <button type="button" class="toggle-btn active" id="useBumpersBtn" onclick="toggleUseBumpers()"
+                style="padding: 6px 8px; font-size: 12px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Bumpers</button>
+              <span id="fourWayBumperOption" style="display: none;">
+                <button type="button" class="toggle-btn" id="use4WayBumpersBtn" onclick="toggle4WayBumpers()"
+                  style="padding: 6px 8px; font-size: 12px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">4-Way
+                  Bumpers</button>
+              </span>
+            </div>
+          </div>
+
+          <!-- Bumper Controls -->
+          <div id="bumperControls">
+            <div class="hint" style="font-size: 11px; margin-bottom: 0;">
+              Long-press bumpers to edit • Auto-distributes by width
+            </div>
+          </div>
+
+          <!-- Weight Display -->
+          <div id="weightDisplay" class="weight-display" style="display: none;">
+            <div style="font-weight: bold; margin-bottom: 8px; color: #4a9eff;">Weight Distribution</div>
+            <div id="weightContent"></div>
+          </div>
+        </div>
+
+        <!-- Cabling section moved to Gear tab -->
+
+      </div>
+
+    </div>
+
+    <div id="results" class="result">Configure your LED wall above - results update automatically.</div>
+    <div id="specWarning" class="warn"></div>
+
+    <div class="layout-container" id="standardContainer" style="display:none;">
+      <div class="layout-title">
+        <span>Standard Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('standardContainer')"
+            id="standardCollapseBtn" title="Minimize">▼</button></span>
+        <div class="undo-redo-buttons">
+          <button class="undo-redo-btn" id="undoBtn" onclick="undo()" title="Undo">Undo</button>
+          <button class="undo-redo-btn" id="redoBtn" onclick="redo()" title="Redo">Redo</button>
+        </div>
+      </div>
+      <div class="layout-content" id="standardContent">
+        <div class="mobile-hint" id="standardLayoutHint">Tap to select • Tap again for options • Drag to multi-select
+        </div>
+        <canvas id="standardCanvas"></canvas>
+      </div>
+    </div>
+
+    <div class="layout-container" id="powerContainer" style="display:none;">
+      <div class="layout-title">
+        <span>Power Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('powerContainer')"
+            id="powerCollapseBtn" title="Minimize">▼</button></span>
+      </div>
+      <div class="layout-content" id="powerContent">
+        <canvas id="powerCanvas"></canvas>
+      </div>
+    </div>
+
+    <div class="layout-container" id="dataContainer" style="display:none;">
+      <div class="layout-title">
+        <span>Data Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('dataContainer')"
+            id="dataCollapseBtn" title="Minimize">▼</button></span>
+      </div>
+      <div class="layout-content" id="dataContent">
+        <canvas id="dataCanvas"></canvas>
+      </div>
+    </div>
+
+    <div class="layout-container" id="structureContainer" style="display:none;">
+      <div class="layout-title">
+        <span>Structure Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('structureContainer')"
+            id="structureCollapseBtn" title="Minimize">▼</button></span>
+      </div>
+      <div class="layout-content" id="structureContent">
+        <!-- Manual Mode Toggle -->
+        <div class="structure-mode-toggle">
+          <button type="button" class="toggle-btn" id="manualBumperToggle" onclick="toggleManualBumperMode()"
+            style="border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">
+            Manually Distribute Bumpers
+          </button>
+          <div class="undo-redo-buttons" id="structureUndoRedo" style="display: none;">
+            <button class="undo-redo-btn" id="structureUndoBtn" onclick="structureUndo()" title="Undo (Ctrl+Z)"
+              style="border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Undo</button>
+            <button class="undo-redo-btn" id="structureRedoBtn" onclick="structureRedo()" title="Redo (Ctrl+Y)"
+              style="border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Redo</button>
+          </div>
+          <span class="structure-mode-hint" id="structureModeHint">Auto-distribution active</span>
+        </div>
+
+        <!-- Selection Info (shown in manual mode) -->
+        <div class="structure-selection-info" id="structureSelectionInfo">
+          <strong>Manual Mode:</strong> <span id="structureHintText">Tap to select • Tap again for options • Hold to
+            drag</span>
+        </div>
+
+        <!-- Structure layout with canvas and info panel side by side -->
+        <div class="structure-layout-wrapper">
+          <div class="structure-canvas-area">
+            <canvas id="structureCanvas"></canvas>
+          </div>
+
+          <!-- Info Panel with Weights and Plates -->
+          <div class="structure-info-panel" id="structureInfoPanel" style="display: none;">
+            <!-- Pickup Weights -->
+            <div class="structure-info-box weights" id="structureWeightsBox">
+              <div class="structure-info-title weights">Pickup Weights</div>
+              <div id="structureWeightsContent"></div>
+            </div>
+
+            <!-- Connecting Plates -->
+            <div class="structure-info-box plates" id="structurePlatesBox" style="display: none;">
+              <div class="structure-info-title plates">Connecting Plates</div>
+              <div id="structurePlatesContent"></div>
+            </div>
+
+            <!-- Ground Support Hardware -->
+            <div class="structure-info-box ground-support" id="structureGroundSupportBox" style="display: none;">
+              <div class="structure-info-title ground-support">Ground Support Hardware</div>
+              <div id="structureGroundSupportContent"></div>
+            </div>
+
+            <!-- Floor Frames -->
+            <div class="structure-info-box floor-frames" id="structureFloorFramesBox" style="display: none;">
+              <div class="structure-info-title floor-frames">Floor Frames</div>
+              <div id="structureFloorFramesContent"></div>
+            </div>
+
+            <!-- Total Structure Weight -->
+            <div class="structure-info-box total-weight" id="structureTotalWeightBox" style="display: none;">
+              <div class="structure-info-title total-weight">Total Structure Weight</div>
+              <div id="structureTotalWeightContent"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Context Menu for Bumpers -->
+        <div id="bumperContextMenu"
+          style="display:none; position:fixed; background:#242424; border:1px solid #555; border-radius:4px; padding:4px 0; box-shadow:0 2px 8px rgba(0,0,0,0.5); z-index:10000;">
+          <div class="context-menu-item" onclick="changeBumperType('1w')">Change to 1W</div>
+          <div class="context-menu-item" onclick="changeBumperType('2w')">Change to 2W</div>
+          <div class="context-menu-item" onclick="deleteBumper()" style="color:#ff6b6b;">Delete Bumper</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layouts Toggle Bar (for mobile layouts view) -->
+    <div id="layoutsTogglesContainer" class="layouts-toggle-container" style="display: none;">
+      <div class="toggle-group">
+        <button type="button" class="toggle-btn active" id="layoutToggleStandard"
+          onclick="showMobileLayout('standard')">Standard</button>
+        <button type="button" class="toggle-btn" id="layoutTogglePower"
+          onclick="showMobileLayout('power')">Power</button>
+        <button type="button" class="toggle-btn" id="layoutToggleData" onclick="showMobileLayout('data')">Data</button>
+        <button type="button" class="toggle-btn" id="layoutToggleStructure"
+          onclick="showMobileLayout('structure')">Structure</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Gear List Container (outside main-container so it can be shown as its own tab) -->
+  <div class="layout-container" id="gearListContainer" style="display:none; padding-top: 24px; margin-top: 32px;">
+    <div class="layout-title"><span>Gear List</span></div>
+
+    <!-- Screen Toggle Buttons -->
+    <div id="gearScreenToggles" style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px;">
+      <!-- Dynamically generated -->
+    </div>
+
+    <!-- Cabling Section -->
+    <div class="section-box" id="cablingSection" style="margin-bottom: 16px;">
+      <div class="section-title">Cabling</div>
+
+      <div class="compact-row" style="margin-bottom: 8px;">
+        <label style="flex: 0 0 90px;">
+          <span>Wall to Floor</span>
+          <input type="number" id="wallToFloor" min="0" step="0.1" placeholder="5">
+        </label>
+        <label style="flex: 0 0 90px;">
+          <span>Distro to Wall</span>
+          <input type="number" id="distroToWall" min="0" step="0.1" placeholder="10">
+        </label>
+      </div>
+
+      <div class="compact-row" style="margin-bottom: 8px;">
+        <label style="flex: 0 0 90px;">
+          <span>Proc to Wall</span>
+          <input type="number" id="processorToWall" min="0" step="0.1" placeholder="15">
+        </label>
+        <label style="flex: 0 0 90px;">
+          <span>Server to Proc</span>
+          <input type="number" id="serverToProcessor" min="0" step="0.1" placeholder="50">
+        </label>
+      </div>
+
+      <div class="compact-row" style="margin-bottom: 8px;">
+        <label style="flex: 0 0 90px;">
+          <span>Cable Pick</span>
+          <input type="number" id="cablePick" min="0" step="0.1" placeholder="0">
+        </label>
+      </div>
+
+      <div style="margin-bottom: 8px;">
+        <span class="toggle-label" style="display: block; margin-bottom: 4px;">Cable Drop</span>
+        <div class="slider-toggle">
+          <button type="button" class="slider-toggle-btn active" id="cableDropBehindBtn"
+            onclick="setCableDropPosition('behind')">Behind</button>
+          <button type="button" class="slider-toggle-btn" id="cableDropSRBtn"
+            onclick="setCableDropPosition('sr')">SR</button>
+          <button type="button" class="slider-toggle-btn" id="cableDropSLBtn"
+            onclick="setCableDropPosition('sl')">SL</button>
+        </div>
+      </div>
+
+      <div class="compact-row" style="margin-bottom: 0;">
+        <button type="button" class="toggle-btn" id="distBoxOnWallBtn" onclick="toggleDistBoxOnWall()"
+          style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Dist
+          Box on Wall (C)</button>
+      </div>
+    </div>
+
+    <div id="gearListContent" style="color: #e0e0e0; line-height: 1.8; padding-right: 5px; padding-bottom: 5px;"></div>
+  </div>
+
+  <!-- Combined View Container (outside main-container so it can be shown independently) -->
+  <div class="layout-container" id="combinedContainer"
+    style="display:none; padding-top: 24px; margin-top: 32px; overflow: visible;">
+    <!-- Combined View Title -->
+    <div class="layout-title"><span>Combined View</span></div>
+    <!-- Hint Box -->
+    <div
+      style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 4px 10px; font-size: 11px; color: #10b981; margin-bottom: 16px; display: inline-block;">
+      Toggle screens below to view combined specs
+    </div>
+
+    <!-- Screen Toggle Buttons -->
+    <div id="combinedScreenToggles" style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px;">
+      <!-- Screen toggle buttons will be dynamically generated here -->
+    </div>
+
+    <!-- Combined Layouts Container -->
+    <div id="combinedLayoutsWrapper"
+      style="overflow-x: auto; margin-bottom: 20px; padding-right: 5px; padding-bottom: 5px;">
+      <!-- Standard Layout -->
+      <div class="layout-container" id="combinedStandardContainer" style="margin-bottom: 20px;">
+        <div class="layout-title">
+          <span>Standard Layout (Combined)<button class="layout-collapse-btn"
+              onclick="toggleLayoutCollapse('combinedStandardContainer')" id="combinedStandardCollapseBtn"
+              title="Minimize">▼</button></span>
+        </div>
+        <div class="layout-content" id="combinedStandardContent">
+          <!-- Interaction Hints -->
+          <div id="combinedInteractionHints"
+            style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; font-size: 10px; color: #10b981; line-height: 1.5;">
+            <span id="combinedHintsDesktop" style="display: none;"><strong>Panels:</strong> Right-click for options,
+              double-click to delete/restore &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to
+              move</span>
+            <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> Tap to select, tap again for
+              options &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
+          </div>
+          <!-- Position Controls -->
+          <div id="combinedPositionControls"
+            style="display: flex; flex-wrap: nowrap; gap: 6px; margin-bottom: 10px; align-items: center;">
+            <div class="slider-toggle" style="display: inline-flex;">
+              <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()"
+                style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Reset</button>
+              <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()"
+                style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Manual Adjust</button>
+            </div>
+            <!-- Zoom Controls (matching Canvas View style) -->
+            <div id="combinedZoomControls" style="display: inline-flex; align-items: stretch; gap: 4px;">
+              <button class="toggle-btn" onclick="adjustCombinedZoom(-10)" title="Zoom Out"
+                style="padding: 6px 10px; height: 32px; font-size: 14px; box-sizing: border-box;">−</button>
+              <input type="number" id="combinedZoomInput" value="100" min="50" max="200" step="10"
+                onchange="setCombinedZoom(parseInt(this.value))" title="Enter zoom percentage"
+                style="width: 55px; padding: 4px; height: 32px; text-align: center; box-sizing: border-box; border: 2px solid #000; font-size: 11px;">
+              <button class="toggle-btn" onclick="adjustCombinedZoom(10)" title="Zoom In"
+                style="padding: 6px 10px; height: 32px; font-size: 14px; box-sizing: border-box;">+</button>
+            </div>
+          </div>
+          <div id="combinedStandardCanvasWrapper" style="overflow-x: auto;">
+            <canvas id="combinedStandardCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Power Layout -->
+      <div class="layout-container" id="combinedPowerContainer" style="margin-bottom: 20px;">
+        <div class="layout-title">
+          <span>Power Layout (Combined)<button class="layout-collapse-btn"
+              onclick="toggleLayoutCollapse('combinedPowerContainer')" id="combinedPowerCollapseBtn"
+              title="Minimize">▼</button></span>
+        </div>
+        <div class="layout-content" id="combinedPowerContent">
+          <div id="combinedPowerCanvasWrapper" style="overflow-x: auto;">
+            <canvas id="combinedPowerCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Layout -->
+      <div class="layout-container" id="combinedDataContainer" style="margin-bottom: 20px;">
+        <div class="layout-title">
+          <span>Data Layout (Combined)<button class="layout-collapse-btn"
+              onclick="toggleLayoutCollapse('combinedDataContainer')" id="combinedDataCollapseBtn"
+              title="Minimize">▼</button></span>
+        </div>
+        <div class="layout-content" id="combinedDataContent">
+          <div id="combinedDataCanvasWrapper" style="overflow-x: auto;">
+            <canvas id="combinedDataCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Structure Layout -->
+      <div class="layout-container" id="combinedStructureContainer" style="margin-bottom: 20px;">
+        <div class="layout-title">
+          <span>Structure Layout (Combined)<button class="layout-collapse-btn"
+              onclick="toggleLayoutCollapse('combinedStructureContainer')" id="combinedStructureCollapseBtn"
+              title="Minimize">▼</button></span>
+        </div>
+        <div class="layout-content" id="combinedStructureContent">
+          <div id="combinedStructureCanvasWrapper" style="overflow-x: auto;">
+            <canvas id="combinedStructureCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Combined Specs -->
+    <div class="layout-container" id="combinedSpecsContainer" style="margin-bottom: 20px;">
+      <div class="layout-title">
+        <span>Combined Specifications<button class="layout-collapse-btn"
+            onclick="toggleLayoutCollapse('combinedSpecsContainer')" id="combinedSpecsCollapseBtn"
+            title="Minimize">▼</button></span>
+      </div>
+      <div class="layout-content">
+        <div style="display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;">
+          <div style="flex: 0 0 auto;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Power Basis</span>
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active" id="combinedPowerMaxBtn"
+                onclick="setCombinedPowerType('max')">Max</button>
+              <button type="button" class="slider-toggle-btn" id="combinedPowerAvgBtn"
+                onclick="setCombinedPowerType('avg')">Avg</button>
+            </div>
+          </div>
+          <div style="flex: 0 0 auto;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Phase</span>
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active" id="combinedPhase3Btn"
+                onclick="setCombinedPhase(3)">3Ø</button>
+              <button type="button" class="slider-toggle-btn" id="combinedPhase1Btn"
+                onclick="setCombinedPhase(1)">1Ø</button>
+            </div>
+          </div>
+        </div>
+        <div id="combinedSpecsContent" style="color: #e0e0e0; line-height: 1.8;"></div>
+      </div>
+    </div>
+
+    <!-- Combined Gear List -->
+    <div class="layout-container" id="combinedGearListContainer" style="margin-bottom: 20px;">
+      <div class="layout-title">
+        <span>Gear List<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedGearListContainer')"
+            id="combinedGearListCollapseBtn" title="Minimize">▼</button></span>
+      </div>
+      <div class="layout-content">
+        <div id="combinedGearListContent"
+          style="color: #e0e0e0; line-height: 1.8; padding-right: 5px; padding-bottom: 5px;"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Canvas Tabs Container (outside canvas container, normal flow like screen tabs) -->
+  <div id="canvasTabsContainer" style="display: none; align-items: flex-end; gap: 4px;">
+    <!-- Canvas tabs and + button will be dynamically generated here -->
+  </div>
+
+  <!-- Canvas Container (outside main-container so it can be shown independently) -->
+  <div class="layout-container" id="canvasContainer"
+    style="display:none; padding: 12px; padding-top: 48px; margin-top: 0; border-top: 0; overflow: visible;">
+    <!-- Canvas View Title with Tabs -->
+    <div class="layout-title">
+      <span style="top: 0px;">Canvas View</span>
+    </div>
+
+    <!-- Zoom and Undo/Redo Controls -->
+    <div style="display: flex; gap: 6px; margin-bottom: 12px; align-items: stretch;">
+      <button class="toggle-btn" onclick="zoomCanvas(-0.25)" title="Zoom Out"
+        style="flex: 1; padding: 8px 4px; height: 44px; font-size: 16px; box-sizing: border-box;">−</button>
+      <input type="number" id="canvasZoomInput" value="100" min="50" max="500" step="10"
+        onchange="setCanvasZoom(this.value)" title="Enter zoom percentage"
+        style="flex: 1; padding: 8px 4px; height: 44px; text-align: center; box-sizing: border-box; border: 2px solid #000;">
+      <button class="toggle-btn" onclick="zoomCanvas(0.25)" title="Zoom In"
+        style="flex: 1; padding: 8px 4px; height: 44px; font-size: 16px; box-sizing: border-box;">+</button>
+      <button class="toggle-btn" onclick="resetCanvasZoom()" title="Reset Zoom"
+        style="flex: 1; padding: 8px 4px; height: 44px; box-sizing: border-box;">Reset</button>
+      <button class="toggle-btn" id="canvasUndoBtn" onclick="undoCanvasMove()" title="Undo Canvas Move"
+        style="flex: 1; padding: 8px 4px; height: 44px; box-sizing: border-box;">Undo</button>
+      <button class="toggle-btn" id="canvasRedoBtn" onclick="redoCanvasMove()" title="Redo Canvas Move"
+        style="flex: 1; padding: 8px 4px; height: 44px; box-sizing: border-box;">Redo</button>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <!-- Canvas View -->
+      <div>
+        <div id="canvasViewWrapper"
+          style="width: 100%; padding-bottom: 56.25%; /* 16:9 */ height: 0; overflow: hidden; border: 2px solid #383838; background: #000; position: relative;">
+          <div id="canvasViewport"
+            style="position: absolute; top:0; left:0; width:100%; height:100%; transform-origin: 0 0; cursor: grab;">
+            <canvas id="canvasView" style="display: block; width:100%; height:100%;"></canvas>
+          </div>
+        </div>
+        <div style="color:#888; margin-top:8px; font-size:11px;">Pinch to zoom • Drag to pan when zoomed • Drag screens
+          to reposition</div>
+        <div style="color:#ccc; margin-top:4px; font-size:13px;" id="canvasInfo"></div>
+      </div>
+
+      <!-- Canvas Options -->
+      <div class="section-box" style="margin-bottom: 0;">
+        <div class="section-title">Canvas Options</div>
+        <div class="section-content">
+          <!-- Row 1: Canvas Size -->
+          <label style="margin-bottom: 8px;">
+            <span>Canvas Size</span>
+            <select id="canvasSize">
+              <option value="4K_UHD" selected="">4K UHD (3840x2160)</option>
+              <option value="4K_DCI">4K DCI (4096x2160)</option>
+              <option value="HD">HD (1920x1080)</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+
+          <div id="customCanvasInputs" style="display: none; margin-bottom: 8px;">
+            <div class="two-inputs">
+              <label style="margin-bottom: 0;">
+                <span>Width (px)</span>
+                <input type="number" id="customCanvasWidth" min="1">
+              </label>
+              <label style="margin-bottom: 0;">
+                <span>Height (px)</span>
+                <input type="number" id="customCanvasHeight" min="1">
+              </label>
+            </div>
+          </div>
+
+          <!-- Row 2: X Pos, Y Pos, Snap, Fine -->
+          <div style="display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px;">
+            <div style="flex: 1;">
+              <span class="toggle-label" style="display: block; margin-bottom: 4px;">X Pos</span>
+              <div class="number-input-with-arrows">
+                <input type="number" id="canvasX" value="0" min="0">
+                <div class="number-input-arrows">
+                  <button type="button" onclick="adjustCanvasPosition('canvasX', 1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span>
+                  </button>
+                  <button type="button" onclick="adjustCanvasPosition('canvasX', -1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div style="flex: 1;">
+              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Y Pos</span>
+              <div class="number-input-with-arrows">
+                <input type="number" id="canvasY" value="0" min="0">
+                <div class="number-input-arrows">
+                  <button type="button" onclick="adjustCanvasPosition('canvasY', 1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span>
+                  </button>
+                  <button type="button" onclick="adjustCanvasPosition('canvasY', -1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; flex: 1;">
+              <span class="toggle-label" style="display: block; margin-bottom: 4px; visibility: hidden;">Snap</span>
+              <button type="button" class="toggle-btn active" id="snapModeBtn" onclick="toggleSnapMode()"
+                style="width: 100%; padding: 10px 8px; min-height: 48px; box-sizing: border-box; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Snap</button>
+            </div>
+            <div style="flex: 1;">
+              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Fine(px)</span>
+              <div class="number-input-with-arrows">
+                <input type="number" id="arrowKeyIncrement" value="10" min="1" max="100">
+                <div class="number-input-arrows">
+                  <button type="button" onclick="adjustNumberInput('arrowKeyIncrement', 1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span>
+                  </button>
+                  <button type="button" onclick="adjustNumberInput('arrowKeyIncrement', -1)">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 3: Filename -->
+          <div style="margin-bottom: 8px;">
+            <input type="text" id="canvasExportFilename" placeholder="Filename..."
+              style="width: 100%; padding: 10px; font-size: 13px; background: #2a2a2a; color: #fff; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); min-height: 48px; box-sizing: border-box;">
+          </div>
+
+          <!-- Row 4: PNG dropdown, Export button -->
+          <div style="display: flex; gap: 8px; align-items: stretch; margin-bottom: 12px;">
+            <select id="canvasExportFormat" style="flex: 1; padding: 10px 8px; height: 48px; box-sizing: border-box;">
+              <option value="png" selected="">PNG</option>
+              <option value="jpeg">JPEG</option>
+              <option value="resolume">Resolume (.xml)</option>
+            </select>
+            <button id="btnExportCanvas" class="config-btn"
+              style="background: var(--primary); border: 2px solid #000; flex: 1; height: 48px; padding: 0; box-sizing: border-box;">Export</button>
+          </div>
+
+          <!-- Screen Visibility Toggles -->
+          <div id="canvasScreenToggles"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase Client (Cloud Sync & Auth) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js"
+    integrity="sha384-gmm4k/o3mzDSemzK5CComDrZ5QDvnpUGq3IXuE9luzw/ZoNhwzB2XiJzh2/JGrQV"
+    crossorigin="anonymous"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+    integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA=="
+    crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+    integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA=="
+    crossorigin="anonymous"></script>
+
+  <!-- Core Utilities -->
+  <script src="core/modals.js"></script>
+  <script src="core/utils.js"></script>
+  <script src="core/update.js"></script>
+  <script src="core/supabase.js"></script>
+  <script src="core/auth-ui.js"></script>
+
+  <!-- LED Panel & Processor Specifications -->
+  <script src="specs/panels.js"></script>
+  <script src="specs/processors.js"></script>
+  <script src="specs/custom-panels.js"></script>
+  <script src="specs/custom-processors.js"></script>
+
+  <!-- Screens -->
+  <script src="screens/multi-screen.js"></script>
+
+  <!-- Core State & Undo -->
+  <script src="core/state.js"></script>
+  <script src="core/undo.js"></script>
+
+  <!-- Structure System -->
+  <script src="structure/plates.js"></script>
+  <script src="structure/bumpers.js"></script>
+  <script src="structure/weight.js"></script>
+  <script src="structure/drawing.js"></script>
+
+  <!-- Core Calculation Engine -->
+  <script src="core/calculate.js"></script>
+
+  <!-- Gear List Data (shared by gear tab, PDF export, email export) -->
+  <script src="core/gear-data.js"></script>
+
+  <!-- Layout Renderers -->
+  <script src="layouts/standard.js"></script>
+  <script src="layouts/power.js"></script>
+  <script src="layouts/data.js"></script>
+  <script src="layouts/structure.js"></script>
+
+  <!-- Canvas Interactivity -->
+  <script src="interact/standard-canvas.js"></script>
+
+  <!-- Navigation Views -->
+  <script src="nav/gear.js"></script>
+  <script src="nav/canvas.js"></script>
+  <script src="nav/combined.js"></script>
+  <script src="nav/navigation.js"></script>
+  <script src="nav/welcome.js"></script>
+
+  <!-- Export Functions -->
+  <script src="export/canvas-export.js"></script>
+  <script src="export/resolume.js"></script>
+  <script src="export/pdf.js"></script>
+  <!-- Config -->
+  <script src="config/setup.js"></script>
+  <script src="config/save-load.js"></script>
+  <script src="config/gear-codes.js"></script>
+  <script src="config/dom-setup.js"></script>
+  <script src="core/init.js"></script>
+
+  <script>
+    // ==================== APP VERSION & UPDATE CHECK ====================
+    const APP_VERSION = '2.8.22';
+    console.log('JavaScript loaded - v' + APP_VERSION);
+
+    // Global unit settings
+    let displayLengthUnit = 'ft'; // 'ft' or 'm'
+    let displayWeightUnit = 'lbs'; // 'lbs' or 'kg'
+
+
+    let lastLayoutMode = null;
+
+    // Interactive panel knockout state
+    let deletedPanels = new Set(); // stores "col,row" strings
+    let selectedPanels = new Set(); // stores "col,row" strings for multi-select
+    let customCircuitAssignments = new Map(); // stores "col,row" -> circuit number
+    let customDataLineAssignments = new Map(); // stores "col,row" -> data line number
+    let isDragging = false;
+    let dragStartX = 0;
+    let modalOpenedFromMenu = false; // Track if current modal came from hamburger menu
+    let modalReturnTo = null; // Callback to invoke when current modal closes (modal-to-modal return)
+    let isWelcomePageVisible = true; // Welcome page shown on initial load
+
+    // Eco-friendly print mode - uses lighter colors and white backgrounds
+    let ecoPrintMode = false;
+    // Greyscale print mode - converts all colors to greyscale
+    let greyscalePrintMode = false;
+
+    // Canvas movement undo/redo state
+    let canvasMoveHistory = [];
+    let canvasMoveHistoryIndex = -1;
+    const MAX_CANVAS_HISTORY = 20;
+
+    // Structure view bumper state - NEW SYSTEM
+    let showTopBumper = false;
+    let showBottomBumper = false;
+    let useBumpers = true; // Toggle for enabling/disabling bumpers entirely
+    let manualBumperMode = false; // Toggle for manual bumper distribution mode
+    let selectedBumpers = new Set(); // Selected bumpers (by id) in structure view
+    let structureIsDragging = false;
+    let structureDragStartX = 0;
+    let structureDragStartY = 0;
+
+    // Structure view undo/redo
+    let structureHistory = [];
+    let structureHistoryIndex = -1;
+    const MAX_STRUCTURE_HISTORY = 30;
+
+    // Legacy bumper variables (for backward compatibility during migration)
+    let topBumper1wColumn = -1;
+    let bottomBumper1wColumn = -1;
+    let manualTopBumpers = [];
+    let manualBottomBumpers = [];
+
+    // Bumper tracking system - stores all placed bumpers with their properties
+    let bumpers = []; // Array of {id, type:'1w'|'2w'|'4w', position:'top'|'bottom', startCol, endCol, x, y, width, height}
+    let nextBumperId = 1;
+    let selectedBumper = null; // Currently selected bumper for editing
+    let hoveredBumper = null; // Bumper under mouse cursor
+
+    // Structure canvas interaction state
+    let structureCanvas = null;
+    let structureDraggingBumper = null; // Currently being dragged bumper
+    let structureOriginalImageData = null; // Store canvas state for quick restore
+    let dragStartY = 0;
+    let currentCanvas = null;
+    let currentPw = 0;
+    let currentPh = 0;
+    let panelSize = 50;
+    let currentPanelWidth = 50;
+    let currentPanelHeight = 50;
+
+    // Canvas view offset (for dragging the wall around the canvas)
+    let canvasOffsetX = 0;
+    let canvasOffsetY = 0;
+    let canvasZoomLevel = 1.0; // Zoom level for canvas view (1.0 = 100%)
+    let canvasPanX = 0; // Pan offset X
+    let canvasPanY = 0; // Pan offset Y
+    let isPanningCanvas = false;
+    let panStartX = 0;
+    let panStartY = 0;
+
+    // Context menu state
+    let contextMenuVisible = false;
+    let contextMenuX = 0;
+    let contextMenuY = 0;
+    let contextMenuBumper = null;
+
+
+    // Undo/Redo system
+    let undoHistory = [];
+    let redoHistory = [];
+    const MAX_HISTORY = 50;
+
+
+    // Resistor colors for POWER and DATA layouts only
+    const resistorColors = ['#964B00', '#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#8B00FF', '#808080', '#FFFFFF', '#333333'];
+    // Standard layout colors - magenta, cyan, yellow, blue, green, red at 50% brightness
+    const standardColors = [
+      '#800080',  // Magenta at 50% brightness
+      '#008080',  // Cyan at 50% brightness
+      '#808000',  // Yellow at 50% brightness
+      '#000080',  // Blue at 50% brightness
+      '#008000',  // Green at 50% brightness
+      '#800000'   // Red at 50% brightness
+    ];
+
+    // ==================== END CUSTOM STORAGE SYSTEM ====================
+
+    // Bumper weights (in kg, converted from lbs where needed)
+    const bumperWeights = {
+      '1w': 2.5,  // kg (approximate)
+      '2w': 4.0,  // kg (approximate)
+      '4w': 30.0  // kg (66.15 lbs)
+    };
+
+    // ==================== V29 MULTI-SCREEN SYSTEM (ENHANCED) ====================
+
+    // Screen management
+    let screens = {};
+    let currentScreenId = 'screen_1';
+    let screenIdCounter = 1;
+    let isLoadingScreenData = false; // Flag to prevent resetCalculator during screen loading
+
+
+  </script>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <!-- Complex mode groups -->
+    <div class="nav-mode-toggle nav-complex-group" style="flex: 2;">
+      <button class="nav-toggle-btn active" data-mode="complex" onclick="switchAppMode('complex')">
+        <span>Complex</span>
+      </button>
+      <button class="nav-toggle-btn" data-mode="combined" onclick="switchAppMode('combined')">
+        <span>Combined</span>
+      </button>
+    </div>
+    <div class="nav-mode-toggle nav-complex-group" style="flex: 1;">
+      <button class="nav-toggle-btn" data-mode="gear" onclick="switchAppMode('gear')">
+        <span>Gear</span>
+      </button>
+    </div>
+    <!-- Simple mode group (hidden by default) -->
+    <div class="nav-mode-toggle nav-simple-group" style="flex: 1; display: none;">
+      <button class="nav-toggle-btn" data-mode="simple" onclick="switchAppMode('simple')">
+        <span>Simple</span>
+      </button>
+    </div>
+    <!-- Canvas (always visible) -->
+    <div class="nav-mode-toggle" style="flex: 1;">
+      <button class="nav-toggle-btn" data-view="canvas" onclick="switchMobileView('canvas')">
+        <span>Canvas</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Auth Modal -->
+  <div id="authModal" class="modal-overlay">
+    <div class="modal-dialog auth-modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title" id="authModalTitle">Sign In</h2>
+        <button class="modal-close" onclick="closeAuthModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="authTabs" class="auth-tabs">
+          <button id="authTabSignIn" class="auth-tab active" onclick="switchAuthMode('signin')">Sign In</button>
+          <button id="authTabSignUp" class="auth-tab" onclick="switchAuthMode('signup')">Sign Up</button>
+        </div>
+        <div id="authError" class="auth-error" style="display: none;"></div>
+        <div class="modal-input-group">
+          <label for="authEmail">Email</label>
+          <input type="email" id="authEmail" placeholder="your@email.com" autocomplete="email">
+        </div>
+        <div class="modal-input-group">
+          <label for="authPassword">Password</label>
+          <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password">
+        </div>
+        <div id="authPasswordConfirmGroup" class="modal-input-group" style="display: none;">
+          <label for="authPasswordConfirm">Confirm Password</label>
+          <input type="password" id="authPasswordConfirm" placeholder="Confirm password" autocomplete="new-password">
+        </div>
+        <button id="authSubmitBtn" class="btn-primary auth-submit-btn" onclick="handleAuthSubmit()">Sign In</button>
+        <a id="authForgotLink" class="auth-forgot-link" onclick="switchAuthMode('reset')">Forgot password?</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="interact/touch-gestures.js"></script>
+
+</body>
+
+</html>

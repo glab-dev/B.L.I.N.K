@@ -1,0 +1,345 @@
+/* Cyberpunk Theme Mockup Overrides */
+@import url('https://fonts.googleapis.com/css2?family=Michroma&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+:root {
+    --tech-green: #10b981;
+    --bg-darker: #000000;
+    --bg-panel: #0a0a0a;
+    --border-tech: 1px solid rgba(255, 255, 255, 0.1);
+    --text-primary: #ffffff;
+    --text-muted: #888888;
+    --futuristic-font: 'Michroma', sans-serif;
+    --clean-font: 'Rajdhani', sans-serif;
+}
+
+/* Global Reset Overrides */
+.welcome-page {
+    background: var(--bg-darker) !important;
+    color: var(--text-primary) !important;
+    font-family: var(--clean-font) !important;
+}
+
+.welcome-page::before {
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px) !important;
+    background-size: 40px 40px !important;
+    opacity: 0.1 !important;
+}
+
+/* Hero Section */
+.welcome-title {
+    font-family: var(--futuristic-font) !important;
+    font-size: 80px !important;
+    color: #fff !important;
+    letter-spacing: -2px !important;
+    text-shadow: none !important;
+    -webkit-text-stroke: 0 !important;
+    text-transform: none !important;
+    margin-bottom: 10px !important;
+}
+
+.welcome-subtitle {
+    font-family: var(--clean-font) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 3px !important;
+    color: var(--tech-green) !important;
+    font-weight: 600 !important;
+}
+
+.welcome-paren {
+    color: #fff !important;
+    opacity: 0.5;
+}
+
+/* Mode Selection Cards */
+.welcome-btn {
+    background: var(--bg-panel) !important;
+    border: var(--border-tech) !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    padding: 24px !important;
+    transition: all 0.2s ease !important;
+}
+
+.welcome-btn:hover {
+    border-color: var(--tech-green) !important;
+    background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.welcome-btn-title {
+    font-family: var(--futuristic-font) !important;
+    color: var(--tech-green) !important;
+    text-shadow: none !important;
+    font-size: 24px !important;
+    letter-spacing: 1px !important;
+    text-transform: uppercase !important;
+}
+
+.welcome-btn-desc {
+    color: var(--text-muted) !important;
+    text-shadow: none !important;
+    font-size: 14px !important;
+}
+
+.welcome-btn-features li {
+    color: var(--text-muted) !important;
+}
+
+.welcome-btn-features li::before {
+    color: var(--tech-green) !important;
+}
+
+/* Sign In Button */
+.welcome-btn-signin {
+    background: transparent !important;
+    border: 1px solid #fff !important;
+    color: #fff !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    text-transform: uppercase !important;
+    letter-spacing: 2px !important;
+    font-weight: 500 !important;
+    transition: all 0.2s !important;
+}
+
+.welcome-btn-signin:hover {
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Feature Showcase */
+.welcome-feature-card {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 20px !important;
+    border-radius: 8px !important;
+    transition: border-color 0.3s !important;
+}
+
+.welcome-feature-card:hover {
+    border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.welcome-feature-title {
+    font-family: var(--futuristic-font) !important;
+    font-size: 11px !important;
+    color: var(--text-primary) !important;
+    text-shadow: none !important;
+}
+
+/* FAQ Section */
+.welcome-faq {
+    background: var(--bg-panel) !important;
+    border: var(--border-tech) !important;
+    border-radius: 4px !important;
+}
+
+.welcome-faq-title {
+    font-family: var(--futuristic-font) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+    font-size: 14px !important;
+}
+
+.welcome-faq-q {
+    font-weight: 500 !important;
+}
+
+.welcome-faq-q:hover {
+    color: var(--tech-green) !important;
+}
+
+/* Footer */
+.welcome-footer-link {
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: rgba(255, 255, 255, 0.02) !important;
+    color: var(--text-muted) !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+}
+
+.welcome-footer-link:hover {
+    border-color: var(--tech-green) !important;
+    color: var(--tech-green) !important;
+}
+
+/* Main Application Styles */
+body {
+    background: var(--bg-darker) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Headers */
+.mobile-header {
+    background: var(--bg-panel) !important;
+    border-bottom: var(--border-tech) !important;
+}
+
+.mobile-header h1 {
+    font-family: var(--futuristic-font) !important;
+    color: var(--tech-green) !important;
+    text-shadow: none !important;
+    letter-spacing: 1px !important;
+    -webkit-text-stroke: 0 !important;
+}
+
+.mobile-header-btn {
+    color: var(--text-muted) !important;
+}
+
+.mobile-header-btn:hover {
+    color: var(--tech-green) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    text-shadow: none !important;
+}
+
+/* Main Content Containers */
+.main-container,
+.section-box {
+    background: var(--bg-panel) !important;
+    border: var(--border-tech) !important;
+    box-shadow: none !important;
+    border-radius: 4px !important;
+}
+
+.section-title {
+    background: var(--bg-darker) !important;
+    border: var(--border-tech) !important;
+    color: var(--tech-green) !important;
+    font-family: var(--futuristic-font) !important;
+    transform: none !important;
+    text-shadow: none !important;
+    top: -12px !important;
+    font-size: 12px !important;
+    letter-spacing: 1px !important;
+}
+
+/* Inputs & Form Elements */
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+    background: #000 !important;
+    border: var(--border-tech) !important;
+    color: #fff !important;
+    font-family: var(--clean-font) !important;
+    border-radius: 2px !important;
+    box-shadow: none !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--tech-green) !important;
+    box-shadow: 0 0 0 1px var(--tech-green) !important;
+}
+
+/* Toggle Buttons */
+.slider-toggle {
+    background: #000 !important;
+    border: var(--border-tech) !important;
+    border-radius: 2px !important;
+}
+
+.slider-toggle-btn {
+    color: var(--text-muted) !important;
+    font-family: var(--clean-font) !important;
+    text-transform: uppercase !important;
+    transition: all 0.2s !important;
+}
+
+.slider-toggle-btn.active {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: var(--tech-green) !important;
+    text-shadow: none !important;
+    border-bottom: 2px solid var(--tech-green) !important;
+}
+
+.toggle-btn {
+    background: transparent !important;
+    border: var(--border-tech) !important;
+    color: var(--text-muted) !important;
+    box-shadow: none !important;
+    border-radius: 2px !important;
+}
+
+.toggle-btn.active {
+    background: var(--tech-green) !important;
+    color: #000 !important;
+    border-color: var(--tech-green) !important;
+    font-weight: 700 !important;
+}
+
+/* Bottom Nav */
+.bottom-nav {
+    background: var(--bg-panel) !important;
+    border-top: var(--border-tech) !important;
+}
+
+.nav-item {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: var(--text-muted) !important;
+    border-radius: 4px !important;
+}
+
+.nav-item.active {
+    color: var(--tech-green) !important;
+    background: rgba(16, 185, 129, 0.1) !important;
+    text-shadow: none !important;
+}
+
+/* Modals */
+.modal-dialog {
+    background: var(--bg-panel) !important;
+    border: var(--border-tech) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+.modal-header {
+    border-bottom: var(--border-tech) !important;
+}
+
+.modal-title {
+    font-family: var(--futuristic-font) !important;
+    color: #fff !important;
+}
+
+.modal-close {
+    color: var(--text-muted) !important;
+}
+
+/* Results & Canvas */
+.result {
+    background: rgba(16, 185, 129, 0.05) !important;
+    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+    color: #fff !important;
+    box-shadow: none !important;
+    font-family: var(--clean-font) !important;
+}
+
+canvas {
+    border: var(--border-tech) !important;
+    filter: invert(1) hue-rotate(180deg) !important;
+    /* Invert canvas for dark mode look */
+    opacity: 0.9 !important;
+}
+
+/* Primary Buttons */
+.btn-primary {
+    background: var(--tech-green) !important;
+    color: #000 !important;
+    border: none !important;
+    border-radius: 2px !important;
+    font-family: var(--futuristic-font) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    box-shadow: none !important;
+}
+
+.btn-primary:hover {
+    background: #34d399 !important;
+    /* Lighter green */
+}

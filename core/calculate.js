@@ -244,7 +244,12 @@ function resetCalculator() {
       serverToProcessor: 50,
       cablePick: 0,
       cableDropPosition: 'behind',
-      distBoxOnWall: false
+      powerInPosition: 'top',
+      distBoxOnWall: false,
+      distBoxMainHorizPosition: 'center',
+      distBoxBackupHorizPosition: 'center',
+      distBoxMainVertPosition: 'top',
+      distBoxBackupVertPosition: 'top'
     };
   }
 

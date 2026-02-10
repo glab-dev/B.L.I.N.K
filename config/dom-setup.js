@@ -388,29 +388,19 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
 
-    // Cabling input listeners - save current screen data then update gear list
-    // When all screens are toggled on in gear view, apply cabling changes to ALL screens
+    // Cabling input listeners - save to active gear screen then update gear list
     const cablingInputIds = ['wallToFloor', 'distroToWall', 'processorToWall', 'serverToProcessor', 'cablePick'];
     cablingInputIds.forEach(id => {
       const el = document.getElementById(id);
       if(el) {
         const updateCabling = function() {
-          saveCurrentScreenData();
-          // If all screens are toggled on in gear view, apply cabling to all screens
-          const allScreenIds = Object.keys(screens);
-          if(typeof gearSelectedScreens !== 'undefined' &&
-             allScreenIds.length > 1 &&
-             gearSelectedScreens.size === allScreenIds.length &&
-             allScreenIds.every(sid => gearSelectedScreens.has(sid))) {
-            const currentData = screens[currentScreenId].data;
-            const cablingKeys = ['wallToFloor', 'distroToWall', 'processorToWall', 'serverToProcessor', 'cablePick'];
-            allScreenIds.forEach(sid => {
-              if(sid !== currentScreenId && screens[sid] && screens[sid].data) {
-                cablingKeys.forEach(key => {
-                  screens[sid].data[key] = currentData[key];
-                });
-              }
-            });
+          // Save to the active gear screen when in gear view, otherwise current screen
+          const targetScreenId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+            ? gearActiveScreenId : currentScreenId;
+          if(typeof saveGearCablingInputs === 'function' && targetScreenId === gearActiveScreenId) {
+            saveGearCablingInputs(targetScreenId);
+          } else {
+            saveCurrentScreenData();
           }
           generateGearList();
         };

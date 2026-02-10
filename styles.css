@@ -575,6 +575,10 @@ input[type=number] {
   margin-bottom: 0;
 }
 
+.cabling-grid input[type="number"] {
+  max-width: 90px;
+}
+
 .three-inputs {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -731,7 +735,7 @@ button:active {
   }
 
   /* Layout canvases - no max-width constraint on desktop */
-  #standardCanvas, #structureCanvas, #powerCanvas, #dataCanvas {
+  #standardCanvas, #structureCanvas, #powerCanvas, #dataCanvas, #cableDiagramCanvas {
     max-width: none;
   }
 

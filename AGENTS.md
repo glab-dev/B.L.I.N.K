@@ -2,6 +2,21 @@
 
 This file is loaded automatically by Antigravity/Gemini agents. It defines the project architecture, coding conventions, and rules that ALL agents must follow.
 
+## Session Startup — ALWAYS Do First
+
+Start the local dev server at the beginning of every session:
+```powershell
+# Windows workaround: use 'cmd /c' to bypass PowerShell script execution policy
+cmd /c "npx -y http-server -p 8000"
+```
+The app will be available at `http://localhost:8000`.
+
+## Agent-Specific Tool Capabilities
+
+*   **Browser-Subagent**: Use the browser tool to verify UI changes visually and run Playwright tests in interactive mode if needed.
+*   **Image Generation**: Use `generate_image` to create placeholder assets or UI mockups when requested.
+*   **Stitch MCP**: Use the `stitch` server tools for generating layout screens or rapid UI prototyping.
+
 ## Architecture
 
 Modular PWA: `index.html` (~1,405 lines) + 32 external JS modules across 9 directories.
@@ -127,17 +142,15 @@ When fixing bugs:
 
 ---
 
-## Refactoring Rules
+## Documentation Hierarchy
 
-- ALWAYS incremental: one section or function at a time
-- After each change: run smoke test + verify in browser
-- Preserve all existing behavior — zero functional changes unless explicitly requested
-- Keep a working app at every step
+For detailed instructions in specific areas, refer to these granular rule files:
+- [Code Style](file:///c:/Users/gabla/Desktop/LED-Calculator/.agent/rules/code-style.md)
+- [CSS Conventions](file:///c:/Users/gabla/Desktop/LED-Calculator/.agent/rules/css-conventions.md)
+- [Git Conventions](file:///c:/Users/gabla/Desktop/LED-Calculator/.agent/rules/git-conventions.md)
+- [Testing Rules](file:///c:/Users/gabla/Desktop/LED-Calculator/.agent/rules/testing.md)
 
----
+## Institutional Knowledge
 
-## Export & PDF Awareness
-
-- All exports (PDF, PNG, email, .ledconfig, Resolume XML) must produce identical results on desktop and mobile
-- When data appears in multiple export formats, it must match across all of them
-- When modifying any export pipeline: test across all affected formats
+- **Logic Details**: See [App-Rules.md](file:///c:/Users/gabla/Desktop/LED-Calculator/Reference/App-Rules.md) for complex calculation and state logic.
+- **Project Context**: Review [Implementation Plans/](file:///c:/Users/gabla/Desktop/LED-Calculator/Implementation%20Plans/) to understand the reasoning behind past architectural shifts.

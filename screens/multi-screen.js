@@ -254,8 +254,13 @@ function saveCurrentScreenData() {
   if(serverToProcessorEl) data.serverToProcessor = serverToProcessorEl.value !== '' ? parseFloat(serverToProcessorEl.value) : parseFloat(serverToProcessorEl.placeholder);
   if(cablePickEl) data.cablePick = cablePickEl.value !== '' ? parseFloat(cablePickEl.value) : 0;
   data.cableDropPosition = cableDropPosition;
+  data.powerInPosition = powerInPosition;
   data.distBoxOnWall = distBoxOnWallEnabled;
-  
+  data.distBoxMainHorizPosition = distBoxMainHorizPosition;
+  data.distBoxBackupHorizPosition = distBoxBackupHorizPosition;
+  data.distBoxMainVertPosition = distBoxMainVertPosition;
+  data.distBoxBackupVertPosition = distBoxBackupVertPosition;
+
   // Canvas
   console.log(`Saving screen data for ${currentScreenId}: canvasOffsetX=${canvasOffsetX}, canvasOffsetY=${canvasOffsetY}`);
   data.canvasX = canvasOffsetX;
@@ -428,9 +433,34 @@ function loadScreenData(screenId) {
   document.getElementById('cableDropSRBtn')?.classList.toggle('active', cableDropPosition === 'sr');
   document.getElementById('cableDropSLBtn')?.classList.toggle('active', cableDropPosition === 'sl');
 
+  powerInPosition = data.powerInPosition || 'top';
+  document.getElementById('powerInTopBtn')?.classList.toggle('active', powerInPosition === 'top');
+  document.getElementById('powerInBottomBtn')?.classList.toggle('active', powerInPosition === 'bottom');
+
   distBoxOnWallEnabled = data.distBoxOnWall || false;
   document.getElementById('distBoxOnWallBtn')?.classList.toggle('active', distBoxOnWallEnabled);
-  
+
+  distBoxMainHorizPosition = data.distBoxMainHorizPosition || data.distBoxHorizPosition || 'center';
+  document.getElementById('distBoxMainHorizSRBtn')?.classList.toggle('active', distBoxMainHorizPosition === 'sr');
+  document.getElementById('distBoxMainHorizCBtn')?.classList.toggle('active', distBoxMainHorizPosition === 'center');
+  document.getElementById('distBoxMainHorizSLBtn')?.classList.toggle('active', distBoxMainHorizPosition === 'sl');
+
+  distBoxBackupHorizPosition = data.distBoxBackupHorizPosition || data.distBoxHorizPosition || 'center';
+  document.getElementById('distBoxBackupHorizSRBtn')?.classList.toggle('active', distBoxBackupHorizPosition === 'sr');
+  document.getElementById('distBoxBackupHorizCBtn')?.classList.toggle('active', distBoxBackupHorizPosition === 'center');
+  document.getElementById('distBoxBackupHorizSLBtn')?.classList.toggle('active', distBoxBackupHorizPosition === 'sl');
+
+  distBoxMainVertPosition = data.distBoxMainVertPosition || 'top';
+  document.getElementById('distBoxMainTopBtn')?.classList.toggle('active', distBoxMainVertPosition === 'top');
+  document.getElementById('distBoxMainBottomBtn')?.classList.toggle('active', distBoxMainVertPosition === 'bottom');
+
+  distBoxBackupVertPosition = data.distBoxBackupVertPosition || 'top';
+  document.getElementById('distBoxBackupTopBtn')?.classList.toggle('active', distBoxBackupVertPosition === 'top');
+  document.getElementById('distBoxBackupBottomBtn')?.classList.toggle('active', distBoxBackupVertPosition === 'bottom');
+
+  const posControls = document.getElementById('distBoxPositionControls');
+  if (posControls) posControls.style.display = distBoxOnWallEnabled ? '' : 'none';
+
   // Canvas - FORCE to proper values
   const loadedX = (typeof data.canvasX === 'number') ? data.canvasX : 0;
   const loadedY = (typeof data.canvasY === 'number') ? data.canvasY : 0;

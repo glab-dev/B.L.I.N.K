@@ -1554,58 +1554,107 @@
   </div>
 
 <!-- Gear List Container (outside main-container so it can be shown as its own tab) -->
-<div class="layout-container" id="gearListContainer" style="display:none; padding-top: 24px; margin-top: 32px;">
-  <div class="layout-title"><span>Gear List</span></div>
-
-  <!-- Screen Toggle Buttons -->
-  <div id="gearScreenToggles" style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px;">
-    <!-- Dynamically generated -->
+<div class="layout-container" id="gearListContainer" style="display:none; padding-top: 8px; margin-top: 32px;">
+  <!-- Screen Tabs (pulled above container border) -->
+  <div id="gearScreenToggles" style="display: flex; align-items: flex-end; gap: 4px; margin-top: -56px; margin-bottom: 16px;">
+    <!-- Dynamically generated screen-tab style tabs -->
   </div>
 
   <!-- Cabling Section -->
   <div class="section-box" id="cablingSection" style="margin-bottom: 16px;">
     <div class="section-title">Cabling</div>
 
-    <div class="compact-row" style="margin-bottom: 8px;">
-      <label style="flex: 0 0 90px;">
-        <span>Wall to Floor</span>
-        <input type="number" id="wallToFloor" min="0" step="0.1" placeholder="5">
-      </label>
-      <label style="flex: 0 0 90px;">
-        <span>Distro to Wall</span>
-        <input type="number" id="distroToWall" min="0" step="0.1" placeholder="10">
-      </label>
-    </div>
-
-    <div class="compact-row" style="margin-bottom: 8px;">
-      <label style="flex: 0 0 90px;">
-        <span>Proc to Wall</span>
-        <input type="number" id="processorToWall" min="0" step="0.1" placeholder="15">
-      </label>
-      <label style="flex: 0 0 90px;">
-        <span>Server to Proc</span>
-        <input type="number" id="serverToProcessor" min="0" step="0.1" placeholder="50">
-      </label>
-    </div>
-
-    <div class="compact-row" style="margin-bottom: 8px;">
-      <label style="flex: 0 0 90px;">
-        <span>Cable Pick</span>
-        <input type="number" id="cablePick" min="0" step="0.1" placeholder="0">
-      </label>
-    </div>
-
-    <div style="margin-bottom: 8px;">
-      <span class="toggle-label" style="display: block; margin-bottom: 4px;">Cable Drop</span>
-      <div class="slider-toggle">
-        <button type="button" class="slider-toggle-btn active" id="cableDropBehindBtn" onclick="setCableDropPosition('behind')">Behind</button>
-        <button type="button" class="slider-toggle-btn" id="cableDropSRBtn" onclick="setCableDropPosition('sr')">SR</button>
-        <button type="button" class="slider-toggle-btn" id="cableDropSLBtn" onclick="setCableDropPosition('sl')">SL</button>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;" class="cabling-grid">
+      <!-- Column 1: General -->
+      <div>
+        <div style="font-family: 'Roboto Condensed', sans-serif; color: var(--primary); font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">General</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <label style="margin-bottom: 6px;">
+            <span>Wall to Floor</span>
+            <input type="number" id="wallToFloor" min="0" step="0.1" placeholder="5">
+          </label>
+          <label style="margin-bottom: 6px;">
+            <span>Cable Pick</span>
+            <input type="number" id="cablePick" min="0" step="0.1" placeholder="0">
+          </label>
+        </div>
+        <div style="margin-top: 4px;">
+          <span class="toggle-label" style="display: block; margin-bottom: 4px;">Cable Drop</span>
+          <div class="slider-toggle">
+            <button type="button" class="slider-toggle-btn active" id="cableDropBehindBtn" onclick="setCableDropPosition('behind')">Behind</button>
+            <button type="button" class="slider-toggle-btn" id="cableDropSRBtn" onclick="setCableDropPosition('sr')">SR</button>
+            <button type="button" class="slider-toggle-btn" id="cableDropSLBtn" onclick="setCableDropPosition('sl')">SL</button>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="compact-row" style="margin-bottom: 0;">
-      <button type="button" class="toggle-btn" id="distBoxOnWallBtn" onclick="toggleDistBoxOnWall()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Dist Box on Wall (C)</button>
+      <!-- Column 2: Power -->
+      <div>
+        <div style="font-family: 'Roboto Condensed', sans-serif; color: #FF6B35; font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">Power</div>
+        <label style="margin-bottom: 6px;">
+          <span>Distro to Drop</span>
+          <input type="number" id="distroToWall" min="0" step="0.1" placeholder="10">
+        </label>
+        <div style="margin-top: 4px;">
+          <span class="toggle-label" style="display: block; margin-bottom: 4px;">Power In</span>
+          <div class="slider-toggle">
+            <button type="button" class="slider-toggle-btn active" id="powerInTopBtn" onclick="setPowerInPosition('top')">Top</button>
+            <button type="button" class="slider-toggle-btn" id="powerInBottomBtn" onclick="setPowerInPosition('bottom')">Bottom</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 3: Data (split into left inputs + right dist box positions) -->
+      <div>
+        <div style="font-family: 'Roboto Condensed', sans-serif; color: #00CED1; font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">Data</div>
+        <div style="display: flex; gap: 10px;">
+          <!-- Left: Data inputs -->
+          <div style="flex: 0 0 auto;">
+            <label style="margin-bottom: 6px;">
+              <span>Proc to Drop</span>
+              <input type="number" id="processorToWall" min="0" step="0.1" placeholder="15">
+            </label>
+            <label style="margin-bottom: 6px;">
+              <span>Server to Proc</span>
+              <input type="number" id="serverToProcessor" min="0" step="0.1" placeholder="50">
+            </label>
+          </div>
+          <!-- Right: Dist box toggle + position controls -->
+          <div style="flex: 1 1 auto; border-left: 1px solid #333; padding-left: 10px;">
+            <div style="margin-bottom: 6px;">
+              <button type="button" class="toggle-btn" id="distBoxOnWallBtn" onclick="toggleDistBoxOnWall()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Dist Box on Wall</button>
+            </div>
+            <div id="distBoxPositionControls" style="display: none;">
+              <!-- Main -->
+              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Main</span>
+              <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                <div class="slider-toggle">
+                  <button type="button" class="slider-toggle-btn" id="distBoxMainHorizSRBtn" onclick="setDistBoxMainHorizPosition('sr')">SR</button>
+                  <button type="button" class="slider-toggle-btn active" id="distBoxMainHorizCBtn" onclick="setDistBoxMainHorizPosition('center')">C</button>
+                  <button type="button" class="slider-toggle-btn" id="distBoxMainHorizSLBtn" onclick="setDistBoxMainHorizPosition('sl')">SL</button>
+                </div>
+                <div class="slider-toggle">
+                  <button type="button" class="slider-toggle-btn active" id="distBoxMainTopBtn" onclick="setDistBoxMainVertPosition('top')">Top</button>
+                  <button type="button" class="slider-toggle-btn" id="distBoxMainBottomBtn" onclick="setDistBoxMainVertPosition('bottom')">Bot</button>
+                </div>
+              </div>
+              <!-- Backup -->
+              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Backup</span>
+              <div style="display: flex; gap: 6px;">
+                <div class="slider-toggle">
+                  <button type="button" class="slider-toggle-btn" id="distBoxBackupHorizSRBtn" onclick="setDistBoxBackupHorizPosition('sr')">SR</button>
+                  <button type="button" class="slider-toggle-btn active" id="distBoxBackupHorizCBtn" onclick="setDistBoxBackupHorizPosition('center')">C</button>
+                  <button type="button" class="slider-toggle-btn" id="distBoxBackupHorizSLBtn" onclick="setDistBoxBackupHorizPosition('sl')">SL</button>
+                </div>
+                <div class="slider-toggle">
+                  <button type="button" class="slider-toggle-btn active" id="distBoxBackupTopBtn" onclick="setDistBoxBackupVertPosition('top')">Top</button>
+                  <button type="button" class="slider-toggle-btn" id="distBoxBackupBottomBtn" onclick="setDistBoxBackupVertPosition('bottom')">Bot</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1939,7 +1988,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.8.23';
+const APP_VERSION = '2.9.0';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -2077,7 +2126,7 @@ let isLoadingScreenData = false; // Flag to prevent resetCalculator during scree
   </div>
   <div class="nav-mode-toggle nav-complex-group" style="flex: 1;">
     <button class="nav-toggle-btn" data-mode="gear" onclick="switchAppMode('gear')">
-      <span>Gear</span>
+      <span>Cable</span>
     </button>
   </div>
   <!-- Simple mode group (hidden by default) -->

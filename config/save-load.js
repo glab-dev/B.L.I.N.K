@@ -327,8 +327,8 @@ function loadConfiguration(event) {
             initCombinedView();
           }
           // Reset gear tab selection for new project
-          if(typeof gearSelectedScreens !== 'undefined') {
-            gearSelectedScreens.clear();
+          if(typeof gearActiveScreenId !== 'undefined') {
+            gearActiveScreenId = null;
           }
           if(typeof initGearView === 'function') {
             initGearView();

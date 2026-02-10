@@ -10,7 +10,10 @@ function activateGearView() {
   if(typeof saveCurrentScreenData === 'function') {
     saveCurrentScreenData();
   }
-  // Initialize gear view with screen toggles
+  // Start on the screen the user was editing
+  gearActiveScreenId = currentScreenId;
+  // Load cabling inputs for this screen and initialize view
+  loadGearCablingInputs(gearActiveScreenId);
   if(typeof initGearView === 'function') {
     initGearView();
   }
@@ -309,19 +312,28 @@ function calculateCabling(screenId) {
   const serverToProcessor = data.serverToProcessor ?? 50;
   const cablePick = data.cablePick ?? 0;
   const dropPos = data.cableDropPosition ?? 'behind';
+  const powerInPos = data.powerInPosition ?? 'top';
   const distBoxOnWall = data.distBoxOnWall ?? false;
+  const distBoxMainHorizPos = data.distBoxMainHorizPosition ?? data.distBoxHorizPosition ?? 'center';
+  const distBoxBackupHorizPos = data.distBoxBackupHorizPosition ?? data.distBoxHorizPosition ?? 'center';
+  const distBoxMainVert = data.distBoxMainVertPosition ?? 'top';
+  const distBoxBackupVert = data.distBoxBackupVertPosition ?? 'top';
 
   // Deleted panels
   const deletedPanelsSet = data.deletedPanels || new Set();
 
-  // Cable drop horizontal extra: SR/SL adds half wall width to all cable lengths
-  let dropHorizontalExtra;
-  if(dropPos === 'behind') {
-    dropHorizontalExtra = 0;
-  } else {
-    // SR or SL: add distance from center of wall to the edge
-    dropHorizontalExtra = wallWidthFt / 2;
-  }
+  // Drop point position in feet from wall left edge
+  let dropPointFt;
+  if(dropPos === 'behind') dropPointFt = wallWidthFt / 2; // center
+  else if(dropPos === 'sr') dropPointFt = 0;              // left edge (SR from front)
+  else dropPointFt = wallWidthFt;                          // right edge (SL from front)
+
+  // Vertical distance from drop point (wall top) through pick to floor
+  // cablePick is extra cable added once (not doubled for up+down)
+  const dropToFloorFt = wallHeightFt + wallToFloor + cablePick;
+
+  // Floor run: distroToWall and processorToWall are measured from equipment to drop point
+  // so they directly represent the floor cable run distance
 
   // ---- A. SOCA (Power) Cable Calculation ----
   const socaCables = [];
@@ -338,10 +350,17 @@ function calculateCabling(screenId) {
     const firstCol = firstCircuit * columnsPerCircuit;
     const lastCol = Math.min((lastCircuit + 1) * columnsPerCircuit - 1, pw - 1);
 
-    // Vertical: cable runs from bottom of wall down to floor, then to distro
-    const verticalFt = wallHeightFt;
+    // Landing = center of covered columns (feet from wall left edge)
+    const landingCenterFt = ((firstCol + lastCol + 1) / 2) * panelWidthFt;
 
-    const totalFt = verticalFt + dropHorizontalExtra + wallToFloor + distroToWall + cablePick;
+    // Horizontal run along wall: landing → drop point
+    const wallHorizFt = Math.abs(landingCenterFt - dropPointFt);
+
+    // Bottom routing: cable goes down the wall first, then horizontal along bottom, then to floor
+    // No cable pick needed since the cable doesn't go over the top
+    const totalFt = (powerInPos === 'bottom')
+      ? wallHeightFt + wallHorizFt + wallToFloor + distroToWall
+      : wallHorizFt + dropToFloorFt + distroToWall;
     socaCables.push({
       index: s + 1,
       lengthFt: Math.round(totalFt * 10) / 10,
@@ -371,36 +390,37 @@ function calculateCabling(screenId) {
   );
 
   if(distBoxOnWall && hasDistBox) {
-    // Distribution box on wall: center top of wall
-    const distBoxCol = Math.floor(pw / 2);
-    const distBoxRow = 0; // top row
-    const distBoxPositionFt = wallWidthFt / 2; // center horizontal
+    // Main distribution box horizontal position
+    let mainDistBoxPositionFt;
+    if(distBoxMainHorizPos === 'sr') {
+      mainDistBoxPositionFt = 2 * panelWidthFt;
+    } else if(distBoxMainHorizPos === 'sl') {
+      mainDistBoxPositionFt = wallWidthFt - 2 * panelWidthFt;
+    } else {
+      mainDistBoxPositionFt = wallWidthFt / 2;
+    }
+    const mainDistBoxCol = Math.round(mainDistBoxPositionFt / panelWidthFt);
 
-    // Data cables from dist box to each data line entry
+    // Main dist box row based on vertical position
+    const mainDistBoxRow = (distBoxMainVert === 'bottom') ? effectivePh - 1 : 0;
+    const mainDistBoxCenterVertFt = (mainDistBoxRow + 0.5) * panelHeightFt;
+
+    // Primary data cables from main dist box to each data line entry
     for(let dl = 0; dl < dataLines; dl++) {
       const entry = entryPoints[dl];
       if(!entry) continue;
 
-      // Panel center position
       const panelCenterFt = (entry.col + 0.5) * panelWidthFt;
       const panelCenterVertFt = (entry.row + 0.5) * panelHeightFt;
-      const distBoxCenterVertFt = 0.5 * panelHeightFt; // center of top row
 
-      // Manhattan distance in panel units, accounting for knockouts
-      const detourPanels = calculateKnockoutDetour(distBoxCol, distBoxRow, entry.col, entry.row, deletedPanelsSet, pw, effectivePh);
-      const detourFt = detourPanels * Math.max(panelWidthFt, panelHeightFt); // approximate: use larger dimension
-
-      // More precise: convert horizontal and vertical separately
-      const hDist = Math.abs(panelCenterFt - distBoxPositionFt);
-      const vDist = Math.abs(panelCenterVertFt - distBoxCenterVertFt);
-
-      // Check if knockouts add extra distance
-      const directManhattan = Math.abs(entry.col - distBoxCol) + Math.abs(entry.row - distBoxRow);
+      const detourPanels = calculateKnockoutDetour(mainDistBoxCol, mainDistBoxRow, entry.col, entry.row, deletedPanelsSet, pw, effectivePh);
+      const hDist = Math.abs(panelCenterFt - mainDistBoxPositionFt);
+      const vDist = Math.abs(panelCenterVertFt - mainDistBoxCenterVertFt);
+      const directManhattan = Math.abs(entry.col - mainDistBoxCol) + Math.abs(entry.row - mainDistBoxRow);
       const extraDetour = (detourPanels - directManhattan);
       const extraDetourFt = extraDetour > 0 ? extraDetour * ((panelWidthFt + panelHeightFt) / 2) : 0;
 
-      const totalFt = hDist + vDist + extraDetourFt + cablePick;
-
+      const totalFt = hDist + vDist + extraDetourFt;
       dataCables.push({
         lineIndex: dl + 1,
         lengthFt: Math.round(totalFt * 10) / 10,
@@ -409,52 +429,112 @@ function calculateCabling(screenId) {
       });
     }
 
-    // If redundancy, double the data cables (backup follows same paths)
+    // Backup distribution box horizontal position (independent)
+    let backupDistBoxPositionFt;
+    if(distBoxBackupHorizPos === 'sr') {
+      backupDistBoxPositionFt = 2 * panelWidthFt;
+    } else if(distBoxBackupHorizPos === 'sl') {
+      backupDistBoxPositionFt = wallWidthFt - 2 * panelWidthFt;
+    } else {
+      backupDistBoxPositionFt = wallWidthFt / 2;
+    }
+    const backupDistBoxCol = Math.round(backupDistBoxPositionFt / panelWidthFt);
+
+    // Backup data cables — from backup dist box position (may differ both H and V)
     if(redundancy) {
-      const backupCables = dataCables.map(c => ({...c, lineIndex: c.lineIndex, backup: true}));
-      dataCables.push(...backupCables);
+      const backupDistBoxRow = (distBoxBackupVert === 'bottom') ? effectivePh - 1 : 0;
+      const backupDistBoxCenterVertFt = (backupDistBoxRow + 0.5) * panelHeightFt;
+
+      for(let dl = 0; dl < dataLines; dl++) {
+        const entry = entryPoints[dl];
+        if(!entry) continue;
+
+        const panelCenterFt = (entry.col + 0.5) * panelWidthFt;
+        const panelCenterVertFt = (entry.row + 0.5) * panelHeightFt;
+
+        const detourPanels = calculateKnockoutDetour(backupDistBoxCol, backupDistBoxRow, entry.col, entry.row, deletedPanelsSet, pw, effectivePh);
+        const hDist = Math.abs(panelCenterFt - backupDistBoxPositionFt);
+        const vDist = Math.abs(panelCenterVertFt - backupDistBoxCenterVertFt);
+        const directManhattan = Math.abs(entry.col - backupDistBoxCol) + Math.abs(entry.row - backupDistBoxRow);
+        const extraDetour = (detourPanels - directManhattan);
+        const extraDetourFt = extraDetour > 0 ? extraDetour * ((panelWidthFt + panelHeightFt) / 2) : 0;
+
+        const totalFt = hDist + vDist + extraDetourFt;
+        dataCables.push({
+          lineIndex: dl + 1,
+          lengthFt: Math.round(totalFt * 10) / 10,
+          roundedFt: roundUpToStandard(totalFt),
+          type: 'cat6a',
+          backup: true
+        });
+      }
     }
 
-    // Processor-to-distribution-box cables
-    // Cable route: processor → floor → up wall to dist box at center top
-    const procToDistBoxFt = processorToWall + wallToFloor + wallHeightFt + cablePick;
-    const cableType = procToDistBoxFt > 200 ? 'fiber' : 'cat6a';
+    // Trunk cables — main and backup can have different lengths based on both H and V position
+    const mainDistBoxHorizFt = Math.abs(mainDistBoxPositionFt - dropPointFt);
+    const backupDistBoxHorizFt = Math.abs(backupDistBoxPositionFt - dropPointFt);
+
+    // Main trunk: top route uses dropToFloorFt (includes pick), bottom route skips pick
+    const mainTrunkFt = (distBoxMainVert === 'bottom')
+      ? mainDistBoxHorizFt + wallToFloor + processorToWall
+      : mainDistBoxHorizFt + dropToFloorFt + processorToWall;
+
+    // Backup trunk
+    const backupTrunkFt = (distBoxBackupVert === 'bottom')
+      ? backupDistBoxHorizFt + wallToFloor + processorToWall
+      : backupDistBoxHorizFt + dropToFloorFt + processorToWall;
 
     for(let b = 0; b < distributionBoxCount; b++) {
-      // 2 cables per dist box (main + backup)
+      const mainType = mainTrunkFt > 200 ? 'fiber' : 'cat6a';
       distBoxCables.push({
         boxIndex: b + 1,
-        lengthFt: Math.round(procToDistBoxFt * 10) / 10,
-        roundedFt: roundUpToStandard(procToDistBoxFt),
-        type: cableType,
+        lengthFt: Math.round(mainTrunkFt * 10) / 10,
+        roundedFt: roundUpToStandard(mainTrunkFt),
+        type: mainType,
         label: 'main'
       });
+      const backupType = backupTrunkFt > 200 ? 'fiber' : 'cat6a';
       distBoxCables.push({
         boxIndex: b + 1,
-        lengthFt: Math.round(procToDistBoxFt * 10) / 10,
-        roundedFt: roundUpToStandard(procToDistBoxFt),
-        type: cableType,
+        lengthFt: Math.round(backupTrunkFt * 10) / 10,
+        roundedFt: roundUpToStandard(backupTrunkFt),
+        type: backupType,
         label: 'backup'
       });
     }
   } else {
-    // No dist box on wall: data cables run from processor back to each entry point
+    // No dist box on wall: data cables run from entry panel → wall edge → drop → floor → processor
     for(let dl = 0; dl < dataLines; dl++) {
       const entry = entryPoints[dl];
       if(!entry) continue;
 
-      // Vertical: full wall height (cable runs top to bottom or bottom to top)
-      const verticalFt = wallHeightFt;
+      // Entry panel center position in feet
+      const entryHFt = (entry.col + 0.5) * panelWidthFt;
+      const entryVFt = (entry.row + 0.5) * panelHeightFt;
+      const isBottomEntry = entry.row >= effectivePh / 2;
 
-      // Check for knockout detours from entry panel routing
+      // Horizontal run along wall edge: entry column → drop point
+      const wallHorizFt = Math.abs(entryHFt - dropPointFt);
+
+      let totalFt;
+      if(isBottomEntry) {
+        // Route: panel → wall bottom → along bottom → floor → processor
+        const panelToBottomFt = wallHeightFt - entryVFt;
+        totalFt = panelToBottomFt + wallHorizFt + wallToFloor + processorToWall;
+      } else {
+        // Route: panel → wall top → along top → drop → pick → floor → processor
+        const panelToTopFt = entryVFt;
+        totalFt = panelToTopFt + wallHorizFt + dropToFloorFt + processorToWall;
+      }
+
+      // Add knockout detour if applicable
       const dropCol = dropPos === 'sr' ? pw - 1 : (dropPos === 'sl' ? 0 : Math.floor(pw / 2));
-      const entryRow = (data.dataStartDir === 'bottom' || data.dataStartDir === 'all_bottom') ? effectivePh - 1 : 0;
+      const entryRow = isBottomEntry ? effectivePh - 1 : 0;
       const directManhattan = Math.abs(entry.col - dropCol) + Math.abs(entry.row - entryRow);
       const detourPanels = calculateKnockoutDetour(dropCol, entryRow, entry.col, entry.row, deletedPanelsSet, pw, effectivePh);
       const extraDetour = detourPanels - directManhattan;
       const extraDetourFt = extraDetour > 0 ? extraDetour * ((panelWidthFt + panelHeightFt) / 2) : 0;
-
-      const totalFt = verticalFt + dropHorizontalExtra + wallToFloor + processorToWall + cablePick + extraDetourFt;
+      totalFt += extraDetourFt;
 
       dataCables.push({
         lineIndex: dl + 1,
@@ -514,7 +594,13 @@ function calculateCabling(screenId) {
     }
   }
 
-  // ---- D. Totals ----
+  // ---- D. Exit points (last panel per data line — for backup/redundancy cables) ----
+  const exitPoints = {};
+  for (const [dlIndex, panelList] of Object.entries(dataLinePanelOrdering)) {
+    if (panelList.length > 0) exitPoints[dlIndex] = panelList[panelList.length - 1];
+  }
+
+  // ---- E. Totals ----
   const fiberCount = distBoxCables.filter(c => c.type === 'fiber').length;
   const cat6aDistBoxCount = distBoxCables.filter(c => c.type === 'cat6a').length;
 
@@ -527,6 +613,10 @@ function calculateCabling(screenId) {
     wallHeightFt: Math.round(wallHeightFt * 10) / 10,
     wallWidthFt: Math.round(wallWidthFt * 10) / 10,
     inputs: {wallToFloor, distroToWall, processorToWall, cablePick},
+    entryPoints,
+    exitPoints,
+    dataStartDir: data.dataStartDir || 'top',
+    dataLines,
     totals: {
       socaCount: socaCables.length,
       dataCount: dataCables.length,
@@ -543,59 +633,124 @@ function calculateCabling(screenId) {
 }
 
 // ==================== GEAR VIEW FUNCTIONS ====================
-let gearSelectedScreens = new Set();
+let gearActiveScreenId = null;
+
+function saveGearCablingInputs(screenId) {
+  if(!screens[screenId] || !screens[screenId].data) return;
+  const data = screens[screenId].data;
+  const wallToFloorEl = document.getElementById('wallToFloor');
+  const distroToWallEl = document.getElementById('distroToWall');
+  const processorToWallEl = document.getElementById('processorToWall');
+  const serverToProcessorEl = document.getElementById('serverToProcessor');
+  const cablePickEl = document.getElementById('cablePick');
+
+  if(wallToFloorEl) data.wallToFloor = wallToFloorEl.value !== '' ? parseFloat(wallToFloorEl.value) : parseFloat(wallToFloorEl.placeholder);
+  if(distroToWallEl) data.distroToWall = distroToWallEl.value !== '' ? parseFloat(distroToWallEl.value) : parseFloat(distroToWallEl.placeholder);
+  if(processorToWallEl) data.processorToWall = processorToWallEl.value !== '' ? parseFloat(processorToWallEl.value) : parseFloat(processorToWallEl.placeholder);
+  if(serverToProcessorEl) data.serverToProcessor = serverToProcessorEl.value !== '' ? parseFloat(serverToProcessorEl.value) : parseFloat(serverToProcessorEl.placeholder);
+  if(cablePickEl) data.cablePick = cablePickEl.value !== '' ? parseFloat(cablePickEl.value) : 0;
+}
+
+function loadGearCablingInputs(screenId) {
+  if(!screens[screenId] || !screens[screenId].data) return;
+  const data = screens[screenId].data;
+  const wallToFloorEl = document.getElementById('wallToFloor');
+  const distroToWallEl = document.getElementById('distroToWall');
+  const processorToWallEl = document.getElementById('processorToWall');
+  const serverToProcessorEl = document.getElementById('serverToProcessor');
+  const cablePickEl = document.getElementById('cablePick');
+
+  if(wallToFloorEl) wallToFloorEl.value = (data.wallToFloor && data.wallToFloor !== 5) ? data.wallToFloor : '';
+  if(distroToWallEl) distroToWallEl.value = (data.distroToWall && data.distroToWall !== 10) ? data.distroToWall : '';
+  if(processorToWallEl) processorToWallEl.value = (data.processorToWall && data.processorToWall !== 15) ? data.processorToWall : '';
+  const serverVal = data.serverToProcessor ?? data.fohToProcessor;
+  if(serverToProcessorEl) serverToProcessorEl.value = (serverVal && serverVal !== 50) ? serverVal : '';
+  if(cablePickEl) cablePickEl.value = (data.cablePick && data.cablePick !== 0) ? data.cablePick : '';
+
+  // Update toggle button states
+  const dropPos = data.cableDropPosition || 'behind';
+  cableDropPosition = dropPos;
+  document.getElementById('cableDropBehindBtn').classList.toggle('active', dropPos === 'behind');
+  document.getElementById('cableDropSRBtn').classList.toggle('active', dropPos === 'sr');
+  document.getElementById('cableDropSLBtn').classList.toggle('active', dropPos === 'sl');
+
+  const powerPos = data.powerInPosition || 'top';
+  powerInPosition = powerPos;
+  document.getElementById('powerInTopBtn').classList.toggle('active', powerPos === 'top');
+  document.getElementById('powerInBottomBtn').classList.toggle('active', powerPos === 'bottom');
+
+  const distBox = data.distBoxOnWall || false;
+  distBoxOnWallEnabled = distBox;
+  document.getElementById('distBoxOnWallBtn').classList.toggle('active', distBox);
+
+  distBoxMainHorizPosition = data.distBoxMainHorizPosition || data.distBoxHorizPosition || 'center';
+  document.getElementById('distBoxMainHorizSRBtn')?.classList.toggle('active', distBoxMainHorizPosition === 'sr');
+  document.getElementById('distBoxMainHorizCBtn')?.classList.toggle('active', distBoxMainHorizPosition === 'center');
+  document.getElementById('distBoxMainHorizSLBtn')?.classList.toggle('active', distBoxMainHorizPosition === 'sl');
+
+  distBoxBackupHorizPosition = data.distBoxBackupHorizPosition || data.distBoxHorizPosition || 'center';
+  document.getElementById('distBoxBackupHorizSRBtn')?.classList.toggle('active', distBoxBackupHorizPosition === 'sr');
+  document.getElementById('distBoxBackupHorizCBtn')?.classList.toggle('active', distBoxBackupHorizPosition === 'center');
+  document.getElementById('distBoxBackupHorizSLBtn')?.classList.toggle('active', distBoxBackupHorizPosition === 'sl');
+
+  distBoxMainVertPosition = data.distBoxMainVertPosition || 'top';
+  document.getElementById('distBoxMainTopBtn')?.classList.toggle('active', distBoxMainVertPosition === 'top');
+  document.getElementById('distBoxMainBottomBtn')?.classList.toggle('active', distBoxMainVertPosition === 'bottom');
+
+  distBoxBackupVertPosition = data.distBoxBackupVertPosition || 'top';
+  document.getElementById('distBoxBackupTopBtn')?.classList.toggle('active', distBoxBackupVertPosition === 'top');
+  document.getElementById('distBoxBackupBottomBtn')?.classList.toggle('active', distBoxBackupVertPosition === 'bottom');
+
+  const posControls = document.getElementById('distBoxPositionControls');
+  if (posControls) posControls.style.display = distBox ? '' : 'none';
+}
 
 function initGearView() {
   const togglesContainer = document.getElementById('gearScreenToggles');
   if(!togglesContainer) return;
 
-  togglesContainer.innerHTML = '';
-
-  // Auto-select all screens if none selected yet
-  if(gearSelectedScreens.size === 0) {
-    Object.keys(screens).forEach(id => gearSelectedScreens.add(id));
+  // Default to currentScreenId if not set or invalid
+  if(!gearActiveScreenId || !screens[gearActiveScreenId]) {
+    gearActiveScreenId = currentScreenId;
   }
 
-  // Remove any screens that no longer exist
-  gearSelectedScreens.forEach(id => {
-    if(!screens[id]) gearSelectedScreens.delete(id);
+  const screenIds = Object.keys(screens).sort((a, b) => {
+    const numA = parseInt(a.split('_')[1]);
+    const numB = parseInt(b.split('_')[1]);
+    return numA - numB;
   });
 
-  Object.keys(screens).forEach(screenId => {
+  // Build screen-tab style tabs (matching complex page screen tabs)
+  let html = '';
+  screenIds.forEach(screenId => {
     const screen = screens[screenId];
-    const btn = document.createElement('button');
-    btn.className = 'slider-toggle-btn';
-    btn.dataset.screenId = screenId;
-    btn.style.cssText = 'padding: 4px 12px; min-height: 26px; font-size: 10px; border: 2px solid #000; border-radius: 0; box-shadow: 1px 1px 0px 0px rgba(0,0,0,1); white-space: nowrap; width: fit-content; flex-grow: 0; flex-shrink: 0;';
-
-    if(gearSelectedScreens.has(screenId)) {
-      btn.classList.add('active');
-      btn.style.background = screen.color || '#10b981';
-      btn.style.color = '#fff';
-      btn.style.textShadow = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000';
-    } else {
-      btn.style.background = '#2a2a2a';
-      btn.style.color = '#9ca3af';
-      btn.style.textShadow = 'none';
-    }
-
-    btn.textContent = screen.name;
-    btn.onclick = function() {
-      toggleGearScreen(screenId);
-    };
-
-    togglesContainer.appendChild(btn);
+    const isActive = screenId === gearActiveScreenId;
+    html += `<div class="screen-tab ${isActive ? 'active' : ''}" onclick="switchGearScreen('${screenId}')">` +
+      `<span class="screen-tab-name">${escapeHtml(screen.name)}</span>` +
+      `</div>`;
   });
+
+  // Use a screen-tabs wrapper like the main screen tabs
+  let tabsWrapper = togglesContainer.querySelector('.screen-tabs');
+  if(!tabsWrapper) {
+    tabsWrapper = document.createElement('div');
+    tabsWrapper.className = 'screen-tabs';
+    togglesContainer.appendChild(tabsWrapper);
+  }
+  tabsWrapper.innerHTML = html;
 
   generateGearList();
 }
 
-function toggleGearScreen(screenId) {
-  if(gearSelectedScreens.has(screenId)) {
-    gearSelectedScreens.delete(screenId);
-  } else {
-    gearSelectedScreens.add(screenId);
-  }
+function switchGearScreen(screenId) {
+  if(screenId === gearActiveScreenId) return;
+  // Save cabling inputs from DOM to the old screen's data
+  saveGearCablingInputs(gearActiveScreenId);
+  // Switch to new screen
+  gearActiveScreenId = screenId;
+  // Load new screen's cabling inputs into DOM
+  loadGearCablingInputs(screenId);
+  // Re-render tabs and gear list
   initGearView();
 }
 
@@ -605,14 +760,14 @@ function generateGearList() {
 
   if(!gearListContainer || !gearListContent) return;
 
-  // Use selected screens if on gear tab, otherwise show all
+  // Use active gear screen if on gear tab, otherwise show all
   const allScreenIds = Object.keys(screens).sort((a, b) => {
     const numA = parseInt(a.split('_')[1]);
     const numB = parseInt(b.split('_')[1]);
     return numA - numB;
   });
-  const screenIds = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearSelectedScreens.size > 0)
-    ? allScreenIds.filter(id => gearSelectedScreens.has(id))
+  const screenIds = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+    ? [gearActiveScreenId]
     : allScreenIds;
 
   // Build gear data from shared module
@@ -620,12 +775,13 @@ function generateGearList() {
 
   // Helpers
   const sectionHdr = (title) => `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #383838; margin-bottom: 4px;"><strong style="color: #10b981; font-size: 13px;">${title}</strong></div>`;
+  const subTypeSpacer = '<div style="margin-top: 10px;"></div>';
   const gearLine = (label, value) => {
     if(value === 0 || value === '' || value === null || value === undefined || value === '0') return '';
     // If value is a number, format as "countx label" — otherwise keep as "label value" for pre-formatted strings
     if(typeof value === 'number') {
       const cleanLabel = label.replace(/:$/, '').trim(); // Remove trailing colon
-      return `<div style="margin-left: 12px; color: #fff;">${value}x ${cleanLabel}</div>`;
+      return `<div style="margin-left: 12px; color: #fff;">${value} x ${cleanLabel}</div>`;
     }
     return `<div style="margin-left: 12px;"><span style="color: #fff;">${label}</span> ${value}</div>`;
   };
@@ -650,7 +806,7 @@ function generateGearList() {
     // === EQUIPMENT ===
     html += sectionHdr('Equipment');
     if(eq.isFirstScreenInGroup && eq.processorCount > 0) {
-      html += gearLine('Processor:', `${eq.processorCount}x ${escapeHtml(eq.processorName)}`);
+      html += gearLine('Processor:', `${eq.processorCount} x ${escapeHtml(eq.processorName)}`);
       if(eq.distBoxCount > 0) {
         html += gearLine(`${escapeHtml(eq.distBoxName)}:`, eq.distBoxCount);
       }
@@ -708,9 +864,12 @@ function generateGearList() {
     }
     // Dynamic Cat6 cable lengths
     const cat6Lengths = Object.entries(dc.cat6ByLength).sort((a,b) => a[0] - b[0]);
+    if(cat6Lengths.length > 0 && (dc.jumperCount > 0 || (dc.crossJumperLen && dc.crossJumperCount > 0))) {
+      html += subTypeSpacer;
+    }
     if(cat6Lengths.length > 0) {
       for(const [len, count] of cat6Lengths) {
-        html += `<div style="margin-left: 12px; color: #fff;">${count}x ${len}' Cat6</div>`;
+        html += `<div style="margin-left: 12px; color: #fff;">${count} x ${len}' Cat6</div>`;
       }
       // Detail dropdown
       if(dc.cableDetail.length > 0 || dc.knockoutDetail.length > 0) {
@@ -730,13 +889,15 @@ function generateGearList() {
     if(pc.jumperCount > 0) {
       html += gearLine(`Jumpers ${pc.powerJumperLen}':`, pc.jumperCount);
     }
+    if(pc.jumperCount > 0) html += subTypeSpacer;
     html += gearLine('Soca Splays:', pc.socaSplays);
     // Dynamic SOCA cable lengths
     const socaLengths = Object.entries(pc.socaByLength).sort((a,b) => a[0] - b[0]);
     for(const [len, count] of socaLengths) {
-      html += `<div style="margin-left: 12px; color: #fff;">${count}x ${len}' Soca</div>`;
+      html += `<div style="margin-left: 12px; color: #fff;">${count} x ${len}' Soca</div>`;
     }
     // True1 cables
+    if(socaLengths.length > 0 || pc.socaSplays > 0) html += subTypeSpacer;
     html += gearLine("25' True1:", pc.true1_25);
     html += gearLine("10' True1:", pc.true1_10);
     html += gearLine("5' True1:", pc.true1_5);
@@ -753,7 +914,7 @@ function generateGearList() {
     // === PROCESSOR → DIST BOX ===
     if(p2d.count > 0) {
       html += sectionHdr('Processor → Dist Box');
-      html += `<div style="margin-left: 12px; color: #fff;">${p2d.count}x ${p2d.cableType} ${p2d.cableLength}'</div>`;
+      html += `<div style="margin-left: 12px; color: #fff;">${p2d.count} x ${p2d.cableType} ${p2d.cableLength}'</div>`;
       if(p2d.cableType === 'Fiber') {
         html += `<div style="margin-left: 12px; color: #e040fb; font-size: 12px;">(Fiber required: distance > 200')</div>`;
       }
@@ -787,6 +948,7 @@ function generateGearList() {
     if(sig.serverFiberLine) {
       html += gearLine(`${sig.serverFiberLine.label}:`, sig.serverFiberLine.count);
     }
+    html += subTypeSpacer;
     html += gearLine("25' HDMI:", sig.hdmi[25]);
     html += gearLine("10' HDMI:", sig.hdmi[10]);
     html += gearLine("6' HDMI:", sig.hdmi[6]);
@@ -809,5 +971,12 @@ function generateGearList() {
   // Only show container if we're on the gear tab
   if(typeof currentMobileView !== 'undefined' && currentMobileView === 'gear') {
     gearListContainer.style.display = 'block';
+  }
+
+  // Render cable layout diagram for the active gear screen
+  if(typeof renderCableDiagram === 'function') {
+    const diagramScreenId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+      ? gearActiveScreenId : currentScreenId;
+    renderCableDiagram(diagramScreenId);
   }
 }

@@ -463,14 +463,26 @@ function setCableDropPosition(position) {
   document.getElementById('cableDropBehindBtn').classList.toggle('active', position === 'behind');
   document.getElementById('cableDropSRBtn').classList.toggle('active', position === 'sr');
   document.getElementById('cableDropSLBtn').classList.toggle('active', position === 'sl');
-  if(screens[currentScreenId]) {
-    screens[currentScreenId].data.cableDropPosition = position;
+  // Save to gear-active screen when in gear view, otherwise current screen
+  const targetId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+    ? gearActiveScreenId : currentScreenId;
+  if(screens[targetId]) {
+    screens[targetId].data.cableDropPosition = position;
   }
-  // Propagate to all screens when all are toggled on
-  const allIds = Object.keys(screens);
-  if(typeof gearSelectedScreens !== 'undefined' && allIds.length > 1 &&
-     gearSelectedScreens.size === allIds.length && allIds.every(id => gearSelectedScreens.has(id))) {
-    allIds.forEach(sid => { if(screens[sid] && screens[sid].data) screens[sid].data.cableDropPosition = position; });
+  generateGearList();
+}
+
+// Power in position (top or bottom of wall)
+let powerInPosition = 'top';
+function setPowerInPosition(position) {
+  powerInPosition = position;
+  document.getElementById('powerInTopBtn').classList.toggle('active', position === 'top');
+  document.getElementById('powerInBottomBtn').classList.toggle('active', position === 'bottom');
+  // Save to gear-active screen when in gear view, otherwise current screen
+  const targetId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+    ? gearActiveScreenId : currentScreenId;
+  if(screens[targetId]) {
+    screens[targetId].data.powerInPosition = position;
   }
   generateGearList();
 }
@@ -480,14 +492,71 @@ let distBoxOnWallEnabled = false;
 function toggleDistBoxOnWall() {
   distBoxOnWallEnabled = !distBoxOnWallEnabled;
   document.getElementById('distBoxOnWallBtn').classList.toggle('active', distBoxOnWallEnabled);
-  if(screens[currentScreenId]) {
-    screens[currentScreenId].data.distBoxOnWall = distBoxOnWallEnabled;
+  const posControls = document.getElementById('distBoxPositionControls');
+  if (posControls) posControls.style.display = distBoxOnWallEnabled ? '' : 'none';
+  // Save to gear-active screen when in gear view, otherwise current screen
+  const targetId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+    ? gearActiveScreenId : currentScreenId;
+  if(screens[targetId]) {
+    screens[targetId].data.distBoxOnWall = distBoxOnWallEnabled;
   }
-  // Propagate to all screens when all are toggled on
-  const allIds = Object.keys(screens);
-  if(typeof gearSelectedScreens !== 'undefined' && allIds.length > 1 &&
-     gearSelectedScreens.size === allIds.length && allIds.every(id => gearSelectedScreens.has(id))) {
-    allIds.forEach(sid => { if(screens[sid] && screens[sid].data) screens[sid].data.distBoxOnWall = distBoxOnWallEnabled; });
+  generateGearList();
+}
+
+// Main dist box horizontal position (SR / Center / SL)
+let distBoxMainHorizPosition = 'center';
+function setDistBoxMainHorizPosition(position) {
+  distBoxMainHorizPosition = position;
+  document.getElementById('distBoxMainHorizSRBtn').classList.toggle('active', position === 'sr');
+  document.getElementById('distBoxMainHorizCBtn').classList.toggle('active', position === 'center');
+  document.getElementById('distBoxMainHorizSLBtn').classList.toggle('active', position === 'sl');
+  const targetId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+    ? gearActiveScreenId : currentScreenId;
+  if(screens[targetId]) {
+    screens[targetId].data.distBoxMainHorizPosition = position;
+  }
+  generateGearList();
+}
+
+// Backup dist box horizontal position (SR / Center / SL)
+let distBoxBackupHorizPosition = 'center';
+function setDistBoxBackupHorizPosition(position) {
+  distBoxBackupHorizPosition = position;
+  document.getElementById('distBoxBackupHorizSRBtn').classList.toggle('active', position === 'sr');
+  document.getElementById('distBoxBackupHorizCBtn').classList.toggle('active', position === 'center');
+  document.getElementById('distBoxBackupHorizSLBtn').classList.toggle('active', position === 'sl');
+  const targetId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+    ? gearActiveScreenId : currentScreenId;
+  if(screens[targetId]) {
+    screens[targetId].data.distBoxBackupHorizPosition = position;
+  }
+  generateGearList();
+}
+
+// Main dist box vertical position (Top / Bottom)
+let distBoxMainVertPosition = 'top';
+function setDistBoxMainVertPosition(position) {
+  distBoxMainVertPosition = position;
+  document.getElementById('distBoxMainTopBtn').classList.toggle('active', position === 'top');
+  document.getElementById('distBoxMainBottomBtn').classList.toggle('active', position === 'bottom');
+  const targetId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+    ? gearActiveScreenId : currentScreenId;
+  if(screens[targetId]) {
+    screens[targetId].data.distBoxMainVertPosition = position;
+  }
+  generateGearList();
+}
+
+// Backup dist box vertical position (Top / Bottom)
+let distBoxBackupVertPosition = 'top';
+function setDistBoxBackupVertPosition(position) {
+  distBoxBackupVertPosition = position;
+  document.getElementById('distBoxBackupTopBtn').classList.toggle('active', position === 'top');
+  document.getElementById('distBoxBackupBottomBtn').classList.toggle('active', position === 'bottom');
+  const targetId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+    ? gearActiveScreenId : currentScreenId;
+  if(screens[targetId]) {
+    screens[targetId].data.distBoxBackupVertPosition = position;
   }
   generateGearList();
 }

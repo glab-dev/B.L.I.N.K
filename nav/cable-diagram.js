@@ -28,8 +28,10 @@ function renderCableDiagram(screenId) {
   const distroToWall = cabling.inputs.distroToWall;
   const processorToWall = cabling.inputs.processorToWall;
   const cablePick = cabling.inputs.cablePick;
+  const serverToProcessor = cabling.serverCable ? cabling.serverCable.lengthFt : 0;
   const distBoxOnWall = screen.data.distBoxOnWall || false;
   const dropPos = screen.data.cableDropPosition || 'behind';
+  const powerInPos = screen.data.powerInPosition || 'top';
 
   // SOCA power cable data
   const calc = screen.calculatedData;
@@ -56,8 +58,11 @@ function renderCableDiagram(screenId) {
   const canvasW = containerWidth;
   const dpr = window.devicePixelRatio || 1;
 
-  // Scene bounds in feet — wall is on the right, equipment to the left
-  const maxLeftFt = Math.max(processorToWall, distroToWall, 5) + 2;
+  // Scene bounds in feet — wall is on the right, equipment to the left of drop point
+  // Equipment extends left from the drop point; drop point is on the wall
+  const dropLocalFt = (dropPos === 'sr') ? 0 : (dropPos === 'sl') ? wallWidthFt : wallWidthFt / 2;
+  const leftmostEquipFt = dropLocalFt - Math.max(distroToWall, processorToWall);
+  const maxLeftFt = Math.max(-leftmostEquipFt, 2) + 2;
   const totalVertFt = wallHeightFt + wallToFloor + 2; // +2 for floor equipment space
 
   // Scale to fit — fill the full width, height follows proportionally
@@ -91,6 +96,7 @@ function renderCableDiagram(screenId) {
   const TRUNK_COLOR = '#FFFFFF'; // white — trunk cable (processor ↔ dist box)
   const PICK_COLOR = '#7CFC00'; // lime green — cable pick
   const BACKUP_COLOR = '#FF69B4'; // hot pink — backup/redundancy data cables
+  const SERVER_COLOR = '#AB47BC'; // purple — server box & cable
 
   // Background
   ctx.fillStyle = bgColor;
@@ -112,12 +118,6 @@ function renderCableDiagram(screenId) {
   const minWallH = Math.max(wallH, 30);
   const adjWallLeftX = wallRightX - minWallW;
 
-  // Equipment positions on the floor, to the left of the wall
-  const distroX = wallCenterX - distroToWall * scale;
-  const procX = wallCenterX - processorToWall * scale;
-  const equipY = floorY - BOX_H; // boxes sit on top of floor line
-  const distBoxTopY = wallTopY + 35; // dist box Y when mounted on wall
-
   // Cable drop point based on position toggle
   // Front view: SR = viewer's left edge, SL = viewer's right edge
   let dropX;
@@ -128,6 +128,16 @@ function renderCableDiagram(screenId) {
   } else {
     dropX = wallCenterX; // behind = center
   }
+
+  // Equipment positions on the floor — distances are from drop point
+  const distroX = dropX - distroToWall * scale;
+  const procX = dropX - processorToWall * scale;
+  const equipY = floorY - BOX_H; // boxes sit on top of floor line
+
+  // Server box — fixed on the left, vertically centered between wall top and floor
+  const serverBoxX = MARGIN.left;
+  const serverBoxCenterY = (wallTopY + floorY) / 2;
+  const serverBoxY = serverBoxCenterY - BOX_H / 2;
 
   // === Draw floor line ===
   ctx.strokeStyle = '#666666';
@@ -236,10 +246,12 @@ function renderCableDiagram(screenId) {
 
   // Offsets to prevent cable overlap on shared horizontal runs
   const POWER_WALL_TOP_Y = wallTopY - 4;  // power runs above wall top edge
+  const POWER_WALL_BOTTOM_Y = wallBottomY - 4; // power bottom-entry runs above wall bottom edge
   const DATA_WALL_TOP_Y = wallTopY + 4;   // data runs below wall top edge
   const DATA_WALL_BOTTOM_Y = wallBottomY + 4; // data bottom-entry runs below wall bottom edge
   const POWER_FLOOR_Y = floorY - 5;       // power runs above floor line
-  const DATA_FLOOR_Y = floorY + 5;        // data runs below floor line
+  const DATA_FLOOR_Y = floorY + 5;        // data primary runs below floor line
+  const BACKUP_FLOOR_Y = floorY + 12;     // data backup runs further below floor line
 
   function drawCablePath(ctx, offsetX, cableWallTopY, cableFloorY, targetFloorX, targetBoxTopY) {
     ctx.beginPath();
@@ -263,6 +275,9 @@ function renderCableDiagram(screenId) {
     ctx.stroke();
   }
 
+  // Deferred overlays — markers, brackets, labels drawn AFTER all cable lines
+  const deferredOverlays = [];
+
   // Power cables — one per SOCA
   for (let s = 0; s < socaCount; s++) {
     const firstCircuit = s * 6;
@@ -273,54 +288,79 @@ function renderCableDiagram(screenId) {
     // Landing X = center of the columns this SOCA covers
     const landingX = adjWallLeftX + ((firstCol + lastCol + 1) / 2) * panelPixelW;
 
-    // Draw cable: landing → wall top → drop point → pick → floor → distro
+    // Draw cable based on power in position
     ctx.strokeStyle = POWER_COLOR;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.moveTo(landingX - 3, POWER_WALL_TOP_Y);
-    ctx.lineTo(dropX - 3, POWER_WALL_TOP_Y);
-    if (cablePick > 0) {
-      ctx.lineTo(pickCenterX - 3, pickCenterY);
-      ctx.lineTo(pickCenterX - 3, POWER_FLOOR_Y);
-    } else {
+    if (powerInPos === 'bottom') {
+      // Bottom routing: landing at bottom → along bottom → drop → floor → distro
+      ctx.moveTo(landingX - 3, POWER_WALL_BOTTOM_Y);
+      ctx.lineTo(dropX - 3, POWER_WALL_BOTTOM_Y);
       ctx.lineTo(dropX - 3, POWER_FLOOR_Y);
+      ctx.lineTo(distroX, POWER_FLOOR_Y);
+      ctx.lineTo(distroX, equipY + BOX_H);
+    } else {
+      // Top routing (default): landing → along top → drop → pick → floor → distro
+      ctx.moveTo(landingX - 3, POWER_WALL_TOP_Y);
+      ctx.lineTo(dropX - 3, POWER_WALL_TOP_Y);
+      if (cablePick > 0) {
+        ctx.lineTo(pickCenterX - 3, pickCenterY);
+        ctx.lineTo(pickCenterX - 3, POWER_FLOOR_Y);
+      } else {
+        ctx.lineTo(dropX - 3, POWER_FLOOR_Y);
+      }
+      ctx.lineTo(distroX, POWER_FLOOR_Y);
+      ctx.lineTo(distroX, equipY + BOX_H);
     }
-    ctx.lineTo(distroX, POWER_FLOOR_Y);
-    ctx.lineTo(distroX, equipY + BOX_H);
     ctx.stroke();
 
-    // SOCA landing marker on wall top
-    ctx.fillStyle = POWER_COLOR;
-    ctx.beginPath();
-    ctx.arc(landingX, wallTopY, 5, 0, Math.PI * 2);
-    ctx.fill();
+    // Defer SOCA marker, bracket, and label to draw on top of all cables
+    const _landingX = landingX, _s = s;
+    const _bracketStartX = adjWallLeftX + firstCol * panelPixelW;
+    const _bracketEndX = adjWallLeftX + (lastCol + 1) * panelPixelW;
+    deferredOverlays.push(function() {
+      // SOCA landing marker on wall
+      ctx.fillStyle = POWER_COLOR;
+      ctx.beginPath();
+      ctx.arc(_landingX, powerInPos === 'bottom' ? wallBottomY : wallTopY, 5, 0, Math.PI * 2);
+      ctx.fill();
 
-    // SOCA bracket and label above the wall
-    const bracketStartX = adjWallLeftX + firstCol * panelPixelW;
-    const bracketEndX = adjWallLeftX + (lastCol + 1) * panelPixelW;
-    const bracketY = wallTopY - 18;
-
-    // Bracket line spanning the SOCA's columns
-    ctx.strokeStyle = POWER_COLOR;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(bracketStartX, bracketY + 6);
-    ctx.lineTo(bracketStartX, bracketY);
-    ctx.lineTo(bracketEndX, bracketY);
-    ctx.lineTo(bracketEndX, bracketY + 6);
-    ctx.stroke();
-
-    // SOCA label centered above the bracket
-    ctx.fillStyle = POWER_COLOR;
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText('SOCA ' + (s + 1), landingX, bracketY - 2);
+      // SOCA bracket and label
+      ctx.strokeStyle = POWER_COLOR;
+      ctx.lineWidth = 1.5;
+      if (powerInPos === 'bottom') {
+        const bracketY = wallBottomY + 18;
+        ctx.beginPath();
+        ctx.moveTo(_bracketStartX, bracketY - 6);
+        ctx.lineTo(_bracketStartX, bracketY);
+        ctx.lineTo(_bracketEndX, bracketY);
+        ctx.lineTo(_bracketEndX, bracketY - 6);
+        ctx.stroke();
+        ctx.fillStyle = POWER_COLOR;
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('SOCA ' + (_s + 1), _landingX, bracketY + 2);
+      } else {
+        const bracketY = wallTopY - 18;
+        ctx.beginPath();
+        ctx.moveTo(_bracketStartX, bracketY + 6);
+        ctx.lineTo(_bracketStartX, bracketY);
+        ctx.lineTo(_bracketEndX, bracketY);
+        ctx.lineTo(_bracketEndX, bracketY + 6);
+        ctx.stroke();
+        ctx.fillStyle = POWER_COLOR;
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('SOCA ' + (_s + 1), _landingX, bracketY - 2);
+      }
+    });
   }
 
   // === Data cables — one per data line, all cyan; backup in pink if redundancy ===
   const DATA_OFFSET = 6; // horizontal offset from power cables (power uses -3, data uses +6)
-  const BACKUP_OFFSET = 10; // backup cables offset further out
+  const BACKUP_OFFSET = 16; // backup cables offset further out (10px gap from primary)
   const dataFanWidth = dataLineCount <= 4 ? 2.5 : (dataLineCount <= 8 ? 2.0 : 1.5);
 
   // Helper: draw a label to the right of a dot with dark background
@@ -353,46 +393,103 @@ function renderCableDiagram(screenId) {
   }
 
   if (distBoxOnWall) {
-    const distBoxBottomY = distBoxTopY + BOX_H;
-    const distBoxCenterX = wallCenterX;
+    // Compute dist box positions from settings (independent H and V for main/backup)
+    const distBoxMainHorizPos = screen.data.distBoxMainHorizPosition || screen.data.distBoxHorizPosition || 'center';
+    const distBoxBackupHorizPos = screen.data.distBoxBackupHorizPosition || screen.data.distBoxHorizPosition || 'center';
+    const distBoxMainVert = screen.data.distBoxMainVertPosition || 'top';
+    const distBoxBackupVert = screen.data.distBoxBackupVertPosition || 'top';
+    const twoDistBoxes = dataRedundancy && (distBoxMainHorizPos !== distBoxBackupHorizPos || distBoxMainVert !== distBoxBackupVert);
 
-    // Primary trunk cable: dist box → wall top → drop → pick → floor → processor
+    // Helper: compute dist box center X from horiz position
+    function getDistBoxCenterX(horizPos) {
+      let cx;
+      if (horizPos === 'sr') {
+        cx = adjWallLeftX + 2 * panelPixelW;
+      } else if (horizPos === 'sl') {
+        cx = wallRightX - 2 * panelPixelW;
+      } else {
+        cx = wallCenterX;
+      }
+      return Math.min(Math.max(cx, adjWallLeftX + BOX_W / 2), wallRightX - BOX_W / 2);
+    }
+
+    const mainDistBoxCenterX = getDistBoxCenterX(distBoxMainHorizPos);
+    const mainDistBoxLeftX = mainDistBoxCenterX - BOX_W / 2;
+    const mainDistBoxRightX = mainDistBoxCenterX + BOX_W / 2;
+    const backupDistBoxCenterX = twoDistBoxes ? getDistBoxCenterX(distBoxBackupHorizPos) : mainDistBoxCenterX;
+    const backupDistBoxLeftX = backupDistBoxCenterX - BOX_W / 2;
+    const backupDistBoxRightX = backupDistBoxCenterX + BOX_W / 2;
+
+    // Vertical positions for main and backup
+    const mainDistBoxTopY = distBoxMainVert === 'bottom' ? wallBottomY - BOX_H - 10 : wallTopY + 35;
+    const mainDistBoxBottomY = mainDistBoxTopY + BOX_H;
+    const backupDistBoxTopY = twoDistBoxes
+      ? (distBoxBackupVert === 'bottom' ? wallBottomY - BOX_H - 10 : wallTopY + 35)
+      : mainDistBoxTopY;
+    const backupDistBoxBottomY = backupDistBoxTopY + BOX_H;
+
+    // Primary trunk cable: main dist box → wall edge → drop → floor → processor
     ctx.strokeStyle = DISTBOX_COLOR;
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(distBoxCenterX + DATA_OFFSET, distBoxBottomY);
-    ctx.lineTo(distBoxCenterX + DATA_OFFSET, DATA_WALL_TOP_Y);
-    ctx.lineTo(dropX + DATA_OFFSET, DATA_WALL_TOP_Y);
-    if (cablePick > 0) {
-      ctx.lineTo(pickCenterX + DATA_OFFSET, pickCenterY);
-      ctx.lineTo(pickCenterX + DATA_OFFSET, DATA_FLOOR_Y);
-    } else {
+    if (distBoxMainVert === 'bottom') {
+      ctx.moveTo(mainDistBoxCenterX + DATA_OFFSET, mainDistBoxBottomY);
+      ctx.lineTo(mainDistBoxCenterX + DATA_OFFSET, DATA_WALL_BOTTOM_Y);
+      ctx.lineTo(dropX + DATA_OFFSET, DATA_WALL_BOTTOM_Y);
       ctx.lineTo(dropX + DATA_OFFSET, DATA_FLOOR_Y);
+      ctx.lineTo(procX, DATA_FLOOR_Y);
+      ctx.lineTo(procX, equipY + BOX_H);
+    } else {
+      ctx.moveTo(mainDistBoxCenterX + DATA_OFFSET, mainDistBoxTopY);
+      ctx.lineTo(mainDistBoxCenterX + DATA_OFFSET, DATA_WALL_TOP_Y);
+      ctx.lineTo(dropX + DATA_OFFSET, DATA_WALL_TOP_Y);
+      if (cablePick > 0) {
+        ctx.lineTo(pickCenterX + DATA_OFFSET, pickCenterY);
+        ctx.lineTo(pickCenterX + DATA_OFFSET, DATA_FLOOR_Y);
+      } else {
+        ctx.lineTo(dropX + DATA_OFFSET, DATA_FLOOR_Y);
+      }
+      ctx.lineTo(procX, DATA_FLOOR_Y);
+      ctx.lineTo(procX, equipY + BOX_H);
     }
-    ctx.lineTo(procX, DATA_FLOOR_Y);
-    ctx.lineTo(procX, equipY + BOX_H);
     ctx.stroke();
 
-    // Backup trunk cable (if redundancy) — white to distinguish from gold primary trunk
+    // Backup trunk cable (if redundancy) — white, from backup dist box position
     if (dataRedundancy) {
       ctx.strokeStyle = TRUNK_COLOR;
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(distBoxCenterX + BACKUP_OFFSET, distBoxBottomY);
-      ctx.lineTo(distBoxCenterX + BACKUP_OFFSET, DATA_WALL_TOP_Y);
-      ctx.lineTo(dropX + BACKUP_OFFSET, DATA_WALL_TOP_Y);
-      if (cablePick > 0) {
-        ctx.lineTo(pickCenterX + BACKUP_OFFSET, pickCenterY);
-        ctx.lineTo(pickCenterX + BACKUP_OFFSET, DATA_FLOOR_Y);
+      if (distBoxBackupVert === 'bottom') {
+        ctx.moveTo(backupDistBoxCenterX + BACKUP_OFFSET, backupDistBoxBottomY);
+        ctx.lineTo(backupDistBoxCenterX + BACKUP_OFFSET, DATA_WALL_BOTTOM_Y);
+        ctx.lineTo(dropX + BACKUP_OFFSET, DATA_WALL_BOTTOM_Y);
+        ctx.lineTo(dropX + BACKUP_OFFSET, BACKUP_FLOOR_Y);
+        ctx.lineTo(procX + 8, BACKUP_FLOOR_Y);
+        ctx.lineTo(procX + 8, equipY + BOX_H);
       } else {
-        ctx.lineTo(dropX + BACKUP_OFFSET, DATA_FLOOR_Y);
+        ctx.moveTo(backupDistBoxCenterX + BACKUP_OFFSET, backupDistBoxTopY);
+        ctx.lineTo(backupDistBoxCenterX + BACKUP_OFFSET, DATA_WALL_TOP_Y);
+        ctx.lineTo(dropX + BACKUP_OFFSET, DATA_WALL_TOP_Y);
+        if (cablePick > 0) {
+          ctx.lineTo(pickCenterX + BACKUP_OFFSET, pickCenterY);
+          ctx.lineTo(pickCenterX + BACKUP_OFFSET, BACKUP_FLOOR_Y);
+        } else {
+          ctx.lineTo(dropX + BACKUP_OFFSET, BACKUP_FLOOR_Y);
+        }
+        ctx.lineTo(procX + 8, BACKUP_FLOOR_Y);
+        ctx.lineTo(procX + 8, equipY + BOX_H);
       }
-      ctx.lineTo(procX + 4, DATA_FLOOR_Y);
-      ctx.lineTo(procX + 4, equipY + BOX_H);
       ctx.stroke();
     }
 
-    // Fan-out: thin lines from dist box to each entry + backup exit
+    // Fan-out: L-shaped lines from dist box to each entry + backup exit
+    const fanPrimaryY = twoDistBoxes
+      ? mainDistBoxTopY + BOX_H / 2
+      : mainDistBoxTopY + BOX_H / 2 - 3;
+    const fanBackupY = twoDistBoxes
+      ? backupDistBoxTopY + BOX_H / 2
+      : mainDistBoxTopY + BOX_H / 2 + 3;
+
     for (let dl = 0; dl < dataLineCount; dl++) {
       const entry = entryPoints[dl];
       if (!entry) continue;
@@ -400,37 +497,45 @@ function renderCableDiagram(screenId) {
       const entryPxX = adjWallLeftX + (entry.col + 0.5) * panelPixelW;
       const entryPxY = wallTopY + (entry.row + 0.5) * fullPanelPixelH;
 
-      // Primary fan-out
+      // Primary fan-out — L-shaped from main dist box edge
+      const primaryFanStartX = entryPxX < mainDistBoxCenterX ? mainDistBoxLeftX : mainDistBoxRightX;
       ctx.strokeStyle = DATA_COLOR;
       ctx.lineWidth = 1.0;
       ctx.globalAlpha = 0.6;
       ctx.beginPath();
-      ctx.moveTo(distBoxCenterX, distBoxTopY + BOX_H / 2);
-      ctx.lineTo(entryPxX, entryPxY);
+      ctx.moveTo(primaryFanStartX, fanPrimaryY);
+      ctx.lineTo(entryPxX - 2, fanPrimaryY);
+      ctx.lineTo(entryPxX - 2, entryPxY);
       ctx.stroke();
       ctx.globalAlpha = 1.0;
 
-      drawMarker(entryPxX, entryPxY, 4, DATA_COLOR);
-      drawCableLabel('D' + (dl + 1), entryPxX, entryPxY, DATA_COLOR);
+      deferredOverlays.push(function() {
+        drawMarker(entryPxX, entryPxY, 4, DATA_COLOR);
+        drawCableLabel('D' + (dl + 1), entryPxX, entryPxY, DATA_COLOR);
+      });
 
-      // Backup fan-out to exit panel
+      // Backup fan-out to exit panel — from backup dist box
       if (dataRedundancy) {
         const exit = exitPoints[dl];
         if (exit) {
           const exitPxX = adjWallLeftX + (exit.col + 0.5) * panelPixelW;
           const exitPxY = wallTopY + (exit.row + 0.5) * fullPanelPixelH;
 
+          const backupFanStartX = exitPxX < backupDistBoxCenterX ? backupDistBoxLeftX : backupDistBoxRightX;
           ctx.strokeStyle = BACKUP_COLOR;
           ctx.lineWidth = 1.0;
           ctx.globalAlpha = 0.6;
           ctx.beginPath();
-          ctx.moveTo(distBoxCenterX, distBoxTopY + BOX_H / 2);
-          ctx.lineTo(exitPxX, exitPxY);
+          ctx.moveTo(backupFanStartX, fanBackupY);
+          ctx.lineTo(exitPxX + 2, fanBackupY);
+          ctx.lineTo(exitPxX + 2, exitPxY);
           ctx.stroke();
           ctx.globalAlpha = 1.0;
 
-          drawMarker(exitPxX, exitPxY, 3, BACKUP_COLOR);
-          drawCableLabel('B' + (dl + 1), exitPxX, exitPxY, BACKUP_COLOR);
+          deferredOverlays.push(function() {
+            drawMarker(exitPxX, exitPxY, 3, BACKUP_COLOR);
+            drawCableLabel('B' + (dl + 1), exitPxX, exitPxY, BACKUP_COLOR);
+          });
         }
       }
     }
@@ -472,10 +577,14 @@ function renderCableDiagram(screenId) {
       ctx.stroke();
     }
     if (hasBottomEntry) {
+      // Bottom bundle merges into the top bundle's vertical drop
+      const dataDropX = cablePick > 0 ? pickCenterX + DATA_OFFSET : dropX + DATA_OFFSET;
       ctx.beginPath();
       ctx.moveTo(dropX + DATA_OFFSET, DATA_WALL_BOTTOM_Y);
-      ctx.lineTo(dropX + DATA_OFFSET, DATA_FLOOR_Y);
+      ctx.lineTo(dataDropX, DATA_WALL_BOTTOM_Y); // horizontal to meet vertical drop
       if (!hasTopEntry) {
+        // No top bundle — draw own vertical drop to floor and processor
+        ctx.lineTo(dataDropX, DATA_FLOOR_Y);
         ctx.lineTo(procX, DATA_FLOOR_Y);
         ctx.lineTo(procX, equipY + BOX_H);
       }
@@ -491,21 +600,25 @@ function renderCableDiagram(screenId) {
         ctx.moveTo(dropX + BACKUP_OFFSET, DATA_WALL_TOP_Y);
         if (cablePick > 0) {
           ctx.lineTo(pickCenterX + BACKUP_OFFSET, pickCenterY);
-          ctx.lineTo(pickCenterX + BACKUP_OFFSET, DATA_FLOOR_Y);
+          ctx.lineTo(pickCenterX + BACKUP_OFFSET, BACKUP_FLOOR_Y);
         } else {
-          ctx.lineTo(dropX + BACKUP_OFFSET, DATA_FLOOR_Y);
+          ctx.lineTo(dropX + BACKUP_OFFSET, BACKUP_FLOOR_Y);
         }
-        ctx.lineTo(procX + 4, DATA_FLOOR_Y);
-        ctx.lineTo(procX + 4, equipY + BOX_H);
+        ctx.lineTo(procX + 8, BACKUP_FLOOR_Y);
+        ctx.lineTo(procX + 8, equipY + BOX_H);
         ctx.stroke();
       }
       if (hasBottomExit) {
+        // Bottom backup merges into the top backup's vertical drop
+        const backupDropX = cablePick > 0 ? pickCenterX + BACKUP_OFFSET : dropX + BACKUP_OFFSET;
         ctx.beginPath();
         ctx.moveTo(dropX + BACKUP_OFFSET, DATA_WALL_BOTTOM_Y);
-        ctx.lineTo(dropX + BACKUP_OFFSET, DATA_FLOOR_Y);
+        ctx.lineTo(backupDropX, DATA_WALL_BOTTOM_Y); // horizontal to meet vertical drop
         if (!hasTopExit) {
-          ctx.lineTo(procX + 4, DATA_FLOOR_Y);
-          ctx.lineTo(procX + 4, equipY + BOX_H);
+          // No top bundle — draw own vertical drop to floor and processor
+          ctx.lineTo(backupDropX, BACKUP_FLOOR_Y);
+          ctx.lineTo(procX + 8, BACKUP_FLOOR_Y);
+          ctx.lineTo(procX + 8, equipY + BOX_H);
         }
         ctx.stroke();
       }
@@ -533,8 +646,10 @@ function renderCableDiagram(screenId) {
       }
       ctx.stroke();
 
-      drawMarker(landingX, panelTargetY, 4, DATA_COLOR);
-      drawCableLabel('D' + (dl + 1), landingX, panelTargetY, DATA_COLOR);
+      deferredOverlays.push(function() {
+        drawMarker(landingX, panelTargetY, 4, DATA_COLOR);
+        drawCableLabel('D' + (dl + 1), landingX, panelTargetY, DATA_COLOR);
+      });
     }
 
     // Backup fan segments (pink): exit panel → wall edge → drop
@@ -560,31 +675,101 @@ function renderCableDiagram(screenId) {
         }
         ctx.stroke();
 
-        drawMarker(landingX, panelTargetY, 3, BACKUP_COLOR);
-        drawCableLabel('B' + (dl + 1), landingX, panelTargetY, BACKUP_COLOR);
+        deferredOverlays.push(function() {
+          drawMarker(landingX, panelTargetY, 3, BACKUP_COLOR);
+          drawCableLabel('B' + (dl + 1), landingX, panelTargetY, BACKUP_COLOR);
+        });
       }
     }
   }
 
+  // === Draw server-to-processor cable ===
+  if (serverToProcessor > 0) {
+    ctx.strokeStyle = SERVER_COLOR;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(serverBoxX + BOX_W, serverBoxCenterY);      // right edge of server box
+    ctx.lineTo(serverBoxX + BOX_W, equipY + BOX_H / 2);   // vertical down to floor level
+    ctx.lineTo(procX - BOX_W / 2, equipY + BOX_H / 2);    // horizontal right to proc box
+    ctx.stroke();
+
+    // Cable length label centered on the horizontal segment
+    const srvLabelText = serverToProcessor + "'";
+    const srvLabelX = (serverBoxX + BOX_W + procX - BOX_W / 2) / 2;
+    const srvLabelY = equipY + BOX_H / 2 - 10;
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const srvTw = ctx.measureText(srvLabelText).width + 6;
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(srvLabelX - srvTw / 2, srvLabelY - 7, srvTw, 14);
+    ctx.fillStyle = SERVER_COLOR;
+    ctx.fillText(srvLabelText, srvLabelX, srvLabelY);
+  }
+
+  // === Draw deferred overlays (markers, brackets, labels) on top of all cable lines ===
+  deferredOverlays.forEach(function(fn) { fn(); });
+
   // === Draw equipment boxes ===
   drawCableEquipmentBox(ctx, distroX - BOX_W / 2, equipY, BOX_W, BOX_H, 'DISTRO', POWER_COLOR);
   drawCableEquipmentBox(ctx, procX - BOX_W / 2, equipY, BOX_W, BOX_H, 'PROC', PROC_COLOR);
+  if (serverToProcessor > 0) {
+    drawCableEquipmentBox(ctx, serverBoxX, serverBoxY, BOX_W, BOX_H, 'SERVER', SERVER_COLOR);
+  }
 
   // Dist box on wall (when toggle ON)
   if (distBoxOnWall) {
-    // Dist box on wall — outline only (gold border, no fill)
-    const dbX = wallCenterX - BOX_W / 2;
-    const dbY = distBoxTopY;
+    const dbMainHorizPos = screen.data.distBoxMainHorizPosition || screen.data.distBoxHorizPosition || 'center';
+    const dbBackupHorizPos = screen.data.distBoxBackupHorizPosition || screen.data.distBoxHorizPosition || 'center';
+    const dbMainVert = screen.data.distBoxMainVertPosition || 'top';
+    const dbBackupVert = screen.data.distBoxBackupVertPosition || 'top';
+    const dbTwoBoxes = dataRedundancy && (dbMainHorizPos !== dbBackupHorizPos || dbMainVert !== dbBackupVert);
+
+    function getDbCenterX(horizPos) {
+      let cx;
+      if (horizPos === 'sr') cx = adjWallLeftX + 2 * panelPixelW;
+      else if (horizPos === 'sl') cx = wallRightX - 2 * panelPixelW;
+      else cx = wallCenterX;
+      return Math.min(Math.max(cx, adjWallLeftX + BOX_W / 2), wallRightX - BOX_W / 2);
+    }
+
+    const mainDbCenterX = getDbCenterX(dbMainHorizPos);
+    const mainDbX = mainDbCenterX - BOX_W / 2;
+    const mainDbY = dbMainVert === 'bottom' ? wallBottomY - BOX_H - 10 : wallTopY + 35;
+
+    // Draw main dist box — filled background to cover cables, gold border
     ctx.save();
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(mainDbX, mainDbY, BOX_W, BOX_H);
     ctx.strokeStyle = DISTBOX_COLOR;
     ctx.lineWidth = 2;
-    ctx.strokeRect(dbX, dbY, BOX_W, BOX_H);
+    ctx.strokeRect(mainDbX, mainDbY, BOX_W, BOX_H);
     ctx.fillStyle = DISTBOX_COLOR;
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('DIST BOX', dbX + BOX_W / 2, dbY + BOX_H / 2);
+    ctx.fillText(dbTwoBoxes ? 'MAIN' : 'DIST BOX', mainDbCenterX, mainDbY + BOX_H / 2);
     ctx.restore();
+
+    // Draw backup dist box when positions differ
+    if (dbTwoBoxes) {
+      const backupDbCenterX = getDbCenterX(dbBackupHorizPos);
+      const backupDbX = backupDbCenterX - BOX_W / 2;
+      const backupDbY = dbBackupVert === 'bottom' ? wallBottomY - BOX_H - 10 : wallTopY + 35;
+      ctx.save();
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(backupDbX, backupDbY, BOX_W, BOX_H);
+      ctx.strokeStyle = TRUNK_COLOR;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(backupDbX, backupDbY, BOX_W, BOX_H);
+      ctx.fillStyle = TRUNK_COLOR;
+      ctx.font = 'bold 10px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('BACKUP', backupDbCenterX, backupDbY + BOX_H / 2);
+      ctx.restore();
+    }
   }
 
   // === Draw dimension lines ===
@@ -624,12 +809,12 @@ function renderCableDiagram(screenId) {
     }
   }
 
-  // Distro to wall — below floor
-  drawCableDimensionLine(ctx, distroX, floorY + 18, wallCenterX, floorY + 18,
+  // Distro to drop — below floor
+  drawCableDimensionLine(ctx, distroX, floorY + 18, dropX, floorY + 18,
     distroToWall + "'", fgColor, bgColor);
 
-  // Processor to wall — below floor (further down to avoid overlap)
-  drawCableDimensionLine(ctx, procX, floorY + 33, wallCenterX, floorY + 33,
+  // Processor to drop — below floor (further down to avoid overlap)
+  drawCableDimensionLine(ctx, procX, floorY + 33, dropX, floorY + 33,
     processorToWall + "'", fgColor, bgColor);
 
   // === Legend ===
@@ -665,17 +850,40 @@ function renderCableDiagram(screenId) {
   }
 
   if (distBoxOnWall) {
+    const legendMainHoriz = screen.data.distBoxMainHorizPosition || screen.data.distBoxHorizPosition || 'center';
+    const legendBackupHoriz = screen.data.distBoxBackupHorizPosition || screen.data.distBoxHorizPosition || 'center';
+    const legendMainVert = screen.data.distBoxMainVertPosition || 'top';
+    const legendBackupVert = screen.data.distBoxBackupVertPosition || 'top';
+    const legendTwoBoxes = dataRedundancy && (legendMainHoriz !== legendBackupHoriz || legendMainVert !== legendBackupVert);
+
     ctx.fillStyle = DISTBOX_COLOR;
     ctx.fillRect(MARGIN.left + legendOffset, legendY - 5, 10, 10);
     ctx.fillStyle = fgColor;
-    ctx.fillText('Trunk', MARGIN.left + legendOffset + 14, legendY);
-    legendOffset += 55;
+    ctx.fillText(legendTwoBoxes ? 'Main Trunk' : 'Trunk', MARGIN.left + legendOffset + 14, legendY);
+    legendOffset += legendTwoBoxes ? 75 : 55;
+
+    if (legendTwoBoxes) {
+      ctx.fillStyle = TRUNK_COLOR;
+      ctx.fillRect(MARGIN.left + legendOffset, legendY - 5, 10, 10);
+      ctx.fillStyle = fgColor;
+      ctx.fillText('Backup Trunk', MARGIN.left + legendOffset + 14, legendY);
+      legendOffset += 85;
+    }
 
     ctx.strokeStyle = DISTBOX_COLOR;
     ctx.lineWidth = 2;
     ctx.strokeRect(MARGIN.left + legendOffset, legendY - 5, 10, 10);
     ctx.fillStyle = fgColor;
     ctx.fillText('Dist Box', MARGIN.left + legendOffset + 14, legendY);
+    legendOffset += 60;
+  }
+
+  if (serverToProcessor > 0) {
+    ctx.fillStyle = SERVER_COLOR;
+    ctx.fillRect(MARGIN.left + legendOffset, legendY - 5, 10, 10);
+    ctx.fillStyle = fgColor;
+    ctx.fillText('Server', MARGIN.left + legendOffset + 14, legendY);
+    legendOffset += 55;
   }
 
   ctx.restore();

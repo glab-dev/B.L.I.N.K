@@ -1609,6 +1609,10 @@
     </div>
   </div>
 
+  <div id="cableDiagramContainer" style="margin-bottom: 16px;">
+    <canvas id="cableDiagramCanvas" style="width: 100%; background: #1a1a1a; border-radius: 4px;"></canvas>
+  </div>
+
   <div id="gearListContent" style="color: #e0e0e0; line-height: 1.8; padding-right: 5px; padding-bottom: 5px;"></div>
 </div>
 
@@ -1916,6 +1920,7 @@
 
 <!-- Navigation Views -->
 <script src="nav/gear.js"></script>
+<script src="nav/cable-diagram.js"></script>
 <script src="nav/canvas.js"></script>
 <script src="nav/combined.js"></script>
 <script src="nav/navigation.js"></script>
@@ -1934,7 +1939,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.8.22';
+const APP_VERSION = '2.8.23';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

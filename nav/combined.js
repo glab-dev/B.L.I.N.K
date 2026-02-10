@@ -1114,11 +1114,13 @@ function initCombinedView() {
     // Show placeholder message
     const specsContent = document.getElementById('combinedSpecsContent');
     const gearContent = document.getElementById('combinedGearListContent');
-    if(specsContent) specsContent.innerHTML = '<p style="color: #888; text-align: center;">Select screens above to view combined layouts</p>';
+    const specsToggles = document.getElementById('combinedSpecsToggles');
+    if(specsToggles) specsToggles.style.display = 'none';
+    if(specsContent) specsContent.innerHTML = '';
     if(gearContent) gearContent.innerHTML = '';
 
     // Clear canvases
-    ['combinedStandardCanvas', 'combinedPowerCanvas', 'combinedDataCanvas', 'combinedStructureCanvas'].forEach(canvasId => {
+    ['combinedStandardCanvas', 'combinedPowerCanvas', 'combinedDataCanvas', 'combinedStructureCanvas', 'combinedCableDiagramCanvas'].forEach(canvasId => {
       const canvas = document.getElementById(canvasId);
       if(canvas) {
         canvas.width = 100;
@@ -1264,6 +1266,15 @@ function renderCombinedView() {
   renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
   renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
   renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
+
+  // Combined cable diagram (uses screenDimensions for matching standard layout positions)
+  if (typeof renderCombinedCableDiagram === 'function') {
+    renderCombinedCableDiagram(selectedScreenIds, screenDimensions);
+  }
+  // Restore cabling input UI from saved config
+  if (typeof restoreCombinedCablingInputs === 'function') {
+    restoreCombinedCablingInputs();
+  }
 
   // Render combined specs and gear list
   renderCombinedSpecs(selectedScreenIds);
@@ -2207,6 +2218,8 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 function renderCombinedSpecs(selectedScreenIds) {
   const specsContent = document.getElementById('combinedSpecsContent');
   if(!specsContent) return;
+  const specsToggles = document.getElementById('combinedSpecsToggles');
+  if(specsToggles) specsToggles.style.display = 'flex';
 
   let totalPixels = 0;
   let totalPowerW = 0;

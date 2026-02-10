@@ -1748,13 +1748,120 @@
     </div>
   </div>
 
+  <!-- Cabling Layout -->
+  <div class="layout-container" id="combinedCablingContainer" style="margin-bottom: 20px;">
+    <div class="layout-title">
+      <span>Cabling Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedCablingContainer')" id="combinedCablingCollapseBtn" title="Minimize">▼</button></span>
+    </div>
+    <div class="layout-content" id="combinedCablingContent">
+      <!-- Cabling Input Controls (matches gear tab layout) -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;" class="cabling-grid">
+        <!-- Column 1: General -->
+        <div>
+          <div style="font-family: 'Roboto Condensed', sans-serif; color: var(--primary); font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">General</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <label style="margin-bottom: 6px;">
+              <span>Wall to Floor</span>
+              <input type="number" id="combinedCablingWallToFloor" min="0" step="0.1" value="5" onchange="updateCombinedCablingFromInputs()">
+            </label>
+            <label style="margin-bottom: 6px;">
+              <span>Cable Pick</span>
+              <input type="number" id="combinedCablingCablePick" min="0" step="0.1" value="0" onchange="updateCombinedCablingFromInputs()">
+            </label>
+          </div>
+          <div style="margin-top: 4px;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Cable Drop</span>
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active" id="combinedCableDropBehindBtn" onclick="setCombinedCableDropPosition('behind')">Behind</button>
+              <button type="button" class="slider-toggle-btn" id="combinedCableDropSrBtn" onclick="setCombinedCableDropPosition('sr')">SR</button>
+              <button type="button" class="slider-toggle-btn" id="combinedCableDropSlBtn" onclick="setCombinedCableDropPosition('sl')">SL</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 2: Power -->
+        <div>
+          <div style="font-family: 'Roboto Condensed', sans-serif; color: #FF6B35; font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">Power</div>
+          <label style="margin-bottom: 6px;">
+            <span>Distro to Drop</span>
+            <input type="number" id="combinedCablingDistroToWall" min="0" step="0.1" value="10" onchange="updateCombinedCablingFromInputs()">
+          </label>
+          <div style="margin-top: 4px;">
+            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Power In</span>
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active" id="combinedPowerInTopBtn" onclick="setCombinedPowerInPosition('top')">Top</button>
+              <button type="button" class="slider-toggle-btn" id="combinedPowerInBottomBtn" onclick="setCombinedPowerInPosition('bottom')">Bottom</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 3: Data -->
+        <div>
+          <div style="font-family: 'Roboto Condensed', sans-serif; color: #00CED1; font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">Data</div>
+          <div style="display: flex; gap: 10px;">
+            <!-- Left: Data inputs -->
+            <div style="flex: 0 0 auto;">
+              <label style="margin-bottom: 6px;">
+                <span>Proc to Drop</span>
+                <input type="number" id="combinedCablingProcessorToWall" min="0" step="0.1" value="15" onchange="updateCombinedCablingFromInputs()">
+              </label>
+              <label style="margin-bottom: 6px;">
+                <span>Server to Proc</span>
+                <input type="number" id="combinedCablingServerToProc" min="0" step="0.1" value="50" onchange="updateCombinedCablingFromInputs()">
+              </label>
+            </div>
+            <!-- Right: Dist box toggle + position controls -->
+            <div style="flex: 1 1 auto; border-left: 1px solid #333; padding-left: 10px;">
+              <div style="margin-bottom: 6px;">
+                <button type="button" class="toggle-btn" id="combinedDistBoxOnWallBtn" onclick="toggleCombinedDistBoxOnWall()" style="width: auto; min-height: auto; margin-bottom: 0;">Dist Box on Wall</button>
+              </div>
+              <div id="combinedDistBoxPositionControls" style="display: none;">
+                <!-- Main -->
+                <span class="toggle-label" style="display: block; margin-bottom: 4px;">Main</span>
+                <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                  <div class="slider-toggle">
+                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxMainHorizSRBtn" onclick="setCombinedDistBoxMainHorizPosition('sr')">SR</button>
+                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxMainHorizCBtn" onclick="setCombinedDistBoxMainHorizPosition('center')">C</button>
+                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxMainHorizSLBtn" onclick="setCombinedDistBoxMainHorizPosition('sl')">SL</button>
+                  </div>
+                  <div class="slider-toggle">
+                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxMainTopBtn" onclick="setCombinedDistBoxMainVertPosition('top')">Top</button>
+                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxMainBottomBtn" onclick="setCombinedDistBoxMainVertPosition('bottom')">Bot</button>
+                  </div>
+                </div>
+                <!-- Backup -->
+                <span class="toggle-label" style="display: block; margin-bottom: 4px;">Backup</span>
+                <div style="display: flex; gap: 6px;">
+                  <div class="slider-toggle">
+                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxBackupHorizSRBtn" onclick="setCombinedDistBoxBackupHorizPosition('sr')">SR</button>
+                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxBackupHorizCBtn" onclick="setCombinedDistBoxBackupHorizPosition('center')">C</button>
+                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxBackupHorizSLBtn" onclick="setCombinedDistBoxBackupHorizPosition('sl')">SL</button>
+                  </div>
+                  <div class="slider-toggle">
+                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxBackupTopBtn" onclick="setCombinedDistBoxBackupVertPosition('top')">Top</button>
+                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxBackupBottomBtn" onclick="setCombinedDistBoxBackupVertPosition('bottom')">Bot</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cable Diagram Canvas -->
+      <div id="combinedCableDiagramCanvasWrapper" style="overflow-x: auto;">
+        <canvas id="combinedCableDiagramCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
   <!-- Combined Specs -->
   <div class="layout-container" id="combinedSpecsContainer" style="margin-bottom: 20px;">
     <div class="layout-title">
       <span>Combined Specifications<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedSpecsContainer')" id="combinedSpecsCollapseBtn" title="Minimize">▼</button></span>
     </div>
-    <div class="layout-content">
-      <div style="display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;">
+    <div class="layout-content" id="combinedSpecsLayoutContent" style="position: relative;">
+      <div id="combinedSpecsToggles" style="display: none; gap: 16px; flex-wrap: wrap; position: absolute; top: 0; right: 0; z-index: 1;">
         <div style="flex: 0 0 auto;">
           <span class="toggle-label" style="display: block; margin-bottom: 4px;">Power Basis</span>
           <div class="slider-toggle">
@@ -1779,7 +1886,7 @@
     <div class="layout-title">
       <span>Gear List<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedGearListContainer')" id="combinedGearListCollapseBtn" title="Minimize">▼</button></span>
     </div>
-    <div class="layout-content">
+    <div class="layout-content" id="combinedGearListLayoutContent">
       <div id="combinedGearListContent" style="color: #e0e0e0; line-height: 1.8; padding-right: 5px; padding-bottom: 5px;"></div>
     </div>
   </div>
@@ -1970,6 +2077,7 @@
 <!-- Navigation Views -->
 <script src="nav/gear.js"></script>
 <script src="nav/cable-diagram.js"></script>
+<script src="nav/combined-cable-diagram.js"></script>
 <script src="nav/canvas.js"></script>
 <script src="nav/combined.js"></script>
 <script src="nav/navigation.js"></script>
@@ -1988,7 +2096,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.0';
+const APP_VERSION = '2.9.1';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

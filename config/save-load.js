@@ -315,8 +315,16 @@ function loadConfiguration(event) {
         canvasMoveHistoryIndex = -1;
         selectedPanels.clear();
         
-        // Recalculate
+        // Recalculate current screen (full DOM-based calculation)
         calculate();
+
+        // Populate calculatedData for all non-current screens so cable diagrams
+        // and gear lists work without having to manually visit each screen tab
+        if(typeof recalculateScreenData === 'function') {
+          Object.keys(screens).forEach(function(sid) {
+            if(sid !== currentScreenId) recalculateScreenData(sid);
+          });
+        }
 
         // Ensure visible screens toggles are updated after all screens are loaded
         setTimeout(function() {

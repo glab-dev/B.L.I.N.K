@@ -86,21 +86,25 @@ function getEffectivePanelCounts(){
   }
 }
 
-function calculateActualDataLines(pw, ph, panelsPerDataLine, startDir) {
+function calculateActualDataLines(pw, ph, panelsPerDataLine, startDir, deletedPanelsParam, customAssignmentsParam) {
+  // Use per-screen params if provided, otherwise fall back to globals
+  const dp = deletedPanelsParam || deletedPanels;
+  const cdla = customAssignmentsParam || customDataLineAssignments;
+
   // Collect all custom data line numbers in use first
   const usedCustomDataLines = new Set();
   for(let c=0; c<pw; c++){
     for(let r=0; r<ph; r++) {
       const panelKey = `${c},${r}`;
-      if(!deletedPanels.has(panelKey) && customDataLineAssignments.has(panelKey)) {
-        usedCustomDataLines.add(customDataLineAssignments.get(panelKey) - 1);
+      if(!dp.has(panelKey) && cdla.has(panelKey)) {
+        usedCustomDataLines.add(cdla.get(panelKey) - 1);
       }
     }
   }
-  
+
   // Build panel assignments based on start direction
   let maxDataLine = -1;
-  
+
   if(startDir === 'all_top') {
     // Each column is its own data line
     let autoDataLineCounter = 0;
@@ -108,12 +112,12 @@ function calculateActualDataLines(pw, ph, panelsPerDataLine, startDir) {
       while(usedCustomDataLines.has(autoDataLineCounter)) {
         autoDataLineCounter++;
       }
-      
+
       for(let r=0; r<ph; r++) {
         const panelKey = `${c},${r}`;
-        if(!deletedPanels.has(panelKey)) {
-          const dataLine = customDataLineAssignments.has(panelKey) 
-            ? customDataLineAssignments.get(panelKey) - 1
+        if(!dp.has(panelKey)) {
+          const dataLine = cdla.has(panelKey)
+            ? cdla.get(panelKey) - 1
             : autoDataLineCounter;
           if(dataLine > maxDataLine) maxDataLine = dataLine;
         }
@@ -127,12 +131,12 @@ function calculateActualDataLines(pw, ph, panelsPerDataLine, startDir) {
       while(usedCustomDataLines.has(autoDataLineCounter)) {
         autoDataLineCounter++;
       }
-      
+
       for(let r=ph-1; r>=0; r--) {
         const panelKey = `${c},${r}`;
-        if(!deletedPanels.has(panelKey)) {
-          const dataLine = customDataLineAssignments.has(panelKey) 
-            ? customDataLineAssignments.get(panelKey) - 1
+        if(!dp.has(panelKey)) {
+          const dataLine = cdla.has(panelKey)
+            ? cdla.get(panelKey) - 1
             : autoDataLineCounter;
           if(dataLine > maxDataLine) maxDataLine = dataLine;
         }
@@ -145,61 +149,212 @@ function calculateActualDataLines(pw, ph, panelsPerDataLine, startDir) {
     const startFromTop = (startDir === 'top');
     let autoDataLineCounter = 0;
     let panelsInCurrentAutoDataLine = 0;
-    
+
     // Skip initial custom data lines
     while(usedCustomDataLines.has(autoDataLineCounter)) {
       autoDataLineCounter++;
     }
-    
+
     // Build serpentine path
     let currentColumn = 0;
     let serpentineGoingDown = startFromTop;
-    
+
     while(currentColumn < pw) {
       // Process panels in this column in serpentine order
-      const rows = serpentineGoingDown 
-        ? Array.from({length: ph}, (_, i) => i) 
+      const rows = serpentineGoingDown
+        ? Array.from({length: ph}, (_, i) => i)
         : Array.from({length: ph}, (_, i) => ph - 1 - i);
-      
+
       for(const r of rows) {
         const panelKey = `${currentColumn},${r}`;
-        if(deletedPanels.has(panelKey)) continue;
-        
+        if(dp.has(panelKey)) continue;
+
         let dataLine;
-        if(customDataLineAssignments.has(panelKey)) {
-          dataLine = customDataLineAssignments.get(panelKey) - 1;
+        if(cdla.has(panelKey)) {
+          dataLine = cdla.get(panelKey) - 1;
         } else {
           // Find next available data line number (skip over custom assignments)
           while(usedCustomDataLines.has(autoDataLineCounter)) {
             autoDataLineCounter++;
           }
-          
+
           dataLine = autoDataLineCounter;
           panelsInCurrentAutoDataLine++;
-          
+
           // Move to next data line when we reach the limit
           if(panelsInCurrentAutoDataLine >= panelsPerDataLine) {
             autoDataLineCounter++;
             panelsInCurrentAutoDataLine = 0;
-            
+
             // Skip over any custom data lines
             while(usedCustomDataLines.has(autoDataLineCounter)) {
               autoDataLineCounter++;
             }
           }
         }
-        
+
         if(dataLine > maxDataLine) maxDataLine = dataLine;
       }
-      
+
       // Move to next column and toggle direction
       currentColumn++;
       serpentineGoingDown = !serpentineGoingDown;
     }
   }
-  
+
   // Return total number of data lines
   return maxDataLine + 1;
+}
+
+// Lightweight calculation that populates screen.calculatedData from screen.data
+// without DOM access. Used on project load to ensure all screens (not just the
+// current one) have calculatedData populated for cable diagrams and gear lists.
+function recalculateScreenData(screenId) {
+  const screen = screens[screenId];
+  if (!screen || !screen.data) return;
+
+  const data = screen.data;
+  const allPanels = typeof getAllPanels === 'function' ? getAllPanels() : (typeof panels !== 'undefined' ? panels : {});
+  const allProcessors = typeof getAllProcessors === 'function' ? getAllProcessors() : (typeof processors !== 'undefined' ? processors : {});
+
+  const panelType = data.panelType || 'BP2_V2';
+  const p = allPanels[panelType];
+  if (!p || !p.width_m || !p.res_x) return;
+
+  const pw = data.panelsWide || 0;
+  const ph = data.panelsHigh || 0;
+  if (pw === 0 || ph === 0) return;
+
+  const processorId = data.processor || 'Brompton_SX40';
+  const pr = allProcessors[processorId];
+  if (!pr) return;
+
+  const dp = data.deletedPanels || new Set();
+  const cdla = data.customDataLineAssignments || new Map();
+
+  // Count active panels (prune out-of-bounds deleted panels)
+  let activePanelCount = 0;
+  for (var c = 0; c < pw; c++) {
+    for (var r = 0; r < ph; r++) {
+      if (!dp.has(c + ',' + r)) activePanelCount++;
+    }
+  }
+
+  const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
+  const effectivePh = hasCB5HalfRow ? ph + 1 : ph;
+
+  // Total panels and pixels
+  var totalPanels, totalPixels;
+  if (hasCB5HalfRow) {
+    var halfPanel = allPanels['CB5_MKII_HALF'];
+    var halfPanelCount = pw;
+    totalPanels = activePanelCount + halfPanelCount;
+    totalPixels = (activePanelCount * p.res_x * p.res_y) + (halfPanelCount * (halfPanel ? halfPanel.res_x * halfPanel.res_y : 0));
+  } else {
+    totalPanels = activePanelCount;
+    totalPixels = activePanelCount * p.res_x * p.res_y;
+  }
+
+  // Power circuits
+  var powerType = data.powerType || 'max';
+  var voltage = data.voltage || 208;
+  var breaker = data.breaker || 20;
+  var perPanelW = powerType === 'avg' ? (p.power_avg_w || p.power_max_w * 0.5) : p.power_max_w;
+  var circuitCapacityW = voltage * breaker;
+  var calculatedPanelsPerCircuit = Math.max(1, Math.floor(circuitCapacityW / perPanelW));
+  var userMaxCircuit = parseInt(data.maxPanelsPerCircuit) || 0;
+  var panelsPerCircuit = userMaxCircuit > 0 ? userMaxCircuit : calculatedPanelsPerCircuit;
+  var columnsPerCircuit = Math.max(1, Math.floor(panelsPerCircuit / ph));
+  var circuitsNeeded = Math.ceil(pw / columnsPerCircuit);
+  var socaCount = Math.ceil(circuitsNeeded / 6);
+
+  // Data lines
+  var pixelsPerPanel = p.res_x * p.res_y;
+  var frameRate = data.frameRate || 60;
+  var bitDepth = data.bitDepth || 8;
+  var adjustedCapacity = typeof calculateAdjustedPixelCapacity === 'function'
+    ? calculateAdjustedPixelCapacity(pr, frameRate, bitDepth)
+    : pr.total_pixels || 650000;
+
+  var capacityBasedPPD;
+  if (hasCB5HalfRow) {
+    var halfP2 = allPanels['CB5_MKII_HALF'];
+    var halfPx = halfP2 ? halfP2.res_x * halfP2.res_y : 0;
+    var totalMixed = activePanelCount + pw;
+    var totalMixedPx = (activePanelCount * pixelsPerPanel) + (pw * halfPx);
+    var avgPxPerPanel = totalMixed > 0 ? totalMixedPx / totalMixed : pixelsPerPanel;
+    capacityBasedPPD = Math.max(1, Math.floor(adjustedCapacity / avgPxPerPanel));
+  } else {
+    capacityBasedPPD = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
+  }
+  capacityBasedPPD = Math.min(capacityBasedPPD, 500);
+
+  var userMaxData = parseInt(data.maxPanelsPerData) || 0;
+  var panelsPerDataLine = userMaxData > 0 ? userMaxData : capacityBasedPPD;
+  var dataStartDir = data.dataStartDir || 'top';
+  var dataLines = calculateActualDataLines(pw, effectivePh, panelsPerDataLine, dataStartDir, dp, cdla);
+  var redundancy = data.redundancy !== false;
+  var portsNeeded = dataLines;
+  var redundancyMultiplier = redundancy ? 2 : 1;
+  var portsNeededFinal = portsNeeded * redundancyMultiplier;
+
+  // Processor and distribution box counts
+  var processorCount = 1;
+  var distributionBoxCount = 0;
+  var distributionBoxName = '';
+  var mx40ConnectionMode = data.mx40ConnectionMode || 'direct';
+
+  if (processorId === 'Brompton_SX40') {
+    var baseDistCount = Math.ceil(portsNeeded / 10);
+    distributionBoxCount = redundancy ? baseDistCount * 2 : baseDistCount;
+    distributionBoxName = 'Brompton XD';
+    processorCount = Math.ceil(totalPixels / pr.total_pixels);
+  } else if (processorId === 'NovaStar_MX40_Pro') {
+    if (mx40ConnectionMode === 'direct') {
+      var procByPorts = Math.ceil(portsNeededFinal / 20);
+      var procByPixels = Math.ceil(totalPixels / 9000000);
+      processorCount = Math.max(procByPorts, procByPixels);
+    } else {
+      var portsPerCVT = 10;
+      distributionBoxCount = Math.ceil(portsNeededFinal / portsPerCVT);
+      distributionBoxName = 'NovaStar CVT-10 Pro';
+      var procByPx = Math.ceil(totalPixels / 9000000);
+      var procByCVTs = Math.ceil(distributionBoxCount / 4);
+      processorCount = Math.max(procByPx, procByCVTs);
+    }
+  } else {
+    processorCount = Math.max(1, Math.ceil(totalPixels / (pr.total_pixels || 9000000)));
+  }
+
+  // Panel weight
+  var panelWeightOnly = totalPanels * (p.weight_kg || 0);
+  if (hasCB5HalfRow) {
+    var halfP3 = allPanels['CB5_MKII_HALF'];
+    panelWeightOnly = (activePanelCount * (p.weight_kg || 0)) + (pw * (halfP3 ? halfP3.weight_kg || 0 : 0));
+  }
+
+  screen.calculatedData = {
+    processorName: pr.name,
+    processorCount: processorCount,
+    distributionBoxCount: distributionBoxCount,
+    distributionBoxName: distributionBoxName,
+    mx40ProcessorCount: processorCount,
+    panelCount: totalPanels,
+    activePanels: totalPanels,
+    panelWeightOnlyKg: panelWeightOnly,
+    bumperWeightKg: 0,
+    bumper1wCount: 0,
+    bumper2wCount: 0,
+    bumper4wCount: 0,
+    dataLines: dataLines,
+    portsNeeded: portsNeeded,
+    portsNeededFinal: portsNeededFinal,
+    panelsPerDataLine: panelsPerDataLine,
+    totalPixels: totalPixels,
+    circuitsNeeded: circuitsNeeded,
+    socaCount: socaCount,
+    columnsPerCircuit: columnsPerCircuit
+  };
 }
 
 

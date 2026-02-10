@@ -211,22 +211,9 @@ function toggleLayoutCollapse(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  // Map container ID to content ID
-  const contentIdMap = {
-    'standardContainer': 'standardContent',
-    'powerContainer': 'powerContent',
-    'dataContainer': 'dataContent',
-    'structureContainer': 'structureContent',
-    'combinedStandardContainer': 'combinedStandardContent',
-    'combinedPowerContainer': 'combinedPowerContent',
-    'combinedDataContainer': 'combinedDataContent',
-    'combinedStructureContainer': 'combinedStructureContent',
-    'combinedSpecsContainer': 'combinedSpecsContent'
-  };
-
-  const contentId = contentIdMap[containerId];
-  const content = document.getElementById(contentId);
-  const btn = document.getElementById(containerId.replace('Container', 'CollapseBtn'));
+  // Find the .layout-content child directly instead of relying on ID map
+  const content = container.querySelector('.layout-content');
+  const btn = container.querySelector('.layout-collapse-btn');
 
   if (!content) return;
 

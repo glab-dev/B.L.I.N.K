@@ -115,7 +115,13 @@ function getDataLineEntryPoints(pw, ph, panelsPerDataLine, startDir, deletedPane
       }
 
       currentColumn++;
-      serpentineGoingDown = !serpentineGoingDown;
+      // Reset direction at data line boundaries (single-column lines);
+      // continue serpentine only within multi-column data lines
+      if (panelsInCurrentAutoDataLine === 0) {
+        serpentineGoingDown = startFromTop;
+      } else {
+        serpentineGoingDown = !serpentineGoingDown;
+      }
     }
   }
 
@@ -205,7 +211,13 @@ function getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPa
       }
 
       currentColumn++;
-      serpentineGoingDown = !serpentineGoingDown;
+      // Reset direction at data line boundaries (single-column lines);
+      // continue serpentine only within multi-column data lines
+      if (panelsInCurrentAutoDataLine === 0) {
+        serpentineGoingDown = startFromTop;
+      } else {
+        serpentineGoingDown = !serpentineGoingDown;
+      }
     }
   }
 

@@ -497,15 +497,39 @@ function renderCableDiagram(screenId) {
       const entryPxX = adjWallLeftX + (entry.col + 0.5) * panelPixelW;
       const entryPxY = wallTopY + (entry.row + 0.5) * fullPanelPixelH;
 
-      // Primary fan-out — L-shaped from main dist box edge
+      // Primary fan-out — from main dist box to entry panel
       const primaryFanStartX = entryPxX < mainDistBoxCenterX ? mainDistBoxLeftX : mainDistBoxRightX;
       ctx.strokeStyle = DATA_COLOR;
       ctx.lineWidth = 1.0;
       ctx.globalAlpha = 0.6;
       ctx.beginPath();
-      ctx.moveTo(primaryFanStartX, fanPrimaryY);
-      ctx.lineTo(entryPxX - 2, fanPrimaryY);
-      ctx.lineTo(entryPxX - 2, entryPxY);
+
+      if (screenDeletedPanels.size > 0 && typeof findCableGridPath === 'function') {
+        var dbCol = Math.floor((mainDistBoxCenterX - adjWallLeftX) / panelPixelW);
+        var dbRow = Math.floor((fanPrimaryY - wallTopY) / fullPanelPixelH);
+        dbCol = Math.max(0, Math.min(dbCol, pw - 1));
+        dbRow = Math.max(0, Math.min(dbRow, totalRows - 1));
+        if (screenDeletedPanels.has(dbCol + ',' + dbRow)) {
+          var nearest = findNearestNonDeleted(dbCol, dbRow, pw, totalRows, screenDeletedPanels);
+          dbCol = nearest.col; dbRow = nearest.row;
+        }
+        var path = findCableGridPath(dbCol, dbRow, entry.col, entry.row, pw, totalRows, screenDeletedPanels);
+        if (path && path.length > 0) {
+          ctx.moveTo(primaryFanStartX, fanPrimaryY);
+          ctx.lineTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW, wallTopY + (path[0].row + 0.5) * fullPanelPixelH);
+          for (var pi = 1; pi < path.length; pi++) {
+            ctx.lineTo(adjWallLeftX + (path[pi].col + 0.5) * panelPixelW, wallTopY + (path[pi].row + 0.5) * fullPanelPixelH);
+          }
+        } else {
+          ctx.moveTo(primaryFanStartX, fanPrimaryY);
+          ctx.lineTo(entryPxX - 2, fanPrimaryY);
+          ctx.lineTo(entryPxX - 2, entryPxY);
+        }
+      } else {
+        ctx.moveTo(primaryFanStartX, fanPrimaryY);
+        ctx.lineTo(entryPxX - 2, fanPrimaryY);
+        ctx.lineTo(entryPxX - 2, entryPxY);
+      }
       ctx.stroke();
       ctx.globalAlpha = 1.0;
 
@@ -526,9 +550,33 @@ function renderCableDiagram(screenId) {
           ctx.lineWidth = 1.0;
           ctx.globalAlpha = 0.6;
           ctx.beginPath();
-          ctx.moveTo(backupFanStartX, fanBackupY);
-          ctx.lineTo(exitPxX + 2, fanBackupY);
-          ctx.lineTo(exitPxX + 2, exitPxY);
+
+          if (screenDeletedPanels.size > 0 && typeof findCableGridPath === 'function') {
+            var bCol = Math.floor((backupDistBoxCenterX - adjWallLeftX) / panelPixelW);
+            var bRow = Math.floor((fanBackupY - wallTopY) / fullPanelPixelH);
+            bCol = Math.max(0, Math.min(bCol, pw - 1));
+            bRow = Math.max(0, Math.min(bRow, totalRows - 1));
+            if (screenDeletedPanels.has(bCol + ',' + bRow)) {
+              var nearest = findNearestNonDeleted(bCol, bRow, pw, totalRows, screenDeletedPanels);
+              bCol = nearest.col; bRow = nearest.row;
+            }
+            var path = findCableGridPath(bCol, bRow, exit.col, exit.row, pw, totalRows, screenDeletedPanels);
+            if (path && path.length > 0) {
+              ctx.moveTo(backupFanStartX, fanBackupY);
+              ctx.lineTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW, wallTopY + (path[0].row + 0.5) * fullPanelPixelH);
+              for (var pi = 1; pi < path.length; pi++) {
+                ctx.lineTo(adjWallLeftX + (path[pi].col + 0.5) * panelPixelW, wallTopY + (path[pi].row + 0.5) * fullPanelPixelH);
+              }
+            } else {
+              ctx.moveTo(backupFanStartX, fanBackupY);
+              ctx.lineTo(exitPxX + 2, fanBackupY);
+              ctx.lineTo(exitPxX + 2, exitPxY);
+            }
+          } else {
+            ctx.moveTo(backupFanStartX, fanBackupY);
+            ctx.lineTo(exitPxX + 2, fanBackupY);
+            ctx.lineTo(exitPxX + 2, exitPxY);
+          }
           ctx.stroke();
           ctx.globalAlpha = 1.0;
 
@@ -636,13 +684,60 @@ function renderCableDiagram(screenId) {
       ctx.strokeStyle = DATA_COLOR;
       ctx.lineWidth = dataFanWidth;
       ctx.beginPath();
-      ctx.moveTo(landingX, panelTargetY);
-      if (isBottomEntry) {
-        ctx.lineTo(landingX, DATA_WALL_BOTTOM_Y);
-        ctx.lineTo(dropX + DATA_OFFSET, DATA_WALL_BOTTOM_Y);
+
+      if (screenDeletedPanels.size > 0 && typeof findCableGridPath === 'function') {
+        var targetRow = isBottomEntry ? totalRows - 1 : 0;
+        var targetCol = entry.col;
+        // Find nearest non-deleted cell IN the edge row (search left/right)
+        if (screenDeletedPanels.has(targetCol + ',' + targetRow)) {
+          var foundInEdgeRow = false;
+          for (var dist = 1; dist < pw; dist++) {
+            if (targetCol - dist >= 0 && !screenDeletedPanels.has((targetCol - dist) + ',' + targetRow)) {
+              targetCol = targetCol - dist; foundInEdgeRow = true; break;
+            }
+            if (targetCol + dist < pw && !screenDeletedPanels.has((targetCol + dist) + ',' + targetRow)) {
+              targetCol = targetCol + dist; foundInEdgeRow = true; break;
+            }
+          }
+          if (!foundInEdgeRow) {
+            var nearest = findNearestNonDeleted(entry.col, targetRow, pw, totalRows, screenDeletedPanels);
+            targetCol = nearest.col; targetRow = nearest.row;
+          }
+        }
+        var path = findCableGridPath(entry.col, entry.row, targetCol, targetRow, pw, totalRows, screenDeletedPanels);
+        if (path && path.length > 0) {
+          ctx.moveTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW, wallTopY + (path[0].row + 0.5) * fullPanelPixelH);
+          for (var pi = 1; pi < path.length; pi++) {
+            ctx.lineTo(adjWallLeftX + (path[pi].col + 0.5) * panelPixelW, wallTopY + (path[pi].row + 0.5) * fullPanelPixelH);
+          }
+          var lastCell = path[path.length - 1];
+          var lastCX = adjWallLeftX + (lastCell.col + 0.5) * panelPixelW;
+          if (isBottomEntry) {
+            ctx.lineTo(lastCX, DATA_WALL_BOTTOM_Y);
+            ctx.lineTo(dropX + DATA_OFFSET, DATA_WALL_BOTTOM_Y);
+          } else {
+            ctx.lineTo(lastCX, DATA_WALL_TOP_Y);
+            ctx.lineTo(dropX + DATA_OFFSET, DATA_WALL_TOP_Y);
+          }
+        } else {
+          ctx.moveTo(landingX, panelTargetY);
+          if (isBottomEntry) {
+            ctx.lineTo(landingX, DATA_WALL_BOTTOM_Y);
+            ctx.lineTo(dropX + DATA_OFFSET, DATA_WALL_BOTTOM_Y);
+          } else {
+            ctx.lineTo(landingX, DATA_WALL_TOP_Y);
+            ctx.lineTo(dropX + DATA_OFFSET, DATA_WALL_TOP_Y);
+          }
+        }
       } else {
-        ctx.lineTo(landingX, DATA_WALL_TOP_Y);
-        ctx.lineTo(dropX + DATA_OFFSET, DATA_WALL_TOP_Y);
+        ctx.moveTo(landingX, panelTargetY);
+        if (isBottomEntry) {
+          ctx.lineTo(landingX, DATA_WALL_BOTTOM_Y);
+          ctx.lineTo(dropX + DATA_OFFSET, DATA_WALL_BOTTOM_Y);
+        } else {
+          ctx.lineTo(landingX, DATA_WALL_TOP_Y);
+          ctx.lineTo(dropX + DATA_OFFSET, DATA_WALL_TOP_Y);
+        }
       }
       ctx.stroke();
 
@@ -665,13 +760,60 @@ function renderCableDiagram(screenId) {
         ctx.strokeStyle = BACKUP_COLOR;
         ctx.lineWidth = dataFanWidth;
         ctx.beginPath();
-        ctx.moveTo(landingX, panelTargetY);
-        if (isBottomExit) {
-          ctx.lineTo(landingX, DATA_WALL_BOTTOM_Y);
-          ctx.lineTo(dropX + BACKUP_OFFSET, DATA_WALL_BOTTOM_Y);
+
+        if (screenDeletedPanels.size > 0 && typeof findCableGridPath === 'function') {
+          var targetRow = isBottomExit ? totalRows - 1 : 0;
+          var targetCol = exit.col;
+          // Find nearest non-deleted cell IN the edge row (search left/right)
+          if (screenDeletedPanels.has(targetCol + ',' + targetRow)) {
+            var foundInEdgeRow = false;
+            for (var dist = 1; dist < pw; dist++) {
+              if (targetCol - dist >= 0 && !screenDeletedPanels.has((targetCol - dist) + ',' + targetRow)) {
+                targetCol = targetCol - dist; foundInEdgeRow = true; break;
+              }
+              if (targetCol + dist < pw && !screenDeletedPanels.has((targetCol + dist) + ',' + targetRow)) {
+                targetCol = targetCol + dist; foundInEdgeRow = true; break;
+              }
+            }
+            if (!foundInEdgeRow) {
+              var nearest = findNearestNonDeleted(exit.col, targetRow, pw, totalRows, screenDeletedPanels);
+              targetCol = nearest.col; targetRow = nearest.row;
+            }
+          }
+          var path = findCableGridPath(exit.col, exit.row, targetCol, targetRow, pw, totalRows, screenDeletedPanels);
+          if (path && path.length > 0) {
+            ctx.moveTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW, wallTopY + (path[0].row + 0.5) * fullPanelPixelH);
+            for (var pi = 1; pi < path.length; pi++) {
+              ctx.lineTo(adjWallLeftX + (path[pi].col + 0.5) * panelPixelW, wallTopY + (path[pi].row + 0.5) * fullPanelPixelH);
+            }
+            var lastCell = path[path.length - 1];
+            var lastCX = adjWallLeftX + (lastCell.col + 0.5) * panelPixelW;
+            if (isBottomExit) {
+              ctx.lineTo(lastCX, DATA_WALL_BOTTOM_Y);
+              ctx.lineTo(dropX + BACKUP_OFFSET, DATA_WALL_BOTTOM_Y);
+            } else {
+              ctx.lineTo(lastCX, DATA_WALL_TOP_Y);
+              ctx.lineTo(dropX + BACKUP_OFFSET, DATA_WALL_TOP_Y);
+            }
+          } else {
+            ctx.moveTo(landingX, panelTargetY);
+            if (isBottomExit) {
+              ctx.lineTo(landingX, DATA_WALL_BOTTOM_Y);
+              ctx.lineTo(dropX + BACKUP_OFFSET, DATA_WALL_BOTTOM_Y);
+            } else {
+              ctx.lineTo(landingX, DATA_WALL_TOP_Y);
+              ctx.lineTo(dropX + BACKUP_OFFSET, DATA_WALL_TOP_Y);
+            }
+          }
         } else {
-          ctx.lineTo(landingX, DATA_WALL_TOP_Y);
-          ctx.lineTo(dropX + BACKUP_OFFSET, DATA_WALL_TOP_Y);
+          ctx.moveTo(landingX, panelTargetY);
+          if (isBottomExit) {
+            ctx.lineTo(landingX, DATA_WALL_BOTTOM_Y);
+            ctx.lineTo(dropX + BACKUP_OFFSET, DATA_WALL_BOTTOM_Y);
+          } else {
+            ctx.lineTo(landingX, DATA_WALL_TOP_Y);
+            ctx.lineTo(dropX + BACKUP_OFFSET, DATA_WALL_TOP_Y);
+          }
         }
         ctx.stroke();
 

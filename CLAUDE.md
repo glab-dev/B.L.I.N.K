@@ -6,8 +6,8 @@ Claude reads this file automatically at the start of every session.
 
 Start the local dev server and open the browser at the beginning of every session:
 ```
-python3 -m http.server 8000 &   # run in background
-open http://localhost:8000        # open in browser
+python3 -m http.server 8000 --bind 0.0.0.0 &   # run in background (bind to IPv4)
+open http://localhost:8000                        # open in browser
 ```
 
 ## Architecture

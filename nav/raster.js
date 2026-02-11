@@ -23,10 +23,11 @@ function activateRasterView() {
     showCanvasView();
   }
 
-  // Update canvas screen toggles (existing function in nav/canvas.js)
-  if(typeof updateCanvasScreenToggles === 'function') {
-    updateCanvasScreenToggles();
-  }
+  // Hide elements redundant with the raster table
+  const canvasToggles = document.getElementById('canvasScreenToggles');
+  if(canvasToggles) canvasToggles.style.display = 'none';
+  const canvasInfo = document.getElementById('canvasInfo');
+  if(canvasInfo) canvasInfo.style.display = 'none';
 }
 
 // ==================== SCREEN TABLE RENDERING ====================
@@ -45,9 +46,9 @@ function renderRasterScreenTable() {
   });
 
   var html = '<table class="raster-table"><thead><tr>';
-  html += '<th>Name</th><th>Panel</th><th>Tile</th><th>Cols</th><th>Rows</th>';
-  html += '<th>Width</th><th>Height</th>';
-  html += '<th>X</th><th>Y</th>';
+  html += '<th>Name</th><th>Panel</th><th>Tile X</th><th>Tile Y</th>';
+  html += '<th>Cols</th><th>Rows</th>';
+  html += '<th>Offset X</th><th>Offset Y</th>';
   html += '<th>Overlays</th><th>Active</th>';
   html += '</tr></thead><tbody>';
 
@@ -60,8 +61,6 @@ function renderRasterScreenTable() {
     var tileY = p ? (p.res_y || 0) : 0;
     var cols = data.panelsWide || 0;
     var rows = data.panelsHigh || 0;
-    var totalW = cols * tileX;
-    var totalH = rows * tileY;
 
     var safeId = escapeJsString(screenId);
     var showCoords = screen.showCoordinates !== false;
@@ -74,38 +73,37 @@ function renderRasterScreenTable() {
 
     // Screen name
     html += '<td><input type="text" class="raster-input raster-name" value="' + escapeHtml(screen.name) + '" ' +
-            'onchange="updateRasterScreenName(\'' + safeId + '\', this.value)"></td>';
+            'oninput="updateRasterScreenName(\'' + safeId + '\', this.value)"></td>';
 
     // Panel dropdown
     html += '<td><select class="raster-select" onchange="updateRasterScreenPanel(\'' + safeId + '\', this.value)">' +
             buildRasterPanelOptions(panelType) +
             '</select></td>';
 
-    // Tile dimensions (read-only)
-    html += '<td class="raster-readonly">' + tileX + '&times;' + tileY + '</td>';
+    // Tile X / Tile Y (read-only input fields)
+    html += '<td><input type="number" class="raster-input raster-num" value="' + tileX + '" readonly></td>';
+    html += '<td><input type="number" class="raster-input raster-num" value="' + tileY + '" readonly></td>';
 
     // Cols
-    html += '<td><input type="number" class="raster-input raster-num" value="' + cols + '" min="0" ' +
-            'onchange="updateRasterScreenDim(\'' + safeId + '\', \'panelsWide\', this.value)"></td>';
+    html += '<td><input type="number" class="raster-input raster-num" ' + (cols ? 'value="' + cols + '"' : '') + ' placeholder="0" min="0" ' +
+            'oninput="updateRasterScreenDim(\'' + safeId + '\', \'panelsWide\', this.value)"></td>';
 
     // Rows
-    html += '<td><input type="number" class="raster-input raster-num" value="' + rows + '" min="0" ' +
-            'onchange="updateRasterScreenDim(\'' + safeId + '\', \'panelsHigh\', this.value)"></td>';
+    html += '<td><input type="number" class="raster-input raster-num" ' + (rows ? 'value="' + rows + '"' : '') + ' placeholder="0" min="0" ' +
+            'oninput="updateRasterScreenDim(\'' + safeId + '\', \'panelsHigh\', this.value)"></td>';
 
-    // Total W/H (calculated, read-only)
-    html += '<td class="raster-readonly">' + totalW + '</td>';
-    html += '<td class="raster-readonly">' + totalH + '</td>';
+    // Offset X
+    var ox = data.canvasX || 0;
+    html += '<td><input type="number" class="raster-input raster-num" ' + (ox ? 'value="' + ox + '"' : '') + ' placeholder="0" ' +
+            'oninput="updateRasterScreenPos(\'' + safeId + '\', \'canvasX\', this.value)"></td>';
 
-    // X offset
-    html += '<td><input type="number" class="raster-input raster-num" value="' + (data.canvasX || 0) + '" ' +
-            'onchange="updateRasterScreenPos(\'' + safeId + '\', \'canvasX\', this.value)"></td>';
-
-    // Y offset
-    html += '<td><input type="number" class="raster-input raster-num" value="' + (data.canvasY || 0) + '" ' +
-            'onchange="updateRasterScreenPos(\'' + safeId + '\', \'canvasY\', this.value)"></td>';
+    // Offset Y
+    var oy = data.canvasY || 0;
+    html += '<td><input type="number" class="raster-input raster-num" ' + (oy ? 'value="' + oy + '"' : '') + ' placeholder="0" ' +
+            'oninput="updateRasterScreenPos(\'' + safeId + '\', \'canvasY\', this.value)"></td>';
 
     // Overlay toggles (X/Y, Pixels, Crosshair)
-    html += '<td class="raster-overlays">' +
+    html += '<td><div class="raster-overlays">' +
             '<button type="button" class="raster-toggle-btn ' + (showCoords ? 'active' : '') + '" ' +
             'style="' + (showCoords ? textOutline : '') + '" ' +
             'onclick="toggleRasterOverlay(\'' + safeId + '\', \'showCoordinates\')">X/Y</button>' +
@@ -115,7 +113,7 @@ function renderRasterScreenTable() {
             '<button type="button" class="raster-toggle-btn ' + (showCross ? 'active' : '') + '" ' +
             'style="' + (showCross ? textOutline : '') + '" ' +
             'onclick="toggleRasterOverlay(\'' + safeId + '\', \'showCrosshair\')">X</button>' +
-            '</td>';
+            '</div></td>';
 
     // Active/visible toggle
     html += '<td><button type="button" class="raster-toggle-btn ' + (screen.visible ? 'active' : '') + '" ' +
@@ -181,16 +179,19 @@ function buildRasterPanelOptions(selectedValue) {
 
 // ==================== SCREEN TABLE UPDATE HANDLERS ====================
 
+var _rasterNameTimer = null;
 function updateRasterScreenName(screenId, value) {
   if(!screens[screenId]) return;
   screens[screenId].name = (value || '').trim().substring(0, 50) || screens[screenId].name;
 
-  // Keep screen tabs in sync
-  if(typeof renderScreenTabs === 'function') renderScreenTabs();
-
-  renderRasterScreenTable();
+  // Update canvas immediately, debounce table/tabs re-render to avoid losing focus
   showCanvasView();
-  if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
+  clearTimeout(_rasterNameTimer);
+  _rasterNameTimer = setTimeout(function() {
+    if(typeof renderScreenTabs === 'function') renderScreenTabs();
+    renderRasterScreenTable();
+    if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
+  }, 500);
 }
 
 function updateRasterScreenPanel(screenId, panelType) {
@@ -214,6 +215,7 @@ function updateRasterScreenPanel(screenId, panelType) {
   showCanvasView();
 }
 
+var _rasterDimTimer = null;
 function updateRasterScreenDim(screenId, field, value) {
   if(!screens[screenId]) return;
   screens[screenId].data[field] = parseInt(value) || 0;
@@ -224,8 +226,10 @@ function updateRasterScreenDim(screenId, field, value) {
     if(el) el.value = screens[screenId].data[field];
   }
 
-  renderRasterScreenTable(); // Recalc total W/H display
+  // Update canvas immediately, debounce table re-render to avoid losing focus
   showCanvasView();
+  clearTimeout(_rasterDimTimer);
+  _rasterDimTimer = setTimeout(function() { renderRasterScreenTable(); }, 500);
 }
 
 function updateRasterScreenPos(screenId, field, value) {
@@ -259,6 +263,18 @@ function toggleRasterScreenVisible(screenId) {
       canvases[currentCanvasId].data.screenVisibility = {};
     }
     canvases[currentCanvasId].data.screenVisibility[screenId] = screens[screenId].visible;
+
+    // If turning ON, turn it OFF in all other canvases (exclusive assignment)
+    if(screens[screenId].visible) {
+      Object.keys(canvases).forEach(function(canvasId) {
+        if(canvasId !== currentCanvasId) {
+          if(!canvases[canvasId].data.screenVisibility) {
+            canvases[canvasId].data.screenVisibility = {};
+          }
+          canvases[canvasId].data.screenVisibility[screenId] = false;
+        }
+      });
+    }
   }
 
   renderRasterScreenTable();

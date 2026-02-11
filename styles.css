@@ -3585,9 +3585,12 @@ canvas:focus {
 
 /* ==================== RASTER MODE ==================== */
 
+#rasterScreenTableContainer .layout-title {
+  margin-bottom: 8px;
+}
+
 /* Raster screen table */
 .raster-table {
-  width: 100%;
   border-collapse: collapse;
   font-family: 'Roboto Condensed', sans-serif;
   font-size: 12px;
@@ -3599,95 +3602,110 @@ canvas:focus {
   font-size: 12px;
   letter-spacing: 1px;
   color: var(--primary);
-  text-align: left;
-  padding: 6px 4px;
+  text-align: center;
+  padding: 4px 4px;
   border-bottom: 2px solid var(--primary);
   white-space: nowrap;
 }
 
 .raster-table td {
-  padding: 4px;
+  padding: 3px 4px;
   border-bottom: 1px solid #383838;
   vertical-align: middle;
+  text-align: center;
 }
 
 .raster-table tr:hover {
   background: rgba(16, 185, 129, 0.05);
 }
 
-/* Raster table inputs — override global styles */
-.raster-input {
+/* Raster table inputs — match canvas-toolbar comic-book style */
+/* Uses .raster-table prefix to beat global input[type] specificity */
+.raster-table .raster-input {
   background: #2a2a2a;
   color: #fff;
-  border: 1px solid #555;
-  padding: 6px 8px;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  padding: 4px 6px;
+  height: 36px;
+  min-height: 36px;
   font-size: 12px;
   font-family: 'Roboto Condensed', sans-serif;
-  border-radius: 2px;
+  border-radius: 0;
   width: 100%;
   box-sizing: border-box;
-  min-height: 0;
   margin-bottom: 0;
 }
 
-.raster-input:focus {
+.raster-table .raster-input:focus {
   border-color: var(--primary);
   outline: none;
+}
+
+.raster-input[readonly] {
+  color: #aaa;
+  cursor: default;
 }
 
 .raster-name {
-  min-width: 80px;
+  min-width: 70px;
+  text-align: left;
 }
 
-.raster-num {
-  width: 60px;
+.raster-input.raster-num {
+  width: 70px;
   text-align: center;
+  -moz-appearance: textfield;
+}
+.raster-input.raster-num::-webkit-outer-spin-button,
+.raster-input.raster-num::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 /* Raster table select dropdowns */
-.raster-select {
+.raster-table .raster-select {
   background: #2a2a2a;
   color: #fff;
-  border: 1px solid #555;
-  padding: 6px 4px;
-  font-size: 11px;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  padding: 4px 8px;
+  height: 36px;
+  min-height: 36px;
+  font-size: 12px;
   font-family: 'Roboto Condensed', sans-serif;
-  border-radius: 2px;
+  border-radius: 0;
   min-width: 120px;
+  box-sizing: border-box;
 }
 
-.raster-select:focus {
+.raster-table .raster-select:focus {
   border-color: var(--primary);
   outline: none;
-}
-
-/* Read-only calculated values */
-.raster-readonly {
-  color: #aaa;
-  text-align: center;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Overlay toggle button group */
 .raster-overlays {
   display: flex;
-  gap: 2px;
+  gap: 3px;
+  justify-content: center;
 }
 
 /* Raster toggle buttons — FULL override of global button rule */
 .raster-toggle-btn {
   background: #333;
-  border: 1px solid #555;
-  border-radius: 2px;
-  padding: 3px 6px;
-  min-height: 24px;
+  border: 2px solid #000;
+  border-radius: 0;
+  padding: 0 8px;
+  min-height: 36px;
+  height: 36px;
+  min-width: 30px;
   width: auto;
   margin-bottom: 0;
-  box-shadow: none;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
   text-shadow: none;
   font-size: 10px;
-  font-weight: 400;
+  font-weight: 700;
   color: #888;
   letter-spacing: 0;
   -webkit-tap-highlight-color: transparent;
@@ -3695,6 +3713,7 @@ canvas:focus {
   cursor: pointer;
   font-family: 'Roboto Condensed', sans-serif;
   transition: all 0.1s;
+  box-sizing: border-box;
 }
 
 .raster-toggle-btn:hover {
@@ -3704,7 +3723,7 @@ canvas:focus {
 .raster-toggle-btn.active {
   background: var(--primary);
   color: #fff;
-  border-color: var(--primary);
+  border-color: #000;
   font-weight: 700;
 }
 

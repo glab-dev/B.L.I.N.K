@@ -4,7 +4,7 @@
 > This file is gitignored — it stays local.
 
 ## Current Session
-_Updated: 2026-02-09_
+_Updated: 2026-02-11_
 
 ### In Progress
 - [ ] _None_
@@ -25,7 +25,8 @@ _Updated: 2026-02-09_
 - [ ] **Cloud storage & project sync** — Auto-save projects to Supabase, access from any signed-in device, project version history
 - [ ] **Continue gear code → RP integration** — Keep building out gear code inventory mapping that exports RP-compatible text files (via "Send to Jared" button)
 - [x] **Hamburger menu reorganization + Recents** — Menu now: Save|Load|Recents + Export|Send to Jared. Recents modal shows 5 most recent projects, backed by Supabase `user_projects` table (signed in) with localStorage fallback (offline)
-- [ ] **"Raster" page** — New entry point similar to Pixl Grid. Canvas view on top with canvas tabs. Canvas options inline in 1 row underneath. Screen options underneath (1 row per screen, all inline): screen name input, panel dropdown, panel dimensions, X/Y coordinates, XY/pixels/X toggles. Panel dropdown includes "add custom panel" option → simplified custom panel modal (brand, model, pixels wide, pixels high only)
+- [x] **"Raster" page** — New entry point similar to Pixl Grid. Canvas view on top with canvas tabs. Canvas options inline in 1 row underneath. Screen options underneath (1 row per screen, all inline): screen name input, panel dropdown, panel dimensions, X/Y coordinates, XY/pixels/X toggles. Panel dropdown includes "add custom panel" option → simplified custom panel modal (brand, model, pixels wide, pixels high only)
+- [x] **Raster save/load (.raster files)** — Save/Load buttons next to filename in raster toolbar. Saves raster-only data (screens, canvas tabs, canvas settings, referenced custom panels) as `.raster` JSON files, fully independent of `.led` config files. Self-contained custom panels for portability.
 - [ ] **Raster ↔ Simple/Complex custom panel bridge** — If a raster-created custom panel is selected in Simple or Complex mode, show a popup telling the user to input more panel info, user confirms, then redirect to the full custom panel modal
 
 #### QA & Verification
@@ -33,6 +34,9 @@ _Updated: 2026-02-09_
 - [ ] **Write Playwright tests for backend/Supabase features** — Custom panels/processors offline, project sync across devices, downloaded shared items
 - [x] **Audit help modal vs README** — Added all 15 missing sections: Header Controls, Screen Tabs, Panel Type, Custom Panels/Processors, Request Items, Dimensions, Power, Data, Structure, Cabling, Combined View, Exports, Supported Panels/Processors tables
 - [ ] **Create Playwright test for full app functionality** — Comprehensive end-to-end test covering all major app features
+
+#### Tooling
+- [x] **Node.js smoke test** — Proper port of `smoke-test.py` → `tests/smoke-test.js` (Python3 not available on this machine). All 8 checks: version sync, HTML structure, section headers, localStorage keys, bracket balance, Node.js parse validation (40 modules), dangerous patterns. Run with `node tests/smoke-test.js`. CLAUDE.md updated accordingly.
 
 ### Done
 - [x] Set up CI/CD workflow improvements

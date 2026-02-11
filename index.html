@@ -2187,6 +2187,15 @@
         <input type="text" id="rasterToolbarFilename" placeholder="LED_Wall_Canvas_4K_UHD_3840x2160" style="width: 260px;">
       </div>
       <div class="canvas-toolbar-group">
+        <span class="canvas-toolbar-label">&nbsp;</span>
+        <button type="button" class="config-btn" onclick="saveRasterFile()">Save</button>
+      </div>
+      <div class="canvas-toolbar-group">
+        <span class="canvas-toolbar-label">&nbsp;</span>
+        <button type="button" class="config-btn" onclick="document.getElementById('loadRasterInput').click()">Load</button>
+        <input type="file" id="loadRasterInput" accept=".raster" style="display: none;" onchange="loadRasterFile(event)">
+      </div>
+      <div class="canvas-toolbar-group">
         <span class="canvas-toolbar-label">Canvas Size</span>
         <select id="rasterToolbarCanvasSize" style="min-width: 140px;">
           <option value="4K_UHD" selected="">4K UHD (3840x2160)</option>
@@ -2366,7 +2375,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.9';
+const APP_VERSION = '2.9.10';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

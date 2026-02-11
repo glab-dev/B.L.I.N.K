@@ -134,7 +134,45 @@ function renderRasterScreenTable() {
   });
 
   html += '</tbody></table>';
+
+  // Save focus state before DOM replacement
+  var focusInfo = null;
+  var activeEl = document.activeElement;
+  if (activeEl && container.contains(activeEl)) {
+    var td = activeEl.closest('td');
+    var tr = activeEl.closest('tr');
+    if (td && tr) {
+      focusInfo = {
+        screenId: tr.dataset.screenId,
+        cellIndex: td.cellIndex,
+        selectionStart: activeEl.selectionStart,
+        selectionEnd: activeEl.selectionEnd,
+        tagName: activeEl.tagName.toLowerCase()
+      };
+    }
+  }
+
   container.innerHTML = html;
+
+  // Restore focus to equivalent element after DOM replacement
+  if (focusInfo) {
+    var newRow = container.querySelector('tr[data-screen-id="' + focusInfo.screenId + '"]');
+    if (newRow) {
+      var newTd = newRow.cells[focusInfo.cellIndex];
+      if (newTd) {
+        var target = newTd.querySelector(focusInfo.tagName) || newTd.querySelector('input, select');
+        if (target) {
+          target.focus();
+          if (typeof target.selectionStart !== 'undefined' && focusInfo.selectionStart !== null) {
+            try {
+              target.selectionStart = focusInfo.selectionStart;
+              target.selectionEnd = focusInfo.selectionEnd;
+            } catch(e) { /* number inputs don't support selection */ }
+          }
+        }
+      }
+    }
+  }
 }
 
 // ==================== PANEL DROPDOWN BUILDER ====================
@@ -192,10 +230,10 @@ function updateRasterScreenName(screenId, value) {
   if(!screens[screenId]) return;
   screens[screenId].name = (value || '').trim().substring(0, 50) || screens[screenId].name;
 
-  // Update canvas immediately, debounce table/tabs re-render to avoid losing focus
-  showCanvasView();
+  // Debounce ALL rendering to avoid focus loss (name only affects canvas label)
   clearTimeout(_rasterNameTimer);
   _rasterNameTimer = setTimeout(function() {
+    showCanvasView();
     if(typeof renderScreenTabs === 'function') renderScreenTabs();
     renderRasterScreenTable();
     if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
@@ -623,3 +661,330 @@ function syncRasterToolbarPosition() {
 }
 
 let rasterToolbarInitialized = false;
+
+// ==================== RASTER SAVE/LOAD ====================
+// Save and load .raster files (independent of .led config files).
+// Format: JSON with type:"raster", containing only raster-relevant data.
+
+async function saveRasterFile() {
+  var filenameInput = document.getElementById('rasterToolbarFilename');
+  var baseName = (filenameInput ? filenameInput.value.trim() : '') || 'LED_Raster';
+  // Clean invalid filename characters
+  baseName = baseName.replace(/[<>:"/\\|?*]/g, '_');
+
+  // Save current canvas data so canvases{} is up to date
+  if(typeof saveCurrentCanvasData === 'function') saveCurrentCanvasData();
+
+  // Collect canvas settings from current state
+  var canvasSizeEl = document.getElementById('canvasSize');
+  var canvasSettings = {
+    canvasSize: canvasSizeEl ? canvasSizeEl.value : '4K_UHD',
+    customCanvasWidth: parseInt(document.getElementById('customCanvasWidth')?.value) || null,
+    customCanvasHeight: parseInt(document.getElementById('customCanvasHeight')?.value) || null,
+    snapMode: typeof snapModeEnabled !== 'undefined' ? snapModeEnabled : true,
+    arrowKeyIncrement: parseInt(document.getElementById('arrowKeyIncrement')?.value) || 10
+  };
+
+  // Build screens data (raster-relevant fields only)
+  var screensData = {};
+  var referencedCustomPanels = {};
+  Object.keys(screens).forEach(function(screenId) {
+    var screen = screens[screenId];
+    var data = screen.data || {};
+
+    // Track custom panel references for embedding
+    var panelType = data.panelType || 'BP2_V2';
+    if(typeof customPanels !== 'undefined' && customPanels[panelType]) {
+      referencedCustomPanels[panelType] = customPanels[panelType];
+    }
+
+    // Convert deletedPanels Set to Array
+    var deletedArr = [];
+    if(data.deletedPanels instanceof Set) {
+      deletedArr = Array.from(data.deletedPanels);
+    } else if(Array.isArray(data.deletedPanels)) {
+      deletedArr = data.deletedPanels;
+    }
+
+    screensData[screenId] = {
+      name: screen.name || 'Screen',
+      color: screen.color || '#808080',
+      color2: screen.color2 || '#606060',
+      visible: screen.visible !== false,
+      showCoordinates: screen.showCoordinates !== false,
+      showPixelDimensions: screen.showPixelDimensions !== false,
+      showCrosshair: screen.showCrosshair !== false,
+      data: {
+        panelType: panelType,
+        panelsWide: data.panelsWide || 0,
+        panelsHigh: data.panelsHigh || 0,
+        canvasX: data.canvasX || 0,
+        canvasY: data.canvasY || 0,
+        addCB5HalfRow: data.addCB5HalfRow || false,
+        deletedPanels: deletedArr
+      }
+    };
+  });
+
+  // Build canvases data
+  var canvasesData = {};
+  if(typeof canvases !== 'undefined') {
+    Object.keys(canvases).forEach(function(canvasId) {
+      var c = canvases[canvasId];
+      canvasesData[canvasId] = {
+        id: c.id,
+        name: c.name,
+        data: {
+          canvasSize: c.data.canvasSize || '4K_UHD',
+          customCanvasWidth: c.data.customCanvasWidth || 3840,
+          customCanvasHeight: c.data.customCanvasHeight || 2160,
+          screenVisibility: c.data.screenVisibility || {}
+        }
+      };
+    });
+  }
+
+  var config = {
+    type: 'raster',
+    version: '1.0',
+    timestamp: new Date().toISOString(),
+    name: baseName,
+    canvasSettings: canvasSettings,
+    screens: screensData,
+    screenIdCounter: typeof screenIdCounter !== 'undefined' ? screenIdCounter : Object.keys(screens).length,
+    canvases: canvasesData,
+    currentCanvasId: typeof currentCanvasId !== 'undefined' ? currentCanvasId : null,
+    canvasIdCounter: typeof canvasIdCounter !== 'undefined' ? canvasIdCounter : 1,
+    customPanels: referencedCustomPanels
+  };
+
+  var json = JSON.stringify(config, null, 2);
+  var fileName = baseName + '.raster';
+  var blob = new Blob([json], { type: 'application/json' });
+
+  // 3-tier download: File System Access API → Web Share → blob download
+  if(window.showSaveFilePicker) {
+    try {
+      var handle = await window.showSaveFilePicker({
+        suggestedName: fileName,
+        types: [{ description: 'Raster Layout Files', accept: { 'application/json': ['.raster'] } }]
+      });
+      var writable = await handle.createWritable();
+      await writable.write(json);
+      await writable.close();
+      await showAlert('Raster layout "' + baseName + '" saved successfully!');
+    } catch(e) {
+      if(e.name !== 'AbortError') {
+        await showAlert('Save failed: ' + e.message);
+      }
+    }
+  } else if(navigator.canShare && navigator.canShare({ files: [new File([blob], fileName)] })) {
+    try {
+      await navigator.share({ files: [new File([blob], fileName, { type: 'application/json' })] });
+      await showAlert('Raster layout "' + baseName + '" saved successfully!');
+    } catch(e) {
+      if(e.name !== 'AbortError') {
+        await showAlert('Save failed: ' + e.message);
+      }
+    }
+  } else {
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    await showAlert('Raster layout "' + baseName + '" saved successfully!');
+  }
+}
+
+function loadRasterFile(event) {
+  var file = event.target.files[0];
+  if(!file) return;
+
+  if(file.size > 10 * 1024 * 1024) {
+    showAlert('Raster file is too large (max 10MB).');
+    event.target.value = '';
+    return;
+  }
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var config = JSON.parse(e.target.result);
+      applyRasterFile(config);
+    } catch(err) {
+      showAlert('Error loading raster file: ' + err.message);
+      console.error('Raster load error:', err);
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function applyRasterFile(config) {
+  // Validate file type
+  if(!config || config.type !== 'raster' || !config.version) {
+    throw new Error('Not a valid .raster file');
+  }
+  if(typeof config.screens !== 'object' || config.screens === null || Array.isArray(config.screens)) {
+    throw new Error('Invalid screens data in raster file');
+  }
+
+  // --- Restore custom panels first (so panel types exist when screens reference them) ---
+  if(config.customPanels && typeof config.customPanels === 'object' && !Array.isArray(config.customPanels)) {
+    Object.keys(config.customPanels).forEach(function(key) {
+      if(!isSafeKey(key)) return;
+      // Only add if not already present
+      if(typeof customPanels !== 'undefined' && !customPanels[key]) {
+        customPanels[key] = config.customPanels[key];
+      }
+    });
+    // Persist to localStorage
+    if(typeof saveCustomPanels === 'function') {
+      saveCustomPanels();
+    } else if(typeof customPanels !== 'undefined') {
+      localStorage.setItem('ledcalc_custom_panels', JSON.stringify(customPanels));
+    }
+    // Update panel dropdowns
+    if(typeof updatePanelDropdowns === 'function') updatePanelDropdowns();
+  }
+
+  // --- Restore screens ---
+  var safeScreenIds = Object.keys(config.screens).filter(function(id) {
+    return /^screen_\d+$/.test(id);
+  });
+
+  if(safeScreenIds.length === 0) {
+    throw new Error('No valid screens found in raster file');
+  }
+
+  screens = {};
+  safeScreenIds.forEach(function(screenId) {
+    var saved = config.screens[screenId];
+    if(!saved || typeof saved !== 'object') return;
+
+    var screenName = (typeof saved.name === 'string') ? saved.name.substring(0, 50) : 'Screen';
+    var screenColor = isValidHexColor(saved.color) ? saved.color : '#808080';
+    var screenColor2 = isValidHexColor(saved.color2) ? saved.color2 : '#606060';
+
+    // Restore deletedPanels as Set
+    var deletedPanelsSet = new Set();
+    if(saved.data && Array.isArray(saved.data.deletedPanels)) {
+      deletedPanelsSet = new Set(saved.data.deletedPanels);
+    }
+
+    var data = (saved.data && typeof saved.data === 'object') ? saved.data : {};
+
+    screens[screenId] = {
+      id: screenId,
+      name: screenName,
+      color: screenColor,
+      color2: screenColor2,
+      visible: saved.visible !== false,
+      showCoordinates: saved.showCoordinates !== false,
+      showPixelDimensions: saved.showPixelDimensions !== false,
+      showCrosshair: saved.showCrosshair !== false,
+      data: {
+        panelType: data.panelType || 'BP2_V2',
+        panelsWide: parseInt(data.panelsWide) || 0,
+        panelsHigh: parseInt(data.panelsHigh) || 0,
+        canvasX: parseInt(data.canvasX) || 0,
+        canvasY: parseInt(data.canvasY) || 0,
+        addCB5HalfRow: data.addCB5HalfRow || false,
+        deletedPanels: deletedPanelsSet
+      },
+      calculatedData: {}
+    };
+  });
+
+  // Restore counters
+  screenIdCounter = (typeof config.screenIdCounter === 'number' && config.screenIdCounter > 0)
+    ? config.screenIdCounter : Object.keys(screens).length;
+  currentScreenId = safeScreenIds[0];
+
+  // --- Restore canvas settings ---
+  if(config.canvasSettings && typeof config.canvasSettings === 'object') {
+    var cs = config.canvasSettings;
+    var canvasSizeEl = document.getElementById('canvasSize');
+    if(canvasSizeEl && cs.canvasSize) canvasSizeEl.value = cs.canvasSize;
+    var cwEl = document.getElementById('customCanvasWidth');
+    var chEl = document.getElementById('customCanvasHeight');
+    if(cwEl && cs.customCanvasWidth) cwEl.value = cs.customCanvasWidth;
+    if(chEl && cs.customCanvasHeight) chEl.value = cs.customCanvasHeight;
+    if(typeof snapModeEnabled !== 'undefined') {
+      snapModeEnabled = cs.snapMode !== false;
+    }
+    var fineEl = document.getElementById('arrowKeyIncrement');
+    if(fineEl && cs.arrowKeyIncrement) fineEl.value = cs.arrowKeyIncrement;
+  }
+
+  // --- Restore canvases (tabs) ---
+  if(config.canvases && typeof config.canvases === 'object' && !Array.isArray(config.canvases)) {
+    var safeCanvasIds = Object.keys(config.canvases).filter(function(id) {
+      return /^canvas_\d+$/.test(id);
+    });
+    if(safeCanvasIds.length > 0) {
+      canvases = {};
+      safeCanvasIds.forEach(function(cid) {
+        var saved = config.canvases[cid];
+        if(!saved || typeof saved !== 'object') return;
+        canvases[cid] = {
+          id: cid,
+          name: (typeof saved.name === 'string') ? saved.name.substring(0, 50) : 'Canvas',
+          data: {
+            canvasSize: (saved.data && saved.data.canvasSize) || '4K_UHD',
+            customCanvasWidth: (saved.data && parseInt(saved.data.customCanvasWidth)) || 3840,
+            customCanvasHeight: (saved.data && parseInt(saved.data.customCanvasHeight)) || 2160,
+            screenVisibility: (saved.data && typeof saved.data.screenVisibility === 'object') ? saved.data.screenVisibility : {}
+          }
+        };
+      });
+      currentCanvasId = (typeof config.currentCanvasId === 'string' && canvases[config.currentCanvasId])
+        ? config.currentCanvasId : safeCanvasIds[0];
+      canvasIdCounter = (typeof config.canvasIdCounter === 'number' && config.canvasIdCounter > 0)
+        ? config.canvasIdCounter : safeCanvasIds.length;
+    }
+  }
+
+  // --- Restore filename ---
+  if(typeof config.name === 'string') {
+    var tbFilename = document.getElementById('rasterToolbarFilename');
+    var coFilename = document.getElementById('canvasExportFilename');
+    if(tbFilename) tbFilename.value = config.name;
+    if(coFilename) coFilename.value = config.name;
+  }
+
+  // --- Refresh UI ---
+  if(typeof renderScreenTabs === 'function') renderScreenTabs();
+  if(typeof renderCanvasTabs === 'function') renderCanvasTabs();
+  if(typeof loadCanvasData === 'function' && currentCanvasId) loadCanvasData(currentCanvasId);
+
+  // Re-apply screen visibility from canvas visibility maps — loadCanvasData()
+  // only restores visibility for the current canvas and hides everything else.
+  // In raster mode, a screen should be visible if ANY canvas has it visible.
+  // The per-screen saved.visible flag is unreliable because at save time it
+  // only reflects the active canvas's view.
+  if(config.canvases && typeof config.canvases === 'object') {
+    safeScreenIds.forEach(function(screenId) {
+      if(!screens[screenId]) return;
+      var visibleInAny = false;
+      Object.keys(config.canvases).forEach(function(cid) {
+        var cv = config.canvases[cid];
+        if(cv && cv.data && cv.data.screenVisibility && cv.data.screenVisibility[screenId]) {
+          visibleInAny = true;
+        }
+      });
+      screens[screenId].visible = visibleInAny;
+    });
+  }
+
+  renderRasterScreenTable();
+  syncToolbarFromCanvasOptions();
+  if(typeof showCanvasView === 'function') showCanvasView();
+  if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
+
+  showAlert('Raster layout "' + (config.name || 'Untitled') + '" loaded successfully! (' + Object.keys(screens).length + ' screens)');
+}

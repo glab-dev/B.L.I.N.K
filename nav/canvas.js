@@ -188,6 +188,10 @@ function loadCanvasData(canvasId) {
   });
   // Update the screen toggles UI
   updateCanvasScreenToggles();
+  // Also update raster screen table if available (for raster mode)
+  if(typeof renderRasterScreenTable === 'function') renderRasterScreenTable();
+  // Sync raster toolbar values (canvas size may differ per canvas)
+  if(typeof syncToolbarFromCanvasOptions === 'function') syncToolbarFromCanvasOptions();
 }
 
 function showCanvasView(){
@@ -554,6 +558,13 @@ function showCanvasView(){
   // Setup canvas view interactivity
   setupCanvasViewInteractivity();
   
+  // Save focus state before repaint hacks (they can cause browsers to lose focus)
+  var _savedActiveEl = document.activeElement;
+  var _savedSelStart = null, _savedSelEnd = null;
+  if(_savedActiveEl && (_savedActiveEl.tagName === 'INPUT' || _savedActiveEl.tagName === 'TEXTAREA')) {
+    try { _savedSelStart = _savedActiveEl.selectionStart; _savedSelEnd = _savedActiveEl.selectionEnd; } catch(e) {}
+  }
+
   // Force browser repaint using multiple techniques
   const viewport = document.getElementById('canvasViewport');
   if(viewport) {
@@ -561,19 +572,19 @@ function showCanvasView(){
     viewport.style.willChange = 'transform';
     void viewport.offsetHeight;
     viewport.style.willChange = 'auto';
-    
+
     // Method 2: Force repaint by toggling visibility
     const originalDisplay = viewport.style.display;
     viewport.style.display = 'none';
     void viewport.offsetHeight; // Force reflow
     viewport.style.display = originalDisplay || '';
   }
-  
+
   // Method 3: Force repaint on canvas with opacity trick
   canvas.style.opacity = '0.9999';
   void canvas.offsetHeight;
   canvas.style.opacity = '1';
-  
+
   // Method 4: Force a transform update on viewport
   if(viewport) {
     const currentTransform = viewport.style.transform;
@@ -581,7 +592,15 @@ function showCanvasView(){
     void viewport.offsetHeight;
     viewport.style.transform = currentTransform;
   }
-  
+
+  // Restore focus if repaint hacks stole it
+  if(_savedActiveEl && document.contains(_savedActiveEl) && document.activeElement !== _savedActiveEl) {
+    _savedActiveEl.focus();
+    if(_savedSelStart !== null) {
+      try { _savedActiveEl.selectionStart = _savedSelStart; _savedActiveEl.selectionEnd = _savedSelEnd; } catch(e) {}
+    }
+  }
+
   // WORKAROUND: Second render after delay
   if(!isSecondRenderPass) {
     isSecondRenderPass = true;

@@ -173,7 +173,7 @@ When fixing bugs or addressing issues:
 
 ## Testing — ALWAYS Run After Changes
 
-**Mandatory:** Run `python3 tests/smoke-test.py` — it must pass with **0 failures**.
+**Mandatory:** Run `node tests/smoke-test.js` — it must pass with **0 failures**.
 
 The smoke test includes:
 - Version sync (version.json ↔ APP_VERSION)
@@ -210,7 +210,7 @@ The smoke test includes:
 
 - **ALWAYS incremental**: one section or function at a time
 - **NEVER refactor multiple sections in one commit**
-- After each change: run `python3 tests/smoke-test.py` (must pass with 0 failures) + verify in browser
+- After each change: run `node tests/smoke-test.js` (must pass with 0 failures) + verify in browser
 - Preserve all existing behavior — zero functional changes unless explicitly requested
 - When modularizing: extract to external `.js` file, add `<script>` tag, remove from index.html, test, commit
 - Keep a working app at every step — if something breaks, revert before continuing

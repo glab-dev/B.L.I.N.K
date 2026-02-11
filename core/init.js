@@ -22,20 +22,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
 
-      // Escape to clear selection
-      if(e.key === 'Escape') {
+      // Escape to clear selection (skip when editing in an input)
+      if(e.key === 'Escape' && !isInputFocused) {
         selectedPanels.clear();
         if(currentCanvas) generateLayout('standard');
       }
 
-      // Ctrl+Z for Undo
-      if((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      // Ctrl+Z for Undo (skip when editing in an input — browser handles text undo)
+      if((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey && !isInputFocused) {
         e.preventDefault();
         undo();
       }
 
-      // Ctrl+Y for Redo (also Ctrl+Shift+Z as alternative)
-      if((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+      // Ctrl+Y for Redo (skip when editing in an input)
+      if((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey)) && !isInputFocused) {
         e.preventDefault();
         redo();
       }

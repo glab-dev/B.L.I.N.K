@@ -645,14 +645,19 @@ function addNewScreen() {
   console.log('Switching to new screen...');
   switchToScreen(newScreenId);
 
-  // If we're on the canvas page, make sure canvas stays visible
-  if(currentMobileView === 'canvas') {
+  // If we're on the canvas or raster page, make sure canvas stays visible
+  if(currentMobileView === 'canvas' || currentMobileView === 'raster') {
     const canvasContainer = document.getElementById('canvasContainer');
     const canvasTabsEl = document.getElementById('canvasTabsContainer');
     if(canvasTabsEl) canvasTabsEl.style.display = 'flex';
     if(canvasContainer) canvasContainer.style.display = 'block';
     if(typeof showCanvasView === 'function') {
       showCanvasView();
+    }
+    // Also keep raster table visible
+    if(currentMobileView === 'raster') {
+      const rasterTable = document.getElementById('rasterScreenTableContainer');
+      if(rasterTable) rasterTable.style.display = 'block';
     }
   }
 }

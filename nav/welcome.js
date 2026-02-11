@@ -18,7 +18,8 @@ function showWelcomePage() {
   // Hide all app content containers
   var ids = ['results', 'specWarning', 'screenTabsContainer', 'layoutsTogglesContainer',
     'canvasContainer', 'canvasTabsContainer', 'combinedContainer', 'gearListContainer',
-    'standardContainer', 'powerContainer', 'dataContainer', 'structureContainer'];
+    'standardContainer', 'powerContainer', 'dataContainer', 'structureContainer',
+    'rasterScreenTableContainer'];
   ids.forEach(function(id) {
     var el = document.getElementById(id);
     if(el) el.style.display = 'none';
@@ -78,6 +79,12 @@ function configureBottomNavForMode(mode) {
   } else if(mode === 'complex') {
     complexGroups.forEach(function(g) { g.style.display = 'flex'; });
     simpleGroups.forEach(function(g) { g.style.display = 'none'; });
+  } else if(mode === 'raster') {
+    // Hide bottom nav entirely in raster mode (single-page experience)
+    complexGroups.forEach(function(g) { g.style.display = 'none'; });
+    simpleGroups.forEach(function(g) { g.style.display = 'none'; });
+    var bottomNav = document.querySelector('.bottom-nav');
+    if(bottomNav) bottomNav.style.display = 'none';
   }
 }
 
@@ -95,6 +102,14 @@ function enterComplexMode() {
   hideWelcomePage();
   configureBottomNavForMode('complex');
   switchAppMode('complex');
+}
+
+function enterRasterMode() {
+  // Push history state so back button returns to welcome page
+  history.pushState({ view: 'app', mode: 'raster' }, '', '');
+  hideWelcomePage();
+  configureBottomNavForMode('raster');
+  switchAppMode('raster');
 }
 
 function openHelpModal() {

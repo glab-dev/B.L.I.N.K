@@ -561,7 +561,7 @@ function resetCalculator() {
   
   // Hide all layout containers (except canvasContainer if we're on canvas page)
   const layoutContainers = ['standardContainer', 'structureContainer', 'powerContainer', 'dataContainer', 'gearListContainer'];
-  if(typeof currentMobileView === 'undefined' || currentMobileView !== 'canvas') {
+  if(typeof currentMobileView === 'undefined' || (currentMobileView !== 'canvas' && currentMobileView !== 'raster')) {
     layoutContainers.push('canvasContainer');
   }
   layoutContainers.forEach(containerId => {
@@ -604,7 +604,7 @@ function resetCalculator() {
   
   // Hide all layout containers AND clear their visibility with repaint (except canvasContainer if we're on canvas page)
   const layoutContainersToHide = ['standardContainer', 'structureContainer', 'powerContainer', 'dataContainer', 'gearListContainer'];
-  if(typeof currentMobileView === 'undefined' || currentMobileView !== 'canvas') {
+  if(typeof currentMobileView === 'undefined' || (currentMobileView !== 'canvas' && currentMobileView !== 'raster')) {
     layoutContainersToHide.push('canvasContainer');
   }
   layoutContainersToHide.forEach(containerId => {
@@ -667,7 +667,7 @@ function calculate(){
     if(typeof currentMobileView === 'undefined' || currentMobileView !== 'gear') {
       layoutContainers.push('gearListContainer');
     }
-    if(typeof currentMobileView === 'undefined' || currentMobileView !== 'canvas') {
+    if(typeof currentMobileView === 'undefined' || (currentMobileView !== 'canvas' && currentMobileView !== 'raster')) {
       layoutContainers.push('canvasContainer');
     }
     layoutContainers.forEach(containerId => {

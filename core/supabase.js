@@ -220,7 +220,8 @@ async function syncAllData() {
   try {
     await Promise.all([
       syncCustomPanels(),
-      syncCustomProcessors()
+      syncCustomProcessors(),
+      typeof syncRecentProjects === 'function' ? syncRecentProjects() : Promise.resolve()
     ]);
     lastSyncTime = new Date();
     console.log('Cloud sync completed');

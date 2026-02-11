@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
       canvasSizeSelect.addEventListener('change', function() {
         const customInputs = document.getElementById('customCanvasInputs');
         if(this.value === 'custom') {
-          customInputs.style.display = 'block';
+          customInputs.style.display = 'flex';
         } else {
           customInputs.style.display = 'none';
         }
@@ -222,6 +222,24 @@ document.addEventListener('DOMContentLoaded', function() {
             this.value = options[0].value;
           }
           return; // Stop propagation
+        }
+      });
+
+      // Raster-created panel bridge: prompt user to add full specs when used outside raster mode
+      panelTypeSelect.addEventListener('change', function() {
+        if(this.value === '__ADD_CUSTOM__') return;
+        var panelType = this.value;
+        var allPanelsMap = getAllPanels();
+        var selectedPanel = allPanelsMap[panelType];
+        if(selectedPanel && selectedPanel.raster_created && currentAppMode !== 'raster') {
+          showConfirm(
+            'This panel was created in Raster mode with pixel dimensions only. ' +
+            'Would you like to add full specifications (physical size, power, weight)?'
+          ).then(function(confirmed) {
+            if(confirmed && typeof openCustomPanelModal === 'function') {
+              openCustomPanelModal(panelType);
+            }
+          });
         }
       });
 

@@ -126,6 +126,8 @@ function switchAppMode(mode) {
     switchMobileView('combined');
   } else if(mode === 'gear') {
     switchMobileView('gear');
+  } else if(mode === 'raster') {
+    switchMobileView('raster');
   }
 }
 
@@ -147,6 +149,7 @@ function switchMobileView(view) {
   const canvasTabsEl = document.getElementById('canvasTabsContainer');
   const combinedContainer = document.getElementById('combinedContainer');
   const gearListContainer = document.getElementById('gearListContainer');
+  const rasterScreenTableContainer = document.getElementById('rasterScreenTableContainer');
 
   // Layout containers
   const standardContainer = document.getElementById('standardContainer');
@@ -174,6 +177,7 @@ function switchMobileView(view) {
   if(canvasTabsEl) canvasTabsEl.style.display = 'none';
   if(combinedContainer) combinedContainer.style.display = 'none';
   if(gearListContainer) gearListContainer.style.display = 'none';
+  if(rasterScreenTableContainer) rasterScreenTableContainer.style.display = 'none';
 
   switch(view) {
     case 'complex':
@@ -194,6 +198,10 @@ function switchMobileView(view) {
 
     case 'canvas':
       activateCanvasView();
+      break;
+
+    case 'raster':
+      activateRasterView();
       break;
   }
 

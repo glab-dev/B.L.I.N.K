@@ -205,29 +205,17 @@ function showCanvasView(){
     }
   });
 
-  // Don't draw canvas if no screens have dimensions, but still show container
-  if(!anyScreenHasDimensions) {
-    // Clear the canvas to black when no screens have dimensions
-    const canvas = document.getElementById('canvasView');
-    if(canvas) {
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-    return;
-  }
-
   // Reset viewport pan to show origin (0,0)
   if(canvasZoomLevel === 1.0) {
     canvasPanX = 0;
     canvasPanY = 0;
   }
-  
+
   // Force browser reflow to ensure container is laid out
   void container.offsetHeight;
-  
+
   const canvasSize = document.getElementById('canvasSize').value;
-  
+
   // Get canvas resolution
   let canvasResX, canvasResY, canvasName;
   if(canvasSize === '4K_UHD'){
@@ -241,20 +229,39 @@ function showCanvasView(){
     canvasResY = parseInt(document.getElementById('customCanvasHeight').value) || 1080;
     canvasName = `Custom (${canvasResX}x${canvasResY})`;
   }
-  
+
   const canvas = document.getElementById('canvasView');
   const ctx = canvas.getContext('2d');
-  
+
   // Set canvas internal resolution (always full resolution for quality)
   canvas.width = canvasResX;
   canvas.height = canvasResY;
-  
-  // Explicitly position canvas at origin
+
+  // Explicitly position canvas at origin (needed for both empty and populated states)
   canvas.style.position = 'relative';
   canvas.style.left = '0px';
   canvas.style.top = '0px';
   canvas.style.margin = '0';
   canvas.style.padding = '0';
+
+  // If no screens have dimensions, render empty canvas with border and return
+  if(!anyScreenHasDimensions) {
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    updateCanvasViewport();
+    void canvas.offsetHeight;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvasResX, canvasResY);
+    // Draw canvas boundary border
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 6;
+    ctx.setLineDash([]);
+    ctx.strokeRect(3, 3, canvasResX - 6, canvasResY - 6);
+    // Update info display
+    updateCanvasInfoDisplay();
+    setupCanvasViewInteractivity();
+    return;
+  }
   
   // Calculate the base display size to fit in wrapper (use actual wrapper size for mobile compatibility)
   const wrapperEl = document.getElementById('canvasViewWrapper');
@@ -315,7 +322,7 @@ function showCanvasView(){
     const panelType = screenData.panelType || 'CB5_MKII';
     const p = allPanels[panelType];
 
-    if(!p || !p.width_m || !p.height_m || !p.res_x || !p.res_y) return;
+    if(!p || !p.res_x || !p.res_y) return;
 
     // Get panel dimensions for this screen
     const pw = screenData.panelsWide || 0;
@@ -811,6 +818,10 @@ function setupCanvasViewInteractivity() {
           // Re-draw selection highlight if there's a selected screen
           if(selectedCanvasScreenId) {
             drawSelectionHighlight();
+          }
+          // Sync raster screen table if in raster mode
+          if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
+            renderRasterScreenTable();
           }
         }, 300);
       }
@@ -1490,29 +1501,39 @@ function setupCanvasViewInteractivity() {
 
       // Save state after drag completes
       saveCanvasMoveState();
+
+      // Sync raster screen table if in raster mode
+      if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
+        renderRasterScreenTable();
+      }
     }
   });
 
   canvas.addEventListener('mouseleave', function(e) {
     if(canvasViewDragging) {
       const wasDraggingCurrentScreen = (draggedScreenId === currentScreenId);
-      
+
       canvasViewDragging = false;
       draggedScreenId = null;
       canvas.style.cursor = 'grab';
       canvasViewOriginalImageData = null;
-      
+
       // Only save current screen data if we weren't dragging the current screen
       if(!wasDraggingCurrentScreen) {
         saveCurrentScreenData();
       }
-      
+
       // Full redraw with actual content
       showCanvasView();
-      
+
       // Re-draw selection highlight if there's a selected screen
       if(selectedCanvasScreenId) {
         drawSelectionHighlight();
+      }
+
+      // Sync raster screen table if in raster mode
+      if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
+        renderRasterScreenTable();
       }
       
       // Save state after drag completes
@@ -1805,6 +1826,11 @@ function setupCanvasViewInteractivity() {
         updateCanvasInfoDisplay();
       }
       saveCanvasMoveState();
+
+      // Sync raster screen table if in raster mode
+      if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
+        renderRasterScreenTable();
+      }
     }
   });
 
@@ -1820,6 +1846,11 @@ function setupCanvasViewInteractivity() {
         updateCanvasInfoDisplay();
       }
       saveCanvasMoveState();
+
+      // Sync raster screen table if in raster mode
+      if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
+        renderRasterScreenTable();
+      }
     }
   });
 }

@@ -579,6 +579,13 @@ input[type=number] {
   max-width: 90px;
 }
 
+@media (max-width: 768px) {
+  .cabling-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+}
+
 .three-inputs {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -723,17 +730,6 @@ button:active {
     flex: 0 1 100px;
   }
 
-  /* Canvas options constrained inputs */
-  #canvasContainer .section-box {
-    max-width: 500px;
-  }
-
-  #canvasContainer .section-content input,
-  #canvasContainer .section-content select,
-  #canvasContainer .section-content button {
-    max-width: 100%;
-  }
-
   /* Layout canvases - no max-width constraint on desktop */
   #standardCanvas, #structureCanvas, #powerCanvas, #dataCanvas, #cableDiagramCanvas {
     max-width: none;
@@ -821,6 +817,93 @@ canvas {
 
 #canvasContainer {
   overflow-x: hidden;
+}
+
+/* Canvas options inline toolbar */
+.canvas-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: flex-end;
+  margin-top: 8px;
+  padding: 0;
+}
+
+.canvas-toolbar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.canvas-toolbar-label {
+  font-size: 10px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'Roboto Condensed', sans-serif;
+  white-space: nowrap;
+}
+
+.canvas-toolbar select,
+.canvas-toolbar input[type="text"] {
+  height: 36px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: #2a2a2a;
+  color: #fff;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  box-sizing: border-box;
+  font-family: 'Roboto Condensed', sans-serif;
+  min-height: auto;
+  margin-bottom: 0;
+  width: auto;
+}
+
+.canvas-toolbar .number-input-with-arrows {
+  height: 36px;
+}
+
+.canvas-toolbar .number-input-with-arrows input {
+  height: 100%;
+  padding: 2px 4px;
+  font-size: 12px;
+  min-width: 36px;
+  width: 40px;
+  min-height: auto;
+  margin-bottom: 0;
+}
+
+.canvas-toolbar .number-input-arrows {
+  width: 24px;
+}
+
+.canvas-toolbar .number-input-arrows button {
+  min-height: 16px;
+}
+
+.canvas-toolbar .toggle-btn {
+  height: 36px;
+  padding: 4px 12px;
+  font-size: 12px;
+  min-height: auto;
+  margin-bottom: 0;
+  box-sizing: border-box;
+  width: auto;
+}
+
+.canvas-toolbar .config-btn {
+  height: 36px;
+  padding: 4px 16px;
+  font-size: 12px;
+  font-weight: bold;
+  min-height: auto;
+  margin-bottom: 0;
+  box-sizing: border-box;
+  width: auto;
+  background: var(--primary);
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
 }
 
 /* Layout container overflow handling for mobile */
@@ -1519,6 +1602,7 @@ canvas:focus {
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 1);
 }
@@ -1579,6 +1663,7 @@ canvas:focus {
 .modal-body {
   margin-bottom: 12px;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   max-height: calc(90vh - 120px);
 }
@@ -1834,6 +1919,51 @@ canvas:focus {
 .btn-secondary:active {
   box-shadow: none;
   transform: translate(2px, 2px);
+}
+
+/* Recent Projects Modal */
+.recent-project-item {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  background: #2a2a2a;
+  border: 2px solid #000;
+  border-radius: 0;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  min-height: auto;
+  letter-spacing: normal;
+  text-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  font-family: 'Roboto Condensed', sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  color: #fff;
+}
+
+.recent-project-item:hover {
+  background: #3a3a3a;
+  border-color: var(--primary);
+}
+
+.recent-project-item:active {
+  box-shadow: none;
+  transform: translate(2px, 2px);
+}
+
+.recent-project-name {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.recent-project-meta {
+  font-size: 11px;
+  color: #888;
 }
 
 .btn-danger {
@@ -3458,5 +3588,210 @@ canvas:focus {
   background: var(--primary);
   border-radius: 50%;
   border: 2px solid #1a1a1a;
+}
+
+/* ==================== RASTER MODE ==================== */
+
+#rasterScreenTableContainer .layout-title {
+  margin-bottom: 8px;
+}
+
+/* Raster screen table */
+.raster-table {
+  border-collapse: collapse;
+  font-family: 'Roboto Condensed', sans-serif;
+  font-size: 12px;
+  color: #e0e0e0;
+}
+
+.raster-table th {
+  font-family: 'Bangers', cursive;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--primary);
+  text-align: center;
+  padding: 4px 4px;
+  border-bottom: 2px solid var(--primary);
+  white-space: nowrap;
+}
+
+.raster-table td {
+  padding: 3px 4px;
+  border-bottom: 1px solid #383838;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.raster-table tr:hover {
+  background: rgba(16, 185, 129, 0.05);
+}
+
+/* Raster table inputs — match canvas-toolbar comic-book style */
+/* Uses .raster-table prefix to beat global input[type] specificity */
+.raster-table .raster-input {
+  background: #2a2a2a;
+  color: #fff;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  padding: 4px 6px;
+  height: 36px;
+  min-height: 36px;
+  font-size: 12px;
+  font-family: 'Roboto Condensed', sans-serif;
+  border-radius: 0;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0;
+}
+
+.raster-table .raster-input:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.raster-input[readonly] {
+  color: #aaa;
+  cursor: default;
+}
+
+.raster-name {
+  min-width: 70px;
+  text-align: left;
+}
+
+.raster-input.raster-num {
+  width: 70px;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+.raster-input.raster-num::-webkit-outer-spin-button,
+.raster-input.raster-num::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Raster table select dropdowns */
+.raster-table .raster-select {
+  background: #2a2a2a;
+  color: #fff;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  padding: 4px 8px;
+  height: 36px;
+  min-height: 36px;
+  font-size: 12px;
+  font-family: 'Roboto Condensed', sans-serif;
+  border-radius: 0;
+  min-width: 120px;
+  box-sizing: border-box;
+}
+
+.raster-table .raster-select:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+/* Overlay toggle button group */
+.raster-overlays {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+}
+
+/* Raster toggle buttons — FULL override of global button rule */
+.raster-toggle-btn {
+  background: #333;
+  border: 2px solid #000;
+  border-radius: 0;
+  padding: 0 8px;
+  min-height: 36px;
+  height: 36px;
+  min-width: 30px;
+  width: auto;
+  margin-bottom: 0;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  text-shadow: none;
+  font-size: 10px;
+  font-weight: 700;
+  color: #888;
+  letter-spacing: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  cursor: pointer;
+  font-family: 'Roboto Condensed', sans-serif;
+  transition: all 0.1s;
+  box-sizing: border-box;
+}
+
+.raster-toggle-btn:hover {
+  background: #444;
+}
+
+.raster-toggle-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: #000;
+  font-weight: 700;
+}
+
+/* Add screen button — FULL override of global button rule */
+.raster-add-btn {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  margin-bottom: 0;
+  background: transparent;
+  border: 2px dashed #555;
+  border-radius: 2px;
+  color: var(--primary);
+  font-family: 'Bangers', cursive;
+  font-size: 16px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  box-shadow: none;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  min-height: auto;
+  font-weight: normal;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: all 0.1s;
+}
+
+.raster-add-btn:hover {
+  border-color: var(--primary);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+/* Save panel button in raster custom panel modal — FULL override */
+.raster-save-panel-btn {
+  width: 100%;
+  padding: 12px 20px;
+  margin-top: 8px;
+  margin-bottom: 0;
+  background: var(--primary);
+  border: 2px solid #000;
+  border-radius: 0;
+  color: #fff;
+  font-family: 'Roboto Condensed', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  cursor: pointer;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  min-height: 48px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: all 0.1s;
+}
+
+.raster-save-panel-btn:hover {
+  background: var(--primary-hover);
+}
+
+.raster-save-panel-btn:active {
+  box-shadow: none;
+  transform: translate(2px, 2px);
 }
 

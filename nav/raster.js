@@ -13,6 +13,7 @@ function activateRasterView() {
 
   if(canvasTabsEl) canvasTabsEl.style.display = 'flex';
   if(canvasContainer) canvasContainer.style.display = 'block';
+  if(canvasContainer) canvasContainer.classList.add('raster-mode');
   if(rasterTable) rasterTable.style.display = 'block';
 
   // Render the screen table and refresh canvas
@@ -28,6 +29,13 @@ function activateRasterView() {
   if(canvasToggles) canvasToggles.style.display = 'none';
   const canvasInfo = document.getElementById('canvasInfo');
   if(canvasInfo) canvasInfo.style.display = 'none';
+
+  // Sync toolbar values from canvas options and init listeners once
+  syncToolbarFromCanvasOptions();
+  if(!rasterToolbarInitialized) {
+    initRasterToolbarListeners();
+    rasterToolbarInitialized = true;
+  }
 }
 
 // ==================== SCREEN TABLE RENDERING ====================
@@ -427,3 +435,139 @@ async function saveRasterCustomPanel() {
   renderRasterScreenTable();
   showCanvasView();
 }
+
+// ==================== RASTER TOOLBAR SYNC ====================
+// The raster inline toolbar has its own elements that mirror the
+// original canvas options section-box. Values sync bidirectionally
+// so all existing canvas JS functions work unchanged.
+
+function syncToolbarFromCanvasOptions() {
+  var tb = {
+    filename: document.getElementById('rasterToolbarFilename'),
+    canvasSize: document.getElementById('rasterToolbarCanvasSize'),
+    x: document.getElementById('rasterToolbarX'),
+    y: document.getElementById('rasterToolbarY'),
+    fine: document.getElementById('rasterToolbarFine'),
+    snap: document.getElementById('rasterToolbarSnap'),
+    format: document.getElementById('rasterToolbarFormat')
+  };
+  var co = {
+    filename: document.getElementById('canvasExportFilename'),
+    canvasSize: document.getElementById('canvasSize'),
+    x: document.getElementById('canvasX'),
+    y: document.getElementById('canvasY'),
+    fine: document.getElementById('arrowKeyIncrement'),
+    snap: document.getElementById('snapModeBtn'),
+    format: document.getElementById('canvasExportFormat')
+  };
+  if(tb.filename && co.filename) {
+    tb.filename.value = co.filename.value;
+    tb.filename.placeholder = co.filename.placeholder || 'LED_Wall_Canvas_4K_UHD_3840x2160';
+  }
+  if(tb.canvasSize && co.canvasSize) tb.canvasSize.value = co.canvasSize.value;
+  if(tb.x && co.x) tb.x.value = co.x.value;
+  if(tb.y && co.y) tb.y.value = co.y.value;
+  if(tb.fine && co.fine) tb.fine.value = co.fine.value;
+  if(tb.format && co.format) tb.format.value = co.format.value;
+  // Sync snap button active state
+  if(tb.snap) {
+    if(typeof snapModeEnabled !== 'undefined' && snapModeEnabled) {
+      tb.snap.classList.add('active');
+    } else {
+      tb.snap.classList.remove('active');
+    }
+  }
+}
+
+function syncCanvasOptionsFromToolbar() {
+  var tb = {
+    filename: document.getElementById('rasterToolbarFilename'),
+    canvasSize: document.getElementById('rasterToolbarCanvasSize'),
+    x: document.getElementById('rasterToolbarX'),
+    y: document.getElementById('rasterToolbarY'),
+    fine: document.getElementById('rasterToolbarFine'),
+    format: document.getElementById('rasterToolbarFormat')
+  };
+  var co = {
+    filename: document.getElementById('canvasExportFilename'),
+    canvasSize: document.getElementById('canvasSize'),
+    x: document.getElementById('canvasX'),
+    y: document.getElementById('canvasY'),
+    fine: document.getElementById('arrowKeyIncrement'),
+    format: document.getElementById('canvasExportFormat')
+  };
+  if(co.filename && tb.filename) co.filename.value = tb.filename.value;
+  if(co.canvasSize && tb.canvasSize) co.canvasSize.value = tb.canvasSize.value;
+  if(co.x && tb.x) co.x.value = tb.x.value;
+  if(co.y && tb.y) co.y.value = tb.y.value;
+  if(co.fine && tb.fine) co.fine.value = tb.fine.value;
+  if(co.format && tb.format) co.format.value = tb.format.value;
+}
+
+function initRasterToolbarListeners() {
+  var tbFilename = document.getElementById('rasterToolbarFilename');
+  var tbCanvasSize = document.getElementById('rasterToolbarCanvasSize');
+  var tbX = document.getElementById('rasterToolbarX');
+  var tbY = document.getElementById('rasterToolbarY');
+  var tbFine = document.getElementById('rasterToolbarFine');
+  var tbFormat = document.getElementById('rasterToolbarFormat');
+
+  if(tbFilename) {
+    tbFilename.addEventListener('input', function() {
+      var co = document.getElementById('canvasExportFilename');
+      if(co) co.value = this.value;
+    });
+  }
+  if(tbCanvasSize) {
+    tbCanvasSize.addEventListener('change', function() {
+      var co = document.getElementById('canvasSize');
+      if(co) {
+        co.value = this.value;
+        co.dispatchEvent(new Event('change'));
+      }
+    });
+  }
+  if(tbX) {
+    tbX.addEventListener('input', function() {
+      var co = document.getElementById('canvasX');
+      if(co) {
+        co.value = this.value;
+        co.dispatchEvent(new Event('input'));
+      }
+    });
+  }
+  if(tbY) {
+    tbY.addEventListener('input', function() {
+      var co = document.getElementById('canvasY');
+      if(co) {
+        co.value = this.value;
+        co.dispatchEvent(new Event('input'));
+      }
+    });
+  }
+  if(tbFine) {
+    tbFine.addEventListener('input', function() {
+      var co = document.getElementById('arrowKeyIncrement');
+      if(co) co.value = this.value;
+    });
+  }
+  if(tbFormat) {
+    tbFormat.addEventListener('change', function() {
+      var co = document.getElementById('canvasExportFormat');
+      if(co) co.value = this.value;
+    });
+  }
+}
+
+// Also sync toolbar X/Y when canvas drags update the original inputs
+function syncRasterToolbarPosition() {
+  if(typeof currentAppMode === 'undefined' || currentAppMode !== 'raster') return;
+  var coX = document.getElementById('canvasX');
+  var coY = document.getElementById('canvasY');
+  var tbX = document.getElementById('rasterToolbarX');
+  var tbY = document.getElementById('rasterToolbarY');
+  if(tbX && coX) tbX.value = coX.value;
+  if(tbY && coY) tbY.value = coY.value;
+}
+
+let rasterToolbarInitialized = false;

@@ -819,6 +819,22 @@ canvas {
   overflow-x: hidden;
 }
 
+#canvasContainer .section-box {
+  max-width: 500px;
+}
+
+#rasterCanvasToolbar {
+  display: none;
+}
+
+#canvasContainer.raster-mode .section-box {
+  display: none;
+}
+
+#canvasContainer.raster-mode #rasterCanvasToolbar {
+  display: flex;
+}
+
 /* Canvas options inline toolbar */
 .canvas-toolbar {
   display: flex;

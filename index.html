@@ -2025,13 +2025,84 @@
           <select id="canvasExportFormat" style="flex: 1; padding: 10px 8px; height: 48px; box-sizing: border-box;">
             <option value="png" selected="">PNG</option>
             <option value="jpeg">JPEG</option>
-            <option value="resolume">Resolume (.xml)</option>
+            <option value="resolume">Resolume</option>
           </select>
           <button id="btnExportCanvas" class="config-btn" style="background: var(--primary); border: 2px solid #000; flex: 1; height: 48px; padding: 0; box-sizing: border-box;">Export</button>
         </div>
 
         <!-- Screen Visibility Toggles -->
         <div id="canvasScreenToggles"></div>
+      </div>
+    </div>
+
+    <!-- Raster Canvas Toolbar (shown only in raster mode, replaces section-box) -->
+    <div class="canvas-toolbar" id="rasterCanvasToolbar">
+      <div class="canvas-toolbar-group" style="min-width: 260px;">
+        <span class="canvas-toolbar-label">Filename</span>
+        <input type="text" id="rasterToolbarFilename" placeholder="LED_Wall_Canvas_4K_UHD_3840x2160" style="width: 260px;">
+      </div>
+      <div class="canvas-toolbar-group">
+        <span class="canvas-toolbar-label">Canvas Size</span>
+        <select id="rasterToolbarCanvasSize" style="min-width: 140px;">
+          <option value="4K_UHD" selected="">4K UHD (3840x2160)</option>
+          <option value="4K_DCI">4K DCI (4096x2160)</option>
+          <option value="HD">HD (1920x1080)</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="canvas-toolbar-group" id="rasterCustomW" style="display: none;">
+        <span class="canvas-toolbar-label">W (px)</span>
+        <input type="number" id="rasterToolbarCustomW" min="1" style="width: 80px;">
+      </div>
+      <div class="canvas-toolbar-group" id="rasterCustomH" style="display: none;">
+        <span class="canvas-toolbar-label">H (px)</span>
+        <input type="number" id="rasterToolbarCustomH" min="1" style="width: 80px;">
+      </div>
+      <div class="canvas-toolbar-group">
+        <span class="canvas-toolbar-label">X Pos</span>
+        <div class="number-input-with-arrows">
+          <input type="number" id="rasterToolbarX" value="0" min="0">
+          <div class="number-input-arrows">
+            <button type="button" onclick="adjustCanvasPosition('canvasX', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+            <button type="button" onclick="adjustCanvasPosition('canvasX', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="canvas-toolbar-group">
+        <span class="canvas-toolbar-label">Y Pos</span>
+        <div class="number-input-with-arrows">
+          <input type="number" id="rasterToolbarY" value="0" min="0">
+          <div class="number-input-arrows">
+            <button type="button" onclick="adjustCanvasPosition('canvasY', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+            <button type="button" onclick="adjustCanvasPosition('canvasY', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="canvas-toolbar-group">
+        <span class="canvas-toolbar-label">Fine(px)</span>
+        <div class="number-input-with-arrows">
+          <input type="number" id="rasterToolbarFine" value="10" min="1" max="100">
+          <div class="number-input-arrows">
+            <button type="button" onclick="adjustNumberInput('arrowKeyIncrement', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+            <button type="button" onclick="adjustNumberInput('arrowKeyIncrement', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="canvas-toolbar-group">
+        <span class="canvas-toolbar-label">&nbsp;</span>
+        <button type="button" class="toggle-btn active" id="rasterToolbarSnap" onclick="toggleSnapMode()">Snap</button>
+      </div>
+      <div class="canvas-toolbar-group">
+        <span class="canvas-toolbar-label">Format</span>
+        <select id="rasterToolbarFormat">
+          <option value="png" selected="">PNG</option>
+          <option value="jpeg">JPEG</option>
+          <option value="resolume">Resolume</option>
+        </select>
+      </div>
+      <div class="canvas-toolbar-group">
+        <span class="canvas-toolbar-label">&nbsp;</span>
+        <button type="button" class="config-btn" id="rasterToolbarExport" onclick="exportCanvas()">Export</button>
       </div>
     </div>
   </div>
@@ -2150,7 +2221,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.2';
+const APP_VERSION = '2.9.7';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

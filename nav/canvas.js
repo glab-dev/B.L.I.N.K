@@ -9,6 +9,14 @@ function activateCanvasView() {
   const canvasContainer = document.getElementById('canvasContainer');
   if(canvasTabsEl) canvasTabsEl.style.display = 'flex';
   if(canvasContainer) canvasContainer.style.display = 'block';
+  if(canvasContainer) canvasContainer.classList.remove('raster-mode');
+  // Sync toolbar values back to section-box when leaving raster mode
+  if(typeof syncCanvasOptionsFromToolbar === 'function') syncCanvasOptionsFromToolbar();
+  // Restore elements hidden in raster mode
+  const canvasToggles = document.getElementById('canvasScreenToggles');
+  if(canvasToggles) canvasToggles.style.display = '';
+  const canvasInfo = document.getElementById('canvasInfo');
+  if(canvasInfo) canvasInfo.style.display = '';
   // Explicitly call showCanvasView to draw the canvas
   if(typeof showCanvasView === 'function') {
     showCanvasView();
@@ -822,6 +830,7 @@ function setupCanvasViewInteractivity() {
           // Sync raster screen table if in raster mode
           if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
             renderRasterScreenTable();
+            if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
           }
         }, 300);
       }
@@ -1505,6 +1514,7 @@ function setupCanvasViewInteractivity() {
       // Sync raster screen table if in raster mode
       if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();
+        if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
       }
     }
   });
@@ -1534,6 +1544,7 @@ function setupCanvasViewInteractivity() {
       // Sync raster screen table if in raster mode
       if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();
+        if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
       }
       
       // Save state after drag completes
@@ -1830,6 +1841,7 @@ function setupCanvasViewInteractivity() {
       // Sync raster screen table if in raster mode
       if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();
+        if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
       }
     }
   });
@@ -1850,6 +1862,7 @@ function setupCanvasViewInteractivity() {
       // Sync raster screen table if in raster mode
       if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();
+        if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
       }
     }
   });

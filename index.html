@@ -211,13 +211,14 @@
       <div class="help-content">
         <h3 class="help-section-title">Getting Started</h3>
         <ol class="help-list">
-          <li>Select a Panel Type from the dropdown</li>
-          <li>Enter Dimensions — panels wide/high or target wall size</li>
-          <li>Configure Power — voltage, breaker, and phase settings</li>
-          <li>Configure Data — processor, frame rate, and bit depth</li>
-          <li>Review Results — check calculated specifications</li>
-          <li>View Layouts — explore Power, Data, and Structure layouts</li>
-          <li>Export PDF — generate a professional report</li>
+          <li>Choose a Mode — select Simple or Complex on the welcome page</li>
+          <li>Select a Panel Type — choose your LED panel from the dropdown</li>
+          <li>Enter Dimensions — input panels wide/high or target wall size</li>
+          <li>Configure Power — set voltage, breaker, and phase settings</li>
+          <li>Configure Data — select processor, frame rate, and bit depth</li>
+          <li>Review Results — check the calculated specifications</li>
+          <li>View Layouts — explore Power, Data, and Structure layouts (Complex mode)</li>
+          <li>Export — generate a PDF report, share gear list, or save configuration</li>
         </ol>
 
         <h3 class="help-section-title">Mode Features</h3>
@@ -248,7 +249,7 @@
             <li>Combined multi-screen view with aggregated specs</li>
             <li>Dedicated gear list tab</li>
             <li>Structure calculations — bumpers, pickup weights, ground support</li>
-            <li>Data direction controls — Top→Bottom, Bottom→Top, etc.</li>
+            <li>Data direction controls — Top&rarr;Bottom, Bottom&rarr;Top, etc.</li>
             <li>Data &amp; Processor redundancy options</li>
             <li>4 layout views — Standard, Power, Data, Structure</li>
             <li>Bumper bar management — auto + manual positioning</li>
@@ -257,18 +258,89 @@
           <p class="help-text" style="font-size: 11px; color: var(--muted-color);">Tabs: Complex | Combined, Gear, Canvas</p>
         </div>
 
-        <h3 class="help-section-title">Complex Tab</h3>
-        <p class="help-text">The Complex tab shows your full configuration with all inputs and results. Scroll down past the specs to find the layout views.</p>
+        <h3 class="help-section-title">Screen Tabs</h3>
         <ul class="help-list">
-          <li><strong>Panel Type</strong> — select built-in or custom panels from the dropdown</li>
-          <li><strong>Dimensions</strong> — toggle between Panels or Size input mode</li>
-          <li><strong>Power</strong> — set voltage, breaker, phase, power basis (Max/Avg)</li>
-          <li><strong>Data</strong> — choose processor, frame rate, bit depth, data direction</li>
-          <li><strong>Structure</strong> — choose Hanging or Ground Stack, configure bumpers</li>
+          <li><strong>Multiple Screens</strong> — create and manage multiple LED walls in one project</li>
+          <li><strong>Add Screen (+)</strong> — click the + button to add a new screen</li>
+          <li><strong>Switch Screens</strong> — click on any screen tab to switch between screens</li>
+          <li><strong>Edit Screen</strong> — click the pencil icon to rename and change screen colors</li>
+          <li><strong>Delete Screen</strong> — click the X to remove a screen (cannot delete last screen)</li>
+        </ul>
+
+        <h3 class="help-section-title">Panel Type</h3>
+        <p class="help-text">Built-in panels:</p>
+        <ul class="help-list">
+          <li>ROE Black Pearl BP2 V2</li>
+          <li>ROE Carbon CB5 MKII (+ Half Panel)</li>
+          <li>ROE MC7H</li>
+          <li>ROE Black Onyx BO3</li>
+          <li>ROE Black Marble BM4 (Matte)</li>
+          <li>ROE DM2.6</li>
+          <li>INFiLED AMT 8.3</li>
+        </ul>
+        <p class="help-text"><strong>CB5 MKII:</strong> Half Panel Row toggle adds a row of half-height panels at the bottom. Choose between Air Frame or Connecting Plates.</p>
+        <p class="help-text"><strong>DM2.6:</strong> Automatically uses connecting plates (2-way and 4-way).</p>
+        <p class="help-text"><strong>BM4 (Matte):</strong> Floor panel &mdash; no bumper support.</p>
+
+        <h3 class="help-section-title">Custom Panels</h3>
+        <ol class="help-list">
+          <li>Open the hamburger menu</li>
+          <li>Tap &ldquo;Add Panel&rdquo;</li>
+          <li>Fill in specs: brand, name, pixel pitch, width/height, depth, resolution, power max/avg, brightness, max hanging/stacking, weight, bumper weights</li>
+          <li>Manage via Menu &rarr; Manage Items &rarr; Panels tab</li>
+        </ol>
+
+        <h3 class="help-section-title">Custom Processors</h3>
+        <ol class="help-list">
+          <li>Open the hamburger menu</li>
+          <li>Tap &ldquo;Add Processor&rdquo;</li>
+          <li>Fill in specs: brand, name, port type (1G/10G), pixels per port, frame rate, bit depth, total pixels, output ports, direct connectivity, distribution box config</li>
+          <li>Manage via Menu &rarr; Manage Items &rarr; Processors tab</li>
+        </ol>
+
+        <h3 class="help-section-title">Dimensions</h3>
+        <ul class="help-list">
+          <li><strong>Panels mode</strong> — enter number of panels wide and high</li>
+          <li><strong>Size mode</strong> — enter desired wall width and height (auto-calculates panels)</li>
+          <li><strong>Units</strong> — toggle between Imperial (ft/lbs) and Metric (m/kg)</li>
+          <li><strong>Aspect Ratio Lock</strong> — None, 16:9, 4:3, or Custom ratio</li>
+        </ul>
+
+        <h3 class="help-section-title">Power</h3>
+        <ul class="help-list">
+          <li><strong>Voltage</strong> — 110V, 120V, 208V, 220V, 230V, 240V</li>
+          <li><strong>Breaker</strong> — 15A, 20A, 30A, 50A, 60A</li>
+          <li><strong>Phase</strong> — 1-phase or 3-phase</li>
+          <li><strong>Power Basis</strong> — Max (recommended) or Average</li>
+          <li><strong>Max/Circuit</strong> — override max panels per circuit (leave blank for auto)</li>
+        </ul>
+
+        <h3 class="help-section-title">Data</h3>
+        <p class="help-text">Processors: Brompton SX40, S8, M2, S4, T1, SQ200 &bull; NovaStar MX40 Pro &bull; Custom</p>
+        <ul class="help-list">
+          <li><strong>Frame Rate</strong> — 24, 25, 30, 50, 60, 120 Hz</li>
+          <li><strong>Bit Depth</strong> — 8, 10, 12-bit</li>
+          <li><strong>Max/Data</strong> — override max panels per data line (leave blank for auto)</li>
+          <li><strong>Data Direction</strong> (Complex) — Top&rarr;Bottom, Bottom&rarr;Top, All from Top, All from Bottom</li>
+          <li><strong>Arrows</strong> — show/hide data routing arrows</li>
+          <li><strong>Data Redundancy</strong> — doubles ports needed</li>
+          <li><strong>Processor Redundancy</strong> — doubles processor count</li>
+        </ul>
+        <p class="help-text"><strong>MX40 Pro Direct:</strong> 20 outputs directly (10 with redundancy). <strong>Indirect:</strong> CVT-10 Pro boxes, 10 outputs each (5 with redundancy), up to 4 CVT boxes per processor.</p>
+
+        <h3 class="help-section-title">Structure</h3>
+        <ul class="help-list">
+          <li><strong>Hanging</strong> — wall is flown/rigged from above</li>
+          <li><strong>Ground Stack</strong> — wall on ground with base plates, outriggers, bracing</li>
+          <li><strong>Bumpers</strong> — toggle on/off, 4-way option (CB5 only)</li>
+          <li><strong>Auto mode</strong> — bumpers auto-distribute across wall width</li>
+          <li><strong>Manual mode</strong> — drag bumpers to reposition</li>
+          <li><strong>Desktop:</strong> right-click bumpers for options</li>
+          <li><strong>Mobile:</strong> tap to select, tap again for options, hold and drag to move</li>
         </ul>
 
         <h3 class="help-section-title">Layout Views</h3>
-        <p class="help-text">In Complex mode, toggle between layouts using the buttons below the specs:</p>
+        <p class="help-text">In Complex mode, toggle between layouts below the specs:</p>
         <ul class="help-list">
           <li><strong>Standard</strong> — panel grid with checkerboard coloring, click to delete/restore panels</li>
           <li><strong>Power</strong> — color-coded circuit distribution with circuit numbers</li>
@@ -277,80 +349,138 @@
         </ul>
         <p class="help-text">Tap a layout section title to collapse/expand it.</p>
 
+        <h3 class="help-section-title">Canvas View</h3>
+        <p class="help-text">Position multiple screens visually on a virtual canvas.</p>
+        <ul class="help-list">
+          <li><strong>Canvas Size</strong> — 4K UHD, 4K DCI, HD, or Custom dimensions</li>
+          <li><strong>Drag screens</strong> — tap and drag to reposition on canvas</li>
+          <li><strong>X/Y Pos</strong> — set exact pixel positions</li>
+          <li><strong>Fine (px)</strong> — set arrow key increment for precise adjustments</li>
+          <li><strong>Snap</strong> — toggle snapping to other screens and canvas edges</li>
+          <li><strong>Zoom</strong> — +/- buttons, type a %, or Ctrl+Scroll (desktop)</li>
+          <li><strong>Pan</strong> — drag empty space when zoomed in</li>
+          <li><strong>Screen toggles</strong> — show/hide individual screens, pixel grid, X crosshair</li>
+          <li><strong>Export</strong> — PNG, JPEG, or Resolume XML with custom filename</li>
+        </ul>
+
+        <h3 class="help-section-title">Combined View</h3>
+        <p class="help-text">View multiple screens together in a unified interface.</p>
+        <ul class="help-list">
+          <li>Select which screens to include</li>
+          <li><strong>Zoom</strong> — 50%&ndash;200% to see detail or overview</li>
+          <li><strong>Manual Adjust</strong> — drag screens to custom positions</li>
+          <li>Click panels to select across screens; Ctrl+click for multi-select</li>
+          <li>Right-click selected panels for circuit/data assignment</li>
+          <li>Aggregated specs across all selected screens</li>
+          <li>Combined Power, Data, and Structure layout views</li>
+        </ul>
+
         <h3 class="help-section-title">Gear List</h3>
         <ul class="help-list">
           <li>Switch to the <strong>Gear</strong> tab in the bottom nav</li>
           <li>Toggle screens on/off to filter the gear list</li>
-          <li><strong>Wall to Floor</strong> — enter distance for cable length calculations</li>
-          <li><strong>Distro to Wall</strong> — enter distance from power distro to wall</li>
-          <li>Gear is organized by: Equipment, Rigging, and Cabling</li>
+          <li><strong>Equipment</strong> — panels, processors, distribution boxes</li>
+          <li><strong>Rigging</strong> — bumper bars, connecting plates, ground support</li>
+          <li><strong>Cabling</strong> — data, power, and signal cables with lengths</li>
         </ul>
 
-        <h3 class="help-section-title">Canvas View</h3>
-        <p class="help-text">Position multiple screens visually on a virtual canvas.</p>
+        <h3 class="help-section-title">Exports</h3>
         <ul class="help-list">
-          <li><strong>Canvas Size</strong> — choose 4K UHD, 4K DCI, HD, or Custom dimensions</li>
-          <li><strong>Drag screens</strong> — tap and drag to reposition screens on the canvas</li>
-          <li><strong>X/Y Pos</strong> — set exact pixel positions with the number inputs</li>
-          <li><strong>Fine (px)</strong> — set arrow key increment for precise adjustments</li>
-          <li><strong>Snap</strong> — toggle snapping to other screens and canvas edges</li>
-          <li><strong>Zoom</strong> — use +/- buttons, type a %, or Ctrl+Scroll (desktop)</li>
-          <li><strong>Pan</strong> — drag empty space to pan when zoomed in</li>
-          <li><strong>Screen toggles</strong> — show/hide individual screens</li>
-          <li><strong>Export</strong> — save as PNG, JPEG, or Resolume XML with a custom filename</li>
+          <li><strong>PDF</strong> — multi-page report with specs, layouts, gear list per screen</li>
+          <li><strong>PNG/JPEG</strong> — canvas view at full resolution</li>
+          <li><strong>Email Gear List</strong> — formatted breakdown by screen</li>
+          <li><strong>Resolume XML</strong> — Arena 7 compatible LED mapping</li>
+          <li><strong>Save/Load</strong> — .ledconfig files with full project state</li>
         </ul>
+        <p class="help-text">On mobile, exports use the native share sheet.</p>
 
         <h3 class="help-section-title">Mobile (Touch)</h3>
         <ul class="help-list">
-          <li><strong>Tap</strong> — Select panels, buttons, controls</li>
-          <li><strong>Long-press</strong> — Right-click equivalent (e.g., bumper options)</li>
-          <li><strong>Drag</strong> — Move screens in canvas view</li>
-          <li><strong>Pinch zoom</strong> — Zoom in/out on canvas</li>
-          <li><strong>Hamburger menu</strong> — Access all options</li>
+          <li><strong>Tap</strong> — select panels, buttons, controls</li>
+          <li><strong>Long-press</strong> — right-click equivalent (e.g., bumper options)</li>
+          <li><strong>Drag</strong> — move screens in canvas view</li>
+          <li><strong>Pinch zoom</strong> — zoom in/out on canvas</li>
+          <li><strong>Hamburger menu</strong> — access all options</li>
         </ul>
 
         <h3 class="help-section-title">Desktop (Mouse)</h3>
         <ul class="help-list">
-          <li><strong>Click / Drag</strong> — Select and move panels</li>
-          <li><strong>Right-click</strong> — Context menus for bumpers and panels</li>
-          <li><strong>Ctrl+Scroll</strong> — Zoom canvas</li>
+          <li><strong>Click / Drag</strong> — select and move panels</li>
+          <li><strong>Right-click</strong> — context menus for bumpers and panels</li>
+          <li><strong>Ctrl+Scroll</strong> — zoom canvas</li>
+          <li><strong>Hover</strong> — tooltips with additional info</li>
         </ul>
 
         <h3 class="help-section-title">Keyboard Shortcuts</h3>
         <table class="help-table">
-          <tr><td>Ctrl+Z</td><td>Undo</td></tr>
+          <tr><td>Ctrl+Z</td><td>Undo (panels, bumpers, canvas moves)</td></tr>
           <tr><td>Ctrl+Y</td><td>Redo</td></tr>
           <tr><td>Arrow Keys</td><td>Fine position adjustment in Canvas</td></tr>
           <tr><td>Ctrl+Scroll</td><td>Zoom in/out in Canvas</td></tr>
           <tr><td>Delete</td><td>Remove selected panels</td></tr>
         </table>
 
+        <h3 class="help-section-title">Supported Panels</h3>
+        <table class="help-table">
+          <tr><td style="color: var(--primary);">BP2 V2</td><td>2.84mm &bull; 500&times;500mm &bull; 176&times;176px</td></tr>
+          <tr><td style="color: var(--primary);">CB5 MKII</td><td>5.77mm &bull; 600&times;1200mm &bull; 104&times;208px</td></tr>
+          <tr><td style="color: var(--primary);">CB5 Half</td><td>5.77mm &bull; 600&times;600mm &bull; 104&times;104px</td></tr>
+          <tr><td style="color: var(--primary);">MC7H</td><td>7.5mm &bull; 600&times;600mm &bull; 80&times;80px</td></tr>
+          <tr><td style="color: var(--primary);">BO3</td><td>3.47mm &bull; 500&times;500mm &bull; 144&times;144px</td></tr>
+          <tr><td style="color: var(--primary);">BM4 Matte</td><td>4.76mm &bull; 610&times;610mm &bull; 128&times;128px</td></tr>
+          <tr><td style="color: var(--primary);">DM2.6</td><td>2.6mm &bull; 500&times;500mm &bull; 192&times;192px</td></tr>
+          <tr><td style="color: var(--primary);">AMT 8.3</td><td>8.33mm &bull; 1000&times;1000mm &bull; 120&times;120px</td></tr>
+        </table>
+
+        <h3 class="help-section-title">Supported Processors</h3>
+        <table class="help-table">
+          <tr><td style="color: var(--primary);">SX40</td><td>40 &times; 1G &bull; XD Box (10 ports)</td></tr>
+          <tr><td style="color: var(--primary);">S8</td><td>8 &times; 1G &bull; Direct</td></tr>
+          <tr><td style="color: var(--primary);">M2</td><td>2 &times; 1G &bull; Direct</td></tr>
+          <tr><td style="color: var(--primary);">S4</td><td>4 &times; 1G &bull; Direct</td></tr>
+          <tr><td style="color: var(--primary);">T1</td><td>1 &times; 1G &bull; Direct</td></tr>
+          <tr><td style="color: var(--primary);">SQ200</td><td>4 &times; 1G &bull; Direct</td></tr>
+          <tr><td style="color: var(--primary);">MX40 Pro</td><td>40 &times; 1G &bull; CVT Box (10 ports)</td></tr>
+        </table>
+
         <h3 class="help-section-title">Sign In &amp; Cloud Sync</h3>
-        <p class="help-text">Sign in to sync custom panels and processors across devices.</p>
+        <p class="help-text">Sign in to sync custom panels, processors, and recent projects across devices.</p>
         <ul class="help-list">
-          <li><strong>Sign In</strong> — Tap "Sign In" on the welcome page or in the menu</li>
-          <li><strong>Create Account</strong> — Switch to the "Create Account" tab to register</li>
-          <li><strong>Device Sync</strong> — Your custom items sync automatically when signed in</li>
-          <li><strong>Sign Out</strong> — Welcome page shows "Sign Out" when logged in</li>
+          <li><strong>Sign In</strong> — tap &ldquo;Sign In&rdquo; on the welcome page</li>
+          <li><strong>Create Account</strong> — switch to the &ldquo;Create Account&rdquo; tab to register</li>
+          <li><strong>Device Sync</strong> — custom items and recent projects sync automatically</li>
+          <li><strong>Password Reset</strong> — reset via email link</li>
+          <li><strong>Sign Out</strong> — welcome page shows &ldquo;Sign Out&rdquo; when logged in</li>
         </ul>
 
         <h3 class="help-section-title">Community Sharing</h3>
         <p class="help-text">Share your custom panels and processors with the community.</p>
         <ul class="help-list">
-          <li><strong>Share</strong> — Edit a custom item and tap the purple Share button</li>
-          <li><strong>Browse</strong> — Menu → Manage Custom Items → Community tab</li>
-          <li><strong>Download</strong> — Tap "Add" to add community items to your library</li>
-          <li><strong>★ Indicator</strong> — Community items show a star in the dropdown</li>
+          <li><strong>Share</strong> — edit a custom item and tap the purple Share button</li>
+          <li><strong>Browse</strong> — Menu &rarr; Manage Items &rarr; Community tab</li>
+          <li><strong>Download</strong> — tap &ldquo;Add&rdquo; to add community items to your library</li>
+          <li><strong>&#9733; Indicator</strong> — community items show a star in the dropdown</li>
         </ul>
 
-        <h3 class="help-section-title">Tips</h3>
+        <h3 class="help-section-title">Request New Items</h3>
+        <p class="help-text">Want a panel or processor added to the built-in library?</p>
         <ul class="help-list">
-          <li>Select your panel first — it affects all calculations</li>
+          <li>Open hamburger menu &rarr; Requests</li>
+          <li>Fill in brand, model name, and any additional info (spec sheet links, etc.)</li>
+          <li>Tap &ldquo;Send Request&rdquo; &mdash; opens your email app with a pre-filled message</li>
+        </ul>
+
+        <h3 class="help-section-title">Tips &amp; Best Practices</h3>
+        <ul class="help-list">
+          <li>Select your panel first &mdash; it affects all calculations</li>
           <li>Data Redundancy is enabled by default for professional installs</li>
           <li>Verify circuit counts match your available power</li>
+          <li>Review structure layout &mdash; confirm pickup weights are within rigging limits</li>
           <li>Save configurations frequently using the Save button</li>
           <li>Use multiple screens to organize complex setups</li>
+          <li>Add custom panels for any LED product not in the library</li>
           <li>Sign in for device sync and community sharing</li>
+          <li>Export a PDF for documentation and sharing with your crew</li>
         </ul>
       </div>
     </div>
@@ -369,7 +499,6 @@
         <h3 class="help-section-title">Usage</h3>
         <ul class="help-list">
           <li>Calculations are estimates &mdash; always verify with manufacturer specs</li>
-          <li>Export results for your crew, but do not redistribute the software itself</li>
         </ul>
         <h3 class="help-section-title">Your Data</h3>
         <ul class="help-list">
@@ -384,6 +513,19 @@
         <h3 class="help-section-title">Contact</h3>
         <p class="help-text">Questions or licensing inquiries: <a href="mailto:info@blink-led.com" style="color: var(--primary);">info@blink-led.com</a></p>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Projects Modal -->
+<div id="recentProjectsModal" class="modal-overlay">
+  <div class="modal-dialog" style="max-width: 480px; max-height: 85vh;">
+    <div class="modal-header">
+      <h2 class="modal-title">Recent Projects</h2>
+      <button class="modal-close" onclick="closeRecentProjectsModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="overflow-y: auto; max-height: calc(85vh - 80px); padding: 16px;">
+      <div id="recentProjectsList"></div>
     </div>
   </div>
 </div>
@@ -1020,9 +1162,12 @@
           <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save</button>
           <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load</button>
           <input type="file" id="loadConfigInput" accept=".led,.ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
-          <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="closeMobileMenu();">Export</button>
+          <button class="mobile-menu-btn" onclick="showRecentProjects()">Recent</button>
         </div>
-        <button class="mobile-menu-btn accent" onclick="sendGearListToJared(); closeMobileMenu();" style="margin-top: 8px;">Send to Jared</button>
+        <div class="mobile-menu-btn-row">
+          <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="closeMobileMenu();">Export</button>
+          <button class="mobile-menu-btn accent" onclick="sendGearListToJared(); closeMobileMenu();">Send to Jared</button>
+        </div>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Custom Items</div>
@@ -2221,7 +2366,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.8';
+const APP_VERSION = '2.9.9';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

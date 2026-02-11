@@ -1,0 +1,129 @@
+Type	Code	Description	Qty	Rate	Price	PackLevel	Warehouse	Client
+H		LED Equipment	0	0.00	0.00	0	Y	Y
+	BROMSX40	Brompton SX40 LED Controller	0	0.00	0.00	0	Y	Y
+	BROMPTS8	Brompton S8 LED Controller	0	0.00	0.00	0	Y	Y
+	BROMPTS4	Brompton S4 LED Controller	0	0.00	0.00	0	Y	Y
+	BROMPTM2	Brompton M2 LED Controller	0	0.00	0.00	0	Y	Y
+		NovaStar MX40 Pro LED Controller	0	0.00	0.00	0	Y	Y
+		Brompton XD Distribution Box	0	0.00	0.00	0	Y	Y
+		NovaStar CVT-10 Pro Distribution Box	0	0.00	0.00	0	Y	Y
+	CB5MK2FU	ROE CB5 MKII 1200 x 600 Panel	0	0.00	0.00	0	Y	Y
+	CB5MK2HA	ROE CB5 MKII 600 x 600 Panel	0	0.00	0.00	0	Y	Y
+	BP2V2	ROE Black Pearl V2 2.8mm 500mm x 500mm	0	0.00	0.00	0	Y	Y
+	DM2.6	ROE Black Diamond 2.6mm 500mm x 500mm	0	0.00	0.00	0	Y	Y
+	MC7HW	ROE MC7H 7mm LED Panel 600mm x 600mm	0	0.00	0.00	0	Y	Y
+	AMT8.3	INFiLED AMT 8.33mm 1000mm x 1000mm	0	0.00	0.00	0	Y	Y
+	BM4	ROE BM4 Floor Panel Matte Finish	0	0.00	0.00	0	Y	Y
+	BO3	ROE Black Onyx 3.4mm 500mm x 500mm	0	0.00	0.00	0	Y	Y
+C			0	0.00	0.00	0	Y	Y
+H		Rigging	0	0.00	0.00	0	Y	Y
+	BOBUMP1W	ROE BO/BP Hanging Bumper 1 Wide	0	0.00	0.00	0	Y	Y
+	BOBUMP2W	ROE BO/BP Hanging Bumper 2 Wide	0	0.00	0.00	0	Y	Y
+	CBHANG1W	ROE CB Hanging Bumper 1W	0	0.00	0.00	0	Y	Y
+	CBHANG2W	ROE CB Hanging Bumper 2W	0	0.00	0.00	0	Y	Y
+	CBHANG4W	ROE CB Pick Point 4W	0	0.00	0.00	0	Y	Y
+	DMBUMP1W	ROE DM Hanging Bumper 1 Wide	0	0.00	0.00	0	Y	Y
+	DMBUMP2W	ROE DM Hanging Bumper 2 Wide	0	0.00	0.00	0	Y	Y
+	MCBASE1	ROE MC7 Flying/Ground Bumper SINGLE	0	0.00	0.00	0	Y	Y
+	MCBASE2	ROE MC7 Flying/Ground Bumper DOUBLE	0	0.00	0.00	0	Y	Y
+	AMTHANG1	INFiLED AMT Hanging Bar 1M	0	0.00	0.00	0	Y	Y
+	AMTHANG2	INFiLED AMT Hanging Bar 2M	0	0.00	0.00	0	Y	Y
+	CP4FIXED	ROE CB/DM Fixed QUAD Connection Plate	0	0.00	0.00	0	Y	Y
+	CP2FIXED	ROE CB/DM Fixed DOUBLE Connection Plate	0	0.00	0.00	0	Y	Y
+	CP4CURVE	ROE CB/DM Curving QUAD Connection Plate	0	0.00	0.00	0	Y	Y
+	CP2CURVE	ROE CB/DM Curving DOUBLE Connection Plate	0	0.00	0.00	0	Y	Y
+		5/8" Shackle	0	0.00	0.00	0	Y	Y
+		Cheeseye	0	0.00	0.00	0	Y	Y
+C			0	0.00	0.00	0	Y	Y
+H		Ground Support	0	0.00	0.00	0	Y	Y
+	BOBASE1W	ROE BO/BP SINGLE Ground Support Bar 0.5M	0	0.00	0.00	0	Y	Y
+	BOBASE2W	ROE BO/BP DOUBLE Ground Support Bar 1M	0	0.00	0.00	0	Y	Y
+	BOREARTS	ROE Ground Support Rear Ladder Truss	0	0.00	0.00	0	Y	Y
+	BOREARBC	ROE Rear Bridge Clamp	0	0.00	0.00	0	Y	Y
+	CBBASE1W	ROE CB Base Bar 1W	0	0.00	0.00	0	Y	Y
+	CBBASE2W	ROE CB Base Bar 2W	0	0.00	0.00	0	Y	Y
+	DMBASE1W	ROE DM Ground Support Bar 1 Wide	0	0.00	0.00	0	Y	Y
+	DMBASE2W	ROE DM Ground Support Bar 2 Wide	0	0.00	0.00	0	Y	Y
+	DMREARAD	ROE DM Rear Adapter for Ground Support	0	0.00	0.00	0	Y	Y
+	AMTFOOT1	INFiLED AMT Footer Base Bar 1M	0	0.00	0.00	0	Y	Y
+		Sandbag	0	0.00	0.00	0	Y	Y
+		Swivel Cheeseborough	0	0.00	0.00	0	Y	Y
+		Pipe	0	0.00	0.00	0	Y	Y
+C			0	0.00	0.00	0	Y	Y
+H		Floor Hardware	0	0.00	0.00	0	Y	Y
+	BFBM41PC	ROE BM4 Base Frame 1 Panel (GREEN)	0	0.00	0.00	0	Y	Y
+	BFBM42PC	ROE BM4 Base Frame 2 Panel (RED)	0	0.00	0.00	0	Y	Y
+	BFBM44PC	ROE BM4 Base Frame 4 Panel (YELLOW)	0	0.00	0.00	0	Y	Y
+	BFBM46PC	ROE BM4 Base Frame 6 Panel (BLUE)	0	0.00	0.00	0	Y	Y
+C			0	0.00	0.00	0	Y	Y
+H		Data Cables	0	0.00	0.00	0	Y	Y
+		Data Jumper 1' (BP2V2/BO3)	0	0.00	0.00	0	Y	Y
+		Data Jumper 1.5' (DM2.6/AMT)	0	0.00	0.00	0	Y	Y
+		Data Jumper 4' (BM4)	0	0.00	0.00	0	Y	Y
+		Data Cross Jumper 2' (BP2V2/BO3)	0	0.00	0.00	0	Y	Y
+		Data Cross Jumper 3' (CB5/DM/MC7H)	0	0.00	0.00	0	Y	Y
+		Data Cross Jumper 4' (AMT/BM4)	0	0.00	0.00	0	Y	Y
+	CATFF	NE8FF EtherCON Coupler	0	0.00	0.00	0	Y	Y
+	CAT6P001	CAT6A EtherCON Cable 1'	0	0.00	0.00	0	Y	Y
+	CAT6P1.5	CAT6A EtherCON Cable 1.5'	0	0.00	0.00	0	Y	Y
+	CAT6P002	CAT6A EtherCON Cable 2'	0	0.00	0.00	0	Y	Y
+	CAT6P003	CAT6A EtherCON Cable 3'	0	0.00	0.00	0	Y	Y
+	CAT6P006	CAT6A EtherCON Cable 6'	0	0.00	0.00	0	Y	Y
+	CAT6P010	CAT6A EtherCON Cable 10'	0	0.00	0.00	0	Y	Y
+	CAT6P015	CAT6A EtherCON Cable 15'	0	0.00	0.00	0	Y	Y
+	CAT6P025	CAT6A EtherCON Cable 25'	0	0.00	0.00	0	Y	Y
+	CAT6P050	CAT6A EtherCON Cable 50'	0	0.00	0.00	0	Y	Y
+	CAT6P100	CAT6A EtherCON Cable 100'	0	0.00	0.00	0	Y	Y
+	CAT6P200	CAT6A EtherCON Cable 200'	0	0.00	0.00	0	Y	Y
+	CAT6P300	CAT6A EtherCON Cable 300'	0	0.00	0.00	0	Y	Y
+C			0	0.00	0.00	0	Y	Y
+H		Power Cables	0	0.00	0.00	0	Y	Y
+		Power Jumper 1' (BP2V2/BO3)	0	0.00	0.00	0	Y	Y
+		Power Jumper 1.5' (DM2.6/AMT)	0	0.00	0.00	0	Y	Y
+		Power Jumper 4' (BM4)	0	0.00	0.00	0	Y	Y
+		Soca Splay	0	0.00	0.00	0	Y	Y
+		Soca Cable 25'	0	0.00	0.00	0	Y	Y
+		Soca Cable 50'	0	0.00	0.00	0	Y	Y
+		Soca Cable 75'	0	0.00	0.00	0	Y	Y
+		Soca Cable 100'	0	0.00	0.00	0	Y	Y
+		Soca Cable 150'	0	0.00	0.00	0	Y	Y
+		Soca Cable 200'	0	0.00	0.00	0	Y	Y
+		Soca Cable 250'	0	0.00	0.00	0	Y	Y
+		Soca Cable 300'	0	0.00	0.00	0	Y	Y
+		True1 25'	0	0.00	0.00	0	Y	Y
+		True1 10'	0	0.00	0.00	0	Y	Y
+		True1 5'	0	0.00	0.00	0	Y	Y
+		True1 Twofer	0	0.00	0.00	0	Y	Y
+C			0	0.00	0.00	0	Y	Y
+H		Signal Cables	0	0.00	0.00	0	Y	Y
+	SDI-3	HD-SDI BNC Video Cable 3'	0	0.00	0.00	0	Y	Y
+	SDI-10	HD-SDI BNC Video Cable 10'	0	0.00	0.00	0	Y	Y
+	SDI-25	HD-SDI BNC Video Cable 25'	0	0.00	0.00	0	Y	Y
+	SDI-50	HD-SDI BNC Video Cable 50'	0	0.00	0.00	0	Y	Y
+	SDI-75	HD-SDI BNC Video Cable 75'	0	0.00	0.00	0	Y	Y
+	SDI-100	HD-SDI BNC Video Cable 100'	0	0.00	0.00	0	Y	Y
+	SDI-150	HD-SDI BNC Video Cable 150'	0	0.00	0.00	0	Y	Y
+	SDI-200	HD-SDI BNC Video Cable 200'	0	0.00	0.00	0	Y	Y
+	SDI-250	HD-SDI BNC Video Cable 250'	0	0.00	0.00	0	Y	Y
+	SDI-300	HD-SDI BNC Video Cable 300'	0	0.00	0.00	0	Y	Y
+	SDI4K025	SDI 12G 4K BNC Cable 25'	0	0.00	0.00	0	Y	Y
+	SDI4K050	SDI 12G 4K BNC Cable 50'	0	0.00	0.00	0	Y	Y
+		SDI 12G 4K BNC Cable 75'	0	0.00	0.00	0	Y	Y
+	SDI4K100	SDI 12G 4K BNC Cable 100'	0	0.00	0.00	0	Y	Y
+		SDI 12G 4K BNC Cable 150'	0	0.00	0.00	0	Y	Y
+	SDI4K200	SDI 12G 4K BNC Cable 200'	0	0.00	0.00	0	Y	Y
+		SDI 12G 4K BNC Cable 250'	0	0.00	0.00	0	Y	Y
+	SDI4K300	SDI 12G 4K BNC Cable 300'	0	0.00	0.00	0	Y	Y
+	FI4O500	4 Strand Single-Mode OpticalCON Fiber 500'	0	0.00	0.00	0	Y	Y
+	FI4O1000	4 Strand Single-Mode OpticalCON Fiber 1000'	0	0.00	0.00	0	Y	Y
+	FI4O1500	4 Strand Single-Mode OpticalCON Fiber 1500'	0	0.00	0.00	0	Y	Y
+	HDMI-25	HDMI Cable 25' Black	0	0.00	0.00	0	Y	Y
+	HDMI-10	HDMI Cable 10' Black	0	0.00	0.00	0	Y	Y
+	HDMI-6	HDMI Cable 6' Black	0	0.00	0.00	0	Y	Y
+C			0	0.00	0.00	0	Y	Y
+H		Utility	0	0.00	0.00	0	Y	Y
+	UG-10	15A 120V Edison Power Cable 10'	0	0.00	0.00	0	Y	Y
+	UG-25	15A 120V Edison Power Cable 25'	0	0.00	0.00	0	Y	Y
+	UG-50	15A 120V Edison Power Cable 50'	0	0.00	0.00	0	Y	Y
+	UGTWOFER	15A 120V UG Twofer	0	0.00	0.00	0	Y	Y
+	POWERBAR	Power Bar 120V	0	0.00	0.00	0	Y	Y

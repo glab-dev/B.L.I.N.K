@@ -49,7 +49,8 @@ function validateGearCodes(parsed) {
     if(typeof entry.code !== 'string' && typeof entry.desc !== 'string') return;
     safe[key] = {
       code: typeof entry.code === 'string' ? entry.code.substring(0, 50) : '',
-      desc: typeof entry.desc === 'string' ? entry.desc.substring(0, 200) : ''
+      desc: typeof entry.desc === 'string' ? entry.desc.substring(0, 200) : '',
+      type: typeof entry.type === 'string' ? entry.type.substring(0, 10) : ''
     };
   });
   return safe;
@@ -57,20 +58,20 @@ function validateGearCodes(parsed) {
 
 // ==================== CODE RESOLUTION ====================
 
-// Returns { code, desc } — project override > global > empty
+// Returns { code, desc, type } — project override > global > empty
 function resolveGearCode(key) {
   if(projectGearCodeOverrides[key]) return projectGearCodeOverrides[key];
   if(globalGearCodes[key]) return globalGearCodes[key];
-  return { code: '', desc: '' };
+  return { code: '', desc: '', type: '' };
 }
 
 // Set a gear code in the appropriate scope
-function setGearCode(key, code, desc) {
+function setGearCode(key, code, desc, type) {
   const target = gearCodeCurrentScope === 'project' ? projectGearCodeOverrides : globalGearCodes;
-  if(!code && !desc) {
+  if(!code && !desc && !type) {
     delete target[key];
   } else {
-    target[key] = { code: code || '', desc: desc || '' };
+    target[key] = { code: code || '', desc: desc || '', type: type || '' };
   }
   // Debounce save to localStorage (only for global scope)
   if(gearCodeCurrentScope === 'global') {
@@ -160,15 +161,25 @@ function buildGearItemRegistry() {
   items.push({ key: 'floor.frame1x1', category: 'rigging', label: 'Floor Frame 1x1 (1 Panel)' });
 
   // --- Cables: Data ---
-  items.push({ key: 'data.jumper', category: 'cables', label: 'Data Jumper' });
-  items.push({ key: 'data.crossJumper', category: 'cables', label: 'Data Cross Jumper' });
+  // Collect unique jumper lengths from all panels (built-in + custom)
+  var dataJumperLens = new Set();
+  var crossJumperLens = new Set();
+  var powerJumperLens = new Set();
+  Object.keys(allPanels).forEach(key => {
+    var p = allPanels[key];
+    if(p.data_jumper_ft) dataJumperLens.add(p.data_jumper_ft);
+    if(p.data_cross_jumper_ft) crossJumperLens.add(p.data_cross_jumper_ft);
+    if(p.power_jumper_ft) powerJumperLens.add(p.power_jumper_ft);
+  });
+  dataJumperLens.forEach(len => { items.push({ key: 'data.jumper.' + parseFloat(len), category: 'cables', label: "Data Jumper " + len }); });
+  crossJumperLens.forEach(len => { items.push({ key: 'data.crossJumper.' + parseFloat(len), category: 'cables', label: "Data Cross Jumper " + len }); });
   items.push({ key: 'data.cat5Coupler', category: 'cables', label: 'NE8FF EtherCON Coupler' });
   [1, 1.5, 2, 3, 6, 10, 15, 25, 50, 100, 200, 300].forEach(len => {
     items.push({ key: 'data.cat6a.' + len, category: 'cables', label: "Cat6A EtherCON Cable " + len + "'" });
   });
 
   // --- Cables: Power ---
-  items.push({ key: 'power.jumper', category: 'cables', label: 'Power Jumper' });
+  powerJumperLens.forEach(len => { items.push({ key: 'power.jumper.' + parseFloat(len), category: 'cables', label: "Power Jumper " + len }); });
   items.push({ key: 'power.socaSplay', category: 'cables', label: 'Soca Splay' });
   [25, 50, 75, 100, 150, 200, 250, 300].forEach(len => {
     items.push({ key: 'power.soca.' + len, category: 'cables', label: "Soca Cable " + len + "'" });
@@ -279,8 +290,9 @@ function renderGearCodeTab(filterText) {
   }
 
   var html = '<div class="gear-code-header">' +
-    '<span style="flex:0 0 40%;">Item</span>' +
-    '<span style="flex:0 0 20%;">Code</span>' +
+    '<span style="flex:0 0 34%;">Item</span>' +
+    '<span style="flex:0 0 8%;">Type</span>' +
+    '<span style="flex:0 0 18%;">Code</span>' +
     '<span style="flex:0 0 36%;">Description</span>' +
     '</div>';
 
@@ -288,13 +300,16 @@ function renderGearCodeTab(filterText) {
 
   items.forEach(item => {
     var resolved = resolveGearCode(item.key);
-    var scopeValue = target[item.key] || { code: '', desc: '' };
+    var scopeValue = target[item.key] || { code: '', desc: '', type: '' };
     // In project scope, show the effective value (project override if set, else global as placeholder)
+    var typeValue = scopeValue.type || '';
     var codeValue = scopeValue.code || '';
     var descValue = scopeValue.desc || '';
+    var typePlaceholder = '';
     var codePlaceholder = '';
     var descPlaceholder = '';
     if(gearCodeCurrentScope === 'project' && !target[item.key] && globalGearCodes[item.key]) {
+      typePlaceholder = globalGearCodes[item.key].type || '';
       codePlaceholder = globalGearCodes[item.key].code || '';
       descPlaceholder = globalGearCodes[item.key].desc || '';
     }
@@ -304,6 +319,11 @@ function renderGearCodeTab(filterText) {
       '<span class="gear-code-label" title="' + escapeHtml(item.key) + '">' + escapeHtml(item.label) +
       (hasOverride ? ' <span class="gear-code-override-badge" title="Has project override"></span>' : '') +
       '</span>' +
+      '<input type="text" class="gear-code-type-input" value="' + escapeHtml(typeValue) + '"' +
+      ' placeholder="' + escapeHtml(typePlaceholder) + '"' +
+      ' maxlength="10"' +
+      ' data-key="' + escapeHtml(item.key) + '" data-field="type"' +
+      ' oninput="handleGearCodeInput(this)">' +
       '<input type="text" class="gear-code-input" value="' + escapeHtml(codeValue) + '"' +
       ' placeholder="' + escapeHtml(codePlaceholder) + '"' +
       ' data-key="' + escapeHtml(item.key) + '" data-field="code"' +
@@ -320,11 +340,11 @@ function renderGearCodeTab(filterText) {
 
 function handleGearCodeInput(el) {
   var key = el.dataset.key;
-  var field = el.dataset.field;
   var row = el.closest('.gear-code-row');
+  var typeInput = row.querySelector('[data-field="type"]');
   var codeInput = row.querySelector('[data-field="code"]');
   var descInput = row.querySelector('[data-field="desc"]');
-  setGearCode(key, codeInput.value.trim(), descInput.value.trim());
+  setGearCode(key, codeInput.value.trim(), descInput.value.trim(), typeInput.value.trim());
 }
 
 function filterGearCodeItems(text) {
@@ -351,6 +371,7 @@ function importGearCodesFromFile(event) {
       var cols = lines[i].split('\t');
       if(cols.length < 3) continue;
       // Format: Type | Code | Description | Qty | ...
+      var type = (cols[0] || '').trim();
       var code = (cols[1] || '').trim();
       var desc = (cols[2] || '').trim();
       if(!code || !desc) continue;
@@ -360,7 +381,7 @@ function importGearCodesFromFile(event) {
       // Try to match against registry items
       var match = matchImportLine(code, desc, registry);
       if(match) {
-        globalGearCodes[match.key] = { code: code, desc: desc };
+        globalGearCodes[match.key] = { code: code, desc: desc, type: type };
         matched++;
       }
     }
@@ -446,11 +467,11 @@ function matchImportLine(code, desc, registry) {
 
 function exportGearCodes() {
   var registry = buildGearItemRegistry();
-  var lines = ['Item\tCode\tDescription'];
+  var lines = ['Item\tType\tCode\tDescription'];
   registry.forEach(function(item) {
     var resolved = resolveGearCode(item.key);
-    if(resolved.code || resolved.desc) {
-      lines.push(item.label + '\t' + (resolved.code || '') + '\t' + (resolved.desc || ''));
+    if(resolved.code || resolved.desc || resolved.type) {
+      lines.push(item.label + '\t' + (resolved.type || '') + '\t' + (resolved.code || '') + '\t' + (resolved.desc || ''));
     }
   });
   var blob = new Blob([lines.join('\n')], { type: 'text/plain' });

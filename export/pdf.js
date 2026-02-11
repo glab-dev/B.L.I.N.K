@@ -269,25 +269,36 @@ function openMailtoWithDownload(configName, text, inventoryContent, fileName) {
 function buildGearInventoryContent(gearData) {
   if(!gearData || !gearData.screens || gearData.screens.length === 0) return;
 
-  const items = new Map();
-  function addItem(code, desc, qty) {
-    if(!qty || qty <= 0) return;
-    const key = (code || '') + '|' + desc;
-    if(items.has(key)) {
-      items.get(key).qty += qty;
-    } else {
-      items.set(key, { code: code || '', desc: desc, qty: qty });
-    }
-  }
-
   // Helper: resolve code from user gear code mappings, with fallback description
   function gc(key, fallbackDesc) {
     var resolved = resolveGearCode(key);
-    return { code: resolved.code || '', desc: resolved.desc || fallbackDesc };
+    return { type: resolved.type || '', code: resolved.code || '', desc: resolved.desc || fallbackDesc };
+  }
+
+  // Dedup map for a category group
+  function newGroup() { return new Map(); }
+  function addToGroup(group, info, qty) {
+    if(!qty || qty <= 0) return;
+    var k = (info.code || '') + '|' + info.desc;
+    if(group.has(k)) { group.get(k).qty += qty; }
+    else { group.set(k, { type: info.type || '', code: info.code || '', desc: info.desc, qty: qty }); }
+  }
+
+  // Output builders
+  var content = 'Type\tCode\tDescription\tQty\tRate\tPrice\tPackLevel\tWarehouse\tClient\n';
+  function writeHeader(name) { content += 'H\t\t' + name + '\t0\t0.00\t0.00\t0\tY\tY\n'; }
+  function writeSeparator() { content += 'C\t\t\t0\t0.00\t0.00\t0\tY\tY\n'; }
+  function writeGroup(group) {
+    group.forEach(function(item) {
+      content += (item.type || '') + '\t' + item.code + '\t' + item.desc + '\t' + item.qty + '\t0.00\t0.00\t0\tY\tY\n';
+    });
   }
 
   // Per-screen data
-  gearData.screens.forEach(function(sd) {
+  gearData.screens.forEach(function(sd, screenIndex) {
+    if(screenIndex > 0) writeSeparator();
+    writeHeader(sd.screenName);
+
     var eq = sd.equipment;
     var rig = sd.rigging;
     var gs = sd.groundSupport;
@@ -296,133 +307,135 @@ function buildGearInventoryContent(gearData) {
     var pc = sd.powerCables;
     var p2d = sd.processorToDistBox;
     var pt = eq.panelType;
+    var categories = [];
 
-    // Processors (only for first screen in processor group)
+    // Equipment
+    var equipGroup = newGroup();
     if(eq.isFirstScreenInGroup && eq.processorCount > 0) {
-      var proc = gc('proc.' + eq.processorType, eq.processorName);
-      addItem(proc.code, proc.desc, eq.processorCount);
-      if(eq.distBoxCount > 0) {
-        var dist = gc('dist.' + eq.processorType, eq.distBoxName + ' Distribution Box');
-        addItem(dist.code, dist.desc, eq.distBoxCount);
-      }
+      addToGroup(equipGroup, gc('proc.' + eq.processorType, eq.processorName), eq.processorCount);
+      if(eq.distBoxCount > 0) addToGroup(equipGroup, gc('dist.' + eq.processorType, eq.distBoxName + ' Distribution Box'), eq.distBoxCount);
     }
-
-    // Panels
-    if(eq.activeFullPanels > 0) {
-      var panel = gc('panel.' + pt, eq.panelBrand + ' ' + eq.panelName);
-      addItem(panel.code, panel.desc, eq.activeFullPanels);
-    }
-    if(eq.activeHalfPanels > 0) {
-      var half = gc('panel.CB5_MKII_HALF', 'ROE CB5 MKII 600 x 600 Panel');
-      addItem(half.code, half.desc, eq.activeHalfPanels);
-    }
+    if(eq.activeFullPanels > 0) addToGroup(equipGroup, gc('panel.' + pt, eq.panelBrand + ' ' + eq.panelName), eq.activeFullPanels);
+    if(eq.activeHalfPanels > 0) addToGroup(equipGroup, gc('panel.CB5_MKII_HALF', 'ROE CB5 MKII 600 x 600 Panel'), eq.activeHalfPanels);
+    if(equipGroup.size > 0) categories.push(equipGroup);
 
     // Rigging
+    var rigGroup = newGroup();
     if(rig.hasRigging) {
-      if(rig.bumper1w > 0) { var b = gc('bumper.' + pt + '.1w', eq.panelName + ' Bumper 1W'); addItem(b.code, b.desc, rig.bumper1w); }
-      if(rig.bumper2w > 0) { var b = gc('bumper.' + pt + '.2w', eq.panelName + ' Bumper 2W'); addItem(b.code, b.desc, rig.bumper2w); }
-      if(rig.bumper4w > 0) { var b = gc('bumper.' + pt + '.4w', eq.panelName + ' Bumper 4W'); addItem(b.code, b.desc, rig.bumper4w); }
-      if(rig.plates4way > 0) { var r = gc('rig.plate4way', '4-Way Fixed Connection Plate'); addItem(r.code, r.desc, rig.plates4way); }
-      if(rig.plates2way > 0) { var r = gc('rig.plate2way', '2-Way Fixed Connection Plate'); addItem(r.code, r.desc, rig.plates2way); }
-      if(rig.shackles > 0) { var r = gc('rig.shackle', 'Shackle'); addItem(r.code, r.desc, rig.shackles); }
-      if(rig.cheeseye > 0) { var r = gc('rig.cheeseye', 'Cheeseye'); addItem(r.code, r.desc, rig.cheeseye); }
+      if(rig.bumper1w > 0) addToGroup(rigGroup, gc('bumper.' + pt + '.1w', eq.panelName + ' Bumper 1W'), rig.bumper1w);
+      if(rig.bumper2w > 0) addToGroup(rigGroup, gc('bumper.' + pt + '.2w', eq.panelName + ' Bumper 2W'), rig.bumper2w);
+      if(rig.bumper4w > 0) addToGroup(rigGroup, gc('bumper.' + pt + '.4w', eq.panelName + ' Bumper 4W'), rig.bumper4w);
+      if(rig.plates4way > 0) addToGroup(rigGroup, gc('rig.plate4way', '4-Way Fixed Connection Plate'), rig.plates4way);
+      if(rig.plates2way > 0) addToGroup(rigGroup, gc('rig.plate2way', '2-Way Fixed Connection Plate'), rig.plates2way);
+      if(rig.shackles > 0) addToGroup(rigGroup, gc('rig.shackle', 'Shackle'), rig.shackles);
+      if(rig.cheeseye > 0) addToGroup(rigGroup, gc('rig.cheeseye', 'Cheeseye'), rig.cheeseye);
     }
+    if(rigGroup.size > 0) categories.push(rigGroup);
 
     // Ground Support
+    var gsGroup = newGroup();
     if(gs.hasGS) {
-      if(gs.rearTruss > 0) { var r = gc('gs.rearTruss', 'Rear Ladder Truss'); addItem(r.code, r.desc, gs.rearTruss); }
-      if(gs.baseTruss > 0) { var r = gc('gs.baseTruss.' + pt, 'Ground Support Base Bar'); addItem(r.code, r.desc, gs.baseTruss); }
-      if(gs.bridgeClamps > 0) { var r = gc('gs.bridgeClamp', 'Rear Bridge Clamp'); addItem(r.code, r.desc, gs.bridgeClamps); }
-      if(gs.rearBridgeAdapters > 0) { var r = gc('gs.rearBridgeAdapter', 'Rear Bridge Adapter'); addItem(r.code, r.desc, gs.rearBridgeAdapters); }
-      if(gs.sandbags > 0) { var r = gc('gs.sandbag', 'Sandbag'); addItem(r.code, r.desc, gs.sandbags); }
-      if(gs.swivelCheeseboroughs > 0) { var r = gc('gs.swivelCheeseborough', 'Swivel Cheeseborough'); addItem(r.code, r.desc, gs.swivelCheeseboroughs); }
-      if(gs.pipes > 0) { var r = gc('gs.pipe', 'Pipe' + gs.pipeLengthStr); addItem(r.code, r.desc, gs.pipes); }
+      if(gs.rearTruss > 0) addToGroup(gsGroup, gc('gs.rearTruss', 'Rear Ladder Truss'), gs.rearTruss);
+      if(gs.baseTruss > 0) addToGroup(gsGroup, gc('gs.baseTruss.' + pt, 'Ground Support Base Bar'), gs.baseTruss);
+      if(gs.bridgeClamps > 0) addToGroup(gsGroup, gc('gs.bridgeClamp', 'Rear Bridge Clamp'), gs.bridgeClamps);
+      if(gs.rearBridgeAdapters > 0) addToGroup(gsGroup, gc('gs.rearBridgeAdapter', 'Rear Bridge Adapter'), gs.rearBridgeAdapters);
+      if(gs.sandbags > 0) addToGroup(gsGroup, gc('gs.sandbag', 'Sandbag'), gs.sandbags);
+      if(gs.swivelCheeseboroughs > 0) addToGroup(gsGroup, gc('gs.swivelCheeseborough', 'Swivel Cheeseborough'), gs.swivelCheeseboroughs);
+      if(gs.pipes > 0) addToGroup(gsGroup, gc('gs.pipe', 'Pipe' + gs.pipeLengthStr), gs.pipes);
     }
+    if(gsGroup.size > 0) categories.push(gsGroup);
 
     // Floor Hardware
+    var floorGroup = newGroup();
     if(fh.hasFloorFrames) {
-      if(fh.frame3x2 > 0) { var r = gc('floor.frame3x2', 'Floor Frame 3x2 (6 Panel)'); addItem(r.code, r.desc, fh.frame3x2); }
-      if(fh.frame2x2 > 0) { var r = gc('floor.frame2x2', 'Floor Frame 2x2 (4 Panel)'); addItem(r.code, r.desc, fh.frame2x2); }
-      if(fh.frame2x1 > 0) { var r = gc('floor.frame2x1', 'Floor Frame 2x1 (2 Panel)'); addItem(r.code, r.desc, fh.frame2x1); }
-      if(fh.frame1x1 > 0) { var r = gc('floor.frame1x1', 'Floor Frame 1x1 (1 Panel)'); addItem(r.code, r.desc, fh.frame1x1); }
+      if(fh.frame3x2 > 0) addToGroup(floorGroup, gc('floor.frame3x2', 'Floor Frame 3x2 (6 Panel)'), fh.frame3x2);
+      if(fh.frame2x2 > 0) addToGroup(floorGroup, gc('floor.frame2x2', 'Floor Frame 2x2 (4 Panel)'), fh.frame2x2);
+      if(fh.frame2x1 > 0) addToGroup(floorGroup, gc('floor.frame2x1', 'Floor Frame 2x1 (2 Panel)'), fh.frame2x1);
+      if(fh.frame1x1 > 0) addToGroup(floorGroup, gc('floor.frame1x1', 'Floor Frame 1x1 (1 Panel)'), fh.frame1x1);
     }
+    if(floorGroup.size > 0) categories.push(floorGroup);
 
     // Data Cables
-    if(dc.jumperCount > 0) { var r = gc('data.jumper', "Data Jumper " + dc.dataJumperLen + "'"); addItem(r.code, r.desc, dc.jumperCount); }
-    if(dc.crossJumperCount > 0) { var r = gc('data.crossJumper', "Data Cross Jumper " + dc.crossJumperLen + "'"); addItem(r.code, r.desc, dc.crossJumperCount); }
-    if(dc.cat5CouplerCount > 0) { var r = gc('data.cat5Coupler', 'NE8FF EtherCON Coupler'); addItem(r.code, r.desc, dc.cat5CouplerCount); }
+    var dataGroup = newGroup();
+    if(dc.jumperCount > 0) addToGroup(dataGroup, gc('data.jumper.' + parseFloat(dc.dataJumperLen), "Data Jumper " + dc.dataJumperLen), dc.jumperCount);
+    if(dc.crossJumperCount > 0) addToGroup(dataGroup, gc('data.crossJumper.' + parseFloat(dc.crossJumperLen), "Data Cross Jumper " + dc.crossJumperLen), dc.crossJumperCount);
+    if(dc.cat5CouplerCount > 0) addToGroup(dataGroup, gc('data.cat5Coupler', 'NE8FF EtherCON Coupler'), dc.cat5CouplerCount);
     Object.keys(dc.cat6ByLength).forEach(function(len) {
       var count = dc.cat6ByLength[len];
-      if(count > 0) { var r = gc('data.cat6a.' + parseFloat(len), "CAT6A EtherCON Cable " + len + "'"); addItem(r.code, r.desc, count); }
+      if(count > 0) addToGroup(dataGroup, gc('data.cat6a.' + parseFloat(len), "CAT6A EtherCON Cable " + len + "'"), count);
     });
-
-    // Power Cables
-    if(pc.jumperCount > 0) { var r = gc('power.jumper', "Power Jumper " + pc.powerJumperLen + "'"); addItem(r.code, r.desc, pc.jumperCount); }
-    if(pc.socaSplays > 0) { var r = gc('power.socaSplay', 'Soca Splay'); addItem(r.code, r.desc, pc.socaSplays); }
-    Object.keys(pc.socaByLength).forEach(function(len) {
-      var count = pc.socaByLength[len];
-      if(count > 0) { var r = gc('power.soca.' + parseInt(len), "Soca Cable " + len + "'"); addItem(r.code, r.desc, count); }
-    });
-    if(pc.true1_25 > 0) { var r = gc('power.true1.25', "True1 25'"); addItem(r.code, r.desc, pc.true1_25); }
-    if(pc.true1_10 > 0) { var r = gc('power.true1.10', "True1 10'"); addItem(r.code, r.desc, pc.true1_10); }
-    if(pc.true1_5 > 0) { var r = gc('power.true1.5', "True1 5'"); addItem(r.code, r.desc, pc.true1_5); }
-    if(pc.true1Twofer > 0) { var r = gc('power.true1Twofer', 'True1 Twofer'); addItem(r.code, r.desc, pc.true1Twofer); }
-
-    // Processor → Dist Box
     if(p2d.count > 0) {
       if(p2d.cableType === 'Fiber') {
-        var r = gc('p2d.fiber.' + p2d.cableLength, "Fiber OpticalCON " + p2d.cableLength + "'");
-        addItem(r.code, r.desc, p2d.count);
+        addToGroup(dataGroup, gc('p2d.fiber.' + p2d.cableLength, "Fiber OpticalCON " + p2d.cableLength + "'"), p2d.count);
       } else {
-        var r = gc('data.cat6a.' + p2d.cableLength, "CAT6A EtherCON Cable " + p2d.cableLength + "'");
-        addItem(r.code, r.desc, p2d.count);
+        addToGroup(dataGroup, gc('data.cat6a.' + p2d.cableLength, "CAT6A EtherCON Cable " + p2d.cableLength + "'"), p2d.count);
       }
+    }
+    if(dataGroup.size > 0) categories.push(dataGroup);
+
+    // Power Cables
+    var powerGroup = newGroup();
+    if(pc.jumperCount > 0) addToGroup(powerGroup, gc('power.jumper.' + parseFloat(pc.powerJumperLen), "Power Jumper " + pc.powerJumperLen), pc.jumperCount);
+    if(pc.socaSplays > 0) addToGroup(powerGroup, gc('power.socaSplay', 'Soca Splay'), pc.socaSplays);
+    Object.keys(pc.socaByLength).forEach(function(len) {
+      var count = pc.socaByLength[len];
+      if(count > 0) addToGroup(powerGroup, gc('power.soca.' + parseInt(len), "Soca Cable " + len + "'"), count);
+    });
+    if(pc.true1_25 > 0) addToGroup(powerGroup, gc('power.true1.25', "True1 25'"), pc.true1_25);
+    if(pc.true1_10 > 0) addToGroup(powerGroup, gc('power.true1.10', "True1 10'"), pc.true1_10);
+    if(pc.true1_5 > 0) addToGroup(powerGroup, gc('power.true1.5', "True1 5'"), pc.true1_5);
+    if(pc.true1Twofer > 0) addToGroup(powerGroup, gc('power.true1Twofer', 'True1 Twofer'), pc.true1Twofer);
+    if(powerGroup.size > 0) categories.push(powerGroup);
+
+    // Write screen categories with separators between them
+    for(var i = 0; i < categories.length; i++) {
+      if(i > 0) writeSeparator();
+      writeGroup(categories[i]);
     }
   });
 
   // Signal Cables (system-wide)
   var sig = gearData.signalCables;
   if(sig) {
+    var sigGroup = newGroup();
     var is12G = !sig.isHDCanvas;
     Object.keys(sig.sdiByLength).forEach(function(len) {
       var count = sig.sdiByLength[len];
       if(count > 0) {
         var lengthNum = parseInt(len);
-        if(is12G) {
-          var r = gc('signal.sdi12g.' + lengthNum, "SDI 12G 4K BNC Cable " + len + "'");
-          addItem(r.code, r.desc, count);
-        } else {
-          var r = gc('signal.sdi3g.' + lengthNum, "HD-SDI BNC Video Cable " + len + "'");
-          addItem(r.code, r.desc, count);
-        }
+        if(is12G) addToGroup(sigGroup, gc('signal.sdi12g.' + lengthNum, "SDI 12G 4K BNC Cable " + len + "'"), count);
+        else addToGroup(sigGroup, gc('signal.sdi3g.' + lengthNum, "HD-SDI BNC Video Cable " + len + "'"), count);
       }
     });
     if(sig.serverFiberLine && sig.serverFiberLine.count > 0) {
       var fiberLabel = sig.serverFiberLine.label;
-      var fiberLen = parseInt(fiberLabel);
-      var r = gc('signal.fiber.' + fiberLen, "Fiber OpticalCON " + fiberLabel);
-      addItem(r.code, r.desc, sig.serverFiberLine.count);
+      addToGroup(sigGroup, gc('signal.fiber.' + parseInt(fiberLabel), "Fiber OpticalCON " + fiberLabel), sig.serverFiberLine.count);
     }
-    if(sig.hdmi[25] > 0) { var r = gc('signal.hdmi.25', "HDMI Cable 25'"); addItem(r.code, r.desc, sig.hdmi[25]); }
-    if(sig.hdmi[10] > 0) { var r = gc('signal.hdmi.10', "HDMI Cable 10'"); addItem(r.code, r.desc, sig.hdmi[10]); }
-    if(sig.hdmi[6] > 0) { var r = gc('signal.hdmi.6', "HDMI Cable 6'"); addItem(r.code, r.desc, sig.hdmi[6]); }
+    if(sig.hdmi[25] > 0) addToGroup(sigGroup, gc('signal.hdmi.25', "HDMI Cable 25'"), sig.hdmi[25]);
+    if(sig.hdmi[10] > 0) addToGroup(sigGroup, gc('signal.hdmi.10', "HDMI Cable 10'"), sig.hdmi[10]);
+    if(sig.hdmi[6] > 0) addToGroup(sigGroup, gc('signal.hdmi.6', "HDMI Cable 6'"), sig.hdmi[6]);
+    if(sigGroup.size > 0) {
+      writeSeparator();
+      writeHeader('Signal Cables');
+      writeGroup(sigGroup);
+    }
   }
 
   // Utility (system-wide)
   var util = gearData.utility;
   if(util) {
-    if(util.ug10 > 0) { var r = gc('util.ug.10', "Edison Power Cable 10'"); addItem(r.code, r.desc, util.ug10); }
-    if(util.ug25 > 0) { var r = gc('util.ug.25', "Edison Power Cable 25'"); addItem(r.code, r.desc, util.ug25); }
-    if(util.ug50 > 0) { var r = gc('util.ug.50', "Edison Power Cable 50'"); addItem(r.code, r.desc, util.ug50); }
-    if(util.ugTwofers > 0) { var r = gc('util.ugTwofer', 'UG Twofer'); addItem(r.code, r.desc, util.ugTwofers); }
-    if(util.powerBars > 0) { var r = gc('util.powerBar', 'Power Bar'); addItem(r.code, r.desc, util.powerBars); }
+    var utilGroup = newGroup();
+    if(util.ug10 > 0) addToGroup(utilGroup, gc('util.ug.10', "Edison Power Cable 10'"), util.ug10);
+    if(util.ug25 > 0) addToGroup(utilGroup, gc('util.ug.25', "Edison Power Cable 25'"), util.ug25);
+    if(util.ug50 > 0) addToGroup(utilGroup, gc('util.ug.50', "Edison Power Cable 50'"), util.ug50);
+    if(util.ugTwofers > 0) addToGroup(utilGroup, gc('util.ugTwofer', 'UG Twofer'), util.ugTwofers);
+    if(util.powerBars > 0) addToGroup(utilGroup, gc('util.powerBar', 'Power Bar'), util.powerBars);
+    if(utilGroup.size > 0) {
+      writeSeparator();
+      writeHeader('Utility');
+      writeGroup(utilGroup);
+    }
   }
-
-  // Build tab-delimited content
-  var content = 'Type\tCode\tDescription\tQty\tRate\tPrice\tPackLevel\tWarehouse\tClient\n';
-  items.forEach(function(item) {
-    content += '\t' + item.code + '\t' + item.desc + '\t' + item.qty + '\t0.00\t0.00\t0\tY\tY\n';
-  });
 
   return content;
 }

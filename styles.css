@@ -918,9 +918,22 @@ canvas {
   margin-bottom: 0;
   box-sizing: border-box;
   width: auto;
-  background: var(--primary);
+  background: #2a2a2a;
+  color: #9ca3af;
   border: 2px solid #000;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  transition: background 0.1s, color 0.1s;
+}
+
+.canvas-toolbar .config-btn:hover {
+  background: #383838;
+  color: var(--primary);
+}
+
+.canvas-toolbar .config-btn:active,
+.canvas-toolbar .config-btn.active {
+  background: var(--primary);
+  color: #fff;
 }
 
 /* Layout container overflow handling for mobile */
@@ -2041,7 +2054,7 @@ canvas:focus {
 }
 
 .gear-code-label {
-  flex: 0 0 40%;
+  flex: 0 0 34%;
   color: #e0e0e0;
   font-size: 13px;
   font-family: 'Roboto Condensed', sans-serif;
@@ -2051,6 +2064,7 @@ canvas:focus {
   white-space: nowrap;
 }
 
+#gearCodeContent .gear-code-type-input,
 #gearCodeContent .gear-code-input,
 #gearCodeContent .gear-code-desc-input {
   padding: 6px 8px;
@@ -2070,9 +2084,17 @@ canvas:focus {
   box-sizing: border-box;
 }
 
+#gearCodeContent .gear-code-type-input {
+  width: 0;
+  flex: 0 0 8%;
+  font-family: monospace;
+  text-transform: uppercase;
+  text-align: center;
+}
+
 #gearCodeContent .gear-code-input {
   width: 0;
-  flex: 0 0 20%;
+  flex: 0 0 18%;
   font-family: monospace;
 }
 
@@ -2083,6 +2105,7 @@ canvas:focus {
   font-family: 'Roboto Condensed', sans-serif;
 }
 
+#gearCodeContent .gear-code-type-input:focus,
 #gearCodeContent .gear-code-input:focus,
 #gearCodeContent .gear-code-desc-input:focus {
   border-color: var(--primary);
@@ -2108,9 +2131,13 @@ canvas:focus {
     flex: 1 0 100%;
     margin-bottom: 4px;
   }
+  #gearCodeContent .gear-code-type-input {
+    width: 40px;
+    flex: 0 0 40px;
+  }
   #gearCodeContent .gear-code-input {
-    width: 90px;
-    flex: 0 0 90px;
+    width: 80px;
+    flex: 0 0 80px;
   }
   #gearCodeContent .gear-code-desc-input {
     flex: 1;

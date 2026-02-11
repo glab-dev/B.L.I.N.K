@@ -861,7 +861,8 @@ canvas {
 }
 
 .canvas-toolbar select,
-.canvas-toolbar input[type="text"] {
+.canvas-toolbar input[type="text"],
+.canvas-toolbar > .canvas-toolbar-group > input[type="number"] {
   height: 36px;
   padding: 4px 8px;
   font-size: 12px;

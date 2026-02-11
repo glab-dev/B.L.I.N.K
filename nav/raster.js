@@ -464,7 +464,20 @@ function syncToolbarFromCanvasOptions() {
     tb.filename.value = co.filename.value;
     tb.filename.placeholder = co.filename.placeholder || 'LED_Wall_Canvas_4K_UHD_3840x2160';
   }
-  if(tb.canvasSize && co.canvasSize) tb.canvasSize.value = co.canvasSize.value;
+  if(tb.canvasSize && co.canvasSize) {
+    tb.canvasSize.value = co.canvasSize.value;
+    // Show/hide custom W/H and sync values
+    var isCustom = co.canvasSize.value === 'custom';
+    toggleRasterCustomCanvasInputs(isCustom);
+    if(isCustom) {
+      var coW = document.getElementById('customCanvasWidth');
+      var coH = document.getElementById('customCanvasHeight');
+      var tbW = document.getElementById('rasterToolbarCustomW');
+      var tbH = document.getElementById('rasterToolbarCustomH');
+      if(tbW && coW) tbW.value = coW.value;
+      if(tbH && coH) tbH.value = coH.value;
+    }
+  }
   if(tb.x && co.x) tb.x.value = co.x.value;
   if(tb.y && co.y) tb.y.value = co.y.value;
   if(tb.fine && co.fine) tb.fine.value = co.fine.value;
@@ -497,7 +510,17 @@ function syncCanvasOptionsFromToolbar() {
     format: document.getElementById('canvasExportFormat')
   };
   if(co.filename && tb.filename) co.filename.value = tb.filename.value;
-  if(co.canvasSize && tb.canvasSize) co.canvasSize.value = tb.canvasSize.value;
+  if(co.canvasSize && tb.canvasSize) {
+    co.canvasSize.value = tb.canvasSize.value;
+    if(tb.canvasSize.value === 'custom') {
+      var tbW = document.getElementById('rasterToolbarCustomW');
+      var tbH = document.getElementById('rasterToolbarCustomH');
+      var coW = document.getElementById('customCanvasWidth');
+      var coH = document.getElementById('customCanvasHeight');
+      if(coW && tbW) coW.value = tbW.value;
+      if(coH && tbH) coH.value = tbH.value;
+    }
+  }
   if(co.x && tb.x) co.x.value = tb.x.value;
   if(co.y && tb.y) co.y.value = tb.y.value;
   if(co.fine && tb.fine) co.fine.value = tb.fine.value;
@@ -524,6 +547,28 @@ function initRasterToolbarListeners() {
       if(co) {
         co.value = this.value;
         co.dispatchEvent(new Event('change'));
+      }
+      toggleRasterCustomCanvasInputs(this.value === 'custom');
+    });
+  }
+  // Custom canvas W/H inputs
+  var tbCustomW = document.getElementById('rasterToolbarCustomW');
+  var tbCustomH = document.getElementById('rasterToolbarCustomH');
+  if(tbCustomW) {
+    tbCustomW.addEventListener('input', function() {
+      var co = document.getElementById('customCanvasWidth');
+      if(co) {
+        co.value = this.value;
+        co.dispatchEvent(new Event('input'));
+      }
+    });
+  }
+  if(tbCustomH) {
+    tbCustomH.addEventListener('input', function() {
+      var co = document.getElementById('customCanvasHeight');
+      if(co) {
+        co.value = this.value;
+        co.dispatchEvent(new Event('input'));
       }
     });
   }
@@ -557,6 +602,13 @@ function initRasterToolbarListeners() {
       if(co) co.value = this.value;
     });
   }
+}
+
+function toggleRasterCustomCanvasInputs(show) {
+  var wGroup = document.getElementById('rasterCustomW');
+  var hGroup = document.getElementById('rasterCustomH');
+  if(wGroup) wGroup.style.display = show ? '' : 'none';
+  if(hGroup) hGroup.style.display = show ? '' : 'none';
 }
 
 // Also sync toolbar X/Y when canvas drags update the original inputs

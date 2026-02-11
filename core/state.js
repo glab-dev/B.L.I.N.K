@@ -287,6 +287,8 @@ function adjustCanvasPosition(inputId, delta) {
   input.value = newValue;
   // Dispatch input event to trigger the handleCanvasPositionChange listener
   input.dispatchEvent(new Event('input', { bubbles: true }));
+  // Sync raster toolbar X/Y if in raster mode
+  if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
 }
 
 // Show arrows toggle
@@ -429,6 +431,8 @@ let snapModeEnabled = true;
 function toggleSnapMode() {
   snapModeEnabled = !snapModeEnabled;
   document.getElementById('snapModeBtn').classList.toggle('active', snapModeEnabled);
+  var rasterSnap = document.getElementById('rasterToolbarSnap');
+  if(rasterSnap) rasterSnap.classList.toggle('active', snapModeEnabled);
 }
 
 // CB5 Half row toggle

@@ -268,6 +268,11 @@ function adjustNumberInput(inputId, delta) {
     input.value = newValue;
     input.dispatchEvent(new Event('input', { bubbles: true }));
     calculate();
+    // Sync raster toolbar Fine(px) if in raster mode
+    if(inputId === 'arrowKeyIncrement') {
+      var tbFine = document.getElementById('rasterToolbarFine');
+      if(tbFine) tbFine.value = newValue;
+    }
   }
 }
 

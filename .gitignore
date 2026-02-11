@@ -1,18 +1,20 @@
-# Development tools — keep private
-.claude/
-CLAUDE.md
-README.md
-
-# Session notes — local only
-SESSION-TODO.md
-
-# Reference docs & plans — keep local
+# Reference docs — keep local
 Implementation Plans/
 Reference/
 Gear List Inventory.txt
-ROADMAP.md
 PLAYWRIGHT_SETUP.md
 CSS-NOTES.md
+README.md
+
+# Agent skills (third-party, not project files)
+.agent/
+DESIGN.md
+SITE.md
+next-prompt.md
+stitch.json
+
+# OS files
+.DS_Store
 
 # Node / Playwright artifacts
 node_modules/

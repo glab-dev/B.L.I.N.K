@@ -167,8 +167,11 @@ function loadCanvasData(canvasId) {
   const canvasSizeSelect = document.getElementById('canvasSize');
   if(canvasSizeSelect) {
     canvasSizeSelect.value = canvas.data.canvasSize || '4K_UHD';
-    // Trigger change event to show/hide custom inputs
-    canvasSizeSelect.dispatchEvent(new Event('change'));
+    // Show/hide custom inputs directly — do NOT dispatch change event because
+    // its handler calls saveCurrentScreenData() which overwrites screen data
+    // from stale DOM form values, corrupting dimensions on canvas switches.
+    const customInputs = document.getElementById('customCanvasInputs');
+    if(customInputs) customInputs.style.display = canvasSizeSelect.value === 'custom' ? 'flex' : 'none';
   }
 
   const customWidthInput = document.getElementById('customCanvasWidth');

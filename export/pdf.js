@@ -36,8 +36,24 @@ function closePdfExportModal() {
 }
 
 
+// ==================== SEND TO JARED MODAL ====================
+
+function openSendToJaredModal() {
+  document.getElementById('sendToJaredModal').classList.add('active');
+}
+
+function closeSendToJaredModal() {
+  document.getElementById('sendToJaredModal').classList.remove('active');
+}
+
+function confirmSendToJared() {
+  var includeRP = document.getElementById('sendToJaredIncludeRP').checked;
+  closeSendToJaredModal();
+  sendGearListToJared(includeRP);
+}
+
 // Send Gear List Email
-function sendGearListToJared() {
+function sendGearListToJared(includeRP) {
   generateGearList();
 
   const screenIds = Object.keys(screens);
@@ -189,28 +205,34 @@ function sendGearListToJared() {
     text += line('Power Bars:', util.powerBars);
   }
 
-  // Build inventory file for sharing
-  const inventoryContent = buildGearInventoryContent(gearData);
-  const fileName = gearData.configName.replace(/[^a-zA-Z0-9 _-]/g, '') + '.txt';
-  const inventoryFile = new File([inventoryContent], fileName, { type: 'text/plain' });
+  // Build inventory file only if RP toggle is on
+  var inventoryContent = includeRP ? buildGearInventoryContent(gearData) : null;
+  var fileName = gearData.configName.replace(/[^a-zA-Z0-9 _-]/g, '') + '.txt';
 
   // Use Web Share API on mobile only (macOS Mail ignores the title/subject field)
-  const isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
-                         (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+  var isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
+                       (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
 
-  if(isMobileDevice && navigator.share && navigator.canShare && navigator.canShare({ files: [inventoryFile] })) {
-    navigator.share({
+  if(isMobileDevice && navigator.share && navigator.canShare) {
+    var shareData = {
       title: 'LED Gear List - ' + gearData.configName,
-      text: text,
-      files: [inventoryFile]
-    }).catch(function(err) {
-      // User cancelled share — no action needed
+      text: text
+    };
+    if(includeRP && inventoryContent) {
+      var inventoryFile = new File([inventoryContent], fileName, { type: 'text/plain' });
+      shareData.files = [inventoryFile];
+      if(!navigator.canShare(shareData)) {
+        // Fallback if file sharing not supported — share without file
+        delete shareData.files;
+      }
+    }
+    navigator.share(shareData).catch(function(err) {
       if(err.name !== 'AbortError') {
         openMailtoWithDownload(gearData.configName, text, inventoryContent, fileName);
       }
     });
   } else {
-    // Desktop: mailto (no file attachment) + separate file download
+    // Desktop: mailto + optional RP file download
     openMailtoWithDownload(gearData.configName, text, inventoryContent, fileName);
   }
 }
@@ -229,16 +251,18 @@ function openMailtoWithDownload(configName, text, inventoryContent, fileName) {
   a.href = mailtoUrl;
   a.click();
 
-  // Download the inventory text file separately
-  var blob = new Blob([inventoryContent], { type: 'text/plain' });
-  var url = URL.createObjectURL(blob);
-  var dl = document.createElement('a');
-  dl.href = url;
-  dl.download = fileName;
-  document.body.appendChild(dl);
-  dl.click();
-  document.body.removeChild(dl);
-  URL.revokeObjectURL(url);
+  // Download the RP inventory text file only if content was generated
+  if(inventoryContent) {
+    var blob = new Blob([inventoryContent], { type: 'text/plain' });
+    var url = URL.createObjectURL(blob);
+    var dl = document.createElement('a');
+    dl.href = url;
+    dl.download = fileName;
+    document.body.appendChild(dl);
+    dl.click();
+    document.body.removeChild(dl);
+    URL.revokeObjectURL(url);
+  }
 }
 
 // Build gear inventory content as tab-delimited string (matching Apex format)

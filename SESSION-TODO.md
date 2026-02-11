@@ -27,7 +27,7 @@ _Updated: 2026-02-11_
 - [x] **Hamburger menu reorganization + Recents** — Menu now: Save|Load|Recents + Export|Send to Jared. Recents modal shows 5 most recent projects, backed by Supabase `user_projects` table (signed in) with localStorage fallback (offline)
 - [x] **"Raster" page** — New entry point similar to Pixl Grid. Canvas view on top with canvas tabs. Canvas options inline in 1 row underneath. Screen options underneath (1 row per screen, all inline): screen name input, panel dropdown, panel dimensions, X/Y coordinates, XY/pixels/X toggles. Panel dropdown includes "add custom panel" option → simplified custom panel modal (brand, model, pixels wide, pixels high only)
 - [x] **Raster save/load (.raster files)** — Save/Load buttons next to filename in raster toolbar. Saves raster-only data (screens, canvas tabs, canvas settings, referenced custom panels) as `.raster` JSON files, fully independent of `.led` config files. Self-contained custom panels for portability.
-- [ ] **Raster ↔ Simple/Complex custom panel bridge** — If a raster-created custom panel is selected in Simple or Complex mode, show a popup telling the user to input more panel info, user confirms, then redirect to the full custom panel modal
+- [x] **Raster ↔ Simple/Complex custom panel bridge** — If a raster-created custom panel is selected in Simple or Complex mode, show a popup telling the user to input more panel info, user confirms, then redirect to the full custom panel modal
 
 #### QA & Verification
 - [ ] **Verify cabling features end-to-end** — Test all cabling calculations, cable lengths, routing, and gear list output across different configurations

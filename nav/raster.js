@@ -962,24 +962,20 @@ function applyRasterFile(config) {
   if(typeof renderCanvasTabs === 'function') renderCanvasTabs();
   if(typeof loadCanvasData === 'function' && currentCanvasId) loadCanvasData(currentCanvasId);
 
-  // Re-apply screen visibility from canvas visibility maps — loadCanvasData()
-  // only restores visibility for the current canvas and hides everything else.
-  // In raster mode, a screen should be visible if ANY canvas has it visible.
-  // The per-screen saved.visible flag is unreliable because at save time it
-  // only reflects the active canvas's view.
-  if(config.canvases && typeof config.canvases === 'object') {
-    safeScreenIds.forEach(function(screenId) {
-      if(!screens[screenId]) return;
-      var visibleInAny = false;
-      Object.keys(config.canvases).forEach(function(cid) {
-        var cv = config.canvases[cid];
-        if(cv && cv.data && cv.data.screenVisibility && cv.data.screenVisibility[screenId]) {
-          visibleInAny = true;
-        }
-      });
-      screens[screenId].visible = visibleInAny;
-    });
-  }
+  // Re-apply screen data from config as a safety net — cascading side effects
+  // from loadCanvasData() (e.g. event handlers) can overwrite screen dimensions
+  // with stale DOM form values. Per-canvas visibility from loadCanvasData() is
+  // correct and should NOT be overridden here.
+  safeScreenIds.forEach(function(screenId) {
+    var saved = config.screens[screenId];
+    if(!saved || !screens[screenId]) return;
+    var sdata = (saved.data && typeof saved.data === 'object') ? saved.data : {};
+    screens[screenId].data.panelType = sdata.panelType || 'BP2_V2';
+    screens[screenId].data.panelsWide = parseInt(sdata.panelsWide) || 0;
+    screens[screenId].data.panelsHigh = parseInt(sdata.panelsHigh) || 0;
+    screens[screenId].data.canvasX = parseInt(sdata.canvasX) || 0;
+    screens[screenId].data.canvasY = parseInt(sdata.canvasY) || 0;
+  });
 
   renderRasterScreenTable();
   syncToolbarFromCanvasOptions();

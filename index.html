@@ -894,6 +894,30 @@
   </div>
 </div>
 
+<!-- Send to Jared Options Modal -->
+<div id="sendToJaredModal" class="modal-overlay">
+  <div class="modal-dialog" style="max-width: 360px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Send to Jared</h2>
+      <button class="modal-close" onclick="closeSendToJaredModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="color: #888; font-size: 11px; margin-bottom: 10px;">This will open your email app with the gear list.</p>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="sendToJaredIncludeRP" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
+          <span style="font-size: 12px;">Include RP Inventory File (.txt)</span>
+        </label>
+      </div>
+      <p style="color: #666; font-size: 10px; margin-top: 8px;">Tab-delimited file with gear codes for import into Rental Point or similar inventory software.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeSendToJaredModal()">Cancel</button>
+      <button class="btn-primary" onclick="confirmSendToJared()">Send</button>
+    </div>
+  </div>
+</div>
+
 <!-- PDF Export Options Modal -->
 <div id="pdfExportModal" class="modal-overlay">
   <div class="modal-dialog" style="max-width: 360px;">
@@ -1166,7 +1190,7 @@
         </div>
         <div class="mobile-menu-btn-row">
           <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="closeMobileMenu();">Export</button>
-          <button class="mobile-menu-btn accent" onclick="sendGearListToJared(); closeMobileMenu();">Send to Jared</button>
+          <button class="mobile-menu-btn accent" onclick="openSendToJaredModal(); closeMobileMenu();">Send to Jared</button>
         </div>
       </div>
       <div class="mobile-menu-section">
@@ -2375,7 +2399,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.10';
+const APP_VERSION = '2.9.11';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

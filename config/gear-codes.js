@@ -43,7 +43,7 @@ function validateGearCodes(parsed) {
   if(!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
   const safe = {};
   Object.keys(parsed).forEach(key => {
-    if(typeof key !== 'string' || key.length > 200) return;
+    if(typeof key !== 'string' || key.length > 200 || !isSafeKey(key)) return;
     const entry = parsed[key];
     if(!entry || typeof entry !== 'object') return;
     if(typeof entry.code !== 'string' && typeof entry.desc !== 'string') return;

@@ -350,9 +350,9 @@ function showContextMenu(x, y) {
   }, 10);
 }
 
-function showCircuitNumberPrompt() {
-  const circuitNum = prompt(`Enter circuit number for ${selectedPanels.size} selected panel(s):\n\n(Enter a number 1-999, or leave blank to clear custom assignment)`);
-  
+async function showCircuitNumberPrompt() {
+  const circuitNum = await showPrompt(`Enter circuit number for ${selectedPanels.size} selected panel(s):\n\n(Enter a number 1-999, or leave blank to clear custom assignment)`);
+
   if(circuitNum === null) return; // User cancelled
   
   saveState(); // Save state before making changes
@@ -379,9 +379,9 @@ function showCircuitNumberPrompt() {
   calculate();
 }
 
-function showDataLineNumberPrompt() {
-  const dataLineNum = prompt(`Enter data line number for ${selectedPanels.size} selected panel(s):\n\n(Enter a number 1-999, or leave blank to clear custom assignment)`);
-  
+async function showDataLineNumberPrompt() {
+  const dataLineNum = await showPrompt(`Enter data line number for ${selectedPanels.size} selected panel(s):\n\n(Enter a number 1-999, or leave blank to clear custom assignment)`);
+
   if(dataLineNum === null) return; // User cancelled
   
   saveState(); // Save state before making changes

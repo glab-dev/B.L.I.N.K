@@ -656,7 +656,7 @@ function showCombinedPanelContextMenu(x, y, panelInfo) {
 }
 
 // Prompt user for custom circuit number and assign to selected panels
-function promptAssignCombinedCircuit() {
+async function promptAssignCombinedCircuit() {
   // Get panels to assign (use multi-selection or single selected panel)
   const panelsToAssign = [];
   if(combinedSelectedPanels.size > 0) {
@@ -673,7 +673,7 @@ function promptAssignCombinedCircuit() {
 
   if(panelsToAssign.length === 0) return;
 
-  const input = prompt(`Enter circuit number for ${panelsToAssign.length} panel(s):\n(Enter 0 or leave blank to clear custom assignment)`);
+  const input = await showPrompt(`Enter circuit number for ${panelsToAssign.length} panel(s):\n(Enter 0 or leave blank to clear custom assignment)`);
   if(input === null) return; // Cancelled
 
   const circuitNum = parseInt(input);
@@ -723,7 +723,7 @@ function promptAssignCombinedCircuit() {
 }
 
 // Prompt user for custom data line number and assign to selected panels
-function promptAssignCombinedDataLine() {
+async function promptAssignCombinedDataLine() {
   // Get panels to assign (use multi-selection or single selected panel)
   const panelsToAssign = [];
   if(combinedSelectedPanels.size > 0) {
@@ -740,7 +740,7 @@ function promptAssignCombinedDataLine() {
 
   if(panelsToAssign.length === 0) return;
 
-  const input = prompt(`Enter data line number for ${panelsToAssign.length} panel(s):\n(Enter 0 or leave blank to clear custom assignment)`);
+  const input = await showPrompt(`Enter data line number for ${panelsToAssign.length} panel(s):\n(Enter 0 or leave blank to clear custom assignment)`);
   if(input === null) return; // Cancelled
 
   const dataLineNum = parseInt(input);

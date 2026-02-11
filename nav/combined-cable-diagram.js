@@ -39,8 +39,12 @@ function loadCombinedCablingConfig() {
     const saved = localStorage.getItem('ledcalc_combined_cabling_config');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed && typeof parsed === 'object') {
-        Object.assign(combinedCablingConfig, parsed);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        Object.keys(parsed).forEach(key => {
+          if (isSafeKey(key) && combinedCablingConfig.hasOwnProperty(key)) {
+            combinedCablingConfig[key] = parsed[key];
+          }
+        });
       }
     }
   } catch (e) { /* ignore parse errors */ }

@@ -123,11 +123,17 @@
         </button>
     </div>
 
-    <!-- Sign In -->
-    <button class="welcome-btn-signin" onclick="openAuthModal('signin')">
-      <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">login</span>
-      Sign In
-    </button>
+    <!-- Sign In / Install -->
+    <div class="welcome-action-row">
+      <button class="welcome-btn-signin" onclick="openAuthModal('signin')">
+        <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">login</span>
+        Sign In
+      </button>
+      <button class="welcome-btn-signin welcome-install-btn" id="installPwaBtnWelcome" style="display: none;" onclick="installPwa()">
+        <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">download</span>
+        Install App
+      </button>
+    </div>
     <p class="welcome-signin-desc">Sign in for device sync and community sharing</p>
 
     <!-- Feature Showcase (desktop only via CSS) -->
@@ -974,6 +980,23 @@
   </div>
 </div>
 
+<!-- PWA Install Prompt Modal -->
+<div id="pwaInstallModal" class="modal-overlay">
+  <div class="modal-dialog" style="max-width: 320px; padding: 16px; text-align: center;">
+    <div class="modal-header" style="margin-bottom: 10px; padding-bottom: 8px;">
+      <h2 class="modal-title">Install B.L.I.N.K.</h2>
+    </div>
+    <div class="modal-body" style="margin-bottom: 14px;">
+      <img src="icons/icon-192.png" alt="B.L.I.N.K." style="width: 80px; height: 80px; border-radius: 12px; margin-bottom: 12px; border: 2px solid #10b981;">
+      <p style="color: #e0e0e0; font-size: 13px; line-height: 1.5; margin: 0;">Install for offline use and a native app experience. Works without internet after first load.</p>
+    </div>
+    <div class="modal-footer" style="justify-content: center; gap: 10px;">
+      <button class="btn-secondary" onclick="closePwaInstallModal()">Not Now</button>
+      <button class="btn-primary" onclick="confirmPwaInstall()">Install</button>
+    </div>
+  </div>
+</div>
+
 <!-- Custom Alert/Confirm Modal -->
 <div id="customAlertModal" class="modal-overlay">
   <div class="modal-dialog" style="max-width: 300px; padding: 12px;">
@@ -1175,10 +1198,16 @@
     </div>
     <div class="mobile-menu-content">
       <div class="mobile-menu-section">
-        <button class="mobile-menu-btn" onclick="closeMobileMenu(); showWelcomePage();">
-          <span class="material-symbols-outlined" style="font-size: 16px; margin-right: 6px; vertical-align: middle;">home</span>
-          Welcome Page
-        </button>
+        <div class="mobile-menu-btn-row">
+          <button class="mobile-menu-btn" onclick="closeMobileMenu(); showWelcomePage();">
+            <span class="material-symbols-outlined" style="font-size: 16px; margin-right: 4px; vertical-align: middle;">home</span>
+            Welcome
+          </button>
+          <button class="mobile-menu-btn install-btn" id="installPwaBtn" style="display: none;" onclick="installPwa()">
+            <span class="material-symbols-outlined" style="font-size: 16px; margin-right: 4px; vertical-align: middle;">download</span>
+            Install
+          </button>
+        </div>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Configuration</div>
@@ -1216,7 +1245,6 @@
         <div class="mobile-menu-info"><strong style="text-decoration: underline; color: var(--accent-color);">Disclaimer</strong><br>This software provides decision-support and planning estimates for LED system design. All results must be verified and approved by qualified professionals before real-world use. The user assumes full responsibility for final design, safety compliance, and implementation. No warranty is provided, and the developer assumes no liability for resulting damages or losses.</div>
         <hr style="border: none; border-top: 1px solid #383838; margin: 12px 0;">
         <div class="mobile-menu-info">© 2025 Gabriel Labrecque<br>Fearless Wanderer Productions</div>
-        <button class="mobile-menu-btn install-btn" id="installPwaBtn" style="display: none;" onclick="installPwa()">📲 Install App</button>
       </div>
     </div>
   </div>
@@ -2400,7 +2428,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.13';
+const APP_VERSION = '2.9.14';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

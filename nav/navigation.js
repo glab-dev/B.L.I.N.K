@@ -303,26 +303,46 @@ function showMobileLayout(layout) {
 // PWA Install Prompt
 let deferredPrompt;
 
-window.addEventListener('beforeinstallprompt', (e) => {
+window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   deferredPrompt = e;
-  // Show install button
-  const installBtn = document.getElementById('installPwaBtn');
-  if(installBtn) installBtn.style.display = 'block';
+  // Show install buttons (menu + welcome page)
+  var installBtn = document.getElementById('installPwaBtn');
+  if (installBtn) installBtn.style.display = 'block';
+  var installBtnWelcome = document.getElementById('installPwaBtnWelcome');
+  if (installBtnWelcome) installBtnWelcome.style.display = 'inline-flex';
 });
 
+// Show the custom styled install modal
 function installPwa() {
-  if(deferredPrompt) {
+  if (deferredPrompt) {
+    var modal = document.getElementById('pwaInstallModal');
+    if (modal) modal.classList.add('active');
+  }
+}
+
+// User confirmed install from our modal — trigger the native prompt
+function confirmPwaInstall() {
+  closePwaInstallModal();
+  if (deferredPrompt) {
     deferredPrompt.prompt();
-    deferredPrompt.userChoice.then((choiceResult) => {
-      if(choiceResult.outcome === 'accepted') {
+    deferredPrompt.userChoice.then(function(choiceResult) {
+      if (choiceResult.outcome === 'accepted') {
         console.log('User accepted PWA install');
       }
       deferredPrompt = null;
-      const installBtn = document.getElementById('installPwaBtn');
-      if(installBtn) installBtn.style.display = 'none';
+      var installBtn = document.getElementById('installPwaBtn');
+      if (installBtn) installBtn.style.display = 'none';
+      var installBtnWelcome = document.getElementById('installPwaBtnWelcome');
+      if (installBtnWelcome) installBtnWelcome.style.display = 'none';
     });
   }
+}
+
+// Close the install modal without installing
+function closePwaInstallModal() {
+  var modal = document.getElementById('pwaInstallModal');
+  if (modal) modal.classList.remove('active');
 }
 
 // Register service worker for offline support

@@ -2826,14 +2826,13 @@ canvas:focus {
 }
 
 .mobile-menu-btn.install-btn {
+  background: #2a2a2a;
+  color: var(--primary);
+}
+
+.mobile-menu-btn.install-btn:hover {
   background: var(--primary);
   color: #fff;
-  font-weight: normal;
-  text-shadow:
-    -1px -1px 0 #000,
-     1px -1px 0 #000,
-    -1px  1px 0 #000,
-     1px  1px 0 #000;
 }
 
 .mobile-menu-info {
@@ -3086,7 +3085,13 @@ canvas:focus {
   background: rgba(255,255,255,0.05);
 }
 
-/* Sign In */
+/* Sign In / Install row */
+.welcome-action-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
 .welcome-btn-signin {
   display: inline-flex;
   align-items: center;

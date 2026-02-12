@@ -364,6 +364,10 @@ function applyConfiguration(config) {
       if(typeof initGearView === 'function') {
         initGearView();
       }
+      // Refresh raster screen table if currently in raster mode
+      if (currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
+        renderRasterScreenTable();
+      }
     }, 100);
 
     showAlert(`Configuration "${config.name}" loaded successfully! (${Object.keys(screens).length} screens)`);

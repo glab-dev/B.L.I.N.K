@@ -866,7 +866,7 @@ canvas {
   height: 36px;
   padding: 4px 8px;
   font-size: 12px;
-  background: #2a2a2a;
+  background-color: #2a2a2a;
   color: #fff;
   border: 2px solid #000;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
@@ -875,6 +875,10 @@ canvas {
   min-height: auto;
   margin-bottom: 0;
   width: auto;
+}
+
+.canvas-toolbar select {
+  padding-right: 28px;
 }
 
 .canvas-toolbar .number-input-with-arrows {

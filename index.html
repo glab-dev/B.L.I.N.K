@@ -105,20 +105,20 @@
         <span class="welcome-btn-desc">Full suite with layouts, gear &amp; combined view</span>
         <ul class="welcome-btn-features">
           <li>Everything in Simple +</li>
-          <li>4 Layout Views</li>
-          <li>Gear List &amp; Structure</li>
-          <li>Combined View</li>
-          <li>Bumper Management</li>
+          <li>5 Layout Views</li>
+          <li>Cable Lists</li>
+          <li>Structure Specs with Approximate Weights</li>
+          <li>Combined Screen Views</li>
         </ul>
       </button>
         <button class="welcome-btn welcome-btn-raster" onclick="enterRasterMode()">
           <span class="welcome-btn-title">Raster</span>
-          <span class="welcome-btn-desc">Pixel mapping for LED raster workflows</span>
+          <span class="welcome-btn-desc">Canvas mapping for LED raster workflows</span>
           <ul class="welcome-btn-features">
             <li>Canvas Mapping</li>
             <li>Multi-Screen Table</li>
-            <li>Pixel Positioning</li>
-            <li>PNG/Resolume Export</li>
+            <li>File Save/Load</li>
+            <li>PNG/JPEG/Resolume Export</li>
           </ul>
         </button>
     </div>
@@ -141,7 +141,7 @@
       <div class="welcome-feature-card">
         <span class="material-symbols-outlined welcome-feature-icon">dashboard</span>
         <span class="welcome-feature-title">Professional Layouts</span>
-        <span class="welcome-feature-desc">Power, Data, Structure, and Canvas layout views</span>
+        <span class="welcome-feature-desc">Power, Data, Structure, Combined, and Cabling layout views</span>
       </div>
       <div class="welcome-feature-card">
         <span class="material-symbols-outlined welcome-feature-icon">devices</span>
@@ -156,7 +156,7 @@
       <div class="welcome-feature-card">
         <span class="material-symbols-outlined welcome-feature-icon">download</span>
         <span class="welcome-feature-title">Export Options</span>
-        <span class="welcome-feature-desc">PDF, PNG, Email, Resolume XML</span>
+        <span class="welcome-feature-desc">PDF with all specs, layouts &amp; gear list. Canvas to PNG, JPEG, Resolume</span>
       </div>
       <div class="welcome-feature-card">
         <span class="material-symbols-outlined welcome-feature-icon">group</span>
@@ -516,7 +516,7 @@
         <h3 class="help-section-title">Ownership</h3>
         <p class="help-text">&copy; 2025 Gabriel Labrecque. All rights reserved. The software, code, design, and content are the intellectual property of Gabriel Labrecque / Fearless Wanderer Productions.</p>
         <h3 class="help-section-title">Disclaimer</h3>
-        <p class="help-text">B.L.I.N.K. is provided without warranty of any kind. The developer is not liable for any damages arising from the use of this tool. Power, structural, and data calculations should be verified by qualified professionals.</p>
+        <p class="help-text">This software provides decision-support and planning estimates for LED system design. All results must be verified and approved by qualified professionals before real-world use. The user assumes full responsibility for final design, safety compliance, and implementation. No warranty is provided, and the developer assumes no liability for resulting damages or losses.</p>
         <h3 class="help-section-title">Contact</h3>
         <p class="help-text">Questions or licensing inquiries: <a href="mailto:info@blink-led.com" style="color: var(--primary);">info@blink-led.com</a></p>
       </div>
@@ -1241,8 +1241,6 @@
       <div class="mobile-menu-section">
         <div class="mobile-menu-label" style="color: var(--accent-color);">App Info</div>
         <div class="mobile-menu-info">An LED wall calculator for planning LED video wall installations. Calculate equipment needs, visualize layouts, generate gear lists, and export detailed PDF reports.</div>
-        <hr style="border: none; border-top: 1px solid #383838; margin: 12px 0;">
-        <div class="mobile-menu-info"><strong style="text-decoration: underline; color: var(--accent-color);">Disclaimer</strong><br>This software provides decision-support and planning estimates for LED system design. All results must be verified and approved by qualified professionals before real-world use. The user assumes full responsibility for final design, safety compliance, and implementation. No warranty is provided, and the developer assumes no liability for resulting damages or losses.</div>
         <hr style="border: none; border-top: 1px solid #383838; margin: 12px 0;">
         <div class="mobile-menu-info">© 2025 Gabriel Labrecque<br>Fearless Wanderer Productions</div>
       </div>
@@ -2428,7 +2426,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.16';
+const APP_VERSION = '2.9.17';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

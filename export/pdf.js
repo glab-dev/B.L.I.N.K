@@ -592,8 +592,12 @@ function exportPDF(){
     
     function processNextScreen() {
       if(screenIndex >= screenIds.length) {
-        // All screens processed, finalize PDF (canvas view removed to reduce file size)
-        finalizePDF();
+        // All screens processed — add gear list as final page(s) if enabled
+        if(pdfExportOptions.gearList) {
+          addGearListPages();
+        } else {
+          finalizePDF();
+        }
         return;
       }
 
@@ -828,14 +832,6 @@ function exportPDF(){
           } // End of pdfExportOptions.specs check
         }
 
-        // ========== RIGHT COLUMN: GEAR LIST ==========
-        if(pdfExportOptions.gearList) {
-          const screenGearData = gearData.screens.find(s => s.screenId === screenId);
-          if(screenGearData) {
-            addGearListToColumn(screenGearData, col2X, col2Y, colWidth, lineHeight);
-          }
-        }
-
         // Include layouts if any layout option is selected
         const includeAnyLayout = pdfExportOptions.standard || pdfExportOptions.power || pdfExportOptions.data || pdfExportOptions.structure;
         if(includeAnyLayout) {
@@ -885,7 +881,7 @@ function exportPDF(){
     // Consumes pre-built screen data from buildGearListData()
     function addGearListToColumn(sd, colX, startY, colWidth, lineHeight) {
       let colY = startY;
-      if(!sd) return;
+      if(!sd) return colY;
 
       const eq = sd.equipment;
       const rig = sd.rigging;
@@ -913,12 +909,6 @@ function exportPDF(){
         pdf.text(title, colX, colY);
         colY += 4;
       }
-
-      // Gear List Title
-      pdf.setFontSize(11);
-      pdf.setFont(undefined, 'bold');
-      pdf.text('Gear List', colX, colY);
-      colY += 5;
 
       // Equipment
       addGearHeader('Equipment');
@@ -1013,33 +1003,6 @@ function exportPDF(){
         addGearLine(`${p2d.cableType} ${p2d.cableLength}':`, p2d.count.toString());
       }
 
-      // Signal Cables (system-wide)
-      const pdfSig = gearData.signalCables;
-      if(pdfSig) {
-        addGearHeader('Signal Cables');
-        if(pdfSig.serverFiberLine) {
-          addGearLine(`${pdfSig.serverFiberLine.label}:`, pdfSig.serverFiberLine.count.toString());
-        }
-        const sdiLengths = Object.keys(pdfSig.sdiByLength).map(Number).sort((a, b) => b - a);
-        sdiLengths.forEach(len => {
-          addGearLine(`${len}' ${pdfSig.sdiType}:`, pdfSig.sdiByLength[len].toString());
-        });
-        addGearLine("25' HDMI:", pdfSig.hdmi[25].toString());
-        addGearLine("10' HDMI:", pdfSig.hdmi[10].toString());
-        addGearLine("6' HDMI:", pdfSig.hdmi[6].toString());
-      }
-
-      // Utility (system-wide)
-      const pdfUtil = gearData.utility;
-      if(pdfUtil) {
-        addGearHeader('Utility');
-        addGearLine("UG 10':", pdfUtil.ug10.toString());
-        addGearLine("UG 25':", pdfUtil.ug25.toString());
-        addGearLine("UG 50':", pdfUtil.ug50.toString());
-        addGearLine('UG Twofers:', pdfUtil.ugTwofers.toString());
-        addGearLine('Power Bars:', pdfUtil.powerBars.toString());
-      }
-
       // Spares
       addGearHeader('SPARES');
       if(sp.socaSplays) addGearLine('Spare Soca Splays:', '');
@@ -1051,6 +1014,114 @@ function exportPDF(){
       if(sp.soca) addGearLine('Spare Soca:', '');
       if(sp.data) addGearLine('Spare Data:', '');
       if(sp.fiber) addGearLine('Spare Fiber:', '');
+      return colY;
+    }
+
+    function addGearListPages() {
+      updateProgress('Adding gear list...', 85);
+      pdf.addPage();
+      yOffset = margin;
+
+      // Page title
+      pdf.setFontSize(14);
+      pdf.setFont(undefined, 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('Gear List', margin, yOffset);
+      yOffset += 10;
+
+      const lineHeight = 3.5;
+      const colX = margin;
+      const colWidth = pageWidth - 2 * margin;
+
+      // Per-screen gear
+      gearData.screens.forEach((sd) => {
+        // Check if we need a new page
+        if(yOffset > pageHeight - margin - 40) {
+          pdf.addPage();
+          yOffset = margin;
+        }
+
+        // Screen header
+        pdf.setFontSize(11);
+        pdf.setFont(undefined, 'bold');
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(sd.screenName, colX, yOffset);
+        const headerWidth = pdf.getTextWidth(sd.screenName);
+        pdf.setDrawColor(0, 0, 0);
+        pdf.line(colX, yOffset + 1, colX + headerWidth, yOffset + 1);
+        yOffset += 6;
+
+        // Render per-screen gear (returns final Y position)
+        yOffset = addGearListToColumn(sd, colX, yOffset, colWidth, lineHeight);
+        yOffset += 6; // spacing between screens
+      });
+
+      // System-wide: Signal Cables
+      const pdfSig = gearData.signalCables;
+      if(pdfSig) {
+        if(yOffset > pageHeight - margin - 40) {
+          pdf.addPage();
+          yOffset = margin;
+        }
+
+        // System header
+        pdf.setFontSize(11);
+        pdf.setFont(undefined, 'bold');
+        pdf.setTextColor(0, 0, 0);
+        pdf.text('System', colX, yOffset);
+        const sysWidth = pdf.getTextWidth('System');
+        pdf.setDrawColor(0, 0, 0);
+        pdf.line(colX, yOffset + 1, colX + sysWidth, yOffset + 1);
+        yOffset += 6;
+
+        yOffset += 1.5;
+        pdf.setFontSize(9);
+        pdf.setFont(undefined, 'bold');
+        pdf.text('Signal Cables', colX, yOffset);
+        yOffset += 4;
+
+        pdf.setFontSize(8);
+        pdf.setFont(undefined, 'normal');
+        if(pdfSig.serverFiberLine) {
+          pdf.text(`${pdfSig.serverFiberLine.label}: ${pdfSig.serverFiberLine.count}`, colX, yOffset);
+          yOffset += lineHeight;
+        }
+        const sdiLengths = Object.keys(pdfSig.sdiByLength).map(Number).sort((a, b) => b - a);
+        sdiLengths.forEach(len => {
+          if(pdfSig.sdiByLength[len] > 0) {
+            pdf.text(`${len}' ${pdfSig.sdiType}: ${pdfSig.sdiByLength[len]}`, colX, yOffset);
+            yOffset += lineHeight;
+          }
+        });
+        pdf.text(`25' HDMI: ${pdfSig.hdmi[25]}`, colX, yOffset); yOffset += lineHeight;
+        pdf.text(`10' HDMI: ${pdfSig.hdmi[10]}`, colX, yOffset); yOffset += lineHeight;
+        pdf.text(`6' HDMI: ${pdfSig.hdmi[6]}`, colX, yOffset); yOffset += lineHeight;
+        yOffset += 3;
+      }
+
+      // System-wide: Utility
+      const pdfUtil = gearData.utility;
+      if(pdfUtil) {
+        if(yOffset > pageHeight - margin - 30) {
+          pdf.addPage();
+          yOffset = margin;
+        }
+        yOffset += 1.5;
+        pdf.setFontSize(9);
+        pdf.setFont(undefined, 'bold');
+        pdf.text('Utility', colX, yOffset);
+        yOffset += 4;
+
+        pdf.setFontSize(8);
+        pdf.setFont(undefined, 'normal');
+        pdf.text(`UG 10': ${pdfUtil.ug10}`, colX, yOffset); yOffset += lineHeight;
+        pdf.text(`UG 25': ${pdfUtil.ug25}`, colX, yOffset); yOffset += lineHeight;
+        pdf.text(`UG 50': ${pdfUtil.ug50}`, colX, yOffset); yOffset += lineHeight;
+        pdf.text(`UG Twofers: ${pdfUtil.ugTwofers}`, colX, yOffset); yOffset += lineHeight;
+        pdf.text(`Power Bars: ${pdfUtil.powerBars}`, colX, yOffset); yOffset += lineHeight;
+      }
+
+      finalizePDF();
     }
 
     function addScreenLayouts(screenId, screenName) {

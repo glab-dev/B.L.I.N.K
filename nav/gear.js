@@ -802,9 +802,6 @@ function generateGearList() {
 
   gearData.screens.forEach(sd => {
     const eq = sd.equipment;
-    const rig = sd.rigging;
-    const gs = sd.groundSupport;
-    const fh = sd.floorHardware;
     const dc = sd.dataCables;
     const pc = sd.powerCables;
     const p2d = sd.processorToDistBox;
@@ -828,39 +825,6 @@ function generateGearList() {
     html += `<div style="margin-left: 12px;"><span style="color: #fff;">Panels:</span> ${eq.activeFullPanels} x ${escapeHtml(eq.panelBrand)} ${escapeHtml(eq.panelName)}</div>`;
     if(eq.activeHalfPanels > 0) {
       html += `<div style="margin-left: 12px;"><span style="color: #fff;">Half Panels:</span> ${eq.activeHalfPanels} x ${escapeHtml(eq.panelBrand)} ${escapeHtml(eq.halfPanelName)}</div>`;
-    }
-
-    // === RIGGING HARDWARE ===
-    if(rig.hasRigging) {
-      html += sectionHdr('Rigging Hardware');
-      html += gearLine('1W Bumpers:', rig.bumper1w);
-      html += gearLine('2W Bumpers:', rig.bumper2w);
-      html += gearLine('4W Bumpers:', rig.bumper4w);
-      html += gearLine('4W Connecting Plates:', rig.plates4way);
-      html += gearLine('2W Connecting Plates:', rig.plates2way);
-      html += gearLine('5/8" Shackles:', rig.shackles);
-      html += gearLine('Cheeseye:', rig.cheeseye);
-    }
-
-    // === GROUND SUPPORT ===
-    if(gs.hasGS) {
-      html += sectionHdr('Ground Support');
-      html += gearLine('Rear Truss:', gs.rearTruss);
-      html += gearLine('Base Truss:', gs.baseTruss);
-      html += gearLine('Bridge Clamps:', gs.bridgeClamps);
-      html += gearLine('Rear Bridge Adapter:', gs.rearBridgeAdapters);
-      html += gearLine('Sandbags:', gs.sandbags);
-      html += gearLine('Swivel Cheeseborough:', gs.swivelCheeseboroughs);
-      if(gs.pipes > 0) html += gearLine('Pipe' + gs.pipeLengthStr + ':', gs.pipes);
-    }
-
-    // === FLOOR HARDWARE ===
-    if(fh.hasFloorFrames) {
-      html += sectionHdr('Floor Hardware');
-      if(fh.frame3x2 > 0) html += gearLine('3×2 Frame:', fh.frame3x2);
-      if(fh.frame2x2 > 0) html += gearLine('2×2 Frame:', fh.frame2x2);
-      if(fh.frame2x1 > 0) html += gearLine('2×1 Frame:', fh.frame2x1);
-      if(fh.frame1x1 > 0) html += gearLine('1×1 Frame:', fh.frame1x1);
     }
 
     // === DATA CABLES ===
@@ -943,39 +907,6 @@ function generateGearList() {
 
     html += `</div>`; // close per-screen container
   });
-
-  // === SYSTEM-WIDE: SIGNAL CABLES & UTILITY (always visible) ===
-  const sig = gearData.signalCables;
-  const util = gearData.utility;
-  html += `<div style="background: var(--comic-panel); border: 1px solid #10b981; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
-  html += `<div style="position: absolute; top: -16px; left: 16px; background: #1a1a1a; border: 1px solid #10b981; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: #10b981; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">System</div>`;
-
-  if(sig) {
-    html += sectionHdr('Signal Cables');
-    for(const len of Object.keys(sig.sdiByLength).map(Number).sort((a,b) => b - a)) {
-      if(sig.sdiByLength[len] > 0) {
-        html += gearLine(`${len}' ${sig.sdiType}:`, sig.sdiByLength[len]);
-      }
-    }
-    if(sig.serverFiberLine) {
-      html += gearLine(`${sig.serverFiberLine.label}:`, sig.serverFiberLine.count);
-    }
-    html += subTypeSpacer;
-    html += gearLine("25' HDMI:", sig.hdmi[25]);
-    html += gearLine("10' HDMI:", sig.hdmi[10]);
-    html += gearLine("6' HDMI:", sig.hdmi[6]);
-  }
-
-  if(util) {
-    html += sectionHdr('Utility');
-    html += gearLine("UG 10':", util.ug10);
-    html += gearLine("UG 25':", util.ug25);
-    html += gearLine("UG 50':", util.ug50);
-    html += gearLine('UG Twofers:', util.ugTwofers);
-    html += gearLine('Power Bars:', util.powerBars);
-  }
-
-  html += `</div>`;
 
   html += '</div>';
 

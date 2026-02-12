@@ -80,38 +80,38 @@ function renderRasterScreenTable() {
     html += '<tr data-screen-id="' + escapeHtml(screenId) + '">';
 
     // Screen name
-    html += '<td><input type="text" class="raster-input raster-name" value="' + escapeHtml(screen.name) + '" ' +
+    html += '<td data-label="Name"><input type="text" class="raster-input raster-name" value="' + escapeHtml(screen.name) + '" ' +
             'oninput="updateRasterScreenName(\'' + safeId + '\', this.value)"></td>';
 
     // Panel dropdown
-    html += '<td><select class="raster-select" onchange="updateRasterScreenPanel(\'' + safeId + '\', this.value)">' +
+    html += '<td data-label="Panel"><select class="raster-select" onchange="updateRasterScreenPanel(\'' + safeId + '\', this.value)">' +
             buildRasterPanelOptions(panelType) +
             '</select></td>';
 
     // Tile X / Tile Y (read-only input fields)
-    html += '<td><input type="number" class="raster-input raster-num" value="' + tileX + '" readonly></td>';
-    html += '<td><input type="number" class="raster-input raster-num" value="' + tileY + '" readonly></td>';
+    html += '<td data-label="Tile X"><input type="number" class="raster-input raster-num" value="' + tileX + '" readonly></td>';
+    html += '<td data-label="Tile Y"><input type="number" class="raster-input raster-num" value="' + tileY + '" readonly></td>';
 
     // Cols
-    html += '<td><input type="number" class="raster-input raster-num" ' + (cols ? 'value="' + cols + '"' : '') + ' placeholder="0" min="0" ' +
+    html += '<td data-label="Cols"><input type="number" class="raster-input raster-num" ' + (cols ? 'value="' + cols + '"' : '') + ' placeholder="0" min="0" ' +
             'oninput="updateRasterScreenDim(\'' + safeId + '\', \'panelsWide\', this.value)"></td>';
 
     // Rows
-    html += '<td><input type="number" class="raster-input raster-num" ' + (rows ? 'value="' + rows + '"' : '') + ' placeholder="0" min="0" ' +
+    html += '<td data-label="Rows"><input type="number" class="raster-input raster-num" ' + (rows ? 'value="' + rows + '"' : '') + ' placeholder="0" min="0" ' +
             'oninput="updateRasterScreenDim(\'' + safeId + '\', \'panelsHigh\', this.value)"></td>';
 
     // Offset X
     var ox = data.canvasX || 0;
-    html += '<td><input type="number" class="raster-input raster-num" ' + (ox ? 'value="' + ox + '"' : '') + ' placeholder="0" ' +
+    html += '<td data-label="Offset X"><input type="number" class="raster-input raster-num" ' + (ox ? 'value="' + ox + '"' : '') + ' placeholder="0" ' +
             'oninput="updateRasterScreenPos(\'' + safeId + '\', \'canvasX\', this.value)"></td>';
 
     // Offset Y
     var oy = data.canvasY || 0;
-    html += '<td><input type="number" class="raster-input raster-num" ' + (oy ? 'value="' + oy + '"' : '') + ' placeholder="0" ' +
+    html += '<td data-label="Offset Y"><input type="number" class="raster-input raster-num" ' + (oy ? 'value="' + oy + '"' : '') + ' placeholder="0" ' +
             'oninput="updateRasterScreenPos(\'' + safeId + '\', \'canvasY\', this.value)"></td>';
 
     // Overlay toggles (X/Y, Pixels, Crosshair)
-    html += '<td><div class="raster-overlays">' +
+    html += '<td data-label="Overlays"><div class="raster-overlays">' +
             '<button type="button" class="raster-toggle-btn ' + (showCoords ? 'active' : '') + '" ' +
             'style="' + (showCoords ? textOutline : '') + '" ' +
             'onclick="toggleRasterOverlay(\'' + safeId + '\', \'showCoordinates\')">X/Y</button>' +
@@ -124,7 +124,7 @@ function renderRasterScreenTable() {
             '</div></td>';
 
     // Active/visible toggle
-    html += '<td><button type="button" class="raster-toggle-btn ' + (screen.visible ? 'active' : '') + '" ' +
+    html += '<td data-label="Active"><button type="button" class="raster-toggle-btn ' + (screen.visible ? 'active' : '') + '" ' +
             'style="' + (screen.visible ? textOutline : '') + '" ' +
             'onclick="toggleRasterScreenVisible(\'' + safeId + '\')">' +
             '<span style="display:inline-block;width:8px;height:8px;background:' + screenColor + ';border:1px solid #666;"></span>' +
@@ -647,6 +647,8 @@ function toggleRasterCustomCanvasInputs(show) {
   var hGroup = document.getElementById('rasterCustomH');
   if(wGroup) wGroup.style.display = show ? '' : 'none';
   if(hGroup) hGroup.style.display = show ? '' : 'none';
+  var toolbar = document.querySelector('.canvas-toolbar');
+  if(toolbar) toolbar.classList.toggle('toolbar-custom-active', !!show);
 }
 
 // Also sync toolbar X/Y when canvas drags update the original inputs

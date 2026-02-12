@@ -2362,7 +2362,7 @@ function renderCombinedSpecs(selectedScreenIds) {
   }
 
   // Two-column layout with green title above white value (vertically stacked)
-  let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">';
+  let html = '<div class="combined-specs-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">';
 
   // Left column: Total Screens, Total Panels, Total Pixels, Total Weight
   html += '<div style="display: flex; flex-direction: column; gap: 12px;">';

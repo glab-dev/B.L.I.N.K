@@ -1124,7 +1124,7 @@
 
 <!-- Gear Code Mapping Modal -->
 <div id="gearCodeModal" class="modal-overlay">
-  <div class="modal-dialog" style="max-width: 850px; height: 85vh; display: flex; flex-direction: column;">
+  <div class="modal-dialog" style="height: 85vh; display: flex; flex-direction: column;">
     <div class="modal-header" style="flex-shrink: 0;">
       <h2 class="modal-title">Gear Code Mapping</h2>
       <button class="modal-close" onclick="closeGearCodeModal()">&times;</button>
@@ -1813,7 +1813,7 @@
       <!-- Column 3: Data (split into left inputs + right dist box positions) -->
       <div>
         <div style="font-family: 'Roboto Condensed', sans-serif; color: #00CED1; font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">Data</div>
-        <div style="display: flex; gap: 10px;">
+        <div class="cabling-data-flex" style="display: flex; gap: 10px;">
           <!-- Left: Data inputs -->
           <div style="flex: 0 0 auto;">
             <label style="margin-bottom: 6px;">
@@ -1864,7 +1864,7 @@
     </div>
   </div>
 
-  <div id="cableDiagramContainer" style="margin-bottom: 16px;">
+  <div id="cableDiagramContainer" style="margin-bottom: 16px; overflow-x: auto;">
     <canvas id="cableDiagramCanvas" style="width: 100%; background: #1a1a1a; border-radius: 4px;"></canvas>
   </div>
 
@@ -2004,7 +2004,7 @@
         <!-- Column 3: Data -->
         <div>
           <div style="font-family: 'Roboto Condensed', sans-serif; color: #00CED1; font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">Data</div>
-          <div style="display: flex; gap: 10px;">
+          <div class="cabling-data-flex" style="display: flex; gap: 10px;">
             <!-- Left: Data inputs -->
             <div style="flex: 0 0 auto;">
               <label style="margin-bottom: 6px;">
@@ -2233,20 +2233,20 @@
 
     <!-- Raster Canvas Toolbar (shown only in raster mode, replaces section-box) -->
     <div class="canvas-toolbar" id="rasterCanvasToolbar">
-      <div class="canvas-toolbar-group" style="min-width: 260px;">
+      <div class="canvas-toolbar-group toolbar-filename">
         <span class="canvas-toolbar-label">Filename</span>
-        <input type="text" id="rasterToolbarFilename" placeholder="LED_Wall_Canvas_4K_UHD_3840x2160" style="width: 260px;">
+        <input type="text" id="rasterToolbarFilename" placeholder="LED_Wall_Canvas_4K_UHD_3840x2160">
       </div>
-      <div class="canvas-toolbar-group">
+      <div class="canvas-toolbar-group toolbar-save">
         <span class="canvas-toolbar-label">&nbsp;</span>
         <button type="button" class="config-btn" onclick="saveRasterFile()">Save</button>
       </div>
-      <div class="canvas-toolbar-group">
+      <div class="canvas-toolbar-group toolbar-load">
         <span class="canvas-toolbar-label">&nbsp;</span>
         <button type="button" class="config-btn" onclick="document.getElementById('loadRasterInput').click()">Load</button>
         <input type="file" id="loadRasterInput" accept=".raster" style="display: none;" onchange="loadRasterFile(event)">
       </div>
-      <div class="canvas-toolbar-group">
+      <div class="canvas-toolbar-group toolbar-canvas-size">
         <span class="canvas-toolbar-label">Canvas Size</span>
         <select id="rasterToolbarCanvasSize" style="min-width: 140px;">
           <option value="4K_UHD" selected="">4K UHD (3840x2160)</option>
@@ -2255,11 +2255,11 @@
           <option value="custom">Custom</option>
         </select>
       </div>
-      <div class="canvas-toolbar-group" id="rasterCustomW" style="display: none;">
+      <div class="canvas-toolbar-group toolbar-custom-w" id="rasterCustomW" style="display: none;">
         <span class="canvas-toolbar-label">W (px)</span>
         <input type="number" id="rasterToolbarCustomW" min="1" style="width: 80px;">
       </div>
-      <div class="canvas-toolbar-group" id="rasterCustomH" style="display: none;">
+      <div class="canvas-toolbar-group toolbar-custom-h" id="rasterCustomH" style="display: none;">
         <span class="canvas-toolbar-label">H (px)</span>
         <input type="number" id="rasterToolbarCustomH" min="1" style="width: 80px;">
       </div>
@@ -2297,7 +2297,7 @@
         <span class="canvas-toolbar-label">&nbsp;</span>
         <button type="button" class="toggle-btn active" id="rasterToolbarSnap" onclick="toggleSnapMode()">Snap</button>
       </div>
-      <div class="canvas-toolbar-group">
+      <div class="canvas-toolbar-group toolbar-format">
         <span class="canvas-toolbar-label">Format</span>
         <select id="rasterToolbarFormat">
           <option value="png" selected="">PNG</option>
@@ -2305,7 +2305,7 @@
           <option value="resolume">Resolume</option>
         </select>
       </div>
-      <div class="canvas-toolbar-group">
+      <div class="canvas-toolbar-group toolbar-export">
         <span class="canvas-toolbar-label">&nbsp;</span>
         <button type="button" class="config-btn" id="rasterToolbarExport" onclick="exportCanvas()">Export</button>
       </div>
@@ -2426,7 +2426,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.17';
+const APP_VERSION = '2.9.18';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -155,7 +155,7 @@ function renderRasterScreenTable() {
   container.innerHTML = html;
 
   // Restore focus to equivalent element after DOM replacement
-  if (focusInfo) {
+  if (focusInfo && focusInfo.tagName !== 'select') {
     var newRow = container.querySelector('tr[data-screen-id="' + focusInfo.screenId + '"]');
     if (newRow) {
       var newTd = newRow.cells[focusInfo.cellIndex];

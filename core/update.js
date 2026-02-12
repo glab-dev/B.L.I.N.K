@@ -23,12 +23,20 @@ async function checkForUpdates() {
     console.log('Version check: Current=' + APP_VERSION + ', Latest=' + latestVersion);
 
     if (latestVersion && latestVersion !== APP_VERSION) {
-      console.log('Version check: Update found, hard refreshing to v' + latestVersion);
-      if (typeof hardRefreshApp === 'function') {
-        hardRefreshApp();
-      } else {
-        window.location.reload(true);
+      console.log('Version check: Update available — v' + latestVersion);
+
+      // Trigger SW update check so the new SW is ready when user taps Update
+      if (navigator.serviceWorker) {
+        try {
+          var reg = await navigator.serviceWorker.getRegistration();
+          if (reg) await reg.update();
+        } catch (swErr) {
+          console.log('SW update check failed:', swErr.message);
+        }
       }
+
+      // Show banner — user taps to apply update via hardRefreshApp()
+      showUpdateBanner(latestVersion);
     } else if (latestVersion === APP_VERSION) {
       // App is up to date - clear any dismissed version tracking
       localStorage.removeItem('dismissedUpdateVersion');

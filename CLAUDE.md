@@ -6,7 +6,9 @@ Claude reads this file automatically at the start of every session.
 
 Start the local dev server and open the browser at the beginning of every session:
 ```
-python3 -m http.server 8000 --bind 0.0.0.0 &   # run in background (bind to IPv4)
+# Try Python first, fall back to npx http-server
+python3 -m http.server 8000 --bind 0.0.0.0 &   # option 1 (if Python installed)
+npx http-server -p 8000 -c-1 &                  # option 2 (if Python not available)
 open http://localhost:8000                        # open in browser
 ```
 

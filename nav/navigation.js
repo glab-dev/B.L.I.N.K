@@ -28,7 +28,7 @@ function reopenMenuIfNeeded() {
   }
 }
 
-// Hard refresh - clears all caches and reloads the app
+// Hard refresh - tells waiting SW to activate, or clears caches and reloads
 function hardRefreshApp() {
   // Get the version we're updating to from the banner
   const banner = document.getElementById('updateBanner');
@@ -39,17 +39,33 @@ function hardRefreshApp() {
     localStorage.setItem('dismissedUpdateVersion', targetVersion);
   }
 
-  // Clear all caches before reload
-  if ('caches' in window) {
-    caches.keys().then(names => {
-      names.forEach(name => caches.delete(name));
+  // If a new service worker is waiting, tell it to activate
+  // (controllerchange listener below will reload the page)
+  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.getRegistration().then(function(reg) {
+      if (reg && reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        return; // controllerchange listener will reload
+      }
+      // No waiting SW — do a traditional hard refresh
+      forceClearAndReload();
     });
+  } else {
+    forceClearAndReload();
   }
+}
 
-  // Force hard reload from server (bypasses cache)
-  setTimeout(() => {
+// Nuclear option: clear all caches and force reload from network
+function forceClearAndReload() {
+  if ('caches' in window) {
+    caches.keys().then(function(names) {
+      return Promise.all(names.map(function(name) { return caches.delete(name); }));
+    }).then(function() {
+      window.location.reload(true);
+    });
+  } else {
     window.location.reload(true);
-  }, 100);
+  }
 }
 
 // Mobile View Switching
@@ -309,24 +325,34 @@ function installPwa() {
   }
 }
 
-// Unregister any existing service workers (cleanup from previous versions)
-// Service workers were causing update issues, so we've removed them
-if('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(registrations => {
-    registrations.forEach(reg => {
-      reg.unregister().then(() => console.log('SW unregistered'));
-    });
-  });
-  // Also clear any old caches
-  if('caches' in window) {
-    caches.keys().then(names => {
-      names.forEach(name => {
-        if(name.startsWith('led-calc-mobile-')) {
-          caches.delete(name);
+// Register service worker for offline support
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(function(reg) {
+    console.log('SW registered, scope:', reg.scope);
+
+    // Check for SW updates every 30 minutes while the app is open
+    setInterval(function() { reg.update(); }, 30 * 60 * 1000);
+
+    // Detect when a new SW version is found and installed
+    reg.addEventListener('updatefound', function() {
+      var newWorker = reg.installing;
+      newWorker.addEventListener('statechange', function() {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          // A new version is ready — show the update banner
+          if (typeof showUpdateBanner === 'function') {
+            showUpdateBanner('new');
+          }
         }
       });
     });
-  }
+  }).catch(function(err) {
+    console.log('SW registration failed:', err);
+  });
+
+  // When a new SW takes control, reload to get fresh assets
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    window.location.reload();
+  });
 }
 
 // Collapsible Sections - runs after page fully loads

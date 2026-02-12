@@ -358,9 +358,9 @@ if ('serviceWorker' in navigator) {
       var newWorker = reg.installing;
       newWorker.addEventListener('statechange', function() {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          // A new version is ready — show the update banner
-          if (typeof showUpdateBanner === 'function') {
-            showUpdateBanner('new');
+          // A new version is ready — fetch actual version and show banner
+          if (typeof checkForUpdates === 'function') {
+            checkForUpdates();
           }
         }
       });
@@ -420,8 +420,9 @@ function initMobileUI() {
     setupCombinedDragHandlers();
   }
 
-  // Check for updates after UI loads
+  // Check for updates after UI loads, then every 15 minutes
   setTimeout(checkForUpdates, 500);
+  setInterval(checkForUpdates, 15 * 60 * 1000);
 
   console.log('Mobile UI initialized');
 }

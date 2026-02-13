@@ -500,9 +500,7 @@ function setPowerInPosition(position) {
 let distBoxOnWallEnabled = false;
 function toggleDistBoxOnWall() {
   distBoxOnWallEnabled = !distBoxOnWallEnabled;
-  document.getElementById('distBoxOnWallBtn').classList.toggle('active', distBoxOnWallEnabled);
-  const posControls = document.getElementById('distBoxPositionControls');
-  if (posControls) posControls.style.display = distBoxOnWallEnabled ? '' : 'none';
+  updateDistBoxCheckUI(distBoxOnWallEnabled);
   // Save to gear-active screen when in gear view, otherwise current screen
   const targetId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
     ? gearActiveScreenId : currentScreenId;
@@ -510,6 +508,18 @@ function toggleDistBoxOnWall() {
     screens[targetId].data.distBoxOnWall = distBoxOnWallEnabled;
   }
   generateGearList();
+}
+
+// Update dist box checkbox visual state
+function updateDistBoxCheckUI(enabled) {
+  const check = document.getElementById('distBoxOnWallCheck');
+  if (check) {
+    check.textContent = enabled ? '✓' : '';
+    check.style.background = enabled ? 'var(--primary)' : 'transparent';
+    check.style.borderColor = enabled ? 'var(--primary)' : '#555';
+  }
+  const posControls = document.getElementById('distBoxPositionControls');
+  if (posControls) posControls.style.display = enabled ? '' : 'none';
 }
 
 // Main dist box horizontal position (SR / Center / SL)

@@ -653,7 +653,6 @@ function toggleRasterCustomCanvasInputs(show) {
 
 // Also sync toolbar X/Y when canvas drags update the original inputs
 function syncRasterToolbarPosition() {
-  if(typeof currentAppMode === 'undefined' || currentAppMode !== 'raster') return;
   var coX = document.getElementById('canvasX');
   var coY = document.getElementById('canvasY');
   var tbX = document.getElementById('rasterToolbarX');

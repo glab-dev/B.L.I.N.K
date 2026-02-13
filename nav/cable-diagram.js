@@ -47,15 +47,16 @@ function renderCableDiagram(screenId) {
   const dataStartDir = cabling.dataStartDir || 'top';
   const dataRedundancy = screen.data.redundancy || false;
 
-  // Layout constants
-  const MARGIN = { top: 50, bottom: 55, left: 20, right: 50 };
-  const BOX_W = 48, BOX_H = 24;
-  const PICK_GAP = 30; // visual gap between wall top and cable pick circle
-  const PICK_RADIUS = 8; // radius of the cable pick circle
-
-  // Canvas sizing — use full container width, no cap
+  // Canvas sizing — use full container width
   const containerWidth = container.clientWidth || 300;
   const canvasW = containerWidth;
+
+  // Layout constants — tighter on small screens
+  const isSmall = canvasW < 500;
+  const MARGIN = { top: isSmall ? 35 : 50, bottom: isSmall ? 40 : 55, left: isSmall ? 10 : 20, right: isSmall ? 42 : 50 };
+  const BOX_W = isSmall ? 40 : 48, BOX_H = isSmall ? 20 : 24;
+  const PICK_GAP = isSmall ? 20 : 30;
+  const PICK_RADIUS = isSmall ? 6 : 8;
   const dpr = window.devicePixelRatio || 1;
 
   // Scene bounds in feet — wall is on the right, equipment to the left of drop point
@@ -836,18 +837,18 @@ function renderCableDiagram(screenId) {
     ctx.lineTo(procX - BOX_W / 2, equipY + BOX_H / 2);    // horizontal right to proc box
     ctx.stroke();
 
-    // Cable length label centered on the horizontal segment
+    // Cable length label on the vertical segment (between server box and floor)
     const srvLabelText = serverToProcessor + "'";
-    const srvLabelX = (serverBoxX + BOX_W + procX - BOX_W / 2) / 2;
-    const srvLabelY = equipY + BOX_H / 2 - 10;
+    const srvLabelX = serverBoxX + BOX_W + 4;
+    const srvLabelY = (serverBoxCenterY + equipY + BOX_H / 2) / 2;
     ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     const srvTw = ctx.measureText(srvLabelText).width + 6;
     ctx.fillStyle = bgColor;
-    ctx.fillRect(srvLabelX - srvTw / 2, srvLabelY - 7, srvTw, 14);
+    ctx.fillRect(srvLabelX, srvLabelY - 7, srvTw, 14);
     ctx.fillStyle = SERVER_COLOR;
-    ctx.fillText(srvLabelText, srvLabelX, srvLabelY);
+    ctx.fillText(srvLabelText, srvLabelX + 2, srvLabelY);
   }
 
   // === Draw deferred overlays (markers, brackets, labels) on top of all cable lines ===
@@ -1088,9 +1089,10 @@ function drawCableEquipmentBox(ctx, x, y, w, h, label, color) {
   ctx.lineWidth = 1.5;
   ctx.strokeRect(x, y, w, h);
 
-  // Label
+  // Label (responsive font: smaller when box is narrow on mobile)
+  var fontSize = w < 40 ? 8 : 10;
   ctx.fillStyle = '#000000';
-  ctx.font = 'bold 10px Arial';
+  ctx.font = 'bold ' + fontSize + 'px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label, x + w / 2, y + h / 2);

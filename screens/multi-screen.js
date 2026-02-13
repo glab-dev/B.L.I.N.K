@@ -438,7 +438,7 @@ function loadScreenData(screenId) {
   document.getElementById('powerInBottomBtn')?.classList.toggle('active', powerInPosition === 'bottom');
 
   distBoxOnWallEnabled = data.distBoxOnWall || false;
-  document.getElementById('distBoxOnWallBtn')?.classList.toggle('active', distBoxOnWallEnabled);
+  if (typeof updateDistBoxCheckUI === 'function') updateDistBoxCheckUI(distBoxOnWallEnabled);
 
   distBoxMainHorizPosition = data.distBoxMainHorizPosition || data.distBoxHorizPosition || 'center';
   document.getElementById('distBoxMainHorizSRBtn')?.classList.toggle('active', distBoxMainHorizPosition === 'sr');

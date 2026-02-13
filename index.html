@@ -1770,22 +1770,22 @@
   <div class="section-box" id="cablingSection" style="margin-bottom: 16px;">
     <div class="section-title">Cabling</div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;" class="cabling-grid">
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;" class="cabling-grid">
       <!-- Column 1: General -->
       <div>
-        <div style="font-family: 'Roboto Condensed', sans-serif; color: var(--primary); font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">General</div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-          <label style="margin-bottom: 6px;">
+        <div style="font-family: 'Roboto Condensed', sans-serif; color: var(--primary); font-size: 13px; letter-spacing: 1px; margin-bottom: 2px; border-bottom: 1px solid #333; padding-bottom: 2px;">General</div>
+        <div style="display: grid; grid-template-columns: auto auto; gap: 4px 8px;">
+          <label style="margin-bottom: 2px;">
             <span>Wall to Floor</span>
             <input type="number" id="wallToFloor" min="0" step="0.1" placeholder="5">
           </label>
-          <label style="margin-bottom: 6px;">
+          <label style="margin-bottom: 2px;">
             <span>Cable Pick</span>
             <input type="number" id="cablePick" min="0" step="0.1" placeholder="0">
           </label>
         </div>
-        <div style="margin-top: 4px;">
-          <span class="toggle-label" style="display: block; margin-bottom: 4px;">Cable Drop</span>
+        <div style="margin-top: 2px;">
+          <span class="toggle-label" style="display: block; margin-bottom: 2px;">Cable Drop</span>
           <div class="slider-toggle">
             <button type="button" class="slider-toggle-btn active" id="cableDropBehindBtn" onclick="setCableDropPosition('behind')">Behind</button>
             <button type="button" class="slider-toggle-btn" id="cableDropSRBtn" onclick="setCableDropPosition('sr')">SR</button>
@@ -1796,13 +1796,13 @@
 
       <!-- Column 2: Power -->
       <div>
-        <div style="font-family: 'Roboto Condensed', sans-serif; color: #FF6B35; font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">Power</div>
-        <label style="margin-bottom: 6px;">
+        <div style="font-family: 'Roboto Condensed', sans-serif; color: #FF6B35; font-size: 13px; letter-spacing: 1px; margin-bottom: 2px; border-bottom: 1px solid #333; padding-bottom: 2px;">Power</div>
+        <label style="margin-bottom: 2px;">
           <span>Distro to Drop</span>
           <input type="number" id="distroToWall" min="0" step="0.1" placeholder="10">
         </label>
-        <div style="margin-top: 4px;">
-          <span class="toggle-label" style="display: block; margin-bottom: 4px;">Power In</span>
+        <div style="margin-top: 2px;">
+          <span class="toggle-label" style="display: block; margin-bottom: 2px;">Power In</span>
           <div class="slider-toggle">
             <button type="button" class="slider-toggle-btn active" id="powerInTopBtn" onclick="setPowerInPosition('top')">Top</button>
             <button type="button" class="slider-toggle-btn" id="powerInBottomBtn" onclick="setPowerInPosition('bottom')">Bottom</button>
@@ -1810,51 +1810,52 @@
         </div>
       </div>
 
-      <!-- Column 3: Data (split into left inputs + right dist box positions) -->
+      <!-- Column 3: Data -->
       <div>
-        <div style="font-family: 'Roboto Condensed', sans-serif; color: #00CED1; font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">Data</div>
-        <div class="cabling-data-flex" style="display: flex; gap: 10px;">
-          <!-- Left: Data inputs -->
-          <div style="flex: 0 0 auto;">
-            <label style="margin-bottom: 6px;">
+        <div class="cabling-data-grid" style="display: grid; grid-template-columns: auto minmax(0, 1fr);">
+          <div style="font-family: 'Roboto Condensed', sans-serif; color: #00CED1; font-size: 13px; letter-spacing: 1px;">Data</div>
+          <div style="padding-left: 6px;">
+            <label id="distBoxOnWallLabel" style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px; color: #9ca3af; letter-spacing: 0; font-weight: 400; margin-bottom: 0;" onclick="toggleDistBoxOnWall()">
+              Dist Box
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1px solid #555; background: transparent; flex-shrink: 0; font-size: 10px; color: #fff; line-height: 1;" id="distBoxOnWallCheck"></span>
+            </label>
+          </div>
+          <div style="margin-top: 2px; border-top: 1px solid #333; padding-top: 2px;">
+            <label style="margin-bottom: 4px;">
               <span>Proc to Drop</span>
               <input type="number" id="processorToWall" min="0" step="0.1" placeholder="15">
             </label>
-            <label style="margin-bottom: 6px;">
+            <label style="margin-bottom: 2px;">
               <span>Server to Proc</span>
               <input type="number" id="serverToProcessor" min="0" step="0.1" placeholder="50">
             </label>
           </div>
-          <!-- Right: Dist box toggle + position controls -->
-          <div style="flex: 1 1 auto; border-left: 1px solid #333; padding-left: 10px;">
-            <div style="margin-bottom: 6px;">
-              <button type="button" class="toggle-btn" id="distBoxOnWallBtn" onclick="toggleDistBoxOnWall()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Dist Box on Wall</button>
-            </div>
+          <div style="margin-top: 2px; border-top: 1px solid #333; padding-top: 2px; padding-left: 6px; border-left: 1px solid #333; min-width: 0;">
             <div id="distBoxPositionControls" style="display: none;">
               <!-- Main -->
               <span class="toggle-label" style="display: block; margin-bottom: 4px;">Main</span>
-              <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+              <div style="display: flex; gap: 4px; margin-bottom: 4px;">
                 <div class="slider-toggle">
-                  <button type="button" class="slider-toggle-btn" id="distBoxMainHorizSRBtn" onclick="setDistBoxMainHorizPosition('sr')">SR</button>
-                  <button type="button" class="slider-toggle-btn active" id="distBoxMainHorizCBtn" onclick="setDistBoxMainHorizPosition('center')">C</button>
-                  <button type="button" class="slider-toggle-btn" id="distBoxMainHorizSLBtn" onclick="setDistBoxMainHorizPosition('sl')">SL</button>
+                  <button type="button" class="slider-toggle-btn" id="distBoxMainHorizSRBtn" onclick="setDistBoxMainHorizPosition('sr')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SR</button>
+                  <button type="button" class="slider-toggle-btn active" id="distBoxMainHorizCBtn" onclick="setDistBoxMainHorizPosition('center')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">C</button>
+                  <button type="button" class="slider-toggle-btn" id="distBoxMainHorizSLBtn" onclick="setDistBoxMainHorizPosition('sl')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SL</button>
                 </div>
                 <div class="slider-toggle">
-                  <button type="button" class="slider-toggle-btn active" id="distBoxMainTopBtn" onclick="setDistBoxMainVertPosition('top')">Top</button>
-                  <button type="button" class="slider-toggle-btn" id="distBoxMainBottomBtn" onclick="setDistBoxMainVertPosition('bottom')">Bot</button>
+                  <button type="button" class="slider-toggle-btn active" id="distBoxMainTopBtn" onclick="setDistBoxMainVertPosition('top')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Top</button>
+                  <button type="button" class="slider-toggle-btn" id="distBoxMainBottomBtn" onclick="setDistBoxMainVertPosition('bottom')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Bot</button>
                 </div>
               </div>
               <!-- Backup -->
               <span class="toggle-label" style="display: block; margin-bottom: 4px;">Backup</span>
-              <div style="display: flex; gap: 6px;">
+              <div style="display: flex; gap: 4px;">
                 <div class="slider-toggle">
-                  <button type="button" class="slider-toggle-btn" id="distBoxBackupHorizSRBtn" onclick="setDistBoxBackupHorizPosition('sr')">SR</button>
-                  <button type="button" class="slider-toggle-btn active" id="distBoxBackupHorizCBtn" onclick="setDistBoxBackupHorizPosition('center')">C</button>
-                  <button type="button" class="slider-toggle-btn" id="distBoxBackupHorizSLBtn" onclick="setDistBoxBackupHorizPosition('sl')">SL</button>
+                  <button type="button" class="slider-toggle-btn" id="distBoxBackupHorizSRBtn" onclick="setDistBoxBackupHorizPosition('sr')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SR</button>
+                  <button type="button" class="slider-toggle-btn active" id="distBoxBackupHorizCBtn" onclick="setDistBoxBackupHorizPosition('center')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">C</button>
+                  <button type="button" class="slider-toggle-btn" id="distBoxBackupHorizSLBtn" onclick="setDistBoxBackupHorizPosition('sl')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SL</button>
                 </div>
                 <div class="slider-toggle">
-                  <button type="button" class="slider-toggle-btn active" id="distBoxBackupTopBtn" onclick="setDistBoxBackupVertPosition('top')">Top</button>
-                  <button type="button" class="slider-toggle-btn" id="distBoxBackupBottomBtn" onclick="setDistBoxBackupVertPosition('bottom')">Bot</button>
+                  <button type="button" class="slider-toggle-btn active" id="distBoxBackupTopBtn" onclick="setDistBoxBackupVertPosition('top')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Top</button>
+                  <button type="button" class="slider-toggle-btn" id="distBoxBackupBottomBtn" onclick="setDistBoxBackupVertPosition('bottom')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Bot</button>
                 </div>
               </div>
             </div>
@@ -1899,16 +1900,16 @@
           <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> Tap to select, tap again for options &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
         </div>
         <!-- Position Controls -->
-        <div id="combinedPositionControls" style="display: flex; flex-wrap: nowrap; gap: 6px; margin-bottom: 10px; align-items: center;">
+        <div id="combinedPositionControls" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center;">
           <div class="slider-toggle" style="display: inline-flex;">
-            <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Reset</button>
-            <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Manual Adjust</button>
+            <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()" style="padding: 8px 14px; font-size: 13px; min-height: 40px;">Reset</button>
+            <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()" style="padding: 8px 14px; font-size: 13px; min-height: 40px;">Manual Adjust</button>
           </div>
-          <!-- Zoom Controls (matching Canvas View style) -->
-          <div id="combinedZoomControls" style="display: inline-flex; align-items: stretch; gap: 4px;">
-            <button class="toggle-btn" onclick="adjustCombinedZoom(-10)" title="Zoom Out" style="padding: 6px 10px; height: 32px; font-size: 14px; box-sizing: border-box;">−</button>
-            <input type="number" id="combinedZoomInput" value="100" min="50" max="200" step="10" onchange="setCombinedZoom(parseInt(this.value))" title="Enter zoom percentage" style="width: 55px; padding: 4px; height: 32px; text-align: center; box-sizing: border-box; border: 2px solid #000; font-size: 11px;">
-            <button class="toggle-btn" onclick="adjustCombinedZoom(10)" title="Zoom In" style="padding: 6px 10px; height: 32px; font-size: 14px; box-sizing: border-box;">+</button>
+          <!-- Zoom Controls (slider-toggle style to match Reset/Manual Adjust) -->
+          <div class="slider-toggle" style="display: inline-flex; align-items: center;">
+            <button type="button" class="slider-toggle-btn" onclick="adjustCombinedZoom(-10)" title="Zoom Out" style="display: inline-flex; align-items: center; justify-content: center; padding: 0 14px; font-size: 14px; height: 36px; min-height: 36px;">−</button>
+            <input type="number" id="combinedZoomInput" value="100" min="50" max="200" step="10" onchange="setCombinedZoom(parseInt(this.value))" title="Enter zoom percentage" style="width: 55px; height: 36px; text-align: center; box-sizing: border-box; border: none; font-size: 12px; background: transparent; color: #fff; padding: 0;">
+            <button type="button" class="slider-toggle-btn" onclick="adjustCombinedZoom(10)" title="Zoom In" style="display: inline-flex; align-items: center; justify-content: center; padding: 0 14px; font-size: 14px; height: 36px; min-height: 36px; border-left: 2px solid #000;">+</button>
           </div>
         </div>
         <div id="combinedStandardCanvasWrapper" style="overflow-x: auto;">
@@ -1961,22 +1962,22 @@
     </div>
     <div class="layout-content" id="combinedCablingContent">
       <!-- Cabling Input Controls (matches gear tab layout) -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;" class="cabling-grid">
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px;" class="cabling-grid">
         <!-- Column 1: General -->
         <div>
-          <div style="font-family: 'Roboto Condensed', sans-serif; color: var(--primary); font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">General</div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <label style="margin-bottom: 6px;">
+          <div style="font-family: 'Roboto Condensed', sans-serif; color: var(--primary); font-size: 13px; letter-spacing: 1px; margin-bottom: 2px; border-bottom: 1px solid #333; padding-bottom: 2px;">General</div>
+          <div style="display: grid; grid-template-columns: auto auto; gap: 4px 8px;">
+            <label style="margin-bottom: 2px;">
               <span>Wall to Floor</span>
               <input type="number" id="combinedCablingWallToFloor" min="0" step="0.1" value="5" onchange="updateCombinedCablingFromInputs()">
             </label>
-            <label style="margin-bottom: 6px;">
+            <label style="margin-bottom: 2px;">
               <span>Cable Pick</span>
               <input type="number" id="combinedCablingCablePick" min="0" step="0.1" value="0" onchange="updateCombinedCablingFromInputs()">
             </label>
           </div>
-          <div style="margin-top: 4px;">
-            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Cable Drop</span>
+          <div style="margin-top: 2px;">
+            <span class="toggle-label" style="display: block; margin-bottom: 2px;">Cable Drop</span>
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="combinedCableDropBehindBtn" onclick="setCombinedCableDropPosition('behind')">Behind</button>
               <button type="button" class="slider-toggle-btn" id="combinedCableDropSrBtn" onclick="setCombinedCableDropPosition('sr')">SR</button>
@@ -1987,13 +1988,13 @@
 
         <!-- Column 2: Power -->
         <div>
-          <div style="font-family: 'Roboto Condensed', sans-serif; color: #FF6B35; font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">Power</div>
-          <label style="margin-bottom: 6px;">
+          <div style="font-family: 'Roboto Condensed', sans-serif; color: #FF6B35; font-size: 13px; letter-spacing: 1px; margin-bottom: 2px; border-bottom: 1px solid #333; padding-bottom: 2px;">Power</div>
+          <label style="margin-bottom: 2px;">
             <span>Distro to Drop</span>
             <input type="number" id="combinedCablingDistroToWall" min="0" step="0.1" value="10" onchange="updateCombinedCablingFromInputs()">
           </label>
-          <div style="margin-top: 4px;">
-            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Power In</span>
+          <div style="margin-top: 2px;">
+            <span class="toggle-label" style="display: block; margin-bottom: 2px;">Power In</span>
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="combinedPowerInTopBtn" onclick="setCombinedPowerInPosition('top')">Top</button>
               <button type="button" class="slider-toggle-btn" id="combinedPowerInBottomBtn" onclick="setCombinedPowerInPosition('bottom')">Bottom</button>
@@ -2003,49 +2004,50 @@
 
         <!-- Column 3: Data -->
         <div>
-          <div style="font-family: 'Roboto Condensed', sans-serif; color: #00CED1; font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px;">Data</div>
-          <div class="cabling-data-flex" style="display: flex; gap: 10px;">
-            <!-- Left: Data inputs -->
-            <div style="flex: 0 0 auto;">
-              <label style="margin-bottom: 6px;">
+          <div class="cabling-data-grid" style="display: grid; grid-template-columns: auto minmax(0, 1fr);">
+            <div style="font-family: 'Roboto Condensed', sans-serif; color: #00CED1; font-size: 13px; letter-spacing: 1px;">Data</div>
+            <div style="padding-left: 6px;">
+              <label id="combinedDistBoxOnWallLabel" style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px; color: #9ca3af; letter-spacing: 0; font-weight: 400; margin-bottom: 0;" onclick="toggleCombinedDistBoxOnWall()">
+                Dist Box
+                <span style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1px solid #555; background: transparent; flex-shrink: 0; font-size: 10px; color: #fff; line-height: 1;" id="combinedDistBoxOnWallCheck"></span>
+              </label>
+            </div>
+            <div style="margin-top: 2px; border-top: 1px solid #333; padding-top: 2px;">
+              <label style="margin-bottom: 4px;">
                 <span>Proc to Drop</span>
                 <input type="number" id="combinedCablingProcessorToWall" min="0" step="0.1" value="15" onchange="updateCombinedCablingFromInputs()">
               </label>
-              <label style="margin-bottom: 6px;">
+              <label style="margin-bottom: 2px;">
                 <span>Server to Proc</span>
                 <input type="number" id="combinedCablingServerToProc" min="0" step="0.1" value="50" onchange="updateCombinedCablingFromInputs()">
               </label>
             </div>
-            <!-- Right: Dist box toggle + position controls -->
-            <div style="flex: 1 1 auto; border-left: 1px solid #333; padding-left: 10px;">
-              <div style="margin-bottom: 6px;">
-                <button type="button" class="toggle-btn" id="combinedDistBoxOnWallBtn" onclick="toggleCombinedDistBoxOnWall()" style="width: auto; min-height: auto; margin-bottom: 0;">Dist Box on Wall</button>
-              </div>
+            <div style="margin-top: 2px; border-top: 1px solid #333; padding-top: 2px; padding-left: 6px; border-left: 1px solid #333; min-width: 0;">
               <div id="combinedDistBoxPositionControls" style="display: none;">
                 <!-- Main -->
                 <span class="toggle-label" style="display: block; margin-bottom: 4px;">Main</span>
-                <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                <div style="display: flex; gap: 4px; margin-bottom: 4px;">
                   <div class="slider-toggle">
-                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxMainHorizSRBtn" onclick="setCombinedDistBoxMainHorizPosition('sr')">SR</button>
-                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxMainHorizCBtn" onclick="setCombinedDistBoxMainHorizPosition('center')">C</button>
-                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxMainHorizSLBtn" onclick="setCombinedDistBoxMainHorizPosition('sl')">SL</button>
+                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxMainHorizSRBtn" onclick="setCombinedDistBoxMainHorizPosition('sr')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SR</button>
+                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxMainHorizCBtn" onclick="setCombinedDistBoxMainHorizPosition('center')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">C</button>
+                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxMainHorizSLBtn" onclick="setCombinedDistBoxMainHorizPosition('sl')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SL</button>
                   </div>
                   <div class="slider-toggle">
-                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxMainTopBtn" onclick="setCombinedDistBoxMainVertPosition('top')">Top</button>
-                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxMainBottomBtn" onclick="setCombinedDistBoxMainVertPosition('bottom')">Bot</button>
+                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxMainTopBtn" onclick="setCombinedDistBoxMainVertPosition('top')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Top</button>
+                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxMainBottomBtn" onclick="setCombinedDistBoxMainVertPosition('bottom')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Bot</button>
                   </div>
                 </div>
                 <!-- Backup -->
                 <span class="toggle-label" style="display: block; margin-bottom: 4px;">Backup</span>
-                <div style="display: flex; gap: 6px;">
+                <div style="display: flex; gap: 4px;">
                   <div class="slider-toggle">
-                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxBackupHorizSRBtn" onclick="setCombinedDistBoxBackupHorizPosition('sr')">SR</button>
-                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxBackupHorizCBtn" onclick="setCombinedDistBoxBackupHorizPosition('center')">C</button>
-                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxBackupHorizSLBtn" onclick="setCombinedDistBoxBackupHorizPosition('sl')">SL</button>
+                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxBackupHorizSRBtn" onclick="setCombinedDistBoxBackupHorizPosition('sr')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SR</button>
+                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxBackupHorizCBtn" onclick="setCombinedDistBoxBackupHorizPosition('center')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">C</button>
+                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxBackupHorizSLBtn" onclick="setCombinedDistBoxBackupHorizPosition('sl')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SL</button>
                   </div>
                   <div class="slider-toggle">
-                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxBackupTopBtn" onclick="setCombinedDistBoxBackupVertPosition('top')">Top</button>
-                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxBackupBottomBtn" onclick="setCombinedDistBoxBackupVertPosition('bottom')">Bot</button>
+                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxBackupTopBtn" onclick="setCombinedDistBoxBackupVertPosition('top')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Top</button>
+                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxBackupBottomBtn" onclick="setCombinedDistBoxBackupVertPosition('bottom')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Bot</button>
                   </div>
                 </div>
               </div>
@@ -2112,13 +2114,13 @@
   </div>
 
   <!-- Zoom and Undo/Redo Controls -->
-  <div style="display: flex; gap: 6px; margin-bottom: 12px; align-items: stretch;">
-    <button class="toggle-btn" onclick="zoomCanvas(-0.25)" title="Zoom Out" style="flex: 1; padding: 8px 4px; height: 44px; font-size: 16px; box-sizing: border-box;">−</button>
-    <input type="number" id="canvasZoomInput" value="100" min="50" max="500" step="10" onchange="setCanvasZoom(this.value)" title="Enter zoom percentage" style="flex: 1; padding: 8px 4px; height: 44px; text-align: center; box-sizing: border-box; border: 2px solid #000;">
-    <button class="toggle-btn" onclick="zoomCanvas(0.25)" title="Zoom In" style="flex: 1; padding: 8px 4px; height: 44px; font-size: 16px; box-sizing: border-box;">+</button>
-    <button class="toggle-btn" onclick="resetCanvasZoom()" title="Reset Zoom" style="flex: 1; padding: 8px 4px; height: 44px; box-sizing: border-box;">Reset</button>
-    <button class="toggle-btn" id="canvasUndoBtn" onclick="undoCanvasMove()" title="Undo Canvas Move" style="flex: 1; padding: 8px 4px; height: 44px; box-sizing: border-box;">Undo</button>
-    <button class="toggle-btn" id="canvasRedoBtn" onclick="redoCanvasMove()" title="Redo Canvas Move" style="flex: 1; padding: 8px 4px; height: 44px; box-sizing: border-box;">Redo</button>
+  <div style="display: flex; gap: 6px; margin-bottom: 12px; align-items: center;">
+    <button class="toggle-btn" onclick="zoomCanvas(-0.25)" title="Zoom Out" style="flex: 0 0 auto; padding: 8px 14px; height: 40px; font-size: 16px; box-sizing: border-box;">−</button>
+    <input type="number" id="canvasZoomInput" value="100" min="50" max="500" step="10" onchange="setCanvasZoom(this.value)" title="Enter zoom percentage" style="flex: 0 0 auto; width: 55px; padding: 8px 4px; height: 40px; text-align: center; box-sizing: border-box; border: 2px solid #000;">
+    <button class="toggle-btn" onclick="zoomCanvas(0.25)" title="Zoom In" style="flex: 0 0 auto; padding: 8px 14px; height: 40px; font-size: 16px; box-sizing: border-box;">+</button>
+    <button class="toggle-btn" onclick="resetCanvasZoom()" title="Reset Zoom" style="flex: 0 0 auto; padding: 8px 14px; height: 40px; box-sizing: border-box;">Reset</button>
+    <button class="toggle-btn" id="canvasUndoBtn" onclick="undoCanvasMove()" title="Undo Canvas Move" style="flex: 0 0 auto; padding: 8px 14px; height: 40px; box-sizing: border-box;">Undo</button>
+    <button class="toggle-btn" id="canvasRedoBtn" onclick="redoCanvasMove()" title="Redo Canvas Move" style="flex: 0 0 auto; padding: 8px 14px; height: 40px; box-sizing: border-box;">Redo</button>
   </div>
 
   <div style="display: flex; flex-direction: column; gap: 16px;">
@@ -2226,89 +2228,90 @@
           <button id="btnExportCanvas" class="config-btn" style="background: var(--primary); border: 2px solid #000; flex: 1; height: 48px; padding: 0; box-sizing: border-box;">Export</button>
         </div>
 
-        <!-- Screen Visibility Toggles -->
-        <div id="canvasScreenToggles"></div>
       </div>
-    </div>
 
-    <!-- Raster Canvas Toolbar (shown only in raster mode, replaces section-box) -->
-    <div class="canvas-toolbar" id="rasterCanvasToolbar">
-      <div class="canvas-toolbar-group toolbar-filename">
-        <span class="canvas-toolbar-label">Filename</span>
-        <input type="text" id="rasterToolbarFilename" placeholder="LED_Wall_Canvas_4K_UHD_3840x2160">
-      </div>
-      <div class="canvas-toolbar-group toolbar-save">
-        <span class="canvas-toolbar-label">&nbsp;</span>
-        <button type="button" class="config-btn" onclick="saveRasterFile()">Save</button>
-      </div>
-      <div class="canvas-toolbar-group toolbar-load">
-        <span class="canvas-toolbar-label">&nbsp;</span>
-        <button type="button" class="config-btn" onclick="document.getElementById('loadRasterInput').click()">Load</button>
-        <input type="file" id="loadRasterInput" accept=".raster" style="display: none;" onchange="loadRasterFile(event)">
-      </div>
-      <div class="canvas-toolbar-group toolbar-canvas-size">
-        <span class="canvas-toolbar-label">Canvas Size</span>
-        <select id="rasterToolbarCanvasSize" style="min-width: 140px;">
-          <option value="4K_UHD" selected="">4K UHD (3840x2160)</option>
-          <option value="4K_DCI">4K DCI (4096x2160)</option>
-          <option value="HD">HD (1920x1080)</option>
-          <option value="custom">Custom</option>
-        </select>
-      </div>
-      <div class="canvas-toolbar-group toolbar-custom-w" id="rasterCustomW" style="display: none;">
-        <span class="canvas-toolbar-label">W (px)</span>
-        <input type="number" id="rasterToolbarCustomW" min="1" style="width: 80px;">
-      </div>
-      <div class="canvas-toolbar-group toolbar-custom-h" id="rasterCustomH" style="display: none;">
-        <span class="canvas-toolbar-label">H (px)</span>
-        <input type="number" id="rasterToolbarCustomH" min="1" style="width: 80px;">
-      </div>
-      <div class="canvas-toolbar-group">
-        <span class="canvas-toolbar-label">X Pos</span>
-        <div class="number-input-with-arrows">
-          <input type="number" id="rasterToolbarX" value="0" min="0">
-          <div class="number-input-arrows">
-            <button type="button" onclick="adjustCanvasPosition('canvasX', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
-            <button type="button" onclick="adjustCanvasPosition('canvasX', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+      <!-- Unified Canvas Toolbar (replaces old section-content) -->
+      <div class="canvas-toolbar" id="rasterCanvasToolbar">
+        <div class="canvas-toolbar-group toolbar-filename">
+          <span class="canvas-toolbar-label">Filename</span>
+          <input type="text" id="rasterToolbarFilename" placeholder="LED_Wall_Canvas_4K_UHD_3840x2160">
+        </div>
+        <div class="canvas-toolbar-group toolbar-save">
+          <span class="canvas-toolbar-label">&nbsp;</span>
+          <button type="button" class="config-btn" onclick="saveRasterFile()">Save</button>
+        </div>
+        <div class="canvas-toolbar-group toolbar-load">
+          <span class="canvas-toolbar-label">&nbsp;</span>
+          <button type="button" class="config-btn" onclick="document.getElementById('loadRasterInput').click()">Load</button>
+          <input type="file" id="loadRasterInput" accept=".raster" style="display: none;" onchange="loadRasterFile(event)">
+        </div>
+        <div class="canvas-toolbar-group toolbar-canvas-size">
+          <span class="canvas-toolbar-label">Canvas Size</span>
+          <select id="rasterToolbarCanvasSize" style="min-width: 140px;">
+            <option value="4K_UHD" selected="">4K UHD (3840x2160)</option>
+            <option value="4K_DCI">4K DCI (4096x2160)</option>
+            <option value="HD">HD (1920x1080)</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="canvas-toolbar-group toolbar-custom-w" id="rasterCustomW" style="display: none;">
+          <span class="canvas-toolbar-label">W (px)</span>
+          <input type="number" id="rasterToolbarCustomW" min="1" style="width: 80px;">
+        </div>
+        <div class="canvas-toolbar-group toolbar-custom-h" id="rasterCustomH" style="display: none;">
+          <span class="canvas-toolbar-label">H (px)</span>
+          <input type="number" id="rasterToolbarCustomH" min="1" style="width: 80px;">
+        </div>
+        <div class="canvas-toolbar-group">
+          <span class="canvas-toolbar-label">X Pos</span>
+          <div class="number-input-with-arrows">
+            <input type="number" id="rasterToolbarX" value="0" min="0">
+            <div class="number-input-arrows">
+              <button type="button" onclick="adjustCanvasPosition('canvasX', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+              <button type="button" onclick="adjustCanvasPosition('canvasX', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="canvas-toolbar-group">
-        <span class="canvas-toolbar-label">Y Pos</span>
-        <div class="number-input-with-arrows">
-          <input type="number" id="rasterToolbarY" value="0" min="0">
-          <div class="number-input-arrows">
-            <button type="button" onclick="adjustCanvasPosition('canvasY', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
-            <button type="button" onclick="adjustCanvasPosition('canvasY', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+        <div class="canvas-toolbar-group">
+          <span class="canvas-toolbar-label">Y Pos</span>
+          <div class="number-input-with-arrows">
+            <input type="number" id="rasterToolbarY" value="0" min="0">
+            <div class="number-input-arrows">
+              <button type="button" onclick="adjustCanvasPosition('canvasY', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+              <button type="button" onclick="adjustCanvasPosition('canvasY', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="canvas-toolbar-group">
-        <span class="canvas-toolbar-label">Fine(px)</span>
-        <div class="number-input-with-arrows">
-          <input type="number" id="rasterToolbarFine" value="10" min="1" max="100">
-          <div class="number-input-arrows">
-            <button type="button" onclick="adjustNumberInput('arrowKeyIncrement', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
-            <button type="button" onclick="adjustNumberInput('arrowKeyIncrement', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+        <div class="canvas-toolbar-group">
+          <span class="canvas-toolbar-label">Fine(px)</span>
+          <div class="number-input-with-arrows">
+            <input type="number" id="rasterToolbarFine" value="10" min="1" max="100">
+            <div class="number-input-arrows">
+              <button type="button" onclick="adjustNumberInput('arrowKeyIncrement', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+              <button type="button" onclick="adjustNumberInput('arrowKeyIncrement', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+            </div>
           </div>
         </div>
+        <div class="canvas-toolbar-group">
+          <span class="canvas-toolbar-label">&nbsp;</span>
+          <button type="button" class="toggle-btn active" id="rasterToolbarSnap" onclick="toggleSnapMode()">Snap</button>
+        </div>
+        <div class="canvas-toolbar-group toolbar-format">
+          <span class="canvas-toolbar-label">Format</span>
+          <select id="rasterToolbarFormat">
+            <option value="png" selected="">PNG</option>
+            <option value="jpeg">JPEG</option>
+            <option value="resolume">Resolume</option>
+          </select>
+        </div>
+        <div class="canvas-toolbar-group toolbar-export">
+          <span class="canvas-toolbar-label">&nbsp;</span>
+          <button type="button" class="config-btn" id="rasterToolbarExport" onclick="exportCanvas()">Export</button>
+        </div>
       </div>
-      <div class="canvas-toolbar-group">
-        <span class="canvas-toolbar-label">&nbsp;</span>
-        <button type="button" class="toggle-btn active" id="rasterToolbarSnap" onclick="toggleSnapMode()">Snap</button>
-      </div>
-      <div class="canvas-toolbar-group toolbar-format">
-        <span class="canvas-toolbar-label">Format</span>
-        <select id="rasterToolbarFormat">
-          <option value="png" selected="">PNG</option>
-          <option value="jpeg">JPEG</option>
-          <option value="resolume">Resolume</option>
-        </select>
-      </div>
-      <div class="canvas-toolbar-group toolbar-export">
-        <span class="canvas-toolbar-label">&nbsp;</span>
-        <button type="button" class="config-btn" id="rasterToolbarExport" onclick="exportCanvas()">Export</button>
-      </div>
+
+      <!-- Screen Visibility Toggles (hidden in raster mode) -->
+      <div id="canvasScreenToggles"></div>
     </div>
   </div>
 </div>
@@ -2426,7 +2429,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.19';
+const APP_VERSION = '2.9.20';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -466,7 +466,7 @@ function resetCalculator() {
   
   // Reset cabling fields
   distBoxOnWallEnabled = false;
-  document.getElementById('distBoxOnWallBtn')?.classList.remove('active');
+  if (typeof updateDistBoxCheckUI === 'function') updateDistBoxCheckUI(false);
   cableDropPosition = 'behind';
   document.getElementById('cableDropBehindBtn')?.classList.add('active');
   document.getElementById('cableDropSRBtn')?.classList.remove('active');

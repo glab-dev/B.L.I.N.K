@@ -693,7 +693,7 @@ function loadGearCablingInputs(screenId) {
 
   const distBox = data.distBoxOnWall || false;
   distBoxOnWallEnabled = distBox;
-  document.getElementById('distBoxOnWallBtn').classList.toggle('active', distBox);
+  if (typeof updateDistBoxCheckUI === 'function') updateDistBoxCheckUI(distBox);
 
   distBoxMainHorizPosition = data.distBoxMainHorizPosition || data.distBoxHorizPosition || 'center';
   document.getElementById('distBoxMainHorizSRBtn')?.classList.toggle('active', distBoxMainHorizPosition === 'sr');
@@ -815,16 +815,20 @@ function generateGearList() {
     // === EQUIPMENT ===
     html += sectionHdr('Equipment');
     if(eq.isFirstScreenInGroup && eq.processorCount > 0) {
-      html += gearLine('Processor:', `${eq.processorCount} x ${escapeHtml(eq.processorName)}`);
+      html += `<div style="margin-left: 12px; color: #fff;">Processor:</div>`;
+      html += `<div style="margin-left: 24px; color: #fff;">${eq.processorCount} x ${escapeHtml(eq.processorName)}</div>`;
       if(eq.distBoxCount > 0) {
-        html += gearLine(`${escapeHtml(eq.distBoxName)}:`, eq.distBoxCount);
+        html += `<div style="margin-left: 24px; color: #fff;">${eq.distBoxCount} x ${escapeHtml(eq.distBoxName)}</div>`;
       }
     } else if(eq.referencesScreenName) {
-      html += `<div style="margin-left: 12px; color: #fff;">Processor: See ${escapeHtml(eq.referencesScreenName)}</div>`;
+      html += `<div style="margin-left: 12px; color: #fff;">Processor:</div>`;
+      html += `<div style="margin-left: 24px; color: #fff;">See ${escapeHtml(eq.referencesScreenName)}</div>`;
     }
-    html += `<div style="margin-left: 12px;"><span style="color: #fff;">Panels:</span> ${eq.activeFullPanels} x ${escapeHtml(eq.panelBrand)} ${escapeHtml(eq.panelName)}</div>`;
+    html += `<div style="margin-left: 12px; color: #fff;">Panels:</div>`;
+    html += `<div style="margin-left: 24px; color: #fff;">${eq.activeFullPanels} x ${escapeHtml(eq.panelBrand)} ${escapeHtml(eq.panelName)}</div>`;
     if(eq.activeHalfPanels > 0) {
-      html += `<div style="margin-left: 12px;"><span style="color: #fff;">Half Panels:</span> ${eq.activeHalfPanels} x ${escapeHtml(eq.panelBrand)} ${escapeHtml(eq.halfPanelName)}</div>`;
+      html += `<div style="margin-left: 12px; color: #fff;">Half Panels:</div>`;
+      html += `<div style="margin-left: 24px; color: #fff;">${eq.activeHalfPanels} x ${escapeHtml(eq.panelBrand)} ${escapeHtml(eq.halfPanelName)}</div>`;
     }
 
     // === DATA CABLES ===

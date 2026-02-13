@@ -121,12 +121,20 @@ function setCombinedPowerInPosition(pos) {
   }
 }
 
+function updateCombinedDistBoxCheckUI(enabled) {
+  const check = document.getElementById('combinedDistBoxOnWallCheck');
+  if (check) {
+    check.textContent = enabled ? '✓' : '';
+    check.style.background = enabled ? 'var(--primary)' : 'transparent';
+    check.style.borderColor = enabled ? 'var(--primary)' : '#555';
+  }
+  const controls = document.getElementById('combinedDistBoxPositionControls');
+  if (controls) controls.style.display = enabled ? 'block' : 'none';
+}
+
 function toggleCombinedDistBoxOnWall() {
   combinedCablingConfig.distBoxOnWall = !combinedCablingConfig.distBoxOnWall;
-  const btn = document.getElementById('combinedDistBoxOnWallBtn');
-  if (btn) btn.classList.toggle('active', combinedCablingConfig.distBoxOnWall);
-  const controls = document.getElementById('combinedDistBoxPositionControls');
-  if (controls) controls.style.display = combinedCablingConfig.distBoxOnWall ? 'block' : 'none';
+  updateCombinedDistBoxCheckUI(combinedCablingConfig.distBoxOnWall);
   saveCombinedCablingConfig();
   if (typeof combinedSelectedScreens !== 'undefined' && combinedSelectedScreens.size > 0) {
     renderCombinedCableDiagram(Array.from(combinedSelectedScreens), typeof combinedScreenDimensions !== 'undefined' ? combinedScreenDimensions : []);
@@ -213,10 +221,7 @@ function restoreCombinedCablingInputs() {
   setCombinedCableDropPosition(cfg.cableDropPosition);
   setCombinedPowerInPosition(cfg.powerInPosition);
 
-  const distBoxBtn = document.getElementById('combinedDistBoxOnWallBtn');
-  if (distBoxBtn) distBoxBtn.classList.toggle('active', cfg.distBoxOnWall);
-  const distBoxControls = document.getElementById('combinedDistBoxPositionControls');
-  if (distBoxControls) distBoxControls.style.display = cfg.distBoxOnWall ? 'block' : 'none';
+  updateCombinedDistBoxCheckUI(cfg.distBoxOnWall);
 
   if (cfg.distBoxOnWall) {
     setCombinedDistBoxMainHorizPosition(cfg.distBoxMainHorizPosition);
@@ -533,31 +538,34 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   var bbW = bbR - bbL;
   var bbH = bbB - bbT;
 
+  // ---- Canvas Sizing ----
+  var containerWidth = container.clientWidth || 400;
+  var canvasW = containerWidth;
+  var isSmall = canvasW < 500;
+  var MARGIN = { top: isSmall ? 30 : 50, bottom: isSmall ? 25 : 40, left: isSmall ? 14 : 20, right: isSmall ? 25 : 30 };
+  var BOX_W = isSmall ? 38 : 48, BOX_H = isSmall ? 18 : 24;
+
   // ---- Scene layout in panelSize pixel units ----
   var wallToFloorPx = cfg.wallToFloor * ftToPx;
   var distroDistPx = cfg.distroToWall * ftToPx;
   var procDistPx = cfg.processorToWall * ftToPx;
   var serverDistPx = cfg.serverToProcessor * ftToPx;
-  var pickSpace = cfg.cablePick > 0 ? 30 : 0;
+  var pickSpace = cfg.cablePick > 0 ? (isSmall ? 20 : 30) : 0;
 
   // Left space for equipment (extends left from drop point)
-  var leftEquipSpace = Math.max(distroDistPx, procDistPx + serverDistPx) + 60;
+  var leftEquipSpace = Math.max(distroDistPx, procDistPx + serverDistPx) + (isSmall ? 20 : 60);
 
-  // Total scene dimensions
-  var totalSceneW = leftEquipSpace + bbW + 40;
-  var equipAreaH = 50;
-  var totalSceneH = pickSpace + bbH + wallToFloorPx + equipAreaH;
-
-  // ---- Canvas Sizing ----
-  var MARGIN = { top: 50, bottom: 40, left: 20, right: 30 };
-  var BOX_W = 48, BOX_H = 24;
-  var containerWidth = container.clientWidth || 400;
-  var canvasW = containerWidth;
+  // Total scene dimensions (below-floor space is fixed canvas pixels, not scaled)
+  var totalSceneW = leftEquipSpace + bbW + (isSmall ? 20 : 40);
+  var totalSceneH = pickSpace + bbH + wallToFloorPx;
+  var belowFloorPx = isSmall ? 55 : 65;
   var dpr = window.devicePixelRatio || 1;
 
   var drawableW = canvasW - MARGIN.left - MARGIN.right;
   var sf = Math.min(drawableW / totalSceneW, 1.5); // scale factor
-  var canvasH = MARGIN.top + totalSceneH * sf + MARGIN.bottom;
+  // Extra bottom space on mobile for legend wrapping (2 rows + summary)
+  var legendExtra = isSmall ? 20 : 0;
+  var canvasH = MARGIN.top + totalSceneH * sf + belowFloorPx + MARGIN.bottom + legendExtra;
 
   canvas.width = canvasW * dpr;
   canvas.height = canvasH * dpr;
@@ -666,34 +674,45 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     ctx.lineWidth = 1.5;
     ctx.strokeRect(screenLeft, screenTop, screenW, screenH);
 
-    // Screen label
+    // Screen label (name only, no per-screen dimensions)
     ctx.fillStyle = screenColor;
-    ctx.font = 'bold 11px Arial';
+    ctx.font = 'bold ' + (isSmall ? '9' : '11') + 'px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(sp.screen.name || sp.screenId, screenLeft + screenW / 2, screenTop - 8);
-
-    // Dimensions
-    ctx.fillStyle = '#999';
-    ctx.font = '9px Arial';
-    ctx.fillText(sp.calc.wallWidthFt + '\' x ' + sp.calc.wallHeightFt + '\'', screenLeft + screenW / 2, screenTop - 20);
+    ctx.fillText(sp.screen.name || sp.screenId, screenLeft + screenW / 2, screenTop - 6);
   });
 
   // ---- Equipment on Floor (ONE set for unified wall) ----
   var distroCanvasX = dropX - distroDistPx * sf;
   var equipY = floorY + 8;
-
-  if (typeof drawCableEquipmentBox === 'function') {
-    drawCableEquipmentBox(ctx, distroCanvasX - BOX_W / 2, equipY, BOX_W, BOX_H, 'DISTRO', CC_DISTBOX_COLOR);
-  }
-
   var procCanvasX = dropX - procDistPx * sf;
-  if (typeof drawCableEquipmentBox === 'function') {
-    drawCableEquipmentBox(ctx, procCanvasX - BOX_W / 2, equipY, BOX_W, BOX_H, 'PROC', CC_PROC_COLOR);
+  var serverCanvasX = procCanvasX - serverDistPx * sf;
+
+  // Ensure equipment boxes don't overlap on mobile
+  if (isSmall) {
+    var minGap = 4;
+    if (procCanvasX - BOX_W / 2 < serverCanvasX + BOX_W / 2 + minGap) {
+      serverCanvasX = procCanvasX - BOX_W - minGap;
+    }
+    if (distroCanvasX - BOX_W / 2 < procCanvasX + BOX_W / 2 + minGap) {
+      distroCanvasX = procCanvasX + BOX_W + minGap;
+    }
   }
 
-  var serverCanvasX = procCanvasX - serverDistPx * sf;
+  // Use abbreviated labels on mobile
+  var distLabel = isSmall ? 'DIST' : 'DISTRO';
+  var procLabel = 'PROC';
+  var srvLabel = isSmall ? 'SRV' : 'SERVER';
+
   if (typeof drawCableEquipmentBox === 'function') {
-    drawCableEquipmentBox(ctx, serverCanvasX - BOX_W / 2, equipY, BOX_W, BOX_H, 'SERVER', CC_SERVER_COLOR);
+    drawCableEquipmentBox(ctx, distroCanvasX - BOX_W / 2, equipY, BOX_W, BOX_H, distLabel, CC_POWER_COLOR);
+  }
+
+  if (typeof drawCableEquipmentBox === 'function') {
+    drawCableEquipmentBox(ctx, procCanvasX - BOX_W / 2, equipY, BOX_W, BOX_H, procLabel, CC_PROC_COLOR);
+  }
+
+  if (typeof drawCableEquipmentBox === 'function') {
+    drawCableEquipmentBox(ctx, serverCanvasX - BOX_W / 2, equipY, BOX_W, BOX_H, srvLabel, CC_SERVER_COLOR);
   }
 
   // Server-to-processor cable
@@ -703,6 +722,23 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   ctx.moveTo(serverCanvasX + BOX_W / 2, equipY + BOX_H / 2);
   ctx.lineTo(procCanvasX - BOX_W / 2, equipY + BOX_H / 2);
   ctx.stroke();
+
+  // Server-to-processor distance label
+  if (cfg.serverToProcessor > 0) {
+    var srvProcMidX = (serverCanvasX + BOX_W / 2 + procCanvasX - BOX_W / 2) / 2;
+    var srvProcLabelY = equipY + BOX_H / 2;
+    var srvProcFontSize = isSmall ? 7 : 9;
+    ctx.font = 'bold ' + srvProcFontSize + 'px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    var srvProcText = cfg.serverToProcessor + "'";
+    var srvProcTw = ctx.measureText(srvProcText).width + 4;
+    ctx.fillStyle = CC_BG_COLOR;
+    ctx.fillRect(srvProcMidX - srvProcTw / 2, srvProcLabelY - srvProcFontSize - 4, srvProcTw, srvProcFontSize + 2);
+    ctx.fillStyle = CC_SERVER_COLOR;
+    ctx.fillText(srvProcText, srvProcMidX, srvProcLabelY - 2);
+    ctx.textBaseline = 'alphabetic';
+  }
 
   // ---- Cable Pick (ONE for unified wall) ----
   if (cfg.cablePick > 0) {
@@ -721,6 +757,13 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     ctx.textBaseline = 'middle';
     ctx.fillText('PICK', pickCX, pickCY);
     ctx.textBaseline = 'alphabetic';
+
+    // Cable pick dimension
+    if (typeof drawCableDimensionLine === 'function') {
+      var pickDimX = dropX - (isSmall ? 15 : 25);
+      drawCableDimensionLine(ctx, pickDimX, pickCY, pickDimX, toY(bbT),
+        cfg.cablePick + "'", '#ccc', CC_BG_COLOR);
+    }
   }
 
   // ---- Unified Power (SOCA) Cable Routing ----
@@ -1052,51 +1095,76 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
 
   // ---- Dimension Lines ----
   if (typeof drawCableDimensionLine === 'function') {
-    // Combined wall width — above bounding box
+    // Combined wall width — above bounding box (tighter on mobile to avoid label overlap)
     var totalWidthFt = bbW / ftToPx;
-    drawCableDimensionLine(ctx, bbCanvasL, bbCanvasT - 32, bbCanvasR, bbCanvasT - 32,
+    var dimAboveWall = isSmall ? 16 : 32;
+    drawCableDimensionLine(ctx, bbCanvasL, bbCanvasT - dimAboveWall, bbCanvasR, bbCanvasT - dimAboveWall,
       Math.round(totalWidthFt * 10) / 10 + '\'', '#ccc', CC_BG_COLOR);
 
-    // Combined wall height — right side of bounding box
+    // Combined wall height — right side of bounding box (tighter offset on mobile)
     var totalHeightFt = bbH / ftToPx;
-    drawCableDimensionLine(ctx, bbCanvasR + 15, bbCanvasT, bbCanvasR + 15, bbCanvasB,
+    var dimOffR1 = isSmall ? 8 : 15;
+    drawCableDimensionLine(ctx, bbCanvasR + dimOffR1, bbCanvasT, bbCanvasR + dimOffR1, bbCanvasB,
       Math.round(totalHeightFt * 10) / 10 + '\'', '#ccc', CC_BG_COLOR);
 
-    // Wall-to-floor (further right to avoid overlap)
-    drawCableDimensionLine(ctx, bbCanvasR + 35, bbCanvasB, bbCanvasR + 35, floorY,
-      cfg.wallToFloor + '\'', '#ccc', CC_BG_COLOR);
+    // Wall-to-floor (further right to avoid overlap, tighter on mobile)
+    if (cfg.wallToFloor > 0) {
+      var dimOffR2 = isSmall ? 18 : 35;
+      drawCableDimensionLine(ctx, bbCanvasR + dimOffR2, bbCanvasB, bbCanvasR + dimOffR2, floorY,
+        cfg.wallToFloor + '\'', '#ccc', CC_BG_COLOR);
+    }
+
+    // Distro-to-wall distance — below floor
+    var distDimY = floorY + BOX_H + 14;
+    drawCableDimensionLine(ctx, distroCanvasX, distDimY, dropX, distDimY,
+      cfg.distroToWall + "'", '#ccc', CC_BG_COLOR);
+
+    // Processor-to-wall distance — below floor (further down)
+    var procDimY = floorY + BOX_H + 26;
+    drawCableDimensionLine(ctx, procCanvasX, procDimY, dropX, procDimY,
+      cfg.processorToWall + "'", '#ccc', CC_BG_COLOR);
   }
 
-  // ---- Legend ----
-  var legendY = canvasH - 22;
+  // ---- Legend (wraps to multiple rows on small screens) ----
   var legendItems = [
-    { color: CC_POWER_COLOR, label: 'Power (SOCA)' },
+    { color: CC_POWER_COLOR, label: 'Power' },
     { color: CC_DATA_COLOR, label: 'Data' },
-    { color: CC_PROC_COLOR, label: 'Processor' },
-    { color: CC_DISTBOX_COLOR, label: 'Distro' },
+    { color: CC_PROC_COLOR, label: 'Proc' },
+    { color: CC_POWER_COLOR, label: 'Distro' },
     { color: CC_SERVER_COLOR, label: 'Server' }
   ];
   if (redundancy) legendItems.push({ color: CC_BACKUP_COLOR, label: 'Backup' });
-  if (cfg.cablePick > 0) legendItems.push({ color: CC_PICK_COLOR, label: 'Cable Pick' });
+  if (cfg.cablePick > 0) legendItems.push({ color: CC_PICK_COLOR, label: 'Pick' });
 
-  var legendX = MARGIN.left + 10;
-  ctx.font = '9px Arial';
+  var legendFontSize = isSmall ? 8 : 9;
+  var legendSpacing = isSmall ? 18 : 28;
+  ctx.font = legendFontSize + 'px Arial';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
 
+  var legendX = MARGIN.left + 4;
+  var legendY = canvasH - 22;
+  var legendMaxX = canvasW - MARGIN.right;
+
   for (var li = 0; li < legendItems.length; li++) {
     var item = legendItems[li];
+    var itemW = ctx.measureText(item.label).width + 14 + legendSpacing;
+    // Wrap to next row if this item would overflow
+    if (legendX + itemW > legendMaxX && legendX > MARGIN.left + 10) {
+      legendX = MARGIN.left + 4;
+      legendY += 14;
+    }
     ctx.fillStyle = item.color;
-    ctx.fillRect(legendX, legendY - 4, 10, 8);
+    ctx.fillRect(legendX, legendY - 4, 8, 8);
     ctx.fillStyle = '#ccc';
-    ctx.fillText(item.label, legendX + 14, legendY);
-    legendX += ctx.measureText(item.label).width + 28;
+    ctx.fillText(item.label, legendX + 12, legendY);
+    legendX += ctx.measureText(item.label).width + legendSpacing;
   }
 
   // ---- Summary Text ----
   ctx.fillStyle = '#888';
-  ctx.font = '9px Arial';
-  ctx.textAlign = 'right';
+  ctx.font = (isSmall ? 8 : 9) + 'px Arial';
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   var shared = calcData.shared;
   var summaryParts = [
@@ -1106,7 +1174,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   if (shared.distributionBoxCount > 0) {
     summaryParts.push(shared.distributionBoxCount + 'x ' + shared.distributionBoxName);
   }
-  ctx.fillText(summaryParts.join('  |  '), canvasW - MARGIN.right - 4, canvasH - 8);
+  ctx.fillText(summaryParts.join('  |  '), MARGIN.left + 4, canvasH - 4);
 
   ctx.restore();
 }

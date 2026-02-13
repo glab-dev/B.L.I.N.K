@@ -4,14 +4,19 @@
 // Called by switchMobileView() in the navigation dispatcher.
 
 function activateCanvasView() {
-  // Show canvas view with all canvas options (no screen tabs on canvas page)
+  // Show canvas view with unified toolbar (no screen tabs on canvas page)
   const canvasTabsEl = document.getElementById('canvasTabsContainer');
   const canvasContainer = document.getElementById('canvasContainer');
   if(canvasTabsEl) canvasTabsEl.style.display = 'flex';
   if(canvasContainer) canvasContainer.style.display = 'block';
-  if(canvasContainer) canvasContainer.classList.remove('raster-mode');
-  // Sync toolbar values back to section-box when leaving raster mode
-  if(typeof syncCanvasOptionsFromToolbar === 'function') syncCanvasOptionsFromToolbar();
+  if(canvasContainer) canvasContainer.classList.remove('raster-mode');  // Hides Save/Load buttons
+  // Sync toolbar values from canvas options (hidden section-box)
+  if(typeof syncToolbarFromCanvasOptions === 'function') syncToolbarFromCanvasOptions();
+  // Init toolbar listeners once (shared with raster mode)
+  if(typeof initRasterToolbarListeners === 'function' && typeof rasterToolbarInitialized !== 'undefined' && !rasterToolbarInitialized) {
+    initRasterToolbarListeners();
+    rasterToolbarInitialized = true;
+  }
   // Restore elements hidden in raster mode
   const canvasToggles = document.getElementById('canvasScreenToggles');
   if(canvasToggles) canvasToggles.style.display = '';
@@ -852,8 +857,9 @@ function setupCanvasViewInteractivity() {
           // Sync raster screen table if in raster mode
           if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
             renderRasterScreenTable();
-            if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
           }
+          // Sync toolbar position in all canvas modes
+          if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
         }, 300);
       }
     }
@@ -1536,8 +1542,9 @@ function setupCanvasViewInteractivity() {
       // Sync raster screen table if in raster mode
       if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();
-        if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
       }
+      // Sync toolbar position in all canvas modes
+      if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
     }
   });
 
@@ -1566,8 +1573,9 @@ function setupCanvasViewInteractivity() {
       // Sync raster screen table if in raster mode
       if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();
-        if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
       }
+      // Sync toolbar position in all canvas modes
+      if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
       
       // Save state after drag completes
       saveCanvasMoveState();
@@ -1863,8 +1871,9 @@ function setupCanvasViewInteractivity() {
       // Sync raster screen table if in raster mode
       if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();
-        if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
       }
+      // Sync toolbar position in all canvas modes
+      if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
     }
   });
 
@@ -1884,8 +1893,9 @@ function setupCanvasViewInteractivity() {
       // Sync raster screen table if in raster mode
       if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();
-        if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
       }
+      // Sync toolbar position in all canvas modes
+      if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
     }
   });
 }
@@ -2304,20 +2314,20 @@ function updateCanvasScreenToggles() {
     html += `
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; padding: 4px 6px; background: #2a2a2a; border-radius: 4px;">
         <button type="button" class="toggle-btn ${screen.visible ? 'active' : ''}"
-                style="padding: 3px 6px; font-size: 10px; min-height: 24px; line-height: 1; display: inline-flex; align-items: center; gap: 4px; width: 110px; justify-content: flex-start; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${screen.visible ? textOutline : ''}"
+                style="padding: 6px 10px; font-size: 12px; min-height: 32px; line-height: 1; display: inline-flex; align-items: center; gap: 4px; width: 120px; justify-content: flex-start; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${screen.visible ? textOutline : ''}"
                 onclick="toggleScreenVisibility('${safeScreenId}', ${!screen.visible})">
           <span style="display: inline-block; width: 10px; height: 10px; background: ${safeScreenColor}; border: 1px solid #666; flex-shrink: 0;"></span>
           ${escapeHtml(screen.name)}
         </button>
         <div style="display: flex; gap: 4px;">
           <button type="button" class="toggle-btn ${showCoords ? 'active' : ''}"
-                  style="padding: 3px 6px; font-size: 10px; min-width: 28px; min-height: 24px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showCoords ? textOutline : ''}"
+                  style="padding: 6px 8px; font-size: 12px; min-width: 32px; min-height: 32px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showCoords ? textOutline : ''}"
                   onclick="toggleScreenCoordinates('${safeScreenId}')">X/Y</button>
           <button type="button" class="toggle-btn ${showPixels ? 'active' : ''}"
-                  style="padding: 3px 6px; font-size: 10px; min-width: 38px; min-height: 24px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showPixels ? textOutline : ''}"
+                  style="padding: 6px 8px; font-size: 12px; min-width: 42px; min-height: 32px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showPixels ? textOutline : ''}"
                   onclick="toggleScreenPixelDimensions('${safeScreenId}')">Pixels</button>
           <button type="button" class="toggle-btn ${showCrosshair ? 'active' : ''}"
-                  style="padding: 3px 6px; font-size: 10px; min-width: 24px; min-height: 24px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showCrosshair ? textOutline : ''}"
+                  style="padding: 6px 8px; font-size: 12px; min-width: 28px; min-height: 32px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showCrosshair ? textOutline : ''}"
                   onclick="toggleScreenCrosshair('${safeScreenId}')" title="Show X crosshair">X</button>
         </div>
       </div>

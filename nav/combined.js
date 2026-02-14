@@ -2491,9 +2491,11 @@ function renderCombinedGearList(selectedScreenIds) {
       else if(b.type === '4w') total4wBumpers++;
     });
 
-    // Estimate plates
-    totalPlates2way += Math.max(0, (pw - 2));
-    totalPlates4way += data.use4WayBumpers ? Math.floor(pw / 2) : 0;
+    // Estimate plates (only for panels that use connecting plates)
+    if (shouldUseConnectingPlates(panelType)) {
+      totalPlates2way += Math.max(0, (pw - 2));
+      totalPlates4way += data.use4WayBumpers ? Math.floor(pw / 2) : 0;
+    }
 
     // Shackles and Cheeseye
     const needsShackles = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3'].includes(panelType) || (panel.custom && panel.needs_shackles);

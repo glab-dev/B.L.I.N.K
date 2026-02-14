@@ -1216,7 +1216,7 @@
           <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save</button>
           <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load</button>
           <input type="file" id="loadConfigInput" accept=".led,.ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
-          <button class="mobile-menu-btn" onclick="showRecentProjects()">Recent</button>
+          <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; showRecentProjects()">Recent</button>
         </div>
         <div class="mobile-menu-btn-row">
           <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="closeMobileMenu();">Export</button>
@@ -2428,7 +2428,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.25';
+const APP_VERSION = '2.9.26';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

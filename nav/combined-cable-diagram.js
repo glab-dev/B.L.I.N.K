@@ -539,6 +539,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
 
   // Empty state — matches other combined canvases (100x100, no CSS stretch)
   if (!selectedScreenIds || selectedScreenIds.length === 0 || !screenDimensions || screenDimensions.length === 0) {
+    container.classList.remove('has-diagram');
     canvas.width = 100;
     canvas.height = 100;
     canvas.style.width = '';
@@ -554,6 +555,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     return;
   }
 
+  container.classList.add('has-diagram');
   updateCombinedDistBoxAvailability();
 
   const cfg = combinedCablingConfig;

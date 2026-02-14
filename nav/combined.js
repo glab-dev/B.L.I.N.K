@@ -1107,6 +1107,11 @@ function initCombinedView() {
     togglesContainer.appendChild(btn);
   });
 
+  // Update dist box availability based on selected screens' processor
+  if (typeof updateCombinedDistBoxAvailability === 'function') {
+    updateCombinedDistBoxAvailability();
+  }
+
   // Render combined view if screens are selected
   if(combinedSelectedScreens.size > 0) {
     renderCombinedView();

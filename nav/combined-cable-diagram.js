@@ -68,12 +68,31 @@ function processorSupportsDistBox(processorId, mx40Mode) {
 }
 
 function updateCombinedDistBoxAvailability() {
+  // Derive processor from selected screens, or fall back to current screen
+  var found = false;
+  var selectedIds = (typeof combinedSelectedScreens !== 'undefined' && combinedSelectedScreens.size > 0)
+    ? Array.from(combinedSelectedScreens) : [];
+  for (var i = 0; i < selectedIds.length; i++) {
+    var scr = screens[selectedIds[i]];
+    if (scr && scr.data && scr.data.processor) {
+      combinedCablingConfig.processor = scr.data.processor;
+      combinedCablingConfig.mx40ConnectionMode = scr.data.mx40ConnectionMode || 'direct';
+      found = true;
+      break;
+    }
+  }
+  if (!found && typeof currentScreenId !== 'undefined' && typeof screens !== 'undefined') {
+    var cur = screens[currentScreenId];
+    if (cur && cur.data && cur.data.processor) {
+      combinedCablingConfig.processor = cur.data.processor;
+      combinedCablingConfig.mx40ConnectionMode = cur.data.mx40ConnectionMode || 'direct';
+    }
+  }
   var supportsDistBox = processorSupportsDistBox(
     combinedCablingConfig.processor,
     combinedCablingConfig.mx40ConnectionMode
   );
   var label = document.getElementById('combinedDistBoxOnWallLabel');
-  var controls = document.getElementById('combinedDistBoxPositionControls');
   if (label) {
     label.style.opacity = supportsDistBox ? '1' : '0.3';
     label.style.pointerEvents = supportsDistBox ? '' : 'none';
@@ -164,6 +183,11 @@ function updateCombinedDistBoxCheckUI(enabled) {
 }
 
 function toggleCombinedDistBoxOnWall() {
+  // Block toggling ON if processor doesn't support dist boxes
+  if (!combinedCablingConfig.distBoxOnWall &&
+      !processorSupportsDistBox(combinedCablingConfig.processor, combinedCablingConfig.mx40ConnectionMode)) {
+    return;
+  }
   combinedCablingConfig.distBoxOnWall = !combinedCablingConfig.distBoxOnWall;
   updateCombinedDistBoxCheckUI(combinedCablingConfig.distBoxOnWall);
   saveCombinedCablingConfig();
@@ -263,6 +287,9 @@ function restoreCombinedCablingInputs() {
 
   const redundancyBtn = document.getElementById('combinedRedundancyBtn');
   if (redundancyBtn) redundancyBtn.classList.toggle('active', cfg.redundancy);
+
+  // Re-apply processor-based dist box availability after restoring UI
+  updateCombinedDistBoxAvailability();
 }
 
 // ---- Color Constants ----
@@ -527,15 +554,6 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     return;
   }
 
-  // Derive processor and MX40 mode from first selected screen
-  for (var si = 0; si < selectedScreenIds.length; si++) {
-    var scr = screens[selectedScreenIds[si]];
-    if (scr && scr.data && scr.data.processor) {
-      combinedCablingConfig.processor = scr.data.processor;
-      combinedCablingConfig.mx40ConnectionMode = scr.data.mx40ConnectionMode || 'direct';
-      break;
-    }
-  }
   updateCombinedDistBoxAvailability();
 
   const cfg = combinedCablingConfig;

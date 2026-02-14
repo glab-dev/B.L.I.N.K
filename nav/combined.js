@@ -2597,12 +2597,13 @@ function renderCombinedGearList(selectedScreenIds) {
     const totalMainPorts = group.totalMainPorts;
     const hasRedundancy = group.hasAnyRedundancy;
     const hasProcessorRedundancy = group.hasAnyProcessorRedundancy;
-    let processorCount = 0;
+    let processorCount = 0, distBoxCount = 0, distBoxName = '';
 
     if(procType === 'Brompton_SX40') {
       const mainXDs = totalMainPorts > 0 ? Math.ceil(totalMainPorts / 10) : 0;
-      const distBoxCount = hasRedundancy ? mainXDs * 2 : mainXDs;
+      distBoxCount = hasRedundancy ? mainXDs * 2 : mainXDs;
       processorCount = distBoxCount > 0 ? Math.ceil(distBoxCount / 4) : 0;
+      distBoxName = 'XD';
     } else if(procType === 'Brompton_S8') {
       const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
       processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 8) : 0;
@@ -2613,7 +2614,8 @@ function renderCombinedGearList(selectedScreenIds) {
       const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
       const processorsByPixels = group.totalPixels > 0 ? Math.ceil(group.totalPixels / 9000000) : 0;
       if(group.hasAnyIndirectMode) {
-        const distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 10) : 0;
+        distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 10) : 0;
+        distBoxName = 'CVT-10 Pro';
         processorCount = Math.max(processorsByPixels, Math.ceil(distBoxCount / 4));
       } else {
         const processorsByPorts = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 20) : 0;
@@ -2628,13 +2630,19 @@ function renderCombinedGearList(selectedScreenIds) {
         const processorsByPixels = group.totalPixels > 0 ? Math.ceil(group.totalPixels / proc.total_pixels) : 0;
         if(group.hasAnyIndirectMode) {
           const portsPerBox = proc.distribution_box_ports || 10;
-          const distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerBox) : 0;
+          distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerBox) : 0;
+          distBoxName = proc.distribution_box_name || '';
           processorCount = Math.max(processorsByPixels, Math.ceil(distBoxCount / (proc.output_ports || 4)));
         } else {
           const portsPerProcessor = proc.output_ports || 4;
           const processorsByPorts = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerProcessor) : 0;
           processorCount = Math.max(processorsByPixels, processorsByPorts);
         }
+      } else if(proc && proc.uses_distribution_box && proc.distribution_box_name) {
+        const portsPerBox = proc.distribution_box_ports || 10;
+        distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerBox) : 0;
+        distBoxName = proc.distribution_box_name;
+        processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / (proc.output_ports || 8)) : group.screens.length;
       } else {
         const portsPerProcessor = (proc && proc.output_ports) || 8;
         processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerProcessor) : group.screens.length;
@@ -2642,38 +2650,52 @@ function renderCombinedGearList(selectedScreenIds) {
     }
     if(hasProcessorRedundancy && processorCount > 0) processorCount *= 2;
     group.processorCount = processorCount;
+    group.distBoxCount = distBoxCount;
+    group.distBoxName = distBoxName;
     totalGroupedProcessors += processorCount;
   });
 
   // Helper to add a gear line only if value > 0
   function addGearLine(label, value) {
     if(value > 0) {
-      // If value is a number, format as "countx label" — otherwise keep as "label value" for pre-formatted strings
+      // If value is a number, format as "count x label" — otherwise keep as "label value" for pre-formatted strings
       if(typeof value === 'number') {
         const cleanLabel = label.replace(/:$/, '').trim(); // Remove trailing colon
-        return `<div style="margin-left: 12px;">${value}x ${cleanLabel}</div>`;
+        return `<div style="margin-left: 12px; color: #fff;">${value} x ${cleanLabel}</div>`;
       }
-      return `<div style="margin-left: 12px;">${label} ${value}</div>`;
+      return `<div style="margin-left: 12px;"><span style="color: #fff;">${label}</span> ${value}</div>`;
     }
     return '';
   }
 
   // Helper to add a section header
   function addGearHeader(title) {
-    return `<div style="font-weight: bold; color: #10b981; margin-top: 12px; margin-bottom: 4px;">${title}</div>`;
+    return `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #383838; margin-bottom: 4px;"><strong style="color: #10b981; font-size: 13px;">${title}</strong></div>`;
   }
 
   let html = '<div style="line-height: 1.8; font-size: 13px;">';
 
   // Equipment Section
   html += addGearHeader('Equipment');
-  html += addGearLine('Processors:', totalProcessors);
+  html += `<div style="margin-left: 12px; color: #fff;">Processor:</div>`;
+  Object.keys(processorGroups).forEach(procType => {
+    const group = processorGroups[procType];
+    if(group.processorCount > 0) {
+      const allProcs = getAllProcessors();
+      const proc = allProcs[procType];
+      const procName = proc ? proc.name : procType;
+      html += `<div style="margin-left: 24px; color: #fff;">${group.processorCount} x ${escapeHtml(procName)}</div>`;
+      if(group.distBoxCount > 0 && group.distBoxName) {
+        html += `<div style="margin-left: 24px; color: #fff;">${group.distBoxCount} x ${escapeHtml(group.distBoxName)}</div>`;
+      }
+    }
+  });
+  html += `<div style="margin-left: 12px; color: #fff;">Panels:</div>`;
   for(const [panelLabel, count] of Object.entries(panelsByType)) {
     if(count > 0) {
-      html += `<div style="margin-left: 12px;">${escapeHtml(panelLabel)}: ${count}</div>`;
+      html += `<div style="margin-left: 24px; color: #fff;">${count} x ${escapeHtml(panelLabel)}</div>`;
     }
   }
-  html += addGearLine('Power Circuits:', totalCircuits);
 
   // Rigging Hardware Section
   const hasRiggingHardware = total1wBumpers > 0 || total2wBumpers > 0 || total4wBumpers > 0 ||
@@ -2750,6 +2772,89 @@ function renderCombinedGearList(selectedScreenIds) {
     }
   });
 
+  // If per-screen data didn't produce dist box cables, check the combined cabling config
+  if(Object.keys(combinedDistBoxByType).length === 0 &&
+     typeof combinedCablingConfig !== 'undefined' && combinedCablingConfig.distBoxOnWall &&
+     typeof calculateCombinedCabling === 'function') {
+    // Use per-screen redundancy as fallback (same as combined cable diagram)
+    const ccCfg = Object.assign({}, combinedCablingConfig);
+    if(!ccCfg.redundancy) {
+      for(const sid of selectedScreenIds) {
+        const scr = screens[sid];
+        if(scr && scr.data && scr.data.redundancy) { ccCfg.redundancy = true; break; }
+      }
+    }
+    const ccCalc = calculateCombinedCabling(selectedScreenIds, ccCfg);
+    if(ccCalc && ccCalc.shared.distributionBoxCount > 0) {
+      const cfg = ccCfg;
+      const M_TO_FT = 3.28084;
+      // Use the tallest wall height across all selected screens
+      let maxWallHeightFt = 0;
+      let maxWallWidthFt = 0;
+      selectedScreenIds.forEach(sid => {
+        const sc = screens[sid];
+        if(!sc || !sc.data) return;
+        const allPanelsObj = typeof getAllPanels === 'function' ? getAllPanels() : panels;
+        const p = allPanelsObj[sc.data.panelType];
+        if(!p) return;
+        const ph = sc.data.panelsHigh || 0;
+        const pw = sc.data.panelsWide || 0;
+        let wH = ph * p.height_m * M_TO_FT;
+        if(sc.data.addCB5HalfRow && sc.data.panelType === 'CB5_MKII') {
+          const halfP = allPanelsObj['CB5_MKII_HALF'];
+          if(halfP) wH += halfP.height_m * M_TO_FT;
+        }
+        const wW = pw * p.width_m * M_TO_FT;
+        if(wH > maxWallHeightFt) maxWallHeightFt = wH;
+        if(wW > maxWallWidthFt) maxWallWidthFt = wW;
+      });
+
+      const wallToFloor = cfg.wallToFloor ?? 5;
+      const processorToWall = cfg.processorToWall ?? 15;
+      const cablePick = cfg.cablePick ?? 0;
+      const dropPos = cfg.cableDropPosition ?? 'behind';
+      let dropPointFt;
+      if(dropPos === 'behind') dropPointFt = maxWallWidthFt / 2;
+      else if(dropPos === 'sr') dropPointFt = 0;
+      else dropPointFt = maxWallWidthFt;
+      const dropToFloorFt = maxWallHeightFt + wallToFloor + cablePick;
+
+      // Main dist box position
+      const mainHPos = cfg.distBoxMainHorizPosition ?? 'center';
+      let mainDistBoxFt;
+      if(mainHPos === 'sr') mainDistBoxFt = maxWallWidthFt * 0.15;
+      else if(mainHPos === 'sl') mainDistBoxFt = maxWallWidthFt * 0.85;
+      else mainDistBoxFt = maxWallWidthFt / 2;
+      const mainHorizFt = Math.abs(mainDistBoxFt - dropPointFt);
+      const mainVert = cfg.distBoxMainVertPosition ?? 'top';
+      const mainTrunkFt = (mainVert === 'bottom')
+        ? mainHorizFt + wallToFloor + processorToWall
+        : mainHorizFt + dropToFloorFt + processorToWall;
+
+      const distBoxCount = ccCalc.shared.distributionBoxCount;
+      const mainType = mainTrunkFt > 200 ? 'fiber' : 'cat6a';
+      const mainRounded = typeof roundUpToStandard === 'function' ? roundUpToStandard(mainTrunkFt) : Math.ceil(mainTrunkFt / 25) * 25;
+      const mainKey = `${mainType === 'fiber' ? 'Fiber' : 'Cat6A'} ${mainRounded}'`;
+      combinedDistBoxByType[mainKey] = (combinedDistBoxByType[mainKey] || 0) + distBoxCount;
+
+      // Backup trunk — every dist box gets both a main and backup trunk cable
+      const backupHPos = cfg.distBoxBackupHorizPosition ?? 'center';
+      let backupDistBoxFt;
+      if(backupHPos === 'sr') backupDistBoxFt = maxWallWidthFt * 0.15;
+      else if(backupHPos === 'sl') backupDistBoxFt = maxWallWidthFt * 0.85;
+      else backupDistBoxFt = maxWallWidthFt / 2;
+      const backupHorizFt = Math.abs(backupDistBoxFt - dropPointFt);
+      const backupVert = cfg.distBoxBackupVertPosition ?? 'top';
+      const backupTrunkFt = (backupVert === 'bottom')
+        ? backupHorizFt + wallToFloor + processorToWall
+        : backupHorizFt + dropToFloorFt + processorToWall;
+      const backupType = backupTrunkFt > 200 ? 'fiber' : 'cat6a';
+      const backupRounded = typeof roundUpToStandard === 'function' ? roundUpToStandard(backupTrunkFt) : Math.ceil(backupTrunkFt / 25) * 25;
+      const backupKey = `${backupType === 'fiber' ? 'Fiber' : 'Cat6A'} ${backupRounded}'`;
+      combinedDistBoxByType[backupKey] = (combinedDistBoxByType[backupKey] || 0) + distBoxCount;
+    }
+  }
+
   const hasCatCables = Object.keys(combinedDataByLength).length > 0;
   const hasDistBox = Object.keys(combinedDistBoxByType).length > 0;
   const hasSocaRuns = Object.keys(combinedSocaByLength).length > 0;
@@ -2767,12 +2872,14 @@ function renderCombinedGearList(selectedScreenIds) {
     html += addGearLine('Cat5 Couplers:', totalCat5Couplers);
     if(hasCatCables) {
       for(const [len, count] of Object.entries(combinedDataByLength).sort((a,b) => a[0] - b[0])) {
-        html += `<div style="margin-left: 12px;">${count}x ${len}' Cat6</div>`;
+        html += `<div style="margin-left: 12px; color: #fff;">${count} x ${len}' Cat6</div>`;
       }
     }
     if(hasDistBox) {
+      html += `<div style="margin-top: 10px;"></div>`;
+      html += `<div style="margin-left: 12px; color: #fff;">Processor → Dist Box:</div>`;
       for(const [desc, count] of Object.entries(combinedDistBoxByType)) {
-        html += `<div style="margin-left: 12px;">Proc → Dist Box: ${count}x ${desc}</div>`;
+        html += `<div style="margin-left: 24px; color: #fff;">${count} x ${desc}</div>`;
       }
     }
   }
@@ -2787,19 +2894,14 @@ function renderCombinedGearList(selectedScreenIds) {
     html += addGearLine('Soca Splays:', totalSocaSplays);
     if(hasSocaRuns) {
       for(const [len, count] of Object.entries(combinedSocaByLength).sort((a,b) => a[0] - b[0])) {
-        html += `<div style="margin-left: 12px;">${count}x ${len}' SOCA</div>`;
+        html += `<div style="margin-left: 12px; color: #fff;">${count} x ${len}' Soca</div>`;
       }
     }
-    html += `<div style="margin-top: 8px;"></div>`;
+    html += `<div style="margin-top: 10px;"></div>`;
     html += addGearLine("25' True1:", totalSocaSplays);
     html += addGearLine("10' True1:", totalSocaSplays);
     html += addGearLine("5' True1:", totalSocaSplays * 2);
     html += addGearLine('True1 Twofer:', totalTrue1Twofers);
-  }
-
-  // Processor → Dist Box Section (if any screen uses dist boxes)
-  if(hasDistBox) {
-    // Already shown in Data Cables above
   }
 
   // === SYSTEM-WIDE SECTION ===

@@ -2068,8 +2068,8 @@
     <div class="layout-title">
       <span>Combined Specifications<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedSpecsContainer')" id="combinedSpecsCollapseBtn" title="Minimize">▼</button></span>
     </div>
-    <div class="layout-content" id="combinedSpecsLayoutContent" style="position: relative;">
-      <div id="combinedSpecsToggles" style="display: none; gap: 16px; flex-wrap: wrap; position: absolute; top: 0; right: 0; z-index: 1;">
+    <div class="layout-content" id="combinedSpecsLayoutContent">
+      <div id="combinedSpecsToggles" class="compact-row" style="display: none; margin-bottom: 12px;">
         <div style="flex: 0 0 auto;">
           <span class="toggle-label" style="display: block; margin-bottom: 4px;">Power Basis</span>
           <div class="slider-toggle">
@@ -2429,7 +2429,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.21';
+const APP_VERSION = '2.9.22';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

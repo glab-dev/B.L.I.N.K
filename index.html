@@ -1234,7 +1234,7 @@
           <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openProcessorRequestModal(); closeMobileMenu();">Requests</button>
         </div>
       </div>
-      <div class="mobile-menu-section">
+      <div class="mobile-menu-section" id="mobileMenuInventorySection">
         <div class="mobile-menu-label">Inventory</div>
         <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openGearCodeModal(); closeMobileMenu();">Gear Code Mapping</button>
       </div>
@@ -2428,7 +2428,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.26';
+const APP_VERSION = '2.9.27';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

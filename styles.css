@@ -2384,7 +2384,7 @@ canvas:focus {
 /* Combined specs mobile */
 @media (max-width: 768px) {
   .combined-specs-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr 1fr !important;
   }
   #combinedSpecsToggles {
     position: static !important;
@@ -2956,12 +2956,12 @@ canvas:focus {
 }
 
 .mobile-menu-close {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border: 2px solid #000;
   background: transparent;
   color: #ff6b6b;
-  font-size: 30px;
+  font-size: 24px;
   cursor: pointer;
   border-radius: 0; /* Removed to fix diagonal line artifacts on Windows */
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
@@ -2981,12 +2981,12 @@ canvas:focus {
 }
 
 .mobile-menu-refresh {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border: 2px solid #000;
   background: transparent;
   color: var(--primary);
-  font-size: 32px;
+  font-size: 24px;
   cursor: pointer;
   border-radius: 0; /* Removed to fix diagonal line artifacts on Windows */
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
@@ -4350,6 +4350,12 @@ canvas:focus {
     margin-left: -16px;
     margin-right: -16px;
     width: calc(100% + 32px);
+  }
+  /* Hide desktop-only features on mobile */
+  #mobileMenuInventorySection,
+  #combinedCablingContainer,
+  #combinedGearListContainer {
+    display: none !important;
   }
 }
 

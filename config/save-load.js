@@ -623,6 +623,7 @@ async function showRecentProjects() {
 
 function closeRecentProjectsModal() {
   document.getElementById('recentProjectsModal').classList.remove('active');
+  reopenMenuIfNeeded();
 }
 
 // Cache the last fetched recents so loadFromRecent can use them synchronously

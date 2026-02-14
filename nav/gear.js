@@ -798,7 +798,7 @@ function generateGearList() {
     return `<div style="margin-left: 12px;"><span style="color: #fff;">${label}</span> ${value}</div>`;
   };
 
-  let html = '<div style="font-size: 14px;">';
+  let html = '<div style="font-size: 13px;">';
 
   gearData.screens.forEach(sd => {
     const eq = sd.equipment;

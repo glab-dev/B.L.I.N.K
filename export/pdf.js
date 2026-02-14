@@ -33,6 +33,7 @@ function closePdfExportModal() {
   if (modal) {
     modal.classList.remove('active');
   }
+  reopenMenuIfNeeded();
 }
 
 
@@ -44,6 +45,7 @@ function openSendToJaredModal() {
 
 function closeSendToJaredModal() {
   document.getElementById('sendToJaredModal').classList.remove('active');
+  reopenMenuIfNeeded();
 }
 
 function confirmSendToJared() {

@@ -1381,10 +1381,10 @@
           <div style="margin-bottom: 12px;">
             <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Aspect Ratio Lock <span id="arHint" style="color: #10b981; font-style: italic; display: none;">(input width for auto height)</span></span>
             <div class="slider-toggle">
-              <button type="button" class="slider-toggle-btn active" id="arNoneBtn" onclick="setAspectRatio('none')" style="padding: 8px 10px; font-size: 12px;">None</button>
-              <button type="button" class="slider-toggle-btn" id="ar169Btn" onclick="setAspectRatio('16:9')" style="padding: 8px 10px; font-size: 12px;">16:9</button>
-              <button type="button" class="slider-toggle-btn" id="ar43Btn" onclick="setAspectRatio('4:3')" style="padding: 8px 10px; font-size: 12px;">4:3</button>
-              <button type="button" class="slider-toggle-btn" id="arCustomBtn" onclick="setAspectRatio('custom')" style="padding: 8px 10px; font-size: 12px;">Custom</button>
+              <button type="button" class="slider-toggle-btn active" id="arNoneBtn" onclick="setAspectRatio('none')">None</button>
+              <button type="button" class="slider-toggle-btn" id="ar169Btn" onclick="setAspectRatio('16:9')">16:9</button>
+              <button type="button" class="slider-toggle-btn" id="ar43Btn" onclick="setAspectRatio('4:3')">4:3</button>
+              <button type="button" class="slider-toggle-btn" id="arCustomBtn" onclick="setAspectRatio('custom')">Custom</button>
             </div>
             <!-- Custom Aspect Ratio Inputs (hidden by default) -->
             <div id="customAspectRatioInputs" style="display: none; margin-top: 8px;">
@@ -1556,8 +1556,8 @@
             </div>
             <div style="flex: 1; min-width: 0;">
               <span class="toggle-label" style="display: block; margin-bottom: 4px;">Max/Data</span>
-              <div class="number-input-with-arrows" style="width: 100%; min-height: 48px;">
-                <input type="number" id="maxPanelsPerData" min="1" step="1" placeholder="Auto" style="padding: 12px 8px;">
+              <div class="number-input-with-arrows" style="width: 100%;">
+                <input type="number" id="maxPanelsPerData" min="1" step="1" placeholder="Auto">
                 <div class="number-input-arrows">
                   <button type="button" onclick="adjustNumberInput('maxPanelsPerData', 1)">
                     <span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span>
@@ -1586,11 +1586,11 @@
           <!-- Row 4: Toggle buttons (complex mode only) -->
           <div id="dataTogglesRow" class="toggle-group" style="gap: 6px;">
             <div style="display: flex; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">
-              <button type="button" class="toggle-btn active" id="showArrowsBtn" onclick="toggleShowArrows()" style="padding: 8px 10px; font-size: 11px; min-width: auto; margin: 0; border: 2px solid #000; border-right: 0; box-shadow: none;">Arrows</button>
-              <button type="button" class="toggle-btn" id="dataFlipBtn" onclick="toggleDataFlip()" style="padding: 8px 10px; font-size: 11px; min-width: auto; margin: 0; border: 2px solid #000; box-shadow: none;">Flip</button>
+              <button type="button" class="toggle-btn active" id="showArrowsBtn" onclick="toggleShowArrows()" style="min-width: auto; margin: 0; border: 2px solid #000; border-right: 0; box-shadow: none;">Arrows</button>
+              <button type="button" class="toggle-btn" id="dataFlipBtn" onclick="toggleDataFlip()" style="min-width: auto; margin: 0; border: 2px solid #000; box-shadow: none;">Flip</button>
             </div>
-            <button type="button" class="toggle-btn active" id="redundancyBtn" onclick="toggleRedundancy()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Data Redun.</button>
-            <button type="button" class="toggle-btn" id="processorRedundancyBtn" onclick="toggleProcessorRedundancy()" style="padding: 8px 10px; font-size: 11px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Proc Redun.</button>
+            <button type="button" class="toggle-btn active" id="redundancyBtn" onclick="toggleRedundancy()" style="min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Data Redun.</button>
+            <button type="button" class="toggle-btn" id="processorRedundancyBtn" onclick="toggleProcessorRedundancy()" style="min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Proc Redun.</button>
           </div>
         </div>
 
@@ -1614,9 +1614,9 @@
             </label>
             <!-- Bumper Toggles Row -->
             <div class="toggle-group" style="gap: 6px;">
-              <button type="button" class="toggle-btn active" id="useBumpersBtn" onclick="toggleUseBumpers()" style="padding: 6px 8px; font-size: 12px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Bumpers</button>
+              <button type="button" class="toggle-btn active" id="useBumpersBtn" onclick="toggleUseBumpers()" style="min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Bumpers</button>
               <span id="fourWayBumperOption" style="display: none;">
-                <button type="button" class="toggle-btn" id="use4WayBumpersBtn" onclick="toggle4WayBumpers()" style="padding: 6px 8px; font-size: 12px; min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">4-Way Bumpers</button>
+                <button type="button" class="toggle-btn" id="use4WayBumpersBtn" onclick="toggle4WayBumpers()" style="min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">4-Way Bumpers</button>
               </span>
             </div>
           </div>
@@ -2429,7 +2429,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.20';
+const APP_VERSION = '2.9.21';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

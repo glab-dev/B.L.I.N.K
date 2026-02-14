@@ -156,6 +156,22 @@ When fixing bugs or addressing issues:
   color, letter-spacing, -webkit-tap-highlight-color, touch-action
   ```
   If even one property is missed, the global rule bleeds through and breaks the button's appearance. Always read the global `button` rule before adding new buttons.
+- **Form element height consistency (40px on desktop)** — ALL form elements in the main input sections MUST render at the same visual height (**40px** on desktop). When changing element sizes, you MUST update ALL of the following in a single pass — never partially:
+  - **Element types and their height mechanics** (all use `box-sizing: border-box`):
+    - `.slider-toggle-btn` — has `border: none`, sits inside `.slider-toggle` container with `border: 2px solid #000` (4px total). Button min-height = **target − 4px** (e.g., 36px for 40px target).
+    - `.toggle-btn` — has own `border: 2px solid #000` included in border-box. min-height = **target** directly (e.g., 40px).
+    - `select` and `input[type="number"]` — has own `border: 2px solid #000`. min-height = **target** directly.
+    - `.number-input-with-arrows` — wrapper container with `border: 2px solid #000`. Uses explicit `height: target`. Arrow buttons inside (`.number-input-arrows button`) must have `min-height: 0` so they shrink to fit.
+  - **Checklist when changing form element heights**:
+    1. Update `.slider-toggle-btn` min-height (styles.css ~line 1635)
+    2. Update `.toggle-btn` min-height (styles.css ~line 1599)
+    3. Update `input[type="number"], input[type="text"], select` min-height (styles.css ~line 522)
+    4. Update `.number-input-with-arrows` height (styles.css ~line 1681)
+    5. Search `index.html` for ANY inline `style=` on form elements that sets `min-height`, `height`, `padding`, or `font-size` — remove or update ALL of them. Use: `grep -n 'min-height\|padding.*px' index.html` on elements inside `.section-box` containers.
+    6. Verify `.number-input-arrows button` min-height is 0 (not a fixed value that would push the container taller).
+    7. Check mobile overrides in `@media (max-width: 768px)` (~line 4161) are still correct — don't touch them unless asked.
+  - **NEVER use inline `style` attributes to override padding, font-size, min-height, or height on form elements** — these create inconsistencies. Use CSS classes for any size variants.
+  - Intentional compact variants (combined-view mini-toggles, dist box position grids) must use dedicated CSS classes, not inline styles.
 
 ---
 

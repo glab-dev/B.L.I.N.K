@@ -2362,25 +2362,25 @@ function renderCombinedSpecs(selectedScreenIds) {
   }
 
   // Two-column layout with green title above white value (vertically stacked)
-  let html = '<div class="combined-specs-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">';
+  let html = '<div class="combined-specs-grid" style="display: grid; grid-template-columns: auto auto; justify-content: start; gap: 12px 24px;">';
 
   // Left column: Total Screens, Total Panels, Total Pixels, Total Weight
   html += '<div style="display: flex; flex-direction: column; gap: 12px;">';
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Total Screens</div><div style="color: #fff;">${selectedScreenIds.length}</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Total Panels</div><div style="color: #fff;">${panelsDisplay}</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Total Pixels</div><div style="color: #fff;">${totalPixels.toLocaleString()}</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Total Weight</div><div style="color: #fff;">${weightDisplay}</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Total Screens</div><div style="color: #fff; font-size: 13px;">${selectedScreenIds.length}</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Total Panels</div><div style="color: #fff; font-size: 13px;">${panelsDisplay}</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Total Pixels</div><div style="color: #fff; font-size: 13px;">${totalPixels.toLocaleString()}</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Total Weight</div><div style="color: #fff; font-size: 13px;">${weightDisplay}</div></div>`;
   html += '</div>';
 
   // Right column: Dimensions, Power, Amps, Amps/Phase, Data Lines
   html += '<div style="display: flex; flex-direction: column; gap: 12px;">';
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Dimensions</div><div style="color: #fff;">${widthDisplay} × ${heightDisplay}</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Dimensions</div><div style="color: #fff; font-size: 13px;">${widthDisplay} × ${heightDisplay}</div></div>`;
   const powerLabel = combinedPowerType === 'max' ? 'Power (Max)' : 'Power (Avg)';
   const phaseLabel = combinedPhase === 3 ? 'Amps/Phase (3Ø)' : 'Total Amps (1Ø)';
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">${powerLabel}</div><div style="color: #fff;">${totalPowerW.toLocaleString()} W</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Total Amps</div><div style="color: #fff;">${totalAmps.toFixed(1)} A</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">${phaseLabel}</div><div style="color: #fff;">${totalAmpsPerPhase.toFixed(1)} A</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 0.9em;">Data Lines</div><div style="color: #fff;">${totalDataLines}</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">${powerLabel}</div><div style="color: #fff; font-size: 13px;">${totalPowerW.toLocaleString()} W</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Total Amps</div><div style="color: #fff; font-size: 13px;">${totalAmps.toFixed(1)} A</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">${phaseLabel}</div><div style="color: #fff; font-size: 13px;">${totalAmpsPerPhase.toFixed(1)} A</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Data Lines</div><div style="color: #fff; font-size: 13px;">${totalDataLines}</div></div>`;
   html += '</div>';
 
   html += '</div>';
@@ -2651,9 +2651,9 @@ function renderCombinedGearList(selectedScreenIds) {
       // If value is a number, format as "countx label" — otherwise keep as "label value" for pre-formatted strings
       if(typeof value === 'number') {
         const cleanLabel = label.replace(/:$/, '').trim(); // Remove trailing colon
-        return `<div style="margin-left: 12px;"><strong>${value}x ${cleanLabel}</strong></div>`;
+        return `<div style="margin-left: 12px;">${value}x ${cleanLabel}</div>`;
       }
-      return `<div style="margin-left: 12px;"><strong>${label}</strong> ${value}</div>`;
+      return `<div style="margin-left: 12px;">${label} ${value}</div>`;
     }
     return '';
   }
@@ -2663,14 +2663,14 @@ function renderCombinedGearList(selectedScreenIds) {
     return `<div style="font-weight: bold; color: #10b981; margin-top: 12px; margin-bottom: 4px;">${title}</div>`;
   }
 
-  let html = '<div style="line-height: 1.8; font-size: 14px;">';
+  let html = '<div style="line-height: 1.8; font-size: 13px;">';
 
   // Equipment Section
   html += addGearHeader('Equipment');
   html += addGearLine('Processors:', totalProcessors);
   for(const [panelLabel, count] of Object.entries(panelsByType)) {
     if(count > 0) {
-      html += `<div style="margin-left: 12px;"><strong>${escapeHtml(panelLabel)}:</strong> ${count}</div>`;
+      html += `<div style="margin-left: 12px;">${escapeHtml(panelLabel)}: ${count}</div>`;
     }
   }
   html += addGearLine('Power Circuits:', totalCircuits);
@@ -2767,12 +2767,12 @@ function renderCombinedGearList(selectedScreenIds) {
     html += addGearLine('Cat5 Couplers:', totalCat5Couplers);
     if(hasCatCables) {
       for(const [len, count] of Object.entries(combinedDataByLength).sort((a,b) => a[0] - b[0])) {
-        html += `<div style="margin-left: 12px;"><strong>${count}x ${len}' Cat6</strong></div>`;
+        html += `<div style="margin-left: 12px;">${count}x ${len}' Cat6</div>`;
       }
     }
     if(hasDistBox) {
       for(const [desc, count] of Object.entries(combinedDistBoxByType)) {
-        html += `<div style="margin-left: 12px;"><strong>Proc → Dist Box:</strong> ${count}x ${desc}</div>`;
+        html += `<div style="margin-left: 12px;">Proc → Dist Box: ${count}x ${desc}</div>`;
       }
     }
   }
@@ -2787,7 +2787,7 @@ function renderCombinedGearList(selectedScreenIds) {
     html += addGearLine('Soca Splays:', totalSocaSplays);
     if(hasSocaRuns) {
       for(const [len, count] of Object.entries(combinedSocaByLength).sort((a,b) => a[0] - b[0])) {
-        html += `<div style="margin-left: 12px;"><strong>${count}x ${len}' SOCA</strong></div>`;
+        html += `<div style="margin-left: 12px;">${count}x ${len}' SOCA</div>`;
       }
     }
     html += `<div style="margin-top: 8px;"></div>`;

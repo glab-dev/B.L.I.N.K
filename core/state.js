@@ -23,13 +23,23 @@ function setUnitSystem(system) {
   // Update button states
   document.getElementById('unitImperial').classList.toggle('active', system === 'imperial');
   document.getElementById('unitMetric').classList.toggle('active', system === 'metric');
-  
+
   // Recalculate to update all displays
   calculate();
-  
+
   // Update structure view weights
   if(bumpers.length > 0) {
     updatePickupWeightSummary();
+  }
+
+  // Sync unit preference to ALL screens (units are app-global, not per-screen)
+  if(typeof screens !== 'undefined') {
+    Object.keys(screens).forEach(function(id) {
+      if(screens[id].data) {
+        screens[id].data.lengthUnit = displayLengthUnit;
+        screens[id].data.weightUnit = displayWeightUnit;
+      }
+    });
   }
 }
 

@@ -579,6 +579,21 @@ input[type=number] {
   max-width: 90px;
 }
 
+/* Align Data header border with General/Power headers */
+.cabling-data-grid > div:nth-child(1),
+.cabling-data-grid > div:nth-child(2) {
+  font-size: 13px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #333;
+  margin-bottom: 2px;
+}
+.cabling-data-grid > div:nth-child(3),
+.cabling-data-grid > div:nth-child(4) {
+  margin-top: 0 !important;
+  border-top: none !important;
+  padding-top: 0 !important;
+}
+
 @media (max-width: 768px) {
   .cabling-grid {
     grid-template-columns: 1fr !important;
@@ -1618,7 +1633,7 @@ canvas:focus {
   cursor: pointer;
   transition: all 0.15s;
   flex: 1;
-  min-height: 40px;
+  min-height: 36px;
   text-align: center;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -1668,6 +1683,7 @@ canvas:focus {
   border: 2px solid #000;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
   background: #2a2a2a;
+  height: 40px;
 }
 
 .number-input-with-arrows input {
@@ -1706,7 +1722,7 @@ canvas:focus {
   cursor: pointer;
   padding: 0;
   margin: 0;
-  min-height: 20px;
+  min-height: 0;
   width: 100%;
   display: flex;
   align-items: center;

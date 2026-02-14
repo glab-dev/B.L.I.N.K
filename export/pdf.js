@@ -595,7 +595,8 @@ function exportPDF(){
     function processNextScreen() {
       if(screenIndex >= screenIds.length) {
         // All screens processed — add gear list as final page(s) if enabled
-        if(pdfExportOptions.gearList) {
+        // Single screen: gear list is already on page 1 next to specs, skip dedicated pages
+        if(pdfExportOptions.gearList && screenIds.length > 1) {
           addGearListPages();
         } else {
           finalizePDF();
@@ -834,6 +835,60 @@ function exportPDF(){
           } // End of pdfExportOptions.specs check
         }
 
+        // ========== RIGHT COLUMN: GEAR LIST (single-screen only — multi-screen uses dedicated last pages) ==========
+        if(pdfExportOptions.gearList && screenIds.length === 1) {
+          const sd = gearData.screens[screenIndex];
+          if(sd) {
+            col2Y = addGearListToColumn(sd, col2X, col2Y, colWidth, lineHeight);
+          }
+
+          // System-wide: Signal Cables
+          const pdfSig = gearData.signalCables;
+          if(pdfSig) {
+            col2Y += 1.5;
+            pdf.setFontSize(9);
+            pdf.setFont(undefined, 'bold');
+            pdf.text('Signal Cables', col2X, col2Y);
+            col2Y += 4;
+
+            pdf.setFontSize(8);
+            pdf.setFont(undefined, 'normal');
+            if(pdfSig.serverFiberLine) {
+              pdf.text(`${pdfSig.serverFiberLine.label}: ${pdfSig.serverFiberLine.count}`, col2X, col2Y);
+              col2Y += lineHeight;
+            }
+            const sdiLengths = Object.keys(pdfSig.sdiByLength).map(Number).sort((a, b) => b - a);
+            sdiLengths.forEach(len => {
+              if(pdfSig.sdiByLength[len] > 0) {
+                pdf.text(`${len}' ${pdfSig.sdiType}: ${pdfSig.sdiByLength[len]}`, col2X, col2Y);
+                col2Y += lineHeight;
+              }
+            });
+            pdf.text(`25' HDMI: ${pdfSig.hdmi[25]}`, col2X, col2Y); col2Y += lineHeight;
+            pdf.text(`10' HDMI: ${pdfSig.hdmi[10]}`, col2X, col2Y); col2Y += lineHeight;
+            pdf.text(`6' HDMI: ${pdfSig.hdmi[6]}`, col2X, col2Y); col2Y += lineHeight;
+            col2Y += 3;
+          }
+
+          // System-wide: Utility
+          const pdfUtil = gearData.utility;
+          if(pdfUtil) {
+            col2Y += 1.5;
+            pdf.setFontSize(9);
+            pdf.setFont(undefined, 'bold');
+            pdf.text('Utility', col2X, col2Y);
+            col2Y += 4;
+
+            pdf.setFontSize(8);
+            pdf.setFont(undefined, 'normal');
+            pdf.text(`UG 10': ${pdfUtil.ug10}`, col2X, col2Y); col2Y += lineHeight;
+            pdf.text(`UG 25': ${pdfUtil.ug25}`, col2X, col2Y); col2Y += lineHeight;
+            pdf.text(`UG 50': ${pdfUtil.ug50}`, col2X, col2Y); col2Y += lineHeight;
+            pdf.text(`UG Twofers: ${pdfUtil.ugTwofers}`, col2X, col2Y); col2Y += lineHeight;
+            pdf.text(`Power Bars: ${pdfUtil.powerBars}`, col2X, col2Y); col2Y += lineHeight;
+          }
+        }
+
         // Include layouts if any layout option is selected
         const includeAnyLayout = pdfExportOptions.standard || pdfExportOptions.power || pdfExportOptions.data || pdfExportOptions.structure;
         if(includeAnyLayout) {
@@ -1032,95 +1087,137 @@ function exportPDF(){
       yOffset += 10;
 
       const lineHeight = 3.5;
-      const colX = margin;
-      const colWidth = pageWidth - 2 * margin;
+
+      // Two-column layout
+      const colGap = 6;
+      const colWidth = (pageWidth - 2 * margin - colGap) / 2;
+      const leftColX = margin;
+      const rightColX = margin + colWidth + colGap;
+      const maxY = pageHeight - margin - 10;
+
+      let currentCol = 'left';
+      let leftY = yOffset;
+      let rightY = yOffset;
+
+      // Helper: get next available column position, handling overflow and page breaks
+      function getNextColumnPosition(minSpace) {
+        // Try current column
+        let colX = currentCol === 'left' ? leftColX : rightColX;
+        let startY = currentCol === 'left' ? leftY : rightY;
+
+        if(startY + minSpace <= maxY) {
+          return { colX, startY };
+        }
+
+        // Current column full — try other column
+        const otherCol = currentCol === 'left' ? 'right' : 'left';
+        colX = otherCol === 'left' ? leftColX : rightColX;
+        startY = otherCol === 'left' ? leftY : rightY;
+
+        if(startY + minSpace <= maxY) {
+          currentCol = otherCol;
+          return { colX, startY };
+        }
+
+        // Both full — new page
+        pdf.addPage();
+        leftY = margin;
+        rightY = margin;
+        currentCol = 'left';
+        return { colX: leftColX, startY: margin };
+      }
+
+      // Helper: update the active column's Y position and alternate to other column
+      function updateColumnY(endY) {
+        if(currentCol === 'left') {
+          leftY = endY;
+          currentCol = 'right';
+        } else {
+          rightY = endY;
+          currentCol = 'left';
+        }
+      }
 
       // Per-screen gear
       gearData.screens.forEach((sd) => {
-        // Check if we need a new page
-        if(yOffset > pageHeight - margin - 40) {
-          pdf.addPage();
-          yOffset = margin;
-        }
+        const pos = getNextColumnPosition(40);
 
         // Screen header
         pdf.setFontSize(11);
         pdf.setFont(undefined, 'bold');
         pdf.setTextColor(0, 0, 0);
-        pdf.text(sd.screenName, colX, yOffset);
+        pdf.text(sd.screenName, pos.colX, pos.startY);
         const headerWidth = pdf.getTextWidth(sd.screenName);
         pdf.setDrawColor(0, 0, 0);
-        pdf.line(colX, yOffset + 1, colX + headerWidth, yOffset + 1);
-        yOffset += 6;
+        pdf.line(pos.colX, pos.startY + 1, pos.colX + headerWidth, pos.startY + 1);
+        const gearStartY = pos.startY + 6;
 
         // Render per-screen gear (returns final Y position)
-        yOffset = addGearListToColumn(sd, colX, yOffset, colWidth, lineHeight);
-        yOffset += 6; // spacing between screens
+        const endY = addGearListToColumn(sd, pos.colX, gearStartY, colWidth, lineHeight);
+        updateColumnY(endY + 6);
       });
 
-      // System-wide: Signal Cables
+      // System-wide: Signal Cables + Utility (kept together under one "System" heading)
       const pdfSig = gearData.signalCables;
-      if(pdfSig) {
-        if(yOffset > pageHeight - margin - 40) {
-          pdf.addPage();
-          yOffset = margin;
-        }
+      const pdfUtil = gearData.utility;
+      if(pdfSig || pdfUtil) {
+        const pos = getNextColumnPosition(40);
+        let sy = pos.startY;
+        const sysColX = pos.colX;
 
         // System header
         pdf.setFontSize(11);
         pdf.setFont(undefined, 'bold');
         pdf.setTextColor(0, 0, 0);
-        pdf.text('System', colX, yOffset);
+        pdf.text('System', sysColX, sy);
         const sysWidth = pdf.getTextWidth('System');
         pdf.setDrawColor(0, 0, 0);
-        pdf.line(colX, yOffset + 1, colX + sysWidth, yOffset + 1);
-        yOffset += 6;
+        pdf.line(sysColX, sy + 1, sysColX + sysWidth, sy + 1);
+        sy += 6;
 
-        yOffset += 1.5;
-        pdf.setFontSize(9);
-        pdf.setFont(undefined, 'bold');
-        pdf.text('Signal Cables', colX, yOffset);
-        yOffset += 4;
+        if(pdfSig) {
+          sy += 1.5;
+          pdf.setFontSize(9);
+          pdf.setFont(undefined, 'bold');
+          pdf.text('Signal Cables', sysColX, sy);
+          sy += 4;
 
-        pdf.setFontSize(8);
-        pdf.setFont(undefined, 'normal');
-        if(pdfSig.serverFiberLine) {
-          pdf.text(`${pdfSig.serverFiberLine.label}: ${pdfSig.serverFiberLine.count}`, colX, yOffset);
-          yOffset += lineHeight;
-        }
-        const sdiLengths = Object.keys(pdfSig.sdiByLength).map(Number).sort((a, b) => b - a);
-        sdiLengths.forEach(len => {
-          if(pdfSig.sdiByLength[len] > 0) {
-            pdf.text(`${len}' ${pdfSig.sdiType}: ${pdfSig.sdiByLength[len]}`, colX, yOffset);
-            yOffset += lineHeight;
+          pdf.setFontSize(8);
+          pdf.setFont(undefined, 'normal');
+          if(pdfSig.serverFiberLine) {
+            pdf.text(`${pdfSig.serverFiberLine.label}: ${pdfSig.serverFiberLine.count}`, sysColX, sy);
+            sy += lineHeight;
           }
-        });
-        pdf.text(`25' HDMI: ${pdfSig.hdmi[25]}`, colX, yOffset); yOffset += lineHeight;
-        pdf.text(`10' HDMI: ${pdfSig.hdmi[10]}`, colX, yOffset); yOffset += lineHeight;
-        pdf.text(`6' HDMI: ${pdfSig.hdmi[6]}`, colX, yOffset); yOffset += lineHeight;
-        yOffset += 3;
-      }
-
-      // System-wide: Utility
-      const pdfUtil = gearData.utility;
-      if(pdfUtil) {
-        if(yOffset > pageHeight - margin - 30) {
-          pdf.addPage();
-          yOffset = margin;
+          const sdiLengths = Object.keys(pdfSig.sdiByLength).map(Number).sort((a, b) => b - a);
+          sdiLengths.forEach(len => {
+            if(pdfSig.sdiByLength[len] > 0) {
+              pdf.text(`${len}' ${pdfSig.sdiType}: ${pdfSig.sdiByLength[len]}`, sysColX, sy);
+              sy += lineHeight;
+            }
+          });
+          pdf.text(`25' HDMI: ${pdfSig.hdmi[25]}`, sysColX, sy); sy += lineHeight;
+          pdf.text(`10' HDMI: ${pdfSig.hdmi[10]}`, sysColX, sy); sy += lineHeight;
+          pdf.text(`6' HDMI: ${pdfSig.hdmi[6]}`, sysColX, sy); sy += lineHeight;
+          sy += 3;
         }
-        yOffset += 1.5;
-        pdf.setFontSize(9);
-        pdf.setFont(undefined, 'bold');
-        pdf.text('Utility', colX, yOffset);
-        yOffset += 4;
 
-        pdf.setFontSize(8);
-        pdf.setFont(undefined, 'normal');
-        pdf.text(`UG 10': ${pdfUtil.ug10}`, colX, yOffset); yOffset += lineHeight;
-        pdf.text(`UG 25': ${pdfUtil.ug25}`, colX, yOffset); yOffset += lineHeight;
-        pdf.text(`UG 50': ${pdfUtil.ug50}`, colX, yOffset); yOffset += lineHeight;
-        pdf.text(`UG Twofers: ${pdfUtil.ugTwofers}`, colX, yOffset); yOffset += lineHeight;
-        pdf.text(`Power Bars: ${pdfUtil.powerBars}`, colX, yOffset); yOffset += lineHeight;
+        if(pdfUtil) {
+          sy += 1.5;
+          pdf.setFontSize(9);
+          pdf.setFont(undefined, 'bold');
+          pdf.text('Utility', sysColX, sy);
+          sy += 4;
+
+          pdf.setFontSize(8);
+          pdf.setFont(undefined, 'normal');
+          pdf.text(`UG 10': ${pdfUtil.ug10}`, sysColX, sy); sy += lineHeight;
+          pdf.text(`UG 25': ${pdfUtil.ug25}`, sysColX, sy); sy += lineHeight;
+          pdf.text(`UG 50': ${pdfUtil.ug50}`, sysColX, sy); sy += lineHeight;
+          pdf.text(`UG Twofers: ${pdfUtil.ugTwofers}`, sysColX, sy); sy += lineHeight;
+          pdf.text(`Power Bars: ${pdfUtil.powerBars}`, sysColX, sy); sy += lineHeight;
+        }
+
+        updateColumnY(sy);
       }
 
       finalizePDF();

@@ -1308,7 +1308,7 @@
       <div>
         
         <!-- Panel Type -->
-        <div class="section-box">
+        <div class="section-box" id="panelTypeSection">
           <div class="section-title">Panel Type</div>
           <label style="margin-bottom: 0;">
             <select id="panelType" style="width: 100%; font-size: 14px;">
@@ -1322,12 +1322,11 @@
               <option value="INFILED_AMT8_3">INFiLED AMT 8.3</option>
             </select>
           </label>
-        </div>
-
-        <!-- CB5 Half Panel Row Toggle (only visible when CB5 MKII is selected) -->
-        <div id="cb5HalfPanelToggle" style="display: none; margin-top: 8px;">
-          <div class="toggle-group">
-            <button type="button" class="toggle-btn" id="addCB5HalfRowBtn" onclick="toggleCB5HalfRow()">+ Half Panel Row</button>
+          <!-- CB5 Half Panel Row Toggle (only visible when CB5 MKII is selected) -->
+          <div id="cb5HalfPanelToggle" style="display: none; margin-top: 8px;">
+            <div class="toggle-group">
+              <button type="button" class="toggle-btn" id="addCB5HalfRowBtn" onclick="toggleCB5HalfRow()">+ Half Panel Row</button>
+            </div>
           </div>
         </div>
 
@@ -2429,7 +2428,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.22';
+const APP_VERSION = '2.9.23';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

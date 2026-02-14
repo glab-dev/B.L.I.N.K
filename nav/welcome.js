@@ -72,18 +72,20 @@ function hideWelcomePage() {
 function configureBottomNavForMode(mode) {
   var complexGroups = document.querySelectorAll('.nav-complex-group');
   var simpleGroups = document.querySelectorAll('.nav-simple-group');
+  var bottomNav = document.querySelector('.bottom-nav');
 
   if(mode === 'simple') {
     complexGroups.forEach(function(g) { g.style.display = 'none'; });
     simpleGroups.forEach(function(g) { g.style.display = 'flex'; });
+    if(bottomNav) bottomNav.classList.add('simple-mode-nav');
   } else if(mode === 'complex') {
     complexGroups.forEach(function(g) { g.style.display = 'flex'; });
     simpleGroups.forEach(function(g) { g.style.display = 'none'; });
+    if(bottomNav) bottomNav.classList.remove('simple-mode-nav');
   } else if(mode === 'raster') {
     // Hide bottom nav entirely in raster mode (single-page experience)
     complexGroups.forEach(function(g) { g.style.display = 'none'; });
     simpleGroups.forEach(function(g) { g.style.display = 'none'; });
-    var bottomNav = document.querySelector('.bottom-nav');
     if(bottomNav) bottomNav.style.display = 'none';
   }
 }

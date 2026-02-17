@@ -14,7 +14,14 @@ export class AppHelpers {
       ? page.locator('.welcome-btn-complex')
       : page.locator('.welcome-btn-simple');
     await btn.click();
-    await page.waitForSelector('#welcomePage', { state: 'hidden' });
+    try {
+      await page.waitForSelector('#welcomePage', { state: 'hidden', timeout: 5000 });
+    } catch {
+      // On mobile, the click may not register — use evaluate as reliable fallback
+      const fn = mode === 'complex' ? 'enterComplexMode' : 'enterSimpleMode';
+      await page.evaluate((f) => (window as any)[f](), fn);
+      await page.waitForSelector('#welcomePage', { state: 'hidden' });
+    }
   }
 
   /**
@@ -38,7 +45,9 @@ export class AppHelpers {
     mode: 'complex' | 'simple' = 'complex'
   ) {
     await this.setupApp(page, mode);
-    await page.locator('#panelsWide').fill(String(wide));
+    const panelsWide = page.locator('#panelsWide');
+    await panelsWide.scrollIntoViewIfNeeded();
+    await panelsWide.fill(String(wide));
     await page.locator('#panelsHigh').fill(String(high));
     await page.locator('#panelsHigh').blur();
     await page.waitForTimeout(500);

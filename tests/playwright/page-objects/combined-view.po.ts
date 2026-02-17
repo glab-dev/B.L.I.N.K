@@ -18,11 +18,9 @@ export class CombinedView {
   constructor(page: Page) {
     this.page = page;
     this.combinedCanvas = page.locator('#combinedCanvas');
-    this.manualAdjustBtn = page.locator('button:has-text("Manual Adjust")');
+    this.manualAdjustBtn = page.locator('#manualAdjustBtn');
     this.mirrorCanvasBtn = page.locator('button:has-text("Mirror Canvas")');
-    this.resetPositionsBtn = page.locator(
-      'button:has-text("Reset Positions")'
-    );
+    this.resetPositionsBtn = page.locator('#resetPositionsBtn');
     this.zoomSlider = page.locator('#combinedZoomSlider');
     this.zoomInput = page.locator('#combinedZoomInput');
     this.selectAllBtn = page.locator('button:has-text("All")').first();

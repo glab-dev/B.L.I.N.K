@@ -17,6 +17,20 @@ export class GearList {
   readonly cableDropSLBtn: Locator;
   readonly distBoxOnWallBtn: Locator;
   readonly emailGearListBtn: Locator;
+  readonly powerInTopBtn: Locator;
+  readonly powerInBottomBtn: Locator;
+  readonly distBoxPositionControls: Locator;
+  readonly distBoxMainHorizSRBtn: Locator;
+  readonly distBoxMainHorizCBtn: Locator;
+  readonly distBoxMainHorizSLBtn: Locator;
+  readonly distBoxMainTopBtn: Locator;
+  readonly distBoxMainBottomBtn: Locator;
+  readonly distBoxBackupHorizSRBtn: Locator;
+  readonly distBoxBackupHorizCBtn: Locator;
+  readonly distBoxBackupHorizSLBtn: Locator;
+  readonly distBoxBackupTopBtn: Locator;
+  readonly distBoxBackupBottomBtn: Locator;
+  readonly cableDiagramCanvas: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -26,13 +40,25 @@ export class GearList {
     this.processorToWallInput = page.locator('#processorToWall');
     this.serverToProcessorInput = page.locator('#serverToProcessor');
     this.cablePickInput = page.locator('#cablePick');
-    this.cableDropBehindBtn = page.locator(
-      'button[data-cable-drop="behind"]'
-    );
-    this.cableDropSRBtn = page.locator('button[data-cable-drop="sr"]');
-    this.cableDropSLBtn = page.locator('button[data-cable-drop="sl"]');
+    this.cableDropBehindBtn = page.locator('#cableDropBehindBtn');
+    this.cableDropSRBtn = page.locator('#cableDropSRBtn');
+    this.cableDropSLBtn = page.locator('#cableDropSLBtn');
     this.distBoxOnWallBtn = page.locator('button:has-text("Dist Box on Wall")');
     this.emailGearListBtn = page.locator('button:has-text("Email Gear List")');
+    this.powerInTopBtn = page.locator('#powerInTopBtn');
+    this.powerInBottomBtn = page.locator('#powerInBottomBtn');
+    this.distBoxPositionControls = page.locator('#distBoxPositionControls');
+    this.distBoxMainHorizSRBtn = page.locator('#distBoxMainHorizSRBtn');
+    this.distBoxMainHorizCBtn = page.locator('#distBoxMainHorizCBtn');
+    this.distBoxMainHorizSLBtn = page.locator('#distBoxMainHorizSLBtn');
+    this.distBoxMainTopBtn = page.locator('#distBoxMainTopBtn');
+    this.distBoxMainBottomBtn = page.locator('#distBoxMainBottomBtn');
+    this.distBoxBackupHorizSRBtn = page.locator('#distBoxBackupHorizSRBtn');
+    this.distBoxBackupHorizCBtn = page.locator('#distBoxBackupHorizCBtn');
+    this.distBoxBackupHorizSLBtn = page.locator('#distBoxBackupHorizSLBtn');
+    this.distBoxBackupTopBtn = page.locator('#distBoxBackupTopBtn');
+    this.distBoxBackupBottomBtn = page.locator('#distBoxBackupBottomBtn');
+    this.cableDiagramCanvas = page.locator('#cableDiagramCanvas');
   }
 
   async setCableLength(type: string, length: number) {
@@ -72,6 +98,34 @@ export class GearList {
   async getGearItems(): Promise<string[]> {
     const items = await this.gearListContainer.locator('.gear-item').allTextContents();
     return items;
+  }
+
+  async setPowerInPosition(position: 'top' | 'bottom') {
+    const btnMap = {
+      top: this.powerInTopBtn,
+      bottom: this.powerInBottomBtn,
+    };
+    await btnMap[position].click();
+    await this.page.waitForTimeout(100);
+  }
+
+  async setDistBoxMainHorizPosition(position: 'sr' | 'center' | 'sl') {
+    const btnMap = {
+      sr: this.distBoxMainHorizSRBtn,
+      center: this.distBoxMainHorizCBtn,
+      sl: this.distBoxMainHorizSLBtn,
+    };
+    await btnMap[position].click();
+    await this.page.waitForTimeout(100);
+  }
+
+  async setDistBoxMainVertPosition(position: 'top' | 'bottom') {
+    const btnMap = {
+      top: this.distBoxMainTopBtn,
+      bottom: this.distBoxMainBottomBtn,
+    };
+    await btnMap[position].click();
+    await this.page.waitForTimeout(100);
   }
 
   async emailGearList() {

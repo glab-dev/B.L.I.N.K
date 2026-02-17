@@ -3,6 +3,9 @@ import { Page, Locator } from '@playwright/test';
 /**
  * Page Object for Canvas View
  * Handles canvas tabs, screen positioning, zoom/pan, export
+ *
+ * Note: Canvas options (#canvasSize, #canvasX, etc.) are in a hidden section-content.
+ * The visible controls are in the raster toolbar (#rasterToolbar*).
  */
 export class CanvasView {
   readonly page: Page;
@@ -19,27 +22,34 @@ export class CanvasView {
   readonly yPositionInput: Locator;
   readonly snapToggleBtn: Locator;
   readonly exportCanvasBtn: Locator;
+  readonly filenameInput: Locator;
+  readonly formatSelect: Locator;
+  readonly fineInput: Locator;
 
   constructor(page: Page) {
     this.page = page;
     this.canvasElement = page.locator('#canvasView');
     this.addCanvasBtn = page.locator('.canvas-tab-add');
-    this.zoomInBtn = page.locator('button:has-text("+")').first();
-    this.zoomOutBtn = page.locator('button:has-text("−")').first();
+    this.zoomInBtn = page.locator('#canvasContainer button[onclick="zoomCanvas(0.25)"]');
+    this.zoomOutBtn = page.locator('#canvasContainer button[onclick="zoomCanvas(-0.25)"]');
     this.zoomInput = page.locator('#canvasZoomInput');
-    this.resetZoomBtn = page.locator('button:has-text("Reset Zoom")');
-    this.canvasSizeSelect = page.locator('#canvasSize');
-    this.customCanvasWidthInput = page.locator('#customCanvasWidth');
-    this.customCanvasHeightInput = page.locator('#customCanvasHeight');
-    this.xPositionInput = page.locator('#canvasXPos');
-    this.yPositionInput = page.locator('#canvasYPos');
-    this.snapToggleBtn = page.locator('button:has-text("Snap")');
-    this.exportCanvasBtn = page.locator('button:has-text("Export Canvas")');
+    this.resetZoomBtn = page.locator('#canvasContainer button[onclick="resetCanvasZoom()"]');
+    // Toolbar elements (visible) — the hidden section-content controls are synced from these
+    this.canvasSizeSelect = page.locator('#rasterToolbarCanvasSize');
+    this.customCanvasWidthInput = page.locator('#rasterToolbarCustomW');
+    this.customCanvasHeightInput = page.locator('#rasterToolbarCustomH');
+    this.xPositionInput = page.locator('#rasterToolbarX');
+    this.yPositionInput = page.locator('#rasterToolbarY');
+    this.snapToggleBtn = page.locator('#rasterToolbarSnap');
+    this.exportCanvasBtn = page.locator('#rasterToolbarExport');
+    this.filenameInput = page.locator('#rasterToolbarFilename');
+    this.formatSelect = page.locator('#rasterToolbarFormat');
+    this.fineInput = page.locator('#rasterToolbarFine');
   }
 
   async setZoom(percentage: number) {
     await this.zoomInput.fill(String(percentage));
-    await this.zoomInput.press('Enter');
+    await this.zoomInput.dispatchEvent('change');
     await this.page.waitForTimeout(200);
   }
 
@@ -59,12 +69,14 @@ export class CanvasView {
   }
 
   async setCanvasSize(size: string) {
+    await this.canvasSizeSelect.scrollIntoViewIfNeeded();
     await this.canvasSizeSelect.selectOption(size);
     await this.page.waitForTimeout(200);
   }
 
   async setCustomCanvasSize(width: number, height: number) {
     await this.setCanvasSize('custom');
+    await this.customCanvasWidthInput.scrollIntoViewIfNeeded();
     await this.customCanvasWidthInput.fill(String(width));
     await this.customCanvasHeightInput.fill(String(height));
     await this.customCanvasWidthInput.blur();
@@ -72,6 +84,7 @@ export class CanvasView {
   }
 
   async setScreenPosition(x: number, y: number) {
+    await this.xPositionInput.scrollIntoViewIfNeeded();
     await this.xPositionInput.fill(String(x));
     await this.yPositionInput.fill(String(y));
     await this.xPositionInput.blur();
@@ -79,6 +92,7 @@ export class CanvasView {
   }
 
   async toggleSnap(enable: boolean) {
+    await this.snapToggleBtn.scrollIntoViewIfNeeded();
     const isActive = (await this.snapToggleBtn.getAttribute('class'))?.includes(
       'active'
     );

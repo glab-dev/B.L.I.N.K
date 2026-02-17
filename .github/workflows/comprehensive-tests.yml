@@ -6,7 +6,7 @@ on:
 
 jobs:
   comprehensive-tests:
-    name: Comprehensive Tests
+    name: Comprehensive Chrome Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -44,7 +44,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: comprehensive-test-report
+          name: comprehensive-test-report-chrome
           path: playwright-report/
           retention-days: 7
 
@@ -52,6 +52,110 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: comprehensive-test-results
+          name: comprehensive-test-results-chrome
+          path: test-results/
+          retention-days: 3
+
+  firefox-tests:
+    name: Comprehensive Firefox Tests (Advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache Node modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-${{ hashFiles('package-lock.json') }}
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}-firefox
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Firefox
+        run: npx playwright install firefox --with-deps
+
+      - name: Run comprehensive tests on Firefox
+        run: npx playwright test tests/playwright/comprehensive/ --project=firefox-desktop
+        env:
+          CI: 'true'
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-test-report-firefox
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-test-results-firefox
+          path: test-results/
+          retention-days: 3
+
+  webkit-tests:
+    name: Comprehensive WebKit Tests (Advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache Node modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-${{ hashFiles('package-lock.json') }}
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}-webkit
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright WebKit
+        run: npx playwright install webkit --with-deps
+
+      - name: Run comprehensive tests on WebKit
+        run: npx playwright test tests/playwright/comprehensive/ --project=webkit-desktop
+        env:
+          CI: 'true'
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-test-report-webkit
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-test-results-webkit
           path: test-results/
           retention-days: 3

@@ -69,6 +69,26 @@ PWA: offline-capable after first load, installable on mobile via manifest (base6
 
 ---
 
+## Netlify & CSP — ALWAYS Follow When Modifying Headers or Service Worker
+
+**Content Security Policy (`netlify.toml` line 15):**
+- Every external domain the app loads resources from MUST be listed in the correct CSP directive:
+  - `script-src` — CDN scripts (cdn.jsdelivr.net, cdnjs.cloudflare.com)
+  - `style-src` — Google Fonts CSS (fonts.googleapis.com)
+  - `font-src` — Google Fonts files (fonts.gstatic.com, *.gstatic.com)
+  - `connect-src` — anything fetched via `fetch()` or SW, including CDN domains AND font domains
+- **When adding a new CDN dependency**, add its domain to BOTH the relevant resource directive AND `connect-src` (because the service worker's `fetch()` calls are governed by `connect-src`)
+
+**Header ordering in `netlify.toml`:**
+- Generic cache rules (`/*.js`, `/*.css`) MUST come BEFORE specific no-cache overrides (`/sw.js`, `/version.json`, `/manifest.json`). Netlify applies the last matching rule, so specific rules must come after generic ones to take precedence.
+
+**Service Worker (`sw.js`) — font handling rules:**
+- **NEVER pre-cache Google Fonts in `CDN_ASSETS`** — Google Fonts CSS is User-Agent dependent. Pre-caching with the SW's UA serves wrong `@font-face` rules for the actual browser.
+- **NEVER intercept Google Fonts in the SW fetch handler** — Safari breaks when the SW intercepts font requests after the `controllerchange` → `reload()` cycle. The SW must `return` (not call `event.respondWith()`) for any request to `googleapis.com` or `gstatic.com`.
+- CDN scripts (jsPDF, html2canvas, Supabase) CAN be cached/intercepted by the SW — only fonts are excluded.
+
+---
+
 ## Version Management — ALWAYS Follow
 
 **Three places to update on EVERY version change:**

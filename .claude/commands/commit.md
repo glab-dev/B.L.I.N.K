@@ -17,6 +17,7 @@ Commit the current changes with an automatic version bump.
 4. **Update version in all locations**:
    - `version.json`: update the `"version"` field to the new version and `"updated"` field to today's date (YYYY-MM-DD format).
    - `index.html`: find the line `const APP_VERSION = '...';` (around line 3545) and update the version string.
+   - `sw.js`: find the line `const SW_VERSION = '...';` (line 5) and update the version string.
 
 5. **Generate the commit description**:
    - If a description was provided in $ARGUMENTS, use it.

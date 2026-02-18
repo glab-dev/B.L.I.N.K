@@ -75,8 +75,9 @@ PWA: offline-capable after first load, installable on mobile via manifest (base6
 
 1. `version.json` → `"version"` field + `"updated"` date (YYYY-MM-DD)
 2. `index.html` → `const APP_VERSION = 'X.X.X';` (around line 1257)
+3. `sw.js` → `const SW_VERSION = 'X.X.X';` (line 5)
 
-Both must match. Default: increment patch (e.g., 2.5.25 → 2.5.26).
+All three must match. Default: increment patch (e.g., 2.5.25 → 2.5.26).
 
 Use the `/commit` command to handle this automatically.
 

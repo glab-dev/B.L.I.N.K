@@ -18,7 +18,8 @@
     "test:interactions": "playwright test tests/playwright/interactions/",
     "test:report": "playwright show-report",
     "test:codegen": "playwright codegen http://localhost:8000",
-    "test:watch": "SLOW_MO=500 playwright test --headed --workers=1 --project=chromium-desktop"
+    "test:watch": "SLOW_MO=500 playwright test --headed --workers=1 --project=chromium-desktop",
+    "test:keepalive": "BASE_URL=https://blink-led.com playwright test tests/playwright/keepalive/ --project=chromium-desktop"
   },
   "keywords": [
     "playwright",

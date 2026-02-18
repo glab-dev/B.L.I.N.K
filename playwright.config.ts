@@ -28,7 +28,7 @@ export default defineConfig({
 
   // Shared settings for all projects
   use: {
-    baseURL: 'http://localhost:8000',
+    baseURL: process.env.BASE_URL || 'http://localhost:8000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -109,8 +109,8 @@ export default defineConfig({
     },
   ],
 
-  // Start local server before tests
-  webServer: {
+  // Start local server before tests (skip when testing against external URL)
+  webServer: process.env.BASE_URL ? undefined : {
     command: 'python3 -m http.server 8000',
     port: 8000,
     reuseExistingServer: !process.env.CI,

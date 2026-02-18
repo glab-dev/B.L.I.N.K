@@ -151,7 +151,9 @@ function exportResolumeXML(filename) {
     const xmlFilename = String(filename).replace(/[<>:"/\\|?*]/g, '_') + '.xml';
 
     // Mobile: use share API for native "Save to Files" option
-    if(navigator.canShare) {
+    var isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
+                         (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    if(isMobileDevice && navigator.canShare) {
       const file = new File([blob], xmlFilename, { type: 'application/xml' });
       if(navigator.canShare({ files: [file] })) {
         navigator.share({ files: [file] }).catch(function() {});

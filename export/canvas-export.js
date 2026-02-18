@@ -78,7 +78,9 @@ function exportCanvas(){
       const fullFilename = filename + extension;
 
       // Mobile: use share API for native "Save to Files" option
-      if(navigator.canShare) {
+      var isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
+                           (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+      if(isMobileDevice && navigator.canShare) {
         const file = new File([blob], fullFilename, { type: mimeType });
         if(navigator.canShare({ files: [file] })) {
           navigator.share({ files: [file] }).catch(function() {});

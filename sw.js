@@ -132,7 +132,14 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Cache-first for everything else (local assets + CDN)
+  // Network-first for cross-origin requests (CDN scripts, Google Fonts)
+  // Google Fonts CSS is User-Agent dependent, so cache-first serves wrong responses
+  if (url.origin !== self.location.origin) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  // Cache-first for same-origin local assets
   event.respondWith(cacheFirst(event.request));
 });
 

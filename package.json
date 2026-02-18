@@ -29,7 +29,7 @@
     "led-calculator"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
     "@playwright/test": "^1.40.0"
   }

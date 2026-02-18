@@ -181,3 +181,28 @@ flowchart TD
 | **Total** | | **$0/month** | **~$10.46/year** + Stripe fees on revenue |
 
 Your entire production stack runs for **~$10.46/year** until you outgrow the free tiers — which for B.L.I.N.K.'s use case, would require significant user growth.
+
+---
+
+## 7. Licensing — Dual-License Model
+
+B.L.I.N.K. uses a **dual-license** setup — restrictive by default, permissive if someone pays.
+
+### LICENSE (default — proprietary)
+
+Applies to everyone by default. **"You can look, but you can't touch."** No one can copy, modify, distribute, or use the code without permission.
+
+### LICENSE-COMMERCIAL.txt (paid — commercial use)
+
+The key to the locked door. If someone **pays fees/royalties** (agreed separately), they get a non-exclusive, non-transferable license to use, modify, distribute, and sell the software. They still can't sublicense it, strip your name off it, or reverse-engineer it. Violation = auto-termination.
+
+### How they work together
+
+```mermaid
+flowchart TD
+    A["Someone finds B.L.I.N.K. on GitHub"] --> B["LICENSE applies<br/>'All rights reserved — don't touch'"]
+    B --> C{"Want to use it commercially?"}
+    C -- No --> D["Can only view the code"]
+    C -- Yes --> E["Contact you → Pay fees"]
+    E --> F["LICENSE-COMMERCIAL applies<br/>Can use, modify, sell"]
+```

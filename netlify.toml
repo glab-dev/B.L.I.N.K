@@ -14,6 +14,18 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' fonts.gstatic.com *.gstatic.com; connect-src 'self' *.supabase.co; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self'"
 
+# Generic cache rules (come first so specific rules below can override)
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+# Specific no-cache overrides (must come AFTER generic /*.js to take precedence)
 [[headers]]
   for = "/version.json"
   [headers.values]
@@ -28,16 +40,6 @@
   for = "/manifest.json"
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
-
-[[headers]]
-  for = "/*.js"
-  [headers.values]
-    Cache-Control = "public, max-age=3600"
-
-[[headers]]
-  for = "/*.css"
-  [headers.values]
-    Cache-Control = "public, max-age=3600"
 
 # Redirects (migrated from _redirects file)
 [[redirects]]

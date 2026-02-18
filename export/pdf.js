@@ -73,7 +73,7 @@ function sendGearListToJared(includeRP) {
     // If value is a number, format as "countx label" — otherwise keep as "label value" for pre-formatted strings
     if(typeof value === 'number') {
       const cleanLabel = label.replace(/:$/, '').trim(); // Remove trailing colon
-      return ` - ${value}x ${cleanLabel}${nl}`;
+      return ` - ${value} x ${cleanLabel}${nl}`;
     }
     return ` - ${label} ${value}${nl}`;
   };
@@ -91,7 +91,6 @@ function sendGearListToJared(includeRP) {
     const dc = sd.dataCables;
     const pc = sd.powerCables;
     const p2d = sd.processorToDistBox;
-    const sp = sd.spares;
 
     // Screen header
     text += `${nl}${nl}`;
@@ -101,13 +100,15 @@ function sendGearListToJared(includeRP) {
     // Equipment
     text += hdr('Equipment');
     if(eq.isFirstScreenInGroup && eq.processorCount > 0) {
-      text += line('Processor:', `${eq.processorCount}x ${eq.processorName}`);
-      if(eq.distBoxCount > 0) text += line(`${eq.distBoxName}:`, eq.distBoxCount);
+      text += ` - Processor:${nl}`;
+      text += `     ${eq.processorCount} x ${eq.processorName}${nl}`;
+      if(eq.distBoxCount > 0) text += `     ${eq.distBoxCount} x ${eq.distBoxName}${nl}`;
     } else if(eq.referencesScreenName) {
       text += ` - Processor: See ${eq.referencesScreenName}${nl}`;
     }
-    text += ` - Panels: ${eq.activeFullPanels} x ${eq.panelBrand} ${eq.panelName}${nl}`;
-    if(eq.activeHalfPanels > 0) text += ` - Half Panels: ${eq.activeHalfPanels} x ${eq.panelBrand} ${eq.halfPanelName}${nl}`;
+    text += ` - Panels:${nl}`;
+    text += `     ${eq.activeFullPanels} x ${eq.panelBrand} ${eq.panelName}${nl}`;
+    if(eq.activeHalfPanels > 0) text += `     ${eq.activeHalfPanels} x ${eq.panelBrand} ${eq.halfPanelName}${nl}`;
 
     // Rigging Hardware
     if(rig.hasRigging) {
@@ -149,7 +150,7 @@ function sendGearListToJared(includeRP) {
     if(dc.jumpersBuiltin && dc.cat5CouplerCount > 0) text += line('Cat5 Couplers:', dc.cat5CouplerCount);
     const cat6Lengths = Object.entries(dc.cat6ByLength).sort((a,b) => a[0] - b[0]);
     for(const [len, count] of cat6Lengths) {
-      text += ` - ${count}x ${len}' Cat6${nl}`;
+      text += ` - ${count} x ${len}' Cat6${nl}`;
     }
 
     // Power Cables
@@ -158,7 +159,7 @@ function sendGearListToJared(includeRP) {
     text += line('Soca Splays:', pc.socaSplays);
     const socaLengths = Object.entries(pc.socaByLength).sort((a,b) => a[0] - b[0]);
     for(const [len, count] of socaLengths) {
-      text += ` - ${count}x ${len}' Soca${nl}`;
+      text += ` - ${count} x ${len}' Soca${nl}`;
     }
     text += line("25' True1:", pc.true1_25);
     text += line("10' True1:", pc.true1_10);
@@ -171,14 +172,6 @@ function sendGearListToJared(includeRP) {
       text += ` - ${p2d.count}x ${p2d.cableType} ${p2d.cableLength}'${nl}`;
     }
 
-    // Spares
-    text += hdr('Spares');
-    text += ` - Spare Soca Splays:${nl}`;
-    text += ` - Spare Panel Count:${nl}`;
-    if(sp.dataJumpers) text += ` - Spare Data Jumpers ${sp.dataJumperLen}':${nl}`;
-    if(sp.crossJumpers) text += ` - Spare Data Cross Jumpers ${sp.crossJumperLen}':${nl}`;
-    if(sp.cat5Couplers) text += ` - Spare Cat5 Couplers:${nl}`;
-    if(sp.powerJumpers) text += ` - Spare Power Jumpers ${sp.powerJumperLen}':${nl}`;
   });
 
   // System-wide: Signal Cables
@@ -205,6 +198,38 @@ function sendGearListToJared(includeRP) {
     text += line("UG 50':", util.ug50);
     text += line('UG Twofers:', util.ugTwofers);
     text += line('Power Bars:', util.powerBars);
+  }
+
+  // Combined Spares (panels 10%, cables/rigging 40%)
+  const sp = gearData.spares;
+  if(sp) {
+    text += `${nl}${nl}`;
+    text += `SPARES${nl}`;
+    text += `======================================${nl}`;
+    // Panels by type
+    for(const [name, count] of Object.entries(sp.panelsByType || {})) {
+      text += line(`${name}:`, count);
+    }
+    // Rigging
+    text += nl;
+    if(sp.shackles) text += line('Shackles:', sp.shackles);
+    if(sp.cheeseyes) text += line('Cheeseyes:', sp.cheeseyes);
+    // Data
+    text += nl;
+    if(sp.crossJumpers) text += line(`Cross Jumpers ${sp.crossJumperLen}':`, sp.crossJumpers);
+    if(sp.cat5Couplers) text += line('Cat5 Couplers:', sp.cat5Couplers);
+    if(sp.cat6ByLength) {
+      for(const [len, count] of Object.entries(sp.cat6ByLength).sort((a,b) => Number(b[0]) - Number(a[0]))) {
+        if(count > 0) text += line(`${len}' Cat6:`, count);
+      }
+    }
+    // Power
+    text += nl;
+    if(sp.socaSplays) text += line('Soca Splays:', sp.socaSplays);
+    if(sp.true1_25) text += line("25' True1:", sp.true1_25);
+    if(sp.true1_10) text += line("10' True1:", sp.true1_10);
+    if(sp.true1_5) text += line("5' True1:", sp.true1_5);
+    if(sp.true1Twofer) text += line('True1 Twofer:', sp.true1Twofer);
   }
 
   // Build inventory file only if RP toggle is on
@@ -947,15 +972,18 @@ function exportPDF(){
       const dc = sd.dataCables;
       const pc = sd.powerCables;
       const p2d = sd.processorToDistBox;
-      const sp = sd.spares;
 
       function addGearLine(label, value) {
-        if(value === '0' || value === '' || value === null || value === undefined) return;
+        if(value === '0' || value === '' || value === null || value === undefined || value === 0) return;
         pdf.setFontSize(8);
         pdf.setFont(undefined, 'normal');
-        pdf.text(label, colX, colY);
-        const labelWidth = pdf.getTextWidth(label);
-        pdf.text(String(value), colX + labelWidth + 1, colY);
+        const numVal = Number(value);
+        if(!isNaN(numVal) && numVal > 0) {
+          const cleanLabel = label.replace(/:$/, '').trim();
+          pdf.text(`${numVal} x ${cleanLabel}`, colX, colY);
+        } else {
+          pdf.text(`${label} ${value}`, colX, colY);
+        }
         colY += lineHeight;
       }
 
@@ -970,9 +998,15 @@ function exportPDF(){
       // Equipment
       addGearHeader('Equipment');
       if(eq.isFirstScreenInGroup && eq.processorCount > 0) {
-        addGearLine('Processor:', `${eq.processorCount}x ${eq.processorName}`);
+        pdf.setFontSize(8);
+        pdf.setFont(undefined, 'normal');
+        pdf.text('Processor:', colX, colY);
+        colY += lineHeight;
+        pdf.text(`${eq.processorCount} x ${eq.processorName}`, colX + 4, colY);
+        colY += lineHeight;
         if(eq.distBoxCount > 0) {
-          addGearLine(`${eq.distBoxName}:`, eq.distBoxCount.toString());
+          pdf.text(`${eq.distBoxCount} x ${eq.distBoxName}`, colX + 4, colY);
+          colY += lineHeight;
         }
       } else if(eq.referencesScreenName) {
         pdf.setFontSize(8);
@@ -980,12 +1014,19 @@ function exportPDF(){
         pdf.text(`Processor: See ${eq.referencesScreenName}`, colX, colY);
         colY += lineHeight;
       }
-      // Panel display — brand + half split when CB5 half row exists
+      // Panels
+      pdf.setFontSize(8);
+      pdf.setFont(undefined, 'normal');
+      pdf.text('Panels:', colX, colY);
+      colY += lineHeight;
       if(eq.activeHalfPanels > 0) {
-        addGearLine(`${eq.panelBrand} ${eq.panelName}:`, eq.activeFullPanels.toString());
-        addGearLine(`${eq.panelBrand} ${eq.halfPanelName}:`, eq.activeHalfPanels.toString());
+        pdf.text(`${eq.activeFullPanels} x ${eq.panelBrand} ${eq.panelName}`, colX + 4, colY);
+        colY += lineHeight;
+        pdf.text(`${eq.activeHalfPanels} x ${eq.panelBrand} ${eq.halfPanelName}`, colX + 4, colY);
+        colY += lineHeight;
       } else {
-        addGearLine('Panel Count:', eq.activePanels.toString());
+        pdf.text(`${eq.activePanels} x ${eq.panelBrand} ${eq.panelName}`, colX + 4, colY);
+        colY += lineHeight;
       }
 
       // Rigging (hide section if empty)
@@ -1060,17 +1101,6 @@ function exportPDF(){
         addGearLine(`${p2d.cableType} ${p2d.cableLength}':`, p2d.count.toString());
       }
 
-      // Spares
-      addGearHeader('SPARES');
-      if(sp.socaSplays) addGearLine('Spare Soca Splays:', '');
-      if(sp.panelCount) addGearLine('Spare Panel Count:', '');
-      if(sp.dataJumpers) addGearLine(`Spare Data Jumpers ${sp.dataJumperLen}:`, '');
-      if(sp.crossJumpers) addGearLine(`Spare Data Cross Jumpers ${sp.crossJumperLen}:`, '');
-      if(sp.cat5Couplers) addGearLine('Spare Cat5 Couplers:', '');
-      if(sp.powerJumpers) addGearLine(`Spare Power Jumpers ${sp.powerJumperLen}:`, '');
-      if(sp.soca) addGearLine('Spare Soca:', '');
-      if(sp.data) addGearLine('Spare Data:', '');
-      if(sp.fiber) addGearLine('Spare Fiber:', '');
       return colY;
     }
 
@@ -1185,19 +1215,19 @@ function exportPDF(){
           pdf.setFontSize(8);
           pdf.setFont(undefined, 'normal');
           if(pdfSig.serverFiberLine) {
-            pdf.text(`${pdfSig.serverFiberLine.label}: ${pdfSig.serverFiberLine.count}`, sysColX, sy);
+            pdf.text(`${pdfSig.serverFiberLine.count} x ${pdfSig.serverFiberLine.label}`, sysColX, sy);
             sy += lineHeight;
           }
           const sdiLengths = Object.keys(pdfSig.sdiByLength).map(Number).sort((a, b) => b - a);
           sdiLengths.forEach(len => {
             if(pdfSig.sdiByLength[len] > 0) {
-              pdf.text(`${len}' ${pdfSig.sdiType}: ${pdfSig.sdiByLength[len]}`, sysColX, sy);
+              pdf.text(`${pdfSig.sdiByLength[len]} x ${len}' ${pdfSig.sdiType}`, sysColX, sy);
               sy += lineHeight;
             }
           });
-          pdf.text(`25' HDMI: ${pdfSig.hdmi[25]}`, sysColX, sy); sy += lineHeight;
-          pdf.text(`10' HDMI: ${pdfSig.hdmi[10]}`, sysColX, sy); sy += lineHeight;
-          pdf.text(`6' HDMI: ${pdfSig.hdmi[6]}`, sysColX, sy); sy += lineHeight;
+          pdf.text(`${pdfSig.hdmi[25]} x 25' HDMI`, sysColX, sy); sy += lineHeight;
+          pdf.text(`${pdfSig.hdmi[10]} x 10' HDMI`, sysColX, sy); sy += lineHeight;
+          pdf.text(`${pdfSig.hdmi[6]} x 6' HDMI`, sysColX, sy); sy += lineHeight;
           sy += 3;
         }
 
@@ -1210,11 +1240,56 @@ function exportPDF(){
 
           pdf.setFontSize(8);
           pdf.setFont(undefined, 'normal');
-          pdf.text(`UG 10': ${pdfUtil.ug10}`, sysColX, sy); sy += lineHeight;
-          pdf.text(`UG 25': ${pdfUtil.ug25}`, sysColX, sy); sy += lineHeight;
-          pdf.text(`UG 50': ${pdfUtil.ug50}`, sysColX, sy); sy += lineHeight;
-          pdf.text(`UG Twofers: ${pdfUtil.ugTwofers}`, sysColX, sy); sy += lineHeight;
-          pdf.text(`Power Bars: ${pdfUtil.powerBars}`, sysColX, sy); sy += lineHeight;
+          pdf.text(`${pdfUtil.ug10} x UG 10'`, sysColX, sy); sy += lineHeight;
+          pdf.text(`${pdfUtil.ug25} x UG 25'`, sysColX, sy); sy += lineHeight;
+          pdf.text(`${pdfUtil.ug50} x UG 50'`, sysColX, sy); sy += lineHeight;
+          pdf.text(`${pdfUtil.ugTwofers} x UG Twofers`, sysColX, sy); sy += lineHeight;
+          pdf.text(`${pdfUtil.powerBars} x Power Bars`, sysColX, sy); sy += lineHeight;
+        }
+
+        // Combined Spares — same column as System
+        const pdfSpares = gearData.spares;
+        if(pdfSpares) {
+          sy += 3;
+          pdf.setFontSize(9);
+          pdf.setFont(undefined, 'bold');
+          pdf.text('Spares', sysColX, sy);
+          sy += 4;
+
+          const spareLine = (label, value) => {
+            if(!value) return;
+            pdf.setFontSize(8);
+            pdf.setFont(undefined, 'normal');
+            const cleanLabel = label.replace(/:$/, '').trim();
+            pdf.text(`${value} x ${cleanLabel}`, sysColX, sy);
+            sy += lineHeight;
+          };
+          const spareGap = () => { sy += 2; };
+
+          // Panels by type
+          for(const [name, count] of Object.entries(pdfSpares.panelsByType || {})) {
+            spareLine(`${name}:`, count);
+          }
+          // Rigging
+          spareGap();
+          if(pdfSpares.shackles) spareLine('Shackles:', pdfSpares.shackles);
+          if(pdfSpares.cheeseyes) spareLine('Cheeseyes:', pdfSpares.cheeseyes);
+          // Data
+          spareGap();
+          if(pdfSpares.crossJumpers) spareLine(`Cross Jumpers ${pdfSpares.crossJumperLen}':`, pdfSpares.crossJumpers);
+          if(pdfSpares.cat5Couplers) spareLine('Cat5 Couplers:', pdfSpares.cat5Couplers);
+          if(pdfSpares.cat6ByLength) {
+            for(const [len, count] of Object.entries(pdfSpares.cat6ByLength).sort((a,b) => Number(b[0]) - Number(a[0]))) {
+              if(count > 0) spareLine(`${len}' Cat6:`, count);
+            }
+          }
+          // Power
+          spareGap();
+          if(pdfSpares.socaSplays) spareLine('Soca Splays:', pdfSpares.socaSplays);
+          if(pdfSpares.true1_25) spareLine("25' True1:", pdfSpares.true1_25);
+          if(pdfSpares.true1_10) spareLine("10' True1:", pdfSpares.true1_10);
+          if(pdfSpares.true1_5) spareLine("5' True1:", pdfSpares.true1_5);
+          if(pdfSpares.true1Twofer) spareLine('True1 Twofer:', pdfSpares.true1Twofer);
         }
 
         updateColumnY(sy);

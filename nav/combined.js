@@ -2965,14 +2965,36 @@ function renderCombinedGearList(selectedScreenIds) {
   html += addGearLine('UG Twofers:', 8);
   html += addGearLine('Power Bars:', 8);
 
-  // Spares Section
+  // Spares Section (panels 10%, cables/rigging 40%)
+  const sparePanel = (count) => count > 0 ? Math.ceil(count * 0.1) : 0;
+  const spareCable = (count) => count > 0 ? Math.ceil(count * 0.4) : 0;
+  const spacer = '<div style="margin-top: 8px;"></div>';
   html += addGearHeader('SPARES');
-  html += addGearLine('Spare Soca Splays:', '');
-  html += addGearLine('Spare Panel Count:', '');
-  if(!hasJumpersBuiltin && dataJumperLen) html += addGearLine(`Spare Data Jumpers ${dataJumperLen}':`, '');
-  if(dataCrossJumperLen) html += addGearLine(`Spare Data Cross Jumpers ${dataCrossJumperLen}':`, '');
-  if(hasJumpersBuiltin) html += addGearLine('Spare Cat5 Couplers:', '');
-  if(!hasJumpersBuiltin && powerJumperLen) html += addGearLine(`Spare Power Jumpers ${powerJumperLen}':`, '');
+  // Panels by type
+  for(const [name, count] of Object.entries(panelsByType)) {
+    const spare = sparePanel(count);
+    if(spare > 0) html += addGearLine(`${name}:`, spare);
+  }
+  // Rigging
+  html += spacer;
+  html += addGearLine('Shackles:', spareCable(totalShackles));
+  html += addGearLine('Cheeseyes:', spareCable(totalCheeseye));
+  // Data
+  html += spacer;
+  if(dataCrossJumperLen) html += addGearLine(`Cross Jumpers ${dataCrossJumperLen}':`, spareCable(totalDataCrossJumpers));
+  if(hasJumpersBuiltin) html += addGearLine('Cat5 Couplers:', spareCable(totalCat5Couplers));
+  if(hasCatCables) {
+    for(const [len, count] of Object.entries(combinedDataByLength).sort((a,b) => Number(b[0]) - Number(a[0]))) {
+      html += addGearLine(`${len}' Cat6:`, spareCable(count));
+    }
+  }
+  // Power
+  html += spacer;
+  html += addGearLine('Soca Splays:', spareCable(totalSocaSplays));
+  html += addGearLine("25' True1:", spareCable(totalSocaSplays));
+  html += addGearLine("10' True1:", spareCable(totalSocaSplays));
+  html += addGearLine("5' True1:", spareCable(totalSocaSplays * 2));
+  html += addGearLine('True1 Twofer:', spareCable(totalTrue1Twofers));
 
   html += '</div>';
 

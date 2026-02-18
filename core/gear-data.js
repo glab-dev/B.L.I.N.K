@@ -362,22 +362,6 @@ function buildGearListData(screenIds) {
 
     // (Signal cables and utility are now computed at the system level — see below)
 
-    // --- SPARES ---
-    const spares = {
-      socaSplays: true,
-      panelCount: true,
-      dataJumpers: !jumpersBuiltin && !!dataJumperLen,
-      dataJumperLen: dataJumperLen,
-      crossJumpers: !!dataCrossJumperLen,
-      crossJumperLen: dataCrossJumperLen,
-      cat5Couplers: jumpersBuiltin,
-      powerJumpers: !jumpersBuiltin && !!powerJumperLen,
-      powerJumperLen: powerJumperLen,
-      soca: true,
-      data: true,
-      fiber: true
-    };
-
     screenDataList.push({
       screenId: screenId,
       screenName: screen.name,
@@ -388,8 +372,7 @@ function buildGearListData(screenIds) {
       floorHardware: floorHardware,
       dataCables: dataCables,
       powerCables: powerCables,
-      processorToDistBox: processorToDistBox,
-      spares: spares
+      processorToDistBox: processorToDistBox
     });
   });
 
@@ -456,11 +439,77 @@ function buildGearListData(screenIds) {
     ugTwofers: 8, powerBars: 8
   } : null;
 
+  // === COMBINED SPARES (panels 10%, cables/rigging 40%) ===
+  let combinedSpares = null;
+  if(screenDataList.length > 0) {
+    const sparePanel = (count) => count > 0 ? Math.ceil(count * 0.1) : 0;
+    const spareCable = (count) => count > 0 ? Math.ceil(count * 0.4) : 0;
+
+    const panelsByType = {}; // { 'Brand Name': totalCount }
+    let totShackles = 0, totCheeseyes = 0;
+    let totCrossJumpers = 0, crossJumperLen = '';
+    let totCat5Couplers = 0;
+    let totSocaSplays = 0, totTrue1_25 = 0, totTrue1_10 = 0, totTrue1_5 = 0, totTrue1Twofer = 0;
+    const totCat6 = {};
+
+    screenDataList.forEach(sd => {
+      const eq = sd.equipment;
+      const fullName = (eq.panelBrand + ' ' + eq.panelName).trim();
+      if(eq.activeFullPanels > 0 && fullName) {
+        panelsByType[fullName] = (panelsByType[fullName] || 0) + eq.activeFullPanels;
+      }
+      if(eq.activeHalfPanels > 0) {
+        const halfName = (eq.panelBrand + ' ' + eq.halfPanelName).trim();
+        panelsByType[halfName] = (panelsByType[halfName] || 0) + eq.activeHalfPanels;
+      }
+      totShackles += sd.rigging.shackles || 0;
+      totCheeseyes += sd.rigging.cheeseye || 0;
+      totCrossJumpers += sd.dataCables.crossJumperCount || 0;
+      if(!crossJumperLen && sd.dataCables.crossJumperLen) crossJumperLen = sd.dataCables.crossJumperLen;
+      totCat5Couplers += sd.dataCables.cat5CouplerCount || 0;
+      Object.entries(sd.dataCables.cat6ByLength || {}).forEach(([len, count]) => {
+        totCat6[len] = (totCat6[len] || 0) + count;
+      });
+      totSocaSplays += sd.powerCables.socaSplays || 0;
+      totTrue1_25 += sd.powerCables.true1_25 || 0;
+      totTrue1_10 += sd.powerCables.true1_10 || 0;
+      totTrue1_5 += sd.powerCables.true1_5 || 0;
+      totTrue1Twofer += sd.powerCables.true1Twofer || 0;
+    });
+
+    const sparePanelsByType = {};
+    Object.entries(panelsByType).forEach(([name, count]) => {
+      const spare = sparePanel(count);
+      if(spare > 0) sparePanelsByType[name] = spare;
+    });
+
+    const spareCat6 = {};
+    Object.entries(totCat6).forEach(([len, count]) => {
+      spareCat6[len] = spareCable(count);
+    });
+
+    combinedSpares = {
+      panelsByType: sparePanelsByType,
+      shackles: spareCable(totShackles),
+      cheeseyes: spareCable(totCheeseyes),
+      crossJumpers: spareCable(totCrossJumpers),
+      crossJumperLen: crossJumperLen,
+      cat5Couplers: spareCable(totCat5Couplers),
+      cat6ByLength: spareCat6,
+      socaSplays: spareCable(totSocaSplays),
+      true1_25: spareCable(totTrue1_25),
+      true1_10: spareCable(totTrue1_10),
+      true1_5: spareCable(totTrue1_5),
+      true1Twofer: spareCable(totTrue1Twofer)
+    };
+  }
+
   return {
     configName: configName,
     processorGroups: processorGroups,
     screens: screenDataList,
     signalCables: signalCables,
-    utility: utility
+    utility: utility,
+    spares: combinedSpares
   };
 }

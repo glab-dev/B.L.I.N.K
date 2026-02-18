@@ -805,8 +805,6 @@ function generateGearList() {
     const dc = sd.dataCables;
     const pc = sd.powerCables;
     const p2d = sd.processorToDistBox;
-    const sp = sd.spares;
-
     // --- BEGIN PER-SCREEN CONTAINER ---
     const gearScreenColor = safeColor(sd.screenColor);
     html += `<div style="background: var(--comic-panel); border: 1px solid ${gearScreenColor}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
@@ -899,15 +897,6 @@ function generateGearList() {
         html += `<div style="margin-left: 12px; color: #e040fb; font-size: 12px;">(Fiber required: distance > 200')</div>`;
       }
     }
-
-    // === SPARES ===
-    html += sectionHdr('SPARES');
-    html += gearLine('Spare Soca Splays:', '');
-    html += gearLine('Spare Panel Count:', '');
-    if(sp.dataJumpers) html += gearLine(`Spare Data Jumpers ${sp.dataJumperLen}':`, '');
-    if(sp.crossJumpers) html += gearLine(`Spare Data Cross Jumpers ${sp.crossJumperLen}':`, '');
-    if(sp.cat5Couplers) html += gearLine('Spare Cat5 Couplers:', '');
-    if(sp.powerJumpers) html += gearLine(`Spare Power Jumpers ${sp.powerJumperLen}':`, '');
 
     html += `</div>`; // close per-screen container
   });

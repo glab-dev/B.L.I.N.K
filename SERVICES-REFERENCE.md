@@ -2,30 +2,16 @@
 
 ## Deployment Pipeline
 
-```
- You write code
-      │
-      ▼
- ┌──────────┐     push      ┌──────────┐    auto-deploy    ┌──────────┐
- │  GitHub   │ ────────────► │ Netlify  │ ◄──────────────── │  (build) │
- │  (repo)   │               │ (hosting)│                   └──────────┘
- └──────────┘               └────┬─────┘
-                                  │ serves files
-                                  ▼
-                            ┌──────────┐    DNS/SSL/CDN
-                            │Cloudflare│ ──────────────► your-domain.com
-                            └──────────┘
-                                  │
-                                  ▼
-                             Users visit
-                              your app
-                                  │
-                    ┌─────────────┼─────────────┐
-                    ▼             ▼              ▼
-              ┌──────────┐ ┌──────────┐  ┌──────────┐
-              │ Supabase │ │  Stripe  │  │  Resend  │
-              │ auth/DB  │ │ payments │  │  email   │
-              └──────────┘ └──────────┘  └──────────┘
+```mermaid
+flowchart TD
+    A["You write code"] --> B["GitHub<br/>(repo)"]
+    B -- push --> C["Netlify<br/>(hosting)"]
+    C -- serves files --> D["Cloudflare<br/>(DNS / SSL / CDN)"]
+    D -- your-domain.com --> E["Users visit your app"]
+    E --> F["Supabase<br/>(auth / DB)"]
+    E --> G["Stripe<br/>(payments — planned)"]
+    E --> H["Resend<br/>(email)"]
+    F -- "auth emails<br/>(password reset, verification)" --> H
 ```
 
 ---
@@ -123,9 +109,9 @@
 
 ---
 
-## 5. Stripe — Payment Processing
+## 5. Stripe — Payment Processing (Planned — Not Yet Integrated)
 
-**What it does for B.L.I.N.K.:** Processes credit card payments for premium features. Handles the entire payment flow — card entry UI, charging, receipts, refunds, and subscription management if needed. No monthly fees, no setup fees — you only pay when you actually process a payment.
+**What it will do for B.L.I.N.K.:** Process credit card payments for premium features. Handles the entire payment flow — card entry UI, charging, receipts, refunds, and subscription management if needed. No monthly fees, no setup fees — you only pay when you actually process a payment.
 
 **Canada fees:**
 
@@ -158,9 +144,11 @@
 
 ---
 
-## 6. Resend — Transactional Email
+## 6. Resend — Transactional Email (via Supabase)
 
-**What it does for B.L.I.N.K.:** Sends emails from your app on your behalf — password reset emails, email verification, sharing gear lists or configurations via email, and any notification emails you might add.
+**What it does for B.L.I.N.K.:** Configured as the SMTP provider in Supabase's auth settings. When Supabase needs to send an auth email (password reset, email verification, magic links), it routes through Resend for reliable delivery from your custom domain instead of Supabase's default email sender.
+
+**How the connection works:** Supabase triggers the email (e.g., user clicks "Forgot Password") → Supabase sends it via Resend's SMTP → Resend delivers it to the user's inbox from your domain (blink-led.com). Resend is not called directly from your app code — it's configured entirely in the Supabase dashboard.
 
 **Free tier:**
 
@@ -172,11 +160,11 @@
 | Log retention | 1 day |
 | Analytics (opens/clicks) | None |
 
-**How usage works:** Every email your app sends counts toward the limit. If a user clicks "Email me my gear list," that's 1 email. Password reset? 1 email. The 100/day limit means you can't burst more than 100 emails in a single day, even if you haven't hit the 3,000 monthly cap.
+**How usage works:** Every auth email Supabase sends through Resend counts toward the limit. Password reset = 1 email. Email verification = 1 email. The 100/day limit means no more than 100 auth emails can go out in a single day.
 
 **Rate limits:** All accounts start at 2 requests/second. Bounce rate must stay under 4%, spam rate under 0.08%.
 
-**Key insight:** 3,000 emails/month is plenty for a utility app. Unless you're sending newsletters or batch marketing emails, you'd need 100+ daily active users all triggering emails to worry about this limit.
+**Key insight:** 3,000 emails/month is plenty — these are only auth emails (sign up verification, password resets), not bulk sends. You'd need 100+ users per day all triggering auth emails to approach this limit.
 
 ---
 
@@ -188,7 +176,7 @@
 | Cloudflare | Domain & DNS/CDN/SSL | $0 | ~$10.46 |
 | Netlify | App hosting & deployment | $0 | $0 |
 | Supabase | Auth, database, storage | $0 | $0 |
-| Stripe | Payment processing | Per-transaction only | Per-transaction only |
+| Stripe | Payment processing (planned) | Per-transaction only | Per-transaction only |
 | Resend | Transactional email | $0 | $0 |
 | **Total** | | **$0/month** | **~$10.46/year** + Stripe fees on revenue |
 

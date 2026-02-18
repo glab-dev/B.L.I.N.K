@@ -639,8 +639,8 @@ Email: gablabrecque@gmail.com
 
 ## License
 
-This project is dual-licensed:
+This software is proprietary. All rights reserved.
 
-- **Open Source:** You may use, modify, and distribute the software under the terms of the [MIT License](./LICENSE-OPEN.txt).
+The source code, design, and content of B.L.I.N.K. are the intellectual property of Gabriel Labrecque / Fearless Wanderer Productions. Unauthorized copying, modification, distribution, or use is strictly prohibited.
 
-- **Commercial Use:** For redistribution, resale, or commercial use beyond the MIT terms, a commercial license is required. Please contact [gablabrecque@gmail.com](mailto:gablabrecque@gmail.com) for licensing options and fees.
+For commercial licensing inquiries, see [LICENSE-COMMERCIAL.txt](./LICENSE-COMMERCIAL.txt) or contact [gablabrecque@gmail.com](mailto:gablabrecque@gmail.com).

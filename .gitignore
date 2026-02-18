@@ -17,6 +17,9 @@ playwright-report/
 test-results/
 tests/playwright/temp/
 
+# Claude Code artifacts
+.claude/
+
 # Environment
 .env
 .env.local

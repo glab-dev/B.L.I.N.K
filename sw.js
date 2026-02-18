@@ -67,9 +67,10 @@ const LOCAL_ASSETS = [
 ];
 
 // CDN dependencies to cache on first fetch
+// Note: Google Fonts are NOT pre-cached here because their CSS is User-Agent
+// dependent. Pre-caching with the SW's UA serves wrong @font-face rules.
+// The browser handles font loading natively (see fetch handler below).
 const CDN_ASSETS = [
-  'https://fonts.googleapis.com/css2?family=Bangers&family=Roboto+Condensed:wght@400;700&display=swap',
-  'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js'
@@ -132,8 +133,14 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Network-first for cross-origin requests (CDN scripts, Google Fonts)
-  // Google Fonts CSS is User-Agent dependent, so cache-first serves wrong responses
+  // Don't intercept Google Fonts — let the browser handle them natively.
+  // Google Fonts CSS is User-Agent dependent and Safari has issues with
+  // SW-intercepted font requests after controllerchange reload.
+  if (url.hostname.includes('googleapis.com') || url.hostname.includes('gstatic.com')) {
+    return;
+  }
+
+  // Network-first for other cross-origin requests (CDN scripts, Supabase)
   if (url.origin !== self.location.origin) {
     event.respondWith(networkFirst(event.request));
     return;

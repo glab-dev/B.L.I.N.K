@@ -3255,10 +3255,11 @@ canvas:focus {
   letter-spacing: 8px;
   margin: 0;
   text-shadow:
-    2px 2px 0 #000,
+    3px 3px 0 #000,
     -1px -1px 0 #000,
     1px -1px 0 #000,
     -1px 1px 0 #000;
+  -webkit-text-stroke: 1px black;
 }
 
 .welcome-subtitle {

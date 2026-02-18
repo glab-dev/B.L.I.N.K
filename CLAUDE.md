@@ -42,7 +42,7 @@ External deps (CDN only — no npm):
 - jsPDF 2.5.1 — PDF generation
 - html2canvas 1.4.1 — canvas-to-image for PDF
 - Material Design Icons — UI icons
-- Google Fonts — Bangers, Roboto Condensed (Permanent Marker is loaded but unused — remove when convenient)
+- Google Fonts — Bangers, Roboto Condensed
 
 PWA: offline-capable after first load, installable on mobile via manifest (base64-encoded inline).
 

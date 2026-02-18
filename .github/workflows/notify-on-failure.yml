@@ -2,7 +2,7 @@ name: Notify on Failure
 
 on:
   workflow_run:
-    workflows: ['Quick Checks', 'Feature Tests', 'Comprehensive Tests', 'Comprehensive Mobile Tests']
+    workflows: ['Quick Checks', 'PR Tests']
     types: [completed]
 
 jobs:

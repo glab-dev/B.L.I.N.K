@@ -5,8 +5,12 @@ Reference/
 .agent/
 DESIGN.md
 SITE.md
+SESSION-TODO.md
 next-prompt.md
 stitch.json
+
+# Legacy / redundant config
+_redirects
 
 # OS files
 .DS_Store

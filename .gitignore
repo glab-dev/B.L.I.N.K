@@ -1,5 +1,8 @@
 # Client data — keep local
 Reference/
+SERVICES-REFERENCE.md
+SERVICES-REFERENCE.pdf
+scripts/md-to-pdf.js
 
 # Agent skills (third-party, not project files)
 .agent/

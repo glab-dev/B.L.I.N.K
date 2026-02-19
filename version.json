@@ -1,5 +1,5 @@
 {
-  "version": "2.9.51",
+  "version": "2.9.52",
   "updated": "2026-02-19",
-  "changelog": "Fix modal scrollbar overlapping form elements on mobile"
+  "changelog": "Add import dropdown mapping for gear codes with auto-match and manual selection"
 }

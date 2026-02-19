@@ -16,6 +16,9 @@ let gearCodeCurrentTab = 'equipment';
 let gearCodeCurrentScope = 'global';
 let gearCodeSaveTimeout = null;
 
+// Imported items from file (populated after import, cleared on dismiss)
+let gearCodeImportedItems = []; // [{type, code, desc}, ...]
+
 // ==================== STORAGE ====================
 
 function loadGearCodes() {
@@ -273,6 +276,7 @@ function renderGearCodeTab(filterText) {
   var container = document.getElementById('gearCodeContent');
   var registry = buildGearItemRegistry();
   var items = registry.filter(item => item.category === gearCodeCurrentTab);
+  var hasImport = gearCodeImportedItems.length > 0;
 
   if(filterText) {
     var lower = filterText.toLowerCase();
@@ -289,7 +293,17 @@ function renderGearCodeTab(filterText) {
     return;
   }
 
-  var html = '<div class="gear-code-header">' +
+  // Banner when import data is available
+  var html = '';
+  if(hasImport) {
+    html += '<div class="gear-code-import-banner">' +
+      '<span>Imported ' + gearCodeImportedItems.length + ' items — empty rows show dropdowns</span>' +
+      '<button class="gear-code-clear-import-btn" onclick="clearImportedItems()">Clear Import</button>' +
+      '</div>';
+  }
+
+  // Always show normal 4-column header
+  html += '<div class="gear-code-header">' +
     '<span style="flex:0 0 34%;">Item</span>' +
     '<span style="flex:0 0 8%;">Type</span>' +
     '<span style="flex:0 0 18%;">Code</span>' +
@@ -301,10 +315,10 @@ function renderGearCodeTab(filterText) {
   items.forEach(item => {
     var resolved = resolveGearCode(item.key);
     var scopeValue = target[item.key] || { code: '', desc: '', type: '' };
-    // In project scope, show the effective value (project override if set, else global as placeholder)
     var typeValue = scopeValue.type || '';
     var codeValue = scopeValue.code || '';
     var descValue = scopeValue.desc || '';
+    var hasOverride = gearCodeCurrentScope === 'global' && projectGearCodeOverrides[item.key];
     var typePlaceholder = '';
     var codePlaceholder = '';
     var descPlaceholder = '';
@@ -313,26 +327,51 @@ function renderGearCodeTab(filterText) {
       codePlaceholder = globalGearCodes[item.key].code || '';
       descPlaceholder = globalGearCodes[item.key].desc || '';
     }
-    var hasOverride = gearCodeCurrentScope === 'global' && projectGearCodeOverrides[item.key];
 
-    html += '<div class="gear-code-row">' +
-      '<span class="gear-code-label" title="' + escapeHtml(item.key) + '">' + escapeHtml(item.label) +
-      (hasOverride ? ' <span class="gear-code-override-badge" title="Has project override"></span>' : '') +
-      '</span>' +
-      '<input type="text" class="gear-code-type-input" value="' + escapeHtml(typeValue) + '"' +
-      ' placeholder="' + escapeHtml(typePlaceholder) + '"' +
-      ' maxlength="10"' +
-      ' data-key="' + escapeHtml(item.key) + '" data-field="type"' +
-      ' oninput="handleGearCodeInput(this)">' +
-      '<input type="text" class="gear-code-input" value="' + escapeHtml(codeValue) + '"' +
-      ' placeholder="' + escapeHtml(codePlaceholder) + '"' +
-      ' data-key="' + escapeHtml(item.key) + '" data-field="code"' +
-      ' oninput="handleGearCodeInput(this)">' +
-      '<input type="text" class="gear-code-desc-input" value="' + escapeHtml(descValue) + '"' +
-      ' placeholder="' + escapeHtml(descPlaceholder || item.label) + '"' +
-      ' data-key="' + escapeHtml(item.key) + '" data-field="desc"' +
-      ' oninput="handleGearCodeInput(this)">' +
-      '</div>';
+    // If code is empty and import data exists, show a dropdown instead of Code+Description inputs
+    if(hasImport && !codeValue) {
+      var selectHtml = '<option value="">— Select from import —</option>';
+      for(var i = 0; i < gearCodeImportedItems.length; i++) {
+        var imp = gearCodeImportedItems[i];
+        selectHtml += '<option value="' + i + '">' +
+          escapeHtml(imp.code) + ' — ' + escapeHtml(imp.desc) + '</option>';
+      }
+
+      html += '<div class="gear-code-row">' +
+        '<span class="gear-code-label" title="' + escapeHtml(item.key) + '">' + escapeHtml(item.label) +
+        (hasOverride ? ' <span class="gear-code-override-badge" title="Has project override"></span>' : '') +
+        '</span>' +
+        '<input type="text" class="gear-code-type-input" value="' + escapeHtml(typeValue) + '"' +
+        ' placeholder="' + escapeHtml(typePlaceholder) + '"' +
+        ' maxlength="10"' +
+        ' data-key="' + escapeHtml(item.key) + '" data-field="type"' +
+        ' oninput="handleGearCodeInput(this)">' +
+        '<select class="gear-code-import-select" data-key="' + escapeHtml(item.key) + '"' +
+        ' onchange="handleImportDropdownChange(this)">' +
+        selectHtml +
+        '</select>' +
+        '</div>';
+    } else {
+      // Normal text input mode (filled rows or no import data)
+      html += '<div class="gear-code-row">' +
+        '<span class="gear-code-label" title="' + escapeHtml(item.key) + '">' + escapeHtml(item.label) +
+        (hasOverride ? ' <span class="gear-code-override-badge" title="Has project override"></span>' : '') +
+        '</span>' +
+        '<input type="text" class="gear-code-type-input" value="' + escapeHtml(typeValue) + '"' +
+        ' placeholder="' + escapeHtml(typePlaceholder) + '"' +
+        ' maxlength="10"' +
+        ' data-key="' + escapeHtml(item.key) + '" data-field="type"' +
+        ' oninput="handleGearCodeInput(this)">' +
+        '<input type="text" class="gear-code-input" value="' + escapeHtml(codeValue) + '"' +
+        ' placeholder="' + escapeHtml(codePlaceholder) + '"' +
+        ' data-key="' + escapeHtml(item.key) + '" data-field="code"' +
+        ' oninput="handleGearCodeInput(this)">' +
+        '<input type="text" class="gear-code-desc-input" value="' + escapeHtml(descValue) + '"' +
+        ' placeholder="' + escapeHtml(descPlaceholder || item.label) + '"' +
+        ' data-key="' + escapeHtml(item.key) + '" data-field="desc"' +
+        ' oninput="handleGearCodeInput(this)">' +
+        '</div>';
+    }
   });
 
   container.innerHTML = html;
@@ -345,6 +384,25 @@ function handleGearCodeInput(el) {
   var codeInput = row.querySelector('[data-field="code"]');
   var descInput = row.querySelector('[data-field="desc"]');
   setGearCode(key, codeInput.value.trim(), descInput.value.trim(), typeInput.value.trim());
+}
+
+function handleImportDropdownChange(el) {
+  var key = el.dataset.key;
+  var idx = el.value;
+  if(idx === '') return; // "Select from import" chosen — do nothing
+  var item = gearCodeImportedItems[parseInt(idx)];
+  setGearCode(key, item.code, item.desc, item.type);
+  // Re-render to switch this row from dropdown to text inputs
+  var container = document.getElementById('gearCodeContent');
+  var scrollTop = container.scrollTop;
+  var searchVal = document.getElementById('gearCodeSearch').value;
+  renderGearCodeTab(searchVal || undefined);
+  container.scrollTop = scrollTop;
+}
+
+function clearImportedItems() {
+  gearCodeImportedItems = [];
+  renderGearCodeTab();
 }
 
 function filterGearCodeItems(text) {
@@ -365,6 +423,7 @@ function importGearCodesFromFile(event) {
     var registry = buildGearItemRegistry();
     var matched = 0;
     var total = 0;
+    var parsedItems = [];
 
     // Parse tab-delimited lines (skip header)
     for(var i = 0; i < lines.length; i++) {
@@ -374,11 +433,15 @@ function importGearCodesFromFile(event) {
       var type = (cols[0] || '').trim();
       var code = (cols[1] || '').trim();
       var desc = (cols[2] || '').trim();
+      // Skip lines with no code or no desc
       if(!code || !desc) continue;
-      if(code === 'Code' && desc === 'Description') continue; // header row
+      // Skip header row and section markers (H=header, C=separator)
+      if(code === 'Code' && desc === 'Description') continue;
+      if(type === 'H' || type === 'C') continue;
       total++;
+      parsedItems.push({ type: type, code: code, desc: desc });
 
-      // Try to match against registry items
+      // Try to auto-match against registry items
       var match = matchImportLine(code, desc, registry);
       if(match) {
         globalGearCodes[match.key] = { code: code, desc: desc, type: type };
@@ -386,9 +449,18 @@ function importGearCodesFromFile(event) {
       }
     }
 
+    // Store imported items for dropdown display
+    gearCodeImportedItems = parsedItems;
+
     saveGearCodes();
     renderGearCodeTab();
-    showAlert(matched + ' of ' + total + ' items matched and imported', 'Import Complete');
+
+    var unmatched = total - matched;
+    if(unmatched > 0) {
+      showAlert(matched + ' of ' + total + ' items auto-matched. Use the dropdowns to map the remaining ' + unmatched + ' items.', 'Import Complete');
+    } else {
+      showAlert('All ' + total + ' items matched and imported.', 'Import Complete');
+    }
   };
   reader.readAsText(file);
 }
@@ -402,18 +474,26 @@ function matchImportLine(code, desc, registry) {
     if(registry[i].label.toLowerCase() === descLower) return registry[i];
   }
 
-  // Pass 2: Registry label is contained in import description
+  // Pass 2a: Registry label is contained in import description
   // e.g. registry "Brompton SX40" found in import "Brompton SX40 LED Controller"
-  // Require label to be at least 8 chars to avoid short false matches
+  // Require label to be at least 5 chars to avoid very short false matches
   for(var i = 0; i < registry.length; i++) {
     var label = registry[i].label.toLowerCase();
-    if(label.length >= 8 && descLower.includes(label)) return registry[i];
+    if(label.length >= 5 && descLower.includes(label)) return registry[i];
+  }
+
+  // Pass 2b: Import description is contained in registry label (reverse check)
+  // e.g. import "MC7H" found in registry "ROE Visual MC7H"
+  if(descLower.length >= 5) {
+    for(var i = 0; i < registry.length; i++) {
+      if(registry[i].label.toLowerCase().includes(descLower)) return registry[i];
+    }
   }
 
   // Pass 3: Code pattern matching for known formats
   var patterns = [
-    // Cat5 EtherCON panel cables: CAT5P-## or CAT5P### -> data.cat6a (they're ethercon cables)
-    { regex: /^cat5p-?(\d+)$/, keyFn: function(m) { return null; } }, // skip — these are panel jumpers, not Cat6A trunk
+    // Cat5 EtherCON panel cables: CAT5P-## or CAT5P### -> skip (panel jumpers, not Cat6A trunk)
+    { regex: /^cat5p-?(\d+)$/, keyFn: function(m) { return null; } },
 
     // Cat6A cables: CAT6P### -> data.cat6a.{length}
     { regex: /^cat6p(\d+\.?\d*)$/, keyFn: function(m) {

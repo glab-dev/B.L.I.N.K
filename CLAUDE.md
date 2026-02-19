@@ -6,11 +6,11 @@ Claude reads this file automatically at the start of every session.
 
 Start the local dev server and open the browser at the beginning of every session:
 ```
-# Try Python first, fall back to npx http-server
-python3 -m http.server 8000 --bind 0.0.0.0 &   # option 1 (if Python installed)
-npx http-server -p 8000 -c-1 &                  # option 2 (if Python not available)
-open http://localhost:8000                        # open in browser
+lsof -ti:8000 | xargs kill -9 2>/dev/null        # kill any existing server
+npx http-server -p 8000 -c-1 &                   # start with no-cache headers
+sleep 2 && open http://localhost:8000             # open in browser
 ```
+**Important:** Always use `npx http-server -c-1` (NOT python's http.server) — the `-c-1` flag sends `Cache-Control: no-cache` headers, preventing stale JS files during development. Python's server caches aggressively and causes the service worker to serve old code.
 
 ## Architecture
 

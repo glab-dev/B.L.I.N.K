@@ -2,7 +2,7 @@
 // Provides offline caching for the B.L.I.N.K. PWA.
 // SW_VERSION must match APP_VERSION in index.html and version.json.
 
-const SW_VERSION = '2.9.51';
+const SW_VERSION = '2.9.52';
 const CACHE_NAME = 'blink-v' + SW_VERSION;
 
 // Local app files to pre-cache on install
@@ -144,6 +144,12 @@ self.addEventListener('fetch', event => {
 
   // Network-first for other cross-origin requests (CDN scripts, Supabase)
   if (url.origin !== self.location.origin) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  // Development: use network-first on localhost so file changes are always picked up
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
     event.respondWith(networkFirst(event.request));
     return;
   }

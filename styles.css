@@ -4960,6 +4960,14 @@ canvas:focus {
   flex-shrink: 0;
 }
 
+/* Sweep controls wrapper */
+.tp-sweep-controls {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 0;
+}
+
 /* Desktop: two-column controls */
 @media (min-width: 769px) {
   .tp-controls {

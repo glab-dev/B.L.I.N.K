@@ -1,5 +1,5 @@
 {
-  "version": "2.9.52",
+  "version": "2.9.53",
   "updated": "2026-02-19",
-  "changelog": "Add import dropdown mapping for gear codes with auto-match and manual selection"
+  "changelog": "Add sweep animation with MP4 video export using VideoEncoder and mp4-muxer"
 }

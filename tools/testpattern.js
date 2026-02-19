@@ -25,6 +25,15 @@ var tpShowSquareCount = true;
 var tpLogoOn = false;
 var tpLogoImage = null;
 var tpLogoSizePct = 50;
+var tpSweepOn = false;
+var tpSweepColor = '#ffffff';
+var tpSweepDuration = 3;
+var tpSweepWidthPct = 8;
+var tpSweepFps = 60;
+var _tpSweepProgress = 0;
+var _tpSweepAnimId = null;
+var _tpSweepStartTime = null;
+var _tpIsRecording = false;
 var _tpRafId = null;
 var _tpInitialized = false;
 
@@ -74,6 +83,12 @@ function resetTestPattern() {
   tpShowName = true; tpShowPixelSize = true;
   tpShowAspectRatio = true; tpShowSquareCount = true;
   tpLogoOn = false; tpLogoImage = null; tpLogoSizePct = 50;
+  tpSweepOn = false; tpSweepColor = '#ffffff';
+  tpSweepDuration = 3; tpSweepWidthPct = 8;
+  tpSweepFps = 60;
+
+  // Stop sweep preview if running
+  stopSweepPreview();
 
   // Sync DOM inputs
   document.getElementById('tpImageName').value = '';
@@ -105,6 +120,15 @@ function resetTestPattern() {
   document.getElementById('tpLogoSizeLabel').style.display = 'none';
   document.getElementById('tpLogoSize').style.display = 'none';
   document.getElementById('tpLogoFile').value = '';
+  document.getElementById('tpSweep').checked = false;
+  document.getElementById('tpSweepControls').style.display = 'none';
+  document.getElementById('tpSweepDuration').value = 3;
+  document.getElementById('tpSweepDurationVal').textContent = '3s';
+  document.getElementById('tpSweepWidth').value = 8;
+  document.getElementById('tpSweepWidthVal').textContent = '8%';
+  document.getElementById('tpSweepColor').value = '#ffffff';
+  document.getElementById('tpSweepFps').value = '60';
+  document.getElementById('tpSaveBtn').textContent = 'Export PNG';
 
   updateTotalSize();
   scheduleTestPatternRedraw();
@@ -273,6 +297,43 @@ function initTestPatternControls() {
     dispH.value = tpDisplayH;
     scheduleDimensionRedraw();
   });
+
+  // Sweep controls
+  var sweepToggle = document.getElementById('tpSweep');
+  var sweepDuration = document.getElementById('tpSweepDuration');
+  var sweepWidth = document.getElementById('tpSweepWidth');
+  var sweepColor = document.getElementById('tpSweepColor');
+
+  sweepToggle.addEventListener('change', function() {
+    tpSweepOn = this.checked;
+    var controls = document.getElementById('tpSweepControls');
+    if(controls) controls.style.display = this.checked ? 'flex' : 'none';
+    saveBtn.textContent = tpSweepOn ? 'Export MP4' : 'Export PNG';
+    if(tpSweepOn) {
+      startSweepPreview();
+    } else {
+      stopSweepPreview();
+      scheduleTestPatternRedraw();
+    }
+  });
+
+  sweepDuration.addEventListener('input', function() {
+    tpSweepDuration = parseInt(this.value) || 3;
+    document.getElementById('tpSweepDurationVal').textContent = this.value + 's';
+  });
+
+  sweepWidth.addEventListener('input', function() {
+    tpSweepWidthPct = parseInt(this.value) || 15;
+    document.getElementById('tpSweepWidthVal').textContent = this.value + '%';
+  });
+
+  sweepColor.addEventListener('input', function() {
+    tpSweepColor = this.value;
+  });
+
+  document.getElementById('tpSweepFps').addEventListener('change', function() {
+    tpSweepFps = parseFloat(this.value) || 60;
+  });
 }
 
 function updateTotalSize() {
@@ -408,6 +469,11 @@ function renderTestPattern(forExport) {
   ctx.strokeStyle = tpCrossColor;
   ctx.lineWidth = Math.max(2, Math.round(totalW / 500));
   ctx.strokeRect(0, 0, totalW, totalH);
+
+  // 11. Sweep band (animated layer)
+  if(tpSweepOn) {
+    drawTPSweep(ctx, totalW, totalH, _tpSweepProgress);
+  }
 }
 
 // --- Grid Calculation ---
@@ -740,6 +806,12 @@ function drawTPLogo(ctx, w, h) {
 // --- PNG Export ---
 
 function exportTestPattern() {
+  // Redirect to video export when sweep is enabled
+  if(tpSweepOn) {
+    exportTestPatternVideo();
+    return;
+  }
+
   // Render at full resolution for export
   renderTestPattern(true);
 
@@ -794,4 +866,209 @@ function exportTestPattern() {
 
   // Restore preview resolution
   renderTestPattern(false);
+}
+
+// --- Sweep Drawing ---
+
+function drawTPSweep(ctx, w, h, t) {
+  var diag = Math.sqrt(w * w + h * h);
+  var bandWidth = diag * (tpSweepWidthPct / 100);
+  var tailLength = bandWidth * 2;
+  var totalSpan = bandWidth + tailLength;
+  var angle = Math.atan2(h, w);
+
+  // Total travel: band+tail starts fully off-screen, exits fully off-screen
+  var totalTravel = diag + 2 * totalSpan;
+  // sweepFront = leading edge position (sharp edge)
+  var sweepFront = -totalSpan + t * totalTravel;
+
+  // Parse sweep color to rgba for gradient
+  var r = parseInt(tpSweepColor.slice(1, 3), 16);
+  var g = parseInt(tpSweepColor.slice(3, 5), 16);
+  var b = parseInt(tpSweepColor.slice(5, 7), 16);
+
+  ctx.save();
+  ctx.rotate(angle);
+
+  // Gradient: transparent tail → solid band → sharp leading edge
+  var gradStart = sweepFront - totalSpan; // tail end (transparent)
+  var gradEnd = sweepFront;               // leading edge (sharp cutoff)
+  var grad = ctx.createLinearGradient(gradStart, 0, gradEnd, 0);
+  grad.addColorStop(0, 'rgba(' + r + ',' + g + ',' + b + ',0)');
+  // Tail fades in over tailLength portion
+  var tailStop = tailLength / totalSpan;
+  grad.addColorStop(tailStop, 'rgba(' + r + ',' + g + ',' + b + ',1)');
+  grad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',1)');
+
+  ctx.fillStyle = grad;
+  ctx.fillRect(gradStart, -diag, totalSpan, diag * 2);
+  ctx.restore();
+}
+
+// --- Sweep Preview Animation ---
+
+function startSweepPreview() {
+  stopSweepPreview();
+  _tpSweepStartTime = performance.now();
+
+  function animate(now) {
+    var elapsed = (now - _tpSweepStartTime) / 1000;
+    _tpSweepProgress = (elapsed % tpSweepDuration) / tpSweepDuration;
+    renderTestPattern(false);
+    _tpSweepAnimId = requestAnimationFrame(animate);
+  }
+
+  _tpSweepAnimId = requestAnimationFrame(animate);
+}
+
+function stopSweepPreview() {
+  if(_tpSweepAnimId) {
+    cancelAnimationFrame(_tpSweepAnimId);
+    _tpSweepAnimId = null;
+  }
+  _tpSweepStartTime = null;
+  _tpSweepProgress = 0;
+}
+
+// --- Video Export (VideoEncoder + mp4-muxer) ---
+
+async function exportTestPatternVideo() {
+  if(_tpIsRecording) return;
+
+  if(typeof VideoEncoder === 'undefined') {
+    showAlert('Video export requires Chrome 94+, Edge 94+, or a modern browser with WebCodecs support.');
+    return;
+  }
+  if(typeof Mp4Muxer === 'undefined') {
+    showAlert('Video muxer library failed to load. Please check your internet connection and reload.');
+    return;
+  }
+
+  var canvas = document.getElementById('tpCanvas');
+  if(!canvas) return;
+
+  var totalW = tpDisplayW * tpDisplaysWide;
+  var totalH = tpDisplayH * tpDisplaysHigh;
+  var fps = tpSweepFps;
+  var totalFrames = Math.round(fps * tpSweepDuration);
+
+  stopSweepPreview();
+  canvas.width = totalW;
+  canvas.height = totalH;
+
+  _tpIsRecording = true;
+  var saveBtn = document.getElementById('tpSaveBtn');
+  var originalText = saveBtn.textContent;
+  saveBtn.textContent = 'Encoding...';
+  saveBtn.disabled = true;
+
+  try {
+    // Pre-render static background (everything except sweep)
+    var savedSweepOn = tpSweepOn;
+    tpSweepOn = false;
+    renderTestPattern(true);
+    tpSweepOn = savedSweepOn;
+    var ctx = canvas.getContext('2d');
+    var bgImageData = ctx.getImageData(0, 0, totalW, totalH);
+
+    // Create muxer (H.264 in MP4 container)
+    var muxer = new Mp4Muxer.Muxer({
+      target: new Mp4Muxer.ArrayBufferTarget(),
+      video: {
+        codec: 'avc',
+        width: totalW,
+        height: totalH
+      },
+      fastStart: 'in-memory'
+    });
+
+    // Create encoder (H.264 High profile, 8-bit 4:2:0)
+    var encodeError = null;
+    var encoder = new VideoEncoder({
+      output: function(chunk, meta) {
+        muxer.addVideoChunk(chunk, meta);
+      },
+      error: function(e) {
+        encodeError = e;
+      }
+    });
+
+    encoder.configure({
+      codec: 'avc1.640028',
+      width: totalW,
+      height: totalH,
+      bitrate: 25000000,
+      framerate: fps
+    });
+
+    var frameDurationUs = Math.round((1 / fps) * 1000000);
+    var keyFrameInterval = Math.max(1, Math.round(fps * 2));
+
+    for(var i = 0; i < totalFrames; i++) {
+      if(encodeError) throw encodeError;
+
+      var t = i / totalFrames;
+      ctx.putImageData(bgImageData, 0, 0);
+      drawTPSweep(ctx, totalW, totalH, t);
+
+      var vf = new VideoFrame(canvas, {
+        timestamp: i * frameDurationUs,
+        duration: frameDurationUs
+      });
+      encoder.encode(vf, { keyFrame: i % keyFrameInterval === 0 });
+      vf.close();
+
+      // Update progress and yield to UI
+      if(i % 5 === 0) {
+        saveBtn.textContent = 'Encoding ' + Math.round((i / totalFrames) * 100) + '%';
+        await new Promise(function(r) { setTimeout(r, 0); });
+      }
+    }
+
+    await encoder.flush();
+    encoder.close();
+    muxer.finalize();
+
+    var blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+    var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
+    var filename = safeName + '_sweep_' + totalW + 'x' + totalH + '.mp4';
+    downloadVideoBlob(blob, filename, 'video/mp4');
+
+  } catch(err) {
+    showAlert('Video export failed: ' + err.message);
+    console.error('Export error:', err);
+  }
+
+  _tpIsRecording = false;
+  saveBtn.textContent = originalText;
+  saveBtn.disabled = false;
+  renderTestPattern(false);
+  startSweepPreview();
+}
+
+function downloadVideoBlob(blob, filename, mimeType) {
+  // Mobile: use share API
+  var isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
+                       (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+  if(isMobileDevice && navigator.canShare) {
+    var file = new File([blob], filename, { type: mimeType });
+    if(navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file] }).catch(function() {});
+      return;
+    }
+  }
+
+  // Desktop: download link
+  var url = URL.createObjectURL(blob);
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+
+  setTimeout(function() {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 100);
 }

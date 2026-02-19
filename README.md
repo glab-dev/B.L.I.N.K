@@ -27,16 +27,17 @@ A professional LED wall calculator PWA (Progressive Web App) for planning LED vi
 14. [Power](#power)
 15. [Data](#data)
 16. [Structure](#structure)
-17. [Cabling](#cabling)
-18. [Layout Views](#layout-views)
-19. [Canvas View](#canvas-view)
+17. [Layout Views](#layout-views)
+18. [Canvas View](#canvas-view)
+19. [Raster](#raster)
 20. [Combined View](#combined-view)
-21. [Gear List](#gear-list)
+21. [Cable Tab](#cable-tab)
 22. [Exports](#exports)
-23. [Keyboard Shortcuts](#keyboard-shortcuts)
-24. [Supported Panels](#supported-panels)
-25. [Supported Processors](#supported-processors)
-26. [Tips & Best Practices](#tips--best-practices)
+23. [Test Pattern Generator](#test-pattern-generator)
+24. [Keyboard Shortcuts](#keyboard-shortcuts)
+25. [Supported Panels](#supported-panels)
+26. [Supported Processors](#supported-processors)
+27. [Tips & Best Practices](#tips--best-practices)
 
 ---
 
@@ -52,8 +53,11 @@ A professional LED wall calculator PWA (Progressive Web App) for planning LED vi
 - **Power calculations** — Automatic circuit distribution, breaker sizing, phase balancing
 - **Data calculations** — Automatic data line routing, port requirements, processor sizing
 - **Structure calculations** — Bumper bar distribution, pickup weights, ground support hardware
+- **Cabling calculations** — Cable routing diagram with distance inputs and automatic cable length calculation
 - **Canvas view** — Multi-screen visualization with drag-and-drop positioning
-- **5 layout views** — Standard, Power, Data, Structure, and Gear List
+- **Raster mode** — Canvas mapping for LED raster workflows with spreadsheet-style screen table
+- **5 layout views** — Standard, Power, Data, Structure, and Cable
+- **Test pattern generator** — Create professional test patterns with configurable grid, colors, toggles, and PNG export
 - **5 export formats** — PDF, PNG, email gear list, Resolume XML, .ledconfig files
 - **Unit conversion** — Toggle between Imperial (ft/lbs) and Metric (m/kg)
 - **Aspect ratio lock** — Auto-calculate dimensions for 16:9, 4:3, or custom ratios
@@ -68,7 +72,6 @@ A professional LED wall calculator PWA (Progressive Web App) for planning LED vi
 - **Device sync** — Custom panels and processors sync across all your devices
 
 ### In Development
-- **Cabling calculations** — Cable length estimates based on distances
 - **Saved projects** — Cloud storage for project configurations
 
 ---
@@ -79,7 +82,9 @@ The app opens to a welcome page every time it loads. The welcome page displays:
 
 - **B.L.I.N.K.** — App title (Build Layout Intelligence for Networked Kits)
 - **Simple** button — Opens a streamlined interface with Simple and Canvas tabs
-- **Complex** button — Opens the full app with Complex, Combined, Gear, and Canvas tabs
+- **Complex** button — Opens the full app with Complex, Combined, Cable, and Canvas tabs
+- **Raster** button — Opens canvas mapping mode for LED raster workflows
+- **Test Pattern** button — Opens the test pattern generator
 - **Sign In / Sign Out** — Sign in for device sync and community sharing (shows "Sign Out" when logged in)
 - **How to Use This App** — Opens an in-app help guide
 
@@ -98,7 +103,7 @@ The app works on both mobile and desktop devices. Both platforms support Simple 
 
 ### Complex Mode
 - Full specifications with all data and detailed results
-- Bottom navigation: **Complex | Combined**, **Gear**, and **Canvas** tabs
+- Bottom navigation: **Complex | Combined**, **Cable**, and **Canvas** tabs
 - All sections visible including structure, data direction, and layout views
 
 ### Mobile (Touch)
@@ -403,20 +408,6 @@ Processor count is automatically calculated based on total pixel count and port 
 
 ---
 
-## Cabling
-
-*(In Development)*
-
-Distance measurements for cable length calculations:
-
-- **Trim Height** — Height from floor to top of wall
-- **Wall to Floor** — Distance from bottom of wall to floor
-- **Distro to Wall** — Distance from power distribution to wall
-- **Proc to Wall** — Distance from processor to wall
-- **FOH to Proc** — Distance from Front of House to processor
-
----
-
 ## Layout Views
 
 ### Standard Layout
@@ -496,6 +487,33 @@ Multi-screen canvas visualization for positioning multiple LED walls.
 
 ---
 
+## Raster
+
+Canvas mapping mode for LED raster workflows. Access from the "Raster" button on the welcome page.
+
+### Screen Table
+A spreadsheet-style table to manage all screens at once:
+- **Name** — Editable screen name
+- **Panel** — Select panel type (built-in or custom) per screen
+- **Tile X / Tile Y** — Panel pixel resolution (read-only, from panel specs)
+- **Cols / Rows** — Number of panels wide and high
+- **Offset X / Offset Y** — Pixel position on the canvas
+- **Overlays** — Per-screen toggles for X/Y coordinates, pixel dimensions, and crosshair
+- **Active** — Show/hide individual screens on the canvas
+- **+ Add Screen** — Add new screens with built-in or custom panels
+
+### Toolbar
+- **Filename** — Custom filename for exports
+- **Save / Load** — Save and load .raster project files
+- **Canvas Size** — 4K UHD, 4K DCI, HD, or Custom dimensions
+- **X/Y Pos** — Pixel position of selected screen
+- **Fine (px)** — Arrow key increment for precise adjustments
+- **Snap** — Toggle snapping to other screens and canvas edges
+- **Format** — PNG, JPEG, or Resolume export
+- **Export** — Save the canvas at full resolution
+
+---
+
 ## Combined View
 
 View and manage multiple screens together in a unified interface.
@@ -530,24 +548,24 @@ View and manage multiple screens together in a unified interface.
 
 ---
 
-## Gear List
+## Cable Tab
 
-Comprehensive equipment summary organized by category.
+Cabling calculations, cable layout diagram, and gear list. Available in Complex mode via the **Cable** tab in the bottom navigation.
 
-### Equipment
-- Panels (count, weight)
-- Processors (type, quantity)
-- Distribution boxes (type, quantity)
+### Cabling Inputs
+- **General** — Wall to Floor distance, Cable Pick height, Cable Drop position (Behind, SR, SL)
+- **Power** — Distro to Drop distance, Power In position (Top, Bottom)
+- **Data** — Proc to Drop distance, Server to Proc distance, Dist Box on-wall toggle with main/backup position controls (SR/C/SL, Top/Bottom)
 
-### Rigging
-- Bumper bars by type (1W, 2W, 4W)
-- Connecting plates (2-way, 4-way)
-- Ground support hardware
+### Cable Diagram
+- Front-view layout showing cable routing from LED wall to processor and power distribution
+- Updates automatically when cabling inputs change
 
-### Cabling (In Development)
-- Data cables by length
-- Power cables by length
-- Signal cables
+### Gear List
+Comprehensive equipment summary organized by category:
+- **Equipment** — Panels (count, weight), processors (type, quantity), distribution boxes
+- **Rigging** — Bumper bars by type (1W, 2W, 4W), connecting plates, ground support hardware
+- **Cabling** — Data, power, and signal cables with calculated lengths and standard sizes
 
 ---
 
@@ -571,6 +589,44 @@ Export screen configurations as Resolume Arena 7 compatible XML files for LED ma
 ### Configuration Files
 - **Save** — Export all screens as a .ledconfig file
 - **Load** — Import a previously saved .ledconfig file to restore all screen configurations
+
+---
+
+## Test Pattern Generator
+
+Generate professional test pattern images for LED walls and displays. Access from the "Test Pattern" button on the welcome page.
+
+### Configuration
+- **Image Name** — Custom label displayed on the pattern
+- **Display Size [px]** — Single display resolution in pixels (e.g. 1920×1080)
+- **Displays** — Number of displays in the grid (up to 12×12)
+- **Total Size [px]** — Auto-calculated total pixel resolution (Display Size × Displays)
+
+### Visual Controls
+- **Grid Size** — Adjustable grid square size (slider, 0–100%)
+- **Grid Line Width** — Thickness of grid lines (slider, 0–100%)
+- **Text Size** — Size of overlay text labels (slider, 0–100%)
+
+### Color Pickers
+- **Grid** — Grid line color
+- **Text** — Text overlay color
+- **Cross** — Center crosshair color
+- **Displays** — Display boundary line color
+- **BG** — Background fill color
+
+### Toggle Elements
+- **Name** — Show/hide the image name label
+- **Pixel Size** — Show/hide the pixel dimensions
+- **Ratio** — Show/hide the aspect ratio
+- **Squares** — Show/hide grid square count
+- **Circles** — Show/hide center alignment circles
+- **Color Bars** — Show/hide color calibration bars
+- **Logo** — Enable custom logo upload with adjustable size
+
+### Actions
+- **Reset** — Restore all settings to defaults (refresh button)
+- **Export PNG** — Save the test pattern at full resolution
+- **Home** — Return to the welcome page
 
 ---
 

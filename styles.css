@@ -1904,6 +1904,7 @@ canvas:focus {
   -webkit-overflow-scrolling: touch;
   flex: 1 1 auto;
   min-height: 0;
+  padding-right: 16px;
 }
 
 .manage-custom-tabs {

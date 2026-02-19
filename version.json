@@ -1,5 +1,5 @@
 {
-  "version": "2.9.50",
+  "version": "2.9.51",
   "updated": "2026-02-19",
-  "changelog": "Add dynamic changelog to welcome page NEW badge"
+  "changelog": "Fix modal scrollbar overlapping form elements on mobile"
 }

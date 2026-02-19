@@ -314,10 +314,12 @@
         </div>
       </div>
 
-      <button id="tpSaveBtn" class="tp-save-btn">
-        <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">download</span>
-        Export PNG
-      </button>
+      <div class="tp-btn-row">
+        <button class="tp-reset-btn" onclick="resetTestPattern()" title="Reset to defaults">
+          <span class="material-symbols-outlined">refresh</span>
+        </button>
+        <button id="tpSaveBtn" class="tp-save-btn">Export PNG</button>
+      </div>
     </div>
 
     <div class="tp-controls-col">
@@ -2652,7 +2654,7 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.46';
+const APP_VERSION = '2.9.47';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -59,6 +59,57 @@ function exitTestPatternMode() {
   showWelcomePage();
 }
 
+// --- Reset ---
+
+function resetTestPattern() {
+  tpImageName = 'Name your testpattern';
+  tpDisplayW = 1920; tpDisplayH = 1080;
+  tpDisplaysWide = 1; tpDisplaysHigh = 1;
+  tpGridSizePct = 50; tpGridWidthPct = 50;
+  tpGridColor = '#d23de6'; tpTextColor = '#ffffff';
+  tpCrossColor = '#00ff7b'; tpBgColor = '#000000';
+  tpBoundaryColor = '#249be5';
+  tpCirclesOn = true; tpColorBarsOn = true;
+  tpTextSizePct = 50;
+  tpShowName = true; tpShowPixelSize = true;
+  tpShowAspectRatio = true; tpShowSquareCount = true;
+  tpLogoOn = false; tpLogoImage = null; tpLogoSizePct = 50;
+
+  // Sync DOM inputs
+  document.getElementById('tpImageName').value = '';
+  document.getElementById('tpDisplayW').value = 1920;
+  document.getElementById('tpDisplayH').value = 1080;
+  document.getElementById('tpDisplaysWide').value = 1;
+  document.getElementById('tpDisplaysHigh').value = 1;
+  document.getElementById('tpGridSize').value = 50;
+  document.getElementById('tpGridSizeVal').textContent = '50%';
+  document.getElementById('tpGridWidth').value = 50;
+  document.getElementById('tpGridWidthVal').textContent = '50%';
+  document.getElementById('tpTextSize').value = 50;
+  document.getElementById('tpTextSizeVal').textContent = '50%';
+  document.getElementById('tpGridColor').value = '#d23de6';
+  document.getElementById('tpTextColor').value = '#ffffff';
+  document.getElementById('tpCrossColor').value = '#00ff7b';
+  document.getElementById('tpBoundaryColor').value = '#249be5';
+  document.getElementById('tpBgColor').value = '#000000';
+  document.getElementById('tpCircles').checked = true;
+  document.getElementById('tpColorBars').checked = true;
+  document.getElementById('tpShowName').checked = true;
+  document.getElementById('tpShowPixelSize').checked = true;
+  document.getElementById('tpShowAspectRatio').checked = true;
+  document.getElementById('tpShowSquareCount').checked = true;
+  document.getElementById('tpLogoToggle').checked = false;
+  document.getElementById('tpLogoControls').style.display = 'none';
+  document.getElementById('tpLogoSize').value = 50;
+  document.getElementById('tpLogoSizeVal').textContent = '50%';
+  document.getElementById('tpLogoSizeLabel').style.display = 'none';
+  document.getElementById('tpLogoSize').style.display = 'none';
+  document.getElementById('tpLogoFile').value = '';
+
+  updateTotalSize();
+  scheduleTestPatternRedraw();
+}
+
 // --- Control Binding ---
 
 function initTestPatternControls() {
@@ -91,13 +142,13 @@ function initTestPatternControls() {
   dispW.addEventListener('input', function() {
     tpDisplayW = Math.max(1, parseInt(this.value) || 1920);
     updateTotalSize();
-    scheduleTestPatternRedraw();
+    scheduleDimensionRedraw();
   });
 
   dispH.addEventListener('input', function() {
     tpDisplayH = Math.max(1, parseInt(this.value) || 1080);
     updateTotalSize();
-    scheduleTestPatternRedraw();
+    scheduleDimensionRedraw();
   });
 
   dispsWide.addEventListener('change', function() {
@@ -213,14 +264,14 @@ function initTestPatternControls() {
     var val = Math.max(1, parseInt(this.value) || 1);
     tpDisplayW = Math.round(val / tpDisplaysWide);
     dispW.value = tpDisplayW;
-    scheduleTestPatternRedraw();
+    scheduleDimensionRedraw();
   });
 
   totalHInput.addEventListener('input', function() {
     var val = Math.max(1, parseInt(this.value) || 1);
     tpDisplayH = Math.round(val / tpDisplaysHigh);
     dispH.value = tpDisplayH;
-    scheduleTestPatternRedraw();
+    scheduleDimensionRedraw();
   });
 }
 
@@ -278,6 +329,15 @@ function scheduleTestPatternRedraw() {
     _tpRafId = null;
     renderTestPattern();
   });
+}
+
+var _tpDimensionTimer = null;
+function scheduleDimensionRedraw() {
+  if(_tpDimensionTimer) clearTimeout(_tpDimensionTimer);
+  _tpDimensionTimer = setTimeout(function() {
+    _tpDimensionTimer = null;
+    scheduleTestPatternRedraw();
+  }, 400);
 }
 
 // --- Master Render ---

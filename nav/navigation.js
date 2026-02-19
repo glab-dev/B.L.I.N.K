@@ -128,6 +128,12 @@ function activateSimpleView() {
 function switchAppMode(mode) {
   currentAppMode = mode;
 
+  // Update mobile header title
+  var headerTitle = document.querySelector('.mobile-header h1');
+  if (headerTitle) {
+    headerTitle.textContent = (mode === 'raster') ? 'RASTER' : 'CALCULATOR';
+  }
+
   // Update toggle button states
   document.querySelectorAll('.nav-toggle-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === mode);

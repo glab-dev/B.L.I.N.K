@@ -1843,6 +1843,8 @@ canvas:focus {
 
 .modal-dialog:has(> .modal-body) {
   overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
@@ -1852,6 +1854,7 @@ canvas:focus {
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 2px solid #000;
+  flex-shrink: 0;
 }
 
 .modal-title {
@@ -1899,7 +1902,8 @@ canvas:focus {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  max-height: calc(90vh - 120px);
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .manage-custom-tabs {
@@ -1945,6 +1949,7 @@ canvas:focus {
   gap: 8px;
   padding-top: 10px;
   border-top: 1px solid #383838;
+  flex-shrink: 0;
 }
 
 /* Ensure modal footer buttons stay side-by-side on mobile */

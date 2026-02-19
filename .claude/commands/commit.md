@@ -15,8 +15,8 @@ Commit the current changes with an automatic version bump.
    - Major: 2.5.25 → 3.0.0
 
 4. **Update version in all locations**:
-   - `version.json`: update the `"version"` field to the new version and `"updated"` field to today's date (YYYY-MM-DD format).
-   - `index.html`: find the line `const APP_VERSION = '...';` (around line 3545) and update the version string.
+   - `version.json`: update the `"version"` field to the new version, `"updated"` field to today's date (YYYY-MM-DD format), and `"changelog"` field to the commit description (short, no version number).
+   - `index.html`: find the line `const APP_VERSION = '...';` and update the version string. Also find the line `const APP_CHANGELOG = '...';` (the next line) and update it to the commit description.
    - `sw.js`: find the line `const SW_VERSION = '...';` (line 5) and update the version string.
 
 5. **Generate the commit description**:
@@ -38,12 +38,14 @@ Commit the current changes with an automatic version bump.
 User runs: `/commit Fix cable count for dual-link SDI`
 
 Result:
-- version.json: 2.5.25 → 2.5.26, updated date set to today
+- version.json: 2.5.25 → 2.5.26, updated date set to today, changelog: "Fix cable count for dual-link SDI"
 - APP_VERSION in index.html: '2.5.25' → '2.5.26'
+- APP_CHANGELOG in index.html: updated to 'Fix cable count for dual-link SDI'
 - Commit message: `Fix cable count for dual-link SDI (v2.5.26)`
 
 User runs: `/commit minor Add gear list export feature`
 
 Result:
-- version.json: 2.5.25 → 2.6.0
+- version.json: 2.5.25 → 2.6.0, changelog: "Add gear list export feature"
+- APP_CHANGELOG in index.html: 'Add gear list export feature'
 - Commit message: `Add gear list export feature (v2.6.0)`

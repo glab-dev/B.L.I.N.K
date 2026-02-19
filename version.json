@@ -1,4 +1,5 @@
 {
-  "version": "2.9.49",
-  "updated": "2026-02-19"
+  "version": "2.9.50",
+  "updated": "2026-02-19",
+  "changelog": "Add dynamic changelog to welcome page NEW badge"
 }

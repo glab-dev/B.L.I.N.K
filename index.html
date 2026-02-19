@@ -121,6 +121,16 @@
             <li>PNG/JPEG/Resolume Export</li>
           </ul>
         </button>
+        <button class="welcome-btn welcome-btn-testpattern" onclick="enterTestPatternMode()">
+          <span class="welcome-btn-title">Test Pattern</span>
+          <span class="welcome-btn-desc">Generate professional test pattern images</span>
+          <ul class="welcome-btn-features">
+            <li>Multi-Display Grid Patterns</li>
+            <li>SMPTE Color Bars</li>
+            <li>Coordinate Labels &amp; Crosshairs</li>
+            <li>High-Res PNG Export</li>
+          </ul>
+        </button>
     </div>
 
     <!-- Sign In / Install -->
@@ -204,6 +214,213 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- Test Pattern Generator Page -->
+<div id="testPatternPage" class="tp-page" style="display: none;">
+  <div class="tp-header">
+    <h1 class="tp-header-title">Test Pattern Generator</h1>
+    <button class="tp-home-btn" onclick="exitTestPatternMode()" title="Home">
+      <span class="material-symbols-outlined">home</span>
+    </button>
+  </div>
+
+  <div class="tp-canvas-wrapper">
+    <canvas id="tpCanvas"></canvas>
+  </div>
+
+  <div class="tp-controls">
+    <div class="tp-controls-col">
+      <div class="tp-control-group">
+        <label class="tp-label">Image Name:</label>
+        <input type="text" id="tpImageName" class="tp-input" placeholder="Name your testpattern">
+      </div>
+
+      <div class="tp-control-group">
+        <label class="tp-label">Display size [px]:</label>
+        <div class="tp-row">
+          <div class="number-input-with-arrows tp-arrows">
+            <input type="number" id="tpDisplayW" value="1920" min="1">
+            <div class="number-input-arrows">
+              <button type="button" onclick="adjustNumberInput('tpDisplayW', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+              <button type="button" onclick="adjustNumberInput('tpDisplayW', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+            </div>
+          </div>
+          <span class="tp-x-label">x</span>
+          <div class="number-input-with-arrows tp-arrows">
+            <input type="number" id="tpDisplayH" value="1080" min="1">
+            <div class="number-input-arrows">
+              <button type="button" onclick="adjustNumberInput('tpDisplayH', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+              <button type="button" onclick="adjustNumberInput('tpDisplayH', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tp-control-group">
+        <label class="tp-label">Displays:</label>
+        <div class="tp-row">
+          <select id="tpDisplaysWide" class="tp-select">
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+          </select>
+          <span class="tp-x-label">x</span>
+          <select id="tpDisplaysHigh" class="tp-select">
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tp-control-group">
+        <label class="tp-label">Total size [px]:</label>
+        <div class="tp-row">
+          <div class="number-input-with-arrows tp-arrows">
+            <input type="number" id="tpTotalW" value="1920" min="1">
+            <div class="number-input-arrows">
+              <button type="button" onclick="adjustNumberInput('tpTotalW', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+              <button type="button" onclick="adjustNumberInput('tpTotalW', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+            </div>
+          </div>
+          <span class="tp-x-label">x</span>
+          <div class="number-input-with-arrows tp-arrows">
+            <input type="number" id="tpTotalH" value="1080" min="1">
+            <div class="number-input-arrows">
+              <button type="button" onclick="adjustNumberInput('tpTotalH', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+              <button type="button" onclick="adjustNumberInput('tpTotalH', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button id="tpSaveBtn" class="tp-save-btn">
+        <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">download</span>
+        Export PNG
+      </button>
+    </div>
+
+    <div class="tp-controls-col">
+      <div class="tp-slider-row">
+        <label class="tp-label">Grid size: <span id="tpGridSizeVal">50%</span></label>
+        <input type="range" id="tpGridSize" class="tp-range" min="0" max="100" value="50">
+      </div>
+
+      <div class="tp-slider-row">
+        <label class="tp-label">Grid line width: <span id="tpGridWidthVal">50%</span></label>
+        <input type="range" id="tpGridWidth" class="tp-range" min="0" max="100" value="50">
+      </div>
+
+      <div class="tp-slider-row">
+        <label class="tp-label">Text size: <span id="tpTextSizeVal">50%</span></label>
+        <input type="range" id="tpTextSize" class="tp-range" min="0" max="100" value="50">
+      </div>
+
+      <div class="tp-colors-row">
+        <div class="tp-control-group">
+          <label class="tp-label">Grid</label>
+          <input type="color" id="tpGridColor" class="tp-color-input" value="#d23de6">
+        </div>
+        <div class="tp-control-group">
+          <label class="tp-label">Text</label>
+          <input type="color" id="tpTextColor" class="tp-color-input" value="#ffffff">
+        </div>
+        <div class="tp-control-group">
+          <label class="tp-label">Cross</label>
+          <input type="color" id="tpCrossColor" class="tp-color-input" value="#00ff7b">
+        </div>
+        <div class="tp-control-group">
+          <label class="tp-label">Displays</label>
+          <input type="color" id="tpBoundaryColor" class="tp-color-input" value="#249be5">
+        </div>
+        <div class="tp-control-group">
+          <label class="tp-label">BG</label>
+          <input type="color" id="tpBgColor" class="tp-color-input" value="#000000">
+        </div>
+      </div>
+
+      <div class="tp-toggles-row">
+        <div class="tp-toggle-row">
+          <span class="tp-label">Name</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpShowName" checked>
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="tp-toggle-row">
+          <span class="tp-label">Pixel size</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpShowPixelSize" checked>
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="tp-toggle-row">
+          <span class="tp-label">Ratio</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpShowAspectRatio" checked>
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="tp-toggle-row">
+          <span class="tp-label">Squares</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpShowSquareCount" checked>
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="tp-toggles-row">
+        <div class="tp-toggle-row">
+          <span class="tp-label">Circles</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpCircles" checked>
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="tp-toggle-row">
+          <span class="tp-label">Color bars</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpColorBars" checked>
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="tp-toggle-row">
+          <span class="tp-label">Logo</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpLogoToggle">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="tp-logo-controls" id="tpLogoControls" style="display: none;">
+        <button class="tp-choose-file-btn" onclick="document.getElementById('tpLogoFile').click()">Choose File</button>
+        <input type="file" id="tpLogoFile" class="tp-file-input-hidden" accept="image/*">
+        <span class="tp-label" id="tpLogoSizeLabel" style="display: none;">Logo size: <span id="tpLogoSizeVal">50%</span></span>
+        <input type="range" id="tpLogoSize" class="tp-range" min="0" max="100" value="50" style="display: none; flex: 1;">
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2430,9 +2647,12 @@
 <script src="config/dom-setup.js"></script>
 <script src="core/init.js"></script>
 
+<!-- Tools -->
+<script src="tools/testpattern.js"></script>
+
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.44';
+const APP_VERSION = '2.9.45';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

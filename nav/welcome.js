@@ -19,7 +19,7 @@ function showWelcomePage() {
   var ids = ['results', 'specWarning', 'screenTabsContainer', 'layoutsTogglesContainer',
     'canvasContainer', 'canvasTabsContainer', 'combinedContainer', 'gearListContainer',
     'standardContainer', 'powerContainer', 'dataContainer', 'structureContainer',
-    'rasterScreenTableContainer'];
+    'rasterScreenTableContainer', 'testPatternPage'];
   ids.forEach(function(id) {
     var el = document.getElementById(id);
     if(el) el.style.display = 'none';

@@ -1,5 +1,5 @@
 {
-  "version": "2.10.6",
+  "version": "2.10.7",
   "updated": "2026-02-20",
-  "changelog": "Add live out feature with full and split multi-output modes for test patterns"
+  "changelog": "Fix quick share fallback to download when native share dialog fails"
 }

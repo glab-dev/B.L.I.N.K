@@ -2234,13 +2234,7 @@ function _tpUpdateExportBtn() {
 
 // --- Native Share ---
 
-function _tpNativeShare(blob, filename, mimeType) {
-  var file = new File([blob], filename, { type: mimeType });
-  if(navigator.canShare && navigator.canShare({ files: [file] })) {
-    navigator.share({ files: [file] }).catch(function() {});
-    return;
-  }
-  // Fallback: download
+function _tpDownloadBlob(blob, filename) {
   var url = URL.createObjectURL(blob);
   var link = document.createElement('a');
   link.href = url;
@@ -2249,6 +2243,18 @@ function _tpNativeShare(blob, filename, mimeType) {
   document.body.appendChild(link);
   link.click();
   setTimeout(function() { document.body.removeChild(link); URL.revokeObjectURL(url); }, 100);
+}
+
+function _tpNativeShare(blob, filename, mimeType) {
+  var file = new File([blob], filename, { type: mimeType });
+  if(navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file] }).catch(function() {
+      // Share failed (e.g., user gesture expired after async rendering) — download instead
+      _tpDownloadBlob(blob, filename);
+    });
+    return;
+  }
+  _tpDownloadBlob(blob, filename);
 }
 
 function tpQuickSharePng() {

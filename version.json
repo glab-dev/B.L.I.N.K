@@ -1,5 +1,5 @@
 {
-  "version": "2.9.53",
-  "updated": "2026-02-19",
-  "changelog": "Add sweep animation with MP4 video export using VideoEncoder and mp4-muxer"
+  "version": "2.9.54",
+  "updated": "2026-02-20",
+  "changelog": "Add toolbar, undo/redo, spinning circles, BG image, opacity sliders, and MP4 export improvements"
 }

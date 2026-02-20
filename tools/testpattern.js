@@ -17,6 +17,7 @@ var tpBgColor = '#000000';
 var tpBoundaryColor = '#249be5';
 var tpCirclesOn = true;
 var tpColorBarsOn = true;
+var tpColorBarsMode = 'default';
 var tpTextSizePct = 50;
 var tpShowName = true;
 var tpShowPixelSize = true;
@@ -25,17 +26,193 @@ var tpShowSquareCount = true;
 var tpLogoOn = false;
 var tpLogoImage = null;
 var tpLogoSizePct = 50;
+var tpLogoMode = 'default';
+var tpLogoStatic = false;
+var tpColorBarsOpacity = 100;
+var tpLogoOpacity = 100;
 var tpSweepOn = false;
 var tpSweepColor = '#ffffff';
-var tpSweepDuration = 3;
-var tpSweepWidthPct = 8;
+var tpSweepColorV = '#ffffff';
+var tpSweepDuration = 5;
+var tpSweepWidthPct = 2;
 var tpSweepFps = 60;
 var _tpSweepProgress = 0;
 var _tpSweepAnimId = null;
 var _tpSweepStartTime = null;
 var _tpIsRecording = false;
 var _tpRafId = null;
+var tpCircleSpinMode = 'static';
+var tpCircleRevMode = 'none';
+var tpCircleSpinSpeed = 50;
+var _tpCircleAngle = 0;
+var _tpAnimId = null;
+var _tpAnimStartTime = null;
+var tpBgImageOn = false;
+var tpBgImage = null;
+var tpCheckerOpacity = 100;
+var tpBorderOpacity = 100;
+var tpCheckerOn = false;
+var tpCheckerSizePct = 50;
+var tpCheckerBorderOn = false;
+var tpBorderSizePct = 50;
+var tpBorderColor1 = '#ffffff';
+var tpBorderColor2 = '#000000';
+var tpCheckerColor1 = '#000000';
+var tpCheckerColor2 = '#1a1a1a';
 var _tpInitialized = false;
+var _tpForceShare = false;
+var _tpUndoStack = [];
+var _tpRedoStack = [];
+var _tpMaxHistory = 30;
+
+// --- Undo / Redo ---
+
+function _tpGetState() {
+  return {
+    tpImageName: tpImageName, tpDisplayW: tpDisplayW, tpDisplayH: tpDisplayH,
+    tpDisplaysWide: tpDisplaysWide, tpDisplaysHigh: tpDisplaysHigh,
+    tpGridSizePct: tpGridSizePct, tpGridWidthPct: tpGridWidthPct,
+    tpGridColor: tpGridColor, tpTextColor: tpTextColor, tpCrossColor: tpCrossColor,
+    tpBgColor: tpBgColor, tpBoundaryColor: tpBoundaryColor,
+    tpCirclesOn: tpCirclesOn, tpColorBarsOn: tpColorBarsOn, tpColorBarsMode: tpColorBarsMode,
+    tpTextSizePct: tpTextSizePct,
+    tpShowName: tpShowName, tpShowPixelSize: tpShowPixelSize,
+    tpShowAspectRatio: tpShowAspectRatio, tpShowSquareCount: tpShowSquareCount,
+    tpLogoOn: tpLogoOn, tpLogoImage: tpLogoImage, tpLogoSizePct: tpLogoSizePct,
+    tpLogoMode: tpLogoMode, tpLogoStatic: tpLogoStatic,
+    tpColorBarsOpacity: tpColorBarsOpacity, tpLogoOpacity: tpLogoOpacity,
+    tpSweepOn: tpSweepOn, tpSweepColor: tpSweepColor, tpSweepColorV: tpSweepColorV,
+    tpSweepDuration: tpSweepDuration, tpSweepWidthPct: tpSweepWidthPct, tpSweepFps: tpSweepFps,
+    tpCircleSpinMode: tpCircleSpinMode, tpCircleRevMode: tpCircleRevMode, tpCircleSpinSpeed: tpCircleSpinSpeed,
+    tpCheckerOn: tpCheckerOn, tpCheckerSizePct: tpCheckerSizePct,
+    tpCheckerBorderOn: tpCheckerBorderOn, tpBorderSizePct: tpBorderSizePct,
+    tpBorderColor1: tpBorderColor1, tpBorderColor2: tpBorderColor2,
+    tpCheckerColor1: tpCheckerColor1, tpCheckerColor2: tpCheckerColor2,
+    tpCheckerOpacity: tpCheckerOpacity, tpBorderOpacity: tpBorderOpacity,
+    tpBgImageOn: tpBgImageOn, tpBgImage: tpBgImage
+  };
+}
+
+function _tpApplyState(s) {
+  tpImageName = s.tpImageName; tpDisplayW = s.tpDisplayW; tpDisplayH = s.tpDisplayH;
+  tpDisplaysWide = s.tpDisplaysWide; tpDisplaysHigh = s.tpDisplaysHigh;
+  tpGridSizePct = s.tpGridSizePct; tpGridWidthPct = s.tpGridWidthPct;
+  tpGridColor = s.tpGridColor; tpTextColor = s.tpTextColor; tpCrossColor = s.tpCrossColor;
+  tpBgColor = s.tpBgColor; tpBoundaryColor = s.tpBoundaryColor;
+  tpCirclesOn = s.tpCirclesOn; tpColorBarsOn = s.tpColorBarsOn; tpColorBarsMode = s.tpColorBarsMode;
+  tpTextSizePct = s.tpTextSizePct;
+  tpShowName = s.tpShowName; tpShowPixelSize = s.tpShowPixelSize;
+  tpShowAspectRatio = s.tpShowAspectRatio; tpShowSquareCount = s.tpShowSquareCount;
+  tpLogoOn = s.tpLogoOn; tpLogoImage = s.tpLogoImage; tpLogoSizePct = s.tpLogoSizePct;
+  tpLogoMode = s.tpLogoMode; tpLogoStatic = s.tpLogoStatic;
+  tpColorBarsOpacity = s.tpColorBarsOpacity; tpLogoOpacity = s.tpLogoOpacity;
+  tpSweepOn = s.tpSweepOn; tpSweepColor = s.tpSweepColor; tpSweepColorV = s.tpSweepColorV;
+  tpSweepDuration = s.tpSweepDuration; tpSweepWidthPct = s.tpSweepWidthPct; tpSweepFps = s.tpSweepFps;
+  tpCircleSpinMode = s.tpCircleSpinMode; tpCircleRevMode = s.tpCircleRevMode; tpCircleSpinSpeed = s.tpCircleSpinSpeed;
+  tpCheckerOn = s.tpCheckerOn; tpCheckerSizePct = s.tpCheckerSizePct;
+  tpCheckerBorderOn = s.tpCheckerBorderOn; tpBorderSizePct = s.tpBorderSizePct;
+  tpBorderColor1 = s.tpBorderColor1; tpBorderColor2 = s.tpBorderColor2;
+  tpCheckerColor1 = s.tpCheckerColor1; tpCheckerColor2 = s.tpCheckerColor2;
+  tpCheckerOpacity = s.tpCheckerOpacity; tpBorderOpacity = s.tpBorderOpacity;
+  tpBgImageOn = s.tpBgImageOn; tpBgImage = s.tpBgImage;
+  _tpSyncDOM();
+}
+
+function _tpSyncDOM() {
+  document.getElementById('tpImageName').value = tpImageName === 'Name your testpattern' ? '' : tpImageName;
+  document.getElementById('tpDisplayW').value = tpDisplayW;
+  document.getElementById('tpDisplayH').value = tpDisplayH;
+  document.getElementById('tpDisplaysWide').value = tpDisplaysWide;
+  document.getElementById('tpDisplaysHigh').value = tpDisplaysHigh;
+  document.getElementById('tpGridSize').value = tpGridSizePct;
+  document.getElementById('tpGridSizeVal').textContent = tpGridSizePct + '%';
+  document.getElementById('tpGridWidth').value = tpGridWidthPct;
+  document.getElementById('tpGridWidthVal').textContent = tpGridWidthPct + '%';
+  document.getElementById('tpTextSize').value = tpTextSizePct;
+  document.getElementById('tpTextSizeVal').textContent = tpTextSizePct + '%';
+  document.getElementById('tpGridColor').value = tpGridColor;
+  document.getElementById('tpTextColor').value = tpTextColor;
+  document.getElementById('tpCrossColor').value = tpCrossColor;
+  document.getElementById('tpBoundaryColor').value = tpBoundaryColor;
+  document.getElementById('tpBgColor').value = tpBgColor;
+  document.getElementById('tpCheckerColor1').value = tpCheckerColor1;
+  document.getElementById('tpCheckerColor2').value = tpCheckerColor2;
+  document.getElementById('tpChecker').checked = tpCheckerOn;
+  document.getElementById('tpCheckerSize').value = tpCheckerSizePct;
+  document.getElementById('tpCheckerSizeVal').textContent = tpCheckerSizePct + '%';
+  document.getElementById('tpCheckerBorder').checked = tpCheckerBorderOn;
+  document.getElementById('tpBorderSize').value = tpBorderSizePct;
+  document.getElementById('tpBorderSizeVal').textContent = tpBorderSizePct + '%';
+  document.getElementById('tpBorderColor1').value = tpBorderColor1;
+  document.getElementById('tpBorderColor2').value = tpBorderColor2;
+  document.getElementById('tpCircles').checked = tpCirclesOn;
+  document.getElementById('tpColorBars').checked = tpColorBarsOn;
+  document.getElementById('tpColorBarsMode').value = tpColorBarsMode;
+  document.getElementById('tpColorBarsOpacity').value = tpColorBarsOpacity;
+  document.getElementById('tpColorBarsOpacityVal').textContent = tpColorBarsOpacity + '%';
+  document.getElementById('tpCircleSpinMode').value = tpCircleSpinMode;
+  document.getElementById('tpCircleRevMode').value = tpCircleRevMode;
+  document.getElementById('tpCircleSpinSpeed').value = tpCircleSpinSpeed;
+  document.getElementById('tpCircleSpinSpeedVal').textContent = tpCircleSpinSpeed + '%';
+  document.getElementById('tpShowName').checked = tpShowName;
+  document.getElementById('tpShowPixelSize').checked = tpShowPixelSize;
+  document.getElementById('tpShowAspectRatio').checked = tpShowAspectRatio;
+  document.getElementById('tpShowSquareCount').checked = tpShowSquareCount;
+  document.getElementById('tpLogoToggle').checked = tpLogoOn;
+  document.getElementById('tpLogoMode').value = tpLogoMode;
+  document.getElementById('tpLogoStatic').checked = tpLogoStatic;
+  document.getElementById('tpLogoSize').value = tpLogoSizePct;
+  document.getElementById('tpLogoSizeVal').textContent = tpLogoSizePct + '%';
+  document.getElementById('tpLogoOpacity').value = tpLogoOpacity;
+  document.getElementById('tpLogoOpacityVal').textContent = tpLogoOpacity + '%';
+  document.getElementById('tpSweep').checked = tpSweepOn;
+  document.getElementById('tpSweepDuration').value = tpSweepDuration;
+  document.getElementById('tpSweepDurationVal').textContent = tpSweepDuration + 's';
+  document.getElementById('tpSweepWidth').value = tpSweepWidthPct;
+  var swv = tpSweepWidthPct;
+  document.getElementById('tpSweepWidthVal').textContent = (swv % 1 === 0 ? swv.toFixed(0) : swv.toFixed(1)) + '%';
+  document.getElementById('tpSweepColor').value = tpSweepColor;
+  document.getElementById('tpSweepColorV').value = tpSweepColorV;
+  document.getElementById('tpSweepFps').value = String(tpSweepFps);
+  document.getElementById('tpCheckerOpacity').value = tpCheckerOpacity;
+  document.getElementById('tpCheckerOpacityVal').textContent = tpCheckerOpacity + '%';
+  document.getElementById('tpBorderOpacity').value = tpBorderOpacity;
+  document.getElementById('tpBorderOpacityVal').textContent = tpBorderOpacity + '%';
+  document.getElementById('tpBgImageToggle').checked = tpBgImageOn;
+
+  updateTotalSize();
+  _tpRestartAnimationIfNeeded();
+  scheduleTestPatternRedraw();
+  _tpUpdateUndoRedoBtns();
+}
+
+function tpSaveState() {
+  _tpUndoStack.push(_tpGetState());
+  if(_tpUndoStack.length > _tpMaxHistory) _tpUndoStack.shift();
+  _tpRedoStack = [];
+  _tpUpdateUndoRedoBtns();
+}
+
+function tpUndo() {
+  if(_tpUndoStack.length === 0) return;
+  _tpRedoStack.push(_tpGetState());
+  var state = _tpUndoStack.pop();
+  _tpApplyState(state);
+}
+
+function tpRedo() {
+  if(_tpRedoStack.length === 0) return;
+  _tpUndoStack.push(_tpGetState());
+  var state = _tpRedoStack.pop();
+  _tpApplyState(state);
+}
+
+function _tpUpdateUndoRedoBtns() {
+  var undoBtn = document.getElementById('tpUndoBtn');
+  var redoBtn = document.getElementById('tpRedoBtn');
+  if(undoBtn) undoBtn.disabled = _tpUndoStack.length === 0;
+  if(redoBtn) redoBtn.disabled = _tpRedoStack.length === 0;
+}
 
 // --- Entry / Exit ---
 
@@ -59,10 +236,12 @@ function enterTestPatternMode() {
 
   initTestPatternControls();
   updateTotalSize();
+  _tpRestartAnimationIfNeeded();
   scheduleTestPatternRedraw();
 }
 
 function exitTestPatternMode() {
+  _tpStopAnimation();
   var tpPage = document.getElementById('testPatternPage');
   if(tpPage) tpPage.style.display = 'none';
   showWelcomePage();
@@ -78,17 +257,24 @@ function resetTestPattern() {
   tpGridColor = '#d23de6'; tpTextColor = '#ffffff';
   tpCrossColor = '#00ff7b'; tpBgColor = '#000000';
   tpBoundaryColor = '#249be5';
-  tpCirclesOn = true; tpColorBarsOn = true;
+  tpCirclesOn = true; tpColorBarsOn = true; tpColorBarsMode = 'default'; tpCircleSpinMode = 'static'; tpCircleRevMode = 'none'; tpCircleSpinSpeed = 50;
   tpTextSizePct = 50;
   tpShowName = true; tpShowPixelSize = true;
   tpShowAspectRatio = true; tpShowSquareCount = true;
-  tpLogoOn = false; tpLogoImage = null; tpLogoSizePct = 50;
-  tpSweepOn = false; tpSweepColor = '#ffffff';
-  tpSweepDuration = 3; tpSweepWidthPct = 8;
+  tpCheckerOn = false; tpCheckerSizePct = 50; tpCheckerBorderOn = false; tpBorderSizePct = 50;
+  tpBorderColor1 = '#ffffff'; tpBorderColor2 = '#000000';
+  tpCheckerColor1 = '#000000'; tpCheckerColor2 = '#1a1a1a';
+  tpLogoOn = false; tpLogoImage = null; tpLogoSizePct = 50; tpLogoMode = 'default'; tpLogoStatic = false;
+  tpColorBarsOpacity = 100; tpLogoOpacity = 100;
+  tpCheckerOpacity = 100; tpBorderOpacity = 100;
+  tpBgImageOn = false; tpBgImage = null;
+  tpSweepOn = false; tpSweepColor = '#ffffff'; tpSweepColorV = '#ffffff';
+  tpSweepDuration = 5; tpSweepWidthPct = 2;
   tpSweepFps = 60;
 
-  // Stop sweep preview if running
-  stopSweepPreview();
+  // Stop animations if running
+  _tpStopAnimation();
+  _tpCircleAngle = 0;
 
   // Sync DOM inputs
   document.getElementById('tpImageName').value = '';
@@ -107,31 +293,55 @@ function resetTestPattern() {
   document.getElementById('tpCrossColor').value = '#00ff7b';
   document.getElementById('tpBoundaryColor').value = '#249be5';
   document.getElementById('tpBgColor').value = '#000000';
+  document.getElementById('tpCheckerColor1').value = '#000000';
+  document.getElementById('tpCheckerColor2').value = '#1a1a1a';
+  document.getElementById('tpChecker').checked = false;
+  document.getElementById('tpCheckerSize').value = 50;
+  document.getElementById('tpCheckerSizeVal').textContent = '50%';
+  document.getElementById('tpCheckerBorder').checked = false;
+  document.getElementById('tpBorderSize').value = 50;
+  document.getElementById('tpBorderSizeVal').textContent = '50%';
+  document.getElementById('tpBorderColor1').value = '#ffffff';
+  document.getElementById('tpBorderColor2').value = '#000000';
   document.getElementById('tpCircles').checked = true;
   document.getElementById('tpColorBars').checked = true;
+  document.getElementById('tpColorBarsMode').value = 'default';
+  document.getElementById('tpColorBarsOpacity').value = 100;
+  document.getElementById('tpColorBarsOpacityVal').textContent = '100%';
+  document.getElementById('tpCircleSpinMode').value = 'static';
+  document.getElementById('tpCircleRevMode').value = 'none';
+  document.getElementById('tpCircleSpinSpeed').value = 50;
+  document.getElementById('tpCircleSpinSpeedVal').textContent = '50%';
   document.getElementById('tpShowName').checked = true;
   document.getElementById('tpShowPixelSize').checked = true;
   document.getElementById('tpShowAspectRatio').checked = true;
   document.getElementById('tpShowSquareCount').checked = true;
   document.getElementById('tpLogoToggle').checked = false;
-  document.getElementById('tpLogoControls').style.display = 'none';
+  document.getElementById('tpLogoMode').value = 'default';
+  document.getElementById('tpLogoStatic').checked = false;
   document.getElementById('tpLogoSize').value = 50;
   document.getElementById('tpLogoSizeVal').textContent = '50%';
-  document.getElementById('tpLogoSizeLabel').style.display = 'none';
-  document.getElementById('tpLogoSize').style.display = 'none';
+  document.getElementById('tpLogoOpacity').value = 100;
+  document.getElementById('tpLogoOpacityVal').textContent = '100%';
   document.getElementById('tpLogoFile').value = '';
   document.getElementById('tpSweep').checked = false;
-  document.getElementById('tpSweepControls').style.display = 'none';
-  document.getElementById('tpSweepDuration').value = 3;
-  document.getElementById('tpSweepDurationVal').textContent = '3s';
-  document.getElementById('tpSweepWidth').value = 8;
-  document.getElementById('tpSweepWidthVal').textContent = '8%';
+  document.getElementById('tpSweepDuration').value = 5;
+  document.getElementById('tpSweepDurationVal').textContent = '5s';
+  document.getElementById('tpSweepWidth').value = 2;
+  document.getElementById('tpSweepWidthVal').textContent = '2%';
   document.getElementById('tpSweepColor').value = '#ffffff';
+  document.getElementById('tpSweepColorV').value = '#ffffff';
   document.getElementById('tpSweepFps').value = '60';
-  document.getElementById('tpSaveBtn').textContent = 'Export PNG';
+  document.getElementById('tpCheckerOpacity').value = 100;
+  document.getElementById('tpCheckerOpacityVal').textContent = '100%';
+  document.getElementById('tpBorderOpacity').value = 100;
+  document.getElementById('tpBorderOpacityVal').textContent = '100%';
+  document.getElementById('tpBgImageToggle').checked = false;
+  document.getElementById('tpBgImageFile').value = '';
 
   updateTotalSize();
   scheduleTestPatternRedraw();
+  _tpUpdateUndoRedoBtns();
 }
 
 // --- Control Binding ---
@@ -156,8 +366,6 @@ function initTestPatternControls() {
   var logoToggle = document.getElementById('tpLogoToggle');
   var logoInput = document.getElementById('tpLogoFile');
   var logoSize = document.getElementById('tpLogoSize');
-  var saveBtn = document.getElementById('tpSaveBtn');
-
   nameInput.addEventListener('input', function() {
     tpImageName = this.value || 'Name your testpattern';
     scheduleTestPatternRedraw();
@@ -226,8 +434,99 @@ function initTestPatternControls() {
     scheduleTestPatternRedraw();
   });
 
+  var checkerColor1 = document.getElementById('tpCheckerColor1');
+  checkerColor1.addEventListener('input', function() {
+    tpCheckerColor1 = this.value;
+    scheduleTestPatternRedraw();
+  });
+
+  var checkerColor2 = document.getElementById('tpCheckerColor2');
+  checkerColor2.addEventListener('input', function() {
+    tpCheckerColor2 = this.value;
+    scheduleTestPatternRedraw();
+  });
+
+  var checkerToggle = document.getElementById('tpChecker');
+  checkerToggle.addEventListener('change', function() {
+    tpCheckerOn = this.checked;
+    scheduleTestPatternRedraw();
+  });
+
+  var checkerBorderToggle = document.getElementById('tpCheckerBorder');
+  checkerBorderToggle.addEventListener('change', function() {
+    tpCheckerBorderOn = this.checked;
+    scheduleTestPatternRedraw();
+  });
+
+  var borderColor1 = document.getElementById('tpBorderColor1');
+  borderColor1.addEventListener('input', function() {
+    tpBorderColor1 = this.value;
+    scheduleTestPatternRedraw();
+  });
+
+  var borderColor2El = document.getElementById('tpBorderColor2');
+  borderColor2El.addEventListener('input', function() {
+    tpBorderColor2 = this.value;
+    scheduleTestPatternRedraw();
+  });
+
+  var borderSize = document.getElementById('tpBorderSize');
+  borderSize.addEventListener('input', function() {
+    tpBorderSizePct = parseInt(this.value);
+    document.getElementById('tpBorderSizeVal').textContent = this.value + '%';
+    scheduleTestPatternRedraw();
+  });
+
+  var checkerSize = document.getElementById('tpCheckerSize');
+  checkerSize.addEventListener('input', function() {
+    tpCheckerSizePct = parseInt(this.value);
+    document.getElementById('tpCheckerSizeVal').textContent = this.value + '%';
+    scheduleTestPatternRedraw();
+  });
+
+  var checkerOpacity = document.getElementById('tpCheckerOpacity');
+  checkerOpacity.addEventListener('input', function() {
+    tpCheckerOpacity = parseInt(this.value);
+    document.getElementById('tpCheckerOpacityVal').textContent = this.value + '%';
+    scheduleTestPatternRedraw();
+  });
+
+  var borderOpacity = document.getElementById('tpBorderOpacity');
+  borderOpacity.addEventListener('input', function() {
+    tpBorderOpacity = parseInt(this.value);
+    document.getElementById('tpBorderOpacityVal').textContent = this.value + '%';
+    scheduleTestPatternRedraw();
+  });
+
+  document.getElementById('tpBgImageToggle').addEventListener('change', function() {
+    tpBgImageOn = this.checked;
+    scheduleTestPatternRedraw();
+  });
+
+  document.getElementById('tpBgImageFile').addEventListener('change', function(e) {
+    handleBgImageImport(e);
+  });
+
   circlesToggle.addEventListener('change', function() {
     tpCirclesOn = this.checked;
+    if(!this.checked) {
+      if(tpColorBarsMode !== 'default') {
+        tpColorBarsMode = 'default';
+        document.getElementById('tpColorBarsMode').value = 'default';
+      }
+      if(tpLogoMode !== 'default') {
+        tpLogoMode = 'default';
+        document.getElementById('tpLogoMode').value = 'default';
+      }
+      if(tpCircleSpinMode !== 'static' || tpCircleRevMode !== 'none') {
+        tpCircleSpinMode = 'static';
+        tpCircleRevMode = 'none';
+        document.getElementById('tpCircleSpinMode').value = 'static';
+        document.getElementById('tpCircleRevMode').value = 'none';
+      }
+      _tpUpdateExportBtn();
+      _tpRestartAnimationIfNeeded();
+    }
     scheduleTestPatternRedraw();
   });
 
@@ -236,10 +535,55 @@ function initTestPatternControls() {
     scheduleTestPatternRedraw();
   });
 
+  var colorBarsMode = document.getElementById('tpColorBarsMode');
+  colorBarsMode.addEventListener('change', function() {
+    if(!tpCirclesOn && this.value !== 'default') {
+      this.value = 'default';
+      return;
+    }
+    tpColorBarsMode = this.value;
+    _tpUpdateExportBtn();
+    _tpRestartAnimationIfNeeded();
+    scheduleTestPatternRedraw();
+  });
+
+  var colorBarsOpacity = document.getElementById('tpColorBarsOpacity');
+  colorBarsOpacity.addEventListener('input', function() {
+    tpColorBarsOpacity = parseInt(this.value);
+    document.getElementById('tpColorBarsOpacityVal').textContent = this.value + '%';
+    scheduleTestPatternRedraw();
+  });
+
+  var circleSpinMode = document.getElementById('tpCircleSpinMode');
+  circleSpinMode.addEventListener('change', function() {
+    if(!tpCirclesOn && this.value !== 'static') {
+      this.value = 'static';
+      return;
+    }
+    tpCircleSpinMode = this.value;
+    _tpUpdateExportBtn();
+    _tpRestartAnimationIfNeeded();
+  });
+
+  var circleRevMode = document.getElementById('tpCircleRevMode');
+  circleRevMode.addEventListener('change', function() {
+    if(!tpCirclesOn && this.value !== 'none') {
+      this.value = 'none';
+      return;
+    }
+    tpCircleRevMode = this.value;
+    _tpUpdateExportBtn();
+    _tpRestartAnimationIfNeeded();
+  });
+
+  var circleSpinSpeed = document.getElementById('tpCircleSpinSpeed');
+  circleSpinSpeed.addEventListener('input', function() {
+    tpCircleSpinSpeed = parseInt(this.value);
+    document.getElementById('tpCircleSpinSpeedVal').textContent = this.value + '%';
+  });
+
   logoToggle.addEventListener('change', function() {
     tpLogoOn = this.checked;
-    var logoControls = document.getElementById('tpLogoControls');
-    if(logoControls) logoControls.style.display = this.checked ? 'flex' : 'none';
     scheduleTestPatternRedraw();
   });
 
@@ -276,8 +620,100 @@ function initTestPatternControls() {
     scheduleTestPatternRedraw();
   });
 
-  saveBtn.addEventListener('click', function() {
-    exportTestPattern();
+  var logoOpacity = document.getElementById('tpLogoOpacity');
+  logoOpacity.addEventListener('input', function() {
+    tpLogoOpacity = parseInt(this.value);
+    document.getElementById('tpLogoOpacityVal').textContent = this.value + '%';
+    scheduleTestPatternRedraw();
+  });
+
+  var logoMode = document.getElementById('tpLogoMode');
+  logoMode.addEventListener('change', function() {
+    if(!tpCirclesOn && this.value !== 'default') {
+      this.value = 'default';
+      return;
+    }
+    tpLogoMode = this.value;
+    scheduleTestPatternRedraw();
+  });
+
+  var logoStaticToggle = document.getElementById('tpLogoStatic');
+  logoStaticToggle.addEventListener('change', function() {
+    tpLogoStatic = this.checked;
+    scheduleTestPatternRedraw();
+  });
+
+  // Hamburger menu
+  var hamburgerBtn = document.getElementById('tpHamburgerBtn');
+  var hamburgerMenu = document.getElementById('tpHamburgerMenu');
+
+  hamburgerBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    hamburgerMenu.classList.toggle('open');
+  });
+
+  document.addEventListener('click', function(e) {
+    if(!hamburgerMenu.contains(e.target) && e.target !== hamburgerBtn) {
+      hamburgerMenu.classList.remove('open');
+    }
+  });
+
+  document.getElementById('tpExportPng').addEventListener('click', function() {
+    hamburgerMenu.classList.remove('open');
+    exportTestPatternPng();
+  });
+
+  document.getElementById('tpExportMp4').addEventListener('click', function() {
+    hamburgerMenu.classList.remove('open');
+    exportTestPatternVideo();
+  });
+
+  document.getElementById('tpResetBtn').addEventListener('click', function() {
+    hamburgerMenu.classList.remove('open');
+    tpSaveState();
+    resetTestPattern();
+  });
+
+  // Toolbar buttons: undo, reset, redo, quick share
+  document.getElementById('tpUndoBtn').addEventListener('click', function() {
+    tpUndo();
+  });
+  document.getElementById('tpRedoBtn').addEventListener('click', function() {
+    tpRedo();
+  });
+  document.getElementById('tpToolbarResetBtn').addEventListener('click', function() {
+    tpSaveState();
+    resetTestPattern();
+  });
+
+  // Quick share button + popup
+  var shareBtn = document.getElementById('tpQuickShareBtn');
+  var sharePopup = document.getElementById('tpSharePopup');
+
+  shareBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if(_tpNeedsVideoExport()) {
+      sharePopup.classList.toggle('open');
+    } else {
+      tpQuickSharePng();
+    }
+  });
+
+  document.addEventListener('click', function(e) {
+    if(!sharePopup.contains(e.target) && e.target !== shareBtn) {
+      sharePopup.classList.remove('open');
+    }
+  });
+
+  document.getElementById('tpSharePng').addEventListener('click', function() {
+    sharePopup.classList.remove('open');
+    tpQuickSharePng();
+  });
+
+  document.getElementById('tpShareMp4').addEventListener('click', function() {
+    sharePopup.classList.remove('open');
+    _tpForceShare = true;
+    exportTestPatternVideo();
   });
 
   // Total size inputs — back-calculate display size
@@ -306,9 +742,7 @@ function initTestPatternControls() {
 
   sweepToggle.addEventListener('change', function() {
     tpSweepOn = this.checked;
-    var controls = document.getElementById('tpSweepControls');
-    if(controls) controls.style.display = this.checked ? 'flex' : 'none';
-    saveBtn.textContent = tpSweepOn ? 'Export MP4' : 'Export PNG';
+    _tpUpdateExportBtn();
     if(tpSweepOn) {
       startSweepPreview();
     } else {
@@ -318,21 +752,70 @@ function initTestPatternControls() {
   });
 
   sweepDuration.addEventListener('input', function() {
-    tpSweepDuration = parseInt(this.value) || 3;
+    tpSweepDuration = parseInt(this.value) || 5;
     document.getElementById('tpSweepDurationVal').textContent = this.value + 's';
   });
 
   sweepWidth.addEventListener('input', function() {
-    tpSweepWidthPct = parseInt(this.value) || 15;
-    document.getElementById('tpSweepWidthVal').textContent = this.value + '%';
+    tpSweepWidthPct = parseFloat(this.value) || 2;
+    var v = parseFloat(this.value);
+    document.getElementById('tpSweepWidthVal').textContent = (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + '%';
   });
 
   sweepColor.addEventListener('input', function() {
     tpSweepColor = this.value;
   });
 
+  var sweepColorV = document.getElementById('tpSweepColorV');
+  sweepColorV.addEventListener('input', function() {
+    tpSweepColorV = this.value;
+  });
+
   document.getElementById('tpSweepFps').addEventListener('change', function() {
     tpSweepFps = parseFloat(this.value) || 60;
+  });
+
+  // --- Save undo state before user interactions ---
+  // Text/number inputs: save on focus (once when user clicks in)
+  var _tpTextInputIds = ['tpImageName', 'tpDisplayW', 'tpDisplayH', 'tpTotalW', 'tpTotalH'];
+  _tpTextInputIds.forEach(function(id) {
+    var el = document.getElementById(id);
+    if(el) el.addEventListener('focus', function() { tpSaveState(); });
+  });
+
+  // Range sliders: save on pointerdown (once when user starts dragging)
+  var _tpSliderIds = ['tpGridSize', 'tpGridWidth', 'tpTextSize', 'tpColorBarsOpacity',
+    'tpLogoSize', 'tpLogoOpacity', 'tpSweepDuration', 'tpSweepWidth',
+    'tpCheckerSize', 'tpBorderSize', 'tpCircleSpinSpeed',
+    'tpCheckerOpacity', 'tpBorderOpacity'];
+  _tpSliderIds.forEach(function(id) {
+    var el = document.getElementById(id);
+    if(el) el.addEventListener('pointerdown', function() { tpSaveState(); });
+  });
+
+  // Color pickers: save when opened
+  var _tpColorIds = ['tpGridColor', 'tpTextColor', 'tpCrossColor', 'tpBoundaryColor',
+    'tpBgColor', 'tpSweepColor', 'tpSweepColorV', 'tpCheckerColor1', 'tpCheckerColor2',
+    'tpBorderColor1', 'tpBorderColor2'];
+  _tpColorIds.forEach(function(id) {
+    var el = document.getElementById(id);
+    if(el) el.addEventListener('click', function() { tpSaveState(); });
+  });
+
+  // Checkboxes & selects: save on change (fires once per interaction)
+  var _tpToggleIds = ['tpCircles', 'tpColorBars', 'tpChecker', 'tpCheckerBorder',
+    'tpShowName', 'tpShowPixelSize', 'tpShowAspectRatio', 'tpShowSquareCount',
+    'tpLogoToggle', 'tpLogoStatic', 'tpSweep', 'tpBgImageToggle'];
+  _tpToggleIds.forEach(function(id) {
+    var el = document.getElementById(id);
+    if(el) el.addEventListener('change', function() { tpSaveState(); }, true);
+  });
+
+  var _tpSelectIds = ['tpColorBarsMode', 'tpCircleSpinMode', 'tpCircleRevMode',
+    'tpLogoMode', 'tpDisplaysWide', 'tpDisplaysHigh', 'tpSweepFps'];
+  _tpSelectIds.forEach(function(id) {
+    var el = document.getElementById(id);
+    if(el) el.addEventListener('focus', function() { tpSaveState(); });
   });
 }
 
@@ -368,14 +851,43 @@ function handleLogoImport(event) {
     var img = new Image();
     img.onload = function() {
       tpLogoImage = img;
-      var logoSizeLabel = document.getElementById('tpLogoSizeLabel');
-      var logoSizeRange = document.getElementById('tpLogoSize');
-      if(logoSizeLabel) logoSizeLabel.style.display = '';
-      if(logoSizeRange) logoSizeRange.style.display = '';
       scheduleTestPatternRedraw();
     };
     img.onerror = function() {
       showAlert('Failed to load logo image.');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleBgImageImport(event) {
+  var file = event.target.files[0];
+  if(!file) return;
+
+  if(!file.type.startsWith('image/')) {
+    showAlert('Please select an image file (PNG, JPG, etc.).');
+    event.target.value = '';
+    return;
+  }
+
+  if(file.size > 20 * 1024 * 1024) {
+    showAlert('Background image is too large (max 20MB).');
+    event.target.value = '';
+    return;
+  }
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      tpBgImage = img;
+      tpBgImageOn = true;
+      document.getElementById('tpBgImageToggle').checked = true;
+      scheduleTestPatternRedraw();
+    };
+    img.onerror = function() {
+      showAlert('Failed to load background image.');
     };
     img.src = e.target.result;
   };
@@ -425,8 +937,14 @@ function renderTestPattern(forExport) {
   }
 
   // 1. Background fill
-  ctx.fillStyle = tpBgColor;
-  ctx.fillRect(0, 0, totalW, totalH);
+  drawTPBackground(ctx, totalW, totalH);
+
+  // 1.5. Checker border
+  if(tpCheckerBorderOn) {
+    if(tpBorderOpacity < 100) ctx.globalAlpha = tpBorderOpacity / 100;
+    drawTPCheckerBorder(ctx, totalW, totalH);
+    ctx.globalAlpha = 1;
+  }
 
   // 2. Grid (skip if size or width slider at 0)
   var gridSpacing = calcGridSpacing(totalW, totalH);
@@ -444,35 +962,107 @@ function renderTestPattern(forExport) {
     drawTPCircles(ctx, totalW, totalH);
   }
 
-  // 5. Coordinate labels (skip if no grid)
-  if(tpGridSizePct > 0) {
-    drawTPCoordinateLabels(ctx, totalW, totalH, gridSpacing);
-  }
-
-  // 6. Crosshair
+  // 5. Crosshair
   drawTPCrosshair(ctx, totalW, totalH);
 
-  // 7. SMPTE Color bars (on top of grid + crosshair)
+  // 6. SMPTE Color bars (on top of grid + crosshair)
   if(tpColorBarsOn) {
+    if(tpColorBarsOpacity < 100) ctx.globalAlpha = tpColorBarsOpacity / 100;
     drawTPColorBars(ctx, totalW, totalH);
+    ctx.globalAlpha = 1;
   }
 
-  // 8. Center text
-  drawTPCenterText(ctx, totalW, totalH, gridSpacing);
-
-  // 9. Logo
+  // 7. Logo
   if(tpLogoOn && tpLogoImage) {
+    if(tpLogoOpacity < 100) ctx.globalAlpha = tpLogoOpacity / 100;
     drawTPLogo(ctx, totalW, totalH);
+    ctx.globalAlpha = 1;
   }
 
-  // 10. Outer border — tied to cross color
+  // 8. Outer border — tied to cross color
   ctx.strokeStyle = tpCrossColor;
   ctx.lineWidth = Math.max(2, Math.round(totalW / 500));
   ctx.strokeRect(0, 0, totalW, totalH);
 
-  // 11. Sweep band (animated layer)
+  // 9. Sweep bands (animated layer)
   if(tpSweepOn) {
     drawTPSweep(ctx, totalW, totalH, _tpSweepProgress);
+    drawTPSweepVertical(ctx, totalW, totalH, _tpSweepProgress);
+  }
+
+  // 10. Coordinate labels — on top of everything (skip if no grid)
+  if(tpGridSizePct > 0) {
+    drawTPCoordinateLabels(ctx, totalW, totalH, gridSpacing);
+  }
+
+  // 11. Center text — always on top
+  drawTPCenterText(ctx, totalW, totalH, gridSpacing);
+}
+
+// --- Background Drawing ---
+
+function drawTPBackground(ctx, w, h) {
+  // Always fill solid BG color first
+  ctx.fillStyle = tpBgColor;
+  ctx.fillRect(0, 0, w, h);
+
+  // Checker overlay (with opacity)
+  if (tpCheckerOn) {
+    if(tpCheckerOpacity < 100) ctx.globalAlpha = tpCheckerOpacity / 100;
+    var minSize = Math.max(8, Math.round(Math.min(w, h) / 40));
+    var maxSize = Math.round(Math.min(w, h) / 2);
+    var squareSize = Math.round(minSize + (tpCheckerSizePct / 100) * (maxSize - minSize));
+    var cols = Math.ceil(w / squareSize);
+    var rows = Math.ceil(h / squareSize);
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        ctx.fillStyle = (c + r) % 2 === 0 ? tpCheckerColor1 : tpCheckerColor2;
+        ctx.fillRect(c * squareSize, r * squareSize, squareSize, squareSize);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Background image overlay
+  if(tpBgImageOn && tpBgImage) {
+    var imgW = tpBgImage.width, imgH = tpBgImage.height;
+    var scale = Math.max(w / imgW, h / imgH);
+    var dw = imgW * scale, dh = imgH * scale;
+    var dx = (w - dw) / 2, dy = (h - dh) / 2;
+    ctx.drawImage(tpBgImage, dx, dy, dw, dh);
+  }
+}
+
+function drawTPCheckerBorder(ctx, w, h) {
+  // Rectangular checkers (2:1), size controlled by slider
+  var minH = Math.max(6, Math.round(Math.min(w, h) / 60));
+  var maxH = Math.round(Math.min(w, h) / 10);
+  var cellH = Math.round(minH + (tpBorderSizePct / 100) * (maxH - minH));
+  var cellW = cellH * 2;
+
+  // Top edge — horizontal rectangles
+  for (var x = 0; x < w; x += cellW) {
+    ctx.fillStyle = (Math.floor(x / cellW)) % 2 === 0 ? tpBorderColor1 : tpBorderColor2;
+    ctx.fillRect(x, 0, Math.min(cellW, w - x), cellH);
+  }
+  // Bottom edge — horizontal rectangles
+  for (var x = 0; x < w; x += cellW) {
+    ctx.fillStyle = (Math.floor(x / cellW) + 1) % 2 === 0 ? tpBorderColor1 : tpBorderColor2;
+    ctx.fillRect(x, h - cellH, Math.min(cellW, w - x), cellH);
+  }
+  // Left edge — vertical rectangles (rotated 90°: cellH wide × cellW tall)
+  var innerTop = cellH;
+  var innerBottom = h - cellH;
+  for (var y = innerTop; y < innerBottom; y += cellW) {
+    var idx = Math.floor((y - innerTop) / cellW);
+    ctx.fillStyle = (idx + 1) % 2 === 0 ? tpBorderColor1 : tpBorderColor2;
+    ctx.fillRect(0, y, cellH, Math.min(cellW, innerBottom - y));
+  }
+  // Right edge — vertical rectangles (rotated 90°: cellH wide × cellW tall)
+  for (var y = innerTop; y < innerBottom; y += cellW) {
+    var idx = Math.floor((y - innerTop) / cellW);
+    ctx.fillStyle = (idx) % 2 === 0 ? tpBorderColor1 : tpBorderColor2;
+    ctx.fillRect(w - cellH, y, cellH, Math.min(cellW, innerBottom - y));
   }
 }
 
@@ -549,7 +1139,7 @@ function drawTPDisplayBoundaries(ctx, w, h) {
 
 function drawTPCircles(ctx, w, h) {
   ctx.strokeStyle = tpTextColor;
-  ctx.lineWidth = Math.max(1, Math.round(w / 600));
+  ctx.lineWidth = Math.max(2, Math.round(w / 480));
   ctx.globalAlpha = 0.5;
 
   // 1 big circle centered, inscribed to touch top and bottom edges
@@ -736,32 +1326,30 @@ function drawTPCenterText(ctx, w, h, spacing) {
   ctx.textBaseline = 'alphabetic';
 }
 
-function drawTPColorBars(ctx, w, h) {
-  var barsTop = h * 0.54;
-  var totalBarsW = w * 0.5;
-  var barsX = (w - totalBarsW) / 2;
+// Draw SMPTE color bars into a given rectangle
+function drawTPColorBarsAt(ctx, barsX, barsTop, totalBarsW, totalBarsH) {
   var barW = totalBarsW / 7;
 
-  // Row 1: Main 75% SMPTE color bars (tallest)
-  var row1H = h * 0.12;
+  // Row 1: Main 75% SMPTE color bars (tallest — 70% of total height)
+  var row1H = totalBarsH * 0.70;
   var row1Colors = ['#BFBFBF', '#BFBF00', '#00BFBF', '#00BF00', '#BF00BF', '#BF0000', '#0000BF'];
   for(var i = 0; i < row1Colors.length; i++) {
     ctx.fillStyle = row1Colors[i];
     ctx.fillRect(Math.floor(barsX + i * barW), Math.floor(barsTop), Math.ceil(barW), Math.ceil(row1H));
   }
 
-  // Row 2: Reverse castellations (thin)
+  // Row 2: Reverse castellations (thin — 9% of total height)
   var row2Y = barsTop + row1H;
-  var row2H = h * 0.015;
+  var row2H = totalBarsH * 0.09;
   var row2Colors = ['#0000BF', '#131313', '#BF00BF', '#131313', '#00BFBF', '#131313', '#BFBFBF'];
   for(var i = 0; i < row2Colors.length; i++) {
     ctx.fillStyle = row2Colors[i];
     ctx.fillRect(Math.floor(barsX + i * barW), Math.floor(row2Y), Math.ceil(barW), Math.ceil(row2H));
   }
 
-  // Row 3: PLUGE pattern (bottom)
+  // Row 3: PLUGE pattern (bottom — 21% of total height)
   var row3Y = row2Y + row2H;
-  var row3H = h * 0.035;
+  var row3H = totalBarsH * 0.21;
 
   // Left 4/7: -I, White, +Q
   var leftW = barW * 4;
@@ -787,31 +1375,288 @@ function drawTPColorBars(ctx, w, h) {
   ctx.fillRect(Math.floor(rightX + plugeW * 3), Math.floor(row3Y), Math.ceil(plugeW), Math.ceil(row3H));
 }
 
+// Draw SMPTE color bars clipped inside a circle
+function drawTPColorBarsInCircle(ctx, cx, cy, radius, angle) {
+  ctx.save();
+  if(angle) {
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.translate(-cx, -cy);
+  }
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.clip();
+
+  var d = radius * 2;
+  var left = cx - radius;
+  var top = cy - radius;
+  var barW = d / 7;
+
+  // Rows fill 100% of diameter — circle clip handles the curved edges
+  // Row 1: B&W checker strip (8%)
+  var r1H = d * 0.08;
+  var checkW = d / 14;
+  for(var i = 0; i < 14; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#FFFFFF' : '#000000';
+    ctx.fillRect(Math.floor(left + i * checkW), Math.floor(top), Math.ceil(checkW), Math.ceil(r1H));
+  }
+
+  // Row 2: Main SMPTE color bars (35%)
+  var r2Y = top + r1H;
+  var r2H = d * 0.35;
+  var barColors = ['#BFBFBF', '#BFBF00', '#00BFBF', '#00BF00', '#BF00BF', '#BF0000', '#0000BF'];
+  for(var i = 0; i < barColors.length; i++) {
+    ctx.fillStyle = barColors[i];
+    ctx.fillRect(Math.floor(left + i * barW), Math.floor(r2Y), Math.ceil(barW), Math.ceil(r2H));
+  }
+
+  // Row 3: Reverse castellations (5%)
+  var r3Y = r2Y + r2H;
+  var r3H = d * 0.05;
+  var castColors = ['#0000BF', '#131313', '#BF00BF', '#131313', '#00BFBF', '#131313', '#BFBFBF'];
+  for(var i = 0; i < castColors.length; i++) {
+    ctx.fillStyle = castColors[i];
+    ctx.fillRect(Math.floor(left + i * barW), Math.floor(r3Y), Math.ceil(barW), Math.ceil(r3H));
+  }
+
+  // Row 4: Horizontal grayscale gradient black→white (10%)
+  var r4Y = r3Y + r3H;
+  var r4H = d * 0.10;
+  var grad1 = ctx.createLinearGradient(left, 0, left + d, 0);
+  grad1.addColorStop(0, '#000000');
+  grad1.addColorStop(1, '#FFFFFF');
+  ctx.fillStyle = grad1;
+  ctx.fillRect(Math.floor(left), Math.floor(r4Y), Math.ceil(d), Math.ceil(r4H));
+
+  // Row 5: Single-color orange gradient dark→bright (8%)
+  var r5Y = r4Y + r4H;
+  var r5H = d * 0.08;
+  var grad2 = ctx.createLinearGradient(left, 0, left + d, 0);
+  grad2.addColorStop(0, '#1A0A00');
+  grad2.addColorStop(0.5, '#FF8000');
+  grad2.addColorStop(1, '#FFD699');
+  ctx.fillStyle = grad2;
+  ctx.fillRect(Math.floor(left), Math.floor(r5Y), Math.ceil(d), Math.ceil(r5H));
+
+  // Row 6: White-Black-White blocks (12%)
+  var r6Y = r5Y + r5H;
+  var r6H = d * 0.12;
+  var sideW = d * 0.2;
+  var centerW = d - sideW * 2;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(Math.floor(left), Math.floor(r6Y), Math.ceil(sideW), Math.ceil(r6H));
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(Math.floor(left + sideW), Math.floor(r6Y), Math.ceil(centerW), Math.ceil(r6H));
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(Math.floor(left + sideW + centerW), Math.floor(r6Y), Math.ceil(sideW), Math.ceil(r6H));
+
+  // Row 7: Fine gray scale steps white→black (12%)
+  var r7Y = r6Y + r6H;
+  var r7H = d * 0.12;
+  var numSteps = 20;
+  var stepW = d / numSteps;
+  for(var i = 0; i < numSteps; i++) {
+    var val = Math.round(255 - (i / (numSteps - 1)) * 255);
+    ctx.fillStyle = 'rgb(' + val + ',' + val + ',' + val + ')';
+    ctx.fillRect(Math.floor(left + i * stepW), Math.floor(r7Y), Math.ceil(stepW), Math.ceil(r7H));
+  }
+
+  // Row 8: Gray scale stepped blocks (10%)
+  var r8Y = r7Y + r7H;
+  var r8H = d * 0.10;
+  var grayColors = ['#1A1A1A', '#333333', '#4D4D4D', '#666666', '#808080', '#999999', '#B3B3B3'];
+  for(var i = 0; i < grayColors.length; i++) {
+    ctx.fillStyle = grayColors[i];
+    ctx.fillRect(Math.floor(left + i * barW), Math.floor(r8Y), Math.ceil(barW), Math.ceil(r8H));
+  }
+
+  ctx.restore();
+}
+
+function drawTPColorBars(ctx, w, h) {
+  if(tpColorBarsMode === 'default') {
+    // Original centered positioning
+    var barsTop = h * 0.54;
+    var totalBarsW = w * 0.5;
+    var barsX = (w - totalBarsW) / 2;
+    var totalBarsH = h * 0.17;
+    drawTPColorBarsAt(ctx, barsX, barsTop, totalBarsW, totalBarsH);
+  } else {
+    // Circle positions must match drawTPCircles exactly
+    var centerX = w / 2;
+    var centerY = h / 2;
+    var bigRadius = h / 2;
+    var smallRadius = Math.min(w, h) * 0.15;
+    var inset = smallRadius * 0.95;
+    var corners = [
+      [inset, inset],
+      [w - inset, inset],
+      [inset, h - inset],
+      [w - inset, h - inset]
+    ];
+
+    // Determine per-circle direction: reverse overrides forward
+    var centerDir = 0;
+    if(tpCircleSpinMode === 'center' || tpCircleSpinMode === 'all') centerDir = 1;
+    if(tpCircleRevMode === 'center' || tpCircleRevMode === 'all') centerDir = -1;
+    var cornerDir = 0;
+    if(tpCircleSpinMode === 'corners' || tpCircleSpinMode === 'all') cornerDir = 1;
+    if(tpCircleRevMode === 'corners' || tpCircleRevMode === 'all') cornerDir = -1;
+
+    var centerAngle = centerDir * _tpCircleAngle;
+    var cornerAngle = cornerDir * _tpCircleAngle;
+
+    if(tpColorBarsMode === 'corners-spin') {
+      // Default bar + spinning corners
+      var barsTop = h * 0.54;
+      var totalBarsW = w * 0.5;
+      var barsX = (w - totalBarsW) / 2;
+      var totalBarsH = h * 0.17;
+      drawTPColorBarsAt(ctx, barsX, barsTop, totalBarsW, totalBarsH);
+      for(var i = 0; i < corners.length; i++) {
+        drawTPColorBarsInCircle(ctx, corners[i][0], corners[i][1], smallRadius, _tpCircleAngle);
+      }
+    } else {
+      if(tpColorBarsMode === 'center' || tpColorBarsMode === 'all') {
+        drawTPColorBarsInCircle(ctx, centerX, centerY, bigRadius, centerAngle);
+      }
+      if(tpColorBarsMode === 'corners' || tpColorBarsMode === 'all') {
+        for(var i = 0; i < corners.length; i++) {
+          drawTPColorBarsInCircle(ctx, corners[i][0], corners[i][1], smallRadius, cornerAngle);
+        }
+      }
+    }
+  }
+}
+
+function drawTPLogoInCircle(ctx, cx, cy, radius, angle) {
+  if(!tpLogoImage) return;
+  ctx.save();
+  if(angle) {
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.translate(-cx, -cy);
+  }
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.clip();
+
+  var d = radius * 2;
+  var scale = 0.1 + (tpLogoSizePct / 100) * 0.8; // 10% to 90% of diameter
+  var logoH = d * scale;
+  var logoW = logoH * (tpLogoImage.width / tpLogoImage.height);
+  // If wider than diameter, fit by width instead
+  if(logoW > d * scale) {
+    logoW = d * scale;
+    logoH = logoW * (tpLogoImage.height / tpLogoImage.width);
+  }
+  var lx = cx - logoW / 2;
+  var ly = cy - logoH / 2;
+  ctx.drawImage(tpLogoImage, lx, ly, logoW, logoH);
+  ctx.restore();
+}
+
 function drawTPLogo(ctx, w, h) {
   if(!tpLogoImage) return;
 
-  var minDim = Math.min(w, h);
-  var scale = 0.05 + (tpLogoSizePct / 100) * 0.45; // 5% to 50% of smaller dimension
-  var logoH = minDim * scale;
-  var logoW = logoH * (tpLogoImage.width / tpLogoImage.height);
+  if(tpLogoMode === 'default') {
+    var minDim = Math.min(w, h);
+    var scale = 0.05 + (tpLogoSizePct / 100) * 0.45; // 5% to 50% of smaller dimension
+    var logoH = minDim * scale;
+    var logoW = logoH * (tpLogoImage.width / tpLogoImage.height);
 
-  // Bottom-right corner with padding
-  var pad = Math.round(Math.min(w, h) * 0.03);
-  var lx = w - logoW - pad;
-  var ly = h - logoH - pad;
+    // Bottom-right corner with padding
+    var pad = Math.round(Math.min(w, h) * 0.03);
+    var lx = w - logoW - pad;
+    var ly = h - logoH - pad;
 
-  ctx.drawImage(tpLogoImage, lx, ly, logoW, logoH);
+    ctx.drawImage(tpLogoImage, lx, ly, logoW, logoH);
+  } else {
+    // Circle positions must match drawTPCircles exactly
+    var centerX = w / 2;
+    var centerY = h / 2;
+    var bigRadius = h / 2;
+    var smallRadius = Math.min(w, h) * 0.15;
+    var inset = smallRadius * 0.95;
+    var corners = [
+      [inset, inset],
+      [w - inset, inset],
+      [inset, h - inset],
+      [w - inset, h - inset]
+    ];
+
+    // Determine per-circle spin angle (same logic as color bars)
+    var centerDir = 0;
+    if(tpCircleSpinMode === 'center' || tpCircleSpinMode === 'all') centerDir = 1;
+    if(tpCircleRevMode === 'center' || tpCircleRevMode === 'all') centerDir = -1;
+    var cornerDir = 0;
+    if(tpCircleSpinMode === 'corners' || tpCircleSpinMode === 'all') cornerDir = 1;
+    if(tpCircleRevMode === 'corners' || tpCircleRevMode === 'all') cornerDir = -1;
+
+    var centerAngle = tpLogoStatic ? 0 : centerDir * _tpCircleAngle;
+    var cornerAngle = tpLogoStatic ? 0 : cornerDir * _tpCircleAngle;
+
+    if(tpLogoMode === 'center' || tpLogoMode === 'all') {
+      drawTPLogoInCircle(ctx, centerX, centerY, bigRadius, centerAngle);
+    }
+    if(tpLogoMode === 'corners' || tpLogoMode === 'all') {
+      for(var i = 0; i < corners.length; i++) {
+        drawTPLogoInCircle(ctx, corners[i][0], corners[i][1], smallRadius, cornerAngle);
+      }
+    }
+  }
+}
+
+// --- Export Button State ---
+
+function _tpNeedsAnimation() {
+  return tpCircleSpinMode !== 'static' || tpCircleRevMode !== 'none' || tpColorBarsMode === 'corners-spin';
+}
+
+function _tpNeedsVideoExport() {
+  return tpSweepOn || _tpNeedsAnimation();
+}
+
+function _tpUpdateExportBtn() {
+  // No-op: hamburger menu always shows both Export PNG and Export MP4
+}
+
+// --- Native Share ---
+
+function _tpNativeShare(blob, filename, mimeType) {
+  var file = new File([blob], filename, { type: mimeType });
+  if(navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file] }).catch(function() {});
+    return;
+  }
+  // Fallback: download
+  var url = URL.createObjectURL(blob);
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(function() { document.body.removeChild(link); URL.revokeObjectURL(url); }, 100);
+}
+
+function tpQuickSharePng() {
+  renderTestPattern(true);
+  var canvas = document.getElementById('tpCanvas');
+  if(!canvas || canvas.width === 0) { showAlert('No test pattern to export.'); return; }
+  var totalW = canvas.width, totalH = canvas.height;
+  var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
+  var filename = safeName + '_' + totalW + 'x' + totalH + '.png';
+  canvas.toBlob(function(blob) {
+    if(!blob) { showAlert('Failed to create image.'); return; }
+    _tpNativeShare(blob, filename, 'image/png');
+  }, 'image/png');
+  renderTestPattern(false);
 }
 
 // --- PNG Export ---
 
-function exportTestPattern() {
-  // Redirect to video export when sweep is enabled
-  if(tpSweepOn) {
-    exportTestPatternVideo();
-    return;
-  }
-
+function exportTestPatternPng() {
   // Render at full resolution for export
   renderTestPattern(true);
 
@@ -875,7 +1720,7 @@ function drawTPSweep(ctx, w, h, t) {
   var bandWidth = diag * (tpSweepWidthPct / 100);
   var tailLength = bandWidth * 2;
   var totalSpan = bandWidth + tailLength;
-  var angle = Math.atan2(h, w);
+  var angle = 7 * Math.PI / 180;
 
   // Total travel: band+tail starts fully off-screen, exits fully off-screen
   var totalTravel = diag + 2 * totalSpan;
@@ -897,37 +1742,95 @@ function drawTPSweep(ctx, w, h, t) {
   grad.addColorStop(0, 'rgba(' + r + ',' + g + ',' + b + ',0)');
   // Tail fades in over tailLength portion
   var tailStop = tailLength / totalSpan;
-  grad.addColorStop(tailStop, 'rgba(' + r + ',' + g + ',' + b + ',1)');
-  grad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',1)');
+  grad.addColorStop(tailStop, 'rgba(' + r + ',' + g + ',' + b + ',0.6)');
+  grad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',0.6)');
 
   ctx.fillStyle = grad;
   ctx.fillRect(gradStart, -diag, totalSpan, diag * 2);
   ctx.restore();
 }
 
-// --- Sweep Preview Animation ---
+function drawTPSweepVertical(ctx, w, h, t) {
+  var bandWidth = h * (tpSweepWidthPct / 100);
+  var tailLength = bandWidth * 2;
+  var totalSpan = bandWidth + tailLength;
 
-function startSweepPreview() {
-  stopSweepPreview();
-  _tpSweepStartTime = performance.now();
+  var totalTravel = h + 2 * totalSpan;
+  var sweepFront = -totalSpan + t * totalTravel;
+
+  var r = parseInt(tpSweepColorV.slice(1, 3), 16);
+  var g = parseInt(tpSweepColorV.slice(3, 5), 16);
+  var b = parseInt(tpSweepColorV.slice(5, 7), 16);
+
+  ctx.save();
+  var gradStart = sweepFront - totalSpan;
+  var gradEnd = sweepFront;
+  var grad = ctx.createLinearGradient(0, gradStart, 0, gradEnd);
+  grad.addColorStop(0, 'rgba(' + r + ',' + g + ',' + b + ',0)');
+  var tailStop = tailLength / totalSpan;
+  grad.addColorStop(tailStop, 'rgba(' + r + ',' + g + ',' + b + ',0.6)');
+  grad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',0.6)');
+
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, gradStart, w, totalSpan);
+  ctx.restore();
+}
+
+// --- Unified Animation Loop (sweep + circle spin) ---
+
+function _tpStartAnimation() {
+  if(_tpAnimId) return; // already running
+  _tpAnimStartTime = performance.now();
+  var lastFrameTime = _tpAnimStartTime;
 
   function animate(now) {
-    var elapsed = (now - _tpSweepStartTime) / 1000;
-    _tpSweepProgress = (elapsed % tpSweepDuration) / tpSweepDuration;
+    var elapsed = (now - _tpAnimStartTime) / 1000;
+    var dt = (now - lastFrameTime) / 1000;
+    lastFrameTime = now;
+
+    if(tpSweepOn) {
+      _tpSweepProgress = (elapsed % tpSweepDuration) / tpSweepDuration;
+    }
+
+    if(_tpNeedsAnimation()) {
+      // Accumulate angle positively; direction applied per-circle at draw time
+      _tpCircleAngle += dt * (2 * Math.PI / 5) * (tpCircleSpinSpeed / 100);
+    }
+
     renderTestPattern(false);
-    _tpSweepAnimId = requestAnimationFrame(animate);
+    _tpAnimId = requestAnimationFrame(animate);
   }
 
-  _tpSweepAnimId = requestAnimationFrame(animate);
+  _tpAnimId = requestAnimationFrame(animate);
+}
+
+function _tpStopAnimation() {
+  if(_tpAnimId) {
+    cancelAnimationFrame(_tpAnimId);
+    _tpAnimId = null;
+  }
+  _tpAnimStartTime = null;
+  _tpSweepProgress = 0;
+}
+
+function _tpRestartAnimationIfNeeded() {
+  var needsAnimation = tpSweepOn || _tpNeedsAnimation();
+  if(needsAnimation) {
+    _tpStopAnimation();
+    _tpStartAnimation();
+  } else {
+    _tpStopAnimation();
+    scheduleTestPatternRedraw();
+  }
+}
+
+function startSweepPreview() {
+  _tpRestartAnimationIfNeeded();
 }
 
 function stopSweepPreview() {
-  if(_tpSweepAnimId) {
-    cancelAnimationFrame(_tpSweepAnimId);
-    _tpSweepAnimId = null;
-  }
-  _tpSweepStartTime = null;
   _tpSweepProgress = 0;
+  _tpRestartAnimationIfNeeded();
 }
 
 // --- Video Export (VideoEncoder + mp4-muxer) ---
@@ -950,26 +1853,36 @@ async function exportTestPatternVideo() {
   var totalW = tpDisplayW * tpDisplaysWide;
   var totalH = tpDisplayH * tpDisplaysHigh;
   var fps = tpSweepFps;
-  var totalFrames = Math.round(fps * tpSweepDuration);
+  var duration = tpSweepDuration;
+  var totalFrames = Math.round(fps * duration);
+  var hasSpinning = _tpNeedsAnimation();
 
-  stopSweepPreview();
+  _tpStopAnimation();
   canvas.width = totalW;
   canvas.height = totalH;
 
   _tpIsRecording = true;
-  var saveBtn = document.getElementById('tpSaveBtn');
-  var originalText = saveBtn.textContent;
-  saveBtn.textContent = 'Encoding...';
-  saveBtn.disabled = true;
+  var mp4Btn = document.getElementById('tpExportMp4');
+  mp4Btn.disabled = true;
+  var mp4Label = mp4Btn.querySelector('.tp-menu-label');
+  mp4Label.textContent = 'Encoding...';
+
+  // Save current animation state
+  var savedSweepProgress = _tpSweepProgress;
+  var savedCircleAngle = _tpCircleAngle;
 
   try {
-    // Pre-render static background (everything except sweep)
-    var savedSweepOn = tpSweepOn;
-    tpSweepOn = false;
-    renderTestPattern(true);
-    tpSweepOn = savedSweepOn;
     var ctx = canvas.getContext('2d');
-    var bgImageData = ctx.getImageData(0, 0, totalW, totalH);
+    var bgImageData = null;
+
+    // Optimize: if no spinning, pre-render static background
+    if(!hasSpinning) {
+      var savedSweepOn = tpSweepOn;
+      tpSweepOn = false;
+      renderTestPattern(true);
+      tpSweepOn = savedSweepOn;
+      bgImageData = ctx.getImageData(0, 0, totalW, totalH);
+    }
 
     // Create muxer (H.264 in MP4 container)
     var muxer = new Mp4Muxer.Muxer({
@@ -997,19 +1910,34 @@ async function exportTestPatternVideo() {
       codec: 'avc1.640028',
       width: totalW,
       height: totalH,
-      bitrate: 25000000,
-      framerate: fps
+      bitrate: 40000000,
+      framerate: fps,
+      latencyMode: 'quality',
+      hardwareAcceleration: 'prefer-hardware'
     });
 
     var frameDurationUs = Math.round((1 / fps) * 1000000);
-    var keyFrameInterval = Math.max(1, Math.round(fps * 2));
+    var keyFrameInterval = Math.max(1, Math.round(fps * 1));
 
     for(var i = 0; i < totalFrames; i++) {
       if(encodeError) throw encodeError;
 
       var t = i / totalFrames;
-      ctx.putImageData(bgImageData, 0, 0);
-      drawTPSweep(ctx, totalW, totalH, t);
+      var frameTime = (i / fps);
+
+      if(hasSpinning) {
+        // Full render per frame — circle angle changes each frame
+        _tpCircleAngle = frameTime * (2 * Math.PI / 5) * (tpCircleSpinSpeed / 100);
+        if(tpSweepOn) {
+          _tpSweepProgress = t;
+        }
+        renderTestPattern(true);
+      } else {
+        // Static bg + sweep overlay only
+        ctx.putImageData(bgImageData, 0, 0);
+        drawTPSweep(ctx, totalW, totalH, t);
+        drawTPSweepVertical(ctx, totalW, totalH, t);
+      }
 
       var vf = new VideoFrame(canvas, {
         timestamp: i * frameDurationUs,
@@ -1020,7 +1948,7 @@ async function exportTestPatternVideo() {
 
       // Update progress and yield to UI
       if(i % 5 === 0) {
-        saveBtn.textContent = 'Encoding ' + Math.round((i / totalFrames) * 100) + '%';
+        mp4Label.textContent = 'Encoding ' + Math.round((i / totalFrames) * 100) + '%';
         await new Promise(function(r) { setTimeout(r, 0); });
       }
     }
@@ -1031,7 +1959,7 @@ async function exportTestPatternVideo() {
 
     var blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
     var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
-    var filename = safeName + '_sweep_' + totalW + 'x' + totalH + '.mp4';
+    var filename = safeName + '_' + totalW + 'x' + totalH + '.mp4';
     downloadVideoBlob(blob, filename, 'video/mp4');
 
   } catch(err) {
@@ -1039,14 +1967,24 @@ async function exportTestPatternVideo() {
     console.error('Export error:', err);
   }
 
+  // Restore state
+  _tpSweepProgress = savedSweepProgress;
+  _tpCircleAngle = savedCircleAngle;
   _tpIsRecording = false;
-  saveBtn.textContent = originalText;
-  saveBtn.disabled = false;
+  mp4Label.textContent = 'Export MP4';
+  mp4Btn.disabled = false;
   renderTestPattern(false);
-  startSweepPreview();
+  _tpRestartAnimationIfNeeded();
 }
 
 function downloadVideoBlob(blob, filename, mimeType) {
+  // Quick share: always use native share sheet
+  if(_tpForceShare) {
+    _tpForceShare = false;
+    _tpNativeShare(blob, filename, mimeType);
+    return;
+  }
+
   // Mobile: use share API
   var isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
                        (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));

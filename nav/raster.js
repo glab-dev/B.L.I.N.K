@@ -54,10 +54,10 @@ function renderRasterScreenTable() {
   });
 
   var html = '<table class="raster-table"><thead><tr>';
-  html += '<th>Name</th><th>Panel</th><th>Tile X</th><th>Tile Y</th>';
+  html += '<th>Name</th><th>Color 1</th><th>Color 2</th><th>Panel</th><th>Tile X</th><th>Tile Y</th>';
   html += '<th>Cols</th><th>Rows</th>';
   html += '<th>Offset X</th><th>Offset Y</th>';
-  html += '<th>Overlays</th><th>Active</th>';
+  html += '<th>Overlays</th><th>Active</th><th></th>';
   html += '</tr></thead><tbody>';
 
   screenIds.forEach(function(screenId) {
@@ -82,6 +82,14 @@ function renderRasterScreenTable() {
     // Screen name
     html += '<td data-label="Name"><input type="text" class="raster-input raster-name" value="' + escapeHtml(screen.name) + '" ' +
             'oninput="updateRasterScreenName(\'' + safeId + '\', this.value)"></td>';
+
+    // Color pickers
+    var color1 = safeColor(screen.color);
+    var color2 = safeColor(screen.color2 || (typeof darkenColor === 'function' ? darkenColor(screen.color, 30) : screen.color));
+    html += '<td data-label="Color 1"><input type="color" class="raster-color-input" value="' + color1 + '" ' +
+            'oninput="updateRasterScreenColor(\'' + safeId + '\', \'color\', this.value)"></td>';
+    html += '<td data-label="Color 2"><input type="color" class="raster-color-input" value="' + color2 + '" ' +
+            'oninput="updateRasterScreenColor(\'' + safeId + '\', \'color2\', this.value)"></td>';
 
     // Panel dropdown
     html += '<td data-label="Panel"><select class="raster-select" onchange="updateRasterScreenPanel(\'' + safeId + '\', this.value)">' +
@@ -129,6 +137,16 @@ function renderRasterScreenTable() {
             'onclick="toggleRasterScreenVisible(\'' + safeId + '\')">' +
             '<span style="display:inline-block;width:8px;height:8px;background:' + screenColor + ';border:1px solid #666;"></span>' +
             '</button></td>';
+
+    // Actions (duplicate + delete)
+    html += '<td data-label="Actions"><div class="raster-overlays">' +
+            '<button type="button" class="raster-action-btn raster-duplicate-btn" title="Duplicate" ' +
+            'onclick="duplicateRasterScreen(\'' + safeId + '\')">' +
+            '<span class="material-symbols-outlined">content_copy</span></button>' +
+            '<button type="button" class="raster-action-btn raster-delete-btn" title="Delete" ' +
+            'onclick="deleteRasterScreen(\'' + safeId + '\')">' +
+            '<span class="material-symbols-outlined">delete</span></button>' +
+            '</div></td>';
 
     html += '</tr>';
   });
@@ -368,6 +386,89 @@ function addRasterScreen() {
   if(typeof renderScreenTabs === 'function') renderScreenTabs();
   renderRasterScreenTable();
   showCanvasView();
+}
+
+// ==================== DUPLICATE / DELETE FROM RASTER TABLE ====================
+
+function duplicateRasterScreen(screenId) {
+  if(!screens[screenId]) return;
+
+  // Save current screen data before cloning
+  if(typeof saveCurrentScreenData === 'function') saveCurrentScreenData();
+
+  var sourceScreen = screens[screenId];
+
+  screenIdCounter++;
+  var newScreenId = 'screen_' + screenIdCounter;
+
+  var newScreen = {
+    id: newScreenId,
+    name: sourceScreen.name + ' (Copy)',
+    color: sourceScreen.color,
+    color2: sourceScreen.color2,
+    visible: true,
+    data: JSON.parse(JSON.stringify(sourceScreen.data))
+  };
+
+  screens[newScreenId] = newScreen;
+
+  // Add new screen to all canvases' visibility tracking
+  if(typeof canvases !== 'undefined') {
+    Object.keys(canvases).forEach(function(canvasId) {
+      if(!canvases[canvasId].data.screenVisibility) {
+        canvases[canvasId].data.screenVisibility = {};
+      }
+      canvases[canvasId].data.screenVisibility[newScreenId] = (canvasId === currentCanvasId);
+    });
+  }
+
+  if(typeof renderScreenTabs === 'function') renderScreenTabs();
+  if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
+  renderRasterScreenTable();
+
+  // Switch to the new screen
+  if(typeof switchToScreen === 'function') switchToScreen(newScreenId);
+}
+
+function deleteRasterScreen(screenId) {
+  if(Object.keys(screens).length === 1) {
+    showAlert('Cannot delete the last screen');
+    return;
+  }
+
+  if(typeof deleteScreen === 'function') {
+    deleteScreen(screenId);
+  }
+
+  renderRasterScreenTable();
+}
+
+var _rasterColorTimer = null;
+var _rasterColorRaf = null;
+function updateRasterScreenColor(screenId, field, value) {
+  if(!screens[screenId]) return;
+  screens[screenId][field] = value;
+
+  // Throttle canvas redraw to animation frame rate
+  if(!_rasterColorRaf) {
+    _rasterColorRaf = requestAnimationFrame(function() {
+      _rasterColorRaf = null;
+      if(typeof showCanvasView === 'function') showCanvasView();
+    });
+  }
+
+  // Debounce heavier re-renders until user stops dragging
+  clearTimeout(_rasterColorTimer);
+  _rasterColorTimer = setTimeout(function() {
+    if(typeof renderScreenTabs === 'function') renderScreenTabs();
+    if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
+    if(typeof generateLayout === 'function') {
+      generateLayout('standard');
+      generateLayout('power');
+      generateLayout('data');
+    }
+    if(typeof generateStructureLayout === 'function') generateStructureLayout();
+  }, 300);
 }
 
 // ==================== SIMPLIFIED CUSTOM PANEL MODAL ====================

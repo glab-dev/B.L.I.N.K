@@ -455,52 +455,11 @@ function showCanvasView(){
       ctx.fillText(yText, textX, textY + lineHeight);
     }
     
-    // Add screen name overlay - simplified shadow
-    const screenName = screen.name;
-    if(screenName) {
-      const wallCenterX = offsetX + (wallResX / 2);
-      const wallCenterY = offsetY + (wallResY / 2);
-      const baseFontSize = Math.min(wallResX, wallResY) * 0.15;
-      
-      ctx.font = `bold ${baseFontSize}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
-      // Simple shadow (reduced from 13 to 4 draws)
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.fillText(screenName, wallCenterX + 3, wallCenterY + 3);
-      ctx.fillText(screenName, wallCenterX - 2, wallCenterY + 2);
-      
-      // Yellow text on top
-      ctx.fillStyle = '#FFFF00';
-      ctx.fillText(screenName, wallCenterX, wallCenterY);
-    }
-    
-    // Add screen resolution at bottom-left (if enabled for this screen) - simplified shadow
-    if(screen.showPixelDimensions !== false) {
-      const resFontSize = Math.max(14, Math.min(wallResX, wallResY) * 0.06);
-      ctx.font = `bold ${resFontSize}px Arial`;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'bottom';
-      
-      const resTextX = offsetX + 10;
-      const resTextY = offsetY + wallResY - 10;
-      const resText = `${wallResX} × ${wallResY}`;
-      
-      // Simple shadow
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.fillText(resText, resTextX + 2, resTextY + 2);
-      
-      // Yellow text
-      ctx.fillStyle = '#FFFF00';
-      ctx.fillText(resText, resTextX, resTextY);
-    }
-
     // Draw X crosshair if enabled for this screen (default: on)
     if(screen.showCrosshair !== false) {
       ctx.strokeStyle = '#e0e0e0';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([10, 5]); // Dashed line for visibility
+      ctx.lineWidth = 3;
+      ctx.setLineDash([]);
 
       // Line from top-left to bottom-right
       ctx.beginPath();
@@ -517,7 +476,48 @@ function showCanvasView(){
       ctx.setLineDash([]); // Reset to solid line
     }
 
-    // Add GLAB logo in bottom right corner
+    // Add screen name overlay - simplified shadow
+    const screenName = screen.name;
+    if(screenName) {
+      const wallCenterX = offsetX + (wallResX / 2);
+      const wallCenterY = offsetY + (wallResY / 2);
+      const baseFontSize = Math.min(wallResX, wallResY) * 0.15;
+
+      ctx.font = `bold ${baseFontSize}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Simple shadow (reduced from 13 to 4 draws)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillText(screenName, wallCenterX + 3, wallCenterY + 3);
+      ctx.fillText(screenName, wallCenterX - 2, wallCenterY + 2);
+
+      // Yellow text on top
+      ctx.fillStyle = '#FFFF00';
+      ctx.fillText(screenName, wallCenterX, wallCenterY);
+    }
+
+    // Add screen resolution at bottom-left (if enabled for this screen) - simplified shadow
+    if(screen.showPixelDimensions !== false) {
+      const resFontSize = Math.max(14, Math.min(wallResX, wallResY) * 0.06);
+      ctx.font = `bold ${resFontSize}px Arial`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+
+      const resTextX = offsetX + 10;
+      const resTextY = offsetY + wallResY - 10;
+      const resText = `${wallResX} × ${wallResY}`;
+
+      // Simple shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillText(resText, resTextX + 2, resTextY + 2);
+
+      // Yellow text
+      ctx.fillStyle = '#FFFF00';
+      ctx.fillText(resText, resTextX, resTextY);
+    }
+
+    // Add B.L.I.N.K. logo in bottom right corner
     const logoFontSize = Math.max(12, Math.min(wallResX, wallResY) * 0.05);
     ctx.font = `bold ${logoFontSize}px Arial`;
     ctx.textAlign = 'right';
@@ -525,7 +525,7 @@ function showCanvasView(){
 
     const logoTextX = offsetX + wallResX - 10;
     const logoTextY = offsetY + wallResY - 10;
-    const logoText = 'GLAB';
+    const logoText = 'B.L.I.N.K.';
 
     // Simple shadow
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';

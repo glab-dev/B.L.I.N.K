@@ -221,9 +221,61 @@
 <div id="testPatternPage" class="tp-page" style="display: none;">
   <div class="tp-header">
     <h1 class="tp-header-title">Test Pattern Generator</h1>
-    <button class="tp-home-btn" onclick="exitTestPatternMode()" title="Home">
-      <span class="material-symbols-outlined">home</span>
-    </button>
+    <div class="tp-toolbar">
+      <button class="tp-toolbar-btn" id="tpUndoBtn" title="Undo" disabled>
+        <span class="material-symbols-outlined">undo</span>
+      </button>
+      <button class="tp-toolbar-btn" id="tpToolbarResetBtn" title="Reset">
+        <span class="material-symbols-outlined">refresh</span>
+      </button>
+      <button class="tp-toolbar-btn" id="tpRedoBtn" title="Redo" disabled>
+        <span class="material-symbols-outlined">redo</span>
+      </button>
+      <div class="tp-share-wrap">
+        <button class="tp-toolbar-btn" id="tpQuickShareBtn" title="Quick Share">
+          <span class="material-symbols-outlined">share</span>
+        </button>
+        <div class="tp-share-popup" id="tpSharePopup">
+          <button class="tp-share-option" id="tpSharePng">Export PNG</button>
+          <button class="tp-share-option" id="tpShareMp4">Export MP4</button>
+        </div>
+      </div>
+    </div>
+    <div class="tp-header-actions">
+      <button class="tp-home-btn" onclick="exitTestPatternMode()" title="Home">
+        <span class="material-symbols-outlined">home</span>
+      </button>
+      <div class="tp-hamburger-wrap">
+        <button class="tp-hamburger-btn" id="tpHamburgerBtn" title="Menu">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+        <div class="tp-hamburger-menu" id="tpHamburgerMenu">
+          <button class="tp-menu-item" id="tpExportPng" title="Export as PNG image">Export PNG</button>
+          <button class="tp-menu-item" id="tpExportMp4" title="Export as MP4 video">
+            <span class="tp-menu-label">Export MP4</span>
+          </button>
+          <div class="tp-menu-item tp-menu-fps">
+            <span>Framerate</span>
+            <select id="tpSweepFps" class="tp-select tp-menu-select">
+              <option value="23.976">23.98</option>
+              <option value="24">24</option>
+              <option value="25">25</option>
+              <option value="29.97">29.97</option>
+              <option value="30">30</option>
+              <option value="50">50</option>
+              <option value="59.94">59.94</option>
+              <option value="60" selected>60</option>
+              <option value="120">120</option>
+            </select>
+          </div>
+          <div class="tp-menu-divider"></div>
+          <button class="tp-menu-item tp-menu-reset" id="tpResetBtn" title="Reset to defaults">
+            <span class="material-symbols-outlined">refresh</span>
+            Reset
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="tp-canvas-wrapper">
@@ -231,7 +283,11 @@
   </div>
 
   <div class="tp-controls">
+    <!-- Column 1: Setup -->
     <div class="tp-controls-col">
+      <div class="tp-section-header">
+        <span class="tp-section-title">Screen Options</span>
+      </div>
       <div class="tp-control-group">
         <label class="tp-label">Image Name:</label>
         <input type="text" id="tpImageName" class="tp-input" placeholder="Name your testpattern">
@@ -314,51 +370,18 @@
         </div>
       </div>
 
-      <div class="tp-btn-row">
-        <button class="tp-reset-btn" onclick="resetTestPattern()" title="Reset to defaults">
-          <span class="material-symbols-outlined">refresh</span>
-        </button>
-        <button id="tpSaveBtn" class="tp-save-btn">Export PNG</button>
-      </div>
     </div>
 
+    <!-- Column 2: Text Options -->
     <div class="tp-controls-col">
-      <div class="tp-slider-row">
-        <label class="tp-label">Grid size: <span id="tpGridSizeVal">50%</span></label>
-        <input type="range" id="tpGridSize" class="tp-range" min="0" max="100" value="50">
-      </div>
-
-      <div class="tp-slider-row">
-        <label class="tp-label">Grid line width: <span id="tpGridWidthVal">50%</span></label>
-        <input type="range" id="tpGridWidth" class="tp-range" min="0" max="100" value="50">
+      <div class="tp-section-header">
+        <span class="tp-section-title">Text Options</span>
+        <input type="color" id="tpTextColor" class="tp-color-input" value="#ffffff">
       </div>
 
       <div class="tp-slider-row">
         <label class="tp-label">Text size: <span id="tpTextSizeVal">50%</span></label>
         <input type="range" id="tpTextSize" class="tp-range" min="0" max="100" value="50">
-      </div>
-
-      <div class="tp-colors-row">
-        <div class="tp-control-group">
-          <label class="tp-label">Grid</label>
-          <input type="color" id="tpGridColor" class="tp-color-input" value="#d23de6">
-        </div>
-        <div class="tp-control-group">
-          <label class="tp-label">Text</label>
-          <input type="color" id="tpTextColor" class="tp-color-input" value="#ffffff">
-        </div>
-        <div class="tp-control-group">
-          <label class="tp-label">Cross</label>
-          <input type="color" id="tpCrossColor" class="tp-color-input" value="#00ff7b">
-        </div>
-        <div class="tp-control-group">
-          <label class="tp-label">Displays</label>
-          <input type="color" id="tpBoundaryColor" class="tp-color-input" value="#249be5">
-        </div>
-        <div class="tp-control-group">
-          <label class="tp-label">BG</label>
-          <input type="color" id="tpBgColor" class="tp-color-input" value="#000000">
-        </div>
       </div>
 
       <div class="tp-toggles-row">
@@ -392,7 +415,11 @@
         </div>
       </div>
 
-      <div class="tp-toggles-row">
+      <div class="tp-section-header">
+        <span class="tp-section-title">Add On's</span>
+      </div>
+
+      <div class="tp-sweep-header">
         <div class="tp-toggle-row">
           <span class="tp-label">Circles</span>
           <label class="cp-mini-toggle">
@@ -400,6 +427,26 @@
             <span class="cp-mini-toggle-slider"></span>
           </label>
         </div>
+        <select id="tpCircleSpinMode" class="tp-select tp-select-narrow">
+          <option value="static" selected>Static</option>
+          <option value="center">Spin center</option>
+          <option value="corners">Spin corners</option>
+          <option value="all">Spin all</option>
+        </select>
+        <select id="tpCircleRevMode" class="tp-select tp-select-narrow">
+          <option value="none" selected>No reverse</option>
+          <option value="center">Rev. center</option>
+          <option value="corners">Rev. corners</option>
+          <option value="all">Rev. all</option>
+        </select>
+      </div>
+
+      <div id="tpSpinControls" class="tp-slider-row">
+        <label class="tp-label">Spin speed: <span id="tpCircleSpinSpeedVal">50%</span></label>
+        <input type="range" id="tpCircleSpinSpeed" class="tp-range" min="1" max="100" value="50">
+      </div>
+
+      <div class="tp-sweep-header">
         <div class="tp-toggle-row">
           <span class="tp-label">Color bars</span>
           <label class="cp-mini-toggle">
@@ -407,13 +454,139 @@
             <span class="cp-mini-toggle-slider"></span>
           </label>
         </div>
+        <select id="tpColorBarsMode" class="tp-select tp-select-narrow">
+          <option value="default" selected>Default</option>
+          <option value="center">Center circle</option>
+          <option value="corners">Corner circles</option>
+          <option value="all">All circles</option>
+          <option value="corners-spin">Spin corners</option>
+        </select>
+      </div>
+
+      <div class="tp-slider-row">
+        <label class="tp-label">Bars opacity: <span id="tpColorBarsOpacityVal">100%</span></label>
+        <input type="range" id="tpColorBarsOpacity" class="tp-range" min="0" max="100" value="100">
+      </div>
+
+    </div>
+
+    <!-- Column 3: Grid & Checker Options -->
+    <div class="tp-controls-col">
+      <div class="tp-section-header">
+        <span class="tp-section-title">Grid Options</span>
+      </div>
+
+      <div class="tp-colors-row">
+        <div class="tp-control-group">
+          <label class="tp-label">Grid</label>
+          <input type="color" id="tpGridColor" class="tp-color-input" value="#d23de6">
+        </div>
+        <div class="tp-control-group">
+          <label class="tp-label">Cross</label>
+          <input type="color" id="tpCrossColor" class="tp-color-input" value="#00ff7b">
+        </div>
+        <div class="tp-control-group">
+          <label class="tp-label">Displays</label>
+          <input type="color" id="tpBoundaryColor" class="tp-color-input" value="#249be5">
+        </div>
+        <div class="tp-control-group">
+          <label class="tp-label">BG</label>
+          <input type="color" id="tpBgColor" class="tp-color-input" value="#000000">
+        </div>
+      </div>
+
+      <div class="tp-sweep-header">
         <div class="tp-toggle-row">
-          <span class="tp-label">Logo</span>
+          <span class="tp-label">BG Image</span>
           <label class="cp-mini-toggle">
-            <input type="checkbox" id="tpLogoToggle">
+            <input type="checkbox" id="tpBgImageToggle">
             <span class="cp-mini-toggle-slider"></span>
           </label>
         </div>
+        <button class="tp-choose-file-btn" onclick="document.getElementById('tpBgImageFile').click()">Choose File</button>
+        <input type="file" id="tpBgImageFile" class="tp-file-input-hidden" accept="image/*">
+      </div>
+
+      <div class="tp-slider-row">
+        <label class="tp-label">Grid size: <span id="tpGridSizeVal">50%</span></label>
+        <input type="range" id="tpGridSize" class="tp-range" min="0" max="100" value="50">
+      </div>
+
+      <div class="tp-slider-row">
+        <label class="tp-label">Grid line width: <span id="tpGridWidthVal">50%</span></label>
+        <input type="range" id="tpGridWidth" class="tp-range" min="0" max="100" value="50">
+      </div>
+
+      <div class="tp-section-header">
+        <span class="tp-section-title">Checker Options</span>
+      </div>
+
+      <div class="tp-sweep-header">
+        <div class="tp-toggle-row">
+          <span class="tp-label">Checkered</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpChecker">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="tp-inline-color-group">
+          <span class="tp-inline-label">Color 1</span>
+          <input type="color" id="tpCheckerColor1" class="tp-color-input" value="#000000">
+        </div>
+        <div class="tp-inline-color-group">
+          <span class="tp-inline-label">Color 2</span>
+          <input type="color" id="tpCheckerColor2" class="tp-color-input" value="#1a1a1a">
+        </div>
+      </div>
+
+      <div class="tp-logo-controls" id="tpCheckerControls">
+        <div class="tp-slider-row">
+          <label class="tp-label">Checker size: <span id="tpCheckerSizeVal">50%</span></label>
+          <input type="range" id="tpCheckerSize" class="tp-range" min="0" max="100" value="50">
+        </div>
+        <div class="tp-slider-row">
+          <label class="tp-label">Checker opacity: <span id="tpCheckerOpacityVal">100%</span></label>
+          <input type="range" id="tpCheckerOpacity" class="tp-range" min="0" max="100" value="100">
+        </div>
+      </div>
+
+      <div class="tp-sweep-header">
+        <div class="tp-toggle-row">
+          <span class="tp-label">Border</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpCheckerBorder">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="tp-inline-color-group">
+          <span class="tp-inline-label">Color 1</span>
+          <input type="color" id="tpBorderColor1" class="tp-color-input" value="#ffffff">
+        </div>
+        <div class="tp-inline-color-group">
+          <span class="tp-inline-label">Color 2</span>
+          <input type="color" id="tpBorderColor2" class="tp-color-input" value="#000000">
+        </div>
+      </div>
+
+      <div class="tp-logo-controls" id="tpBorderControls">
+        <div class="tp-slider-row">
+          <label class="tp-label">Border size: <span id="tpBorderSizeVal">50%</span></label>
+          <input type="range" id="tpBorderSize" class="tp-range" min="0" max="100" value="50">
+        </div>
+        <div class="tp-slider-row">
+          <label class="tp-label">Border opacity: <span id="tpBorderOpacityVal">100%</span></label>
+          <input type="range" id="tpBorderOpacity" class="tp-range" min="0" max="100" value="100">
+        </div>
+      </div>
+    </div>
+
+    <!-- Column 4: Sweep Options -->
+    <div class="tp-controls-col tp-sweep-col">
+      <div class="tp-section-header">
+        <span class="tp-section-title">Sweep Options</span>
+      </div>
+
+      <div class="tp-sweep-header">
         <div class="tp-toggle-row">
           <span class="tp-label">Sweep</span>
           <label class="cp-mini-toggle">
@@ -421,41 +594,62 @@
             <span class="cp-mini-toggle-slider"></span>
           </label>
         </div>
+        <input type="color" id="tpSweepColor" class="tp-color-input" value="#ffffff" title="Horizontal band">
+        <input type="color" id="tpSweepColorV" class="tp-color-input" value="#ffffff" title="Vertical band">
       </div>
 
-      <div class="tp-logo-controls" id="tpLogoControls" style="display: none;">
+      <div id="tpSweepControls" style="flex-direction: column; gap: 8px;">
+        <div class="tp-slider-row">
+          <label class="tp-label">Speed: <span id="tpSweepDurationVal">5s</span></label>
+          <input type="range" id="tpSweepDuration" class="tp-range" min="1" max="10" value="5">
+        </div>
+
+        <div class="tp-slider-row">
+          <label class="tp-label">Width: <span id="tpSweepWidthVal">2%</span></label>
+          <input type="range" id="tpSweepWidth" class="tp-range" min="0.2" max="10" value="2" step="0.1">
+        </div>
+      </div>
+
+      <div class="tp-section-header">
+        <span class="tp-section-title">Logo Options</span>
+      </div>
+
+      <div class="tp-logo-header">
+        <div class="tp-toggle-row">
+          <span class="tp-label">Logo</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpLogoToggle">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
         <button class="tp-choose-file-btn" onclick="document.getElementById('tpLogoFile').click()">Choose File</button>
         <input type="file" id="tpLogoFile" class="tp-file-input-hidden" accept="image/*">
-        <span class="tp-label" id="tpLogoSizeLabel" style="display: none;">Logo size: <span id="tpLogoSizeVal">50%</span></span>
-        <input type="range" id="tpLogoSize" class="tp-range" min="0" max="100" value="50" style="display: none; flex: 1;">
       </div>
 
-      <div class="tp-sweep-controls" id="tpSweepControls" style="display: none;">
-        <div class="tp-slider-row">
-          <label class="tp-label">Sweep speed: <span id="tpSweepDurationVal">3s</span></label>
-          <input type="range" id="tpSweepDuration" class="tp-range" min="1" max="10" value="3">
-        </div>
-        <div class="tp-slider-row">
-          <label class="tp-label">Band width: <span id="tpSweepWidthVal">8%</span></label>
-          <input type="range" id="tpSweepWidth" class="tp-range" min="2" max="20" value="8">
-        </div>
-        <div class="tp-control-group">
-          <label class="tp-label">Frame rate</label>
-          <select id="tpSweepFps" class="tp-select">
-            <option value="23.976">23.98</option>
-            <option value="24">24</option>
-            <option value="25">25</option>
-            <option value="29.97">29.97</option>
-            <option value="30">30</option>
-            <option value="50">50</option>
-            <option value="59.94">59.94</option>
-            <option value="60" selected>60</option>
-            <option value="120">120</option>
+      <div class="tp-logo-controls" id="tpLogoControls">
+        <div class="tp-sweep-header">
+          <span class="tp-label">Position</span>
+          <select id="tpLogoMode" class="tp-select tp-select-narrow">
+            <option value="default" selected>Default</option>
+            <option value="center">Center circle</option>
+            <option value="corners">Corner circles</option>
+            <option value="all">All circles</option>
           </select>
+          <div class="tp-toggle-row">
+            <span class="tp-label">Static</span>
+            <label class="cp-mini-toggle">
+              <input type="checkbox" id="tpLogoStatic">
+              <span class="cp-mini-toggle-slider"></span>
+            </label>
+          </div>
         </div>
-        <div class="tp-control-group">
-          <label class="tp-label">Sweep color</label>
-          <input type="color" id="tpSweepColor" class="tp-color-input" value="#ffffff">
+        <div class="tp-slider-row">
+          <label class="tp-label" id="tpLogoSizeLabel">Logo size: <span id="tpLogoSizeVal">50%</span></label>
+          <input type="range" id="tpLogoSize" class="tp-range" min="0" max="100" value="50">
+        </div>
+        <div class="tp-slider-row">
+          <label class="tp-label">Logo opacity: <span id="tpLogoOpacityVal">100%</span></label>
+          <input type="range" id="tpLogoOpacity" class="tp-range" min="0" max="100" value="100">
         </div>
       </div>
     </div>
@@ -2720,8 +2914,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.53';
-const APP_CHANGELOG = 'Add sweep animation with MP4 video export using VideoEncoder and mp4-muxer';
+const APP_VERSION = '2.9.54';
+const APP_CHANGELOG = 'Add toolbar, undo/redo, spinning circles, BG image, opacity sliders, and MP4 export improvements';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

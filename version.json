@@ -1,5 +1,5 @@
 {
-  "version": "2.10.17",
+  "version": "2.10.18",
   "updated": "2026-02-20",
-  "changelog": "Fix canvas view title clipping from CSS specificity and rotation offset"
+  "changelog": "Fix test pattern corner circles and make corners+center mode static"
 }

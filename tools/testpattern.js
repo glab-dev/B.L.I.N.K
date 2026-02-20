@@ -1761,9 +1761,9 @@ function drawTPCircles(ctx, w, h) {
   ctx.arc(centerX, centerY, bigRadius, 0, Math.PI * 2);
   ctx.stroke();
 
-  // 4 small circles in corners — inset so mostly visible, slightly clipped by edges
+  // 4 small circles in corners — edge touches screen edge
   var smallRadius = Math.min(w, h) * 0.15;
-  var inset = smallRadius * 0.95;
+  var inset = smallRadius;
   var corners = [
     [inset, inset],              // top-left
     [w - inset, inset],          // top-right
@@ -2098,7 +2098,7 @@ function drawTPColorBars(ctx, w, h) {
     var centerY = h / 2;
     var bigRadius = h / 2;
     var smallRadius = Math.min(w, h) * 0.15;
-    var inset = smallRadius * 0.95;
+    var inset = smallRadius;
     var corners = [
       [inset, inset],
       [w - inset, inset],
@@ -2117,15 +2117,15 @@ function drawTPColorBars(ctx, w, h) {
     var centerAngle = centerDir * _tpCircleAngle;
     var cornerAngle = cornerDir * _tpCircleAngle;
 
-    if(tpColorBarsMode === 'corners-spin') {
-      // Default bar + spinning corners
+    if(tpColorBarsMode === 'corners-center') {
+      // Default bar in center + color bars in corner circles
       var barsTop = h * 0.54;
       var totalBarsW = w * 0.5;
       var barsX = (w - totalBarsW) / 2;
       var totalBarsH = h * 0.17;
       drawTPColorBarsAt(ctx, barsX, barsTop, totalBarsW, totalBarsH);
       for(var i = 0; i < corners.length; i++) {
-        drawTPColorBarsInCircle(ctx, corners[i][0], corners[i][1], smallRadius, _tpCircleAngle);
+        drawTPColorBarsInCircle(ctx, corners[i][0], corners[i][1], smallRadius, cornerAngle);
       }
     } else {
       if(tpColorBarsMode === 'center' || tpColorBarsMode === 'all') {
@@ -2188,7 +2188,7 @@ function drawTPLogo(ctx, w, h) {
     var centerY = h / 2;
     var bigRadius = h / 2;
     var smallRadius = Math.min(w, h) * 0.15;
-    var inset = smallRadius * 0.95;
+    var inset = smallRadius;
     var corners = [
       [inset, inset],
       [w - inset, inset],
@@ -2221,7 +2221,7 @@ function drawTPLogo(ctx, w, h) {
 // --- Export Button State ---
 
 function _tpNeedsAnimation() {
-  return tpCircleSpinMode !== 'static' || tpCircleRevMode !== 'none' || tpColorBarsMode === 'corners-spin';
+  return tpCircleSpinMode !== 'static' || tpCircleRevMode !== 'none';
 }
 
 function _tpNeedsVideoExport() {

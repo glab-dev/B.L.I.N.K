@@ -300,10 +300,13 @@ function updateRasterScreenPos(screenId, field, value) {
   if(!screens[screenId]) return;
   screens[screenId].data[field] = parseInt(value) || 0;
 
-  // Sync to canvas X/Y inputs if this is the current screen
+  // Sync to canvas X/Y inputs and global offset variables if this is the current screen
   if(screenId === currentScreenId) {
     var el = document.getElementById(field);
     if(el) el.value = screens[screenId].data[field];
+    // Keep globals in sync so saveCurrentScreenData() captures correct values
+    if(field === 'canvasX') canvasOffsetX = screens[screenId].data[field];
+    if(field === 'canvasY') canvasOffsetY = screens[screenId].data[field];
   }
 
   showCanvasView();

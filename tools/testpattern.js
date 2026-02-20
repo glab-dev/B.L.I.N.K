@@ -51,6 +51,11 @@ var tpBgImageOn = false;
 var tpBgImage = null;
 var tpCheckerOpacity = 100;
 var tpBorderOpacity = 100;
+var tpProcessorLinesOn = false;
+var tpProcessorCanvasSize = '4K_UHD';
+var tpProcessorCanvasW = 3840;
+var tpProcessorCanvasH = 2160;
+var tpProcessorLineColor = '#ff0000';
 var tpCheckerOn = false;
 var tpCheckerSizePct = 50;
 var tpCheckerBorderOn = false;
@@ -89,7 +94,10 @@ function _tpGetState() {
     tpBorderColor1: tpBorderColor1, tpBorderColor2: tpBorderColor2,
     tpCheckerColor1: tpCheckerColor1, tpCheckerColor2: tpCheckerColor2,
     tpCheckerOpacity: tpCheckerOpacity, tpBorderOpacity: tpBorderOpacity,
-    tpBgImageOn: tpBgImageOn, tpBgImage: tpBgImage
+    tpBgImageOn: tpBgImageOn, tpBgImage: tpBgImage,
+    tpProcessorLinesOn: tpProcessorLinesOn, tpProcessorCanvasSize: tpProcessorCanvasSize,
+    tpProcessorCanvasW: tpProcessorCanvasW, tpProcessorCanvasH: tpProcessorCanvasH,
+    tpProcessorLineColor: tpProcessorLineColor
   };
 }
 
@@ -115,6 +123,9 @@ function _tpApplyState(s) {
   tpCheckerColor1 = s.tpCheckerColor1; tpCheckerColor2 = s.tpCheckerColor2;
   tpCheckerOpacity = s.tpCheckerOpacity; tpBorderOpacity = s.tpBorderOpacity;
   tpBgImageOn = s.tpBgImageOn; tpBgImage = s.tpBgImage;
+  tpProcessorLinesOn = s.tpProcessorLinesOn; tpProcessorCanvasSize = s.tpProcessorCanvasSize;
+  tpProcessorCanvasW = s.tpProcessorCanvasW; tpProcessorCanvasH = s.tpProcessorCanvasH;
+  tpProcessorLineColor = s.tpProcessorLineColor;
   _tpSyncDOM();
 }
 
@@ -179,6 +190,13 @@ function _tpSyncDOM() {
   document.getElementById('tpBorderOpacity').value = tpBorderOpacity;
   document.getElementById('tpBorderOpacityVal').textContent = tpBorderOpacity + '%';
   document.getElementById('tpBgImageToggle').checked = tpBgImageOn;
+  document.getElementById('tpProcessorLinesToggle').checked = tpProcessorLinesOn;
+  document.getElementById('tpProcessorCanvasSize').value = tpProcessorCanvasSize;
+  document.getElementById('tpProcessorCustomW').value = tpProcessorCanvasW;
+  document.getElementById('tpProcessorCustomH').value = tpProcessorCanvasH;
+  document.getElementById('tpProcessorLineColor').value = tpProcessorLineColor;
+  document.getElementById('tpProcessorCustomSize').style.display =
+    tpProcessorCanvasSize === 'custom' ? '' : 'none';
 
   updateTotalSize();
   _tpRestartAnimationIfNeeded();
@@ -268,6 +286,8 @@ function resetTestPattern() {
   tpColorBarsOpacity = 100; tpLogoOpacity = 100;
   tpCheckerOpacity = 100; tpBorderOpacity = 100;
   tpBgImageOn = false; tpBgImage = null;
+  tpProcessorLinesOn = false; tpProcessorCanvasSize = '4K_UHD';
+  tpProcessorCanvasW = 3840; tpProcessorCanvasH = 2160; tpProcessorLineColor = '#ff0000';
   tpSweepOn = false; tpSweepColor = '#ffffff'; tpSweepColorV = '#ffffff';
   tpSweepDuration = 5; tpSweepWidthPct = 2;
   tpSweepFps = 60;
@@ -338,6 +358,12 @@ function resetTestPattern() {
   document.getElementById('tpBorderOpacityVal').textContent = '100%';
   document.getElementById('tpBgImageToggle').checked = false;
   document.getElementById('tpBgImageFile').value = '';
+  document.getElementById('tpProcessorLinesToggle').checked = false;
+  document.getElementById('tpProcessorCanvasSize').value = '4K_UHD';
+  document.getElementById('tpProcessorCustomW').value = 3840;
+  document.getElementById('tpProcessorCustomH').value = 2160;
+  document.getElementById('tpProcessorLineColor').value = '#ff0000';
+  document.getElementById('tpProcessorCustomSize').style.display = 'none';
 
   updateTotalSize();
   scheduleTestPatternRedraw();
@@ -505,6 +531,34 @@ function initTestPatternControls() {
 
   document.getElementById('tpBgImageFile').addEventListener('change', function(e) {
     handleBgImageImport(e);
+  });
+
+  // Processor lines
+  document.getElementById('tpProcessorLinesToggle').addEventListener('change', function() {
+    tpProcessorLinesOn = this.checked;
+    scheduleTestPatternRedraw();
+  });
+
+  document.getElementById('tpProcessorCanvasSize').addEventListener('change', function() {
+    tpProcessorCanvasSize = this.value;
+    document.getElementById('tpProcessorCustomSize').style.display =
+      this.value === 'custom' ? '' : 'none';
+    scheduleTestPatternRedraw();
+  });
+
+  document.getElementById('tpProcessorLineColor').addEventListener('input', function() {
+    tpProcessorLineColor = this.value;
+    scheduleTestPatternRedraw();
+  });
+
+  document.getElementById('tpProcessorCustomW').addEventListener('input', function() {
+    tpProcessorCanvasW = parseInt(this.value) || 3840;
+    scheduleTestPatternRedraw();
+  });
+
+  document.getElementById('tpProcessorCustomH').addEventListener('input', function() {
+    tpProcessorCanvasH = parseInt(this.value) || 2160;
+    scheduleTestPatternRedraw();
   });
 
   circlesToggle.addEventListener('change', function() {
@@ -777,7 +831,8 @@ function initTestPatternControls() {
 
   // --- Save undo state before user interactions ---
   // Text/number inputs: save on focus (once when user clicks in)
-  var _tpTextInputIds = ['tpImageName', 'tpDisplayW', 'tpDisplayH', 'tpTotalW', 'tpTotalH'];
+  var _tpTextInputIds = ['tpImageName', 'tpDisplayW', 'tpDisplayH', 'tpTotalW', 'tpTotalH',
+    'tpProcessorCustomW', 'tpProcessorCustomH'];
   _tpTextInputIds.forEach(function(id) {
     var el = document.getElementById(id);
     if(el) el.addEventListener('focus', function() { tpSaveState(); });
@@ -796,7 +851,7 @@ function initTestPatternControls() {
   // Color pickers: save when opened
   var _tpColorIds = ['tpGridColor', 'tpTextColor', 'tpCrossColor', 'tpBoundaryColor',
     'tpBgColor', 'tpSweepColor', 'tpSweepColorV', 'tpCheckerColor1', 'tpCheckerColor2',
-    'tpBorderColor1', 'tpBorderColor2'];
+    'tpBorderColor1', 'tpBorderColor2', 'tpProcessorLineColor'];
   _tpColorIds.forEach(function(id) {
     var el = document.getElementById(id);
     if(el) el.addEventListener('click', function() { tpSaveState(); });
@@ -805,14 +860,14 @@ function initTestPatternControls() {
   // Checkboxes & selects: save on change (fires once per interaction)
   var _tpToggleIds = ['tpCircles', 'tpColorBars', 'tpChecker', 'tpCheckerBorder',
     'tpShowName', 'tpShowPixelSize', 'tpShowAspectRatio', 'tpShowSquareCount',
-    'tpLogoToggle', 'tpLogoStatic', 'tpSweep', 'tpBgImageToggle'];
+    'tpLogoToggle', 'tpLogoStatic', 'tpSweep', 'tpBgImageToggle', 'tpProcessorLinesToggle'];
   _tpToggleIds.forEach(function(id) {
     var el = document.getElementById(id);
     if(el) el.addEventListener('change', function() { tpSaveState(); }, true);
   });
 
   var _tpSelectIds = ['tpColorBarsMode', 'tpCircleSpinMode', 'tpCircleRevMode',
-    'tpLogoMode', 'tpDisplaysWide', 'tpDisplaysHigh', 'tpSweepFps'];
+    'tpLogoMode', 'tpDisplaysWide', 'tpDisplaysHigh', 'tpSweepFps', 'tpProcessorCanvasSize'];
   _tpSelectIds.forEach(function(id) {
     var el = document.getElementById(id);
     if(el) el.addEventListener('focus', function() { tpSaveState(); });
@@ -955,6 +1010,11 @@ function renderTestPattern(forExport) {
   // 3. Display boundaries
   if(tpDisplaysWide > 1 || tpDisplaysHigh > 1) {
     drawTPDisplayBoundaries(ctx, totalW, totalH);
+  }
+
+  // 3.5 Processor canvas boundaries
+  if(tpProcessorLinesOn) {
+    drawTPProcessorLines(ctx, totalW, totalH);
   }
 
   // 4. Circles
@@ -1135,6 +1195,71 @@ function drawTPDisplayBoundaries(ctx, w, h) {
     ctx.lineTo(w, y);
     ctx.stroke();
   }
+}
+
+function drawTPProcessorLines(ctx, w, h) {
+  // Resolve canvas dimensions from preset
+  var cw = tpProcessorCanvasW;
+  var ch = tpProcessorCanvasH;
+  if(tpProcessorCanvasSize === '4K_UHD') { cw = 3840; ch = 2160; }
+  else if(tpProcessorCanvasSize === '4K_DCI') { cw = 4096; ch = 2160; }
+  else if(tpProcessorCanvasSize === 'HD') { cw = 1920; ch = 1080; }
+
+  // No lines needed if wall fits within one canvas
+  if(cw >= w && ch >= h) return;
+
+  // Line styling — solid, bright
+  // Compensate for preview scaling so line is always at least 2 visible pixels
+  var scale = ctx.canvas.width / w;
+  ctx.strokeStyle = tpProcessorLineColor;
+  ctx.lineWidth = Math.max(2, Math.ceil(2 / scale));
+  ctx.setLineDash([]);
+
+  // Vertical processor boundaries
+  if(cw < w) {
+    if(tpDisplaysWide > 1) {
+      // Multiple displays: snap to display boundaries
+      var displaysPerCanvasW = Math.max(1, Math.floor(cw / tpDisplayW));
+      for(var i = displaysPerCanvasW; i < tpDisplaysWide; i += displaysPerCanvasW) {
+        var x = i * tpDisplayW;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+    } else {
+      // Single display: draw at raw canvas pixel intervals
+      for(var x = cw; x < w; x += cw) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Horizontal processor boundaries
+  if(ch < h) {
+    if(tpDisplaysHigh > 1) {
+      var displaysPerCanvasH = Math.max(1, Math.floor(ch / tpDisplayH));
+      for(var j = displaysPerCanvasH; j < tpDisplaysHigh; j += displaysPerCanvasH) {
+        var y = j * tpDisplayH;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+    } else {
+      for(var y = ch; y < h; y += ch) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+    }
+  }
+
+  ctx.setLineDash([]);
 }
 
 function drawTPCircles(ctx, w, h) {

@@ -370,6 +370,48 @@
         </div>
       </div>
 
+      <div class="tp-section-header">
+        <span class="tp-section-title">Processor Lines</span>
+        <input type="color" id="tpProcessorLineColor" class="tp-color-input" value="#ff0000">
+      </div>
+
+      <div class="tp-sweep-header">
+        <div class="tp-toggle-row">
+          <span class="tp-label">Proc.</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpProcessorLinesToggle">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <select id="tpProcessorCanvasSize" class="tp-select tp-select-narrow">
+          <option value="4K_UHD" selected>4K UHD</option>
+          <option value="4K_DCI">4K DCI</option>
+          <option value="HD">HD</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+
+      <div id="tpProcessorCustomSize" class="tp-control-group" style="display: none;">
+        <label class="tp-label">Canvas size [px]:</label>
+        <div class="tp-row">
+          <div class="number-input-with-arrows tp-arrows">
+            <input type="number" id="tpProcessorCustomW" value="3840" min="1">
+            <div class="number-input-arrows">
+              <button type="button" onclick="adjustNumberInput('tpProcessorCustomW', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+              <button type="button" onclick="adjustNumberInput('tpProcessorCustomW', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+            </div>
+          </div>
+          <span class="tp-x-label">x</span>
+          <div class="number-input-with-arrows tp-arrows">
+            <input type="number" id="tpProcessorCustomH" value="2160" min="1">
+            <div class="number-input-arrows">
+              <button type="button" onclick="adjustNumberInput('tpProcessorCustomH', 1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_up</span></button>
+              <button type="button" onclick="adjustNumberInput('tpProcessorCustomH', -1)"><span class="material-symbols-outlined" style="font-size: 14px;">keyboard_arrow_down</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- Column 2: Text Options -->
@@ -2918,8 +2960,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.0';
-const APP_CHANGELOG = 'Move BG image controls to logo column in test pattern generator';
+const APP_VERSION = '2.10.1';
+const APP_CHANGELOG = 'Add processor canvas boundary lines with configurable canvas size and color';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -1,5 +1,5 @@
 {
-  "version": "2.10.0",
+  "version": "2.10.1",
   "updated": "2026-02-20",
-  "changelog": "Move BG image controls to logo column in test pattern generator"
+  "changelog": "Add processor canvas boundary lines with configurable canvas size and color"
 }

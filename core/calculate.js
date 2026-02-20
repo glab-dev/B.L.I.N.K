@@ -361,6 +361,9 @@ function recalculateScreenData(screenId) {
 function resetCalculator() {
   // Clear the current screen's stored data so it doesn't get restored
   if(typeof screens !== 'undefined' && typeof currentScreenId !== 'undefined' && screens[currentScreenId]) {
+    // Preserve canvas offsets — position is independent of panel configuration
+    const savedCanvasX = screens[currentScreenId].data.canvasX || 0;
+    const savedCanvasY = screens[currentScreenId].data.canvasY || 0;
     // Reset the screen data to defaults
     screens[currentScreenId].data = {
       panelsWide: '',
@@ -390,8 +393,8 @@ function resetCalculator() {
       use4WayBumpers: false,
       deletedPanels: new Set(),
       bumpers: [],
-      canvasX: 0,
-      canvasY: 0,
+      canvasX: savedCanvasX,
+      canvasY: savedCanvasY,
       addCB5HalfRow: false,
       wallToFloor: 5,
       distroToWall: 10,
@@ -545,9 +548,7 @@ function resetCalculator() {
   undoHistory = [];
   redoHistory = [];
   
-  // Reset canvas view state
-  canvasOffsetX = 0;
-  canvasOffsetY = 0;
+  // Reset canvas view state (preserve offsets — they're independent of panel config)
   canvasZoomLevel = 1.0;
   canvasPanX = 0;
   canvasPanY = 0;

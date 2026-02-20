@@ -1,5 +1,5 @@
 {
-  "version": "2.10.10",
+  "version": "2.10.11",
   "updated": "2026-02-20",
-  "changelog": "Extract modal sizing and scrollable body inline styles to CSS classes"
+  "changelog": "Extract toggle label and help text inline styles to CSS classes"
 }

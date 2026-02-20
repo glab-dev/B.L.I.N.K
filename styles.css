@@ -5641,3 +5641,24 @@ canvas:focus {
   padding: 16px;
 }
 
+/* Toggle label block variants */
+.toggle-label-block {
+  display: block;
+  margin-bottom: 4px;
+}
+.toggle-label-block-2 {
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* Help text variants */
+.help-text-highlight {
+  margin-bottom: 8px;
+  color: var(--primary);
+  font-weight: 700;
+}
+.help-text-muted {
+  font-size: 11px;
+  color: var(--muted-color);
+}
+

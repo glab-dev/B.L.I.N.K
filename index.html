@@ -759,7 +759,7 @@
           <button type="button" class="slider-toggle-btn help-tab-btn" data-tab="complex" onclick="switchHelpTab('complex')">Complex</button>
         </div>
         <div id="helpSimpleContent">
-          <p class="help-text" style="margin-bottom: 8px; color: var(--primary); font-weight: 700;">Streamlined interface with essential tools</p>
+          <p class="help-text help-text-highlight">Streamlined interface with essential tools</p>
           <ul class="help-list">
             <li>Panel selection — full built-in + custom panel library</li>
             <li>Dimensions — panels or target size with aspect ratio lock</li>
@@ -772,10 +772,10 @@
             <li>Multi-screen projects</li>
             <li>Custom panels &amp; processors</li>
           </ul>
-          <p class="help-text" style="font-size: 11px; color: var(--muted-color);">Tabs: Simple, Canvas</p>
+          <p class="help-text help-text-muted">Tabs: Simple, Canvas</p>
         </div>
         <div id="helpComplexContent" style="display: none;">
-          <p class="help-text" style="margin-bottom: 8px; color: var(--primary); font-weight: 700;">Full suite — everything in Simple, plus:</p>
+          <p class="help-text help-text-highlight">Full suite — everything in Simple, plus:</p>
           <ul class="help-list">
             <li>Full detailed specifications display</li>
             <li>Combined multi-screen view with aggregated specs</li>
@@ -787,7 +787,7 @@
             <li>Bumper bar management — auto + manual positioning</li>
             <li>Ground stack vs hanging configuration</li>
           </ul>
-          <p class="help-text" style="font-size: 11px; color: var(--muted-color);">Tabs: Complex | Combined, Cable, Canvas</p>
+          <p class="help-text help-text-muted">Tabs: Complex | Combined, Cable, Canvas</p>
         </div>
 
         <h3 class="help-section-title">Screen Tabs</h3>
@@ -1996,7 +1996,7 @@
           <!-- Row 1: Power Basis and Phase toggles -->
           <div class="compact-row" style="margin-bottom: 12px;">
             <div style="flex: 0 0 auto;">
-              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Power Basis</span>
+              <span class="toggle-label toggle-label-block">Power Basis</span>
               <div class="slider-toggle">
                 <button type="button" class="slider-toggle-btn active" id="powerMaxBtn" onclick="setPowerType('max')">Max</button>
                 <button type="button" class="slider-toggle-btn" id="powerAvgBtn" onclick="setPowerType('avg')">Avg</button>
@@ -2007,7 +2007,7 @@
               </select>
             </div>
             <div style="flex: 0 0 auto;">
-              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Phase</span>
+              <span class="toggle-label toggle-label-block">Phase</span>
               <div class="slider-toggle">
                 <button type="button" class="slider-toggle-btn active" id="phase3Btn" onclick="setPhase(3)">3Ø</button>
                 <button type="button" class="slider-toggle-btn" id="phase1Btn" onclick="setPhase(1)">1Ø</button>
@@ -2022,7 +2022,7 @@
           <!-- Row 2: Voltage, Breaker, Max/Circuit -->
           <div class="compact-row">
             <div style="flex: 0 0 auto;">
-              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Voltage</span>
+              <span class="toggle-label toggle-label-block">Voltage</span>
               <div class="number-input-with-arrows">
                 <input type="number" id="voltage" value="208">
                 <div class="number-input-arrows">
@@ -2036,7 +2036,7 @@
               </div>
             </div>
             <div style="flex: 0 0 auto;">
-              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Breaker</span>
+              <span class="toggle-label toggle-label-block">Breaker</span>
               <div class="number-input-with-arrows">
                 <input type="number" id="breaker" value="20">
                 <div class="number-input-arrows">
@@ -2050,7 +2050,7 @@
               </div>
             </div>
             <div style="flex: 0 0 auto;">
-              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Max/Circuit</span>
+              <span class="toggle-label toggle-label-block">Max/Circuit</span>
               <div class="number-input-with-arrows">
                 <input type="number" id="maxPanelsPerCircuit" min="1" step="1" placeholder="21">
                 <div class="number-input-arrows">
@@ -2116,7 +2116,7 @@
               </select>
             </div>
             <div style="flex: 1; min-width: 0;">
-              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Max/Data</span>
+              <span class="toggle-label toggle-label-block">Max/Data</span>
               <div class="number-input-with-arrows" style="width: 100%;">
                 <input type="number" id="maxPanelsPerData" min="1" step="1" placeholder="Auto">
                 <div class="number-input-arrows">
@@ -2346,7 +2346,7 @@
           </label>
         </div>
         <div style="margin-top: 2px;">
-          <span class="toggle-label" style="display: block; margin-bottom: 2px;">Cable Drop</span>
+          <span class="toggle-label toggle-label-block-2">Cable Drop</span>
           <div class="slider-toggle">
             <button type="button" class="slider-toggle-btn active" id="cableDropBehindBtn" onclick="setCableDropPosition('behind')">Behind</button>
             <button type="button" class="slider-toggle-btn" id="cableDropSRBtn" onclick="setCableDropPosition('sr')">SR</button>
@@ -2363,7 +2363,7 @@
           <input type="number" id="distroToWall" min="0" step="0.1" placeholder="10">
         </label>
         <div style="margin-top: 2px;">
-          <span class="toggle-label" style="display: block; margin-bottom: 2px;">Power In</span>
+          <span class="toggle-label toggle-label-block-2">Power In</span>
           <div class="slider-toggle">
             <button type="button" class="slider-toggle-btn active" id="powerInTopBtn" onclick="setPowerInPosition('top')">Top</button>
             <button type="button" class="slider-toggle-btn" id="powerInBottomBtn" onclick="setPowerInPosition('bottom')">Bottom</button>
@@ -2394,7 +2394,7 @@
           <div style="margin-top: 2px; border-top: 1px solid #333; padding-top: 2px; padding-left: 6px; border-left: 1px solid #333; min-width: 0;">
             <div id="distBoxPositionControls" style="display: none;">
               <!-- Main -->
-              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Main</span>
+              <span class="toggle-label toggle-label-block">Main</span>
               <div style="display: flex; gap: 4px; margin-bottom: 4px;">
                 <div class="slider-toggle">
                   <button type="button" class="slider-toggle-btn" id="distBoxMainHorizSRBtn" onclick="setDistBoxMainHorizPosition('sr')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SR</button>
@@ -2407,7 +2407,7 @@
                 </div>
               </div>
               <!-- Backup -->
-              <span class="toggle-label" style="display: block; margin-bottom: 4px;">Backup</span>
+              <span class="toggle-label toggle-label-block">Backup</span>
               <div style="display: flex; gap: 4px;">
                 <div class="slider-toggle">
                   <button type="button" class="slider-toggle-btn" id="distBoxBackupHorizSRBtn" onclick="setDistBoxBackupHorizPosition('sr')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SR</button>
@@ -2538,7 +2538,7 @@
             </label>
           </div>
           <div style="margin-top: 2px;">
-            <span class="toggle-label" style="display: block; margin-bottom: 2px;">Cable Drop</span>
+            <span class="toggle-label toggle-label-block-2">Cable Drop</span>
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="combinedCableDropBehindBtn" onclick="setCombinedCableDropPosition('behind')">Behind</button>
               <button type="button" class="slider-toggle-btn" id="combinedCableDropSrBtn" onclick="setCombinedCableDropPosition('sr')">SR</button>
@@ -2555,7 +2555,7 @@
             <input type="number" id="combinedCablingDistroToWall" min="0" step="0.1" value="10" oninput="updateCombinedCablingFromInputs()">
           </label>
           <div style="margin-top: 2px;">
-            <span class="toggle-label" style="display: block; margin-bottom: 2px;">Power In</span>
+            <span class="toggle-label toggle-label-block-2">Power In</span>
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="combinedPowerInTopBtn" onclick="setCombinedPowerInPosition('top')">Top</button>
               <button type="button" class="slider-toggle-btn" id="combinedPowerInBottomBtn" onclick="setCombinedPowerInPosition('bottom')">Bottom</button>
@@ -2586,7 +2586,7 @@
             <div style="margin-top: 2px; border-top: 1px solid #333; padding-top: 2px; padding-left: 6px; border-left: 1px solid #333; min-width: 0;">
               <div id="combinedDistBoxPositionControls" style="display: none;">
                 <!-- Main -->
-                <span class="toggle-label" style="display: block; margin-bottom: 4px;">Main</span>
+                <span class="toggle-label toggle-label-block">Main</span>
                 <div style="display: flex; gap: 4px; margin-bottom: 4px;">
                   <div class="slider-toggle">
                     <button type="button" class="slider-toggle-btn" id="combinedDistBoxMainHorizSRBtn" onclick="setCombinedDistBoxMainHorizPosition('sr')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SR</button>
@@ -2599,7 +2599,7 @@
                   </div>
                 </div>
                 <!-- Backup -->
-                <span class="toggle-label" style="display: block; margin-bottom: 4px;">Backup</span>
+                <span class="toggle-label toggle-label-block">Backup</span>
                 <div style="display: flex; gap: 4px;">
                   <div class="slider-toggle">
                     <button type="button" class="slider-toggle-btn" id="combinedDistBoxBackupHorizSRBtn" onclick="setCombinedDistBoxBackupHorizPosition('sr')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SR</button>
@@ -2632,14 +2632,14 @@
     <div class="layout-content" id="combinedSpecsLayoutContent">
       <div id="combinedSpecsToggles" class="compact-row" style="display: none; margin-bottom: 12px;">
         <div style="flex: 0 0 auto;">
-          <span class="toggle-label" style="display: block; margin-bottom: 4px;">Power Basis</span>
+          <span class="toggle-label toggle-label-block">Power Basis</span>
           <div class="slider-toggle">
             <button type="button" class="slider-toggle-btn active" id="combinedPowerMaxBtn" onclick="setCombinedPowerType('max')">Max</button>
             <button type="button" class="slider-toggle-btn" id="combinedPowerAvgBtn" onclick="setCombinedPowerType('avg')">Avg</button>
           </div>
         </div>
         <div style="flex: 0 0 auto;">
-          <span class="toggle-label" style="display: block; margin-bottom: 4px;">Phase</span>
+          <span class="toggle-label toggle-label-block">Phase</span>
           <div class="slider-toggle">
             <button type="button" class="slider-toggle-btn active" id="combinedPhase3Btn" onclick="setCombinedPhase(3)">3Ø</button>
             <button type="button" class="slider-toggle-btn" id="combinedPhase1Btn" onclick="setCombinedPhase(1)">1Ø</button>
@@ -2727,7 +2727,7 @@
         <!-- Row 2: X Pos, Y Pos, Snap, Fine -->
         <div style="display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px;">
           <div style="flex: 1;">
-            <span class="toggle-label" style="display: block; margin-bottom: 4px;">X Pos</span>
+            <span class="toggle-label toggle-label-block">X Pos</span>
             <div class="number-input-with-arrows">
               <input type="number" id="canvasX" value="0" min="0">
               <div class="number-input-arrows">
@@ -2741,7 +2741,7 @@
             </div>
           </div>
           <div style="flex: 1;">
-            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Y Pos</span>
+            <span class="toggle-label toggle-label-block">Y Pos</span>
             <div class="number-input-with-arrows">
               <input type="number" id="canvasY" value="0" min="0">
               <div class="number-input-arrows">
@@ -2759,7 +2759,7 @@
             <button type="button" class="toggle-btn active" id="snapModeBtn" onclick="toggleSnapMode()" style="width: 100%; padding: 10px 8px; min-height: 48px; box-sizing: border-box; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Snap</button>
           </div>
           <div style="flex: 1;">
-            <span class="toggle-label" style="display: block; margin-bottom: 4px;">Fine(px)</span>
+            <span class="toggle-label toggle-label-block">Fine(px)</span>
             <div class="number-input-with-arrows">
               <input type="number" id="arrowKeyIncrement" value="10" min="1" max="100">
               <div class="number-input-arrows">
@@ -2994,8 +2994,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.10';
-const APP_CHANGELOG = 'Extract modal sizing and scrollable body inline styles to CSS classes';
+const APP_VERSION = '2.10.11';
+const APP_CHANGELOG = 'Extract toggle label and help text inline styles to CSS classes';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

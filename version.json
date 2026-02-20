@@ -1,5 +1,5 @@
 {
-  "version": "2.10.12",
+  "version": "2.10.13",
   "updated": "2026-02-20",
-  "changelog": "Extract slider toggle button variant inline styles to CSS classes"
+  "changelog": "Extract margin-bottom inline styles to CSS utility classes"
 }

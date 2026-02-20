@@ -754,7 +754,7 @@
         </ol>
 
         <h3 class="help-section-title">Mode Features</h3>
-        <div class="slider-toggle" style="margin-bottom: 12px;">
+        <div class="slider-toggle mb-12">
           <button type="button" class="slider-toggle-btn help-tab-btn active" data-tab="simple" onclick="switchHelpTab('simple')">Simple</button>
           <button type="button" class="slider-toggle-btn help-tab-btn" data-tab="complex" onclick="switchHelpTab('complex')">Complex</button>
         </div>
@@ -1108,7 +1108,7 @@
     </div>
     <div class="modal-body">
       <!-- Tab Navigation -->
-      <div class="slider-toggle" style="margin-bottom: 12px;">
+      <div class="slider-toggle mb-12">
         <button type="button" class="slider-toggle-btn active" id="cpTabSpecsBtn" onclick="switchCustomPanelTab('specs')">Specs</button>
         <button type="button" class="slider-toggle-btn" id="cpTabCablesBtn" onclick="switchCustomPanelTab('cables')">Cables</button>
         <button type="button" class="slider-toggle-btn" id="cpTabStructureBtn" onclick="switchCustomPanelTab('structure')">Structure</button>
@@ -1548,7 +1548,7 @@
     <div class="modal-header" style="margin-bottom: 10px; padding-bottom: 8px;">
       <h2 class="modal-title">Install B.L.I.N.K.</h2>
     </div>
-    <div class="modal-body" style="margin-bottom: 14px;">
+    <div class="modal-body mb-14">
       <img src="icons/icon-192.png" alt="B.L.I.N.K." style="width: 80px; height: 80px; border-radius: 12px; margin-bottom: 12px; border: 2px solid #10b981;">
       <p style="color: #e0e0e0; font-size: 13px; line-height: 1.5; margin: 0;">Install for offline use and a native app experience. Works without internet after first load.</p>
     </div>
@@ -1565,7 +1565,7 @@
     <div class="modal-header" style="margin-bottom: 8px; padding-bottom: 6px;">
       <h2 class="modal-title" id="customAlertTitle">Notice</h2>
     </div>
-    <div class="modal-body" style="margin-bottom: 10px;">
+    <div class="modal-body mb-10">
       <p id="customAlertMessage" style="color: #e0e0e0; font-size: 13px; line-height: 1.5; margin: 0;"></p>
       <input type="text" id="customAlertInput" style="display: none; width: 100%; margin-top: 8px; box-sizing: border-box;" onkeydown="if(event.key==='Enter'){event.preventDefault();closeCustomAlert(true);}">
     </div>
@@ -1644,7 +1644,7 @@
       <button class="modal-close" onclick="closeManageCustomModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <div class="slider-toggle" style="margin-bottom: 12px;">
+      <div class="slider-toggle mb-12">
         <button type="button" class="slider-toggle-btn slider-toggle-btn-tab active" id="manageTabPanelsBtn" onclick="switchManageTab('panels')">Panels</button>
         <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="manageTabProcessorsBtn" onclick="switchManageTab('processors')">Processors</button>
         <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="manageTabCommunityBtn" onclick="switchManageTab('community')">Community</button>
@@ -1667,7 +1667,7 @@
       <button class="modal-close" onclick="closeCommunityBrowserModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <div class="slider-toggle" style="margin-bottom: 12px;">
+      <div class="slider-toggle mb-12">
         <button type="button" class="slider-toggle-btn slider-toggle-btn-tab active" id="communityTabPanelsBtn" onclick="switchCommunityTab('panels')">Panels</button>
         <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="communityTabProcessorsBtn" onclick="switchCommunityTab('processors')">Processors</button>
       </div>
@@ -1773,7 +1773,7 @@
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Configuration</div>
-        <input type="text" id="configName" placeholder="Config name..." style="margin-bottom: 12px;">
+        <input type="text" id="configName" placeholder="Config name..." class="mb-12">
         <div class="mobile-menu-btn-row">
           <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save</button>
           <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load</button>
@@ -1939,7 +1939,7 @@
           </div>
 
           <!-- Aspect Ratio Lock -->
-          <div style="margin-bottom: 12px;">
+          <div class="mb-12">
             <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Aspect Ratio Lock <span id="arHint" style="color: #10b981; font-style: italic; display: none;">(input width for auto height)</span></span>
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="arNoneBtn" onclick="setAspectRatio('none')">None</button>
@@ -1994,7 +1994,7 @@
           <div class="section-title">Power</div>
 
           <!-- Row 1: Power Basis and Phase toggles -->
-          <div class="compact-row" style="margin-bottom: 12px;">
+          <div class="compact-row mb-12">
             <div style="flex: 0 0 auto;">
               <span class="toggle-label toggle-label-block">Power Basis</span>
               <div class="slider-toggle">
@@ -2071,7 +2071,7 @@
           <div class="section-title">Data</div>
 
           <!-- Row 1: Processor -->
-          <div style="margin-bottom: 8px;">
+          <div class="mb-8">
             <label style="margin-bottom: 0;">
               <span>Processor</span>
               <select id="processor" style="width: 100%;">
@@ -2132,7 +2132,7 @@
           </div>
 
           <!-- Row 3: Data Direction (complex mode only) -->
-          <div id="dataDirectionRow" style="margin-bottom: 8px;">
+          <div id="dataDirectionRow" class="mb-8">
             <label style="margin-bottom: 0;">
               <span>Data Direction</span>
               <select id="dataStartDir" style="width: 100%;">
@@ -2164,7 +2164,7 @@
         <div class="section-box" id="structureSection">
           <div class="section-title">Structure</div>
 
-          <div style="margin-bottom: 8px;">
+          <div class="mb-8">
             <label style="display: block; margin-bottom: 8px;">
               <span>Config Type</span>
               <select id="structureType" style="width: 100%; max-width: 180px;">
@@ -2328,7 +2328,7 @@
   </div>
 
   <!-- Cabling Section -->
-  <div class="section-box" id="cablingSection" style="margin-bottom: 16px;">
+  <div class="section-box mb-16" id="cablingSection">
     <div class="section-title">Cabling</div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;" class="cabling-grid">
@@ -2336,11 +2336,11 @@
       <div>
         <div style="font-family: 'Roboto Condensed', sans-serif; color: var(--primary); font-size: 13px; letter-spacing: 1px; margin-bottom: 2px; border-bottom: 1px solid #333; padding-bottom: 2px;">General</div>
         <div style="display: grid; grid-template-columns: auto auto; gap: 4px 8px;">
-          <label style="margin-bottom: 2px;">
+          <label class="mb-2">
             <span>Wall to Floor</span>
             <input type="number" id="wallToFloor" min="0" step="0.1" placeholder="5">
           </label>
-          <label style="margin-bottom: 2px;">
+          <label class="mb-2">
             <span>Cable Pick</span>
             <input type="number" id="cablePick" min="0" step="0.1" placeholder="0">
           </label>
@@ -2358,7 +2358,7 @@
       <!-- Column 2: Power -->
       <div>
         <div style="font-family: 'Roboto Condensed', sans-serif; color: #FF6B35; font-size: 13px; letter-spacing: 1px; margin-bottom: 2px; border-bottom: 1px solid #333; padding-bottom: 2px;">Power</div>
-        <label style="margin-bottom: 2px;">
+        <label class="mb-2">
           <span>Distro to Drop</span>
           <input type="number" id="distroToWall" min="0" step="0.1" placeholder="10">
         </label>
@@ -2382,11 +2382,11 @@
             </label>
           </div>
           <div style="margin-top: 2px; border-top: 1px solid #333; padding-top: 2px;">
-            <label style="margin-bottom: 4px;">
+            <label class="mb-4">
               <span>Proc to Drop</span>
               <input type="number" id="processorToWall" min="0" step="0.1" placeholder="15">
             </label>
-            <label style="margin-bottom: 2px;">
+            <label class="mb-2">
               <span>Server to Proc</span>
               <input type="number" id="serverToProcessor" min="0" step="0.1" placeholder="50">
             </label>
@@ -2450,7 +2450,7 @@
   <!-- Combined Layouts Container -->
   <div id="combinedLayoutsWrapper" style="overflow-x: auto; margin-bottom: 20px; padding-right: 5px; padding-bottom: 5px;">
     <!-- Standard Layout -->
-    <div class="layout-container" id="combinedStandardContainer" style="margin-bottom: 20px;">
+    <div class="layout-container mb-20" id="combinedStandardContainer">
       <div class="layout-title">
         <span>Standard Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedStandardContainer')" id="combinedStandardCollapseBtn" title="Minimize">▼</button></span>
       </div>
@@ -2480,7 +2480,7 @@
     </div>
 
     <!-- Power Layout -->
-    <div class="layout-container" id="combinedPowerContainer" style="margin-bottom: 20px;">
+    <div class="layout-container mb-20" id="combinedPowerContainer">
       <div class="layout-title">
         <span>Power Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedPowerContainer')" id="combinedPowerCollapseBtn" title="Minimize">▼</button></span>
       </div>
@@ -2492,7 +2492,7 @@
     </div>
 
     <!-- Data Layout -->
-    <div class="layout-container" id="combinedDataContainer" style="margin-bottom: 20px;">
+    <div class="layout-container mb-20" id="combinedDataContainer">
       <div class="layout-title">
         <span>Data Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedDataContainer')" id="combinedDataCollapseBtn" title="Minimize">▼</button></span>
       </div>
@@ -2504,7 +2504,7 @@
     </div>
 
     <!-- Structure Layout -->
-    <div class="layout-container" id="combinedStructureContainer" style="margin-bottom: 20px;">
+    <div class="layout-container mb-20" id="combinedStructureContainer">
       <div class="layout-title">
         <span>Structure Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedStructureContainer')" id="combinedStructureCollapseBtn" title="Minimize">▼</button></span>
       </div>
@@ -2517,7 +2517,7 @@
   </div>
 
   <!-- Cabling Layout -->
-  <div class="layout-container" id="combinedCablingContainer" style="margin-bottom: 20px;">
+  <div class="layout-container mb-20" id="combinedCablingContainer">
     <div class="layout-title">
       <span>Cabling Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedCablingContainer')" id="combinedCablingCollapseBtn" title="Minimize">▼</button></span>
     </div>
@@ -2528,11 +2528,11 @@
         <div>
           <div style="font-family: 'Roboto Condensed', sans-serif; color: var(--primary); font-size: 13px; letter-spacing: 1px; margin-bottom: 2px; border-bottom: 1px solid #333; padding-bottom: 2px;">General</div>
           <div style="display: grid; grid-template-columns: auto auto; gap: 4px 8px;">
-            <label style="margin-bottom: 2px;">
+            <label class="mb-2">
               <span>Wall to Floor</span>
               <input type="number" id="combinedCablingWallToFloor" min="0" step="0.1" value="5" oninput="updateCombinedCablingFromInputs()">
             </label>
-            <label style="margin-bottom: 2px;">
+            <label class="mb-2">
               <span>Cable Pick</span>
               <input type="number" id="combinedCablingCablePick" min="0" step="0.1" value="0" oninput="updateCombinedCablingFromInputs()">
             </label>
@@ -2550,7 +2550,7 @@
         <!-- Column 2: Power -->
         <div>
           <div style="font-family: 'Roboto Condensed', sans-serif; color: #FF6B35; font-size: 13px; letter-spacing: 1px; margin-bottom: 2px; border-bottom: 1px solid #333; padding-bottom: 2px;">Power</div>
-          <label style="margin-bottom: 2px;">
+          <label class="mb-2">
             <span>Distro to Drop</span>
             <input type="number" id="combinedCablingDistroToWall" min="0" step="0.1" value="10" oninput="updateCombinedCablingFromInputs()">
           </label>
@@ -2574,11 +2574,11 @@
               </label>
             </div>
             <div style="margin-top: 2px; border-top: 1px solid #333; padding-top: 2px;">
-              <label style="margin-bottom: 4px;">
+              <label class="mb-4">
                 <span>Proc to Drop</span>
                 <input type="number" id="combinedCablingProcessorToWall" min="0" step="0.1" value="15" oninput="updateCombinedCablingFromInputs()">
               </label>
-              <label style="margin-bottom: 2px;">
+              <label class="mb-2">
                 <span>Server to Proc</span>
                 <input type="number" id="combinedCablingServerToProc" min="0" step="0.1" value="50" oninput="updateCombinedCablingFromInputs()">
               </label>
@@ -2625,7 +2625,7 @@
   </div>
 
   <!-- Combined Specs -->
-  <div class="layout-container" id="combinedSpecsContainer" style="margin-bottom: 20px;">
+  <div class="layout-container mb-20" id="combinedSpecsContainer">
     <div class="layout-title">
       <span>Combined Specifications<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedSpecsContainer')" id="combinedSpecsCollapseBtn" title="Minimize">▼</button></span>
     </div>
@@ -2651,7 +2651,7 @@
   </div>
 
   <!-- Combined Gear List -->
-  <div class="layout-container" id="combinedGearListContainer" style="margin-bottom: 20px;">
+  <div class="layout-container mb-20" id="combinedGearListContainer">
     <div class="layout-title">
       <span>Gear List<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedGearListContainer')" id="combinedGearListCollapseBtn" title="Minimize">▼</button></span>
     </div>
@@ -2701,7 +2701,7 @@
       <div class="section-title">Canvas Options</div>
       <div class="section-content">
         <!-- Row 1: Canvas Size -->
-        <label style="margin-bottom: 8px;">
+        <label class="mb-8">
           <span>Canvas Size</span>
           <select id="canvasSize">
             <option value="4K_UHD" selected="">4K UHD (3840x2160)</option>
@@ -2775,7 +2775,7 @@
         </div>
 
         <!-- Row 3: Filename -->
-        <div style="margin-bottom: 8px;">
+        <div class="mb-8">
           <input type="text" id="canvasExportFilename" placeholder="Filename..." style="width: 100%; padding: 10px; font-size: 13px; background: #2a2a2a; color: #fff; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); min-height: 48px; box-sizing: border-box;">
         </div>
 
@@ -2899,19 +2899,19 @@
         <p style="color: #888; font-size: 12px; margin-bottom: 16px;">
           Enter pixel dimensions for raster mapping. Full panel specs can be added later in Complex mode.
         </p>
-        <label style="margin-bottom: 12px;">
+        <label class="mb-12">
           <span>Brand</span>
           <input type="text" id="rasterCpBrand" placeholder="e.g., ROE Visual">
         </label>
-        <label style="margin-bottom: 12px;">
+        <label class="mb-12">
           <span>Model Name</span>
           <input type="text" id="rasterCpModel" placeholder="e.g., Black Pearl BP2">
         </label>
-        <label style="margin-bottom: 12px;">
+        <label class="mb-12">
           <span>Pixels Wide (res_x)</span>
           <input type="number" id="rasterCpResX" placeholder="e.g., 176" min="1">
         </label>
-        <label style="margin-bottom: 12px;">
+        <label class="mb-12">
           <span>Pixels High (res_y)</span>
           <input type="number" id="rasterCpResY" placeholder="e.g., 176" min="1">
         </label>
@@ -2994,8 +2994,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.12';
-const APP_CHANGELOG = 'Extract slider toggle button variant inline styles to CSS classes';
+const APP_VERSION = '2.10.13';
+const APP_CHANGELOG = 'Extract margin-bottom inline styles to CSS utility classes';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

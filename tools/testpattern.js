@@ -66,6 +66,10 @@ var tpCheckerColor1 = '#000000';
 var tpCheckerColor2 = '#1a1a1a';
 var _tpInitialized = false;
 var _tpForceShare = false;
+var _tpLiveOutWindow = null;
+var _tpLiveOutWindows = [];
+var _tpLiveOutMode = null;
+var _tpLiveOutOffscreen = null;
 var _tpUndoStack = [];
 var _tpRedoStack = [];
 var _tpMaxHistory = 30;
@@ -445,6 +449,213 @@ function tpLoadPatternFile(event) {
   reader.readAsText(file);
 }
 
+// --- Live Out ---
+
+var _tpLiveOutWindowHTML =
+  '<!DOCTYPE html><html><head><title>TITLE_PLACEHOLDER</title>' +
+  '<style>' +
+  '*{margin:0;padding:0;box-sizing:border-box}' +
+  'html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none}' +
+  'body.show-cursor{cursor:default}' +
+  'canvas{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:100vw;max-height:100vh}' +
+  '</style></head>' +
+  '<body class="show-cursor"><canvas id="liveCanvas"></canvas></body></html>';
+
+function _tpSetupLiveOutWindow(w) {
+  // Cursor auto-hide (2s inactivity)
+  var cursorTimer = null;
+  w.document.addEventListener('mousemove', function() {
+    w.document.body.classList.add('show-cursor');
+    if(cursorTimer) clearTimeout(cursorTimer);
+    cursorTimer = setTimeout(function() {
+      if(!w.closed) w.document.body.classList.remove('show-cursor');
+    }, 2000);
+  });
+
+  // Fullscreen toggle: F key or double-click
+  w.document.addEventListener('keydown', function(e) {
+    if(e.key === 'f' || e.key === 'F') {
+      if(w.document.fullscreenElement) {
+        w.document.exitFullscreen();
+      } else {
+        w.document.documentElement.requestFullscreen().catch(function() {});
+      }
+    }
+  });
+
+  w.document.addEventListener('dblclick', function() {
+    if(w.document.fullscreenElement) {
+      w.document.exitFullscreen();
+    } else {
+      w.document.documentElement.requestFullscreen().catch(function() {});
+    }
+  });
+}
+
+function _tpCopyToLiveOut() {
+  if(_tpLiveOutMode === 'full') {
+    if(!_tpLiveOutWindow || _tpLiveOutWindow.closed) {
+      if(_tpLiveOutWindow) _tpCleanupLiveOut();
+      return;
+    }
+    var dst;
+    try { dst = _tpLiveOutWindow.document.getElementById('liveCanvas'); } catch(e) { return; }
+    if(!dst) return;
+    renderTestPattern(true, dst);
+  } else if(_tpLiveOutMode === 'split') {
+    if(_tpLiveOutWindows.length === 0) return;
+    // Render full pattern once to offscreen canvas
+    if(!_tpLiveOutOffscreen) _tpLiveOutOffscreen = document.createElement('canvas');
+    renderTestPattern(true, _tpLiveOutOffscreen);
+    // Crop each display's region to its window
+    for(var i = _tpLiveOutWindows.length - 1; i >= 0; i--) {
+      var entry = _tpLiveOutWindows[i];
+      if(entry.win.closed) { _tpLiveOutWindows.splice(i, 1); continue; }
+      var eDst;
+      try { eDst = entry.win.document.getElementById('liveCanvas'); } catch(e) { continue; }
+      if(!eDst) continue;
+      // Resize if display dimensions changed
+      if(eDst.width !== tpDisplayW || eDst.height !== tpDisplayH) {
+        eDst.width = tpDisplayW;
+        eDst.height = tpDisplayH;
+      }
+      var dstCtx = eDst.getContext('2d');
+      var srcX = entry.col * tpDisplayW;
+      var srcY = entry.row * tpDisplayH;
+      dstCtx.drawImage(_tpLiveOutOffscreen,
+        srcX, srcY, tpDisplayW, tpDisplayH,
+        0, 0, tpDisplayW, tpDisplayH);
+    }
+    if(_tpLiveOutWindows.length === 0) _tpCleanupLiveOut();
+  }
+}
+
+function _tpCleanupLiveOut() {
+  // Close single window
+  if(_tpLiveOutWindow && !_tpLiveOutWindow.closed) {
+    _tpLiveOutWindow.close();
+  }
+  _tpLiveOutWindow = null;
+  // Close all split windows
+  for(var i = 0; i < _tpLiveOutWindows.length; i++) {
+    if(_tpLiveOutWindows[i].win && !_tpLiveOutWindows[i].win.closed) {
+      _tpLiveOutWindows[i].win.close();
+    }
+  }
+  _tpLiveOutWindows = [];
+  _tpLiveOutMode = null;
+  _tpLiveOutOffscreen = null;
+  var btn = document.getElementById('tpLiveOutBtn');
+  if(btn) btn.classList.remove('tp-liveout-active');
+  var popup = document.getElementById('tpLiveOutPopup');
+  if(popup) popup.classList.remove('open');
+}
+
+function _tpOpenFullOutput() {
+  var w = window.open('', 'blink_live_out', 'width=960,height=540');
+  if(!w) {
+    showAlert('Your browser blocked the popup.\n\nChrome: Click the blocked popup icon in the address bar, or go to Settings \u2192 Privacy \u2192 Site Settings \u2192 Pop-ups \u2192 Allow this site.\n\nSafari: Preferences \u2192 Websites \u2192 Pop-up Windows \u2192 Allow.\n\nThis is a one-time setting.', 'Popup Blocked');
+    return;
+  }
+
+  _tpLiveOutWindow = w;
+  _tpLiveOutMode = 'full';
+
+  w.document.open();
+  w.document.write(_tpLiveOutWindowHTML.replace('TITLE_PLACEHOLDER', 'B.L.I.N.K. \u2014 Live Output'));
+  w.document.close();
+
+  var totalW = tpDisplayW * tpDisplaysWide;
+  var totalH = tpDisplayH * tpDisplaysHigh;
+  var liveCanvas = w.document.getElementById('liveCanvas');
+  if(liveCanvas) {
+    liveCanvas.width = totalW;
+    liveCanvas.height = totalH;
+  }
+
+  _tpSetupLiveOutWindow(w);
+
+  w.addEventListener('beforeunload', function() {
+    _tpLiveOutWindow = null;
+    _tpLiveOutMode = null;
+    var btn = document.getElementById('tpLiveOutBtn');
+    if(btn) btn.classList.remove('tp-liveout-active');
+  });
+
+  var btn = document.getElementById('tpLiveOutBtn');
+  if(btn) btn.classList.add('tp-liveout-active');
+
+  _tpCopyToLiveOut();
+  if(!_tpAnimId) scheduleTestPatternRedraw();
+}
+
+function _tpOpenSplitOutputs() {
+  _tpLiveOutWindows = [];
+  _tpLiveOutMode = 'split';
+  _tpLiveOutOffscreen = document.createElement('canvas');
+  var blocked = false;
+
+  for(var row = 0; row < tpDisplaysHigh; row++) {
+    for(var col = 0; col < tpDisplaysWide; col++) {
+      var name = 'blink_out_' + col + '_' + row;
+      var title = 'B.L.I.N.K. \u2014 Output ' + (col + 1) + ',' + (row + 1);
+      var w = window.open('', name, 'width=960,height=540');
+      if(!w) { blocked = true; continue; }
+
+      w.document.open();
+      w.document.write(_tpLiveOutWindowHTML.replace('TITLE_PLACEHOLDER', title));
+      w.document.close();
+
+      var liveCanvas = w.document.getElementById('liveCanvas');
+      if(liveCanvas) {
+        liveCanvas.width = tpDisplayW;
+        liveCanvas.height = tpDisplayH;
+      }
+
+      _tpSetupLiveOutWindow(w);
+      _tpLiveOutWindows.push({ win: w, col: col, row: row });
+    }
+  }
+
+  if(blocked) {
+    showAlert('Your browser blocked some output windows.\n\nChrome: Click the blocked popup icon in the address bar, or go to Settings \u2192 Privacy \u2192 Site Settings \u2192 Pop-ups \u2192 Allow this site.\n\nSafari: Preferences \u2192 Websites \u2192 Pop-up Windows \u2192 Allow.\n\nThis is a one-time setting. After allowing, click Live Out again.', 'Popups Blocked');
+  }
+
+  if(_tpLiveOutWindows.length === 0) {
+    _tpCleanupLiveOut();
+    return;
+  }
+
+  var btn = document.getElementById('tpLiveOutBtn');
+  if(btn) btn.classList.add('tp-liveout-active');
+
+  _tpCopyToLiveOut();
+  if(!_tpAnimId) scheduleTestPatternRedraw();
+}
+
+function toggleLiveOut() {
+  // If any live out is active, close everything
+  if(_tpLiveOutMode) {
+    _tpCleanupLiveOut();
+    return;
+  }
+
+  // Single display: open full output directly
+  if(tpDisplaysWide * tpDisplaysHigh <= 1) {
+    _tpOpenFullOutput();
+    return;
+  }
+
+  // Multiple displays: show popup menu
+  var popup = document.getElementById('tpLiveOutPopup');
+  if(popup) {
+    // Update split label with current grid size
+    var splitBtn = document.getElementById('tpLiveOutSplit');
+    if(splitBtn) splitBtn.textContent = 'Split Outputs (' + tpDisplaysWide + '\u00d7' + tpDisplaysHigh + ')';
+    popup.classList.toggle('open');
+  }
+}
+
 // --- Entry / Exit ---
 
 function enterTestPatternMode() {
@@ -472,6 +683,7 @@ function enterTestPatternMode() {
 }
 
 function exitTestPatternMode() {
+  _tpCleanupLiveOut();
   _tpStopAnimation();
   var tpPage = document.getElementById('testPatternPage');
   if(tpPage) tpPage.style.display = 'none';
@@ -675,6 +887,30 @@ function initTestPatternControls() {
   _tpInitialized = true;
 
   // Toolbar save/load buttons — same as hamburger menu file save/load
+  var liveOutBtn = document.getElementById('tpLiveOutBtn');
+  var liveOutPopup = document.getElementById('tpLiveOutPopup');
+
+  liveOutBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    toggleLiveOut();
+  });
+
+  document.getElementById('tpLiveOutFull').addEventListener('click', function() {
+    liveOutPopup.classList.remove('open');
+    _tpOpenFullOutput();
+  });
+
+  document.getElementById('tpLiveOutSplit').addEventListener('click', function() {
+    liveOutPopup.classList.remove('open');
+    _tpOpenSplitOutputs();
+  });
+
+  document.addEventListener('click', function(e) {
+    if(liveOutPopup && !liveOutPopup.contains(e.target) && e.target !== liveOutBtn && !liveOutBtn.contains(e.target)) {
+      liveOutPopup.classList.remove('open');
+    }
+  });
+
   document.getElementById('tpQuickSaveBtn').addEventListener('click', function() {
     tpSavePatternFile();
   });
@@ -1283,6 +1519,7 @@ function scheduleTestPatternRedraw() {
   _tpRafId = requestAnimationFrame(function() {
     _tpRafId = null;
     renderTestPattern();
+    _tpCopyToLiveOut();
   });
 }
 
@@ -1297,8 +1534,8 @@ function scheduleDimensionRedraw() {
 
 // --- Master Render ---
 
-function renderTestPattern(forExport) {
-  var canvas = document.getElementById('tpCanvas');
+function renderTestPattern(forExport, targetCanvas) {
+  var canvas = targetCanvas || document.getElementById('tpCanvas');
   if(!canvas) return;
   var ctx = canvas.getContext('2d');
 
@@ -2172,6 +2409,7 @@ function _tpStartAnimation() {
     }
 
     renderTestPattern(false);
+    _tpCopyToLiveOut();
     _tpAnimId = requestAnimationFrame(animate);
   }
 

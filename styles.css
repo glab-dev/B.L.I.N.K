@@ -4776,6 +4776,47 @@ canvas:focus {
   cursor: default;
 }
 
+.tp-liveout-btn.tp-liveout-active {
+  background: #e53935;
+  color: #fff;
+  box-shadow: 0 0 8px rgba(229, 57, 53, 0.7);
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  animation: tp-liveout-pulse 2s ease-in-out infinite;
+}
+
+@keyframes tp-liveout-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(229, 57, 53, 0.7); }
+  50% { box-shadow: 0 0 16px rgba(229, 57, 53, 1); }
+}
+
+.tp-liveout-btn.tp-liveout-active:hover {
+  background: #c62828;
+}
+
+.tp-liveout-wrap {
+  position: relative;
+}
+
+.tp-liveout-popup {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 6px;
+  background: #1e1e1e;
+  border: 2px solid #333;
+  border-radius: 8px;
+  padding: 4px 0;
+  z-index: 1001;
+  min-width: 140px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.tp-liveout-popup.open {
+  display: block;
+}
+
 .tp-share-wrap {
   position: relative;
 }

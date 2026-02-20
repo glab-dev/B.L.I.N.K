@@ -247,9 +247,15 @@
         </div>
       </div>
       <div class="tp-toolbar-divider"></div>
-      <button class="tp-toolbar-btn tp-liveout-btn" id="tpLiveOutBtn" title="Live Out">
-        <span class="material-symbols-outlined">cast</span>
-      </button>
+      <div class="tp-liveout-wrap">
+        <button class="tp-toolbar-btn tp-liveout-btn" id="tpLiveOutBtn" title="Live Out">
+          <span class="material-symbols-outlined">cast</span>
+        </button>
+        <div class="tp-liveout-popup" id="tpLiveOutPopup">
+          <button class="tp-share-option" id="tpLiveOutFull">Full Output</button>
+          <button class="tp-share-option" id="tpLiveOutSplit">Split Outputs</button>
+        </div>
+      </div>
     </div>
     <div class="tp-header-actions">
       <button class="tp-home-btn" onclick="exitTestPatternMode()" title="Home">
@@ -2988,8 +2994,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.5';
-const APP_CHANGELOG = 'Update README and help modal with test pattern generator and file extension docs';
+const APP_VERSION = '2.10.6';
+const APP_CHANGELOG = 'Add live out feature with full and split multi-output modes for test patterns';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

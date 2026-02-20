@@ -1,5 +1,5 @@
 {
-  "version": "2.10.2",
+  "version": "2.10.3",
   "updated": "2026-02-20",
-  "changelog": "Fix canvas offset reset when adding screens or changing panel type"
+  "changelog": "Add layer reorder panel and save/load pattern files to test pattern generator"
 }

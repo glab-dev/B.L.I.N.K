@@ -70,6 +70,83 @@ var _tpUndoStack = [];
 var _tpRedoStack = [];
 var _tpMaxHistory = 30;
 
+// --- Layer Order ---
+var _tpDefaultLayerOrder = [
+  'checker', 'bgImage', 'checkerBorder', 'grid', 'displayBoundaries', 'processorLines',
+  'circles', 'crosshair', 'colorBars', 'logo', 'outerBorder', 'sweep'
+];
+var tpLayerOrder = _tpDefaultLayerOrder.slice();
+
+var _tpLayerRegistry = {
+  checker: { name: 'Checker', draw: function(ctx, w, h) {
+    if(!tpCheckerOn) return;
+    if(tpCheckerOpacity < 100) ctx.globalAlpha = tpCheckerOpacity / 100;
+    var minSize = Math.max(8, Math.round(Math.min(w, h) / 40));
+    var maxSize = Math.round(Math.min(w, h) / 2);
+    var squareSize = Math.round(minSize + (tpCheckerSizePct / 100) * (maxSize - minSize));
+    var cols = Math.ceil(w / squareSize);
+    var rows = Math.ceil(h / squareSize);
+    for(var r = 0; r < rows; r++) {
+      for(var c = 0; c < cols; c++) {
+        ctx.fillStyle = (c + r) % 2 === 0 ? tpCheckerColor1 : tpCheckerColor2;
+        ctx.fillRect(c * squareSize, r * squareSize, squareSize, squareSize);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }},
+  bgImage: { name: 'BG Image', draw: function(ctx, w, h) {
+    if(!tpBgImageOn || !tpBgImage) return;
+    var imgW = tpBgImage.width, imgH = tpBgImage.height;
+    var scale = Math.max(w / imgW, h / imgH);
+    var dw = imgW * scale, dh = imgH * scale;
+    var dx = (w - dw) / 2, dy = (h - dh) / 2;
+    ctx.drawImage(tpBgImage, dx, dy, dw, dh);
+  }},
+  checkerBorder: { name: 'Checker Border', draw: function(ctx, w, h) {
+    if(!tpCheckerBorderOn) return;
+    if(tpBorderOpacity < 100) ctx.globalAlpha = tpBorderOpacity / 100;
+    drawTPCheckerBorder(ctx, w, h);
+    ctx.globalAlpha = 1;
+  }},
+  grid: { name: 'Grid', draw: function(ctx, w, h, gs) {
+    if(tpGridSizePct > 0 && tpGridWidthPct > 0) drawTPGrid(ctx, w, h, gs);
+  }},
+  displayBoundaries: { name: 'Display Boundaries', draw: function(ctx, w, h) {
+    if(tpDisplaysWide > 1 || tpDisplaysHigh > 1) drawTPDisplayBoundaries(ctx, w, h);
+  }},
+  processorLines: { name: 'Processor Lines', draw: function(ctx, w, h) {
+    if(tpProcessorLinesOn) drawTPProcessorLines(ctx, w, h);
+  }},
+  circles: { name: 'Circles', draw: function(ctx, w, h) {
+    if(tpCirclesOn) drawTPCircles(ctx, w, h);
+  }},
+  crosshair: { name: 'Crosshair', draw: function(ctx, w, h) {
+    drawTPCrosshair(ctx, w, h);
+  }},
+  colorBars: { name: 'Color Bars', draw: function(ctx, w, h) {
+    if(!tpColorBarsOn) return;
+    if(tpColorBarsOpacity < 100) ctx.globalAlpha = tpColorBarsOpacity / 100;
+    drawTPColorBars(ctx, w, h);
+    ctx.globalAlpha = 1;
+  }},
+  logo: { name: 'Logo', draw: function(ctx, w, h) {
+    if(!tpLogoOn || !tpLogoImage) return;
+    if(tpLogoOpacity < 100) ctx.globalAlpha = tpLogoOpacity / 100;
+    drawTPLogo(ctx, w, h);
+    ctx.globalAlpha = 1;
+  }},
+  outerBorder: { name: 'Outer Border', draw: function(ctx, w, h) {
+    ctx.strokeStyle = tpCrossColor;
+    ctx.lineWidth = Math.max(2, Math.round(w / 500));
+    ctx.strokeRect(0, 0, w, h);
+  }},
+  sweep: { name: 'Sweep', draw: function(ctx, w, h) {
+    if(!tpSweepOn) return;
+    drawTPSweep(ctx, w, h, _tpSweepProgress);
+    drawTPSweepVertical(ctx, w, h, _tpSweepProgress);
+  }}
+};
+
 // --- Undo / Redo ---
 
 function _tpGetState() {
@@ -97,7 +174,8 @@ function _tpGetState() {
     tpBgImageOn: tpBgImageOn, tpBgImage: tpBgImage,
     tpProcessorLinesOn: tpProcessorLinesOn, tpProcessorCanvasSize: tpProcessorCanvasSize,
     tpProcessorCanvasW: tpProcessorCanvasW, tpProcessorCanvasH: tpProcessorCanvasH,
-    tpProcessorLineColor: tpProcessorLineColor
+    tpProcessorLineColor: tpProcessorLineColor,
+    tpLayerOrder: tpLayerOrder.slice()
   };
 }
 
@@ -126,6 +204,7 @@ function _tpApplyState(s) {
   tpProcessorLinesOn = s.tpProcessorLinesOn; tpProcessorCanvasSize = s.tpProcessorCanvasSize;
   tpProcessorCanvasW = s.tpProcessorCanvasW; tpProcessorCanvasH = s.tpProcessorCanvasH;
   tpProcessorLineColor = s.tpProcessorLineColor;
+  tpLayerOrder = s.tpLayerOrder ? s.tpLayerOrder.slice() : _tpDefaultLayerOrder.slice();
   _tpSyncDOM();
 }
 
@@ -232,6 +311,140 @@ function _tpUpdateUndoRedoBtns() {
   if(redoBtn) redoBtn.disabled = _tpRedoStack.length === 0;
 }
 
+// --- Image Serialization ---
+
+function _tpImageToDataURL(img) {
+  if(!img) return null;
+  var c = document.createElement('canvas');
+  c.width = img.naturalWidth || img.width;
+  c.height = img.naturalHeight || img.height;
+  c.getContext('2d').drawImage(img, 0, 0);
+  try {
+    return c.toDataURL('image/png');
+  } catch(e) {
+    return null;
+  }
+}
+
+function _tpGetSerializableState() {
+  var s = _tpGetState();
+  s.tpLogoImage = _tpImageToDataURL(s.tpLogoImage);
+  s.tpBgImage = _tpImageToDataURL(s.tpBgImage);
+  return s;
+}
+
+function _tpLoadSerializedState(data, callback) {
+  var pending = 0;
+
+  function checkDone() {
+    pending--;
+    if(pending <= 0) {
+      _tpApplyState(data);
+      if(callback) callback();
+    }
+  }
+
+  if(data.tpLogoImage && typeof data.tpLogoImage === 'string') {
+    pending++;
+    var logoImg = new Image();
+    logoImg.onload = function() { data.tpLogoImage = logoImg; checkDone(); };
+    logoImg.onerror = function() { data.tpLogoImage = null; checkDone(); };
+    logoImg.src = data.tpLogoImage;
+  }
+
+  if(data.tpBgImage && typeof data.tpBgImage === 'string') {
+    pending++;
+    var bgImg = new Image();
+    bgImg.onload = function() { data.tpBgImage = bgImg; checkDone(); };
+    bgImg.onerror = function() { data.tpBgImage = null; checkDone(); };
+    bgImg.src = data.tpBgImage;
+  }
+
+  if(pending === 0) {
+    _tpApplyState(data);
+    if(callback) callback();
+  }
+}
+
+// --- File Save / Load ---
+
+async function tpSavePatternFile() {
+  var state = _tpGetSerializableState();
+  var config = {
+    version: '1.0',
+    type: 'testpattern',
+    timestamp: new Date().toISOString(),
+    name: tpImageName,
+    state: state
+  };
+
+  var json = JSON.stringify(config, null, 2);
+  var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
+  var fileName = safeName + '.blinktp';
+  var blob = new Blob([json], { type: 'application/json' });
+
+  if(window.showSaveFilePicker) {
+    try {
+      var handle = await window.showSaveFilePicker({
+        suggestedName: fileName,
+        types: [{ description: 'BLINK Test Pattern', accept: { 'application/json': ['.blinktp'] } }]
+      });
+      var writable = await handle.createWritable();
+      await writable.write(json);
+      await writable.close();
+    } catch(e) {
+      if(e.name !== 'AbortError') showAlert('Save failed: ' + e.message);
+    }
+  } else if(navigator.canShare && navigator.canShare({ files: [new File([blob], fileName)] })) {
+    try {
+      await navigator.share({ files: [new File([blob], fileName, { type: 'application/json' })] });
+    } catch(e) {
+      if(e.name !== 'AbortError') showAlert('Save failed: ' + e.message);
+    }
+  } else {
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(function() {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 100);
+  }
+}
+
+function tpLoadPatternFile(event) {
+  var file = event.target.files[0];
+  if(!file) return;
+
+  if(file.size > 20 * 1024 * 1024) {
+    showAlert('Pattern file is too large (max 20MB).');
+    event.target.value = '';
+    return;
+  }
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var config = JSON.parse(e.target.result);
+
+      if(!config || config.type !== 'testpattern' || !config.state) {
+        showAlert('Invalid test pattern file.');
+        return;
+      }
+
+      tpSaveState();
+      _tpLoadSerializedState(config.state);
+    } catch(err) {
+      showAlert('Error loading pattern: ' + err.message);
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
 // --- Entry / Exit ---
 
 function enterTestPatternMode() {
@@ -288,6 +501,7 @@ function resetTestPattern() {
   tpBgImageOn = false; tpBgImage = null;
   tpProcessorLinesOn = false; tpProcessorCanvasSize = '4K_UHD';
   tpProcessorCanvasW = 3840; tpProcessorCanvasH = 2160; tpProcessorLineColor = '#ff0000';
+  tpLayerOrder = _tpDefaultLayerOrder.slice();
   tpSweepOn = false; tpSweepColor = '#ffffff'; tpSweepColorV = '#ffffff';
   tpSweepDuration = 5; tpSweepWidthPct = 2;
   tpSweepFps = 60;
@@ -370,11 +584,104 @@ function resetTestPattern() {
   _tpUpdateUndoRedoBtns();
 }
 
+// --- Layer Panel ---
+
+function _tpBuildLayerList() {
+  var list = document.getElementById('tpLayersList');
+  if(!list) return;
+  list.innerHTML = '';
+  // Render in reverse (top layer shown first, like Photoshop)
+  for(var i = tpLayerOrder.length - 1; i >= 0; i--) {
+    var id = tpLayerOrder[i];
+    var layer = _tpLayerRegistry[id];
+    if(!layer) continue;
+    var item = document.createElement('div');
+    item.className = 'tp-layer-item';
+    item.setAttribute('data-layer', id);
+    item.innerHTML = '<span class="material-symbols-outlined tp-layer-drag">drag_indicator</span>' +
+      '<span class="tp-layer-name">' + layer.name + '</span>';
+    list.appendChild(item);
+  }
+}
+
+function _tpInitLayersPanel() {
+  var layersBtn = document.getElementById('tpLayersBtn');
+  var layersPanel = document.getElementById('tpLayersPanel');
+  var hamburgerMenu = document.getElementById('tpHamburgerMenu');
+  if(!layersBtn || !layersPanel) return;
+
+  layersBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    _tpBuildLayerList();
+    layersPanel.classList.toggle('open');
+    if(hamburgerMenu) hamburgerMenu.classList.remove('open');
+  });
+
+  document.addEventListener('click', function(e) {
+    if(!layersPanel.contains(e.target) && e.target !== layersBtn && !layersBtn.contains(e.target)) {
+      layersPanel.classList.remove('open');
+    }
+  });
+
+  // Drag-and-drop reorder
+  var _dragItem = null;
+  var _dragList = document.getElementById('tpLayersList');
+
+  _dragList.addEventListener('pointerdown', function(e) {
+    var item = e.target.closest('.tp-layer-item');
+    if(!item) return;
+    e.preventDefault();
+    _dragItem = item;
+    _dragItem.classList.add('dragging');
+    item.setPointerCapture(e.pointerId);
+  });
+
+  _dragList.addEventListener('pointermove', function(e) {
+    if(!_dragItem) return;
+    var items = _dragList.querySelectorAll('.tp-layer-item:not(.dragging)');
+    items.forEach(function(el) { el.classList.remove('drag-over'); });
+    var target = document.elementFromPoint(e.clientX, e.clientY);
+    var targetItem = target ? target.closest('.tp-layer-item:not(.dragging)') : null;
+    if(targetItem) targetItem.classList.add('drag-over');
+  });
+
+  _dragList.addEventListener('pointerup', function(e) {
+    if(!_dragItem) return;
+    var items = _dragList.querySelectorAll('.tp-layer-item');
+    items.forEach(function(el) { el.classList.remove('drag-over', 'dragging'); });
+
+    var target = document.elementFromPoint(e.clientX, e.clientY);
+    var targetItem = target ? target.closest('.tp-layer-item:not(.dragging)') : null;
+    if(targetItem && targetItem !== _dragItem) {
+      tpSaveState();
+      _dragList.insertBefore(_dragItem, targetItem);
+      // Rebuild tpLayerOrder from DOM (reversed — list shows top-first)
+      var newOrder = [];
+      var listItems = _dragList.querySelectorAll('.tp-layer-item');
+      for(var i = listItems.length - 1; i >= 0; i--) {
+        newOrder.push(listItems[i].getAttribute('data-layer'));
+      }
+      tpLayerOrder = newOrder;
+      scheduleTestPatternRedraw();
+    }
+    _dragItem = null;
+  });
+}
+
 // --- Control Binding ---
 
 function initTestPatternControls() {
   if(_tpInitialized) return;
   _tpInitialized = true;
+
+  // Toolbar save/load buttons — same as hamburger menu file save/load
+  document.getElementById('tpQuickSaveBtn').addEventListener('click', function() {
+    tpSavePatternFile();
+  });
+
+  document.getElementById('tpQuickLoadBtn').addEventListener('click', function() {
+    document.getElementById('tpLoadPatternInput').click();
+  });
 
   var nameInput = document.getElementById('tpImageName');
   var dispW = document.getElementById('tpDisplayW');
@@ -704,6 +1011,9 @@ function initTestPatternControls() {
   hamburgerBtn.addEventListener('click', function(e) {
     e.stopPropagation();
     hamburgerMenu.classList.toggle('open');
+    // Close layers panel when opening hamburger
+    var lp = document.getElementById('tpLayersPanel');
+    if(lp) lp.classList.remove('open');
   });
 
   document.addEventListener('click', function(e) {
@@ -711,6 +1021,9 @@ function initTestPatternControls() {
       hamburgerMenu.classList.remove('open');
     }
   });
+
+  // Layers panel
+  _tpInitLayersPanel();
 
   document.getElementById('tpExportPng').addEventListener('click', function() {
     hamburgerMenu.classList.remove('open');
@@ -720,6 +1033,20 @@ function initTestPatternControls() {
   document.getElementById('tpExportMp4').addEventListener('click', function() {
     hamburgerMenu.classList.remove('open');
     exportTestPatternVideo();
+  });
+
+  document.getElementById('tpSavePatternFile').addEventListener('click', function() {
+    hamburgerMenu.classList.remove('open');
+    tpSavePatternFile();
+  });
+
+  document.getElementById('tpLoadPatternFile').addEventListener('click', function() {
+    hamburgerMenu.classList.remove('open');
+    document.getElementById('tpLoadPatternInput').click();
+  });
+
+  document.getElementById('tpLoadPatternInput').addEventListener('change', function(e) {
+    tpLoadPatternFile(e);
   });
 
   document.getElementById('tpResetBtn').addEventListener('click', function() {
@@ -991,106 +1318,28 @@ function renderTestPattern(forExport) {
     ctx.scale(previewScale, previewScale);
   }
 
-  // 1. Background fill
+  // 1. Background (fixed — always first)
   drawTPBackground(ctx, totalW, totalH);
 
-  // 1.5. Checker border
-  if(tpCheckerBorderOn) {
-    if(tpBorderOpacity < 100) ctx.globalAlpha = tpBorderOpacity / 100;
-    drawTPCheckerBorder(ctx, totalW, totalH);
-    ctx.globalAlpha = 1;
-  }
-
-  // 2. Grid (skip if size or width slider at 0)
+  // 2. Reorderable layers
   var gridSpacing = calcGridSpacing(totalW, totalH);
-  if(tpGridSizePct > 0 && tpGridWidthPct > 0) {
-    drawTPGrid(ctx, totalW, totalH, gridSpacing);
+  for(var i = 0; i < tpLayerOrder.length; i++) {
+    var layer = _tpLayerRegistry[tpLayerOrder[i]];
+    if(layer) layer.draw(ctx, totalW, totalH, gridSpacing);
   }
 
-  // 3. Display boundaries
-  if(tpDisplaysWide > 1 || tpDisplaysHigh > 1) {
-    drawTPDisplayBoundaries(ctx, totalW, totalH);
-  }
-
-  // 3.5 Processor canvas boundaries
-  if(tpProcessorLinesOn) {
-    drawTPProcessorLines(ctx, totalW, totalH);
-  }
-
-  // 4. Circles
-  if(tpCirclesOn) {
-    drawTPCircles(ctx, totalW, totalH);
-  }
-
-  // 5. Crosshair
-  drawTPCrosshair(ctx, totalW, totalH);
-
-  // 6. SMPTE Color bars (on top of grid + crosshair)
-  if(tpColorBarsOn) {
-    if(tpColorBarsOpacity < 100) ctx.globalAlpha = tpColorBarsOpacity / 100;
-    drawTPColorBars(ctx, totalW, totalH);
-    ctx.globalAlpha = 1;
-  }
-
-  // 7. Logo
-  if(tpLogoOn && tpLogoImage) {
-    if(tpLogoOpacity < 100) ctx.globalAlpha = tpLogoOpacity / 100;
-    drawTPLogo(ctx, totalW, totalH);
-    ctx.globalAlpha = 1;
-  }
-
-  // 8. Outer border — tied to cross color
-  ctx.strokeStyle = tpCrossColor;
-  ctx.lineWidth = Math.max(2, Math.round(totalW / 500));
-  ctx.strokeRect(0, 0, totalW, totalH);
-
-  // 9. Sweep bands (animated layer)
-  if(tpSweepOn) {
-    drawTPSweep(ctx, totalW, totalH, _tpSweepProgress);
-    drawTPSweepVertical(ctx, totalW, totalH, _tpSweepProgress);
-  }
-
-  // 10. Coordinate labels — on top of everything (skip if no grid)
+  // 3. Fixed top layers (always last)
   if(tpGridSizePct > 0) {
     drawTPCoordinateLabels(ctx, totalW, totalH, gridSpacing);
   }
-
-  // 11. Center text — always on top
   drawTPCenterText(ctx, totalW, totalH, gridSpacing);
 }
 
 // --- Background Drawing ---
 
 function drawTPBackground(ctx, w, h) {
-  // Always fill solid BG color first
   ctx.fillStyle = tpBgColor;
   ctx.fillRect(0, 0, w, h);
-
-  // Checker overlay (with opacity)
-  if (tpCheckerOn) {
-    if(tpCheckerOpacity < 100) ctx.globalAlpha = tpCheckerOpacity / 100;
-    var minSize = Math.max(8, Math.round(Math.min(w, h) / 40));
-    var maxSize = Math.round(Math.min(w, h) / 2);
-    var squareSize = Math.round(minSize + (tpCheckerSizePct / 100) * (maxSize - minSize));
-    var cols = Math.ceil(w / squareSize);
-    var rows = Math.ceil(h / squareSize);
-    for (var r = 0; r < rows; r++) {
-      for (var c = 0; c < cols; c++) {
-        ctx.fillStyle = (c + r) % 2 === 0 ? tpCheckerColor1 : tpCheckerColor2;
-        ctx.fillRect(c * squareSize, r * squareSize, squareSize, squareSize);
-      }
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  // Background image overlay
-  if(tpBgImageOn && tpBgImage) {
-    var imgW = tpBgImage.width, imgH = tpBgImage.height;
-    var scale = Math.max(w / imgW, h / imgH);
-    var dw = imgW * scale, dh = imgH * scale;
-    var dx = (w - dw) / 2, dy = (h - dh) / 2;
-    ctx.drawImage(tpBgImage, dx, dy, dw, dh);
-  }
 }
 
 function drawTPCheckerBorder(ctx, w, h) {
@@ -2009,18 +2258,109 @@ async function exportTestPatternVideo() {
       bgImageData = ctx.getImageData(0, 0, totalW, totalH);
     }
 
-    // Create muxer (H.264 in MP4 container)
+    // Probe browser for supported codec + hw/sw acceleration
+    var pixels = totalW * totalH;
+    var scaledBitrate = Math.min(80000000, Math.max(40000000, Math.round(pixels / (1920 * 1080) * 40000000)));
+    var encoderConfig = null;
+    var muxerCodec = 'avc';
+
+    // Try H.264 levels first (most compatible MP4 playback)
+    var h264Levels = [
+      { codec: 'avc1.640028', maxPixels: 2097152 },   // Level 4.0
+      { codec: 'avc1.640032', maxPixels: 8912896 },   // Level 5.0
+      { codec: 'avc1.640034', maxPixels: 8912896 },   // Level 5.2
+      { codec: 'avc1.64003C', maxPixels: 35651584 }   // Level 6.0
+    ];
+    var candidates = h264Levels.filter(function(l) { return l.maxPixels >= pixels; });
+    if (candidates.length === 0) candidates = [h264Levels[h264Levels.length - 1]];
+
+    for (var ci = 0; ci < candidates.length && !encoderConfig; ci++) {
+      var accels = ['prefer-hardware', 'prefer-software'];
+      for (var ai = 0; ai < accels.length && !encoderConfig; ai++) {
+        var testConfig = {
+          codec: candidates[ci].codec,
+          width: totalW,
+          height: totalH,
+          bitrate: scaledBitrate,
+          framerate: fps,
+          hardwareAcceleration: accels[ai]
+        };
+        try {
+          var support = await VideoEncoder.isConfigSupported(testConfig);
+          if (support.supported) {
+            encoderConfig = support.config || testConfig;
+          }
+        } catch(e) { /* not supported, try next */ }
+      }
+    }
+
+    // Fall back to HEVC then VP9 if H.264 can't handle this resolution
+    if (!encoderConfig) {
+      // HEVC: QuickTime-compatible, handles high resolutions
+      var hevcCodecs = ['hvc1.1.6.L150.B0', 'hvc1.1.6.L153.B0', 'hvc1.1.6.L180.B0'];
+      for (var hi = 0; hi < hevcCodecs.length && !encoderConfig; hi++) {
+        var accels2 = ['prefer-hardware', 'prefer-software'];
+        for (var ai2 = 0; ai2 < accels2.length && !encoderConfig; ai2++) {
+          var hevcConfig = {
+            codec: hevcCodecs[hi],
+            width: totalW,
+            height: totalH,
+            bitrate: scaledBitrate,
+            framerate: fps,
+            hardwareAcceleration: accels2[ai2]
+          };
+          try {
+            var hevcSupport = await VideoEncoder.isConfigSupported(hevcConfig);
+            if (hevcSupport.supported) {
+              encoderConfig = hevcSupport.config || hevcConfig;
+              muxerCodec = 'hevc';
+            }
+          } catch(e) { /* not supported, try next */ }
+        }
+      }
+    }
+
+    // Last resort: VP9 (note: won't play in QuickTime)
+    if (!encoderConfig) {
+      var vp9Codecs = ['vp09.00.50.08', 'vp09.00.40.08', 'vp09.00.31.08'];
+      for (var vi = 0; vi < vp9Codecs.length && !encoderConfig; vi++) {
+        var accels3 = ['prefer-hardware', 'prefer-software'];
+        for (var ai3 = 0; ai3 < accels3.length && !encoderConfig; ai3++) {
+          var vp9Config = {
+            codec: vp9Codecs[vi],
+            width: totalW,
+            height: totalH,
+            bitrate: scaledBitrate,
+            framerate: fps,
+            hardwareAcceleration: accels3[ai3]
+          };
+          try {
+            var vp9Support = await VideoEncoder.isConfigSupported(vp9Config);
+            if (vp9Support.supported) {
+              encoderConfig = vp9Support.config || vp9Config;
+              muxerCodec = 'vp9';
+            }
+          } catch(e) { /* not supported, try next */ }
+        }
+      }
+    }
+
+    if (!encoderConfig) {
+      throw new Error('Your browser does not support encoding at ' + totalW + 'x' + totalH + '. Try a smaller resolution.');
+    }
+
+    // Create muxer with the supported codec
     var muxer = new Mp4Muxer.Muxer({
       target: new Mp4Muxer.ArrayBufferTarget(),
       video: {
-        codec: 'avc',
+        codec: muxerCodec,
         width: totalW,
         height: totalH
       },
       fastStart: 'in-memory'
     });
 
-    // Create encoder (H.264 High profile, 8-bit 4:2:0)
+    // Create and configure encoder
     var encodeError = null;
     var encoder = new VideoEncoder({
       output: function(chunk, meta) {
@@ -2031,18 +2371,11 @@ async function exportTestPatternVideo() {
       }
     });
 
-    encoder.configure({
-      codec: 'avc1.640028',
-      width: totalW,
-      height: totalH,
-      bitrate: 40000000,
-      framerate: fps,
-      latencyMode: 'quality',
-      hardwareAcceleration: 'prefer-hardware'
-    });
+    encoderConfig.latencyMode = 'quality';
+    encoder.configure(encoderConfig);
 
     var frameDurationUs = Math.round((1 / fps) * 1000000);
-    var keyFrameInterval = Math.max(1, Math.round(fps * 1));
+    var keyFrameInterval = Math.max(1, Math.round(fps));
 
     for(var i = 0; i < totalFrames; i++) {
       if(encodeError) throw encodeError;
@@ -2070,6 +2403,11 @@ async function exportTestPatternVideo() {
       });
       encoder.encode(vf, { keyFrame: i % keyFrameInterval === 0 });
       vf.close();
+
+      // Backpressure: wait if encoder queue is too deep
+      while(encoder.encodeQueueSize > 5) {
+        await new Promise(function(r) { setTimeout(r, 1); });
+      }
 
       // Update progress and yield to UI
       if(i % 5 === 0) {

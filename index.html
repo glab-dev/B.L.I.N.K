@@ -231,6 +231,12 @@
       <button class="tp-toolbar-btn" id="tpRedoBtn" title="Redo" disabled>
         <span class="material-symbols-outlined">redo</span>
       </button>
+      <button class="tp-toolbar-btn" id="tpQuickSaveBtn" title="Save Pattern">
+        <span class="material-symbols-outlined">save</span>
+      </button>
+      <button class="tp-toolbar-btn" id="tpQuickLoadBtn" title="Load Pattern">
+        <span class="material-symbols-outlined">folder</span>
+      </button>
       <div class="tp-share-wrap">
         <button class="tp-toolbar-btn" id="tpQuickShareBtn" title="Quick Share">
           <span class="material-symbols-outlined">share</span>
@@ -245,6 +251,15 @@
       <button class="tp-home-btn" onclick="exitTestPatternMode()" title="Home">
         <span class="material-symbols-outlined">home</span>
       </button>
+      <div class="tp-layers-wrap">
+        <button class="tp-layers-btn" id="tpLayersBtn" title="Layers">
+          <span class="material-symbols-outlined">layers</span>
+        </button>
+        <div class="tp-layers-panel" id="tpLayersPanel">
+          <div class="tp-layers-title">Layers</div>
+          <div class="tp-layers-list" id="tpLayersList"></div>
+        </div>
+      </div>
       <div class="tp-hamburger-wrap">
         <button class="tp-hamburger-btn" id="tpHamburgerBtn" title="Menu">
           <span class="material-symbols-outlined">menu</span>
@@ -269,6 +284,9 @@
             </select>
           </div>
           <div class="tp-menu-divider"></div>
+          <button class="tp-menu-item" id="tpSavePatternFile">Save Pattern</button>
+          <button class="tp-menu-item" id="tpLoadPatternFile">Load Pattern</button>
+          <div class="tp-menu-divider"></div>
           <button class="tp-menu-item tp-menu-reset" id="tpResetBtn" title="Reset to defaults">
             <span class="material-symbols-outlined">refresh</span>
             Reset
@@ -277,6 +295,8 @@
       </div>
     </div>
   </div>
+
+  <input type="file" id="tpLoadPatternInput" class="tp-file-input-hidden" accept=".blinktp,.tp,.json">
 
   <div class="tp-canvas-wrapper">
     <canvas id="tpCanvas"></canvas>
@@ -2960,8 +2980,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.2';
-const APP_CHANGELOG = 'Fix canvas offset reset when adding screens or changing panel type';
+const APP_VERSION = '2.10.3';
+const APP_CHANGELOG = 'Add layer reorder panel and save/load pattern files to test pattern generator';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -1,5 +1,5 @@
 {
-  "version": "2.9.54",
+  "version": "2.10.0",
   "updated": "2026-02-20",
-  "changelog": "Add toolbar, undo/redo, spinning circles, BG image, opacity sliders, and MP4 export improvements"
+  "changelog": "Move BG image controls to logo column in test pattern generator"
 }

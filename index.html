@@ -495,18 +495,6 @@
         </div>
       </div>
 
-      <div class="tp-sweep-header">
-        <div class="tp-toggle-row">
-          <span class="tp-label">BG Image</span>
-          <label class="cp-mini-toggle">
-            <input type="checkbox" id="tpBgImageToggle">
-            <span class="cp-mini-toggle-slider"></span>
-          </label>
-        </div>
-        <button class="tp-choose-file-btn" onclick="document.getElementById('tpBgImageFile').click()">Choose File</button>
-        <input type="file" id="tpBgImageFile" class="tp-file-input-hidden" accept="image/*">
-      </div>
-
       <div class="tp-slider-row">
         <label class="tp-label">Grid size: <span id="tpGridSizeVal">50%</span></label>
         <input type="range" id="tpGridSize" class="tp-range" min="0" max="100" value="50">
@@ -651,6 +639,22 @@
           <label class="tp-label">Logo opacity: <span id="tpLogoOpacityVal">100%</span></label>
           <input type="range" id="tpLogoOpacity" class="tp-range" min="0" max="100" value="100">
         </div>
+      </div>
+
+      <div class="tp-section-header">
+        <span class="tp-section-title">BG Image</span>
+      </div>
+
+      <div class="tp-sweep-header">
+        <div class="tp-toggle-row">
+          <span class="tp-label">BG Image</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpBgImageToggle">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <button class="tp-choose-file-btn" onclick="document.getElementById('tpBgImageFile').click()">Choose File</button>
+        <input type="file" id="tpBgImageFile" class="tp-file-input-hidden" accept="image/*">
       </div>
     </div>
   </div>
@@ -2914,8 +2918,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.9.54';
-const APP_CHANGELOG = 'Add toolbar, undo/redo, spinning circles, BG image, opacity sliders, and MP4 export improvements';
+const APP_VERSION = '2.10.0';
+const APP_CHANGELOG = 'Move BG image controls to logo column in test pattern generator';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

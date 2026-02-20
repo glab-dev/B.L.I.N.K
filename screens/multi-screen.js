@@ -807,20 +807,16 @@ function duplicateScreen() {
 function resetCurrentScreenOnPanelChange() {
   const screen = screens[currentScreenId];
   if(!screen) return;
-  
-  // Only reset dimensions and canvas position, keep other settings
+
+  // Only reset dimensions, keep canvas position and other settings
   screen.data.panelsWide = 0;
   screen.data.panelsHigh = 0;
   screen.data.wallWidth = '';
   screen.data.wallHeight = '';
-  screen.data.canvasX = 0;
-  screen.data.canvasY = 0;
-  
+
   document.getElementById('panelsWide').value = '';
   document.getElementById('panelsHigh').value = '';
   document.getElementById('wallWidth').value = '';
   document.getElementById('wallHeight').value = '';
-  canvasOffsetX = 0;
-  canvasOffsetY = 0;
 }
 

@@ -1,5 +1,5 @@
 {
-  "version": "2.10.1",
+  "version": "2.10.2",
   "updated": "2026-02-20",
-  "changelog": "Add processor canvas boundary lines with configurable canvas size and color"
+  "changelog": "Fix canvas offset reset when adding screens or changing panel type"
 }

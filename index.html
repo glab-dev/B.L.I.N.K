@@ -1471,11 +1471,11 @@
       <button class="modal-close" onclick="closeSendToJaredModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <p style="color: #888; font-size: 11px; margin-bottom: 10px;">This will open your email app with the gear list.</p>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="sendToJaredIncludeRP" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
-          <span style="font-size: 12px;">Include RP Inventory File (.txt)</span>
+      <p class="modal-hint">This will open your email app with the gear list.</p>
+      <div class="checkbox-list">
+        <label class="checkbox-label">
+          <input type="checkbox" id="sendToJaredIncludeRP" checked>
+          <span>Include RP Inventory File (.txt)</span>
         </label>
       </div>
       <p style="color: #666; font-size: 10px; margin-top: 8px;">Tab-delimited file with gear codes for import into Rental Point or similar inventory software.</p>
@@ -1495,43 +1495,43 @@
       <button class="modal-close" onclick="closePdfExportModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <p style="color: #888; font-size: 11px; margin-bottom: 10px;">Select which sections to include:</p>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportSpecs" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
-          <span style="font-size: 12px;">Specifications</span>
+      <p class="modal-hint">Select which sections to include:</p>
+      <div class="checkbox-list">
+        <label class="checkbox-label">
+          <input type="checkbox" id="pdfExportSpecs" checked>
+          <span>Specifications</span>
         </label>
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportGearList" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
-          <span style="font-size: 12px;">Gear List</span>
+        <label class="checkbox-label">
+          <input type="checkbox" id="pdfExportGearList" checked>
+          <span>Gear List</span>
         </label>
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportStandard" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
-          <span style="font-size: 12px;">Standard Layout</span>
+        <label class="checkbox-label">
+          <input type="checkbox" id="pdfExportStandard" checked>
+          <span>Standard Layout</span>
         </label>
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportPower" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
-          <span style="font-size: 12px;">Power Layout</span>
+        <label class="checkbox-label">
+          <input type="checkbox" id="pdfExportPower" checked>
+          <span>Power Layout</span>
         </label>
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportData" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
-          <span style="font-size: 12px;">Data Layout</span>
+        <label class="checkbox-label">
+          <input type="checkbox" id="pdfExportData" checked>
+          <span>Data Layout</span>
         </label>
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportStructure" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
-          <span style="font-size: 12px;">Structure Layout</span>
+        <label class="checkbox-label">
+          <input type="checkbox" id="pdfExportStructure" checked>
+          <span>Structure Layout</span>
         </label>
       </div>
-      <hr style="border: none; border-top: 1px solid #383838; margin: 14px 0 10px 0;">
-      <p style="color: #888; font-size: 11px; margin-bottom: 10px;">Print options:</p>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportEcoFriendly" style="width: 16px; height: 16px; accent-color: var(--primary);" onchange="if(this.checked) document.getElementById('pdfExportGreyscale').checked = false;">
-          <span style="font-size: 12px;">Eco Friendly</span>
+      <hr class="modal-divider">
+      <p class="modal-hint">Print options:</p>
+      <div class="checkbox-list">
+        <label class="checkbox-label">
+          <input type="checkbox" id="pdfExportEcoFriendly" onchange="if(this.checked) document.getElementById('pdfExportGreyscale').checked = false;">
+          <span>Eco Friendly</span>
         </label>
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="pdfExportGreyscale" style="width: 16px; height: 16px; accent-color: var(--primary);" onchange="if(this.checked) document.getElementById('pdfExportEcoFriendly').checked = false;">
-          <span style="font-size: 12px;">Greyscale</span>
+        <label class="checkbox-label">
+          <input type="checkbox" id="pdfExportGreyscale" onchange="if(this.checked) document.getElementById('pdfExportEcoFriendly').checked = false;">
+          <span>Greyscale</span>
         </label>
       </div>
     </div>
@@ -1803,7 +1803,7 @@
       <div class="mobile-menu-section">
         <div class="mobile-menu-label" style="color: var(--accent-color);">App Info</div>
         <div class="mobile-menu-info">An LED wall calculator for planning LED video wall installations. Calculate equipment needs, visualize layouts, generate gear lists, and export detailed PDF reports.</div>
-        <hr style="border: none; border-top: 1px solid #383838; margin: 12px 0;">
+        <hr class="modal-divider-sm">
         <div class="mobile-menu-info">© 2025 Gabriel Labrecque<br>Fearless Wanderer Productions</div>
       </div>
     </div>
@@ -2994,8 +2994,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.8';
-const APP_CHANGELOG = 'Extract icon sizes and table colors from inline styles to CSS classes';
+const APP_VERSION = '2.10.9';
+const APP_CHANGELOG = 'Extract checkbox, modal hint, and divider inline styles to CSS classes';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

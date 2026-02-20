@@ -1,5 +1,5 @@
 {
-  "version": "2.10.8",
+  "version": "2.10.9",
   "updated": "2026-02-20",
-  "changelog": "Extract icon sizes and table colors from inline styles to CSS classes"
+  "changelog": "Extract checkbox, modal hint, and divider inline styles to CSS classes"
 }

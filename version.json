@@ -1,5 +1,5 @@
 {
-  "version": "2.10.11",
+  "version": "2.10.12",
   "updated": "2026-02-20",
-  "changelog": "Extract toggle label and help text inline styles to CSS classes"
+  "changelog": "Extract slider toggle button variant inline styles to CSS classes"
 }

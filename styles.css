@@ -5662,3 +5662,22 @@ canvas:focus {
   color: var(--muted-color);
 }
 
+/* Slider toggle button size variants */
+.slider-toggle-btn-tab {
+  padding: 8px 16px;
+}
+.slider-toggle-btn-sm {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.slider-toggle-btn-xs {
+  padding: 6px 10px;
+  font-size: 11px;
+  min-height: 32px;
+}
+.slider-toggle-btn-scope {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+

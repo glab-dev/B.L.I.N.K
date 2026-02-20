@@ -1587,10 +1587,10 @@
       <div class="modal-input-group">
         <label>Request Type</label>
         <div class="slider-toggle" style="margin-top: 4px;">
-          <button type="button" class="slider-toggle-btn active" id="requestTypePanelBtn" onclick="setRequestType('panel')" style="padding: 8px 16px;">Panel</button>
-          <button type="button" class="slider-toggle-btn" id="requestTypeProcessorBtn" onclick="setRequestType('processor')" style="padding: 8px 16px;">Processor</button>
-          <button type="button" class="slider-toggle-btn" id="requestTypeOtherBtn" onclick="setRequestType('other')" style="padding: 8px 16px;">Other</button>
-          <button type="button" class="slider-toggle-btn" id="requestTypeFeatureBtn" onclick="setRequestType('feature')" style="padding: 8px 16px;">Feature</button>
+          <button type="button" class="slider-toggle-btn slider-toggle-btn-tab active" id="requestTypePanelBtn" onclick="setRequestType('panel')">Panel</button>
+          <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="requestTypeProcessorBtn" onclick="setRequestType('processor')">Processor</button>
+          <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="requestTypeOtherBtn" onclick="setRequestType('other')">Other</button>
+          <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="requestTypeFeatureBtn" onclick="setRequestType('feature')">Feature</button>
         </div>
       </div>
 
@@ -1645,9 +1645,9 @@
     </div>
     <div class="modal-body">
       <div class="slider-toggle" style="margin-bottom: 12px;">
-        <button type="button" class="slider-toggle-btn active" id="manageTabPanelsBtn" onclick="switchManageTab('panels')" style="padding: 8px 16px;">Panels</button>
-        <button type="button" class="slider-toggle-btn" id="manageTabProcessorsBtn" onclick="switchManageTab('processors')" style="padding: 8px 16px;">Processors</button>
-        <button type="button" class="slider-toggle-btn" id="manageTabCommunityBtn" onclick="switchManageTab('community')" style="padding: 8px 16px;">Community</button>
+        <button type="button" class="slider-toggle-btn slider-toggle-btn-tab active" id="manageTabPanelsBtn" onclick="switchManageTab('panels')">Panels</button>
+        <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="manageTabProcessorsBtn" onclick="switchManageTab('processors')">Processors</button>
+        <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="manageTabCommunityBtn" onclick="switchManageTab('community')">Community</button>
       </div>
       <div id="manageCustomPanelsContent" class="manage-tab-content"></div>
       <div id="manageCustomProcessorsContent" class="manage-tab-content" style="display: none;"></div>
@@ -1668,8 +1668,8 @@
     </div>
     <div class="modal-body">
       <div class="slider-toggle" style="margin-bottom: 12px;">
-        <button type="button" class="slider-toggle-btn active" id="communityTabPanelsBtn" onclick="switchCommunityTab('panels')" style="padding: 8px 16px;">Panels</button>
-        <button type="button" class="slider-toggle-btn" id="communityTabProcessorsBtn" onclick="switchCommunityTab('processors')" style="padding: 8px 16px;">Processors</button>
+        <button type="button" class="slider-toggle-btn slider-toggle-btn-tab active" id="communityTabPanelsBtn" onclick="switchCommunityTab('panels')">Panels</button>
+        <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="communityTabProcessorsBtn" onclick="switchCommunityTab('processors')">Processors</button>
       </div>
       <div id="communityPanelsContent" class="community-tab-content">
         <p style="color: #888; text-align: center; padding: 20px;">Loading...</p>
@@ -1693,9 +1693,9 @@
     </div>
     <div class="modal-body" style="flex: 1 1 auto; overflow-y: auto; min-height: 0; padding: 0; -webkit-overflow-scrolling: touch; margin-bottom: 0;">
       <div class="slider-toggle" style="margin: 12px 16px;">
-        <button type="button" class="slider-toggle-btn active" id="gcTabEquipmentBtn" onclick="switchGearCodeTab('equipment')" style="padding: 8px 16px;">Equipment</button>
-        <button type="button" class="slider-toggle-btn" id="gcTabRiggingBtn" onclick="switchGearCodeTab('rigging')" style="padding: 8px 16px;">Rigging</button>
-        <button type="button" class="slider-toggle-btn" id="gcTabCablesBtn" onclick="switchGearCodeTab('cables')" style="padding: 8px 16px;">Cables</button>
+        <button type="button" class="slider-toggle-btn slider-toggle-btn-tab active" id="gcTabEquipmentBtn" onclick="switchGearCodeTab('equipment')">Equipment</button>
+        <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="gcTabRiggingBtn" onclick="switchGearCodeTab('rigging')">Rigging</button>
+        <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="gcTabCablesBtn" onclick="switchGearCodeTab('cables')">Cables</button>
       </div>
       <div style="padding: 0 16px 8px;">
         <input type="text" id="gearCodeSearch" placeholder="Filter items..." oninput="filterGearCodeItems(this.value)" style="width: 100%; box-sizing: border-box;">
@@ -1703,8 +1703,8 @@
       <div style="padding: 0 16px 8px; display: flex; gap: 8px; align-items: center;">
         <label style="color: #888; font-size: 12px; font-family: 'Roboto Condensed', sans-serif;">Scope:</label>
         <div class="slider-toggle" style="flex: 0 0 auto;">
-          <button type="button" class="slider-toggle-btn active" id="gcScopeGlobal" onclick="switchGearCodeScope('global')" style="padding: 6px 12px; font-size: 12px;">Global</button>
-          <button type="button" class="slider-toggle-btn" id="gcScopeProject" onclick="switchGearCodeScope('project')" style="padding: 6px 12px; font-size: 12px;">This Project</button>
+          <button type="button" class="slider-toggle-btn slider-toggle-btn-scope active" id="gcScopeGlobal" onclick="switchGearCodeScope('global')">Global</button>
+          <button type="button" class="slider-toggle-btn slider-toggle-btn-scope" id="gcScopeProject" onclick="switchGearCodeScope('project')">This Project</button>
         </div>
       </div>
       <div id="gearCodeContent" style="padding: 0 16px 16px; overflow-x: hidden;"></div>
@@ -2090,8 +2090,8 @@
           <div id="mx40ModeToggleRow" style="display: none; margin-bottom: 8px;">
             <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Connection Mode</span>
             <div class="slider-toggle" style="display: inline-flex;">
-              <button type="button" class="slider-toggle-btn active" id="mx40DirectBtn" onclick="setMX40Mode('direct')" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Direct</button>
-              <button type="button" class="slider-toggle-btn" id="mx40IndirectBtn" onclick="setMX40Mode('indirect')" style="padding: 6px 10px; font-size: 11px; min-height: 32px;">Indirect</button>
+              <button type="button" class="slider-toggle-btn slider-toggle-btn-xs active" id="mx40DirectBtn" onclick="setMX40Mode('direct')">Direct</button>
+              <button type="button" class="slider-toggle-btn slider-toggle-btn-xs" id="mx40IndirectBtn" onclick="setMX40Mode('indirect')">Indirect</button>
             </div>
           </div>
 
@@ -2397,26 +2397,26 @@
               <span class="toggle-label toggle-label-block">Main</span>
               <div style="display: flex; gap: 4px; margin-bottom: 4px;">
                 <div class="slider-toggle">
-                  <button type="button" class="slider-toggle-btn" id="distBoxMainHorizSRBtn" onclick="setDistBoxMainHorizPosition('sr')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SR</button>
-                  <button type="button" class="slider-toggle-btn active" id="distBoxMainHorizCBtn" onclick="setDistBoxMainHorizPosition('center')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">C</button>
-                  <button type="button" class="slider-toggle-btn" id="distBoxMainHorizSLBtn" onclick="setDistBoxMainHorizPosition('sl')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SL</button>
+                  <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="distBoxMainHorizSRBtn" onclick="setDistBoxMainHorizPosition('sr')">SR</button>
+                  <button type="button" class="slider-toggle-btn slider-toggle-btn-sm active" id="distBoxMainHorizCBtn" onclick="setDistBoxMainHorizPosition('center')">C</button>
+                  <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="distBoxMainHorizSLBtn" onclick="setDistBoxMainHorizPosition('sl')">SL</button>
                 </div>
                 <div class="slider-toggle">
-                  <button type="button" class="slider-toggle-btn active" id="distBoxMainTopBtn" onclick="setDistBoxMainVertPosition('top')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Top</button>
-                  <button type="button" class="slider-toggle-btn" id="distBoxMainBottomBtn" onclick="setDistBoxMainVertPosition('bottom')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Bot</button>
+                  <button type="button" class="slider-toggle-btn slider-toggle-btn-sm active" id="distBoxMainTopBtn" onclick="setDistBoxMainVertPosition('top')">Top</button>
+                  <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="distBoxMainBottomBtn" onclick="setDistBoxMainVertPosition('bottom')">Bot</button>
                 </div>
               </div>
               <!-- Backup -->
               <span class="toggle-label toggle-label-block">Backup</span>
               <div style="display: flex; gap: 4px;">
                 <div class="slider-toggle">
-                  <button type="button" class="slider-toggle-btn" id="distBoxBackupHorizSRBtn" onclick="setDistBoxBackupHorizPosition('sr')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SR</button>
-                  <button type="button" class="slider-toggle-btn active" id="distBoxBackupHorizCBtn" onclick="setDistBoxBackupHorizPosition('center')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">C</button>
-                  <button type="button" class="slider-toggle-btn" id="distBoxBackupHorizSLBtn" onclick="setDistBoxBackupHorizPosition('sl')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SL</button>
+                  <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="distBoxBackupHorizSRBtn" onclick="setDistBoxBackupHorizPosition('sr')">SR</button>
+                  <button type="button" class="slider-toggle-btn slider-toggle-btn-sm active" id="distBoxBackupHorizCBtn" onclick="setDistBoxBackupHorizPosition('center')">C</button>
+                  <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="distBoxBackupHorizSLBtn" onclick="setDistBoxBackupHorizPosition('sl')">SL</button>
                 </div>
                 <div class="slider-toggle">
-                  <button type="button" class="slider-toggle-btn active" id="distBoxBackupTopBtn" onclick="setDistBoxBackupVertPosition('top')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Top</button>
-                  <button type="button" class="slider-toggle-btn" id="distBoxBackupBottomBtn" onclick="setDistBoxBackupVertPosition('bottom')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Bot</button>
+                  <button type="button" class="slider-toggle-btn slider-toggle-btn-sm active" id="distBoxBackupTopBtn" onclick="setDistBoxBackupVertPosition('top')">Top</button>
+                  <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="distBoxBackupBottomBtn" onclick="setDistBoxBackupVertPosition('bottom')">Bot</button>
                 </div>
               </div>
             </div>
@@ -2589,26 +2589,26 @@
                 <span class="toggle-label toggle-label-block">Main</span>
                 <div style="display: flex; gap: 4px; margin-bottom: 4px;">
                   <div class="slider-toggle">
-                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxMainHorizSRBtn" onclick="setCombinedDistBoxMainHorizPosition('sr')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SR</button>
-                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxMainHorizCBtn" onclick="setCombinedDistBoxMainHorizPosition('center')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">C</button>
-                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxMainHorizSLBtn" onclick="setCombinedDistBoxMainHorizPosition('sl')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SL</button>
+                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="combinedDistBoxMainHorizSRBtn" onclick="setCombinedDistBoxMainHorizPosition('sr')">SR</button>
+                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm active" id="combinedDistBoxMainHorizCBtn" onclick="setCombinedDistBoxMainHorizPosition('center')">C</button>
+                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="combinedDistBoxMainHorizSLBtn" onclick="setCombinedDistBoxMainHorizPosition('sl')">SL</button>
                   </div>
                   <div class="slider-toggle">
-                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxMainTopBtn" onclick="setCombinedDistBoxMainVertPosition('top')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Top</button>
-                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxMainBottomBtn" onclick="setCombinedDistBoxMainVertPosition('bottom')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Bot</button>
+                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm active" id="combinedDistBoxMainTopBtn" onclick="setCombinedDistBoxMainVertPosition('top')">Top</button>
+                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="combinedDistBoxMainBottomBtn" onclick="setCombinedDistBoxMainVertPosition('bottom')">Bot</button>
                   </div>
                 </div>
                 <!-- Backup -->
                 <span class="toggle-label toggle-label-block">Backup</span>
                 <div style="display: flex; gap: 4px;">
                   <div class="slider-toggle">
-                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxBackupHorizSRBtn" onclick="setCombinedDistBoxBackupHorizPosition('sr')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SR</button>
-                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxBackupHorizCBtn" onclick="setCombinedDistBoxBackupHorizPosition('center')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">C</button>
-                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxBackupHorizSLBtn" onclick="setCombinedDistBoxBackupHorizPosition('sl')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">SL</button>
+                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="combinedDistBoxBackupHorizSRBtn" onclick="setCombinedDistBoxBackupHorizPosition('sr')">SR</button>
+                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm active" id="combinedDistBoxBackupHorizCBtn" onclick="setCombinedDistBoxBackupHorizPosition('center')">C</button>
+                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="combinedDistBoxBackupHorizSLBtn" onclick="setCombinedDistBoxBackupHorizPosition('sl')">SL</button>
                   </div>
                   <div class="slider-toggle">
-                    <button type="button" class="slider-toggle-btn active" id="combinedDistBoxBackupTopBtn" onclick="setCombinedDistBoxBackupVertPosition('top')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Top</button>
-                    <button type="button" class="slider-toggle-btn" id="combinedDistBoxBackupBottomBtn" onclick="setCombinedDistBoxBackupVertPosition('bottom')" style="min-height: 36px; padding: 6px 10px; font-size: 12px;">Bot</button>
+                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm active" id="combinedDistBoxBackupTopBtn" onclick="setCombinedDistBoxBackupVertPosition('top')">Top</button>
+                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="combinedDistBoxBackupBottomBtn" onclick="setCombinedDistBoxBackupVertPosition('bottom')">Bot</button>
                   </div>
                 </div>
               </div>
@@ -2994,8 +2994,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.11';
-const APP_CHANGELOG = 'Extract toggle label and help text inline styles to CSS classes';
+const APP_VERSION = '2.10.12';
+const APP_CHANGELOG = 'Extract slider toggle button variant inline styles to CSS classes';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

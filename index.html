@@ -246,6 +246,10 @@
           <button class="tp-share-option" id="tpShareMp4">Export MP4</button>
         </div>
       </div>
+      <div class="tp-toolbar-divider"></div>
+      <button class="tp-toolbar-btn tp-liveout-btn" id="tpLiveOutBtn" title="Live Out">
+        <span class="material-symbols-outlined">cast</span>
+      </button>
     </div>
     <div class="tp-header-actions">
       <button class="tp-home-btn" onclick="exitTestPatternMode()" title="Home">
@@ -930,19 +934,23 @@
         <p class="help-text">On mobile, exports use the native share sheet.</p>
 
         <h3 class="help-section-title">Test Pattern Generator</h3>
-        <p class="help-text">Generate professional test pattern images for LED walls and displays.</p>
+        <p class="help-text">Generate professional test pattern images and videos for LED walls and displays.</p>
         <ul class="help-list">
           <li><strong>Access</strong> &mdash; tap &ldquo;Test Pattern&rdquo; on the welcome page</li>
-          <li><strong>Image Name</strong> &mdash; custom label displayed on the pattern</li>
-          <li><strong>Display Size</strong> &mdash; single display resolution in pixels (e.g. 1920&times;1080)</li>
-          <li><strong>Displays</strong> &mdash; number of displays wide and high (up to 12&times;12)</li>
-          <li><strong>Total Size</strong> &mdash; auto-calculated total pixel resolution</li>
+          <li><strong>Screen Options</strong> &mdash; image name, display size, displays grid (up to 12&times;12), auto-calculated total size</li>
+          <li><strong>Processor Lines</strong> &mdash; show where processor canvas boundaries fall (4K UHD, 4K DCI, HD, or custom size)</li>
+          <li><strong>Background</strong> &mdash; BG color, checker pattern with size/opacity/colors, checker border, and BG image upload</li>
           <li><strong>Sliders</strong> &mdash; grid size, grid line width, text size</li>
-          <li><strong>Colors</strong> &mdash; grid, text, crosshair, display boundary, and background</li>
-          <li><strong>Toggles</strong> &mdash; Name, Pixel Size, Ratio, Squares, Circles, Color Bars, Logo</li>
-          <li><strong>Logo</strong> &mdash; upload a custom logo with adjustable size</li>
-          <li><strong>Reset</strong> &mdash; refresh button restores all settings to defaults</li>
-          <li><strong>Export PNG</strong> &mdash; save the pattern at full resolution</li>
+          <li><strong>Colors</strong> &mdash; grid, text, crosshair, display boundary, background, and processor line</li>
+          <li><strong>Circles</strong> &mdash; alignment circles with spin mode (static/CW/CCW), revolution mode, and speed</li>
+          <li><strong>Color Bars</strong> &mdash; calibration bars with mode (default/circle) and opacity</li>
+          <li><strong>Logo</strong> &mdash; upload custom logo with size, opacity, placement mode, and static option</li>
+          <li><strong>Sweep</strong> &mdash; animated H/V sweep lines for testing display sync, with duration and width controls</li>
+          <li><strong>Layers</strong> &mdash; drag-and-drop panel to reorder all visual elements</li>
+          <li><strong>Save/Load</strong> &mdash; save and load .blinktp pattern files from toolbar or hamburger menu</li>
+          <li><strong>Live Out</strong> &mdash; popup window mirroring the canvas in real-time for display testing, with fullscreen (F key or double-click) and cursor auto-hide</li>
+          <li><strong>Export</strong> &mdash; PNG at full resolution, or MP4 video for animated patterns (sweep, spinning circles)</li>
+          <li><strong>Toolbar</strong> &mdash; undo/redo, save/load, share (PNG/MP4), reset</li>
         </ul>
 
         <h3 class="help-section-title">Mobile (Touch)</h3>
@@ -2980,8 +2988,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.4';
-const APP_CHANGELOG = 'Migrate save file extensions to branded convention (.blinkled, .blinkrast)';
+const APP_VERSION = '2.10.5';
+const APP_CHANGELOG = 'Update README and help modal with test pattern generator and file extension docs';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

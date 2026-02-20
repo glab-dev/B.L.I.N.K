@@ -1,5 +1,5 @@
 {
-  "version": "2.10.4",
+  "version": "2.10.5",
   "updated": "2026-02-20",
-  "changelog": "Migrate save file extensions to branded convention (.blinkled, .blinkrast)"
+  "changelog": "Update README and help modal with test pattern generator and file extension docs"
 }

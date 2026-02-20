@@ -57,8 +57,8 @@ A professional LED wall calculator PWA (Progressive Web App) for planning LED vi
 - **Canvas view** — Multi-screen visualization with drag-and-drop positioning
 - **Raster mode** — Canvas mapping for LED raster workflows with spreadsheet-style screen table
 - **5 layout views** — Standard, Power, Data, Structure, and Cable
-- **Test pattern generator** — Create professional test patterns with configurable grid, colors, toggles, and PNG export
-- **5 export formats** — PDF, PNG, email gear list, Resolume XML, .ledconfig files
+- **Test pattern generator** — Professional test patterns with layers, animations, processor lines, save/load, PNG and MP4 export
+- **5 export formats** — PDF, PNG, email gear list, Resolume XML, .blinkled files
 - **Unit conversion** — Toggle between Imperial (ft/lbs) and Metric (m/kg)
 - **Aspect ratio lock** — Auto-calculate dimensions for 16:9, 4:3, or custom ratios
 - **Request new items** — Email request system for new panels and processors
@@ -138,8 +138,8 @@ The app works on both mobile and desktop devices. Both platforms support Simple 
 
 ## Header Controls
 
-- **Load** — Load a previously saved .ledconfig file
-- **Save** — Save current configuration (all screens) to a .ledconfig file
+- **Load** — Load a previously saved .blinkled file
+- **Save** — Save current configuration (all screens) to a .blinkled file
 - **Menu** — Access settings, custom items, exports, and app info
 
 ---
@@ -504,7 +504,7 @@ A spreadsheet-style table to manage all screens at once:
 
 ### Toolbar
 - **Filename** — Custom filename for exports
-- **Save / Load** — Save and load .raster project files
+- **Save / Load** — Save and load .blinkrast project files
 - **Canvas Size** — 4K UHD, 4K DCI, HD, or Custom dimensions
 - **X/Y Pos** — Pixel position of selected screen
 - **Fine (px)** — Arrow key increment for precise adjustments
@@ -587,46 +587,79 @@ Share the gear list via email with a formatted breakdown of all equipment, riggi
 Export screen configurations as Resolume Arena 7 compatible XML files for LED mapping.
 
 ### Configuration Files
-- **Save** — Export all screens as a .ledconfig file
-- **Load** — Import a previously saved .ledconfig file to restore all screen configurations
+- **Save** — Export all screens as a .blinkled file
+- **Load** — Import a previously saved .blinkled file to restore all screen configurations
 
 ---
 
 ## Test Pattern Generator
 
-Generate professional test pattern images for LED walls and displays. Access from the "Test Pattern" button on the welcome page.
+Generate professional test pattern images and videos for LED walls and displays. Access from the "Test Pattern" button on the welcome page.
 
-### Configuration
+### Configuration (Column 1)
 - **Image Name** — Custom label displayed on the pattern
 - **Display Size [px]** — Single display resolution in pixels (e.g. 1920×1080)
 - **Displays** — Number of displays in the grid (up to 12×12)
 - **Total Size [px]** — Auto-calculated total pixel resolution (Display Size × Displays)
+- **Processor Lines** — Toggle + canvas size selector (4K UHD, 4K DCI, HD, or custom) to show where processor canvas boundaries fall on the pattern, with configurable line color
 
-### Visual Controls
+### Background (Column 2)
+- **BG Color** — Background fill color picker
+- **Checker** — Toggle checker pattern overlay with size slider, opacity slider, and dual color pickers
+- **Checker Border** — Toggle border checker pattern with size slider, opacity slider, and dual color pickers
+
+### Visual Controls (Column 2)
 - **Grid Size** — Adjustable grid square size (slider, 0–100%)
 - **Grid Line Width** — Thickness of grid lines (slider, 0–100%)
 - **Text Size** — Size of overlay text labels (slider, 0–100%)
+- **Color Pickers** — Grid, text, crosshair, display boundary colors
 
-### Color Pickers
-- **Grid** — Grid line color
-- **Text** — Text overlay color
-- **Cross** — Center crosshair color
-- **Displays** — Display boundary line color
-- **BG** — Background fill color
-
-### Toggle Elements
+### Toggle Elements (Column 3)
 - **Name** — Show/hide the image name label
 - **Pixel Size** — Show/hide the pixel dimensions
 - **Ratio** — Show/hide the aspect ratio
 - **Squares** — Show/hide grid square count
-- **Circles** — Show/hide center alignment circles
-- **Color Bars** — Show/hide color calibration bars
-- **Logo** — Enable custom logo upload with adjustable size
+- **Circles** — Show/hide center alignment circles, with spin mode (static/CW/CCW), revolution mode, and speed control
+- **Color Bars** — Color calibration bars with mode selector (default/circle) and opacity slider
 
-### Actions
-- **Reset** — Restore all settings to defaults (refresh button)
+### Logo & BG Image (Column 4)
+- **Logo** — Upload custom logo with size slider, opacity slider, placement mode (default/circle), and static option
+- **BG Image** — Upload a background image that scales to fill the pattern
+
+### Sweep Animation (Column 4)
+- **Sweep** — Animated horizontal and vertical sweep lines for testing display sync
+- **H/V Colors** — Independent color pickers for horizontal and vertical sweeps
+- **Duration** — Sweep cycle duration (1–30 seconds)
+- **Width** — Sweep line width (0.5–10%)
+
+### Layers
+- **Layers button** — Opens a drag-and-drop panel to reorder all visual elements (checker, grid, circles, crosshair, color bars, logo, etc.)
+- **Fixed layers** — Background fill is always bottom; coordinate labels and center text are always top
+- **Reorderable** — 12 middle layers can be dragged above or below each other
+
+### Save / Load
+- **Save Pattern** — Save all settings (including images) to a .blinktp file
+- **Load Pattern** — Load a previously saved .blinktp file to restore all settings
+- **Toolbar buttons** — Quick save/load buttons in the header toolbar
+- **Hamburger menu** — Save Pattern / Load Pattern menu items
+
+### Live Output
+- **Live Out** — Open a popup window that mirrors the test pattern canvas in real-time
+- **Fullscreen** — Press F or double-click to enter fullscreen mode for display testing
+- **Cursor auto-hide** — Cursor hides automatically after 2 seconds of inactivity
+
+### Export
 - **Export PNG** — Save the test pattern at full resolution
+- **Export MP4** — Export animated patterns (sweep, spinning circles) as MP4 video with configurable framerate (23.98–120 fps)
+
+### Toolbar & Header
+- **Undo / Redo** — Full undo/redo history for all changes
+- **Reset** — Restore all settings to defaults
+- **Save / Load** — Quick file save/load buttons
+- **Share** — Quick share popup with PNG and MP4 export
+- **Layers** — Open the layer reorder panel
 - **Home** — Return to the welcome page
+- **Menu** — Hamburger menu with exports, save/load, framerate, and reset
 
 ---
 

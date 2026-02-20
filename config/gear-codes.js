@@ -1,14 +1,14 @@
 // ==================== GEAR CODE MAPPING ====================
 // Lets users map their own inventory codes (e.g., for Rental Point software)
 // to the gear items B.L.I.N.K. calculates. Codes are stored globally in
-// localStorage with optional per-project overrides in .ledconfig files.
+// localStorage with optional per-project overrides in .blinkled files.
 
 const STORAGE_KEY_GEAR_CODES = 'ledcalc_gear_codes';
 
 // Global gear codes (from localStorage)
 let globalGearCodes = {};
 
-// Per-project overrides (from .ledconfig, cleared on new project)
+// Per-project overrides (from .blinkled, cleared on new project)
 let projectGearCodeOverrides = {};
 
 // Current modal state

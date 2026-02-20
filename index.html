@@ -757,7 +757,7 @@
             <li>Data calculations — processor, frame rate, bit depth</li>
             <li>Condensed specs display</li>
             <li>Canvas view — multi-screen positioning</li>
-            <li>All exports — PDF, PNG, email, Resolume XML, .ledconfig</li>
+            <li>All exports — PDF, PNG, email, Resolume XML, .blinkled</li>
             <li>Unit conversion — Imperial / Metric</li>
             <li>Multi-screen projects</li>
             <li>Custom panels &amp; processors</li>
@@ -893,7 +893,7 @@
           <li><strong>Active Toggle</strong> &mdash; show/hide individual screens on the canvas</li>
           <li><strong>+ Add Screen</strong> &mdash; add new screens with built-in or custom panels</li>
           <li><strong>Canvas</strong> &mdash; shared canvas view with drag-to-position, snap, and zoom</li>
-          <li><strong>Toolbar</strong> &mdash; filename, save/load .raster files, canvas size presets, X/Y position, fine increment, snap, export format (PNG, JPEG, Resolume)</li>
+          <li><strong>Toolbar</strong> &mdash; filename, save/load .blinkrast files, canvas size presets, X/Y position, fine increment, snap, export format (PNG, JPEG, Resolume)</li>
         </ul>
 
         <h3 class="help-section-title">Combined View</h3>
@@ -925,7 +925,7 @@
           <li><strong>PNG/JPEG</strong> — canvas view at full resolution</li>
           <li><strong>Email Gear List</strong> — formatted breakdown by screen</li>
           <li><strong>Resolume XML</strong> — Arena 7 compatible LED mapping</li>
-          <li><strong>Save/Load</strong> — .ledconfig files with full project state</li>
+          <li><strong>Save/Load</strong> — .blinkled files with full project state</li>
         </ul>
         <p class="help-text">On mobile, exports use the native share sheet.</p>
 
@@ -1763,7 +1763,7 @@
         <div class="mobile-menu-btn-row">
           <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save</button>
           <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load</button>
-          <input type="file" id="loadConfigInput" accept=".led,.ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
+          <input type="file" id="loadConfigInput" accept=".blinkled,.led,.ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
           <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; showRecentProjects()">Recent</button>
         </div>
         <div class="mobile-menu-btn-row">
@@ -2790,7 +2790,7 @@
         <div class="canvas-toolbar-group toolbar-load">
           <span class="canvas-toolbar-label">&nbsp;</span>
           <button type="button" class="config-btn" onclick="document.getElementById('loadRasterInput').click()">Load</button>
-          <input type="file" id="loadRasterInput" accept=".raster" style="display: none;" onchange="loadRasterFile(event)">
+          <input type="file" id="loadRasterInput" accept=".blinkrast,.raster" style="display: none;" onchange="loadRasterFile(event)">
         </div>
         <div class="canvas-toolbar-group toolbar-canvas-size">
           <span class="canvas-toolbar-label">Canvas Size</span>
@@ -2980,8 +2980,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.3';
-const APP_CHANGELOG = 'Add layer reorder panel and save/load pattern files to test pattern generator';
+const APP_VERSION = '2.10.4';
+const APP_CHANGELOG = 'Migrate save file extensions to branded convention (.blinkled, .blinkrast)';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -768,7 +768,7 @@ function syncRasterToolbarPosition() {
 let rasterToolbarInitialized = false;
 
 // ==================== RASTER SAVE/LOAD ====================
-// Save and load .raster files (independent of .led config files).
+// Save and load .blinkrast files (independent of .blinkled config files).
 // Format: JSON with type:"raster", containing only raster-relevant data.
 
 async function saveRasterFile() {
@@ -864,7 +864,7 @@ async function saveRasterFile() {
   };
 
   var json = JSON.stringify(config, null, 2);
-  var fileName = baseName + '.raster';
+  var fileName = baseName + '.blinkrast';
   var blob = new Blob([json], { type: 'application/json' });
 
   // 3-tier download: File System Access API → Web Share → blob download
@@ -872,7 +872,7 @@ async function saveRasterFile() {
     try {
       var handle = await window.showSaveFilePicker({
         suggestedName: fileName,
-        types: [{ description: 'Raster Layout Files', accept: { 'application/json': ['.raster'] } }]
+        types: [{ description: 'Raster Layout Files', accept: { 'application/json': ['.blinkrast', '.raster'] } }]
       });
       var writable = await handle.createWritable();
       await writable.write(json);
@@ -932,7 +932,7 @@ function loadRasterFile(event) {
 function applyRasterFile(config) {
   // Validate file type
   if(!config || config.type !== 'raster' || !config.version) {
-    throw new Error('Not a valid .raster file');
+    throw new Error('Not a valid .blinkrast file');
   }
   if(typeof config.screens !== 'object' || config.screens === null || Array.isArray(config.screens)) {
     throw new Error('Invalid screens data in raster file');

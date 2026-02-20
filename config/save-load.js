@@ -1,5 +1,5 @@
 // ==================== CONFIGURATION SAVE/LOAD ====================
-// Save and load .led/.ledconfig files, MX40 mode toggle visibility.
+// Save and load .blinkled files, MX40 mode toggle visibility.
 
 // Save/Load configuration functions
 async function saveConfiguration() {
@@ -122,7 +122,7 @@ async function saveConfiguration() {
 
   // Convert to JSON and save via file picker
   const json = JSON.stringify(config, null, 2);
-  const fileName = `${configName.replace(/\s+/g, '_')}.led`;
+  const fileName = `${configName.replace(/\s+/g, '_')}.blinkled`;
 
   const blob = new Blob([json], { type: 'application/json' });
 
@@ -133,7 +133,7 @@ async function saveConfiguration() {
         suggestedName: fileName,
         types: [{
           description: 'LED Config Files',
-          accept: { 'application/json': ['.led', '.ledconfig'] }
+          accept: { 'application/json': ['.blinkled', '.led', '.ledconfig'] }
         }]
       });
       const writable = await handle.createWritable();

@@ -6236,8 +6236,9 @@ canvas:focus {
   overflow: visible;
 }
 
-/* Canvas layout title span */
-.canvas-title-top { top: 0px; }
+/* Canvas layout title span — needs compound selector to beat .layout-title > span.
+   top: 2px (not 0) to account for rotate(-2deg) clipping against container border. */
+.layout-title > .canvas-title-top { top: 2px; }
 
 /* Canvas zoom controls row */
 .canvas-zoom-row {

@@ -5576,3 +5576,12 @@ canvas:focus {
   }
 }
 
+/* ==================== UTILITY & COMPONENT CLASSES ==================== */
+
+/* Material icon size variants */
+.icon-14 { font-size: 14px; }
+.icon-16 { font-size: 16px; }
+.icon-18 { font-size: 18px; }
+.icon-18-mr { font-size: 18px; margin-right: 6px; }
+.icon-16-mr { font-size: 16px; margin-right: 4px; vertical-align: middle; }
+

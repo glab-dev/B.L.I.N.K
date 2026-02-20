@@ -1,5 +1,5 @@
 {
-  "version": "2.10.7",
+  "version": "2.10.8",
   "updated": "2026-02-20",
-  "changelog": "Fix quick share fallback to download when native share dialog fails"
+  "changelog": "Extract icon sizes and table colors from inline styles to CSS classes"
 }

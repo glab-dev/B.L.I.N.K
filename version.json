@@ -1,5 +1,5 @@
 {
-  "version": "2.10.15",
+  "version": "2.10.16",
   "updated": "2026-02-20",
-  "changelog": "Extract flex utility inline styles to CSS classes"
+  "changelog": "Extract compound display:none splits and one-off inline styles to CSS classes"
 }

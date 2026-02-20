@@ -658,7 +658,7 @@
         <input type="color" id="tpSweepColorV" class="tp-color-input" value="#ffffff" title="Vertical band">
       </div>
 
-      <div id="tpSweepControls" style="flex-direction: column; gap: 8px;">
+      <div id="tpSweepControls" class="flex-col-gap-8">
         <div class="tp-slider-row">
           <label class="tp-label">Speed: <span id="tpSweepDurationVal">5s</span></label>
           <input type="range" id="tpSweepDuration" class="tp-range" min="1" max="10" value="5">
@@ -1080,7 +1080,7 @@
         <h3 class="help-section-title">Disclaimer</h3>
         <p class="help-text">This software provides decision-support and planning estimates for LED system design. All results must be verified and approved by qualified professionals before real-world use. The user assumes full responsibility for final design, safety compliance, and implementation. No warranty is provided, and the developer assumes no liability for resulting damages or losses. Use of this software is at your own risk.</p>
         <h3 class="help-section-title">Contact</h3>
-        <p class="help-text"><a href="mailto:info@blink-led.com" style="color: inherit; text-decoration: underline;">info@blink-led.com</a></p>
+        <p class="help-text"><a href="mailto:info@blink-led.com" class="link-inherit">info@blink-led.com</a></p>
       </div>
     </div>
   </div>
@@ -1240,7 +1240,7 @@
         </div>
 
         <div id="cpBumperWeightFields">
-          <div class="modal-input-row" style="margin-top: 4px;">
+          <div class="modal-input-row mt-4">
             <div class="modal-input-group">
               <label>Max Panels Hanging</label>
               <input type="number" id="customPanelMaxHanging" placeholder="e.g., 20">
@@ -1275,7 +1275,7 @@
         </div>
 
         <div id="cpFloorFrameFields" style="display: none;">
-          <div class="modal-input-row" style="margin-top: 10px;">
+          <div class="modal-input-row mt-10">
             <div class="modal-input-group">
               <label id="labelFrame1x1">1x1 Frame Weight (lbs)</label>
               <input type="number" id="customPanelFrame1x1" step="0.1" placeholder="e.g., 26.5">
@@ -1357,7 +1357,7 @@
       </div>
 
     </div>
-    <div class="modal-footer" style="gap: 8px;">
+    <div class="modal-footer modal-footer-gap">
       <button class="btn-secondary" onclick="closeCustomPanelModal()">Cancel</button>
       <button class="btn-secondary" id="sharePanelBtn" onclick="shareCustomPanelToCommunity()" style="display: none;">Share to Community</button>
       <button class="btn-primary" onclick="saveCustomPanel()">Save Panel</button>
@@ -1455,7 +1455,7 @@
         </label>
       </div>
     </div>
-    <div class="modal-footer" style="gap: 8px;">
+    <div class="modal-footer modal-footer-gap">
       <button class="btn-secondary" onclick="closeCustomProcessorModal()">Cancel</button>
       <button class="btn-secondary" id="shareProcessorBtn" onclick="shareCustomProcessorToCommunity()" style="display: none;">Share to Community</button>
       <button class="btn-primary" onclick="saveCustomProcessor()">Save Processor</button>
@@ -1478,7 +1478,7 @@
           <span>Include RP Inventory File (.txt)</span>
         </label>
       </div>
-      <p style="color: #666; font-size: 10px; margin-top: 8px;">Tab-delimited file with gear codes for import into Rental Point or similar inventory software.</p>
+      <p class="help-footnote">Tab-delimited file with gear codes for import into Rental Point or similar inventory software.</p>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeSendToJaredModal()">Cancel</button>
@@ -1544,15 +1544,15 @@
 
 <!-- PWA Install Prompt Modal -->
 <div id="pwaInstallModal" class="modal-overlay">
-  <div class="modal-dialog" style="max-width: 320px; padding: 16px; text-align: center;">
-    <div class="modal-header" style="margin-bottom: 10px; padding-bottom: 8px;">
+  <div class="modal-dialog">
+    <div class="modal-header">
       <h2 class="modal-title">Install B.L.I.N.K.</h2>
     </div>
     <div class="modal-body mb-14">
-      <img src="icons/icon-192.png" alt="B.L.I.N.K." style="width: 80px; height: 80px; border-radius: 12px; margin-bottom: 12px; border: 2px solid #10b981;">
-      <p style="color: #e0e0e0; font-size: 13px; line-height: 1.5; margin: 0;">Install for offline use and a native app experience. Works without internet after first load.</p>
+      <img src="icons/icon-192.png" alt="B.L.I.N.K." class="pwa-install-icon">
+      <p class="modal-body-text">Install for offline use and a native app experience. Works without internet after first load.</p>
     </div>
-    <div class="modal-footer" style="justify-content: center; gap: 10px;">
+    <div class="modal-footer">
       <button class="btn-secondary" onclick="closePwaInstallModal()">Not Now</button>
       <button class="btn-primary" onclick="confirmPwaInstall()">Install</button>
     </div>
@@ -1561,13 +1561,13 @@
 
 <!-- Custom Alert/Confirm Modal -->
 <div id="customAlertModal" class="modal-overlay">
-  <div class="modal-dialog" style="max-width: 300px; padding: 12px;">
-    <div class="modal-header" style="margin-bottom: 8px; padding-bottom: 6px;">
+  <div class="modal-dialog">
+    <div class="modal-header">
       <h2 class="modal-title" id="customAlertTitle">Notice</h2>
     </div>
     <div class="modal-body mb-10">
-      <p id="customAlertMessage" style="color: #e0e0e0; font-size: 13px; line-height: 1.5; margin: 0;"></p>
-      <input type="text" id="customAlertInput" style="display: none; width: 100%; margin-top: 8px; box-sizing: border-box;" onkeydown="if(event.key==='Enter'){event.preventDefault();closeCustomAlert(true);}">
+      <p id="customAlertMessage" class="modal-body-text"></p>
+      <input type="text" id="customAlertInput" class="alert-input-visible" style="display: none;" onkeydown="if(event.key==='Enter'){event.preventDefault();closeCustomAlert(true);}">
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" id="customAlertCancelBtn" onclick="closeCustomAlert(false)" style="display: none;">Cancel</button>
@@ -1586,7 +1586,7 @@
     <div class="modal-body">
       <div class="modal-input-group">
         <label>Request Type</label>
-        <div class="slider-toggle" style="margin-top: 4px;">
+        <div class="slider-toggle mt-4">
           <button type="button" class="slider-toggle-btn slider-toggle-btn-tab active" id="requestTypePanelBtn" onclick="setRequestType('panel')">Panel</button>
           <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="requestTypeProcessorBtn" onclick="setRequestType('processor')">Processor</button>
           <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="requestTypeOtherBtn" onclick="setRequestType('other')">Other</button>
@@ -1614,18 +1614,18 @@
       <div id="requestOtherFields" style="display: none;">
         <div class="modal-input-group">
           <label>Describe your request</label>
-          <textarea id="requestOtherText" rows="10" style="min-height: 200px;" placeholder="I'd like to request..."></textarea>
+          <textarea id="requestOtherText" rows="10" class="textarea-tall" placeholder="I'd like to request..."></textarea>
         </div>
       </div>
 
       <div id="requestFeatureFields" style="display: none;">
         <div class="modal-input-group">
           <label>Describe your feature request</label>
-          <textarea id="requestFeatureText" rows="10" style="min-height: 200px;" placeholder="I'd like to see..."></textarea>
+          <textarea id="requestFeatureText" rows="10" class="textarea-tall" placeholder="I'd like to see..."></textarea>
         </div>
       </div>
 
-      <div class="hint" style="margin-top: 8px; text-align: center; color: #888;">
+      <div class="hint request-hint">
         This will open your email app with a pre-filled request.
       </div>
     </div>
@@ -1672,10 +1672,10 @@
         <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="communityTabProcessorsBtn" onclick="switchCommunityTab('processors')">Processors</button>
       </div>
       <div id="communityPanelsContent" class="community-tab-content">
-        <p style="color: #888; text-align: center; padding: 20px;">Loading...</p>
+        <p class="loading-text">Loading...</p>
       </div>
       <div id="communityProcessorsContent" class="community-tab-content" style="display: none;">
-        <p style="color: #888; text-align: center; padding: 20px;">Loading...</p>
+        <p class="loading-text">Loading...</p>
       </div>
     </div>
     <div class="modal-footer">
@@ -1686,35 +1686,35 @@
 
 <!-- Gear Code Mapping Modal -->
 <div id="gearCodeModal" class="modal-overlay">
-  <div class="modal-dialog" style="height: 85vh; display: flex; flex-direction: column;">
-    <div class="modal-header" style="flex-shrink: 0;">
+  <div class="modal-dialog">
+    <div class="modal-header">
       <h2 class="modal-title">Gear Code Mapping</h2>
       <button class="modal-close" onclick="closeGearCodeModal()">&times;</button>
     </div>
-    <div class="modal-body" style="flex: 1 1 auto; overflow-y: auto; min-height: 0; padding: 0; -webkit-overflow-scrolling: touch; margin-bottom: 0;">
-      <div class="slider-toggle" style="margin: 12px 16px;">
+    <div class="modal-body">
+      <div class="slider-toggle gc-toggle-margin">
         <button type="button" class="slider-toggle-btn slider-toggle-btn-tab active" id="gcTabEquipmentBtn" onclick="switchGearCodeTab('equipment')">Equipment</button>
         <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="gcTabRiggingBtn" onclick="switchGearCodeTab('rigging')">Rigging</button>
         <button type="button" class="slider-toggle-btn slider-toggle-btn-tab" id="gcTabCablesBtn" onclick="switchGearCodeTab('cables')">Cables</button>
       </div>
-      <div style="padding: 0 16px 8px;">
-        <input type="text" id="gearCodeSearch" placeholder="Filter items..." oninput="filterGearCodeItems(this.value)" style="width: 100%; box-sizing: border-box;">
+      <div class="gc-search-row">
+        <input type="text" id="gearCodeSearch" placeholder="Filter items..." oninput="filterGearCodeItems(this.value)" class="input-fw-bbox">
       </div>
-      <div style="padding: 0 16px 8px; display: flex; gap: 8px; align-items: center;">
-        <label style="color: #888; font-size: 12px; font-family: 'Roboto Condensed', sans-serif;">Scope:</label>
+      <div class="gc-scope-row">
+        <label class="gc-scope-label">Scope:</label>
         <div class="slider-toggle flex-noshrink">
           <button type="button" class="slider-toggle-btn slider-toggle-btn-scope active" id="gcScopeGlobal" onclick="switchGearCodeScope('global')">Global</button>
           <button type="button" class="slider-toggle-btn slider-toggle-btn-scope" id="gcScopeProject" onclick="switchGearCodeScope('project')">This Project</button>
         </div>
       </div>
-      <div id="gearCodeContent" style="padding: 0 16px 16px; overflow-x: hidden;"></div>
+      <div id="gearCodeContent" class="gc-content-area"></div>
     </div>
-    <div class="modal-footer" style="display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; flex-shrink: 0;">
-      <div style="display: flex; gap: 8px;">
+    <div class="modal-footer">
+      <div class="gc-footer-left">
         <button class="btn-secondary" onclick="document.getElementById('gearCodeImportInput').click()">Import File</button>
         <input type="file" id="gearCodeImportInput" accept=".txt,.csv,.tsv" style="display: none;" onchange="importGearCodesFromFile(event)">
         <button class="btn-secondary" onclick="exportGearCodes()">Export</button>
-        <button class="btn-secondary" style="color: #ef4444;" onclick="clearGearCodes()">Clear</button>
+        <button class="btn-secondary btn-danger-text" onclick="clearGearCodes()">Clear</button>
       </div>
       <button class="btn-primary" onclick="closeGearCodeModal()">Done</button>
     </div>
@@ -1751,9 +1751,9 @@
 <div id="mobileMenuOverlay" class="mobile-menu-overlay" onclick="closeMobileMenu()">
   <div class="mobile-menu" onclick="event.stopPropagation()">
     <div class="mobile-menu-header">
-      <div style="display: flex; flex-direction: column; align-items: flex-start;">
+      <div class="mobile-menu-header-col">
         <span>Settings</span>
-        <span id="menuVersionNumber" style="font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 2px;"></span>
+        <span id="menuVersionNumber"></span>
       </div>
       <button class="mobile-menu-refresh" onclick="hardRefreshApp();" title="Refresh App">&#x21bb;</button>
       <button class="mobile-menu-close" onclick="closeMobileMenu()">&times;</button>
@@ -1801,7 +1801,7 @@
         <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openGearCodeModal(); closeMobileMenu();">Gear Code Mapping</button>
       </div>
       <div class="mobile-menu-section">
-        <div class="mobile-menu-label" style="color: var(--accent-color);">App Info</div>
+        <div class="mobile-menu-label mobile-menu-label-accent">App Info</div>
         <div class="mobile-menu-info">An LED wall calculator for planning LED video wall installations. Calculate equipment needs, visualize layouts, generate gear lists, and export detailed PDF reports.</div>
         <hr class="modal-divider-sm">
         <div class="mobile-menu-info">© 2025 Gabriel Labrecque<br>Fearless Wanderer Productions</div>
@@ -1825,7 +1825,7 @@
 
 
   <!-- Screen Tabs Container -->
-  <div id="screenTabsContainer" style="display: flex; align-items: flex-end; gap: 4px;"><div id="screenAddBtn" class="screen-tab-add" onclick="addNewScreen()" title="Add new screen" style="flex-shrink: 0; margin-left: auto;">+</div></div>
+  <div id="screenTabsContainer"><div id="screenAddBtn" class="screen-tab-add" onclick="addNewScreen()" title="Add new screen">+</div></div>
 
   <!-- Screen Rename Modal -->
   <div id="screenRenameModal" class="modal-overlay">
@@ -1841,24 +1841,24 @@
         </div>
         <div class="modal-input-group">
           <label>Primary Color</label>
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <input type="color" id="screenColorInput" style="width: 60px; height: 40px; border: 1px solid #383838; border-radius: 4px; background: #242424; cursor: pointer;">
-            <span id="screenColorPreview" style="flex: 1; padding: 8px 12px; background: #242424; border: 1px solid #383838; border-radius: 4px; font-family: monospace; font-size: 12px;"></span>
+          <div class="color-picker-row">
+            <input type="color" id="screenColorInput" class="color-picker-input">
+            <span id="screenColorPreview" class="color-preview"></span>
           </div>
         </div>
         <div class="modal-input-group">
           <label>Secondary Color</label>
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <input type="color" id="screenColor2Input" style="width: 60px; height: 40px; border: 1px solid #383838; border-radius: 4px; background: #242424; cursor: pointer;">
-            <span id="screenColor2Preview" style="flex: 1; padding: 8px 12px; background: #242424; border: 1px solid #383838; border-radius: 4px; font-family: monospace; font-size: 12px;"></span>
+          <div class="color-picker-row">
+            <input type="color" id="screenColor2Input" class="color-picker-input">
+            <span id="screenColor2Preview" class="color-preview"></span>
           </div>
           <div class="hint">Panels alternate between primary and secondary colors in Standard Layout and Canvas View</div>
         </div>
       </div>
-      <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+      <div class="modal-footer modal-footer-end">
         <button class="btn-secondary" onclick="closeScreenRenameModal()">Cancel</button>
         <button class="btn-primary" onclick="saveScreenRename()">Save</button>
-        <button class="btn-secondary" onclick="duplicateScreen()" style="background: #3498db; color: #fff; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">Duplicate</button>
+        <button class="btn-secondary btn-duplicate" onclick="duplicateScreen()">Duplicate</button>
       </div>
     </div>
   </div>
@@ -1872,8 +1872,8 @@
         <!-- Panel Type -->
         <div class="section-box" id="panelTypeSection">
           <div class="section-title">Panel Type</div>
-          <label style="margin-bottom: 0;">
-            <select id="panelType" style="width: 100%; font-size: 14px;">
+          <label class="mb-0">
+            <select id="panelType" class="select-fw-14">
               <option value="BP2_V2">ROE Black Pearl BP2 V2</option>
               <option value="CB5_MKII">ROE Carbon CB5 MKII</option>
               <option value="CB5_MKII_HALF">ROE Carbon CB5 MKII Half</option>
@@ -1885,7 +1885,7 @@
             </select>
           </label>
           <!-- CB5 Half Panel Row Toggle (only visible when CB5 MKII is selected) -->
-          <div id="cb5HalfPanelToggle" style="display: none; margin-top: 8px;">
+          <div id="cb5HalfPanelToggle" class="mt-8" style="display: none;">
             <div class="toggle-group">
               <button type="button" class="toggle-btn" id="addCB5HalfRowBtn" onclick="toggleCB5HalfRow()">+ Half Panel Row</button>
             </div>
@@ -1893,7 +1893,7 @@
         </div>
 
         <!-- Connecting Plates Section (CB5 MKII / DM2.6) -->
-        <div id="connectingPlatesSection" style="display: none; margin-top: 8px;">
+        <div id="connectingPlatesSection" class="mt-8" style="display: none;">
           <div class="section-box">
             <div class="section-title">Panel Connection Method</div>
             
@@ -1907,8 +1907,8 @@
             
             <!-- DM2.6 always uses plates -->
             <div id="dm26ConnectionInfo" style="display: none;">
-              <button type="button" class="toggle-btn active" style="pointer-events: none; opacity: 1; width: auto; padding: 8px 16px;">Connecting Plates</button>
-              <div class="hint" style="color: #888; margin-top: 6px;">
+              <button type="button" class="toggle-btn active toggle-btn-disabled">Connecting Plates</button>
+              <div class="hint hint-muted">
                 DM2.6 panels use connecting plates only
               </div>
             </div>
@@ -1927,7 +1927,7 @@
         <div class="section-box">
           <div class="section-title">Dimensions</div>
 
-          <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+          <div class="dimension-toggles-row">
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="dimModePanelsBtn" onclick="setDimensionMode('panels')">Panels</button>
               <button type="button" class="slider-toggle-btn" id="dimModeSizeBtn" onclick="setDimensionMode('size')">Size</button>
@@ -1940,7 +1940,7 @@
 
           <!-- Aspect Ratio Lock -->
           <div class="mb-12">
-            <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Aspect Ratio Lock <span id="arHint" style="color: #10b981; font-style: italic; display: none;">(input width for auto height)</span></span>
+            <span class="toggle-label toggle-label-10">Aspect Ratio Lock <span id="arHint" style="display: none;">(input width for auto height)</span></span>
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="arNoneBtn" onclick="setAspectRatio('none')">None</button>
               <button type="button" class="slider-toggle-btn" id="ar169Btn" onclick="setAspectRatio('16:9')">16:9</button>
@@ -1948,22 +1948,22 @@
               <button type="button" class="slider-toggle-btn" id="arCustomBtn" onclick="setAspectRatio('custom')">Custom</button>
             </div>
             <!-- Custom Aspect Ratio Inputs (hidden by default) -->
-            <div id="customAspectRatioInputs" style="display: none; margin-top: 8px;">
-              <div class="two-inputs" style="max-width: 160px;">
+            <div id="customAspectRatioInputs" class="mt-8" style="display: none;">
+              <div class="two-inputs max-w-160">
                 <label>
                   <span>Width</span>
-                  <input type="number" id="customARWidth" min="1" placeholder="16" style="width: 60px; color: #6b7280;" onfocus="this.style.color='#fff'" onblur="if(!this.value)this.style.color='#6b7280'">
+                  <input type="number" id="customARWidth" min="1" placeholder="16" class="input-placeholder-color" onfocus="this.style.color='#fff'" onblur="if(!this.value)this.style.color='#6b7280'">
                 </label>
                 <label>
                   <span>Height</span>
-                  <input type="number" id="customARHeight" min="1" placeholder="10" style="width: 60px; color: #6b7280;" onfocus="this.style.color='#fff'" onblur="if(!this.value)this.style.color='#6b7280'">
+                  <input type="number" id="customARHeight" min="1" placeholder="10" class="input-placeholder-color" onfocus="this.style.color='#fff'" onblur="if(!this.value)this.style.color='#6b7280'">
                 </label>
               </div>
             </div>
           </div>
 
           <div id="panelCountInputs">
-            <div class="two-inputs" style="max-width: 200px;">
+            <div class="two-inputs max-w-200">
               <label>
                 <span>Panels Wide</span>
                 <input type="number" id="panelsWide" min="1">
@@ -1976,7 +1976,7 @@
           </div>
 
           <div id="wallSizeInputs" style="display: none;">
-            <div class="two-inputs" style="max-width: 200px;">
+            <div class="two-inputs max-w-200">
               <label>
                 <span>Wall Width</span>
                 <input type="number" id="wallWidth" min="0.1" step="0.01">
@@ -2072,9 +2072,9 @@
 
           <!-- Row 1: Processor -->
           <div class="mb-8">
-            <label style="margin-bottom: 0;">
+            <label class="mb-0">
               <span>Processor</span>
-              <select id="processor" style="width: 100%;">
+              <select id="processor" class="w-full">
                 <option value="Brompton_SX40">Brompton SX40</option>
                 <option value="Brompton_S8">Brompton S8</option>
                 <option value="Brompton_M2">Brompton M2</option>
@@ -2087,19 +2087,19 @@
           </div>
 
           <!-- Direct/Indirect Mode Toggle (MX40 Pro only) -->
-          <div id="mx40ModeToggleRow" style="display: none; margin-bottom: 8px;">
-            <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Connection Mode</span>
-            <div class="slider-toggle" style="display: inline-flex;">
+          <div id="mx40ModeToggleRow" class="mb-8" style="display: none;">
+            <span class="toggle-label toggle-label-10">Connection Mode</span>
+            <div class="slider-toggle d-inline-flex">
               <button type="button" class="slider-toggle-btn slider-toggle-btn-xs active" id="mx40DirectBtn" onclick="setMX40Mode('direct')">Direct</button>
               <button type="button" class="slider-toggle-btn slider-toggle-btn-xs" id="mx40IndirectBtn" onclick="setMX40Mode('indirect')">Indirect</button>
             </div>
           </div>
 
           <!-- Row 2: Frame Rate, Bit Depth, Max/Data -->
-          <div class="compact-row" style="margin-bottom: 8px; flex-wrap: nowrap; gap: 8px;">
+          <div class="compact-row compact-row-nowrap">
             <div class="flex-1-minw0">
-              <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Frame Rate</span>
-              <select id="frameRate" style="width: 100%; font-size: 14px;">
+              <span class="toggle-label toggle-label-10">Frame Rate</span>
+              <select id="frameRate" class="select-fw-14">
                 <option value="24">24 Hz</option>
                 <option value="25">25 Hz</option>
                 <option value="30">30 Hz</option>
@@ -2108,8 +2108,8 @@
               </select>
             </div>
             <div class="flex-1-minw0">
-              <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Bit Depth</span>
-              <select id="bitDepth" style="width: 100%; font-size: 14px;">
+              <span class="toggle-label toggle-label-10">Bit Depth</span>
+              <select id="bitDepth" class="select-fw-14">
                 <option value="8" selected>8 bit</option>
                 <option value="10">10 bit</option>
                 <option value="12">12 bit</option>
@@ -2117,7 +2117,7 @@
             </div>
             <div class="flex-1-minw0">
               <span class="toggle-label toggle-label-block">Max/Data</span>
-              <div class="number-input-with-arrows" style="width: 100%;">
+              <div class="number-input-with-arrows w-full">
                 <input type="number" id="maxPanelsPerData" min="1" step="1" placeholder="Auto">
                 <div class="number-input-arrows">
                   <button type="button" onclick="adjustNumberInput('maxPanelsPerData', 1)">
@@ -2133,9 +2133,9 @@
 
           <!-- Row 3: Data Direction (complex mode only) -->
           <div id="dataDirectionRow" class="mb-8">
-            <label style="margin-bottom: 0;">
+            <label class="mb-0">
               <span>Data Direction</span>
-              <select id="dataStartDir" style="width: 100%;">
+              <select id="dataStartDir" class="w-full">
                 <option value="top">Top → Bottom</option>
                 <option value="bottom">Bottom → Top</option>
                 <option value="all_top">All from Top</option>
@@ -2145,13 +2145,13 @@
           </div>
 
           <!-- Row 4: Toggle buttons (complex mode only) -->
-          <div id="dataTogglesRow" class="toggle-group" style="gap: 6px;">
-            <div style="display: flex; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">
-              <button type="button" class="toggle-btn active" id="showArrowsBtn" onclick="toggleShowArrows()" style="min-width: auto; margin: 0; border: 2px solid #000; border-right: 0; box-shadow: none;">Arrows</button>
-              <button type="button" class="toggle-btn" id="dataFlipBtn" onclick="toggleDataFlip()" style="min-width: auto; margin: 0; border: 2px solid #000; box-shadow: none;">Flip</button>
+          <div id="dataTogglesRow" class="toggle-group toggle-group-6">
+            <div class="grouped-btn-shadow">
+              <button type="button" class="toggle-btn active toggle-btn-grouped-left" id="showArrowsBtn" onclick="toggleShowArrows()">Arrows</button>
+              <button type="button" class="toggle-btn toggle-btn-grouped-right" id="dataFlipBtn" onclick="toggleDataFlip()">Flip</button>
             </div>
-            <button type="button" class="toggle-btn active" id="redundancyBtn" onclick="toggleRedundancy()" style="min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Data Redun.</button>
-            <button type="button" class="toggle-btn" id="processorRedundancyBtn" onclick="toggleProcessorRedundancy()" style="min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Proc Redun.</button>
+            <button type="button" class="toggle-btn active toggle-btn-standalone" id="redundancyBtn" onclick="toggleRedundancy()">Data Redun.</button>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="processorRedundancyBtn" onclick="toggleProcessorRedundancy()">Proc Redun.</button>
           </div>
         </div>
 
@@ -2165,33 +2165,33 @@
           <div class="section-title">Structure</div>
 
           <div class="mb-8">
-            <label style="display: block; margin-bottom: 8px;">
+            <label class="label-block-mb8">
               <span>Config Type</span>
-              <select id="structureType" style="width: 100%; max-width: 180px;">
+              <select id="structureType" class="w-full max-w-180">
                 <option value="hanging">Hanging</option>
                 <option value="ground">Ground Stack</option>
                 <option value="floor">Floor</option>
               </select>
             </label>
             <!-- Bumper Toggles Row -->
-            <div class="toggle-group" style="gap: 6px;">
-              <button type="button" class="toggle-btn active" id="useBumpersBtn" onclick="toggleUseBumpers()" style="min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Bumpers</button>
+            <div class="toggle-group toggle-group-6">
+              <button type="button" class="toggle-btn active toggle-btn-standalone" id="useBumpersBtn" onclick="toggleUseBumpers()">Bumpers</button>
               <span id="fourWayBumperOption" style="display: none;">
-                <button type="button" class="toggle-btn" id="use4WayBumpersBtn" onclick="toggle4WayBumpers()" style="min-width: auto; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">4-Way Bumpers</button>
+                <button type="button" class="toggle-btn toggle-btn-standalone" id="use4WayBumpersBtn" onclick="toggle4WayBumpers()">4-Way Bumpers</button>
               </span>
             </div>
           </div>
           
           <!-- Bumper Controls -->
           <div id="bumperControls">
-            <div class="hint" style="font-size: 11px; margin-bottom: 0;">
+            <div class="hint hint-compact">
               Long-press bumpers to edit • Auto-distributes by width
             </div>
           </div>
           
           <!-- Weight Display -->
           <div id="weightDisplay" class="weight-display" style="display: none;">
-            <div style="font-weight: bold; margin-bottom: 8px; color: #4a9eff;">Weight Distribution</div>
+            <div class="weight-title">Weight Distribution</div>
             <div id="weightContent"></div>
           </div>
         </div>
@@ -2244,12 +2244,12 @@
       <div class="layout-content" id="structureContent">
       <!-- Manual Mode Toggle -->
       <div class="structure-mode-toggle">
-        <button type="button" class="toggle-btn" id="manualBumperToggle" onclick="toggleManualBumperMode()" style="border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">
+        <button type="button" class="toggle-btn toggle-btn-standalone" id="manualBumperToggle" onclick="toggleManualBumperMode()">
           Manually Distribute Bumpers
         </button>
         <div class="undo-redo-buttons" id="structureUndoRedo" style="display: none;">
-          <button class="undo-redo-btn" id="structureUndoBtn" onclick="structureUndo()" title="Undo (Ctrl+Z)" style="border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Undo</button>
-          <button class="undo-redo-btn" id="structureRedoBtn" onclick="structureRedo()" title="Redo (Ctrl+Y)" style="border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Redo</button>
+          <button class="undo-redo-btn toggle-btn-standalone" id="structureUndoBtn" onclick="structureUndo()" title="Undo (Ctrl+Z)">Undo</button>
+          <button class="undo-redo-btn toggle-btn-standalone" id="structureRedoBtn" onclick="structureRedo()" title="Redo (Ctrl+Y)">Redo</button>
         </div>
         <span class="structure-mode-hint" id="structureModeHint">Auto-distribution active</span>
       </div>
@@ -2300,10 +2300,10 @@
       </div>
       
       <!-- Context Menu for Bumpers -->
-      <div id="bumperContextMenu" style="display:none; position:fixed; background:#242424; border:1px solid #555; border-radius:4px; padding:4px 0; box-shadow:0 2px 8px rgba(0,0,0,0.5); z-index:10000;">
+      <div id="bumperContextMenu" style="display:none;">
         <div class="context-menu-item" onclick="changeBumperType('1w')">Change to 1W</div>
         <div class="context-menu-item" onclick="changeBumperType('2w')">Change to 2W</div>
-        <div class="context-menu-item" onclick="deleteBumper()" style="color:#ff6b6b;">Delete Bumper</div>
+        <div class="context-menu-item btn-delete-text" onclick="deleteBumper()">Delete Bumper</div>
       </div>
       </div>
     </div>
@@ -2321,9 +2321,9 @@
   </div>
 
 <!-- Gear List Container (outside main-container so it can be shown as its own tab) -->
-<div class="layout-container" id="gearListContainer" style="display:none; padding-top: 8px; margin-top: 32px;">
+<div class="layout-container gear-list-layout" id="gearListContainer" style="display:none;">
   <!-- Screen Tabs (pulled above container border) -->
-  <div id="gearScreenToggles" style="display: flex; align-items: flex-end; gap: 4px; margin-top: -56px; margin-bottom: 16px;">
+  <div id="gearScreenToggles">
     <!-- Dynamically generated screen-tab style tabs -->
   </div>
 
@@ -2426,29 +2426,29 @@
     </div>
   </div>
 
-  <div id="cableDiagramContainer" style="margin-bottom: 16px; overflow-x: auto;">
-    <canvas id="cableDiagramCanvas" style="width: 100%; background: #1a1a1a; border-radius: 4px;"></canvas>
+  <div id="cableDiagramContainer" class="cable-diagram-wrap">
+    <canvas id="cableDiagramCanvas"></canvas>
   </div>
 
-  <div id="gearListContent" style="color: #e0e0e0; line-height: 1.8; padding-right: 5px; padding-bottom: 5px;"></div>
+  <div id="gearListContent" class="content-text-padded"></div>
 </div>
 
 <!-- Combined View Container (outside main-container so it can be shown independently) -->
-<div class="layout-container" id="combinedContainer" style="display:none; padding-top: 24px; margin-top: 32px; overflow: visible;">
+<div class="layout-container combined-layout" id="combinedContainer" style="display:none;">
   <!-- Combined View Title -->
   <div class="layout-title"><span>Combined View</span></div>
   <!-- Hint Box -->
-  <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 4px 10px; font-size: 11px; color: #10b981; margin-bottom: 16px; display: inline-block;">
+  <div class="combined-hint-box">
     Toggle screens below to view combined specs
   </div>
 
   <!-- Screen Toggle Buttons -->
-  <div id="combinedScreenToggles" style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px;">
+  <div id="combinedScreenToggles">
     <!-- Screen toggle buttons will be dynamically generated here -->
   </div>
 
   <!-- Combined Layouts Container -->
-  <div id="combinedLayoutsWrapper" style="overflow-x: auto; margin-bottom: 20px; padding-right: 5px; padding-bottom: 5px;">
+  <div id="combinedLayoutsWrapper" class="combined-layouts-wrap">
     <!-- Standard Layout -->
     <div class="layout-container mb-20" id="combinedStandardContainer">
       <div class="layout-title">
@@ -2456,24 +2456,24 @@
       </div>
       <div class="layout-content" id="combinedStandardContent">
         <!-- Interaction Hints -->
-        <div id="combinedInteractionHints" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; font-size: 10px; color: #10b981; line-height: 1.5;">
+        <div id="combinedInteractionHints" class="combined-interaction-hints">
           <span id="combinedHintsDesktop" style="display: none;"><strong>Panels:</strong> Right-click for options, double-click to delete/restore &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
           <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> Tap to select, tap again for options &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
         </div>
         <!-- Position Controls -->
-        <div id="combinedPositionControls" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center;">
-          <div class="slider-toggle" style="display: inline-flex;">
-            <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()" style="padding: 8px 14px; font-size: 13px; min-height: 40px;">Reset</button>
-            <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()" style="padding: 8px 14px; font-size: 13px; min-height: 40px;">Manual Adjust</button>
+        <div id="combinedPositionControls">
+          <div class="slider-toggle d-inline-flex">
+            <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()">Reset</button>
+            <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()">Manual Adjust</button>
           </div>
           <!-- Zoom Controls (slider-toggle style to match Reset/Manual Adjust) -->
-          <div class="slider-toggle" style="display: inline-flex; align-items: center;">
-            <button type="button" class="slider-toggle-btn" onclick="adjustCombinedZoom(-10)" title="Zoom Out" style="display: inline-flex; align-items: center; justify-content: center; padding: 0 14px; font-size: 14px; height: 36px; min-height: 36px;">−</button>
-            <input type="number" id="combinedZoomInput" value="100" min="50" max="200" step="10" onchange="setCombinedZoom(parseInt(this.value))" title="Enter zoom percentage" style="width: 55px; height: 36px; text-align: center; box-sizing: border-box; border: none; font-size: 12px; background: transparent; color: #fff; padding: 0;">
-            <button type="button" class="slider-toggle-btn" onclick="adjustCombinedZoom(10)" title="Zoom In" style="display: inline-flex; align-items: center; justify-content: center; padding: 0 14px; font-size: 14px; height: 36px; min-height: 36px; border-left: 2px solid #000;">+</button>
+          <div class="slider-toggle d-inline-flex">
+            <button type="button" class="slider-toggle-btn" onclick="adjustCombinedZoom(-10)" title="Zoom Out" class="combined-zoom-btn">−</button>
+            <input type="number" id="combinedZoomInput" value="100" min="50" max="200" step="10" onchange="setCombinedZoom(parseInt(this.value))" title="Enter zoom percentage">
+            <button type="button" class="slider-toggle-btn" onclick="adjustCombinedZoom(10)" title="Zoom In" class="combined-zoom-btn-plus">+</button>
           </div>
         </div>
-        <div id="combinedStandardCanvasWrapper" style="overflow-x: auto;">
+        <div id="combinedStandardCanvasWrapper" class="overflow-x-auto">
           <canvas id="combinedStandardCanvas"></canvas>
         </div>
       </div>
@@ -2485,7 +2485,7 @@
         <span>Power Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedPowerContainer')" id="combinedPowerCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="combinedPowerContent">
-        <div id="combinedPowerCanvasWrapper" style="overflow-x: auto;">
+        <div id="combinedPowerCanvasWrapper" class="overflow-x-auto">
           <canvas id="combinedPowerCanvas"></canvas>
         </div>
       </div>
@@ -2497,7 +2497,7 @@
         <span>Data Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedDataContainer')" id="combinedDataCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="combinedDataContent">
-        <div id="combinedDataCanvasWrapper" style="overflow-x: auto;">
+        <div id="combinedDataCanvasWrapper" class="overflow-x-auto">
           <canvas id="combinedDataCanvas"></canvas>
         </div>
       </div>
@@ -2509,7 +2509,7 @@
         <span>Structure Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedStructureContainer')" id="combinedStructureCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="combinedStructureContent">
-        <div id="combinedStructureCanvasWrapper" style="overflow-x: auto;">
+        <div id="combinedStructureCanvasWrapper" class="overflow-x-auto">
           <canvas id="combinedStructureCanvas"></canvas>
         </div>
       </div>
@@ -2618,7 +2618,7 @@
       </div>
 
       <!-- Cable Diagram Canvas -->
-      <div id="combinedCableDiagramCanvasWrapper" style="overflow-x: auto;">
+      <div id="combinedCableDiagramCanvasWrapper" class="overflow-x-auto">
         <canvas id="combinedCableDiagramCanvas"></canvas>
       </div>
     </div>
@@ -2630,7 +2630,7 @@
       <span>Combined Specifications<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedSpecsContainer')" id="combinedSpecsCollapseBtn" title="Minimize">▼</button></span>
     </div>
     <div class="layout-content" id="combinedSpecsLayoutContent">
-      <div id="combinedSpecsToggles" class="compact-row" style="display: none; margin-bottom: 12px;">
+      <div id="combinedSpecsToggles" class="compact-row combined-specs-layout" style="display: none;">
         <div class="flex-noshrink">
           <span class="toggle-label toggle-label-block">Power Basis</span>
           <div class="slider-toggle">
@@ -2646,7 +2646,7 @@
           </div>
         </div>
       </div>
-      <div id="combinedSpecsContent" style="color: #e0e0e0; line-height: 1.8;"></div>
+      <div id="combinedSpecsContent" class="content-text"></div>
     </div>
   </div>
 
@@ -2656,48 +2656,48 @@
       <span>Gear List<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedGearListContainer')" id="combinedGearListCollapseBtn" title="Minimize">▼</button></span>
     </div>
     <div class="layout-content" id="combinedGearListLayoutContent">
-      <div id="combinedGearListContent" style="color: #e0e0e0; line-height: 1.8; padding-right: 5px; padding-bottom: 5px;"></div>
+      <div id="combinedGearListContent" class="content-text-padded"></div>
     </div>
   </div>
 
 </div>
 
 <!-- Canvas Tabs Container (outside canvas container, normal flow like screen tabs) -->
-<div id="canvasTabsContainer" style="display: none; align-items: flex-end; gap: 4px;">
+<div id="canvasTabsContainer" class="canvas-tabs-layout" style="display: none;">
   <!-- Canvas tabs and + button will be dynamically generated here -->
 </div>
 
 <!-- Canvas Container (outside main-container so it can be shown independently) -->
-<div class="layout-container" id="canvasContainer" style="display:none; padding: 12px; padding-top: 48px; margin-top: 0; border-top: 0; overflow: visible;">
+<div class="layout-container canvas-container-layout" id="canvasContainer" style="display:none;">
   <!-- Canvas View Title with Tabs -->
   <div class="layout-title">
-    <span style="top: 0px;">Canvas View</span>
+    <span class="canvas-title-top">Canvas View</span>
   </div>
 
   <!-- Zoom and Undo/Redo Controls -->
-  <div style="display: flex; gap: 6px; margin-bottom: 12px; align-items: center;">
-    <button class="toggle-btn" onclick="zoomCanvas(-0.25)" title="Zoom Out" style="flex: 0 0 auto; padding: 8px 14px; height: 40px; font-size: 16px; box-sizing: border-box;">−</button>
-    <input type="number" id="canvasZoomInput" value="100" min="50" max="500" step="10" onchange="setCanvasZoom(this.value)" title="Enter zoom percentage" style="flex: 0 0 auto; width: 55px; padding: 8px 4px; height: 40px; text-align: center; box-sizing: border-box; border: 2px solid #000;">
-    <button class="toggle-btn" onclick="zoomCanvas(0.25)" title="Zoom In" style="flex: 0 0 auto; padding: 8px 14px; height: 40px; font-size: 16px; box-sizing: border-box;">+</button>
-    <button class="toggle-btn" onclick="resetCanvasZoom()" title="Reset Zoom" style="flex: 0 0 auto; padding: 8px 14px; height: 40px; box-sizing: border-box;">Reset</button>
-    <button class="toggle-btn" id="canvasUndoBtn" onclick="undoCanvasMove()" title="Undo Canvas Move" style="flex: 0 0 auto; padding: 8px 14px; height: 40px; box-sizing: border-box;">Undo</button>
-    <button class="toggle-btn" id="canvasRedoBtn" onclick="redoCanvasMove()" title="Redo Canvas Move" style="flex: 0 0 auto; padding: 8px 14px; height: 40px; box-sizing: border-box;">Redo</button>
+  <div class="canvas-zoom-row">
+    <button class="toggle-btn" onclick="zoomCanvas(-0.25)" title="Zoom Out" class="canvas-ctrl-btn-lg">−</button>
+    <input type="number" id="canvasZoomInput" value="100" min="50" max="500" step="10" onchange="setCanvasZoom(this.value)" title="Enter zoom percentage">
+    <button class="toggle-btn" onclick="zoomCanvas(0.25)" title="Zoom In" class="canvas-ctrl-btn-lg">+</button>
+    <button class="toggle-btn" onclick="resetCanvasZoom()" title="Reset Zoom" class="canvas-ctrl-btn">Reset</button>
+    <button class="toggle-btn" id="canvasUndoBtn" onclick="undoCanvasMove()" title="Undo Canvas Move" class="canvas-ctrl-btn">Undo</button>
+    <button class="toggle-btn" id="canvasRedoBtn" onclick="redoCanvasMove()" title="Redo Canvas Move" class="canvas-ctrl-btn">Redo</button>
   </div>
 
-  <div style="display: flex; flex-direction: column; gap: 16px;">
+  <div class="canvas-col-gap16">
     <!-- Canvas View -->
     <div>
-      <div id="canvasViewWrapper" style="width: 100%; padding-bottom: 56.25%; /* 16:9 */ height: 0; overflow: hidden; border: 2px solid #383838; background: #000; position: relative;">
-        <div id="canvasViewport" style="position: absolute; top:0; left:0; width:100%; height:100%; transform-origin: 0 0; cursor: grab;">
-          <canvas id="canvasView" style="display: block; width:100%; height:100%;"></canvas>
+      <div id="canvasViewWrapper">
+        <div id="canvasViewport">
+          <canvas id="canvasView"></canvas>
         </div>
       </div>
-      <div style="color:#888; margin-top:8px; font-size:11px;">Pinch to zoom • Drag to pan when zoomed • Drag screens to reposition</div>
-      <div style="color:#ccc; margin-top:4px; font-size:13px;" id="canvasInfo"></div>
+      <div class="canvas-hint-text">Pinch to zoom • Drag to pan when zoomed • Drag screens to reposition</div>
+      <div class="canvas-info-text" id="canvasInfo"></div>
     </div>
 
     <!-- Canvas Options -->
-    <div class="section-box" style="margin-bottom: 0;">
+    <div class="section-box mb-0">
       <div class="section-title">Canvas Options</div>
       <div class="section-content">
         <!-- Row 1: Canvas Size -->
@@ -2711,13 +2711,13 @@
           </select>
         </label>
 
-        <div id="customCanvasInputs" style="display: none; margin-bottom: 8px;">
+        <div id="customCanvasInputs" class="mb-8" style="display: none;">
           <div class="two-inputs">
-            <label style="margin-bottom: 0;">
+            <label class="mb-0">
               <span>Width (px)</span>
               <input type="number" id="customCanvasWidth" min="1">
             </label>
-            <label style="margin-bottom: 0;">
+            <label class="mb-0">
               <span>Height (px)</span>
               <input type="number" id="customCanvasHeight" min="1">
             </label>
@@ -2725,7 +2725,7 @@
         </div>
 
         <!-- Row 2: X Pos, Y Pos, Snap, Fine -->
-        <div style="display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px;">
+        <div class="canvas-controls-row">
           <div class="flex-1">
             <span class="toggle-label toggle-label-block">X Pos</span>
             <div class="number-input-with-arrows">
@@ -2754,9 +2754,9 @@
               </div>
             </div>
           </div>
-          <div style="display: flex; flex-direction: column; flex: 1;">
-            <span class="toggle-label" style="display: block; margin-bottom: 4px; visibility: hidden;">Snap</span>
-            <button type="button" class="toggle-btn active" id="snapModeBtn" onclick="toggleSnapMode()" style="width: 100%; padding: 10px 8px; min-height: 48px; box-sizing: border-box; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Snap</button>
+          <div class="snap-btn-col">
+            <span class="toggle-label toggle-label-hidden">Snap</span>
+            <button type="button" class="toggle-btn active" id="snapModeBtn" onclick="toggleSnapMode()">Snap</button>
           </div>
           <div class="flex-1">
             <span class="toggle-label toggle-label-block">Fine(px)</span>
@@ -2776,17 +2776,17 @@
 
         <!-- Row 3: Filename -->
         <div class="mb-8">
-          <input type="text" id="canvasExportFilename" placeholder="Filename..." style="width: 100%; padding: 10px; font-size: 13px; background: #2a2a2a; color: #fff; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); min-height: 48px; box-sizing: border-box;">
+          <input type="text" id="canvasExportFilename" placeholder="Filename...">
         </div>
 
         <!-- Row 4: PNG dropdown, Export button -->
-        <div style="display: flex; gap: 8px; align-items: stretch; margin-bottom: 12px;">
-          <select id="canvasExportFormat" style="flex: 1; padding: 10px 8px; height: 48px; box-sizing: border-box;">
+        <div class="canvas-export-row">
+          <select id="canvasExportFormat">
             <option value="png" selected="">PNG</option>
             <option value="jpeg">JPEG</option>
             <option value="resolume">Resolume</option>
           </select>
-          <button id="btnExportCanvas" class="config-btn" style="background: var(--primary); border: 2px solid #000; flex: 1; height: 48px; padding: 0; box-sizing: border-box;">Export</button>
+          <button id="btnExportCanvas" class="config-btn">Export</button>
         </div>
 
       </div>
@@ -2808,7 +2808,7 @@
         </div>
         <div class="canvas-toolbar-group toolbar-canvas-size">
           <span class="canvas-toolbar-label">Canvas Size</span>
-          <select id="rasterToolbarCanvasSize" style="min-width: 140px;">
+          <select id="rasterToolbarCanvasSize" class="min-w-140">
             <option value="4K_UHD" selected="">4K UHD (3840x2160)</option>
             <option value="4K_DCI">4K DCI (4096x2160)</option>
             <option value="HD">HD (1920x1080)</option>
@@ -2817,11 +2817,11 @@
         </div>
         <div class="canvas-toolbar-group toolbar-custom-w" id="rasterCustomW" style="display: none;">
           <span class="canvas-toolbar-label">W (px)</span>
-          <input type="number" id="rasterToolbarCustomW" min="1" style="width: 80px;">
+          <input type="number" id="rasterToolbarCustomW" min="1" class="w-80">
         </div>
         <div class="canvas-toolbar-group toolbar-custom-h" id="rasterCustomH" style="display: none;">
           <span class="canvas-toolbar-label">H (px)</span>
-          <input type="number" id="rasterToolbarCustomH" min="1" style="width: 80px;">
+          <input type="number" id="rasterToolbarCustomH" min="1" class="w-80">
         </div>
         <div class="canvas-toolbar-group">
           <span class="canvas-toolbar-label">X Pos</span>
@@ -2878,11 +2878,11 @@
 </div>
 
   <!-- Raster Screen Table (shown only in raster mode) -->
-  <div id="rasterScreenTableContainer" class="layout-container" style="display: none; padding: 12px; padding-top: 36px; margin-top: 0; border-top: 0;">
+  <div id="rasterScreenTableContainer" class="layout-container raster-table-layout" style="display: none;">
     <div class="layout-title">
-      <span style="top: 0px;">Screens</span>
+      <span class="canvas-title-top">Screens</span>
     </div>
-    <div id="rasterScreenTable" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+    <div id="rasterScreenTable" class="raster-table-scroll">
       <!-- Dynamically generated by renderRasterScreenTable() -->
     </div>
     <button class="raster-add-btn" onclick="addRasterScreen()">+ Add Screen</button>
@@ -2896,7 +2896,7 @@
         <button class="modal-close" onclick="closeRasterCustomPanelModal()">&times;</button>
       </div>
       <div class="modal-body">
-        <p style="color: #888; font-size: 12px; margin-bottom: 16px;">
+        <p class="raster-help-text">
           Enter pixel dimensions for raster mapping. Full panel specs can be added later in Complex mode.
         </p>
         <label class="mb-12">
@@ -2994,8 +2994,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.15';
-const APP_CHANGELOG = 'Extract flex utility inline styles to CSS classes';
+const APP_VERSION = '2.10.16';
+const APP_CHANGELOG = 'Extract compound display:none splits and one-off inline styles to CSS classes';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -3123,7 +3123,7 @@ let isLoadingScreenData = false; // Flag to prevent resetCalculator during scree
 <!-- Bottom Navigation -->
 <nav class="bottom-nav">
   <!-- Complex mode groups -->
-  <div class="nav-mode-toggle nav-complex-group" style="flex: 2;">
+  <div class="nav-mode-toggle nav-complex-group nav-flex-2">
     <button class="nav-toggle-btn active" data-mode="complex" onclick="switchAppMode('complex')">
       <span>Complex</span>
     </button>
@@ -3131,19 +3131,19 @@ let isLoadingScreenData = false; // Flag to prevent resetCalculator during scree
       <span>Combined</span>
     </button>
   </div>
-  <div class="nav-mode-toggle nav-complex-group" style="flex: 1;">
+  <div class="nav-mode-toggle nav-complex-group nav-flex-1">
     <button class="nav-toggle-btn" data-mode="gear" onclick="switchAppMode('gear')">
       <span>Cable</span>
     </button>
   </div>
   <!-- Simple mode group (hidden by default) -->
-  <div class="nav-mode-toggle nav-simple-group" style="flex: 1; display: none;">
+  <div class="nav-mode-toggle nav-simple-group nav-flex-1" style="display: none;">
     <button class="nav-toggle-btn" data-mode="simple" onclick="switchAppMode('simple')">
       <span>Simple</span>
     </button>
   </div>
   <!-- Canvas (always visible) -->
-  <div class="nav-mode-toggle" style="flex: 1;">
+  <div class="nav-mode-toggle nav-flex-1">
     <button class="nav-toggle-btn" data-view="canvas" onclick="switchMobileView('canvas')">
       <span>Canvas</span>
     </button>

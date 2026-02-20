@@ -734,12 +734,12 @@
 
 <!-- Help Modal -->
 <div id="helpModal" class="modal-overlay">
-  <div class="modal-dialog" style="max-width: 560px; max-height: 85vh;">
+  <div class="modal-dialog modal-560 modal-scrollable">
     <div class="modal-header">
       <h2 class="modal-title">How to Use B.L.I.N.K.</h2>
       <button class="modal-close" onclick="closeHelpModal()">&times;</button>
     </div>
-    <div class="modal-body" style="overflow-y: auto; max-height: calc(85vh - 80px); padding: 16px;">
+    <div class="modal-body">
       <div class="help-content">
         <h3 class="help-section-title">Getting Started</h3>
         <ol class="help-list">
@@ -1054,12 +1054,12 @@
 
 <!-- Terms of Use Modal -->
 <div id="termsModal" class="modal-overlay">
-  <div class="modal-dialog" style="max-width: 480px; max-height: 85vh;">
+  <div class="modal-dialog modal-480 modal-scrollable">
     <div class="modal-header">
       <h2 class="modal-title">Terms of Use</h2>
       <button class="modal-close" onclick="closeTermsModal()">&times;</button>
     </div>
-    <div class="modal-body" style="overflow-y: auto; max-height: calc(85vh - 80px); padding: 16px;">
+    <div class="modal-body">
       <div class="help-content">
         <h3 class="help-section-title">Usage</h3>
         <ul class="help-list">
@@ -1088,12 +1088,12 @@
 
 <!-- Recent Projects Modal -->
 <div id="recentProjectsModal" class="modal-overlay">
-  <div class="modal-dialog" style="max-width: 480px; max-height: 85vh;">
+  <div class="modal-dialog modal-480 modal-scrollable">
     <div class="modal-header">
       <h2 class="modal-title">Recent Projects</h2>
       <button class="modal-close" onclick="closeRecentProjectsModal()">&times;</button>
     </div>
-    <div class="modal-body" style="overflow-y: auto; max-height: calc(85vh - 80px); padding: 16px;">
+    <div class="modal-body">
       <div id="recentProjectsList"></div>
     </div>
   </div>
@@ -1465,7 +1465,7 @@
 
 <!-- Send to Jared Options Modal -->
 <div id="sendToJaredModal" class="modal-overlay">
-  <div class="modal-dialog" style="max-width: 360px;">
+  <div class="modal-dialog modal-360">
     <div class="modal-header">
       <h2 class="modal-title">Send to Jared</h2>
       <button class="modal-close" onclick="closeSendToJaredModal()">&times;</button>
@@ -1489,7 +1489,7 @@
 
 <!-- PDF Export Options Modal -->
 <div id="pdfExportModal" class="modal-overlay">
-  <div class="modal-dialog" style="max-width: 360px;">
+  <div class="modal-dialog modal-360">
     <div class="modal-header">
       <h2 class="modal-title" id="pdfExportModalTitle">Export Options</h2>
       <button class="modal-close" onclick="closePdfExportModal()">&times;</button>
@@ -1661,7 +1661,7 @@
 
 <!-- Community Browser Modal -->
 <div id="communityBrowserModal" class="modal-overlay">
-  <div class="modal-dialog" style="max-width: 500px;">
+  <div class="modal-dialog modal-500">
     <div class="modal-header">
       <h2 class="modal-title">Community Library</h2>
       <button class="modal-close" onclick="closeCommunityBrowserModal()">&times;</button>
@@ -1829,7 +1829,7 @@
 
   <!-- Screen Rename Modal -->
   <div id="screenRenameModal" class="modal-overlay">
-    <div class="modal-dialog" style="max-width: 400px;">
+    <div class="modal-dialog modal-400">
       <div class="modal-header">
         <h2 class="modal-title">Edit Screen</h2>
         <button class="modal-close" onclick="closeScreenRenameModal()">&times;</button>
@@ -2890,7 +2890,7 @@
 
   <!-- Simplified Custom Panel Modal (Raster) -->
   <div id="rasterCustomPanelModal" class="modal-overlay">
-    <div class="modal-dialog" style="max-width: 400px;">
+    <div class="modal-dialog modal-400">
       <div class="modal-header">
         <h2 class="modal-title">Add Custom Panel</h2>
         <button class="modal-close" onclick="closeRasterCustomPanelModal()">&times;</button>
@@ -2994,8 +2994,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.9';
-const APP_CHANGELOG = 'Extract checkbox, modal hint, and divider inline styles to CSS classes';
+const APP_VERSION = '2.10.10';
+const APP_CHANGELOG = 'Extract modal sizing and scrollable body inline styles to CSS classes';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -1,5 +1,5 @@
 {
-  "version": "2.10.9",
+  "version": "2.10.10",
   "updated": "2026-02-20",
-  "changelog": "Extract checkbox, modal hint, and divider inline styles to CSS classes"
+  "changelog": "Extract modal sizing and scrollable body inline styles to CSS classes"
 }

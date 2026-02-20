@@ -5623,3 +5623,21 @@ canvas:focus {
   margin: 12px 0;
 }
 
+/* Modal size variants (default is 420px in .modal-dialog) */
+.modal-sm { max-width: 300px; }
+.modal-320 { max-width: 320px; }
+.modal-360 { max-width: 360px; }
+.modal-400 { max-width: 400px; }
+.modal-480 { max-width: 480px; }
+.modal-500 { max-width: 500px; }
+.modal-560 { max-width: 560px; }
+
+/* Modal with constrained height (85vh instead of default 90vh) */
+.modal-scrollable {
+  max-height: 85vh;
+}
+.modal-scrollable > .modal-body {
+  max-height: calc(85vh - 80px);
+  padding: 16px;
+}
+

@@ -5119,6 +5119,7 @@ canvas:focus {
   flex: 1;
   box-sizing: border-box;
   min-width: 0;
+  overflow: hidden;
 }
 
 .tp-arrows input {
@@ -5573,6 +5574,15 @@ canvas:focus {
 
   .tp-canvas-wrapper canvas {
     max-height: 50vh;
+  }
+
+  /* Hide toolbar buttons accessible via hamburger on mobile */
+  #tpQuickSaveBtn,
+  #tpQuickLoadBtn,
+  .tp-share-wrap,
+  .tp-toolbar-divider,
+  .tp-liveout-wrap {
+    display: none !important;
   }
 }
 

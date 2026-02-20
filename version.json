@@ -1,5 +1,5 @@
 {
-  "version": "2.10.18",
+  "version": "2.10.19",
   "updated": "2026-02-20",
-  "changelog": "Fix test pattern corner circles and make corners+center mode static"
+  "changelog": "Fix test pattern mobile header overflow and number input shadow clipping"
 }

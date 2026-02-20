@@ -5776,3 +5776,8 @@ canvas:focus {
   margin-bottom: 4px;
 }
 
+/* Flex utilities */
+.flex-noshrink { flex: 0 0 auto; }
+.flex-1 { flex: 1; }
+.flex-1-minw0 { flex: 1; min-width: 0; }
+

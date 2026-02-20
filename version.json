@@ -1,5 +1,5 @@
 {
-  "version": "2.10.14",
+  "version": "2.10.15",
   "updated": "2026-02-20",
-  "changelog": "Extract cabling section inline styles to CSS classes"
+  "changelog": "Extract flex utility inline styles to CSS classes"
 }

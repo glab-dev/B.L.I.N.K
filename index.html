@@ -1702,7 +1702,7 @@
       </div>
       <div style="padding: 0 16px 8px; display: flex; gap: 8px; align-items: center;">
         <label style="color: #888; font-size: 12px; font-family: 'Roboto Condensed', sans-serif;">Scope:</label>
-        <div class="slider-toggle" style="flex: 0 0 auto;">
+        <div class="slider-toggle flex-noshrink">
           <button type="button" class="slider-toggle-btn slider-toggle-btn-scope active" id="gcScopeGlobal" onclick="switchGearCodeScope('global')">Global</button>
           <button type="button" class="slider-toggle-btn slider-toggle-btn-scope" id="gcScopeProject" onclick="switchGearCodeScope('project')">This Project</button>
         </div>
@@ -1995,7 +1995,7 @@
 
           <!-- Row 1: Power Basis and Phase toggles -->
           <div class="compact-row mb-12">
-            <div style="flex: 0 0 auto;">
+            <div class="flex-noshrink">
               <span class="toggle-label toggle-label-block">Power Basis</span>
               <div class="slider-toggle">
                 <button type="button" class="slider-toggle-btn active" id="powerMaxBtn" onclick="setPowerType('max')">Max</button>
@@ -2006,7 +2006,7 @@
                 <option value="avg">Average</option>
               </select>
             </div>
-            <div style="flex: 0 0 auto;">
+            <div class="flex-noshrink">
               <span class="toggle-label toggle-label-block">Phase</span>
               <div class="slider-toggle">
                 <button type="button" class="slider-toggle-btn active" id="phase3Btn" onclick="setPhase(3)">3Ø</button>
@@ -2021,7 +2021,7 @@
 
           <!-- Row 2: Voltage, Breaker, Max/Circuit -->
           <div class="compact-row">
-            <div style="flex: 0 0 auto;">
+            <div class="flex-noshrink">
               <span class="toggle-label toggle-label-block">Voltage</span>
               <div class="number-input-with-arrows">
                 <input type="number" id="voltage" value="208">
@@ -2035,7 +2035,7 @@
                 </div>
               </div>
             </div>
-            <div style="flex: 0 0 auto;">
+            <div class="flex-noshrink">
               <span class="toggle-label toggle-label-block">Breaker</span>
               <div class="number-input-with-arrows">
                 <input type="number" id="breaker" value="20">
@@ -2049,7 +2049,7 @@
                 </div>
               </div>
             </div>
-            <div style="flex: 0 0 auto;">
+            <div class="flex-noshrink">
               <span class="toggle-label toggle-label-block">Max/Circuit</span>
               <div class="number-input-with-arrows">
                 <input type="number" id="maxPanelsPerCircuit" min="1" step="1" placeholder="21">
@@ -2097,7 +2097,7 @@
 
           <!-- Row 2: Frame Rate, Bit Depth, Max/Data -->
           <div class="compact-row" style="margin-bottom: 8px; flex-wrap: nowrap; gap: 8px;">
-            <div style="flex: 1; min-width: 0;">
+            <div class="flex-1-minw0">
               <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Frame Rate</span>
               <select id="frameRate" style="width: 100%; font-size: 14px;">
                 <option value="24">24 Hz</option>
@@ -2107,7 +2107,7 @@
                 <option value="60" selected>60 Hz</option>
               </select>
             </div>
-            <div style="flex: 1; min-width: 0;">
+            <div class="flex-1-minw0">
               <span class="toggle-label" style="display: block; margin-bottom: 4px; font-size: 10px;">Bit Depth</span>
               <select id="bitDepth" style="width: 100%; font-size: 14px;">
                 <option value="8" selected>8 bit</option>
@@ -2115,7 +2115,7 @@
                 <option value="12">12 bit</option>
               </select>
             </div>
-            <div style="flex: 1; min-width: 0;">
+            <div class="flex-1-minw0">
               <span class="toggle-label toggle-label-block">Max/Data</span>
               <div class="number-input-with-arrows" style="width: 100%;">
                 <input type="number" id="maxPanelsPerData" min="1" step="1" placeholder="Auto">
@@ -2631,14 +2631,14 @@
     </div>
     <div class="layout-content" id="combinedSpecsLayoutContent">
       <div id="combinedSpecsToggles" class="compact-row" style="display: none; margin-bottom: 12px;">
-        <div style="flex: 0 0 auto;">
+        <div class="flex-noshrink">
           <span class="toggle-label toggle-label-block">Power Basis</span>
           <div class="slider-toggle">
             <button type="button" class="slider-toggle-btn active" id="combinedPowerMaxBtn" onclick="setCombinedPowerType('max')">Max</button>
             <button type="button" class="slider-toggle-btn" id="combinedPowerAvgBtn" onclick="setCombinedPowerType('avg')">Avg</button>
           </div>
         </div>
-        <div style="flex: 0 0 auto;">
+        <div class="flex-noshrink">
           <span class="toggle-label toggle-label-block">Phase</span>
           <div class="slider-toggle">
             <button type="button" class="slider-toggle-btn active" id="combinedPhase3Btn" onclick="setCombinedPhase(3)">3Ø</button>
@@ -2726,7 +2726,7 @@
 
         <!-- Row 2: X Pos, Y Pos, Snap, Fine -->
         <div style="display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px;">
-          <div style="flex: 1;">
+          <div class="flex-1">
             <span class="toggle-label toggle-label-block">X Pos</span>
             <div class="number-input-with-arrows">
               <input type="number" id="canvasX" value="0" min="0">
@@ -2740,7 +2740,7 @@
               </div>
             </div>
           </div>
-          <div style="flex: 1;">
+          <div class="flex-1">
             <span class="toggle-label toggle-label-block">Y Pos</span>
             <div class="number-input-with-arrows">
               <input type="number" id="canvasY" value="0" min="0">
@@ -2758,7 +2758,7 @@
             <span class="toggle-label" style="display: block; margin-bottom: 4px; visibility: hidden;">Snap</span>
             <button type="button" class="toggle-btn active" id="snapModeBtn" onclick="toggleSnapMode()" style="width: 100%; padding: 10px 8px; min-height: 48px; box-sizing: border-box; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);">Snap</button>
           </div>
-          <div style="flex: 1;">
+          <div class="flex-1">
             <span class="toggle-label toggle-label-block">Fine(px)</span>
             <div class="number-input-with-arrows">
               <input type="number" id="arrowKeyIncrement" value="10" min="1" max="100">
@@ -2994,8 +2994,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.14';
-const APP_CHANGELOG = 'Extract cabling section inline styles to CSS classes';
+const APP_VERSION = '2.10.15';
+const APP_CHANGELOG = 'Extract flex utility inline styles to CSS classes';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

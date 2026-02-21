@@ -7,6 +7,8 @@ import { CanvasView } from '../page-objects/canvas-view.po';
 import { CombinedView } from '../page-objects/combined-view.po';
 import { GearList } from '../page-objects/gear-list.po';
 import { Navigation } from '../page-objects/navigation.po';
+import { TestPatternPage } from '../page-objects/test-pattern.po';
+import { RasterMode } from '../page-objects/raster.po';
 
 /**
  * Extended test fixtures for LED Calculator
@@ -21,6 +23,8 @@ type TestFixtures = {
   combinedView: CombinedView;
   gearList: GearList;
   navigation: Navigation;
+  testPattern: TestPatternPage;
+  raster: RasterMode;
   clearLocalStorage: void;
 };
 
@@ -63,6 +67,16 @@ export const test = base.extend<TestFixtures>({
   navigation: async ({ page }, use) => {
     const navigation = new Navigation(page);
     await use(navigation);
+  },
+
+  testPattern: async ({ page }, use) => {
+    const testPattern = new TestPatternPage(page);
+    await use(testPattern);
+  },
+
+  raster: async ({ page }, use) => {
+    const raster = new RasterMode(page);
+    await use(raster);
   },
 
   clearLocalStorage: async ({ page }, use) => {

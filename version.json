@@ -1,5 +1,5 @@
 {
-  "version": "2.10.19",
+  "version": "2.10.20",
   "updated": "2026-02-20",
-  "changelog": "Fix test pattern mobile header overflow and number input shadow clipping"
+  "changelog": "Add comprehensive Playwright tests for test pattern generator and raster mode"
 }

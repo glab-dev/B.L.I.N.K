@@ -133,15 +133,7 @@ function closeHelpModal() {
   }
 }
 
-function switchHelpTab(tab) {
-  document.querySelectorAll('.help-tab-btn').forEach(function(btn) {
-    btn.classList.toggle('active', btn.dataset.tab === tab);
-  });
-  var simpleContent = document.getElementById('helpSimpleContent');
-  var complexContent = document.getElementById('helpComplexContent');
-  if(simpleContent) simpleContent.style.display = tab === 'simple' ? 'block' : 'none';
-  if(complexContent) complexContent.style.display = tab === 'complex' ? 'block' : 'none';
-}
+// switchHelpMainTab() and switchHelpTab() are defined inline in index.html
 
 // ==================== FAQ ACCORDION ====================
 

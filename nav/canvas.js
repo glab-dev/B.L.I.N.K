@@ -208,6 +208,7 @@ function showCanvasView(){
 
   // Clear any cached canvas image to ensure fresh render
   cachedCanvasImageData = null;
+  cachedCanvasImageDataForExport = null;
 
   // Only show canvas container when on canvas page
   const container = document.getElementById('canvasContainer');
@@ -272,7 +273,9 @@ function showCanvasView(){
     void canvas.offsetHeight;
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, canvasResX, canvasResY);
-    // Draw canvas boundary border
+    // Cache clean state for export BEFORE drawing border
+    cachedCanvasImageDataForExport = ctx.getImageData(0, 0, canvasResX, canvasResY);
+    // Draw canvas boundary border (display only, not included in export)
     ctx.strokeStyle = '#10b981';
     ctx.lineWidth = 6;
     ctx.setLineDash([]);

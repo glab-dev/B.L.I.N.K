@@ -876,6 +876,16 @@ function _tpInitLayersPanel() {
       tpLayerOrder = newOrder;
       scheduleTestPatternRedraw();
     }
+    try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
+    _dragItem = null;
+  });
+
+  _dragList.addEventListener('pointercancel', function(e) {
+    if(!_dragItem) return;
+    _dragItem.classList.remove('dragging');
+    var items = _dragList.querySelectorAll('.tp-layer-item');
+    items.forEach(function(el) { el.classList.remove('drag-over'); });
+    try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
     _dragItem = null;
   });
 }

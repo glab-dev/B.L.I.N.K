@@ -1,5 +1,5 @@
 {
-  "version": "2.10.20",
-  "updated": "2026-02-20",
-  "changelog": "Add comprehensive Playwright tests for test pattern generator and raster mode"
+  "version": "2.10.21",
+  "updated": "2026-02-23",
+  "changelog": "Fix canvas export green border and test pattern layer drag on mobile"
 }

@@ -51,11 +51,15 @@ function exportCanvas(){
     // Use cached image data without border for clean export
     if(cachedCanvasImageDataForExport) {
       exportCtx.putImageData(cachedCanvasImageDataForExport, 0, 0);
-    } else if(cachedCanvasImageData) {
-      // Fallback to regular cache if export cache not available
-      exportCtx.putImageData(cachedCanvasImageData, 0, 0);
     } else {
-      exportCtx.drawImage(canvas, 0, 0);
+      // Force a fresh render to populate clean export cache
+      if(typeof showCanvasView === 'function') showCanvasView();
+      if(cachedCanvasImageDataForExport) {
+        exportCtx.putImageData(cachedCanvasImageDataForExport, 0, 0);
+      } else {
+        // Last resort: copy canvas as-is
+        exportCtx.drawImage(canvas, 0, 0);
+      }
     }
     
     // Handle Resolume XML export

@@ -4690,6 +4690,7 @@ canvas:focus {
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: none;
   transition: background 0.1s;
 }
 .tp-layer-item:hover { background: #2a2a2a; }

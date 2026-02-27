@@ -177,8 +177,6 @@ function showOutlineExportModal() {
   document.getElementById('outlineModeCanvas').classList.add('active');
   document.getElementById('outlineModeScreen').classList.remove('active');
   document.getElementById('outlineScreenSelectGroup').style.display = 'none';
-  document.getElementById('outlineCustomDims').checked = false;
-  document.getElementById('outlineCustomDimsRow').style.display = 'none';
   document.getElementById('outlineWidthInput').value = 2;
   document.getElementById('outlineColorInput').value = '#ffffff';
 
@@ -204,42 +202,14 @@ function setOutlineMode(mode) {
 }
 
 function updateOutlineForScreen() {
-  if(!document.getElementById('outlineCustomDims').checked) {
-    _updateOutlineDimensions();
-  }
-}
-
-function toggleOutlineCustomDims() {
-  var custom = document.getElementById('outlineCustomDims').checked;
-  document.getElementById('outlineCustomDimsRow').style.display = custom ? '' : 'none';
-  if(custom) {
-    document.getElementById('outlineCustomW').value = _outlineW;
-    document.getElementById('outlineCustomH').value = _outlineH;
-  } else {
-    _updateOutlineDimensions();
-  }
-}
-
-function updateOutlineFromCustomDims() {
-  _outlineW = parseInt(document.getElementById('outlineCustomW').value) || 1;
-  _outlineH = parseInt(document.getElementById('outlineCustomH').value) || 1;
-  _updateOutlineMax();
   updateOutlinePreview();
 }
 
 function _updateOutlineDimensions() {
-  if(_outlineMode === 'canvas') {
-    var res = _getCanvasResolution();
-    _outlineW = res.w;
-    _outlineH = res.h;
-  } else {
-    var selId = document.getElementById('outlineScreenSelect').value;
-    if(selId) {
-      var res = _getScreenResolution(selId);
-      _outlineW = res.w;
-      _outlineH = res.h;
-    }
-  }
+  // Always use the canvas resolution for both modes
+  var res = _getCanvasResolution();
+  _outlineW = res.w;
+  _outlineH = res.h;
   document.getElementById('outlineDimsLabel').textContent = _outlineW + ' x ' + _outlineH + ' px';
   _updateOutlineMax();
   updateOutlinePreview();
@@ -347,10 +317,13 @@ function updateOutlinePreview() {
       _drawScreenOutline(ctx, sd, allP, ox, oy, scaledBw, scale);
     });
   } else {
-    // Per screen mode
+    // Per screen mode: draw selected screen at its canvas position
     var selId = document.getElementById('outlineScreenSelect').value;
     if(selId && screens[selId]) {
-      _drawScreenOutline(ctx, screens[selId].data, allP, 0, 0, scaledBw, scale);
+      var sd = screens[selId].data;
+      var ox = ((typeof sd.canvasX === 'number' && !isNaN(sd.canvasX)) ? sd.canvasX : 0) * scale;
+      var oy = ((typeof sd.canvasY === 'number' && !isNaN(sd.canvasY)) ? sd.canvasY : 0) * scale;
+      _drawScreenOutline(ctx, sd, allP, ox, oy, scaledBw, scale);
     }
   }
 }
@@ -372,13 +345,16 @@ function exportOutlinePNG() {
     if(_outlineMode === 'screen') {
       var selId = document.getElementById('outlineScreenSelect').value;
       var screenName = (screens[selId] && screens[selId].name) ? screens[selId].name.replace(/[<>:"/\\|?*\s]/g, '_') : selId;
+      var sd = screens[selId].data;
 
       var exportCanvas = document.createElement('canvas');
       exportCanvas.width = _outlineW;
       exportCanvas.height = _outlineH;
       var ctx = exportCanvas.getContext('2d');
       ctx.fillStyle = color;
-      _drawScreenOutline(ctx, screens[selId].data, allP, 0, 0, bw, 1);
+      var ox = (typeof sd.canvasX === 'number' && !isNaN(sd.canvasX)) ? sd.canvasX : 0;
+      var oy = (typeof sd.canvasY === 'number' && !isNaN(sd.canvasY)) ? sd.canvasY : 0;
+      _drawScreenOutline(ctx, sd, allP, ox, oy, bw, 1);
 
       var fname = customName ? customName + '_' + screenName : 'Outline_' + screenName + '_' + _outlineW + 'x' + _outlineH + '_' + bw + 'px';
       fname = fname.replace(/[<>:"/\\|?*]/g, '_');

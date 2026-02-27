@@ -6451,21 +6451,11 @@ canvas:focus {
   min-height: 36px;
   font-size: 13px;
 }
-.outline-dims-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
 .outline-dims-label {
   font-family: 'Roboto Condensed', sans-serif;
   font-size: 15px;
   font-weight: 600;
   color: #fff;
-}
-.outline-custom-check {
-  font-size: 13px;
-  margin: 0;
 }
 #outlinePreviewCanvas {
   display: block;

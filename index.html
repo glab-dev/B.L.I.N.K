@@ -1641,25 +1641,8 @@
       </div>
 
       <div class="modal-input-group">
-        <label>Dimensions</label>
-        <div class="outline-dims-row">
-          <span id="outlineDimsLabel" class="outline-dims-label">3840 x 2160 px</span>
-          <label class="checkbox-label outline-custom-check">
-            <input type="checkbox" id="outlineCustomDims" onchange="toggleOutlineCustomDims()">
-            <span>Custom</span>
-          </label>
-        </div>
-      </div>
-
-      <div class="modal-input-row" id="outlineCustomDimsRow" style="display:none;">
-        <div class="modal-input-group">
-          <label>Width (px)</label>
-          <input type="number" id="outlineCustomW" min="1" max="16384" value="3840" onchange="updateOutlineFromCustomDims()" oninput="updateOutlineFromCustomDims()">
-        </div>
-        <div class="modal-input-group">
-          <label>Height (px)</label>
-          <input type="number" id="outlineCustomH" min="1" max="16384" value="2160" onchange="updateOutlineFromCustomDims()" oninput="updateOutlineFromCustomDims()">
-        </div>
+        <label>Canvas Dimensions</label>
+        <span id="outlineDimsLabel" class="outline-dims-label">3840 x 2160 px</span>
       </div>
 
       <div class="modal-input-row">

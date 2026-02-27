@@ -318,8 +318,14 @@ function updateOutlinePreview() {
   canvas.width = Math.round(_outlineW * scale);
   canvas.height = Math.round(_outlineH * scale);
 
-  // Clear (transparent)
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Draw checkerboard background to indicate transparency
+  var checkSize = 8;
+  for(var cy = 0; cy < canvas.height; cy += checkSize) {
+    for(var cx = 0; cx < canvas.width; cx += checkSize) {
+      ctx.fillStyle = ((cx / checkSize + cy / checkSize) % 2 === 0) ? '#555' : '#444';
+      ctx.fillRect(cx, cy, checkSize, checkSize);
+    }
+  }
 
   var bw = parseInt(document.getElementById('outlineWidthInput').value) || 1;
   var color = document.getElementById('outlineColorInput').value;

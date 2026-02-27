@@ -1617,6 +1617,71 @@
   </div>
 </div>
 
+<!-- Outline Export Modal -->
+<div id="outlineExportModal" class="modal-overlay">
+  <div class="modal-dialog modal-400">
+    <div class="modal-header">
+      <h2 class="modal-title">Export Outline</h2>
+      <button class="modal-close" onclick="closeOutlineExportModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-hint">Generate a transparent PNG with a solid outline border.</p>
+
+      <div class="modal-input-group">
+        <label>Mode</label>
+        <div class="outline-mode-toggle">
+          <button type="button" class="toggle-btn active" id="outlineModeCanvas" onclick="setOutlineMode('canvas')">Full Canvas</button>
+          <button type="button" class="toggle-btn" id="outlineModeScreen" onclick="setOutlineMode('screen')">Per Screen</button>
+        </div>
+      </div>
+
+      <div class="modal-input-group" id="outlineScreenSelectGroup" style="display:none;">
+        <label>Screen</label>
+        <select id="outlineScreenSelect" onchange="updateOutlineForScreen()"></select>
+      </div>
+
+      <div class="modal-input-group">
+        <label>Dimensions</label>
+        <div class="outline-dims-row">
+          <span id="outlineDimsLabel" class="outline-dims-label">3840 x 2160 px</span>
+          <label class="checkbox-label outline-custom-check">
+            <input type="checkbox" id="outlineCustomDims" onchange="toggleOutlineCustomDims()">
+            <span>Custom</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-input-row" id="outlineCustomDimsRow" style="display:none;">
+        <div class="modal-input-group">
+          <label>Width (px)</label>
+          <input type="number" id="outlineCustomW" min="1" max="16384" value="3840" onchange="updateOutlineFromCustomDims()" oninput="updateOutlineFromCustomDims()">
+        </div>
+        <div class="modal-input-group">
+          <label>Height (px)</label>
+          <input type="number" id="outlineCustomH" min="1" max="16384" value="2160" onchange="updateOutlineFromCustomDims()" oninput="updateOutlineFromCustomDims()">
+        </div>
+      </div>
+
+      <div class="modal-input-row">
+        <div class="modal-input-group">
+          <label>Outline Width (px)</label>
+          <input type="number" id="outlineWidthInput" min="1" max="1080" value="2" onchange="updateOutlinePreview()" oninput="updateOutlinePreview()">
+        </div>
+        <div class="modal-input-group">
+          <label>Color</label>
+          <input type="color" id="outlineColorInput" value="#ffffff" oninput="updateOutlinePreview()">
+        </div>
+      </div>
+
+      <canvas id="outlinePreviewCanvas" width="400" height="225"></canvas>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeOutlineExportModal()">Cancel</button>
+      <button class="btn-primary" onclick="exportOutlinePNG()">Export</button>
+    </div>
+  </div>
+</div>
+
 <!-- PWA Install Prompt Modal -->
 <div id="pwaInstallModal" class="modal-overlay">
   <div class="modal-dialog">
@@ -2860,6 +2925,7 @@
             <option value="png" selected="">PNG</option>
             <option value="jpeg">JPEG</option>
             <option value="resolume">Resolume</option>
+            <option value="outline">Outline</option>
           </select>
           <button id="btnExportCanvas" class="config-btn">Export</button>
         </div>
@@ -2938,6 +3004,7 @@
             <option value="png" selected="">PNG</option>
             <option value="jpeg">JPEG</option>
             <option value="resolume">Resolume</option>
+            <option value="outline">Outline</option>
           </select>
         </div>
         <div class="canvas-toolbar-group toolbar-export">
@@ -3069,8 +3136,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.22';
-const APP_CHANGELOG = 'Restructure help modal with Calculator, Raster, and Test Pattern tabs';
+const APP_VERSION = '2.10.23';
+const APP_CHANGELOG = 'Add outline overlay PNG export with transparent background for Resolume';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

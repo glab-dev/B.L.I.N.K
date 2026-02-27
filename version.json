@@ -1,5 +1,5 @@
 {
-  "version": "2.10.22",
-  "updated": "2026-02-23",
-  "changelog": "Restructure help modal with Calculator, Raster, and Test Pattern tabs"
+  "version": "2.10.23",
+  "updated": "2026-02-26",
+  "changelog": "Add outline overlay PNG export with transparent background for Resolume"
 }

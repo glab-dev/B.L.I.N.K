@@ -6441,3 +6441,39 @@ canvas:focus {
   margin-top: 8px;
 }
 
+/* ==================== Outline Export Modal ==================== */
+.outline-mode-toggle {
+  display: flex;
+  gap: 6px;
+}
+.outline-mode-toggle .toggle-btn {
+  flex: 1;
+  min-height: 36px;
+  font-size: 13px;
+}
+.outline-dims-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.outline-dims-label {
+  font-family: 'Roboto Condensed', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+.outline-custom-check {
+  font-size: 13px;
+  margin: 0;
+}
+#outlinePreviewCanvas {
+  width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: repeating-conic-gradient(#555 0% 25%, #444 0% 50%) 50% / 16px 16px;
+  margin-top: 10px;
+}
+

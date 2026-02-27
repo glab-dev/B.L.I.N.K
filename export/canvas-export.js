@@ -255,12 +255,55 @@ function _updateOutlineMax() {
   }
 }
 
-function _drawOutlineRect(ctx, x, y, w, h, bw) {
-  // Draw 4 non-overlapping strips
-  ctx.fillRect(x, y, w, bw);                        // top
-  ctx.fillRect(x, y + h - bw, w, bw);               // bottom
-  ctx.fillRect(x, y + bw, bw, h - 2 * bw);          // left
-  ctx.fillRect(x + w - bw, y + bw, bw, h - 2 * bw); // right
+// Draw outline around a screen's active panels, respecting deleted (knocked-out) panels.
+// For each active panel, only draws border on edges that are exposed (at boundary or adjacent to a deleted panel).
+// ox/oy = pixel offset on the target canvas, scale = multiplier (1 for export, <1 for preview).
+function _drawScreenOutline(ctx, sd, allPanels, ox, oy, bw, scale) {
+  var panelType = sd.panelType || 'CB5_MKII';
+  var p = allPanels[panelType];
+  if(!p || !p.res_x || !p.res_y) return false;
+  var pw = sd.panelsWide || 0;
+  var ph = sd.panelsHigh || 0;
+  if(pw === 0 || ph === 0) return false;
+
+  var hasCB5HalfRow = sd.addCB5HalfRow && panelType === 'CB5_MKII';
+  var totalRows = hasCB5HalfRow ? ph + 1 : ph;
+  var halfPanel = allPanels['CB5_MKII_HALF'];
+
+  // Ensure deletedPanels is a Set
+  var deleted = sd.deletedPanels;
+  if(deleted && !(deleted instanceof Set)) deleted = new Set(deleted);
+  if(!deleted) deleted = new Set();
+
+  var s = scale || 1;
+
+  for(var c = 0; c < pw; c++) {
+    for(var r = 0; r < totalRows; r++) {
+      var key = c + ',' + r;
+      if(deleted.has(key)) continue;
+
+      var isHalfRow = hasCB5HalfRow && (r === ph);
+      var panelW = (isHalfRow && halfPanel) ? halfPanel.res_x : p.res_x;
+      var panelH = (isHalfRow && halfPanel) ? halfPanel.res_y : p.res_y;
+
+      var px = ox + Math.round(c * p.res_x * s);
+      var py = oy + Math.round(r * p.res_y * s);
+      var pw2 = Math.round(panelW * s);
+      var ph2 = Math.round(panelH * s);
+
+      // Check each edge: exposed if at boundary or neighbor is deleted
+      var topExposed    = (r === 0) || deleted.has(c + ',' + (r - 1));
+      var bottomExposed = (r === totalRows - 1) || deleted.has(c + ',' + (r + 1));
+      var leftExposed   = (c === 0) || deleted.has((c - 1) + ',' + r);
+      var rightExposed  = (c === pw - 1) || deleted.has((c + 1) + ',' + r);
+
+      if(topExposed)    ctx.fillRect(px, py, pw2, bw);
+      if(bottomExposed) ctx.fillRect(px, py + ph2 - bw, pw2, bw);
+      if(leftExposed)   ctx.fillRect(px, py, bw, ph2);
+      if(rightExposed)  ctx.fillRect(px + pw2 - bw, py, bw, ph2);
+    }
+  }
+  return true;
 }
 
 function updateOutlinePreview() {
@@ -283,41 +326,26 @@ function updateOutlinePreview() {
   var scaledBw = Math.max(1, Math.round(bw * scale));
 
   ctx.fillStyle = color;
+  var allP = getAllPanels();
 
   if(_outlineMode === 'canvas') {
-    // Full canvas mode: draw outline around each visible screen
-    var allP = getAllPanels();
     var screenIds = Object.keys(screens).sort(function(a, b) {
       return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
     });
-    var drewAny = false;
     screenIds.forEach(function(id) {
       var s = screens[id];
       if(!s.visible) return;
       var sd = s.data;
-      var p = allP[sd.panelType || 'CB5_MKII'];
-      if(!p || !p.res_x || !p.res_y) return;
-      var pw = sd.panelsWide || 0;
-      var ph = sd.panelsHigh || 0;
-      if(pw === 0 || ph === 0) return;
-      var wallW = pw * p.res_x;
-      var wallH = ph * p.res_y;
-      if(sd.addCB5HalfRow && sd.panelType === 'CB5_MKII') {
-        var half = allP['CB5_MKII_HALF'];
-        if(half) wallH += half.res_y;
-      }
       var ox = ((typeof sd.canvasX === 'number' && !isNaN(sd.canvasX)) ? sd.canvasX : 0) * scale;
       var oy = ((typeof sd.canvasY === 'number' && !isNaN(sd.canvasY)) ? sd.canvasY : 0) * scale;
-      _drawOutlineRect(ctx, ox, oy, Math.round(wallW * scale), Math.round(wallH * scale), scaledBw);
-      drewAny = true;
+      _drawScreenOutline(ctx, sd, allP, ox, oy, scaledBw, scale);
     });
-    // If no screens visible, draw outline around entire canvas
-    if(!drewAny) {
-      _drawOutlineRect(ctx, 0, 0, canvas.width, canvas.height, scaledBw);
-    }
   } else {
-    // Per screen mode: single outline at full dimensions
-    _drawOutlineRect(ctx, 0, 0, canvas.width, canvas.height, scaledBw);
+    // Per screen mode
+    var selId = document.getElementById('outlineScreenSelect').value;
+    if(selId && screens[selId]) {
+      _drawScreenOutline(ctx, screens[selId].data, allP, 0, 0, scaledBw, scale);
+    }
   }
 }
 
@@ -333,9 +361,9 @@ function exportOutlinePNG() {
 
     var filenameInput = document.getElementById('canvasExportFilename') || document.getElementById('rasterToolbarFilename');
     var customName = filenameInput ? filenameInput.value.trim() : '';
+    var allP = getAllPanels();
 
     if(_outlineMode === 'screen') {
-      // Per screen: export a single outline for the selected screen
       var selId = document.getElementById('outlineScreenSelect').value;
       var screenName = (screens[selId] && screens[selId].name) ? screens[selId].name.replace(/[<>:"/\\|?*\s]/g, '_') : selId;
 
@@ -344,48 +372,29 @@ function exportOutlinePNG() {
       exportCanvas.height = _outlineH;
       var ctx = exportCanvas.getContext('2d');
       ctx.fillStyle = color;
-      _drawOutlineRect(ctx, 0, 0, _outlineW, _outlineH, bw);
+      _drawScreenOutline(ctx, screens[selId].data, allP, 0, 0, bw, 1);
 
       var fname = customName ? customName + '_' + screenName : 'Outline_' + screenName + '_' + _outlineW + 'x' + _outlineH + '_' + bw + 'px';
       fname = fname.replace(/[<>:"/\\|?*]/g, '_');
       _downloadCanvasBlob(exportCanvas, fname + '.png');
     } else {
-      // Full canvas: draw outlines around each visible screen
       var exportCanvas = document.createElement('canvas');
       exportCanvas.width = _outlineW;
       exportCanvas.height = _outlineH;
       var ctx = exportCanvas.getContext('2d');
       ctx.fillStyle = color;
 
-      var allP = getAllPanels();
       var screenIds = Object.keys(screens).sort(function(a, b) {
         return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
       });
-      var drewAny = false;
       screenIds.forEach(function(id) {
         var s = screens[id];
         if(!s.visible) return;
         var sd = s.data;
-        var p = allP[sd.panelType || 'CB5_MKII'];
-        if(!p || !p.res_x || !p.res_y) return;
-        var pw = sd.panelsWide || 0;
-        var ph = sd.panelsHigh || 0;
-        if(pw === 0 || ph === 0) return;
-        var wallW = pw * p.res_x;
-        var wallH = ph * p.res_y;
-        if(sd.addCB5HalfRow && sd.panelType === 'CB5_MKII') {
-          var half = allP['CB5_MKII_HALF'];
-          if(half) wallH += half.res_y;
-        }
         var ox = (typeof sd.canvasX === 'number' && !isNaN(sd.canvasX)) ? sd.canvasX : 0;
         var oy = (typeof sd.canvasY === 'number' && !isNaN(sd.canvasY)) ? sd.canvasY : 0;
-        _drawOutlineRect(ctx, ox, oy, wallW, wallH, bw);
-        drewAny = true;
+        _drawScreenOutline(ctx, sd, allP, ox, oy, bw, 1);
       });
-
-      if(!drewAny) {
-        _drawOutlineRect(ctx, 0, 0, _outlineW, _outlineH, bw);
-      }
 
       var fname = customName ? customName + '_outline' : 'Outline_Canvas_' + _outlineW + 'x' + _outlineH + '_' + bw + 'px';
       fname = fname.replace(/[<>:"/\\|?*]/g, '_');

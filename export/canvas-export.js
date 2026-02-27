@@ -194,10 +194,6 @@ function setOutlineMode(mode) {
   document.getElementById('outlineModeScreen').classList.toggle('active', mode === 'screen');
   document.getElementById('outlineScreenSelectGroup').style.display = mode === 'screen' ? '' : 'none';
 
-  // Reset custom dims when switching modes
-  document.getElementById('outlineCustomDims').checked = false;
-  document.getElementById('outlineCustomDimsRow').style.display = 'none';
-
   _updateOutlineDimensions();
 }
 
@@ -271,6 +267,26 @@ function _drawScreenOutline(ctx, sd, allPanels, ox, oy, bw, scale) {
       if(bottomExposed) ctx.fillRect(px, py + ph2 - bw, pw2, bw);
       if(leftExposed)   ctx.fillRect(px, py, bw, ph2);
       if(rightExposed)  ctx.fillRect(px + pw2 - bw, py, bw, ph2);
+
+      // Fill inside corner gaps where two edges from adjacent panels don't meet.
+      // A corner gap exists when both orthogonal neighbors are active but the diagonal is deleted.
+      var hasLeft  = (c > 0) && !deleted.has((c - 1) + ',' + r);
+      var hasRight = (c < pw - 1) && !deleted.has((c + 1) + ',' + r);
+      var hasTop   = (r > 0) && !deleted.has(c + ',' + (r - 1));
+      var hasBot   = (r < totalRows - 1) && !deleted.has(c + ',' + (r + 1));
+
+      // Top-left inside corner: both left+top neighbors active but diagonal is deleted
+      if(hasLeft && hasTop && deleted.has((c - 1) + ',' + (r - 1)))
+        ctx.fillRect(px, py, bw, bw);
+      // Top-right inside corner
+      if(hasRight && hasTop && deleted.has((c + 1) + ',' + (r - 1)))
+        ctx.fillRect(px + pw2 - bw, py, bw, bw);
+      // Bottom-left inside corner
+      if(hasLeft && hasBot && deleted.has((c - 1) + ',' + (r + 1)))
+        ctx.fillRect(px, py + ph2 - bw, bw, bw);
+      // Bottom-right inside corner
+      if(hasRight && hasBot && deleted.has((c + 1) + ',' + (r + 1)))
+        ctx.fillRect(px + pw2 - bw, py + ph2 - bw, bw, bw);
     }
   }
   return true;

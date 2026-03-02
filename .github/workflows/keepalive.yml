@@ -2,50 +2,25 @@ name: Supabase Keep-Alive
 
 on:
   schedule:
-    - cron: '0 9 */5 * *'  # Every 5 days at 9 AM UTC
+    - cron: '0 9 */3 * *'  # Every 3 days at 9 AM UTC
   workflow_dispatch:        # Allow manual trigger
 
 jobs:
   keepalive:
-    name: Supabase Keep-Alive Ping
+    name: Ping Supabase
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 2
 
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Cache Node modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node-${{ hashFiles('package-lock.json') }}
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('package-lock.json') }}-chromium
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright Chromium
-        run: npx playwright install chromium --with-deps
-
-      - name: Run keep-alive test against production
-        run: npx playwright test tests/playwright/keepalive/ --project=chromium-desktop
-        env:
-          BASE_URL: https://blink-led.com
-          CI: 'true'
-
-      - name: Upload test report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: keepalive-report
-          path: playwright-report/
-          retention-days: 7
+      - name: Ping Supabase REST API
+        run: |
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://wdprtbmhekougwnkpcdu.supabase.co/rest/v1/community_panels?select=id&limit=1" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkcHJ0Ym1oZWtvdWd3bmtwY2R1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNTMyNDQsImV4cCI6MjA4NTYyOTI0NH0.WD5soMFrLGYzlEHjB6xYpRjq96v-9eCvglzo4v4nQ58" \
+            -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkcHJ0Ym1oZWtvdWd3bmtwY2R1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNTMyNDQsImV4cCI6MjA4NTYyOTI0NH0.WD5soMFrLGYzlEHjB6xYpRjq96v-9eCvglzo4v4nQ58")
+          echo "REST API response: $HTTP_CODE"
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::error::Supabase REST API returned $HTTP_CODE — project may be paused"
+            exit 1
+          fi
+          echo "Supabase ping successful"

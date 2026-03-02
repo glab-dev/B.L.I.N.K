@@ -122,6 +122,7 @@ function exportCanvas(){
 // Exports a transparent PNG with a solid outline border for overlay use.
 
 var _outlineMode = 'canvas'; // 'canvas' or 'screen'
+var _outlineFormat = 'png'; // 'png' or 'jpeg'
 var _outlineW = 0;
 var _outlineH = 0;
 
@@ -174,8 +175,12 @@ function showOutlineExportModal() {
   });
 
   // Reset UI state
+  _outlineFormat = 'png';
   document.getElementById('outlineModeCanvas').classList.add('active');
   document.getElementById('outlineModeScreen').classList.remove('active');
+  document.getElementById('outlineFormatPNG').classList.add('active');
+  document.getElementById('outlineFormatJPEG').classList.remove('active');
+  document.getElementById('outlineFormatHint').textContent = 'Transparent background';
   document.getElementById('outlineScreenSelectGroup').style.display = 'none';
   document.getElementById('outlineWidthInput').value = 2;
   document.getElementById('outlineColorInput').value = '#ffffff';
@@ -195,6 +200,14 @@ function setOutlineMode(mode) {
   document.getElementById('outlineScreenSelectGroup').style.display = mode === 'screen' ? '' : 'none';
 
   _updateOutlineDimensions();
+}
+
+function setOutlineFormat(fmt) {
+  _outlineFormat = fmt;
+  document.getElementById('outlineFormatPNG').classList.toggle('active', fmt === 'png');
+  document.getElementById('outlineFormatJPEG').classList.toggle('active', fmt === 'jpeg');
+  document.getElementById('outlineFormatHint').textContent = fmt === 'png' ? 'Transparent background' : 'Black background';
+  updateOutlinePreview();
 }
 
 function updateOutlineForScreen() {
@@ -304,12 +317,17 @@ function updateOutlinePreview() {
   canvas.width = Math.round(_outlineW * scale);
   canvas.height = Math.round(_outlineH * scale);
 
-  // Draw checkerboard background to indicate transparency
-  var checkSize = 8;
-  for(var cy = 0; cy < canvas.height; cy += checkSize) {
-    for(var cx = 0; cx < canvas.width; cx += checkSize) {
-      ctx.fillStyle = ((cx / checkSize + cy / checkSize) % 2 === 0) ? '#555' : '#444';
-      ctx.fillRect(cx, cy, checkSize, checkSize);
+  // Draw background: checkerboard for PNG (transparency), black for JPEG
+  if(_outlineFormat === 'jpeg') {
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else {
+    var checkSize = 8;
+    for(var cy = 0; cy < canvas.height; cy += checkSize) {
+      for(var cx = 0; cx < canvas.width; cx += checkSize) {
+        ctx.fillStyle = ((cx / checkSize + cy / checkSize) % 2 === 0) ? '#555' : '#444';
+        ctx.fillRect(cx, cy, checkSize, checkSize);
+      }
     }
   }
 
@@ -353,6 +371,9 @@ function exportOutlinePNG() {
 
     var bw = parseInt(document.getElementById('outlineWidthInput').value) || 1;
     var color = document.getElementById('outlineColorInput').value;
+    var fmt = _outlineFormat;
+    var ext = fmt === 'jpeg' ? '.jpg' : '.png';
+    var mimeType = fmt === 'jpeg' ? 'image/jpeg' : 'image/png';
 
     var filenameInput = document.getElementById('canvasExportFilename') || document.getElementById('rasterToolbarFilename');
     var customName = filenameInput ? filenameInput.value.trim() : '';
@@ -367,6 +388,10 @@ function exportOutlinePNG() {
       exportCanvas.width = _outlineW;
       exportCanvas.height = _outlineH;
       var ctx = exportCanvas.getContext('2d');
+      if(fmt === 'jpeg') {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, _outlineW, _outlineH);
+      }
       ctx.fillStyle = color;
       var ox = (typeof sd.canvasX === 'number' && !isNaN(sd.canvasX)) ? sd.canvasX : 0;
       var oy = (typeof sd.canvasY === 'number' && !isNaN(sd.canvasY)) ? sd.canvasY : 0;
@@ -374,12 +399,16 @@ function exportOutlinePNG() {
 
       var fname = customName ? customName + '_' + screenName : 'Outline_' + screenName + '_' + _outlineW + 'x' + _outlineH + '_' + bw + 'px';
       fname = fname.replace(/[<>:"/\\|?*]/g, '_');
-      _downloadCanvasBlob(exportCanvas, fname + '.png');
+      _downloadCanvasBlob(exportCanvas, fname + ext, mimeType);
     } else {
       var exportCanvas = document.createElement('canvas');
       exportCanvas.width = _outlineW;
       exportCanvas.height = _outlineH;
       var ctx = exportCanvas.getContext('2d');
+      if(fmt === 'jpeg') {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, _outlineW, _outlineH);
+      }
       ctx.fillStyle = color;
 
       var screenIds = Object.keys(screens).sort(function(a, b) {
@@ -396,7 +425,7 @@ function exportOutlinePNG() {
 
       var fname = customName ? customName + '_outline' : 'Outline_Canvas_' + _outlineW + 'x' + _outlineH + '_' + bw + 'px';
       fname = fname.replace(/[<>:"/\\|?*]/g, '_');
-      _downloadCanvasBlob(exportCanvas, fname + '.png');
+      _downloadCanvasBlob(exportCanvas, fname + ext, mimeType);
     }
 
     closeOutlineExportModal();
@@ -406,7 +435,9 @@ function exportOutlinePNG() {
   }
 }
 
-function _downloadCanvasBlob(canvas, filename) {
+function _downloadCanvasBlob(canvas, filename, mimeType) {
+  mimeType = mimeType || 'image/png';
+  var quality = mimeType === 'image/jpeg' ? 0.92 : undefined;
   canvas.toBlob(function(blob) {
     if(!blob) {
       showAlert('Failed to create image. Please try again.');
@@ -416,7 +447,7 @@ function _downloadCanvasBlob(canvas, filename) {
     var isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
                          (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
     if(isMobileDevice && navigator.canShare) {
-      var file = new File([blob], filename, { type: 'image/png' });
+      var file = new File([blob], filename, { type: mimeType });
       if(navigator.canShare({ files: [file] })) {
         navigator.share({ files: [file] }).catch(function() {});
         return;
@@ -434,6 +465,6 @@ function _downloadCanvasBlob(canvas, filename) {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     }, 100);
-  }, 'image/png');
+  }, mimeType, quality);
 }
 

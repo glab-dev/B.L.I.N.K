@@ -1,5 +1,5 @@
 {
-  "version": "2.10.24",
-  "updated": "2026-02-26",
-  "changelog": "Fix outline inside corner gaps and remove dead DOM references"
+  "version": "2.10.25",
+  "updated": "2026-03-02",
+  "changelog": "Add PNG/JPEG format toggle and arrow buttons to outline export"
 }

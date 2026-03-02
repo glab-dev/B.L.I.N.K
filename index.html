@@ -1625,7 +1625,7 @@
       <button class="modal-close" onclick="closeOutlineExportModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <p class="modal-hint">Generate a transparent PNG with a solid outline border.</p>
+      <p class="modal-hint">Generate an image with a solid outline border.</p>
 
       <div class="modal-input-group">
         <label>Mode</label>
@@ -1633,6 +1633,15 @@
           <button type="button" class="toggle-btn active" id="outlineModeCanvas" onclick="setOutlineMode('canvas')">Full Canvas</button>
           <button type="button" class="toggle-btn" id="outlineModeScreen" onclick="setOutlineMode('screen')">Per Screen</button>
         </div>
+      </div>
+
+      <div class="modal-input-group">
+        <label>Format</label>
+        <div class="outline-mode-toggle">
+          <button type="button" class="toggle-btn active" id="outlineFormatPNG" onclick="setOutlineFormat('png')">PNG</button>
+          <button type="button" class="toggle-btn" id="outlineFormatJPEG" onclick="setOutlineFormat('jpeg')">JPEG</button>
+        </div>
+        <p class="modal-hint" id="outlineFormatHint" style="margin-top:4px;font-size:12px;">Transparent background</p>
       </div>
 
       <div class="modal-input-group" id="outlineScreenSelectGroup" style="display:none;">
@@ -1648,7 +1657,13 @@
       <div class="modal-input-row">
         <div class="modal-input-group">
           <label>Outline Width (px)</label>
-          <input type="number" id="outlineWidthInput" min="1" max="1080" value="2" onchange="updateOutlinePreview()" oninput="updateOutlinePreview()">
+          <div class="number-input-with-arrows">
+            <input type="number" id="outlineWidthInput" min="1" max="1080" value="2" onchange="updateOutlinePreview()" oninput="updateOutlinePreview()">
+            <div class="number-input-arrows">
+              <button type="button" onclick="adjustNumberInput('outlineWidthInput', 1)"><span class="material-symbols-outlined icon-14">keyboard_arrow_up</span></button>
+              <button type="button" onclick="adjustNumberInput('outlineWidthInput', -1)"><span class="material-symbols-outlined icon-14">keyboard_arrow_down</span></button>
+            </div>
+          </div>
         </div>
         <div class="modal-input-group">
           <label>Color</label>
@@ -3119,8 +3134,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.24';
-const APP_CHANGELOG = 'Fix outline inside corner gaps and remove dead DOM references';
+const APP_VERSION = '2.10.25';
+const APP_CHANGELOG = 'Add PNG/JPEG format toggle and arrow buttons to outline export';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

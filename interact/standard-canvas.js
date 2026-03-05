@@ -351,15 +351,19 @@ function showContextMenu(x, y) {
 }
 
 async function showCircuitNumberPrompt() {
-  const circuitNum = await showPrompt(`Enter circuit number for ${selectedPanels.size} selected panel(s):\n\n(Enter a number 1-999, or leave blank to clear custom assignment)`);
+  // Capture selected panels before await — the document click handler clears
+  // selectedPanels during the async gap when the prompt modal is open
+  const panelsToAssign = new Set(selectedPanels);
+
+  const circuitNum = await showPrompt(`Enter circuit number for ${panelsToAssign.size} selected panel(s):\n\n(Enter a number 1-999, or leave blank to clear custom assignment)`);
 
   if(circuitNum === null) return; // User cancelled
-  
+
   saveState(); // Save state before making changes
-  
+
   if(circuitNum.trim() === '') {
     // Clear custom assignments for selected panels
-    selectedPanels.forEach(key => {
+    panelsToAssign.forEach(key => {
       customCircuitAssignments.delete(key);
     });
   } else {
@@ -368,9 +372,9 @@ async function showCircuitNumberPrompt() {
       showAlert('Please enter a valid circuit number between 1 and 999');
       return;
     }
-    
+
     // Assign circuit number to selected panels
-    selectedPanels.forEach(key => {
+    panelsToAssign.forEach(key => {
       customCircuitAssignments.set(key, num);
     });
   }
@@ -380,15 +384,19 @@ async function showCircuitNumberPrompt() {
 }
 
 async function showDataLineNumberPrompt() {
-  const dataLineNum = await showPrompt(`Enter data line number for ${selectedPanels.size} selected panel(s):\n\n(Enter a number 1-999, or leave blank to clear custom assignment)`);
+  // Capture selected panels before await — the document click handler clears
+  // selectedPanels during the async gap when the prompt modal is open
+  const panelsToAssign = new Set(selectedPanels);
+
+  const dataLineNum = await showPrompt(`Enter data line number for ${panelsToAssign.size} selected panel(s):\n\n(Enter a number 1-999, or leave blank to clear custom assignment)`);
 
   if(dataLineNum === null) return; // User cancelled
-  
+
   saveState(); // Save state before making changes
-  
+
   if(dataLineNum.trim() === '') {
     // Clear custom assignments for selected panels
-    selectedPanels.forEach(key => {
+    panelsToAssign.forEach(key => {
       customDataLineAssignments.delete(key);
     });
   } else {
@@ -397,9 +405,9 @@ async function showDataLineNumberPrompt() {
       showAlert('Please enter a valid data line number between 1 and 999');
       return;
     }
-    
+
     // Assign data line number to selected panels
-    selectedPanels.forEach(key => {
+    panelsToAssign.forEach(key => {
       customDataLineAssignments.set(key, num);
     });
   }

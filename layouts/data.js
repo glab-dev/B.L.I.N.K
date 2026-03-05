@@ -311,7 +311,8 @@ function renderDataLayout(params) {
   // Draw active panels with data grouping
   const groupPoints = [];
   for(let gi=0; gi<groups.length; gi++){
-    const colors=colorForIndex(gi);
+    const dataLineNum = sortedDataLines[gi]; // Use actual data line number for color
+    const colors=colorForIndex(dataLineNum);
     groupPoints[gi] = [];
     for(let idx=0; idx<groups[gi].length; idx++){
       const pnt = groups[gi][idx];
@@ -329,7 +330,7 @@ function renderDataLayout(params) {
       ctx.strokeRect(x,y,panelWidth,currentPanelHeight);
 
       // Use white text only for data line 9 (black resistor color), black text for all others
-      ctx.fillStyle = (gi === 9) ? '#FFFFFF' : '#000000';
+      ctx.fillStyle = (dataLineNum % 10 === 9) ? '#FFFFFF' : '#000000';
 
       // Show panel number as column.row (matching standard layout)
       ctx.fillText(`${pnt.c+1}.${pnt.r+1}`, x+panelWidth/2, y+currentPanelHeight/2);

@@ -1,5 +1,5 @@
 {
-  "version": "2.10.25",
-  "updated": "2026-03-02",
-  "changelog": "Add PNG/JPEG format toggle and arrow buttons to outline export"
+  "version": "2.10.26",
+  "updated": "2026-03-05",
+  "changelog": "Fix custom circuit and data line assignments broken by async prompt migration"
 }

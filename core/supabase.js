@@ -62,6 +62,15 @@ function initSupabase() {
       }
     });
 
+    // Keep-alive: lightweight read on every app load prevents
+    // the free-tier project from pausing due to inactivity
+    supabaseClient
+      .from('community_panels')
+      .select('id')
+      .limit(1)
+      .then(() => console.log('Supabase keep-alive ping sent'))
+      .catch(() => {});
+
     console.log('Supabase initialized');
   } catch(err) {
     console.error('Supabase initialization error:', err);

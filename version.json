@@ -1,5 +1,5 @@
 {
-  "version": "2.10.28",
+  "version": "2.10.29",
   "updated": "2026-03-10",
-  "changelog": "Self-host fonts for full offline support (icons and text)"
+  "changelog": "Fix font paths for GitHub Pages and show version on welcome page load"
 }

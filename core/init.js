@@ -67,6 +67,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize canvas undo/redo button states
     updateCanvasUndoRedoButtons();
 
+    // Populate welcome page version line on initial load
+    if(typeof isWelcomePageVisible !== 'undefined' && isWelcomePageVisible) {
+      var versionLine = document.getElementById('welcomeVersionLine');
+      if(versionLine && typeof APP_VERSION !== 'undefined') {
+        var lastSeen = localStorage.getItem('lastSeenWelcomeVersion');
+        if(lastSeen !== APP_VERSION) {
+          var changeText = (typeof APP_CHANGELOG !== 'undefined' && APP_CHANGELOG) ? ' \u2014 ' + APP_CHANGELOG : '';
+          versionLine.innerHTML = '<span style="color: var(--primary); font-weight: 700; letter-spacing: 1px;">NEW</span>&nbsp;&nbsp;v' + APP_VERSION + changeText;
+        } else {
+          versionLine.textContent = 'v' + APP_VERSION;
+        }
+      }
+      if(typeof updateAuthUI === 'function') updateAuthUI();
+    }
+
     // Defer calculation and canvas if welcome page is visible
     if(typeof isWelcomePageVisible === 'undefined' || !isWelcomePageVisible) {
       setTimeout(() => { calculate(); }, 100);

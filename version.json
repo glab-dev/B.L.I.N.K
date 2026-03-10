@@ -1,5 +1,5 @@
 {
-  "version": "2.10.27",
-  "updated": "2026-03-09",
-  "changelog": "Add in-app Supabase keep-alive ping and daily GitHub Actions cron"
+  "version": "2.10.28",
+  "updated": "2026-03-10",
+  "changelog": "Self-host fonts for full offline support (icons and text)"
 }

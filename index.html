@@ -67,9 +67,7 @@
     })();
   </script>
 
-  <!-- Comic book style fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet" crossorigin="anonymous">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" crossorigin="anonymous">
+  <!-- Fonts are self-hosted in /fonts/ for offline support (loaded via @font-face in styles.css) -->
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -3134,8 +3132,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.27';
-const APP_CHANGELOG = 'Add in-app Supabase keep-alive ping and daily GitHub Actions cron';
+const APP_VERSION = '2.10.28';
+const APP_CHANGELOG = 'Self-host fonts for full offline support (icons and text)';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -67,7 +67,10 @@
     })();
   </script>
 
-  <!-- Fonts are self-hosted in /fonts/ for offline support (loaded via @font-face in styles.css) -->
+  <!-- Fonts: preload for instant rendering, @font-face in styles.css, cached by SW for offline -->
+  <link rel="preload" href="fonts/material-symbols-outlined.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/bangers-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/roboto-condensed-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -3132,8 +3135,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.29';
-const APP_CHANGELOG = 'Fix font paths for GitHub Pages and show version on welcome page load';
+const APP_VERSION = '2.10.30';
+const APP_CHANGELOG = 'Add font preloading and block display to prevent flash of unstyled text';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

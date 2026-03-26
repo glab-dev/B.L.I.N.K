@@ -1,5 +1,5 @@
 {
-  "version": "2.10.34",
+  "version": "2.10.35",
   "updated": "2026-03-26",
-  "changelog": "Fix blurry layout images, reduce diagram size, add signal/utility/spares to PDF gear list"
+  "changelog": "Polish PDF layout with banner headers, improved title block, and cleaner spec tables"
 }

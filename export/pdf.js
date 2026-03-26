@@ -728,29 +728,44 @@ function buildPdfDocDefinition(opts, canvasCache) {
 
   // --- TITLE BLOCK ---
   content.push({
-    columns: [
-      { text: 'B.L.I.N.K. REPORT', style: 'docTitle', width: '*' },
-      { text: `Generated: ${dateStr}`, style: 'timestamp', width: 'auto' }
-    ],
-    margin: [0, 0, 0, 2]
+    table: { widths: ['*'], body: [[{
+      text: 'B.L.I.N.K. LED REPORT',
+      bold: true, fontSize: 13, color: '#fff',
+      fillColor: colors.accent,
+      border: [false, false, false, false],
+      margin: [10, 8, 10, 8]
+    }]] },
+    layout: 'noBorders',
+    margin: [0, 0, 0, 10]
   });
-  content.push({ text: configName, style: 'configName', margin: [0, 0, 0, 6] });
+  content.push({ text: configName, fontSize: 22, bold: true, color: '#111', margin: [0, 0, 0, 3] });
   content.push({
-    canvas: [{ type: 'line', x1: 0, y1: 0, x2: contentWidth, y2: 0, lineWidth: 1.5, lineColor: colors.accent }],
-    margin: [0, 0, 0, 6]
+    text: `${dateStr}  ·  ${screenIds.length} screen${screenIds.length !== 1 ? 's' : ''}`,
+    fontSize: 8, color: '#888', margin: [0, 0, 0, 14]
   });
-  content.push({ text: `Total Screens: ${screenIds.length}`, fontSize: 9, color: '#666', margin: [0, 0, 0, 0] });
 
   // Shared specRow helper (used in all spec sections below)
   function specRow(label, value) {
     if (value === undefined || value === null || value === '') return null;
     return [
-      { text: label, bold: true, fontSize: 8, color: '#555', border: [false, false, false, false] },
+      { text: label, bold: true, fontSize: 8, color: '#374151', border: [false, false, false, false] },
       { text: String(value), fontSize: 8, border: [false, false, false, false] }
     ];
   }
   function specTable(rows) {
-    return { table: { widths: ['auto', '*'], body: rows }, layout: 'noBorders', margin: [0, 0, 0, 6] };
+    return {
+      table: { widths: [72, '*'], body: rows },
+      layout: {
+        hLineWidth: (i) => (i === 0 || i === rows.length) ? 0 : 0.3,
+        hLineColor: () => '#e5e7eb',
+        vLineWidth: () => 0,
+        paddingLeft: () => 0,
+        paddingRight: () => 4,
+        paddingTop: () => 3,
+        paddingBottom: () => 3
+      },
+      margin: [0, 0, 0, 6]
+    };
   }
 
   // --- PER-SCREEN PAGES ---
@@ -761,7 +776,17 @@ function buildPdfDocDefinition(opts, canvasCache) {
     // Screen header — first screen follows title block on page 1; each subsequent screen starts on a new page
     const screenContent = [];
     if (sIdx > 0) screenContent.push({ text: '', pageBreak: 'before' });
-    screenContent.push(pdfSectionBar(`Screen ${sIdx + 1}: ${screen.name}`, colors));
+    screenContent.push({
+      table: { widths: ['*'], body: [[{
+        text: `SCREEN ${sIdx + 1}  ·  ${screen.name.toUpperCase()}`,
+        bold: true, fontSize: 11, color: '#fff',
+        fillColor: colors.accent,
+        border: [false, false, false, false],
+        margin: [8, 6, 8, 6]
+      }]] },
+      layout: 'noBorders',
+      margin: [0, 0, 0, 10]
+    });
 
     const specsStack = [];
     const gearStack = [];
@@ -880,7 +905,17 @@ function buildPdfDocDefinition(opts, canvasCache) {
       if (!d.enabled || !canvasCache[d.key]) return;
       const imgData = canvasCache[d.key];
       screenContent.push({ text: '', pageBreak: 'before' });
-      screenContent.push(pdfSectionBar(d.title, colors));
+      screenContent.push({
+        table: { widths: ['*'], body: [[{
+          text: d.title.toUpperCase(),
+          bold: true, fontSize: 10, color: '#fff',
+          fillColor: colors.accent,
+          border: [false, false, false, false],
+          margin: [8, 5, 8, 5]
+        }]] },
+        layout: 'noBorders',
+        margin: [0, 0, 0, 10]
+      });
       screenContent.push({
         image: imgData.dataUrl,
         fit: [maxImgW, maxImgH],

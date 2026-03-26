@@ -44,6 +44,9 @@ let ppZoomLevel = 1.0;
 // Accent color for banners/headers — set by buildPageModel() based on eco/greyscale mode
 let ppCurrentAccentColor = '#10b981';
 
+// Set true during high-res export capture to suppress margin guide lines
+let ppIsExporting = false;
+
 // ==================== MODAL OPEN / CLOSE ====================
 
 function openPrintPreview() {
@@ -1305,16 +1308,18 @@ function renderPreviewPage(pageIndex, canvasEl) {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvasEl.width, canvasEl.height);
 
-  // Light gray margin guides
-  ctx.strokeStyle = '#e8e8e8';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 4]);
-  ctx.strokeRect(
-    PP_MARGIN * s, PP_MARGIN * s,
-    (ppPageWidth - 2 * PP_MARGIN) * s,
-    (ppPageHeight - 2 * PP_MARGIN) * s
-  );
-  ctx.setLineDash([]);
+  // Light gray margin guides (suppressed during high-res export capture)
+  if (!ppIsExporting) {
+    ctx.strokeStyle = '#e8e8e8';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(
+      PP_MARGIN * s, PP_MARGIN * s,
+      (ppPageWidth - 2 * PP_MARGIN) * s,
+      (ppPageHeight - 2 * PP_MARGIN) * s
+    );
+    ctx.setLineDash([]);
+  }
 
   // Draw each element
   page.elements.forEach(el => {
@@ -1755,26 +1760,72 @@ function checkOverlaps(pageIndex) {
 // ==================== EXPORT FROM PREVIEW ====================
 
 function exportFromPreview() {
-  // Read current options before closing
-  const opts = getPrintPreviewOptions();
+  if (!pdfPageModel || pdfPageModel.length === 0) {
+    closePrintPreview();
+    exportPDF();
+    return;
+  }
 
-  // Close the preview modal (resets print modes)
-  closePrintPreview();
+  if (!window.pdfMake) {
+    showAlert('PDF library not loaded. Please check your connection and refresh.');
+    return;
+  }
 
-  // Sync section options to pdfExportOptions so exportPDF() uses them
-  pdfExportOptions.specs = opts.specs;
-  pdfExportOptions.gearList = opts.gearList;
-  pdfExportOptions.standard = opts.standard;
-  pdfExportOptions.power = opts.power;
-  pdfExportOptions.data = opts.data;
-  pdfExportOptions.structure = opts.structure;
-  pdfExportOptions.cabling = opts.cabling;
+  // Loading overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'ppExportOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(26,26,26,0.95);z-index:10000;display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;font-family:-apple-system,Arial,sans-serif;';
+  overlay.innerHTML = '<div style="font-size:20px;margin-bottom:12px;">Exporting PDF...</div><div id="ppExportStatus" style="font-size:13px;color:#888;">Capturing preview pages</div>';
+  document.body.appendChild(overlay);
 
-  // Sync eco/greyscale to the export modal checkboxes so exportPDF() reads them correctly
-  const ecoEl = document.getElementById('pdfExportEcoFriendly');
-  const greyEl = document.getElementById('pdfExportGreyscale');
-  if (ecoEl) ecoEl.checked = opts.ecoFriendly;
-  if (greyEl) greyEl.checked = opts.greyscale;
+  function removeOverlay() {
+    const el = document.getElementById('ppExportOverlay');
+    if (el) el.remove();
+  }
 
-  exportPDF();
+  // Render each preview page at ~190 DPI into offscreen canvases
+  const exportScale = 7.5; // px/mm
+  const savedScale = ppScale;
+  ppScale = exportScale;
+  ppIsExporting = true;
+
+  const pageImages = pdfPageModel.map((page, pageIndex) => {
+    const offscreen = document.createElement('canvas');
+    offscreen.width  = Math.round(ppPageWidth  * exportScale);
+    offscreen.height = Math.round(ppPageHeight * exportScale);
+    renderPreviewPage(pageIndex, offscreen);
+    return offscreen.toDataURL('image/png');
+  });
+
+  ppIsExporting = false;
+  ppScale = savedScale;
+  pdfPageModel.forEach((_, i) => renderPreviewPage(i));
+
+  const statusEl = document.getElementById('ppExportStatus');
+  if (statusEl) statusEl.textContent = 'Generating PDF file\u2026';
+
+  // Assemble PDF: one full-page image per page
+  const isLandscape = pdfPageOrientation === 'l';
+  const isLetter    = pdfPageFormat === 'letter';
+  const pgW = isLandscape ? (isLetter ? 792 : 842) : (isLetter ? 612 : 595);
+  const pgH = isLandscape ? (isLetter ? 612 : 595) : (isLetter ? 792 : 842);
+
+  const content = pageImages.map((imgDataUrl, i) => {
+    const el = { image: imgDataUrl, width: pgW, height: pgH, absolutePosition: { x: 0, y: 0 } };
+    if (i > 0) el.pageBreak = 'before';
+    return el;
+  });
+
+  const configName = document.getElementById('configName')?.value?.trim() || 'LED Wall';
+  const filename = configName.replace(/[^a-z0-9]/gi, '_') + '_LED_Report.pdf';
+
+  pdfMake.createPdf({
+    pageSize: isLetter ? 'LETTER' : 'A4',
+    pageOrientation: isLandscape ? 'landscape' : 'portrait',
+    pageMargins: [0, 0, 0, 0],
+    content: content
+  }).download(filename, () => {
+    removeOverlay();
+    closePrintPreview();
+  });
 }

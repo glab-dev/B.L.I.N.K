@@ -1,5 +1,5 @@
 {
-  "version": "2.10.40",
+  "version": "2.10.41",
   "updated": "2026-03-26",
-  "changelog": "Remove banner from layout titles and make each spec section individually draggable in preview"
+  "changelog": "Export from preview now captures canvas pages for exact WYSIWYG PDF output"
 }

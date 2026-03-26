@@ -1,5 +1,5 @@
 {
-  "version": "2.10.31",
-  "updated": "2026-03-25",
-  "changelog": "Add print preview modal with eco/greyscale support and fast sync capture"
+  "version": "2.10.32",
+  "updated": "2026-03-26",
+  "changelog": "Replace canvas-based PDF preview with pdfmake iframe preview for exact export parity"
 }

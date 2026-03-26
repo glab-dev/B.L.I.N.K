@@ -1703,13 +1703,8 @@
       </div>
       <!-- RIGHT: Preview Area -->
       <div class="print-preview-area">
-        <div class="preview-zoom-controls">
-          <button class="preview-zoom-btn" onclick="ppZoomOut()" title="Zoom Out">−</button>
-          <button class="preview-zoom-btn preview-zoom-reset" onclick="ppZoomReset()" title="Reset Zoom">100%</button>
-          <button class="preview-zoom-btn" onclick="ppZoomIn()" title="Zoom In">+</button>
-        </div>
         <div id="previewPagesContainer" class="preview-pages-scroll">
-          <!-- Preview page canvases inserted dynamically -->
+          <!-- PDF preview rendered here -->
         </div>
       </div>
     </div>
@@ -3162,8 +3157,8 @@
 <!-- Supabase Client (Cloud Sync & Auth) -->
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js" integrity="sha384-gmm4k/o3mzDSemzK5CComDrZ5QDvnpUGq3IXuE9luzw/ZoNhwzB2XiJzh2/JGrQV" crossorigin="anonymous"></script>
 
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/pdfmake.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/vfs_fonts.js" crossorigin="anonymous"></script>
 
 <!-- Core Utilities -->
 <script defer src="core/modals.js"></script>
@@ -3234,8 +3229,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.31';
-const APP_CHANGELOG = 'Add print preview modal with eco/greyscale support and fast sync capture';
+const APP_VERSION = '2.10.32';
+const APP_CHANGELOG = 'Replace canvas-based PDF preview with pdfmake iframe preview for exact export parity';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

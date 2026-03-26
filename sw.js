@@ -2,7 +2,7 @@
 // Provides offline caching for the B.L.I.N.K. PWA.
 // SW_VERSION must match APP_VERSION in index.html and version.json.
 
-const SW_VERSION = '2.10.31';
+const SW_VERSION = '2.10.32';
 const CACHE_NAME = 'blink-v' + SW_VERSION;
 
 // Local app files to pre-cache on install
@@ -78,8 +78,8 @@ const LOCAL_ASSETS = [
 // dependent. Pre-caching with the SW's UA serves wrong @font-face rules.
 // The browser handles font loading natively (see fetch handler below).
 const CDN_ASSETS = [
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/pdfmake.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/vfs_fonts.js',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js'
 ];
 

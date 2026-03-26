@@ -1,5 +1,5 @@
 {
-  "version": "2.10.38",
+  "version": "2.10.39",
   "updated": "2026-03-26",
-  "changelog": "Add alternating row highlights and section header accents to preview textblocks"
+  "changelog": "Fix banner text readability in eco and greyscale modes using white text on dark backgrounds"
 }

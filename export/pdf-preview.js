@@ -1352,7 +1352,7 @@ function drawPreviewElement(ctx, el, scale, pageIndex) {
       ctx.fillRect(x, y, w, h);
       const bSize = Math.max(6, el.fontSize * s * 0.35);
       ctx.font = 'bold ' + bSize + 'px Arial';
-      ctx.fillStyle = '#111';
+      ctx.fillStyle = (ppCurrentAccentColor === '#10b981') ? '#111' : '#fff';
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       ctx.fillText(el.text || '', x + 3 * s, y + h / 2);
@@ -1468,7 +1468,7 @@ function drawPreviewElement(ctx, el, scale, pageIndex) {
       ctx.fillRect(x, y, w, layoutTitlePx);
       const ltSize = Math.max(6, el.fontSize * s * 0.35);
       ctx.font = 'bold ' + ltSize + 'px Arial';
-      ctx.fillStyle = '#111';
+      ctx.fillStyle = (ppCurrentAccentColor === '#10b981') ? '#111' : '#fff';
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       ctx.fillText(el.title.toUpperCase(), x + 3 * s, y + layoutTitlePx / 2);

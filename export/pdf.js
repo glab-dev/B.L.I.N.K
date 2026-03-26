@@ -485,12 +485,12 @@ function confirmPdfExport() {
 
 function getPdfColors() {
   if (typeof greyscalePrintMode !== 'undefined' && greyscalePrintMode) {
-    return { accent: '#555', headerBg: '#555', headerText: '#fff', rowAlt: '#f0f0f0', text: '#333' };
+    return { accent: '#555', headerBg: '#555', headerText: '#fff', rowAlt: '#f0f0f0', text: '#333', bannerText: '#fff' };
   }
   if (typeof ecoPrintMode !== 'undefined' && ecoPrintMode) {
-    return { accent: '#6b7280', headerBg: '#6b7280', headerText: '#fff', rowAlt: '#f5f5f5', text: '#333' };
+    return { accent: '#6b7280', headerBg: '#6b7280', headerText: '#fff', rowAlt: '#f5f5f5', text: '#333', bannerText: '#fff' };
   }
-  return { accent: '#10b981', headerBg: '#10b981', headerText: '#fff', rowAlt: '#f0fdf4', text: '#111' };
+  return { accent: '#10b981', headerBg: '#10b981', headerText: '#fff', rowAlt: '#f0fdf4', text: '#111', bannerText: '#111' };
 }
 
 function pdfSectionBar(text, colors) {
@@ -730,7 +730,7 @@ function buildPdfDocDefinition(opts, canvasCache) {
   content.push({
     table: { widths: ['*'], body: [[{
       text: 'B.L.I.N.K. LED REPORT',
-      bold: true, fontSize: 13, color: '#111',
+      bold: true, fontSize: 13, color: colors.bannerText,
       fillColor: colors.accent,
       border: [false, false, false, false],
       margin: [10, 8, 10, 8]
@@ -779,7 +779,7 @@ function buildPdfDocDefinition(opts, canvasCache) {
     screenContent.push({
       table: { widths: ['*'], body: [[{
         text: `SCREEN ${sIdx + 1}  ·  ${screen.name.toUpperCase()}`,
-        bold: true, fontSize: 11, color: '#111',
+        bold: true, fontSize: 11, color: colors.bannerText,
         fillColor: colors.accent,
         border: [false, false, false, false],
         margin: [8, 6, 8, 6]
@@ -908,7 +908,7 @@ function buildPdfDocDefinition(opts, canvasCache) {
       screenContent.push({
         table: { widths: ['*'], body: [[{
           text: d.title.toUpperCase(),
-          bold: true, fontSize: 10, color: '#111',
+          bold: true, fontSize: 10, color: colors.bannerText,
           fillColor: colors.accent,
           border: [false, false, false, false],
           margin: [8, 5, 8, 5]

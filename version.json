@@ -1,5 +1,5 @@
 {
-  "version": "2.10.43",
+  "version": "2.10.44",
   "updated": "2026-03-26",
-  "changelog": "Place cabling and structure layouts on same page when both fit"
+  "changelog": "Update CDN smoke tests from jsPDF/html2canvas to pdfmake/Supabase"
 }

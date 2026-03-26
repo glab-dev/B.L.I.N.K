@@ -2,29 +2,29 @@ import { test, expect } from '../fixtures/base';
 
 /**
  * Smoke Test: CDN Dependencies
- * Verifies jsPDF and html2canvas are loaded correctly
+ * Verifies pdfmake and Supabase are loaded correctly
  */
 test.describe('CDN Dependencies @smoke', () => {
-  test('should load jsPDF library', async ({ page }) => {
+  test('should load pdfmake library', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const jsPDFLoaded = await page.evaluate(() => {
-      return typeof (window as any).jspdf !== 'undefined';
+    const pdfMakeLoaded = await page.evaluate(() => {
+      return typeof (window as any).pdfMake !== 'undefined';
     });
 
-    expect(jsPDFLoaded).toBe(true);
+    expect(pdfMakeLoaded).toBe(true);
   });
 
-  test('should load html2canvas library', async ({ page }) => {
+  test('should load Supabase library', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const html2canvasLoaded = await page.evaluate(() => {
-      return typeof (window as any).html2canvas !== 'undefined';
+    const supabaseLoaded = await page.evaluate(() => {
+      return typeof (window as any).supabase !== 'undefined';
     });
 
-    expect(html2canvasLoaded).toBe(true);
+    expect(supabaseLoaded).toBe(true);
   });
 
   test('should have PWA manifest', async ({ page }) => {

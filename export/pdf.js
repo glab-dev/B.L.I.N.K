@@ -905,17 +905,7 @@ function buildPdfDocDefinition(opts, canvasCache) {
       if (!d.enabled || !canvasCache[d.key]) return;
       const imgData = canvasCache[d.key];
       screenContent.push({ text: '', pageBreak: 'before' });
-      screenContent.push({
-        table: { widths: ['*'], body: [[{
-          text: d.title.toUpperCase(),
-          bold: true, fontSize: 10, color: colors.bannerText,
-          fillColor: colors.accent,
-          border: [false, false, false, false],
-          margin: [8, 5, 8, 5]
-        }]] },
-        layout: 'noBorders',
-        margin: [0, 0, 0, 10]
-      });
+      screenContent.push(pdfSectionBar(d.title, colors));
       screenContent.push({
         image: imgData.dataUrl,
         fit: [maxImgW, maxImgH],

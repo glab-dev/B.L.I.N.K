@@ -1,5 +1,5 @@
 {
-  "version": "2.10.39",
+  "version": "2.10.40",
   "updated": "2026-03-26",
-  "changelog": "Fix banner text readability in eco and greyscale modes using white text on dark backgrounds"
+  "changelog": "Remove banner from layout titles and make each spec section individually draggable in preview"
 }

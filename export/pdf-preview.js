@@ -428,13 +428,30 @@ function buildPageModel() {
 
       if (opts.specs) {
         const specLines = buildSpecsLines(screenId);
-        const specHeight = Math.max(specLines.length * 3.5, 40);
-        specsPage.elements.push({
-          id: screenId + '_specs',
-          type: 'textblock',
-          lines: specLines,
-          x: col1X, y: bodyY, w: colWidth, h: Math.min(specHeight, ppPageHeight - bodyY - PP_MARGIN - 10),
-          fontSize: 8
+        // Split into per-section arrays so each is individually draggable
+        const specSections = [];
+        let currentSection = null;
+        specLines.forEach(line => {
+          if (typeof line === 'object' && line.header) {
+            if (currentSection) specSections.push(currentSection);
+            currentSection = [line];
+          } else if (currentSection) {
+            currentSection.push(line);
+          }
+        });
+        if (currentSection) specSections.push(currentSection);
+
+        let specSectionY = bodyY;
+        specSections.forEach((sectionLines, i) => {
+          const sectionH = Math.min(Math.max(sectionLines.length * 3.5 + 3, 14), 60);
+          specsPage.elements.push({
+            id: screenId + '_specs_' + i,
+            type: 'textblock',
+            lines: sectionLines,
+            x: col1X, y: specSectionY, w: colWidth, h: sectionH,
+            fontSize: 8
+          });
+          specSectionY += sectionH + 2;
         });
       }
 
@@ -1463,15 +1480,13 @@ function drawPreviewElement(ctx, el, scale, pageIndex) {
       const layoutImgY = y + layoutTitlePx;
       const layoutImgH = h - layoutTitlePx;
 
-      // Draw title as green banner (matching exported PDF style)
-      ctx.fillStyle = ppCurrentAccentColor || '#10b981';
-      ctx.fillRect(x, y, w, layoutTitlePx);
+      // Draw title as plain bold text (no background fill)
       const ltSize = Math.max(6, el.fontSize * s * 0.35);
       ctx.font = 'bold ' + ltSize + 'px Arial';
-      ctx.fillStyle = (ppCurrentAccentColor === '#10b981') ? '#111' : '#fff';
-      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#333';
+      ctx.textBaseline = 'top';
       ctx.textAlign = 'left';
-      ctx.fillText(el.title.toUpperCase(), x + 3 * s, y + layoutTitlePx / 2);
+      ctx.fillText(el.title.toUpperCase(), x, y);
 
       const cachedLayout = ppCanvasCache[el.imageKey];
       if (cachedLayout && cachedLayout.imgElement) {

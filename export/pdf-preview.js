@@ -1352,7 +1352,7 @@ function drawPreviewElement(ctx, el, scale, pageIndex) {
       ctx.fillRect(x, y, w, h);
       const bSize = Math.max(6, el.fontSize * s * 0.35);
       ctx.font = 'bold ' + bSize + 'px Arial';
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#111';
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       ctx.fillText(el.text || '', x + 3 * s, y + h / 2);
@@ -1392,7 +1392,7 @@ function drawPreviewElement(ctx, el, scale, pageIndex) {
           }
 
           ctx.font = (isBold ? 'bold ' : '') + Math.max(6, el.fontSize * s * 0.35) + 'px Arial';
-          ctx.fillStyle = isHeader ? (ppCurrentAccentColor || '#10b981') : '#555';
+          ctx.fillStyle = isHeader ? '#333' : '#555';
           ctx.textAlign = 'left';
           ctx.textBaseline = 'top';
           ctx.fillText(text, x + 2 * s, ty, w - 4 * s);
@@ -1447,7 +1447,7 @@ function drawPreviewElement(ctx, el, scale, pageIndex) {
       ctx.fillRect(x, y, w, layoutTitlePx);
       const ltSize = Math.max(6, el.fontSize * s * 0.35);
       ctx.font = 'bold ' + ltSize + 'px Arial';
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#111';
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       ctx.fillText(el.title.toUpperCase(), x + 3 * s, y + layoutTitlePx / 2);

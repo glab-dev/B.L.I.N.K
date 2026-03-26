@@ -730,7 +730,7 @@ function buildPdfDocDefinition(opts, canvasCache) {
   content.push({
     table: { widths: ['*'], body: [[{
       text: 'B.L.I.N.K. LED REPORT',
-      bold: true, fontSize: 13, color: '#fff',
+      bold: true, fontSize: 13, color: '#111',
       fillColor: colors.accent,
       border: [false, false, false, false],
       margin: [10, 8, 10, 8]
@@ -779,7 +779,7 @@ function buildPdfDocDefinition(opts, canvasCache) {
     screenContent.push({
       table: { widths: ['*'], body: [[{
         text: `SCREEN ${sIdx + 1}  ·  ${screen.name.toUpperCase()}`,
-        bold: true, fontSize: 11, color: '#fff',
+        bold: true, fontSize: 11, color: '#111',
         fillColor: colors.accent,
         border: [false, false, false, false],
         margin: [8, 6, 8, 6]
@@ -908,7 +908,7 @@ function buildPdfDocDefinition(opts, canvasCache) {
       screenContent.push({
         table: { widths: ['*'], body: [[{
           text: d.title.toUpperCase(),
-          bold: true, fontSize: 10, color: '#fff',
+          bold: true, fontSize: 10, color: '#111',
           fillColor: colors.accent,
           border: [false, false, false, false],
           margin: [8, 5, 8, 5]

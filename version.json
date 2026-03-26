@@ -1,5 +1,5 @@
 {
-  "version": "2.10.36",
+  "version": "2.10.37",
   "updated": "2026-03-26",
-  "changelog": "Match print preview visual style to exported PDF with banner headers and accent colors"
+  "changelog": "Change banner header text to black and restore dark section header text in preview"
 }

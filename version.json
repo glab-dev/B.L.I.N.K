@@ -1,5 +1,5 @@
 {
-  "version": "2.10.42",
+  "version": "2.10.43",
   "updated": "2026-03-26",
-  "changelog": "Fix gear list columns and remove element borders in print preview"
+  "changelog": "Place cabling and structure layouts on same page when both fit"
 }

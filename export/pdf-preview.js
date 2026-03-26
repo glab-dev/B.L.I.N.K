@@ -498,7 +498,7 @@ function buildPageModel() {
 
       layoutsToAdd.forEach((layout, lIdx) => {
         const cached = ppCanvasCache[layout.key];
-        if (!cached) return;
+        if (!cached || layout._placed) return;
 
         // Structure layout gets its own page (matching pdf.js)
         if (layout.isStructure) {
@@ -556,6 +556,34 @@ function buildPageModel() {
               });
             }
             yPos += structInfoH + 8;
+          }
+
+          // If cabling layout follows and fits below on the same page, place it here
+          const nextLayout = layoutsToAdd[lIdx + 1];
+          if (nextLayout && nextLayout.key.endsWith('_cabling')) {
+            const cabCached = ppCanvasCache[nextLayout.key];
+            if (cabCached) {
+              let cabW = nextLayout.fixedW;
+              let cabH = cabW * cabCached.aspectRatio;
+              if (nextLayout.maxH > 0 && cabH > nextLayout.maxH) {
+                cabH = nextLayout.maxH;
+                cabW = nextLayout.maxH / cabCached.aspectRatio;
+              }
+              if (yPos + cabH + 14 <= ppPageHeight - PP_MARGIN) {
+                const cabTitleH = 6;
+                layoutPage.elements.push({
+                  id: nextLayout.key,
+                  type: 'layout',
+                  title: nextLayout.title,
+                  imageKey: nextLayout.key,
+                  x: PP_MARGIN, y: yPos, w: cabW, h: cabTitleH + cabH,
+                  titleH: cabTitleH,
+                  fontSize: 11
+                });
+                yPos += cabTitleH + cabH + 8;
+                nextLayout._placed = true;
+              }
+            }
           }
 
           // Structure page is done — push and start new page for remaining layouts

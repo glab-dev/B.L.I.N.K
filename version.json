@@ -1,5 +1,5 @@
 {
-  "version": "2.10.41",
+  "version": "2.10.42",
   "updated": "2026-03-26",
-  "changelog": "Export from preview now captures canvas pages for exact WYSIWYG PDF output"
+  "changelog": "Fix gear list columns and remove element borders in print preview"
 }

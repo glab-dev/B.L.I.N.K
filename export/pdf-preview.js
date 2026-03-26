@@ -676,21 +676,25 @@ function buildPageModel() {
       fontSize: 14, bold: true
     });
 
-    const allGearLines = [];
-    screenIds.forEach(screenId => {
-      const screen = screens[screenId];
-      allGearLines.push({ text: screen.name, bold: true, header: true });
-      const lines = buildGearLines(screenId);
-      lines.forEach(l => allGearLines.push(l));
-      allGearLines.push({ text: '', bold: false });
-    });
+    // Lay out each screen's gear as its own column (up to 3 columns)
+    const numCols = Math.min(screenIds.length, 3);
+    const colGap = 3;
+    const colW = (usableWidth - colGap * (numCols - 1)) / numCols;
+    const bodyY = PP_MARGIN + 10;
+    const bodyH = ppPageHeight - bodyY - PP_MARGIN - 10;
 
-    gearPage.elements.push({
-      id: 'gearlist_all',
-      type: 'textblock',
-      lines: allGearLines,
-      x: PP_MARGIN, y: PP_MARGIN + 10, w: usableWidth, h: ppPageHeight - 2 * PP_MARGIN - 20,
-      fontSize: 8
+    screenIds.forEach((screenId, colIdx) => {
+      const screen = screens[screenId];
+      const colLines = [{ text: screen.name, bold: true, header: true }];
+      buildGearLines(screenId).forEach(l => colLines.push(l));
+      const colX = PP_MARGIN + colIdx * (colW + colGap);
+      gearPage.elements.push({
+        id: 'gearlist_' + screenId,
+        type: 'textblock',
+        lines: colLines,
+        x: colX, y: bodyY, w: colW, h: bodyH,
+        fontSize: 8
+      });
     });
 
     addWatermark(gearPage, 'gear');
@@ -1392,11 +1396,13 @@ function drawPreviewElement(ctx, el, scale, pageIndex) {
       ctx.save();
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = isSelected ? '#2196F3' : (isOverlapping ? '#ff9800' : '#e5e7eb');
-      ctx.lineWidth = (isSelected || isOverlapping) ? 2 : 1;
-      if (isSelected) ctx.setLineDash([4, 3]);
-      ctx.strokeRect(x, y, w, h);
-      if (isSelected) ctx.setLineDash([]);
+      if (isSelected || isOverlapping) {
+        ctx.strokeStyle = isSelected ? '#2196F3' : '#ff9800';
+        ctx.lineWidth = 2;
+        if (isSelected) ctx.setLineDash([4, 3]);
+        ctx.strokeRect(x, y, w, h);
+        if (isSelected) ctx.setLineDash([]);
+      }
 
       if (el.lines && el.lines.length > 0) {
         const lineH = Math.max(6, 3.5 * s);
@@ -1516,11 +1522,13 @@ function drawPreviewElement(ctx, el, scale, pageIndex) {
       }
 
       // Selection/overlap border around entire element (title + image)
-      ctx.strokeStyle = isSelected ? '#2196F3' : (isOverlapping ? '#ff9800' : '#ccc');
-      ctx.lineWidth = (isSelected || isOverlapping) ? 2 : 1;
-      if (isSelected) ctx.setLineDash([4, 3]);
-      ctx.strokeRect(x, y, w, h);
-      if (isSelected) ctx.setLineDash([]);
+      if (isSelected || isOverlapping) {
+        ctx.strokeStyle = isSelected ? '#2196F3' : '#ff9800';
+        ctx.lineWidth = 2;
+        if (isSelected) ctx.setLineDash([4, 3]);
+        ctx.strokeRect(x, y, w, h);
+        if (isSelected) ctx.setLineDash([]);
+      }
       ctx.restore();
       break;
 

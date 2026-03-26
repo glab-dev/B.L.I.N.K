@@ -1,5 +1,5 @@
 {
-  "version": "2.10.35",
+  "version": "2.10.36",
   "updated": "2026-03-26",
-  "changelog": "Polish PDF layout with banner headers, improved title block, and cleaner spec tables"
+  "changelog": "Match print preview visual style to exported PDF with banner headers and accent colors"
 }

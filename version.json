@@ -1,5 +1,5 @@
 {
-  "version": "2.10.37",
+  "version": "2.10.38",
   "updated": "2026-03-26",
-  "changelog": "Change banner header text to black and restore dark section header text in preview"
+  "changelog": "Add alternating row highlights and section header accents to preview textblocks"
 }

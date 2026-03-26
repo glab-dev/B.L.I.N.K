@@ -1380,6 +1380,9 @@ function drawPreviewElement(ctx, el, scale, pageIndex) {
         const lineH = Math.max(6, 3.5 * s);
         let ty = y + 3 * s;
         const maxLines = Math.floor(h / lineH);
+        const accent = ppCurrentAccentColor || '#10b981';
+        const rowAlt = accent === '#555' ? '#f0f0f0' : accent === '#6b7280' ? '#f5f5f5' : '#f0fdf4';
+        let altRowIdx = 0;
 
         el.lines.slice(0, maxLines).forEach(line => {
           const text = typeof line === 'string' ? line : line.text;
@@ -1391,11 +1394,29 @@ function drawPreviewElement(ctx, el, scale, pageIndex) {
             return;
           }
 
+          // Row background fill
+          if (isHeader) {
+            // Light tinted section header background + accent left bar
+            ctx.globalAlpha = 0.12;
+            ctx.fillStyle = accent;
+            ctx.fillRect(x, ty - s * 0.5, w, lineH + s * 0.5);
+            ctx.globalAlpha = 1.0;
+            ctx.fillStyle = accent;
+            ctx.fillRect(x, ty - s * 0.5, 2 * s, lineH + s * 0.5);
+            altRowIdx = 0;
+          } else if (altRowIdx % 2 === 0) {
+            ctx.fillStyle = rowAlt;
+            ctx.fillRect(x, ty, w, lineH);
+            altRowIdx++;
+          } else {
+            altRowIdx++;
+          }
+
           ctx.font = (isBold ? 'bold ' : '') + Math.max(6, el.fontSize * s * 0.35) + 'px Arial';
           ctx.fillStyle = isHeader ? '#333' : '#555';
           ctx.textAlign = 'left';
           ctx.textBaseline = 'top';
-          ctx.fillText(text, x + 2 * s, ty, w - 4 * s);
+          ctx.fillText(text, x + (isHeader ? 4 : 2) * s, ty, w - 6 * s);
           ty += lineH;
         });
       }

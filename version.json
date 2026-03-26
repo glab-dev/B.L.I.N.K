@@ -1,5 +1,5 @@
 {
-  "version": "2.10.32",
+  "version": "2.10.33",
   "updated": "2026-03-26",
-  "changelog": "Replace canvas-based PDF preview with pdfmake iframe preview for exact export parity"
+  "changelog": "Fix blank first page, add Wall/Signal spec sections, and scale down layout images in PDF"
 }

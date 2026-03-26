@@ -734,16 +734,27 @@ function buildPdfDocDefinition(opts, canvasCache) {
   });
   content.push({ text: `Total Screens: ${screenIds.length}`, fontSize: 9, color: '#666', margin: [0, 0, 0, 0] });
 
+  // Shared specRow helper (used in all spec sections below)
+  function specRow(label, value) {
+    if (value === undefined || value === null || value === '') return null;
+    return [
+      { text: label, bold: true, fontSize: 8, color: '#555', border: [false, false, false, false] },
+      { text: String(value), fontSize: 8, border: [false, false, false, false] }
+    ];
+  }
+  function specTable(rows) {
+    return { table: { widths: ['auto', '*'], body: rows }, layout: 'noBorders', margin: [0, 0, 0, 6] };
+  }
+
   // --- PER-SCREEN PAGES ---
   screenIds.forEach((screenId, sIdx) => {
     const screen = screens[screenId];
     if (!screen) return;
 
-    // Page break before every screen (including first — appended to title block)
-    const pageBreakEl = { text: '', pageBreak: 'before' };
-
-    // Screen header
-    const screenHeaderEl = pdfSectionBar(`Screen ${sIdx + 1}: ${screen.name}`, colors);
+    // Screen header — first screen follows title block on page 1; each subsequent screen starts on a new page
+    const screenContent = [];
+    if (sIdx > 0) screenContent.push({ text: '', pageBreak: 'before' });
+    screenContent.push(pdfSectionBar(`Screen ${sIdx + 1}: ${screen.name}`, colors));
 
     const specsStack = [];
     const gearStack = [];
@@ -755,6 +766,7 @@ function buildPdfDocDefinition(opts, canvasCache) {
     const p = allPanelsData[panelType];
     const pw = parseInt(data.panelsWide) || 0;
     const ph = parseInt(data.panelsHigh) || 0;
+    const sd = gearData.screens[sIdx];
 
     if (opts.specs && p && pw > 0 && ph > 0) {
       const panelWidthMm = (p.width_m || 0) * 1000;
@@ -762,35 +774,36 @@ function buildPdfDocDefinition(opts, canvasCache) {
       const wallWidthMm = pw * panelWidthMm;
       const wallHeightMm = ph * panelHeightMm;
       const activePanels = calcData.activePanels || (pw * ph);
+      const estWeightLbs = Math.ceil(activePanels * (p.weight_kg || 0) * 2.20462);
 
-      function specRow(label, value) {
-        if (value === undefined || value === null || value === '') return null;
-        return [
-          { text: label, bold: true, fontSize: 8, color: '#555', border: [false, false, false, false] },
-          { text: String(value), fontSize: 8, border: [false, false, false, false] }
-        ];
+      // Wall section
+      const wallRows = [
+        specRow('Dimensions:', `${(wallWidthMm / 304.8).toFixed(2)}' × ${(wallHeightMm / 304.8).toFixed(2)}'`),
+        specRow('Resolution:', `${pw * p.res_x} × ${ph * p.res_y} px`),
+        specRow('Grid:', `${pw} × ${ph} panels`),
+        specRow('Active Panels:', activePanels),
+        estWeightLbs > 0 ? specRow('Est. Weight:', `${estWeightLbs} lbs`) : null,
+        p.brightness_nits ? specRow('Brightness:', `${p.brightness_nits} nits`) : null,
+      ].filter(Boolean);
+      if (wallRows.length > 0) {
+        specsStack.push(pdfSectionBar('Wall', colors));
+        specsStack.push(specTable(wallRows));
       }
 
+      // Panel section
       const panelRows = [
-        specRow('Panel:', `${p.brand || ''} ${p.name || panelType}`.trim()),
+        specRow('Model:', `${p.brand || ''} ${p.name || panelType}`.trim()),
         specRow('Pixel Pitch:', `${p.pixel_pitch_mm} mm`),
         specRow('Panel Size:', `${(p.width_m * 3.28084).toFixed(3)}' × ${(p.height_m * 3.28084).toFixed(3)}'`),
         specRow('Panel Res:', `${p.res_x} × ${p.res_y}`),
-        specRow('Grid:', `${pw} × ${ph} panels`),
-        specRow('Wall Res:', `${pw * p.res_x} × ${ph * p.res_y} px`),
-        specRow('Wall Size:', `${(wallWidthMm / 304.8).toFixed(2)}' × ${(wallHeightMm / 304.8).toFixed(2)}'`),
-        specRow('Active Panels:', activePanels),
-        p.brightness_nits ? specRow('Brightness:', `${p.brightness_nits} nits`) : null,
-        specRow('Weight/Panel:', `${Math.ceil((p.weight_kg || 0) * 2.20462)} lbs`),
         specRow('Panel Power:', `${p.power_max_w}W max / ${p.power_avg_w}W avg`),
       ].filter(Boolean);
-
       if (panelRows.length > 0) {
         specsStack.push(pdfSectionBar('Panel', colors));
-        specsStack.push({ table: { widths: ['auto', '*'], body: panelRows }, layout: 'noBorders', margin: [0, 0, 0, 6] });
+        specsStack.push(specTable(panelRows));
       }
 
-      // Power
+      // Power section
       const powerType = data.powerType || 'max';
       const powerPerPanel = powerType === 'max' ? (p.power_max_w || 0) : (p.power_avg_w || 0);
       const totalPowerW = activePanels * powerPerPanel;
@@ -799,42 +812,55 @@ function buildPdfDocDefinition(opts, canvasCache) {
       const phase = parseInt(data.phase) || 3;
       const ampsPerPhase = phase === 3 ? (totalPowerW / voltage) / 1.732 : totalPowerW / voltage;
       const maxPanelsPerCircuit = powerPerPanel > 0 ? Math.floor((voltage * breaker) / powerPerPanel) : 0;
-
       const powerRows = [
         specRow('Total Power:', `${(totalPowerW / 1000).toFixed(2)} kW`),
-        specRow('Amps/Phase:', `${ampsPerPhase.toFixed(1)} A (${phase}φ)`),
+        specRow('Amps/Phase:', `${ampsPerPhase.toFixed(1)} A (${phase}\u03C6)`),
         specRow('Max/Circuit:', `${maxPanelsPerCircuit} panels`),
       ].filter(Boolean);
-
       if (powerRows.length > 0) {
         specsStack.push(pdfSectionBar('Power', colors));
-        specsStack.push({ table: { widths: ['auto', '*'], body: powerRows }, layout: 'noBorders', margin: [0, 0, 0, 6] });
+        specsStack.push(specTable(powerRows));
+      }
+
+      // Signal/Data section
+      const eq = sd ? sd.equipment : null;
+      const dc = sd ? sd.dataCables : null;
+      const dataLines = calcData.dataLines || 0;
+      const signalRows = [
+        eq && eq.processorName ? specRow('Processor:', `${eq.processorName}${eq.processorCount > 0 ? ' \u00D7 ' + eq.processorCount : ''}`) : null,
+        dataLines > 0 ? specRow('Data Lines:', dataLines) : null,
+        dc && dc.dataJumperLen ? specRow('Data Jumpers:', `${dc.jumperCount} \u00D7 ${dc.dataJumperLen}ft`) : null,
+        dc && dc.crossJumperLen && dc.crossJumperCount > 0 ? specRow('Cross Jumpers:', `${dc.crossJumperCount} \u00D7 ${dc.crossJumperLen}ft`) : null,
+      ].filter(Boolean);
+      if (signalRows.length > 0) {
+        specsStack.push(pdfSectionBar('Signal', colors));
+        specsStack.push(specTable(signalRows));
       }
     }
 
     // --- GEAR LIST ---
-    if (opts.gearList) {
-      const sd = gearData.screens[sIdx];
-      const rows = sd ? pdfBuildGearRows(sd) : [];
+    if (opts.gearList && sd) {
+      const rows = pdfBuildGearRows(sd);
       if (rows.length > 0) {
         gearStack.push(pdfSectionBar('Gear List', colors));
         gearStack.push(pdfBuildGearTable(rows, colors));
       }
     }
 
-    // Assemble this screen's page
-    const screenContent = [pageBreakEl, screenHeaderEl];
+    // Assemble this screen's specs + gear columns
     if (specsStack.length > 0 || gearStack.length > 0) {
       screenContent.push({
         columns: [
-          specsStack.length > 0 ? { width: '48%', stack: specsStack } : { width: '48%', text: '' },
-          { width: 8, text: '' },
+          specsStack.length > 0 ? { width: '45%', stack: specsStack } : { width: '45%', text: '' },
+          { width: 10, text: '' },
           gearStack.length > 0 ? { width: '*', stack: gearStack } : { width: '*', text: '' }
         ]
       });
     }
 
     // --- LAYOUT DIAGRAMS (each on its own page) ---
+    const maxImgW = Math.floor(contentWidth * 0.85);
+    const maxImgH = 360;
     const diagrams = [
       { key: screenId + '_standard',  title: 'Standard Layout',  enabled: opts.standard },
       { key: screenId + '_power',     title: 'Power Layout',     enabled: opts.power },
@@ -846,13 +872,13 @@ function buildPdfDocDefinition(opts, canvasCache) {
     diagrams.forEach(d => {
       if (!d.enabled || !canvasCache[d.key]) return;
       const imgData = canvasCache[d.key];
-      const imgH = Math.min(contentWidth * imgData.aspectRatio, 600);
       screenContent.push({ text: '', pageBreak: 'before' });
       screenContent.push(pdfSectionBar(d.title, colors));
       screenContent.push({
         image: imgData.dataUrl,
-        fit: [contentWidth, imgH],
-        margin: [0, 4, 0, 4]
+        fit: [maxImgW, maxImgH],
+        alignment: 'center',
+        margin: [0, 8, 0, 4]
       });
     });
 

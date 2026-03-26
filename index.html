@@ -1618,6 +1618,104 @@
   </div>
 </div>
 
+<!-- Print Preview Modal (full-screen) -->
+<div id="printPreviewModal" class="modal-overlay">
+  <div class="print-preview-dialog">
+    <div class="print-preview-header">
+      <h2 class="modal-title">Print Preview</h2>
+      <button class="modal-close" onclick="closePrintPreview()">&times;</button>
+    </div>
+    <div class="print-preview-content">
+      <!-- LEFT: Options Panel -->
+      <div class="print-preview-options">
+        <p class="modal-hint">Sections</p>
+        <div class="checkbox-list">
+          <label class="checkbox-label">
+            <input type="checkbox" id="ppSpecs" checked onchange="onPreviewOptionChange()">
+            <span>Specifications</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="ppGearList" checked onchange="onPreviewOptionChange()">
+            <span>Gear List</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="ppStandard" checked onchange="onPreviewOptionChange()">
+            <span>Standard Layout</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="ppPower" checked onchange="onPreviewOptionChange()">
+            <span>Power Layout</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="ppData" checked onchange="onPreviewOptionChange()">
+            <span>Data Layout</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="ppStructure" checked onchange="onPreviewOptionChange()">
+            <span>Structure Layout</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="ppCabling" checked onchange="onPreviewOptionChange()">
+            <span>Cabling Layout</span>
+          </label>
+        </div>
+        <div id="ppCombinedSection" style="display: none;">
+          <hr class="modal-divider">
+          <p class="modal-hint">Multi-screen</p>
+          <div class="checkbox-list">
+            <label class="checkbox-label">
+              <input type="checkbox" id="ppCombined" onchange="onPreviewOptionChange()">
+              <span>Combined View</span>
+            </label>
+          </div>
+        </div>
+        <hr class="modal-divider">
+        <p class="modal-hint">Print Options</p>
+        <div class="checkbox-list">
+          <label class="checkbox-label">
+            <input type="checkbox" id="ppEcoFriendly" onchange="if(this.checked) document.getElementById('ppGreyscale').checked = false; onPreviewOptionChange();">
+            <span>Eco Friendly</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="ppGreyscale" onchange="if(this.checked) document.getElementById('ppEcoFriendly').checked = false; onPreviewOptionChange();">
+            <span>Greyscale</span>
+          </label>
+        </div>
+        <div class="pp-format-row">
+          <span class="pp-format-label">Page Size</span>
+          <div class="slider-toggle pp-toggle">
+            <button type="button" class="slider-toggle-btn active" id="ppSizeA4" onclick="setPdfPageSize('a4'); onPreviewOptionChange();">A4</button>
+            <button type="button" class="slider-toggle-btn" id="ppSizeLetter" onclick="setPdfPageSize('letter'); onPreviewOptionChange();">Letter</button>
+          </div>
+        </div>
+        <div class="pp-format-row">
+          <span class="pp-format-label">Orientation</span>
+          <div class="slider-toggle pp-toggle">
+            <button type="button" class="slider-toggle-btn active" id="ppOrientPortrait" onclick="setPdfOrientation('p'); onPreviewOptionChange();">Portrait</button>
+            <button type="button" class="slider-toggle-btn" id="ppOrientLandscape" onclick="setPdfOrientation('l'); onPreviewOptionChange();">Landscape</button>
+          </div>
+        </div>
+        <hr class="modal-divider">
+        <div class="print-preview-actions">
+          <button class="btn-secondary" onclick="closePrintPreview()">Cancel</button>
+          <button class="btn-primary" onclick="exportFromPreview()">Export PDF</button>
+        </div>
+      </div>
+      <!-- RIGHT: Preview Area -->
+      <div class="print-preview-area">
+        <div class="preview-zoom-controls">
+          <button class="preview-zoom-btn" onclick="ppZoomOut()" title="Zoom Out">−</button>
+          <button class="preview-zoom-btn preview-zoom-reset" onclick="ppZoomReset()" title="Reset Zoom">100%</button>
+          <button class="preview-zoom-btn" onclick="ppZoomIn()" title="Zoom In">+</button>
+        </div>
+        <div id="previewPagesContainer" class="preview-pages-scroll">
+          <!-- Preview page canvases inserted dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Outline Export Modal -->
 <div id="outlineExportModal" class="modal-overlay">
   <div class="modal-dialog modal-400">
@@ -3122,6 +3220,7 @@
 <script defer src="export/canvas-export.js"></script>
 <script defer src="export/resolume.js"></script>
 <script defer src="export/pdf.js"></script>
+<script defer src="export/pdf-preview.js"></script>
 <!-- Config -->
 <script defer src="config/setup.js"></script>
 <script defer src="config/save-load.js"></script>
@@ -3135,8 +3234,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.30';
-const APP_CHANGELOG = 'Add font preloading and block display to prevent flash of unstyled text';
+const APP_VERSION = '2.10.31';
+const APP_CHANGELOG = 'Add print preview modal with eco/greyscale support and fast sync capture';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -1131,7 +1131,7 @@ function initCombinedView() {
         canvas.width = 100;
         canvas.height = 100;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
         ctx.fillRect(0, 0, 100, 100);
         ctx.fillStyle = '#888';
         ctx.font = '10px Arial';
@@ -1363,8 +1363,8 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   canvas.height = adjustedHeight;
   const ctx = canvas.getContext('2d');
 
-  // Black background
-  ctx.fillStyle = '#000';
+  // Background — white in eco/greyscale print mode, black in normal mode
+  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#000';
   ctx.fillRect(0, 0, adjustedWidth, adjustedHeight);
 
   const leftPadding = 20;
@@ -1486,7 +1486,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     const screenTotalHeight = screenHasCB5HalfRow ? (screenOriginalPh * drawPanelHeight + halfPanelDrawHeight) : (ph * drawPanelHeight);
 
     // Draw screen label (scale font with panel size)
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#000' : '#fff';
     const labelFontSize = Math.max(8, Math.min(14, drawPanelSize * 0.35));
     ctx.font = `bold ${labelFontSize}px Arial`;
     ctx.textAlign = 'center';
@@ -1609,8 +1609,8 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvasWidth, socaLabelHeight);
 
-  // Black background for panel area
-  ctx.fillStyle = '#000';
+  // Panel area background — white in eco/greyscale print mode, black in normal mode
+  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#000';
   ctx.fillRect(0, socaLabelHeight, canvasWidth, canvasHeight);
 
   // Draw black border at bottom of SOCA label area
@@ -1856,8 +1856,8 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       ctx.fillText(`SOCA ${s + 1}`, midX, lineY - 18);
     }
 
-    // Draw screen label (white text above the panels, like data layout)
-    ctx.fillStyle = '#fff';
+    // Draw screen label
+    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#000' : '#fff';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - 10);
@@ -1873,8 +1873,8 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
   canvas.height = canvasHeight;
   const ctx = canvas.getContext('2d');
 
-  // Black background
-  ctx.fillStyle = '#000';
+  // Background — white in eco/greyscale print mode, black in normal mode
+  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#000';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   const leftPadding = 20;
@@ -2047,7 +2047,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     }
 
     // Draw screen label
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#000' : '#fff';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(screen.name, screenX + (pw * drawPanelWidth) / 2, screenY - 10);
@@ -2186,6 +2186,13 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
           fillColor = '#FF9800'; // Orange for bottom bumpers
         }
 
+        // Apply eco/greyscale color conversion
+        if(greyscalePrintMode && typeof toGreyscale === 'function') {
+          fillColor = toGreyscale(fillColor);
+        } else if(ecoPrintMode && typeof toPastelColor === 'function') {
+          fillColor = toPastelColor(fillColor);
+        }
+
         // Draw bumper
         ctx.fillStyle = fillColor;
         ctx.fillRect(bumperX, bumperY, bumperWidthPx, bumperHeight);
@@ -2206,7 +2213,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     }
 
     // Draw screen label
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#000' : '#fff';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     let labelY;

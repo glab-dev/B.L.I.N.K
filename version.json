@@ -1,5 +1,5 @@
 {
-  "version": "2.10.30",
-  "updated": "2026-03-10",
-  "changelog": "Add font preloading and block display to prevent flash of unstyled text"
+  "version": "2.10.31",
+  "updated": "2026-03-25",
+  "changelog": "Add print preview modal with eco/greyscale support and fast sync capture"
 }

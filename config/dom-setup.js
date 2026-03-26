@@ -95,9 +95,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if(btnPDF) btnPDF.addEventListener('click', function(e) {
       e.preventDefault();
-      // Show modal for complex and combined views, simple view exports specs only
+      // Show print preview for complex and combined views, simple view exports specs only
       if(currentMobileView === 'complex' || currentMobileView === 'combined' || currentMobileView === 'gear') {
-        openPdfExportModal();
+        openPrintPreview();
       } else {
         // Simple view - export specs only directly
         pdfExportOptions.specs = true;

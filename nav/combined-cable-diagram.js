@@ -292,20 +292,21 @@ function restoreCombinedCablingInputs() {
   updateCombinedDistBoxAvailability();
 }
 
-// ---- Color Constants ----
-const CC_POWER_COLOR = '#FF6B35';
-const CC_DATA_COLOR = '#00CED1';
-const CC_BACKUP_COLOR = '#FF69B4';
-const CC_DISTBOX_COLOR = '#FFD700';
-const CC_TRUNK_COLOR = '#FFD700';
-const CC_TRUNK_BACKUP_COLOR = '#FFFFFF';
-const CC_PICK_COLOR = '#7CFC00';
-const CC_SERVER_COLOR = '#AB47BC';
-const CC_PROC_COLOR = '#4ECDC4';
-const CC_BG_COLOR = '#1a1a1a';
-const CC_FLOOR_COLOR = '#555555';
-const CC_PANEL_COLOR = '#555555';
-const CC_DELETED_COLOR = '#333333';
+// ---- Color Constants (let for eco/greyscale reassignment) ----
+let CC_POWER_COLOR = '#FF6B35';
+let CC_DATA_COLOR = '#00CED1';
+let CC_BACKUP_COLOR = '#FF69B4';
+let CC_DISTBOX_COLOR = '#FFD700';
+let CC_TRUNK_COLOR = '#FFD700';
+let CC_TRUNK_BACKUP_COLOR = '#FFFFFF';
+let CC_PICK_COLOR = '#7CFC00';
+let CC_SERVER_COLOR = '#AB47BC';
+let CC_PROC_COLOR = '#4ECDC4';
+let CC_BG_COLOR = '#1a1a1a';
+let CC_FLOOR_COLOR = '#555555';
+let CC_PANEL_COLOR = '#555555';
+let CC_DELETED_COLOR = '#333333';
+let CC_PANEL_FILL = '#2a2a2a';
 
 // ---- BFS Grid Pathfinding (knockout avoidance) ----
 
@@ -533,6 +534,32 @@ function calculateCombinedCabling(selectedScreenIds, config) {
 // ---- Main Renderer ----
 
 function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
+  // Eco/greyscale print mode support — reassign module-level colors
+  var isPrintMode = ecoPrintMode || greyscalePrintMode;
+  function ccPrintColor(hex) {
+    if (greyscalePrintMode && typeof toGreyscale === 'function') return toGreyscale(hex);
+    if (ecoPrintMode && typeof toPastelColor === 'function') return toPastelColor(hex);
+    return hex;
+  }
+  CC_POWER_COLOR = ccPrintColor('#FF6B35');
+  CC_DATA_COLOR = ccPrintColor('#00CED1');
+  CC_BACKUP_COLOR = ccPrintColor('#FF69B4');
+  CC_DISTBOX_COLOR = ccPrintColor('#FFD700');
+  CC_TRUNK_COLOR = ccPrintColor('#FFD700');
+  CC_TRUNK_BACKUP_COLOR = isPrintMode ? '#333333' : '#FFFFFF';
+  CC_PICK_COLOR = ccPrintColor('#7CFC00');
+  CC_SERVER_COLOR = ccPrintColor('#AB47BC');
+  CC_PROC_COLOR = ccPrintColor('#4ECDC4');
+  CC_BG_COLOR = isPrintMode ? '#ffffff' : '#1a1a1a';
+  CC_FLOOR_COLOR = isPrintMode ? '#cccccc' : '#555555';
+  CC_PANEL_COLOR = isPrintMode ? '#cccccc' : '#555555';
+  CC_DELETED_COLOR = isPrintMode ? '#dddddd' : '#333333';
+  CC_PANEL_FILL = isPrintMode ? '#f5f5f5' : '#2a2a2a';
+  var ccFgColor = isPrintMode ? '#000000' : '#ffffff';
+  var ccDimColor = isPrintMode ? '#000000' : '#999999';
+  var ccLegendTextColor = isPrintMode ? '#000000' : '#cccccc';
+  var ccSummaryColor = isPrintMode ? '#000000' : '#888888';
+
   const canvas = document.getElementById('combinedCableDiagramCanvas');
   const container = document.getElementById('combinedCableDiagramCanvasWrapper');
   if (!canvas || !container) return;
@@ -700,7 +727,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  ctx.fillStyle = '#666';
+  ctx.fillStyle = ccDimColor;
   ctx.font = '9px Arial';
   ctx.textAlign = 'left';
   ctx.fillText('FLOOR', MARGIN.left + 4, floorY + 12);
@@ -738,7 +765,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
           ctx.strokeRect(x, y, pxW, pxH);
           ctx.setLineDash([]);
         } else {
-          ctx.fillStyle = '#2a2a2a';
+          ctx.fillStyle = CC_PANEL_FILL;
           ctx.fillRect(x, y, pxW, pxH);
           ctx.strokeStyle = CC_PANEL_COLOR;
           ctx.lineWidth = 0.5;
@@ -752,7 +779,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
       for (var c2 = 0; c2 < sp.pw; c2++) {
         var hx = screenLeft + c2 * pxW;
         var hy = screenTop + originalPh * pxH;
-        ctx.fillStyle = '#2a2a2a';
+        ctx.fillStyle = CC_PANEL_FILL;
         ctx.fillRect(hx, hy, pxW, halfPxH);
         ctx.strokeStyle = CC_PANEL_COLOR;
         ctx.lineWidth = 0.5;
@@ -767,7 +794,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     ctx.strokeRect(screenLeft, screenTop, screenW, screenH);
 
     // Screen label (name only, no per-screen dimensions)
-    ctx.fillStyle = screenColor;
+    ctx.fillStyle = isPrintMode ? ccFgColor : screenColor;
     ctx.font = 'bold ' + (isSmall ? '9' : '11') + 'px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(sp.screen.name || sp.screenId, screenLeft + screenW / 2, screenTop - 14);
@@ -822,7 +849,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     var srvTw = ctx.measureText(srvLabelText).width + 6;
     ctx.fillStyle = CC_BG_COLOR;
     ctx.fillRect(srvLabelX, srvLabelMidY - 7, srvTw, 14);
-    ctx.fillStyle = CC_SERVER_COLOR;
+    ctx.fillStyle = isPrintMode ? ccFgColor : CC_SERVER_COLOR;
     ctx.fillText(srvLabelText, srvLabelX + 2, srvLabelMidY);
     ctx.textBaseline = 'alphabetic';
   }
@@ -1272,7 +1299,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     ctx.arc(pickCX, pickCY, PICK_RADIUS, 0, Math.PI * 2);
     ctx.stroke();
 
-    ctx.fillStyle = CC_PICK_COLOR;
+    ctx.fillStyle = isPrintMode ? ccFgColor : CC_PICK_COLOR;
     ctx.font = 'bold 9px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -1284,15 +1311,15 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
       if (dropPos === 'behind') {
         var pickDimX = pickCX - (isSmall ? 15 : 25);
         drawCableDimensionLine(ctx, pickDimX, pickCY - PICK_RADIUS, pickDimX, toY(bbT),
-          cfg.cablePick + "'", '#ccc', CC_BG_COLOR);
+          cfg.cablePick + "'", ccDimColor, CC_BG_COLOR);
       } else if (dropPos === 'sr') {
         var pickDimY = pickCY - PICK_RADIUS - 14;
         drawCableDimensionLine(ctx, pickCX - PICK_RADIUS, pickDimY, toX(bbL), pickDimY,
-          cfg.cablePick + "'", '#ccc', CC_BG_COLOR);
+          cfg.cablePick + "'", ccDimColor, CC_BG_COLOR);
       } else {
         var pickDimY = pickCY - PICK_RADIUS - 14;
         drawCableDimensionLine(ctx, toX(bbR), pickDimY, pickCX + PICK_RADIUS, pickDimY,
-          cfg.cablePick + "'", '#ccc', CC_BG_COLOR);
+          cfg.cablePick + "'", ccDimColor, CC_BG_COLOR);
       }
     }
   }
@@ -1320,7 +1347,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     var labelY = screenTop - 14;
     ctx.fillStyle = CC_BG_COLOR;
     ctx.fillRect(labelX - labelW / 2, labelY - labelH, labelW, labelH + 2);
-    ctx.fillStyle = screenColor;
+    ctx.fillStyle = isPrintMode ? ccFgColor : screenColor;
     ctx.fillText(labelText, labelX, labelY);
   });
 
@@ -1330,18 +1357,18 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     var totalWidthFt = bbW / ftToPx;
     var dimAboveWall = isSmall ? 16 : 32;
     drawCableDimensionLine(ctx, bbCanvasL, bbCanvasT - dimAboveWall, bbCanvasR, bbCanvasT - dimAboveWall,
-      Math.round(totalWidthFt * 10) / 10 + '\'', '#ccc', CC_BG_COLOR);
+      Math.round(totalWidthFt * 10) / 10 + '\'', ccDimColor, CC_BG_COLOR);
 
     // Combined wall height — SL: left side to avoid drop/pick overlap; otherwise right side
     var totalHeightFt = bbH / ftToPx;
     if (dropPos === 'sl') {
       var dimOffL1 = isSmall ? 8 : 15;
       drawCableDimensionLine(ctx, bbCanvasL - dimOffL1, bbCanvasT, bbCanvasL - dimOffL1, bbCanvasB,
-        Math.round(totalHeightFt * 10) / 10 + '\'', '#ccc', CC_BG_COLOR);
+        Math.round(totalHeightFt * 10) / 10 + '\'', ccDimColor, CC_BG_COLOR);
     } else {
       var dimOffR1 = isSmall ? 8 : 15;
       drawCableDimensionLine(ctx, bbCanvasR + dimOffR1, bbCanvasT, bbCanvasR + dimOffR1, bbCanvasB,
-        Math.round(totalHeightFt * 10) / 10 + '\'', '#ccc', CC_BG_COLOR);
+        Math.round(totalHeightFt * 10) / 10 + '\'', ccDimColor, CC_BG_COLOR);
     }
 
     // Wall-to-floor — SL: left side; otherwise right side
@@ -1349,23 +1376,23 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
       if (dropPos === 'sl') {
         var dimOffL2 = isSmall ? 18 : 35;
         drawCableDimensionLine(ctx, bbCanvasL - dimOffL2, bbCanvasB, bbCanvasL - dimOffL2, floorY,
-          cfg.wallToFloor + '\'', '#ccc', CC_BG_COLOR);
+          cfg.wallToFloor + '\'', ccDimColor, CC_BG_COLOR);
       } else {
         var dimOffR2 = isSmall ? 18 : 35;
         drawCableDimensionLine(ctx, bbCanvasR + dimOffR2, bbCanvasB, bbCanvasR + dimOffR2, floorY,
-          cfg.wallToFloor + '\'', '#ccc', CC_BG_COLOR);
+          cfg.wallToFloor + '\'', ccDimColor, CC_BG_COLOR);
       }
     }
 
     // Distro-to-wall distance — below floor (matching per-screen spacing)
     var distDimY = floorY + 18;
     drawCableDimensionLine(ctx, distroCanvasX, distDimY, dropX, distDimY,
-      cfg.distroToWall + "'", '#ccc', CC_BG_COLOR);
+      cfg.distroToWall + "'", ccDimColor, CC_BG_COLOR);
 
     // Processor-to-wall distance — below floor (further down to avoid overlap)
     var procDimY = floorY + 33;
     drawCableDimensionLine(ctx, procCanvasX, procDimY, dropX, procDimY,
-      cfg.processorToWall + "'", '#ccc', CC_BG_COLOR);
+      cfg.processorToWall + "'", ccDimColor, CC_BG_COLOR);
   }
 
   // ---- Legend (wraps to multiple rows on small screens) ----
@@ -1399,13 +1426,13 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     }
     ctx.fillStyle = item.color;
     ctx.fillRect(legendX, legendY - 4, 8, 8);
-    ctx.fillStyle = '#ccc';
+    ctx.fillStyle = ccLegendTextColor;
     ctx.fillText(item.label, legendX + 12, legendY);
     legendX += ctx.measureText(item.label).width + legendSpacing;
   }
 
   // ---- Summary Text ----
-  ctx.fillStyle = '#888';
+  ctx.fillStyle = ccSummaryColor;
   ctx.font = (isSmall ? 8 : 9) + 'px Arial';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';

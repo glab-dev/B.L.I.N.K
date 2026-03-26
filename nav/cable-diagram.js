@@ -86,18 +86,26 @@ function renderCableDiagram(screenId) {
   ctx.save();
   ctx.scale(dpr, dpr);
 
-  // Colors
-  const bgColor = '#1a1a1a';
-  const fgColor = '#ffffff';
-  const dimColor = '#999999';
-  const POWER_COLOR = '#FF6B35';
-  const DATA_COLOR = '#00CED1';
-  const PROC_COLOR = '#4ECDC4';
-  const DISTBOX_COLOR = '#FFD700'; // gold — distribution box
-  const TRUNK_COLOR = '#FFFFFF'; // white — trunk cable (processor ↔ dist box)
-  const PICK_COLOR = '#7CFC00'; // lime green — cable pick
-  const BACKUP_COLOR = '#FF69B4'; // hot pink — backup/redundancy data cables
-  const SERVER_COLOR = '#AB47BC'; // purple — server box & cable
+  // Colors — adapt to eco-friendly / greyscale print modes
+  const isPrintMode = ecoPrintMode || greyscalePrintMode;
+  function applyPrintColor(hex) {
+    if (greyscalePrintMode && typeof toGreyscale === 'function') return toGreyscale(hex);
+    if (ecoPrintMode && typeof toPastelColor === 'function') return toPastelColor(hex);
+    return hex;
+  }
+  const bgColor = isPrintMode ? '#ffffff' : '#1a1a1a';
+  const fgColor = isPrintMode ? '#000000' : '#ffffff';
+  const dimColor = isPrintMode ? '#888888' : '#999999';
+  const gridColor = isPrintMode ? '#cccccc' : '#555555';
+  const gridDeletedColor = isPrintMode ? '#dddddd' : '#333333';
+  const POWER_COLOR = applyPrintColor('#FF6B35');
+  const DATA_COLOR = applyPrintColor('#00CED1');
+  const PROC_COLOR = applyPrintColor('#4ECDC4');
+  const DISTBOX_COLOR = applyPrintColor('#FFD700');
+  const TRUNK_COLOR = isPrintMode ? '#333333' : '#FFFFFF';
+  const PICK_COLOR = applyPrintColor('#7CFC00');
+  const BACKUP_COLOR = applyPrintColor('#FF69B4');
+  const SERVER_COLOR = applyPrintColor('#AB47BC');
 
   // Background
   ctx.fillStyle = bgColor;
@@ -141,7 +149,7 @@ function renderCableDiagram(screenId) {
   const serverBoxY = serverBoxCenterY - BOX_H / 2;
 
   // === Draw floor line ===
-  ctx.strokeStyle = '#666666';
+  ctx.strokeStyle = dimColor;
   ctx.lineWidth = 1.5;
   ctx.setLineDash([8, 4]);
   ctx.beginPath();
@@ -151,7 +159,7 @@ function renderCableDiagram(screenId) {
   ctx.setLineDash([]);
 
   // Floor label
-  ctx.fillStyle = '#666666';
+  ctx.fillStyle = dimColor;
   ctx.font = '9px Arial';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
@@ -189,14 +197,14 @@ function renderCableDiagram(screenId) {
 
       if (screenDeletedPanels.has && screenDeletedPanels.has(panelKey)) {
         // Deleted panel — dashed outline, no fill
-        ctx.strokeStyle = '#333333';
+        ctx.strokeStyle = gridDeletedColor;
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.strokeRect(px, py, panelPixelW, currentH);
         ctx.setLineDash([]);
       } else {
         // Normal panel — transparent with light outline
-        ctx.strokeStyle = '#555555';
+        ctx.strokeStyle = gridColor;
         ctx.lineWidth = 1;
         ctx.strokeRect(px, py, panelPixelW, currentH);
       }
@@ -337,7 +345,7 @@ function renderCableDiagram(screenId) {
         ctx.lineTo(_bracketEndX, bracketY);
         ctx.lineTo(_bracketEndX, bracketY - 6);
         ctx.stroke();
-        ctx.fillStyle = POWER_COLOR;
+        ctx.fillStyle = isPrintMode ? fgColor : POWER_COLOR;
         ctx.font = 'bold 10px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
@@ -350,7 +358,7 @@ function renderCableDiagram(screenId) {
         ctx.lineTo(_bracketEndX, bracketY);
         ctx.lineTo(_bracketEndX, bracketY + 6);
         ctx.stroke();
-        ctx.fillStyle = POWER_COLOR;
+        ctx.fillStyle = isPrintMode ? fgColor : POWER_COLOR;
         ctx.font = 'bold 10px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
@@ -372,7 +380,7 @@ function renderCableDiagram(screenId) {
     const lw = ctx.measureText(labelText).width + 4;
     ctx.fillStyle = bgColor;
     ctx.fillRect(x + 6, y - 7, lw, 14);
-    ctx.fillStyle = color;
+    ctx.fillStyle = isPrintMode ? fgColor : color;
     ctx.fillText(labelText, x + 7, y);
   }
 
@@ -847,7 +855,7 @@ function renderCableDiagram(screenId) {
     const srvTw = ctx.measureText(srvLabelText).width + 6;
     ctx.fillStyle = bgColor;
     ctx.fillRect(srvLabelX, srvLabelY - 7, srvTw, 14);
-    ctx.fillStyle = SERVER_COLOR;
+    ctx.fillStyle = isPrintMode ? fgColor : SERVER_COLOR;
     ctx.fillText(srvLabelText, srvLabelX + 2, srvLabelY);
   }
 
@@ -888,7 +896,7 @@ function renderCableDiagram(screenId) {
     ctx.strokeStyle = DISTBOX_COLOR;
     ctx.lineWidth = 2;
     ctx.strokeRect(mainDbX, mainDbY, BOX_W, BOX_H);
-    ctx.fillStyle = DISTBOX_COLOR;
+    ctx.fillStyle = isPrintMode ? fgColor : DISTBOX_COLOR;
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -906,7 +914,7 @@ function renderCableDiagram(screenId) {
       ctx.strokeStyle = TRUNK_COLOR;
       ctx.lineWidth = 2;
       ctx.strokeRect(backupDbX, backupDbY, BOX_W, BOX_H);
-      ctx.fillStyle = TRUNK_COLOR;
+      ctx.fillStyle = isPrintMode ? fgColor : TRUNK_COLOR;
       ctx.font = 'bold 10px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -1039,7 +1047,7 @@ function drawCableDimensionLine(ctx, x1, y1, x2, y2, label, fgColor, bgColor) {
   const tickLen = 5;
 
   ctx.save();
-  ctx.strokeStyle = '#888888';
+  ctx.strokeStyle = fgColor || '#888888';
   ctx.lineWidth = 1;
   ctx.setLineDash([3, 2]);
 

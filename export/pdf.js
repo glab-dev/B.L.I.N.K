@@ -8,7 +8,8 @@ let pdfExportOptions = {
   standard: true,
   power: true,
   data: true,
-  structure: true
+  structure: true,
+  cabling: true
 };
 
 function openPdfExportModal() {
@@ -510,9 +511,9 @@ function exportPDF(){
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({
-      orientation: 'p',
+      orientation: (typeof pdfPageOrientation !== 'undefined') ? pdfPageOrientation : 'p',
       unit: 'mm',
-      format: 'a4',
+      format: (typeof pdfPageFormat !== 'undefined') ? pdfPageFormat : 'a4',
       compress: true
     });
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -915,7 +916,7 @@ function exportPDF(){
         }
 
         // Include layouts if any layout option is selected
-        const includeAnyLayout = pdfExportOptions.standard || pdfExportOptions.power || pdfExportOptions.data || pdfExportOptions.structure;
+        const includeAnyLayout = pdfExportOptions.standard || pdfExportOptions.power || pdfExportOptions.data || pdfExportOptions.structure || pdfExportOptions.cabling;
         if(includeAnyLayout) {
           // Force show main container first (parent of layout containers)
           // This is critical when exporting from Combined view where mainContainer is hidden
@@ -1319,19 +1320,28 @@ function exportPDF(){
       
       let layoutIndex = 0;
       
+      function proceedAfterLayouts() {
+        screenIndex++;
+        processNextScreen();
+      }
+
+      function addCablingIfEnabled(callback) {
+        if (!pdfExportOptions.cabling) {
+          callback();
+          return;
+        }
+        addCablingPage(screenId, screenName, callback);
+      }
+
       function addNextLayout() {
         if(layoutIndex >= layouts.length) {
           // All main layouts done, now add Structure View page if enabled
           if(pdfExportOptions.structure) {
             addStructureViewPage(screenId, screenName, function() {
-              // After structure view, move to next screen (gear list is already on page 1)
-              screenIndex++;
-              processNextScreen();
+              addCablingIfEnabled(proceedAfterLayouts);
             });
           } else {
-            // Skip structure view, move to next screen
-            screenIndex++;
-            processNextScreen();
+            addCablingIfEnabled(proceedAfterLayouts);
           }
           return;
         }
@@ -1345,11 +1355,19 @@ function exportPDF(){
           const canvasImg = getCanvasDataURLForPDF(canvas);
 
           // Fixed WIDTH for all layouts, height scales proportionally
-          const fixedWidth = 114; // mm - same width for all layouts
-          const maxHeight = 70;   // mm - maximum height cap
+          const isLandscapePdf = (typeof pdfPageOrientation !== 'undefined') && pdfPageOrientation === 'l';
+          const fixedWidth = isLandscapePdf ? 180 : 114; // mm - wider in landscape
+          const maxHeight = isLandscapePdf ? 130 : 70;   // mm - taller cap in landscape
 
           // Calculate height maintaining aspect ratio
-          const aspectRatio = canvas.height / canvas.width;
+          // Power layout: use standard canvas aspect ratio so width matches other layouts
+          let aspectRatio = canvas.height / canvas.width;
+          if (layout.canvasId === 'powerCanvas') {
+            const stdCanvas = document.getElementById('standardCanvas');
+            if (stdCanvas && stdCanvas.width > 0) {
+              aspectRatio = stdCanvas.height / stdCanvas.width;
+            }
+          }
           let imgWidth = fixedWidth;
           let imgHeight = fixedWidth * aspectRatio;
 
@@ -1411,8 +1429,9 @@ function exportPDF(){
         
         // Add structure canvas image - use print-friendly colors when in print mode
         const canvasImg = getCanvasDataURLForPDF(canvas);
-        const fixedWidth = 160; // Wider for structure view page
-        const maxHeight = 80;
+        const isLandscapePdf = (typeof pdfPageOrientation !== 'undefined') && pdfPageOrientation === 'l';
+        const fixedWidth = isLandscapePdf ? 240 : 160; // Wider for structure view page
+        const maxHeight = isLandscapePdf ? 120 : 80;
 
         const aspectRatio = canvas.height / canvas.width;
         let imgWidth = fixedWidth;
@@ -1437,7 +1456,7 @@ function exportPDF(){
         
         // Column positions for structure info
         const col1X = margin;
-        const col2X = margin + 95; // Second column starts 95mm from margin
+        const col2X = margin + Math.floor((pageWidth - 2 * margin) / 2); // Dynamic second column
         const colLabelX = 2;
         const colValueX = 48;
         
@@ -1757,7 +1776,60 @@ function exportPDF(){
       
       if(callback) setTimeout(callback, 10);
     }
-    
+
+    // Add dedicated Cabling Layout page
+    function addCablingPage(screenId, screenName, callback) {
+      const canvas = document.getElementById('cableDiagramCanvas');
+      const container = document.getElementById('cableDiagramContainer');
+
+      if (!canvas || !container) {
+        if (callback) setTimeout(callback, 10);
+        return;
+      }
+
+      // Ensure container is visible for rendering
+      const wasHidden = container.style.display === 'none';
+      container.style.display = 'block';
+
+      // Render the cable diagram for this screen
+      if (typeof renderCableDiagram === 'function') {
+        renderCableDiagram(screenId);
+      }
+
+      setTimeout(() => {
+        if (canvas.width > 0 && canvas.height > 0) {
+          pdf.addPage();
+          yOffset = margin;
+
+          pdf.setFontSize(14);
+          pdf.setFont(undefined, 'bold');
+          pdf.setTextColor(0, 0, 0);
+          pdf.text('Cabling Layout', margin, yOffset);
+          yOffset += 8;
+
+          // Use PNG for cable diagrams — JPEG blurs thin lines and text
+          const canvasImg = canvas.toDataURL('image/png');
+          const isLandscapePdf = (typeof pdfPageOrientation !== 'undefined') && pdfPageOrientation === 'l';
+          const fixedWidth = isLandscapePdf ? 240 : 160;
+          const maxHeight = isLandscapePdf ? 150 : 120;
+
+          const aspectRatio = canvas.height / canvas.width;
+          let imgWidth = fixedWidth;
+          let imgHeight = fixedWidth * aspectRatio;
+          if (imgHeight > maxHeight) {
+            imgHeight = maxHeight;
+            imgWidth = maxHeight / aspectRatio;
+          }
+
+          pdf.addImage(canvasImg, 'PNG', margin, yOffset, imgWidth, imgHeight);
+          yOffset += imgHeight + 4;
+        }
+
+        if (wasHidden) container.style.display = 'none';
+        if (callback) setTimeout(callback, 10);
+      }, 150);
+    }
+
     function finalizePDF() {
       updateProgress('Saving PDF...', 95);
 
@@ -1772,6 +1844,15 @@ function exportPDF(){
 
       setTimeout(() => {
         updateProgress('Saving PDF...', 100);
+
+        // Add watermark to every page
+        const totalPages = pdf.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+          pdf.setPage(i);
+          pdf.setFontSize(7);
+          pdf.setTextColor(160, 160, 160);
+          pdf.text('Generated with B.L.I.N.K.  \u2022  blink-led.com', pageWidth / 2, pageHeight - 3, { align: 'center' });
+        }
 
         // Save the PDF
         const date = new Date().toISOString().slice(0,10);

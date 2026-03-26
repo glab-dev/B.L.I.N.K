@@ -683,8 +683,15 @@ function pdfCaptureCanvases() {
         const isPng = cap.id === 'cableDiagramCanvas';
         const useAspect = (cap.id === 'powerCanvas' && stdAspect !== null)
           ? stdAspect : canvas.height / canvas.width;
+        // Render at 2x resolution to prevent blurry text in PDF
+        const scale = 2;
+        const hiRes = document.createElement('canvas');
+        hiRes.width  = canvas.width  * scale;
+        hiRes.height = canvas.height * scale;
+        const ctx = hiRes.getContext('2d');
+        ctx.drawImage(canvas, 0, 0, hiRes.width, hiRes.height);
         cache[cap.key] = {
-          dataUrl: isPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.92),
+          dataUrl: isPng ? hiRes.toDataURL('image/png') : hiRes.toDataURL('image/jpeg', 0.92),
           aspectRatio: useAspect
         };
       }
@@ -859,8 +866,8 @@ function buildPdfDocDefinition(opts, canvasCache) {
     }
 
     // --- LAYOUT DIAGRAMS (each on its own page) ---
-    const maxImgW = Math.floor(contentWidth * 0.85);
-    const maxImgH = 360;
+    const maxImgW = Math.floor(contentWidth * 0.55);
+    const maxImgH = 220;
     const diagrams = [
       { key: screenId + '_standard',  title: 'Standard Layout',  enabled: opts.standard },
       { key: screenId + '_power',     title: 'Power Layout',     enabled: opts.power },
@@ -884,6 +891,76 @@ function buildPdfDocDefinition(opts, canvasCache) {
 
     screenContent.forEach(el => content.push(el));
   });
+
+  // --- SYSTEM-WIDE GEAR PAGE (Signal Cables, Utility, Spares) ---
+  if (opts.gearList) {
+    const sysRows = [];
+
+    // Signal Cables
+    if (gearData.signalCables) {
+      const sc = gearData.signalCables;
+      const scRows = [];
+      if (sc.serverFiberLine) scRows.push({ qty: sc.serverFiberLine.count, item: sc.serverFiberLine.label });
+      Object.entries(sc.sdiByLength || {}).forEach(([len, count]) => {
+        if (count > 0) scRows.push({ qty: count, item: `${len}' ${sc.sdiType}` });
+      });
+      if (sc.hdmi) {
+        Object.entries(sc.hdmi).forEach(([len, count]) => {
+          if (count > 0) scRows.push({ qty: count, item: `${len}' HDMI` });
+        });
+      }
+      if (scRows.length > 0) {
+        sysRows.push(pdfSectionBar('Signal Cables', colors));
+        sysRows.push(pdfBuildGearTable(scRows, colors));
+      }
+    }
+
+    // Utility
+    if (gearData.utility) {
+      const u = gearData.utility;
+      const uRows = [];
+      if (u.ug10  > 0) uRows.push({ qty: u.ug10,      item: "10' Utility Grip" });
+      if (u.ug25  > 0) uRows.push({ qty: u.ug25,      item: "25' Utility Grip" });
+      if (u.ug50  > 0) uRows.push({ qty: u.ug50,      item: "50' Utility Grip" });
+      if (u.ugTwofers > 0) uRows.push({ qty: u.ugTwofers, item: 'Utility Twofers' });
+      if (u.powerBars > 0) uRows.push({ qty: u.powerBars,  item: 'Power Bars' });
+      if (uRows.length > 0) {
+        sysRows.push(pdfSectionBar('Utility', colors));
+        sysRows.push(pdfBuildGearTable(uRows, colors));
+      }
+    }
+
+    // Spares
+    if (gearData.spares) {
+      const sp = gearData.spares;
+      const spRows = [];
+      Object.entries(sp.panelsByType || {}).forEach(([name, count]) => {
+        if (count > 0) spRows.push({ qty: count, item: `${name} (spare)` });
+      });
+      if (sp.shackles    > 0) spRows.push({ qty: sp.shackles,    item: 'Shackles (spare)' });
+      if (sp.cheeseyes   > 0) spRows.push({ qty: sp.cheeseyes,   item: 'Cheeseyes (spare)' });
+      if (sp.crossJumpers > 0 && sp.crossJumperLen) spRows.push({ qty: sp.crossJumpers, item: `${sp.crossJumperLen}ft Cross Jumpers (spare)` });
+      if (sp.cat5Couplers > 0) spRows.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers (spare)' });
+      Object.entries(sp.cat6ByLength || {}).forEach(([len, count]) => {
+        if (count > 0) spRows.push({ qty: count, item: `${len}' Cat6 (spare)` });
+      });
+      if (sp.socaSplays  > 0) spRows.push({ qty: sp.socaSplays,  item: 'Soca Splays (spare)' });
+      if (sp.true1_25    > 0) spRows.push({ qty: sp.true1_25,    item: "25' True1 (spare)" });
+      if (sp.true1_10    > 0) spRows.push({ qty: sp.true1_10,    item: "10' True1 (spare)" });
+      if (sp.true1_5     > 0) spRows.push({ qty: sp.true1_5,     item: "5' True1 (spare)" });
+      if (sp.true1Twofer > 0) spRows.push({ qty: sp.true1Twofer, item: 'True1 Twofers (spare)' });
+      if (spRows.length > 0) {
+        sysRows.push(pdfSectionBar('Spares', colors));
+        sysRows.push(pdfBuildGearTable(spRows, colors));
+      }
+    }
+
+    if (sysRows.length > 0) {
+      content.push({ text: '', pageBreak: 'before' });
+      content.push({ text: 'System', style: 'docTitle', margin: [0, 0, 0, 4] });
+      sysRows.forEach(r => content.push(r));
+    }
+  }
 
   return {
     pageSize: isLetter ? 'LETTER' : 'A4',

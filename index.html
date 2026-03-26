@@ -1703,8 +1703,13 @@
       </div>
       <!-- RIGHT: Preview Area -->
       <div class="print-preview-area">
+        <div class="preview-zoom-controls">
+          <button class="preview-zoom-btn" onclick="ppZoomOut()" title="Zoom Out">−</button>
+          <button class="preview-zoom-btn preview-zoom-reset" onclick="ppZoomReset()" title="Reset Zoom">100%</button>
+          <button class="preview-zoom-btn" onclick="ppZoomIn()" title="Zoom In">+</button>
+        </div>
         <div id="previewPagesContainer" class="preview-pages-scroll">
-          <!-- PDF preview rendered here -->
+          <!-- Preview page canvases inserted dynamically -->
         </div>
       </div>
     </div>
@@ -3229,8 +3234,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.33';
-const APP_CHANGELOG = 'Fix blank first page, add Wall/Signal spec sections, and scale down layout images in PDF';
+const APP_VERSION = '2.10.34';
+const APP_CHANGELOG = 'Fix blurry layout images, reduce diagram size, add signal/utility/spares to PDF gear list';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

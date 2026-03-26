@@ -1,5 +1,5 @@
 {
-  "version": "2.10.33",
+  "version": "2.10.34",
   "updated": "2026-03-26",
-  "changelog": "Fix blank first page, add Wall/Signal spec sections, and scale down layout images in PDF"
+  "changelog": "Fix blurry layout images, reduce diagram size, add signal/utility/spares to PDF gear list"
 }

@@ -1,5 +1,5 @@
 {
-  "version": "2.10.44",
-  "updated": "2026-03-26",
-  "changelog": "Update CDN smoke tests from jsPDF/html2canvas to pdfmake/Supabase"
+  "version": "2.10.45",
+  "updated": "2026-03-27",
+  "changelog": "Fix cross-device recent projects sync by replacing broken upsert"
 }

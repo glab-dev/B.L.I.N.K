@@ -35,12 +35,14 @@ function initSupabase() {
       console.log('Auth state changed:', event, currentUser?.email || 'not logged in');
       updateAuthUI();
 
-      if(event === 'SIGNED_IN') {
-        console.log('User signed in:', currentUser.email);
-        // Trigger sync after login
-        setTimeout(() => {
-          syncAllData().catch(err => console.error('Sync error:', err));
-        }, 500);
+      if(event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        if(currentUser) {
+          console.log('User session active:', currentUser.email);
+          // Trigger sync after login or session restore
+          setTimeout(() => {
+            syncAllData().catch(err => console.error('Sync error:', err));
+          }, 500);
+        }
       }
 
       if(event === 'PASSWORD_RECOVERY') {

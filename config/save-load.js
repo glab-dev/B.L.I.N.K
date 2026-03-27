@@ -511,7 +511,11 @@ function addToRecentProjects(config) {
 
     // Also upsert to Supabase if signed in
     if(typeof isAuthenticated === 'function' && isAuthenticated() && typeof supabaseClient !== 'undefined' && supabaseClient) {
-      upsertProjectToCloud(entry).catch(err => {
+      upsertProjectToCloud(entry).then(success => {
+        if(!success) {
+          console.warn('Project saved locally but cloud sync failed — will retry on next app load');
+        }
+      }).catch(err => {
         console.error('Failed to save recent project to cloud:', err);
       });
     }
@@ -569,24 +573,59 @@ async function getRecentProjects() {
 }
 
 async function upsertProjectToCloud(entry) {
-  if(!supabaseClient || !currentUser) return;
+  if(!supabaseClient || !currentUser) return false;
 
-  const { error } = await supabaseClient
-    .from('user_projects')
-    .upsert({
-      user_id: currentUser.id,
-      name: entry.name,
-      config_data: entry.configData,
-      version: entry.configData.version || '2.0',
-      updated_at: new Date().toISOString(),
-      is_deleted: false,
-      local_id: entry.localId
-    }, {
-      onConflict: 'user_id,name'
-    });
+  try {
+    // Check if a record with this user+name already exists
+    const { data: existing, error: selectError } = await supabaseClient
+      .from('user_projects')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .eq('name', entry.name)
+      .maybeSingle();
 
-  if(error) {
-    console.error('Upsert project error:', error);
+    if(selectError) {
+      console.error('Upsert project error (select):', selectError);
+      return false;
+    }
+
+    let error;
+    if(existing) {
+      // Update existing record
+      ({ error } = await supabaseClient
+        .from('user_projects')
+        .update({
+          config_data: entry.configData,
+          version: entry.configData.version || '2.0',
+          updated_at: new Date().toISOString(),
+          is_deleted: false,
+          local_id: entry.localId
+        })
+        .eq('user_id', currentUser.id)
+        .eq('name', entry.name));
+    } else {
+      // Insert new record
+      ({ error } = await supabaseClient
+        .from('user_projects')
+        .insert({
+          user_id: currentUser.id,
+          name: entry.name,
+          config_data: entry.configData,
+          version: entry.configData.version || '2.0',
+          updated_at: new Date().toISOString(),
+          is_deleted: false,
+          local_id: entry.localId
+        }));
+    }
+
+    if(error) {
+      console.error('Upsert project error:', error);
+      return false;
+    }
+    return true;
+  } catch(e) {
+    console.error('Upsert project error:', e);
+    return false;
   }
 }
 

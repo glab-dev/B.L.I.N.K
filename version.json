@@ -1,5 +1,5 @@
 {
-  "version": "2.10.47",
+  "version": "2.10.48",
   "updated": "2026-03-27",
-  "changelog": "Render cabling layout wider and unconstrained in PDF export"
+  "changelog": "Fix structure and cabling same-page placement in landscape PDF mode"
 }

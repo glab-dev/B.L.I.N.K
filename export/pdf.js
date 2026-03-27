@@ -652,7 +652,8 @@ function pdfCaptureCanvases() {
   const mainWasHidden = mainContainer && mainContainer.style.display === 'none';
   if (mainContainer) mainContainer.style.display = 'block';
 
-  const containerIds = ['standardContainer', 'powerContainer', 'dataContainer', 'structureContainer', 'cableDiagramContainer'];
+  // gearListContainer is the parent of cableDiagramContainer — must be visible so clientWidth > 0
+  const containerIds = ['standardContainer', 'powerContainer', 'dataContainer', 'structureContainer', 'gearListContainer', 'cableDiagramContainer'];
   const savedDisplay = {};
   containerIds.forEach(id => {
     const el = document.getElementById(id);
@@ -672,7 +673,9 @@ function pdfCaptureCanvases() {
       cableContainer.style.width = '1400px';
       void cableContainer.offsetWidth; // force reflow so clientWidth updates before renderCableDiagram reads it
     }
+    cableDiagramPdfMode = true;
     if (typeof renderCableDiagram === 'function') renderCableDiagram(screenId);
+    cableDiagramPdfMode = false;
     if (cableContainer && savedCableWidth !== null) cableContainer.style.width = savedCableWidth;
     else if (cableContainer) cableContainer.style.width = '';
 
@@ -728,27 +731,38 @@ function buildPdfDocDefinition(opts, canvasCache) {
   const isLetter = pdfPageFormat === 'letter';
   // Content width in points: A4=595pt, Letter=612pt, landscape swaps; margins 28pt each side
   const pageWidthPt = isLandscape ? (isLetter ? 792 : 842) : (isLetter ? 612 : 595);
+  const pageHeightPt = isLandscape ? (isLetter ? 612 : 595) : (isLetter ? 792 : 842);
   const contentWidth = pageWidthPt - 56;
+  const usableHeightPt = pageHeightPt - 56;
 
   const configName = document.getElementById('configName')?.value?.trim() || 'LED Wall';
-  const dateStr = new Date().toLocaleString();
+  const dateStr = new Date().toLocaleDateString();
   const content = [];
 
   // --- TITLE BLOCK ---
   content.push({
-    table: { widths: ['*'], body: [[{
-      text: 'B.L.I.N.K. LED REPORT',
-      bold: true, fontSize: 13, color: colors.bannerText,
-      fillColor: colors.accent,
-      border: [false, false, false, false],
-      margin: [10, 8, 10, 8]
-    }]] },
+    table: { widths: ['*', 'auto'], body: [[
+      {
+        text: 'B.L.I.N.K. LED REPORT',
+        bold: true, fontSize: 13, color: colors.bannerText,
+        fillColor: colors.accent,
+        border: [false, false, false, false],
+        margin: [10, 8, 10, 8]
+      },
+      {
+        text: dateStr,
+        bold: false, fontSize: 9, color: colors.bannerText,
+        fillColor: colors.accent,
+        border: [false, false, false, false],
+        margin: [0, 8, 10, 8], alignment: 'right'
+      }
+    ]] },
     layout: 'noBorders',
     margin: [0, 0, 0, 10]
   });
   content.push({ text: configName, fontSize: 22, bold: true, color: '#111', margin: [0, 0, 0, 3] });
   content.push({
-    text: `${dateStr}  ·  ${screenIds.length} screen${screenIds.length !== 1 ? 's' : ''}`,
+    text: `${screenIds.length} screen${screenIds.length !== 1 ? 's' : ''}`,
     fontSize: 8, color: '#888', margin: [0, 0, 0, 14]
   });
 
@@ -786,7 +800,7 @@ function buildPdfDocDefinition(opts, canvasCache) {
     if (sIdx > 0) screenContent.push({ text: '', pageBreak: 'before' });
     screenContent.push({
       table: { widths: ['*'], body: [[{
-        text: `SCREEN ${sIdx + 1}  ·  ${screen.name.toUpperCase()}`,
+        text: screen.name.toUpperCase(),
         bold: true, fontSize: 11, color: colors.bannerText,
         fillColor: colors.accent,
         border: [false, false, false, false],
@@ -910,11 +924,22 @@ function buildPdfDocDefinition(opts, canvasCache) {
       { key: screenId + '_cabling',   title: 'Cabling Layout',   enabled: opts.cabling }
     ];
 
+    let prevDiagramKey = null;
+    let prevImgData = null;
     diagrams.forEach(d => {
       if (!d.enabled || !canvasCache[d.key]) return;
       const imgData = canvasCache[d.key];
       const isCabling = d.key.endsWith('_cabling');
-      screenContent.push({ text: '', pageBreak: 'before' });
+      // Cabling follows structure on the same page — only when combined height fits the page
+      let skipPageBreak = false;
+      if (isCabling && prevDiagramKey && prevDiagramKey.endsWith('_structure') && prevImgData) {
+        const structImgH = Math.min(maxImgW * prevImgData.aspectRatio, maxImgH);
+        const cabImgH = cablingImgW * imgData.aspectRatio;
+        skipPageBreak = (structImgH + cabImgH + 80) <= usableHeightPt;
+      }
+      if (!skipPageBreak) screenContent.push({ text: '', pageBreak: 'before' });
+      prevDiagramKey = d.key;
+      prevImgData = imgData;
       screenContent.push(pdfSectionBar(d.title, colors));
       screenContent.push({
         image: imgData.dataUrl,
@@ -992,7 +1017,6 @@ function buildPdfDocDefinition(opts, canvasCache) {
 
     if (sysRows.length > 0) {
       content.push({ text: '', pageBreak: 'before' });
-      content.push({ text: 'System', style: 'docTitle', margin: [0, 0, 0, 4] });
       sysRows.forEach(r => content.push(r));
     }
   }
@@ -1000,12 +1024,8 @@ function buildPdfDocDefinition(opts, canvasCache) {
   return {
     pageSize: isLetter ? 'LETTER' : 'A4',
     pageOrientation: isLandscape ? 'landscape' : 'portrait',
-    pageMargins: [28, 28, 28, 32],
+    pageMargins: [28, 28, 28, 16],
     content: content,
-    footer: (currentPage, pageCount) => ({
-      text: `Generated with B.L.I.N.K.  •  blink-led.com  |  Page ${currentPage} of ${pageCount}`,
-      alignment: 'center', fontSize: 7, color: '#aaa', margin: [0, 6, 0, 0]
-    }),
     defaultStyle: { font: 'Roboto', fontSize: 9, color: '#111' },
     styles: {
       docTitle:   { fontSize: 18, bold: true, color: '#111' },

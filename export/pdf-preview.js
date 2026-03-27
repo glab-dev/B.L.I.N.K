@@ -182,7 +182,8 @@ function captureAllCanvasImages(callback) {
   const mainWasHidden = mainContainer && mainContainer.style.display === 'none';
   if (mainContainer) mainContainer.style.display = 'block';
 
-  const containers = ['standardContainer', 'powerContainer', 'dataContainer', 'structureContainer', 'cableDiagramContainer'];
+  // gearListContainer is the parent of cableDiagramContainer — must be visible so clientWidth > 0
+  const containers = ['standardContainer', 'powerContainer', 'dataContainer', 'structureContainer', 'gearListContainer', 'cableDiagramContainer'];
   const savedDisplay = {};
   containers.forEach(id => {
     const el = document.getElementById(id);
@@ -207,9 +208,19 @@ function captureAllCanvasImages(callback) {
     generateLayout('power');
     generateLayout('data');
     generateStructureLayout();
+    const cableContainer = document.getElementById('cableDiagramContainer');
+    const savedCableWidth = cableContainer ? cableContainer.style.width : null;
+    if (cableContainer) {
+      cableContainer.style.width = '1400px';
+      void cableContainer.offsetWidth;
+    }
+    cableDiagramPdfMode = true;
     if (typeof renderCableDiagram === 'function') {
       renderCableDiagram(screenId);
     }
+    cableDiagramPdfMode = false;
+    if (cableContainer && savedCableWidth !== null) cableContainer.style.width = savedCableWidth;
+    else if (cableContainer) cableContainer.style.width = '';
 
     // Capture each canvas
     const captures = [
@@ -367,13 +378,7 @@ function buildPageModel() {
   const structureMaxH = 80;
 
   function addWatermark(page, suffix) {
-    page.elements.push({
-      id: 'watermark_' + suffix,
-      type: 'watermark',
-      text: 'Generated with B.L.I.N.K.  \u2022  blink-led.com',
-      x: ppPageWidth / 2, y: ppPageHeight - 3, w: 100, h: 4,
-      fontSize: 7, color: '#aaa'
-    });
+    // Footer removed
   }
 
   // ========== PER-SCREEN PAGES (title on first screen's page, matching pdf.js) ==========
@@ -389,11 +394,12 @@ function buildPageModel() {
       // First screen: add title block matching pdf.js header style
       if (sIdx === 0) {
         const configName = document.getElementById('configName')?.value?.trim() || 'LED Wall';
-        const timestamp = new Date().toLocaleString();
+        const dateStr = new Date().toLocaleDateString();
         specsPage.elements.push({
           id: 'title_banner',
           type: 'banner',
           text: 'B.L.I.N.K. LED REPORT',
+          rightText: dateStr,
           x: PP_MARGIN, y: headerY, w: usableWidth, h: 6,
           fontSize: 11
         });
@@ -409,7 +415,7 @@ function buildPageModel() {
         specsPage.elements.push({
           id: 'title_meta',
           type: 'text',
-          text: timestamp + '  ·  ' + screenIds.length + ' screen' + (screenIds.length !== 1 ? 's' : ''),
+          text: screenIds.length + ' screen' + (screenIds.length !== 1 ? 's' : ''),
           x: PP_MARGIN, y: headerY, w: usableWidth, h: 4,
           fontSize: 7, color: '#888'
         });
@@ -419,7 +425,7 @@ function buildPageModel() {
       specsPage.elements.push({
         id: screenId + '_header',
         type: 'banner',
-        text: 'SCREEN ' + (sIdx + 1) + '  \u00B7  ' + screen.name.toUpperCase(),
+        text: screen.name.toUpperCase(),
         x: PP_MARGIN, y: headerY, w: usableWidth, h: 6,
         fontSize: 10
       });
@@ -489,7 +495,7 @@ function buildPageModel() {
       layoutsToAdd.push({ key: screenId + '_structure', title: 'Structure Layout', fixedW: structureFixedW, maxH: structureMaxH, isStructure: true });
     }
     if (opts.cabling && ppCanvasCache[screenId + '_cabling']) {
-      layoutsToAdd.push({ key: screenId + '_cabling', title: 'Cabling Layout', fixedW: structureFixedW, maxH: structureMaxH });
+      layoutsToAdd.push({ key: screenId + '_cabling', title: 'Cabling Layout', fixedW: usableWidth, maxH: 0 });
     }
 
     if (layoutsToAdd.length > 0) {
@@ -527,12 +533,23 @@ function buildPageModel() {
             titleH: titleH,
             fontSize: 11
           });
-          yPos += titleH + imgH + 8;
+          yPos += titleH + imgH + 4;
 
           // Add structure info below the image (2-column textblocks)
           const structLines = buildStructureInfoLines(screenId);
+          // Pre-check if cabling follows AND fits below current yPos on this page
+          const nextLayout = layoutsToAdd[lIdx + 1];
+          const cabFollows = (() => {
+            if (!nextLayout || !nextLayout.key.endsWith('_cabling')) return false;
+            if (!ppCanvasCache[nextLayout.key]) return false;
+            const cabH = nextLayout.fixedW * ppCanvasCache[nextLayout.key].aspectRatio;
+            return (cabH + 14) <= (ppPageHeight - yPos - PP_MARGIN);
+          })();
+          const cabReserveH = cabFollows
+            ? (nextLayout.fixedW * ppCanvasCache[nextLayout.key].aspectRatio + 6 + 4 + 4)
+            : 0;
           if (structLines.length > 0) {
-            const structInfoH = Math.min(structLines.length * 3.5, ppPageHeight - yPos - PP_MARGIN - 10);
+            const structInfoH = Math.min(structLines.length * 3.5, ppPageHeight - yPos - PP_MARGIN - cabReserveH);
             const structColW = (usableWidth - 4) / 2;
             // Split lines into two columns at rough midpoint
             const midIdx = Math.ceil(structLines.length / 2);
@@ -555,34 +572,27 @@ function buildPageModel() {
                 fontSize: 8
               });
             }
-            yPos += structInfoH + 8;
+            yPos += structInfoH + 4;
           }
 
-          // If cabling layout follows and fits below on the same page, place it here
-          const nextLayout = layoutsToAdd[lIdx + 1];
-          if (nextLayout && nextLayout.key.endsWith('_cabling')) {
+          // Place cabling layout below structure on the same page at full size (only when it fits)
+          if (cabFollows && nextLayout && nextLayout.key.endsWith('_cabling')) {
             const cabCached = ppCanvasCache[nextLayout.key];
             if (cabCached) {
-              let cabW = nextLayout.fixedW;
-              let cabH = cabW * cabCached.aspectRatio;
-              if (nextLayout.maxH > 0 && cabH > nextLayout.maxH) {
-                cabH = nextLayout.maxH;
-                cabW = nextLayout.maxH / cabCached.aspectRatio;
-              }
-              if (yPos + cabH + 14 <= ppPageHeight - PP_MARGIN) {
-                const cabTitleH = 6;
-                layoutPage.elements.push({
-                  id: nextLayout.key,
-                  type: 'layout',
-                  title: nextLayout.title,
-                  imageKey: nextLayout.key,
-                  x: PP_MARGIN, y: yPos, w: cabW, h: cabTitleH + cabH,
-                  titleH: cabTitleH,
-                  fontSize: 11
-                });
-                yPos += cabTitleH + cabH + 8;
-                nextLayout._placed = true;
-              }
+              const cabTitleH = 6;
+              const cabW = nextLayout.fixedW;
+              const cabH = cabW * cabCached.aspectRatio;
+              layoutPage.elements.push({
+                id: nextLayout.key,
+                type: 'layout',
+                title: nextLayout.title,
+                imageKey: nextLayout.key,
+                x: PP_MARGIN, y: yPos, w: cabW, h: cabTitleH + cabH,
+                titleH: cabTitleH,
+                fontSize: 11
+              });
+              yPos += cabTitleH + cabH + 8;
+              nextLayout._placed = true;
             }
           }
 
@@ -734,13 +744,7 @@ function buildPageModel() {
     const sysLines = buildSystemGearLines(screenIds);
     if (sysLines.length > 0) {
       const sysPage = { pageNum: pdfPageModel.length + 1, elements: [] };
-      sysPage.elements.push({
-        id: 'system_header',
-        type: 'text',
-        text: 'System',
-        x: PP_MARGIN, y: PP_MARGIN, w: usableWidth, h: 8,
-        fontSize: 14, bold: true
-      });
+      // System header removed per design
       const sysHeight = Math.max(sysLines.length * 3.5, 40);
       sysPage.elements.push({
         id: 'system_gear',
@@ -1410,6 +1414,11 @@ function drawPreviewElement(ctx, el, scale, pageIndex) {
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       ctx.fillText(el.text || '', x + 3 * s, y + h / 2);
+      if (el.rightText) {
+        ctx.font = Math.max(5, el.fontSize * s * 0.3) + 'px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText(el.rightText, x + w - 3 * s, y + h / 2);
+      }
       if (isSelected) {
         ctx.strokeStyle = '#2196F3';
         ctx.lineWidth = 2;

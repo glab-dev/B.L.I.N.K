@@ -1,5 +1,5 @@
 {
-  "version": "2.10.46",
+  "version": "2.10.47",
   "updated": "2026-03-27",
-  "changelog": "Render cabling layout at full width in PDF export"
+  "changelog": "Render cabling layout wider and unconstrained in PDF export"
 }

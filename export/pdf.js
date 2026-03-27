@@ -668,7 +668,10 @@ function pdfCaptureCanvases() {
     generateStructureLayout();
     const cableContainer = document.getElementById('cableDiagramContainer');
     const savedCableWidth = cableContainer ? cableContainer.style.width : null;
-    if (cableContainer) cableContainer.style.width = '800px';
+    if (cableContainer) {
+      cableContainer.style.width = '1400px';
+      void cableContainer.offsetWidth; // force reflow so clientWidth updates before renderCableDiagram reads it
+    }
     if (typeof renderCableDiagram === 'function') renderCableDiagram(screenId);
     if (cableContainer && savedCableWidth !== null) cableContainer.style.width = savedCableWidth;
     else if (cableContainer) cableContainer.style.width = '';
@@ -899,7 +902,6 @@ function buildPdfDocDefinition(opts, canvasCache) {
     const maxImgW = Math.floor(contentWidth * 0.55);
     const maxImgH = 220;
     const cablingImgW = contentWidth;
-    const cablingImgH = 320;
     const diagrams = [
       { key: screenId + '_standard',  title: 'Standard Layout',  enabled: opts.standard },
       { key: screenId + '_power',     title: 'Power Layout',     enabled: opts.power },
@@ -916,7 +918,7 @@ function buildPdfDocDefinition(opts, canvasCache) {
       screenContent.push(pdfSectionBar(d.title, colors));
       screenContent.push({
         image: imgData.dataUrl,
-        fit: isCabling ? [cablingImgW, cablingImgH] : [maxImgW, maxImgH],
+        ...(isCabling ? { width: cablingImgW } : { fit: [maxImgW, maxImgH] }),
         alignment: 'center',
         margin: [0, 8, 0, 4]
       });

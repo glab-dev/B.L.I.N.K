@@ -1,5 +1,5 @@
 {
-  "version": "2.10.48",
+  "version": "2.10.49",
   "updated": "2026-03-27",
-  "changelog": "Fix structure and cabling same-page placement in landscape PDF mode"
+  "changelog": "Update CLAUDE.md, ui-design command, and cable diagram PDF mode flag"
 }

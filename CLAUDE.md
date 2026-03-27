@@ -114,9 +114,69 @@ Use HEREDOC format for multi-line commit messages.
 
 ---
 
+## Skill Auto-Triggers — ALWAYS Use the Right Skill
+
+Do NOT freehand these tasks. Invoke the matching skill first, every time, without being asked:
+
+| Task | Skill to invoke |
+|------|----------------|
+| Committing changes | `/commit` |
+| Planning / discussing a new feature | `/brainstorm` |
+| Investigating or fixing a bug | `/debug` |
+| Adding or changing any UI element | `/ui-design` |
+| Code review | `/review` |
+| Refactoring code | `/refactor` |
+| Performance investigation | `/perf` |
+| Security audit | `/security` |
+| CSS / style consistency check | `/style-audit` |
+| Pre-deployment verification | `/deploy-check` |
+| Generating changelog | `/changelog` |
+| Writing tests | `/test-write` |
+| Verifying exports | `/test-export` |
+| Scoping a task before coding | `/scope-lock` |
+
+---
+
+## Hard Stops — NEVER Do These Without Explicit Permission
+
+These are non-negotiable. If tempted to do any of the following, STOP and ask first:
+
+- **Touch code outside the exact file/function reported** — a bug in `calculatePower()` means touching ONLY `calculatePower()`, not the functions around it
+- **Rename or restructure anything** — variable names, function names, file organization: leave them exactly as-is unless renaming is the explicit task
+- **Clean up "while you're in there"** — no reformatting, no removing unused vars, no fixing unrelated things you notice
+- **Override a decision the user already made** — if they chose an approach, implement it; don't substitute your own preference
+- **Add anything not asked for** — no extra error handling, no comments, no console.logs, no fallbacks, no convenience wrappers
+
+---
+
+## Preservation Rules — NEVER Break Existing Working Code or UI
+
+Before touching ANY CSS or HTML, run this mental checklist:
+
+**CSS changes:**
+- What other elements share this selector, class, or CSS variable? List them. Verify they are unaffected.
+- Does the new rule have higher specificity than existing ones? Could it bleed onto unintended elements?
+- If changing a CSS variable (`var(--primary)`, etc.) — search for every place it's used before changing it.
+- If changing a shared utility class (`.section-card`, `.text-outline-black`, etc.) — check every element that uses it.
+
+**HTML changes:**
+- Are there JS selectors (`getElementById`, `querySelector`, `getElementsByClassName`) that target any ID or class being added, moved, or renamed? They will silently break.
+- Does the new HTML position affect existing flex/grid layout, z-index stacking, or scroll context?
+
+**After every UI change — verify these haven't regressed:**
+- [ ] The changed element looks correct on mobile AND desktop
+- [ ] Adjacent elements (above, below, beside) still look exactly as before
+- [ ] No new horizontal scrollbar appeared
+- [ ] No other section of the app changed appearance
+- [ ] Run `node tests/smoke-test.js` — 0 failures
+
+**The rule:** If you cannot confidently answer "nothing else will change", you must read more code before proceeding.
+
+---
+
 ## Code Quality — ALWAYS Follow
 
-- **Read before modifying** — never propose changes to unread code
+- **Read before modifying** — never propose changes to unread code. Open and read the file first, every time.
 - **No over-engineering** — no unnecessary abstractions, helpers, wrappers, or extra configurability
 - **No scope creep** — don't add features beyond what was asked
 - **Clean deletions** — remove dead code completely, no commented-out code or `_unused` vars
@@ -259,6 +319,10 @@ The smoke test includes:
 
 ## Export & PDF Awareness
 
+- **PDF has TWO separate rendering paths — always update BOTH:**
+  - `export/pdf.js` — pdfmake document definition (the actual downloaded PDF)
+  - `export/pdf-preview.js` — canvas-based preview modal (what the user sees first and bases feedback on)
+  - Changes to one do NOT affect the other. Any visual PDF change must be mirrored in both files.
 - PDF pipeline: `exportPDF()` → html2canvas captures → jsPDF assembles pages
 - Multi-screen PDFs iterate all visible screens
 - Resolume XML export: must match Arena 7 format

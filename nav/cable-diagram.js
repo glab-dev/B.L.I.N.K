@@ -2,6 +2,9 @@
 // Front-view diagram showing cable routing from LED wall to processor/distro.
 // Renders into #cableDiagramCanvas inside the gear tab cabling section.
 
+// Set to true by pdf.js/pdf-preview.js before capture: white bg + dark text + vivid cable colors
+var cableDiagramPdfMode = false;
+
 function renderCableDiagram(screenId) {
   const canvas = document.getElementById('cableDiagramCanvas');
   const container = document.getElementById('cableDiagramContainer');
@@ -86,14 +89,14 @@ function renderCableDiagram(screenId) {
   ctx.save();
   ctx.scale(dpr, dpr);
 
-  // Colors — adapt to eco-friendly / greyscale print modes
-  const isPrintMode = ecoPrintMode || greyscalePrintMode;
+  // Colors — adapt to eco-friendly / greyscale print modes (or PDF capture mode)
+  const isPrintMode = ecoPrintMode || greyscalePrintMode || cableDiagramPdfMode;
   function applyPrintColor(hex) {
     if (greyscalePrintMode && typeof toGreyscale === 'function') return toGreyscale(hex);
     if (ecoPrintMode && typeof toPastelColor === 'function') return toPastelColor(hex);
     return hex;
   }
-  const bgColor = isPrintMode ? '#ffffff' : '#1a1a1a';
+  const bgColor = cableDiagramPdfMode ? '#f0f0f0' : (isPrintMode ? '#ffffff' : '#1a1a1a');
   const fgColor = isPrintMode ? '#000000' : '#ffffff';
   const dimColor = isPrintMode ? '#888888' : '#999999';
   const gridColor = isPrintMode ? '#cccccc' : '#555555';

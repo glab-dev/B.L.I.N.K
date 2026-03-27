@@ -666,7 +666,12 @@ function pdfCaptureCanvases() {
     generateLayout('power');
     generateLayout('data');
     generateStructureLayout();
+    const cableContainer = document.getElementById('cableDiagramContainer');
+    const savedCableWidth = cableContainer ? cableContainer.style.width : null;
+    if (cableContainer) cableContainer.style.width = '800px';
     if (typeof renderCableDiagram === 'function') renderCableDiagram(screenId);
+    if (cableContainer && savedCableWidth !== null) cableContainer.style.width = savedCableWidth;
+    else if (cableContainer) cableContainer.style.width = '';
 
     const stdCanvas = document.getElementById('standardCanvas');
     const stdAspect = (stdCanvas && stdCanvas.width > 0) ? stdCanvas.height / stdCanvas.width : null;
@@ -893,6 +898,8 @@ function buildPdfDocDefinition(opts, canvasCache) {
     // --- LAYOUT DIAGRAMS (each on its own page) ---
     const maxImgW = Math.floor(contentWidth * 0.55);
     const maxImgH = 220;
+    const cablingImgW = contentWidth;
+    const cablingImgH = 320;
     const diagrams = [
       { key: screenId + '_standard',  title: 'Standard Layout',  enabled: opts.standard },
       { key: screenId + '_power',     title: 'Power Layout',     enabled: opts.power },
@@ -904,11 +911,12 @@ function buildPdfDocDefinition(opts, canvasCache) {
     diagrams.forEach(d => {
       if (!d.enabled || !canvasCache[d.key]) return;
       const imgData = canvasCache[d.key];
+      const isCabling = d.key.endsWith('_cabling');
       screenContent.push({ text: '', pageBreak: 'before' });
       screenContent.push(pdfSectionBar(d.title, colors));
       screenContent.push({
         image: imgData.dataUrl,
-        fit: [maxImgW, maxImgH],
+        fit: isCabling ? [cablingImgW, cablingImgH] : [maxImgW, maxImgH],
         alignment: 'center',
         margin: [0, 8, 0, 4]
       });

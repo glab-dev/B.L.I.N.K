@@ -402,12 +402,11 @@ function buildPageModel() {
       if (sIdx === 0) {
         const configName = document.getElementById('configName')?.value?.trim() || 'LED Wall';
         const dateStr = new Date().toLocaleDateString();
-        const screenCountLabel = screenIds.length + ' screen' + (screenIds.length !== 1 ? 's' : '');
         specsPage.elements.push({
           id: 'title_banner',
           type: 'banner',
           text: 'B.L.I.N.K. LED REPORT',
-          centerText: configName + '  \u00B7  ' + screenCountLabel,
+          centerText: configName,
           rightText: dateStr,
           x: PP_MARGIN, y: headerY, w: usableWidth, h: 8,
           fontSize: 11

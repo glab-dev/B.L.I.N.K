@@ -739,8 +739,7 @@ function buildPdfDocDefinition(opts, canvasCache) {
   const dateStr = new Date().toLocaleDateString();
   const content = [];
 
-  // --- TITLE BLOCK (compact single-row: logo | config name · screens | date) ---
-  const screenCountLabel = `${screenIds.length} screen${screenIds.length !== 1 ? 's' : ''}`;
+  // --- TITLE BLOCK (compact single-row: logo | config name | date) ---
   content.push({
     table: { widths: ['auto', '*', 'auto'], body: [[
       {
@@ -751,10 +750,8 @@ function buildPdfDocDefinition(opts, canvasCache) {
         margin: [10, 7, 14, 7]
       },
       {
-        text: [
-          { text: configName, bold: true, fontSize: 14 },
-          { text: '  \u00B7  ' + screenCountLabel, bold: false, fontSize: 9 }
-        ],
+        text: configName,
+        bold: true, fontSize: 14,
         color: colors.bannerText,
         fillColor: colors.accent,
         border: [false, false, false, false],

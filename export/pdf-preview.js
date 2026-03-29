@@ -382,6 +382,7 @@ function buildPageModel() {
   }
 
   // Track which page to attach system-wide gear to (so it appears on the same page as the gear list)
+  let sysGearInCol3 = false; // true when system gear was placed in col3 of first screen
   let gearPageForSystem = null;
   let systemGearX = PP_MARGIN;
   let systemGearY = PP_MARGIN + 10;
@@ -488,6 +489,7 @@ function buildPageModel() {
           });
         }
         gearPageForSystem = null; // system gear is in col3, don't add it again below
+        sysGearInCol3 = true;
       }
 
       addWatermark(specsPage, 'specs_' + screenId);
@@ -764,7 +766,7 @@ function buildPageModel() {
   // ========== SYSTEM-WIDE GEAR (signal cables, utility, spares) ==========
   // Placed on the same page as the gear list (specs page for single-screen,
   // multi-screen gear page for multi-screen) rather than a separate page.
-  if (opts.gearList) {
+  if (opts.gearList && !sysGearInCol3) {
     const sysLines = buildSystemGearLines(screenIds);
     if (sysLines.length > 0) {
       const sysHeight = Math.max(sysLines.length * 3.5, 40);

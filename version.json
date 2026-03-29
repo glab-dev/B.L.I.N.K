@@ -1,5 +1,5 @@
 {
-  "version": "2.10.54",
+  "version": "2.10.55",
   "updated": "2026-03-29",
-  "changelog": "Add compact header and 3-column system gear layout in landscape PDF mode"
+  "changelog": "Fix duplicate system gear section in PDF preview"
 }

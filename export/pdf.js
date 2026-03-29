@@ -739,31 +739,37 @@ function buildPdfDocDefinition(opts, canvasCache) {
   const dateStr = new Date().toLocaleDateString();
   const content = [];
 
-  // --- TITLE BLOCK ---
+  // --- TITLE BLOCK (compact single-row: logo | config name · screens | date) ---
+  const screenCountLabel = `${screenIds.length} screen${screenIds.length !== 1 ? 's' : ''}`;
   content.push({
-    table: { widths: ['*', 'auto'], body: [[
+    table: { widths: ['auto', '*', 'auto'], body: [[
       {
         text: 'B.L.I.N.K. LED REPORT',
-        bold: true, fontSize: 13, color: colors.bannerText,
+        bold: true, fontSize: 11, color: colors.bannerText,
         fillColor: colors.accent,
         border: [false, false, false, false],
-        margin: [10, 8, 10, 8]
+        margin: [10, 7, 14, 7]
+      },
+      {
+        text: [
+          { text: configName, bold: true, fontSize: 14 },
+          { text: '  \u00B7  ' + screenCountLabel, bold: false, fontSize: 9 }
+        ],
+        color: colors.bannerText,
+        fillColor: colors.accent,
+        border: [false, false, false, false],
+        margin: [0, 7, 0, 7], alignment: 'center'
       },
       {
         text: dateStr,
         bold: false, fontSize: 9, color: colors.bannerText,
         fillColor: colors.accent,
         border: [false, false, false, false],
-        margin: [0, 8, 10, 8], alignment: 'right'
+        margin: [14, 7, 10, 7], alignment: 'right'
       }
     ]] },
     layout: 'noBorders',
-    margin: [0, 0, 0, 10]
-  });
-  content.push({ text: configName, fontSize: 22, bold: true, color: '#111', margin: [0, 0, 0, 3] });
-  content.push({
-    text: `${screenIds.length} screen${screenIds.length !== 1 ? 's' : ''}`,
-    fontSize: 8, color: '#888', margin: [0, 0, 0, 14]
+    margin: [0, 0, 0, 8]
   });
 
   // Shared specRow helper (used in all spec sections below)
@@ -788,6 +794,64 @@ function buildPdfDocDefinition(opts, canvasCache) {
       },
       margin: [0, 0, 0, 6]
     };
+  }
+
+  // --- SYSTEM GEAR STACK (Signal Cables, Utility, Spares) — built once, placed in col3 of first screen ---
+  const sysStack = [];
+  if (opts.gearList) {
+    if (gearData.signalCables) {
+      const sc = gearData.signalCables;
+      const scRows = [];
+      if (sc.serverFiberLine) scRows.push({ qty: sc.serverFiberLine.count, item: sc.serverFiberLine.label });
+      Object.entries(sc.sdiByLength || {}).forEach(([len, count]) => {
+        if (count > 0) scRows.push({ qty: count, item: `${len}' ${sc.sdiType}` });
+      });
+      if (sc.hdmi) {
+        Object.entries(sc.hdmi).forEach(([len, count]) => {
+          if (count > 0) scRows.push({ qty: count, item: `${len}' HDMI` });
+        });
+      }
+      if (scRows.length > 0) {
+        sysStack.push(pdfSectionBar('Signal Cables', colors));
+        sysStack.push(pdfBuildGearTable(scRows, colors));
+      }
+    }
+    if (gearData.utility) {
+      const u = gearData.utility;
+      const uRows = [];
+      if (u.ug10  > 0) uRows.push({ qty: u.ug10,      item: "10' Utility Grip" });
+      if (u.ug25  > 0) uRows.push({ qty: u.ug25,      item: "25' Utility Grip" });
+      if (u.ug50  > 0) uRows.push({ qty: u.ug50,      item: "50' Utility Grip" });
+      if (u.ugTwofers > 0) uRows.push({ qty: u.ugTwofers, item: 'Utility Twofers' });
+      if (u.powerBars > 0) uRows.push({ qty: u.powerBars,  item: 'Power Bars' });
+      if (uRows.length > 0) {
+        sysStack.push(pdfSectionBar('Utility', colors));
+        sysStack.push(pdfBuildGearTable(uRows, colors));
+      }
+    }
+    if (gearData.spares) {
+      const sp = gearData.spares;
+      const spRows = [];
+      Object.entries(sp.panelsByType || {}).forEach(([name, count]) => {
+        if (count > 0) spRows.push({ qty: count, item: `${name} (spare)` });
+      });
+      if (sp.shackles    > 0) spRows.push({ qty: sp.shackles,    item: 'Shackles (spare)' });
+      if (sp.cheeseyes   > 0) spRows.push({ qty: sp.cheeseyes,   item: 'Cheeseyes (spare)' });
+      if (sp.crossJumpers > 0 && sp.crossJumperLen) spRows.push({ qty: sp.crossJumpers, item: `${sp.crossJumperLen}ft Cross Jumpers (spare)` });
+      if (sp.cat5Couplers > 0) spRows.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers (spare)' });
+      Object.entries(sp.cat6ByLength || {}).forEach(([len, count]) => {
+        if (count > 0) spRows.push({ qty: count, item: `${len}' Cat6 (spare)` });
+      });
+      if (sp.socaSplays  > 0) spRows.push({ qty: sp.socaSplays,  item: 'Soca Splays (spare)' });
+      if (sp.true1_25    > 0) spRows.push({ qty: sp.true1_25,    item: "25' True1 (spare)" });
+      if (sp.true1_10    > 0) spRows.push({ qty: sp.true1_10,    item: "10' True1 (spare)" });
+      if (sp.true1_5     > 0) spRows.push({ qty: sp.true1_5,     item: "5' True1 (spare)" });
+      if (sp.true1Twofer > 0) spRows.push({ qty: sp.true1Twofer, item: 'True1 Twofers (spare)' });
+      if (spRows.length > 0) {
+        sysStack.push(pdfSectionBar('Spares', colors));
+        sysStack.push(pdfBuildGearTable(spRows, colors));
+      }
+    }
   }
 
   // --- PER-SCREEN PAGES ---
@@ -901,14 +965,24 @@ function buildPdfDocDefinition(opts, canvasCache) {
       }
     }
 
-    // Assemble this screen's specs + gear columns
+    // Assemble this screen's specs + gear columns (+ system gear as col3 on first screen)
     if (specsStack.length > 0 || gearStack.length > 0) {
+      const useThreeCols = sIdx === 0 && sysStack.length > 0;
+      const sysColW = Math.floor(contentWidth * 0.22);
       screenContent.push({
-        columns: [
-          specsStack.length > 0 ? { width: '45%', stack: specsStack } : { width: '45%', text: '' },
-          { width: 10, text: '' },
-          gearStack.length > 0 ? { width: '*', stack: gearStack } : { width: '*', text: '' }
-        ]
+        columns: useThreeCols
+          ? [
+              specsStack.length > 0 ? { width: Math.floor(contentWidth * 0.35), stack: specsStack } : { width: Math.floor(contentWidth * 0.35), text: '' },
+              { width: 8, text: '' },
+              gearStack.length > 0 ? { width: '*', stack: gearStack } : { width: '*', text: '' },
+              { width: 8, text: '' },
+              { width: sysColW, stack: sysStack }
+            ]
+          : [
+              specsStack.length > 0 ? { width: '45%', stack: specsStack } : { width: '45%', text: '' },
+              { width: 10, text: '' },
+              gearStack.length > 0 ? { width: '*', stack: gearStack } : { width: '*', text: '' }
+            ]
       });
     }
 
@@ -941,9 +1015,19 @@ function buildPdfDocDefinition(opts, canvasCache) {
       prevDiagramKey = d.key;
       prevImgData = imgData;
       screenContent.push(pdfSectionBar(d.title, colors));
+      let cabRenderW = cablingImgW;
+      if (isCabling && skipPageBreak && prevImgData) {
+        const structImgH = Math.min(maxImgW * prevImgData.aspectRatio, maxImgH);
+        // 80pt covers section bars, margins, and spacing around both images
+        const availH = usableHeightPt - structImgH - 80;
+        const naturalCabH = cablingImgW * imgData.aspectRatio;
+        if (naturalCabH > availH && imgData.aspectRatio > 0) {
+          cabRenderW = Math.floor(availH / imgData.aspectRatio);
+        }
+      }
       screenContent.push({
         image: imgData.dataUrl,
-        ...(isCabling ? { width: cablingImgW } : { fit: [maxImgW, maxImgH] }),
+        ...(isCabling ? { width: cabRenderW } : { fit: [maxImgW, maxImgH] }),
         alignment: 'center',
         margin: [0, 8, 0, 4]
       });
@@ -952,73 +1036,7 @@ function buildPdfDocDefinition(opts, canvasCache) {
     screenContent.forEach(el => content.push(el));
   });
 
-  // --- SYSTEM-WIDE GEAR PAGE (Signal Cables, Utility, Spares) ---
-  if (opts.gearList) {
-    const sysRows = [];
-
-    // Signal Cables
-    if (gearData.signalCables) {
-      const sc = gearData.signalCables;
-      const scRows = [];
-      if (sc.serverFiberLine) scRows.push({ qty: sc.serverFiberLine.count, item: sc.serverFiberLine.label });
-      Object.entries(sc.sdiByLength || {}).forEach(([len, count]) => {
-        if (count > 0) scRows.push({ qty: count, item: `${len}' ${sc.sdiType}` });
-      });
-      if (sc.hdmi) {
-        Object.entries(sc.hdmi).forEach(([len, count]) => {
-          if (count > 0) scRows.push({ qty: count, item: `${len}' HDMI` });
-        });
-      }
-      if (scRows.length > 0) {
-        sysRows.push(pdfSectionBar('Signal Cables', colors));
-        sysRows.push(pdfBuildGearTable(scRows, colors));
-      }
-    }
-
-    // Utility
-    if (gearData.utility) {
-      const u = gearData.utility;
-      const uRows = [];
-      if (u.ug10  > 0) uRows.push({ qty: u.ug10,      item: "10' Utility Grip" });
-      if (u.ug25  > 0) uRows.push({ qty: u.ug25,      item: "25' Utility Grip" });
-      if (u.ug50  > 0) uRows.push({ qty: u.ug50,      item: "50' Utility Grip" });
-      if (u.ugTwofers > 0) uRows.push({ qty: u.ugTwofers, item: 'Utility Twofers' });
-      if (u.powerBars > 0) uRows.push({ qty: u.powerBars,  item: 'Power Bars' });
-      if (uRows.length > 0) {
-        sysRows.push(pdfSectionBar('Utility', colors));
-        sysRows.push(pdfBuildGearTable(uRows, colors));
-      }
-    }
-
-    // Spares
-    if (gearData.spares) {
-      const sp = gearData.spares;
-      const spRows = [];
-      Object.entries(sp.panelsByType || {}).forEach(([name, count]) => {
-        if (count > 0) spRows.push({ qty: count, item: `${name} (spare)` });
-      });
-      if (sp.shackles    > 0) spRows.push({ qty: sp.shackles,    item: 'Shackles (spare)' });
-      if (sp.cheeseyes   > 0) spRows.push({ qty: sp.cheeseyes,   item: 'Cheeseyes (spare)' });
-      if (sp.crossJumpers > 0 && sp.crossJumperLen) spRows.push({ qty: sp.crossJumpers, item: `${sp.crossJumperLen}ft Cross Jumpers (spare)` });
-      if (sp.cat5Couplers > 0) spRows.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers (spare)' });
-      Object.entries(sp.cat6ByLength || {}).forEach(([len, count]) => {
-        if (count > 0) spRows.push({ qty: count, item: `${len}' Cat6 (spare)` });
-      });
-      if (sp.socaSplays  > 0) spRows.push({ qty: sp.socaSplays,  item: 'Soca Splays (spare)' });
-      if (sp.true1_25    > 0) spRows.push({ qty: sp.true1_25,    item: "25' True1 (spare)" });
-      if (sp.true1_10    > 0) spRows.push({ qty: sp.true1_10,    item: "10' True1 (spare)" });
-      if (sp.true1_5     > 0) spRows.push({ qty: sp.true1_5,     item: "5' True1 (spare)" });
-      if (sp.true1Twofer > 0) spRows.push({ qty: sp.true1Twofer, item: 'True1 Twofers (spare)' });
-      if (spRows.length > 0) {
-        sysRows.push(pdfSectionBar('Spares', colors));
-        sysRows.push(pdfBuildGearTable(spRows, colors));
-      }
-    }
-
-    if (sysRows.length > 0) {
-      sysRows.forEach(r => content.push(r));
-    }
-  }
+  // System gear (Signal Cables, Utility, Spares) is rendered in col3 of the first screen above.
 
   return {
     pageSize: isLetter ? 'LETTER' : 'A4',

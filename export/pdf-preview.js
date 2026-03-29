@@ -397,35 +397,21 @@ function buildPageModel() {
       const specsPage = { pageNum: pdfPageModel.length + 1, elements: [] };
       let headerY = PP_MARGIN;
 
-      // First screen: add title block matching pdf.js header style
+      // First screen: compact single-row title banner matching pdf.js header
       if (sIdx === 0) {
         const configName = document.getElementById('configName')?.value?.trim() || 'LED Wall';
         const dateStr = new Date().toLocaleDateString();
+        const screenCountLabel = screenIds.length + ' screen' + (screenIds.length !== 1 ? 's' : '');
         specsPage.elements.push({
           id: 'title_banner',
           type: 'banner',
           text: 'B.L.I.N.K. LED REPORT',
+          centerText: configName + '  \u00B7  ' + screenCountLabel,
           rightText: dateStr,
-          x: PP_MARGIN, y: headerY, w: usableWidth, h: 6,
+          x: PP_MARGIN, y: headerY, w: usableWidth, h: 8,
           fontSize: 11
         });
-        headerY += 7;
-        specsPage.elements.push({
-          id: 'title_configname',
-          type: 'text',
-          text: configName,
-          x: PP_MARGIN, y: headerY, w: usableWidth, h: 8,
-          fontSize: 16, bold: true, color: '#111'
-        });
-        headerY += 9;
-        specsPage.elements.push({
-          id: 'title_meta',
-          type: 'text',
-          text: screenIds.length + ' screen' + (screenIds.length !== 1 ? 's' : ''),
-          x: PP_MARGIN, y: headerY, w: usableWidth, h: 4,
-          fontSize: 7, color: '#888'
-        });
-        headerY += 7;
+        headerY += 10;
       }
 
       specsPage.elements.push({
@@ -436,9 +422,15 @@ function buildPageModel() {
         fontSize: 10
       });
 
-      const colWidth = (usableWidth - 4) / 2;
+      const useThreeCols = sIdx === 0 && opts.gearList;
+      const gap = 4;
+      const sysColW = Math.floor(usableWidth * 0.22);
+      const col1W = useThreeCols ? Math.floor(usableWidth * 0.35) : Math.floor((usableWidth - gap) / 2);
+      const col2W = useThreeCols ? usableWidth - col1W - sysColW - 2 * gap : Math.floor((usableWidth - gap) / 2);
+      const colWidth = col1W; // used by specSections below
       const col1X = PP_MARGIN;
-      const col2X = ppPageWidth / 2 + 2;
+      const col2X = useThreeCols ? PP_MARGIN + col1W + gap : ppPageWidth / 2 + 2;
+      const col3X = useThreeCols ? col2X + col2W + gap : 0;
       const bodyY = headerY + 7;
 
       if (opts.specs) {
@@ -478,14 +470,24 @@ function buildPageModel() {
           id: screenId + '_gearlist',
           type: 'textblock',
           lines: gearLines,
-          x: col2X, y: bodyY, w: colWidth, h: cappedGearH,
+          x: col2X, y: bodyY, w: col2W, h: cappedGearH,
           fontSize: 8
         });
-        // Track this page so system gear can be placed below the gear list
-        gearPageForSystem = specsPage;
-        systemGearX = col2X;
-        systemGearY = bodyY + cappedGearH + 2;
-        systemGearW = colWidth;
+      }
+      // col3: system gear alongside specs/gear on first screen
+      if (useThreeCols) {
+        const sysLines = buildSystemGearLines(screenIds);
+        if (sysLines.length > 0) {
+          const sysH = Math.max(sysLines.length * 3.5, 40);
+          specsPage.elements.push({
+            id: 'system_gear',
+            type: 'textblock',
+            lines: sysLines,
+            x: col3X, y: bodyY, w: sysColW, h: sysH,
+            fontSize: 8
+          });
+        }
+        gearPageForSystem = null; // system gear is in col3, don't add it again below
       }
 
       addWatermark(specsPage, 'specs_' + screenId);
@@ -555,7 +557,9 @@ function buildPageModel() {
             if (!nextLayout || !nextLayout.key.endsWith('_cabling')) return false;
             if (!ppCanvasCache[nextLayout.key]) return false;
             const cabH = nextLayout.fixedW * ppCanvasCache[nextLayout.key].aspectRatio;
-            return (cabH + 14) <= (ppPageHeight - yPos - PP_MARGIN);
+            // Reserve 40mm for structure info text if there is any, so it isn't squeezed out
+            const minStructH = structLines.length > 0 ? 40 : 0;
+            return (cabH + 14 + minStructH) <= (ppPageHeight - yPos - PP_MARGIN);
           })();
           const cabReserveH = cabFollows
             ? (nextLayout.fixedW * ppCanvasCache[nextLayout.key].aspectRatio + 6 + 4 + 4)
@@ -587,13 +591,18 @@ function buildPageModel() {
             yPos += structInfoH + 4;
           }
 
-          // Place cabling layout below structure on the same page at full size (only when it fits)
+          // Place cabling layout below structure on the same page, capped to remaining space
           if (cabFollows && nextLayout && nextLayout.key.endsWith('_cabling')) {
             const cabCached = ppCanvasCache[nextLayout.key];
             if (cabCached) {
               const cabTitleH = 6;
-              const cabW = nextLayout.fixedW;
-              const cabH = cabW * cabCached.aspectRatio;
+              const maxCabH = ppPageHeight - yPos - PP_MARGIN - cabTitleH - 4;
+              let cabW = nextLayout.fixedW;
+              let cabH = cabW * cabCached.aspectRatio;
+              if (cabH > maxCabH && cabCached.aspectRatio > 0) {
+                cabH = maxCabH;
+                cabW = Math.floor(maxCabH / cabCached.aspectRatio);
+              }
               layoutPage.elements.push({
                 id: nextLayout.key,
                 type: 'layout',
@@ -717,10 +726,6 @@ function buildPageModel() {
 
   // ========== MULTI-SCREEN GEAR LIST PAGES ==========
   if (opts.gearList && screenIds.length > 1) {
-    // Pre-compute system gear height so we can reserve space at the bottom of this page
-    const sysLinesPreview = buildSystemGearLines(screenIds);
-    const sysReserveH = sysLinesPreview.length > 0 ? Math.max(sysLinesPreview.length * 3.5, 40) + 6 : 0;
-
     const gearPage = { pageNum: pdfPageModel.length + 1, elements: [] };
     gearPage.elements.push({
       id: 'gearlist_header',
@@ -735,7 +740,7 @@ function buildPageModel() {
     const colGap = 3;
     const colW = (usableWidth - colGap * (numCols - 1)) / numCols;
     const bodyY = PP_MARGIN + 10;
-    const bodyH = ppPageHeight - bodyY - PP_MARGIN - 10 - sysReserveH;
+    const bodyH = ppPageHeight - bodyY - PP_MARGIN - 10;
 
     screenIds.forEach((screenId, colIdx) => {
       const screen = screens[screenId];
@@ -753,12 +758,7 @@ function buildPageModel() {
 
     addWatermark(gearPage, 'gear');
     pdfPageModel.push(gearPage);
-
-    // Track this page for system gear placement below the screen columns
-    gearPageForSystem = gearPage;
-    systemGearX = PP_MARGIN;
-    systemGearY = bodyY + bodyH + 4;
-    systemGearW = usableWidth / 2;
+    // System gear is placed in col3 of the first screen's specs page (not here)
   }
 
   // ========== SYSTEM-WIDE GEAR (signal cables, utility, spares) ==========
@@ -1448,6 +1448,11 @@ function drawPreviewElement(ctx, el, scale, pageIndex) {
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       ctx.fillText(el.text || '', x + 3 * s, y + h / 2);
+      if (el.centerText) {
+        ctx.font = 'bold ' + Math.max(5, el.fontSize * s * 0.4) + 'px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(el.centerText, x + w / 2, y + h / 2);
+      }
       if (el.rightText) {
         ctx.font = Math.max(5, el.fontSize * s * 0.3) + 'px Arial';
         ctx.textAlign = 'right';

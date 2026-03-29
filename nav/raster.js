@@ -404,9 +404,13 @@ function duplicateRasterScreen(screenId) {
   screenIdCounter++;
   var newScreenId = 'screen_' + screenIdCounter;
 
+  var _baseName = sourceScreen.name.replace(/ \(\d+\)$/, '');
+  var _existingNames = Object.values(screens).map(function(s) { return s.name; });
+  var _dupNum = 2;
+  while (_existingNames.includes(_baseName + ' (' + _dupNum + ')')) _dupNum++;
   var newScreen = {
     id: newScreenId,
-    name: sourceScreen.name + ' (Copy)',
+    name: _baseName + ' (' + _dupNum + ')',
     color: sourceScreen.color,
     color2: sourceScreen.color2,
     visible: true,

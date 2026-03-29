@@ -1,5 +1,5 @@
 {
-  "version": "2.10.49",
-  "updated": "2026-03-27",
-  "changelog": "Update CLAUDE.md, ui-design command, and cable diagram PDF mode flag"
+  "version": "2.10.50",
+  "updated": "2026-03-29",
+  "changelog": "Fix duplicate screen naming to use numbered suffixes instead of stacking Copy"
 }

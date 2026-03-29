@@ -775,9 +775,13 @@ function duplicateScreen() {
   const screenNumber = Object.keys(screens).length + 1;
 
   // Deep clone the screen data
+  const _baseName = sourceScreen.name.replace(/ \(\d+\)$/, '');
+  const _existingNames = Object.values(screens).map(s => s.name);
+  let _dupNum = 2;
+  while (_existingNames.includes(_baseName + ' (' + _dupNum + ')')) _dupNum++;
   const newScreen = {
     id: newScreenId,
-    name: sourceScreen.name + ' (Copy)',
+    name: _baseName + ' (' + _dupNum + ')',
     color: sourceScreen.color,
     color2: sourceScreen.color2,
     visible: true,

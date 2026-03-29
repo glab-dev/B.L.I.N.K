@@ -431,6 +431,27 @@ function showCanvasView(){
       }
     }
     
+    // Draw X crosshair if enabled for this screen (default: on)
+    if(screen.showCrosshair !== false) {
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([]);
+
+      // Line from top-left to bottom-right
+      ctx.beginPath();
+      ctx.moveTo(offsetX, offsetY);
+      ctx.lineTo(offsetX + wallResX, offsetY + wallResY);
+      ctx.stroke();
+
+      // Line from top-right to bottom-left
+      ctx.beginPath();
+      ctx.moveTo(offsetX + wallResX, offsetY);
+      ctx.lineTo(offsetX, offsetY + wallResY);
+      ctx.stroke();
+
+      ctx.setLineDash([]); // Reset to solid line
+    }
+
     // Add X/Y coordinates in top-left corner (if enabled for this screen)
     if(screen.showCoordinates !== false) {
       const coordFontSize = Math.max(24, Math.min(p.res_x, p.res_y) / 4);
@@ -456,27 +477,6 @@ function showCanvasView(){
       ctx.fillStyle = '#f0f0f0';
       ctx.fillText(xText, textX, textY);
       ctx.fillText(yText, textX, textY + lineHeight);
-    }
-    
-    // Draw X crosshair if enabled for this screen (default: on)
-    if(screen.showCrosshair !== false) {
-      ctx.strokeStyle = '#e0e0e0';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([]);
-
-      // Line from top-left to bottom-right
-      ctx.beginPath();
-      ctx.moveTo(offsetX, offsetY);
-      ctx.lineTo(offsetX + wallResX, offsetY + wallResY);
-      ctx.stroke();
-
-      // Line from top-right to bottom-left
-      ctx.beginPath();
-      ctx.moveTo(offsetX + wallResX, offsetY);
-      ctx.lineTo(offsetX, offsetY + wallResY);
-      ctx.stroke();
-
-      ctx.setLineDash([]); // Reset to solid line
     }
 
     // Add screen name overlay - simplified shadow

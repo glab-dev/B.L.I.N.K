@@ -1,5 +1,5 @@
 {
-  "version": "2.10.50",
+  "version": "2.10.51",
   "updated": "2026-03-29",
-  "changelog": "Fix duplicate screen naming to use numbered suffixes instead of stacking Copy"
+  "changelog": "Return to hamburger menu after closing print preview"
 }

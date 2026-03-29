@@ -2018,7 +2018,7 @@
           <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; showRecentProjects()">Recent</button>
         </div>
         <div class="mobile-menu-btn-row">
-          <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="closeMobileMenu();">Export</button>
+          <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; closeMobileMenu();">Export</button>
           <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openSendToJaredModal(); closeMobileMenu();">Send to Jared</button>
         </div>
       </div>
@@ -3234,8 +3234,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.50';
-const APP_CHANGELOG = 'Fix duplicate screen naming to use numbered suffixes instead of stacking Copy';
+const APP_VERSION = '2.10.51';
+const APP_CHANGELOG = 'Return to hamburger menu after closing print preview';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

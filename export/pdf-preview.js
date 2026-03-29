@@ -381,6 +381,12 @@ function buildPageModel() {
     // Footer removed
   }
 
+  // Track which page to attach system-wide gear to (so it appears on the same page as the gear list)
+  let gearPageForSystem = null;
+  let systemGearX = PP_MARGIN;
+  let systemGearY = PP_MARGIN + 10;
+  let systemGearW = usableWidth / 2;
+
   // ========== PER-SCREEN PAGES (title on first screen's page, matching pdf.js) ==========
   screenIds.forEach((screenId, sIdx) => {
     const screen = screens[screenId];
@@ -467,13 +473,19 @@ function buildPageModel() {
       if (opts.gearList && screenIds.length === 1) {
         const gearLines = buildGearLines(screenId);
         const gearHeight = Math.max(gearLines.length * 3.5, 40);
+        const cappedGearH = Math.min(gearHeight, ppPageHeight - bodyY - PP_MARGIN - 10);
         specsPage.elements.push({
           id: screenId + '_gearlist',
           type: 'textblock',
           lines: gearLines,
-          x: col2X, y: bodyY, w: colWidth, h: Math.min(gearHeight, ppPageHeight - bodyY - PP_MARGIN - 10),
+          x: col2X, y: bodyY, w: colWidth, h: cappedGearH,
           fontSize: 8
         });
+        // Track this page so system gear can be placed below the gear list
+        gearPageForSystem = specsPage;
+        systemGearX = col2X;
+        systemGearY = bodyY + cappedGearH + 2;
+        systemGearW = colWidth;
       }
 
       addWatermark(specsPage, 'specs_' + screenId);
@@ -705,6 +717,10 @@ function buildPageModel() {
 
   // ========== MULTI-SCREEN GEAR LIST PAGES ==========
   if (opts.gearList && screenIds.length > 1) {
+    // Pre-compute system gear height so we can reserve space at the bottom of this page
+    const sysLinesPreview = buildSystemGearLines(screenIds);
+    const sysReserveH = sysLinesPreview.length > 0 ? Math.max(sysLinesPreview.length * 3.5, 40) + 6 : 0;
+
     const gearPage = { pageNum: pdfPageModel.length + 1, elements: [] };
     gearPage.elements.push({
       id: 'gearlist_header',
@@ -719,7 +735,7 @@ function buildPageModel() {
     const colGap = 3;
     const colW = (usableWidth - colGap * (numCols - 1)) / numCols;
     const bodyY = PP_MARGIN + 10;
-    const bodyH = ppPageHeight - bodyY - PP_MARGIN - 10;
+    const bodyH = ppPageHeight - bodyY - PP_MARGIN - 10 - sysReserveH;
 
     screenIds.forEach((screenId, colIdx) => {
       const screen = screens[screenId];
@@ -737,24 +753,42 @@ function buildPageModel() {
 
     addWatermark(gearPage, 'gear');
     pdfPageModel.push(gearPage);
+
+    // Track this page for system gear placement below the screen columns
+    gearPageForSystem = gearPage;
+    systemGearX = PP_MARGIN;
+    systemGearY = bodyY + bodyH + 4;
+    systemGearW = usableWidth / 2;
   }
 
-  // ========== SYSTEM-WIDE GEAR PAGE (signal cables, utility, spares) ==========
+  // ========== SYSTEM-WIDE GEAR (signal cables, utility, spares) ==========
+  // Placed on the same page as the gear list (specs page for single-screen,
+  // multi-screen gear page for multi-screen) rather than a separate page.
   if (opts.gearList) {
     const sysLines = buildSystemGearLines(screenIds);
     if (sysLines.length > 0) {
-      const sysPage = { pageNum: pdfPageModel.length + 1, elements: [] };
-      // System header removed per design
       const sysHeight = Math.max(sysLines.length * 3.5, 40);
-      sysPage.elements.push({
-        id: 'system_gear',
-        type: 'textblock',
-        lines: sysLines,
-        x: PP_MARGIN, y: PP_MARGIN + 10, w: usableWidth / 2, h: sysHeight,
-        fontSize: 8
-      });
-      addWatermark(sysPage, 'system');
-      pdfPageModel.push(sysPage);
+      if (gearPageForSystem) {
+        gearPageForSystem.elements.push({
+          id: 'system_gear',
+          type: 'textblock',
+          lines: sysLines,
+          x: systemGearX, y: systemGearY, w: systemGearW, h: sysHeight,
+          fontSize: 8
+        });
+      } else {
+        // Fallback: no gear page was built (e.g. gearList was off for screens), use a new page
+        const sysPage = { pageNum: pdfPageModel.length + 1, elements: [] };
+        sysPage.elements.push({
+          id: 'system_gear',
+          type: 'textblock',
+          lines: sysLines,
+          x: PP_MARGIN, y: PP_MARGIN + 10, w: usableWidth / 2, h: sysHeight,
+          fontSize: 8
+        });
+        addWatermark(sysPage, 'system');
+        pdfPageModel.push(sysPage);
+      }
     }
   }
 }

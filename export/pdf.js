@@ -1016,7 +1016,6 @@ function buildPdfDocDefinition(opts, canvasCache) {
     }
 
     if (sysRows.length > 0) {
-      content.push({ text: '', pageBreak: 'before' });
       sysRows.forEach(r => content.push(r));
     }
   }

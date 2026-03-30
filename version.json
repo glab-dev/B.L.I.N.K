@@ -1,5 +1,5 @@
 {
-  "version": "2.10.65",
-  "updated": "2026-03-30",
-  "changelog": "Increase font sizes and box dimensions in cable layout diagrams"
+  "version": "2.10.66",
+  "updated": "2026-03-29",
+  "changelog": "Increase cable layout font sizes and box dimensions by 4px (second pass)"
 }

@@ -57,7 +57,7 @@ function renderCableDiagram(screenId) {
   // Layout constants — tighter on small screens
   const isSmall = canvasW < 500;
   const MARGIN = { top: isSmall ? 35 : 50, bottom: isSmall ? 40 : 55, left: isSmall ? 10 : 20, right: isSmall ? 42 : 50 };
-  const BOX_W = isSmall ? 48 : 60, BOX_H = isSmall ? 24 : 30;
+  const BOX_W = isSmall ? 52 : 64, BOX_H = isSmall ? 28 : 34;
   const PICK_GAP = isSmall ? 20 : 30;
   const PICK_RADIUS = isSmall ? 6 : 8;
   const dpr = window.devicePixelRatio || 1;
@@ -163,7 +163,7 @@ function renderCableDiagram(screenId) {
 
   // Floor label
   ctx.fillStyle = dimColor;
-  ctx.font = '11px Arial';
+  ctx.font = '15px Arial';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText('FLOOR', MARGIN.left - 10, floorY - 8);
@@ -972,35 +972,35 @@ function renderCableDiagram(screenId) {
     processorToWall + "'", fgColor, bgColor);
 
   // === Legend ===
-  const legendY = canvasH - 16;
-  ctx.font = '12px Arial';
+  const legendY = canvasH - 18;
+  ctx.font = '16px Arial';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
 
   ctx.fillStyle = POWER_COLOR;
-  ctx.fillRect(MARGIN.left, legendY - 6, 12, 12);
+  ctx.fillRect(MARGIN.left, legendY - 8, 16, 16);
   ctx.fillStyle = fgColor;
-  ctx.fillText('Power', MARGIN.left + 16, legendY);
+  ctx.fillText('Power', MARGIN.left + 20, legendY);
 
   ctx.fillStyle = DATA_COLOR;
-  ctx.fillRect(MARGIN.left + 72, legendY - 6, 12, 12);
+  ctx.fillRect(MARGIN.left + 90, legendY - 8, 16, 16);
   ctx.fillStyle = fgColor;
-  ctx.fillText('Data (' + dataLineCount + ')', MARGIN.left + 88, legendY);
+  ctx.fillText('Data (' + dataLineCount + ')', MARGIN.left + 110, legendY);
 
-  let legendOffset = 148;
+  let legendOffset = 196;
   if (dataRedundancy) {
     ctx.fillStyle = BACKUP_COLOR;
-    ctx.fillRect(MARGIN.left + legendOffset, legendY - 6, 12, 12);
+    ctx.fillRect(MARGIN.left + legendOffset, legendY - 8, 16, 16);
     ctx.fillStyle = fgColor;
-    ctx.fillText('Backup (' + dataLineCount + ')', MARGIN.left + legendOffset + 16, legendY);
-    legendOffset += 96;
+    ctx.fillText('Backup (' + dataLineCount + ')', MARGIN.left + legendOffset + 20, legendY);
+    legendOffset += 128;
   }
   if (cablePick > 0) {
     ctx.fillStyle = PICK_COLOR;
-    ctx.fillRect(MARGIN.left + legendOffset, legendY - 6, 12, 12);
+    ctx.fillRect(MARGIN.left + legendOffset, legendY - 8, 16, 16);
     ctx.fillStyle = fgColor;
-    ctx.fillText('Pick', MARGIN.left + legendOffset + 16, legendY);
-    legendOffset += 56;
+    ctx.fillText('Pick', MARGIN.left + legendOffset + 20, legendY);
+    legendOffset += 74;
   }
 
   if (distBoxOnWall) {
@@ -1011,33 +1011,33 @@ function renderCableDiagram(screenId) {
     const legendTwoBoxes = dataRedundancy && (legendMainHoriz !== legendBackupHoriz || legendMainVert !== legendBackupVert);
 
     ctx.fillStyle = DISTBOX_COLOR;
-    ctx.fillRect(MARGIN.left + legendOffset, legendY - 6, 12, 12);
+    ctx.fillRect(MARGIN.left + legendOffset, legendY - 8, 16, 16);
     ctx.fillStyle = fgColor;
-    ctx.fillText(legendTwoBoxes ? 'Main Trunk' : 'Trunk', MARGIN.left + legendOffset + 16, legendY);
-    legendOffset += legendTwoBoxes ? 90 : 66;
+    ctx.fillText(legendTwoBoxes ? 'Main Trunk' : 'Trunk', MARGIN.left + legendOffset + 20, legendY);
+    legendOffset += legendTwoBoxes ? 120 : 88;
 
     if (legendTwoBoxes) {
       ctx.fillStyle = TRUNK_COLOR;
-      ctx.fillRect(MARGIN.left + legendOffset, legendY - 6, 12, 12);
+      ctx.fillRect(MARGIN.left + legendOffset, legendY - 8, 16, 16);
       ctx.fillStyle = fgColor;
-      ctx.fillText('Backup Trunk', MARGIN.left + legendOffset + 16, legendY);
-      legendOffset += 100;
+      ctx.fillText('Backup Trunk', MARGIN.left + legendOffset + 20, legendY);
+      legendOffset += 134;
     }
 
     ctx.strokeStyle = DISTBOX_COLOR;
     ctx.lineWidth = 2;
-    ctx.strokeRect(MARGIN.left + legendOffset, legendY - 6, 12, 12);
+    ctx.strokeRect(MARGIN.left + legendOffset, legendY - 8, 16, 16);
     ctx.fillStyle = fgColor;
-    ctx.fillText('Dist Box', MARGIN.left + legendOffset + 16, legendY);
-    legendOffset += 72;
+    ctx.fillText('Dist Box', MARGIN.left + legendOffset + 20, legendY);
+    legendOffset += 96;
   }
 
   if (serverToProcessor > 0) {
     ctx.fillStyle = SERVER_COLOR;
-    ctx.fillRect(MARGIN.left + legendOffset, legendY - 6, 12, 12);
+    ctx.fillRect(MARGIN.left + legendOffset, legendY - 8, 16, 16);
     ctx.fillStyle = fgColor;
-    ctx.fillText('Server', MARGIN.left + legendOffset + 16, legendY);
-    legendOffset += 66;
+    ctx.fillText('Server', MARGIN.left + legendOffset + 20, legendY);
+    legendOffset += 88;
   }
 
   ctx.restore();
@@ -1075,7 +1075,7 @@ function drawCableDimensionLine(ctx, x1, y1, x2, y2, label, fgColor, bgColor) {
   // Label with background
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
-  const fontSize = 12;
+  const fontSize = 16;
   ctx.font = fontSize + 'px Arial';
   const textW = ctx.measureText(label).width;
   const pad = 3;
@@ -1101,7 +1101,7 @@ function drawCableEquipmentBox(ctx, x, y, w, h, label, color) {
   ctx.strokeRect(x, y, w, h);
 
   // Label (responsive font: smaller when box is narrow on mobile)
-  var fontSize = w < 50 ? 10 : 12;
+  var fontSize = w < 50 ? 14 : 16;
   ctx.fillStyle = '#000000';
   ctx.font = 'bold ' + fontSize + 'px Arial';
   ctx.textAlign = 'center';

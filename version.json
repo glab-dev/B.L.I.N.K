@@ -1,5 +1,5 @@
 {
-  "version": "2.10.62",
+  "version": "2.10.63",
   "updated": "2026-03-30",
-  "changelog": "Use white background for combined views in PDF preview export"
+  "changelog": "Use white background for combined cabling layout in PDF preview"
 }

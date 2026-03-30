@@ -535,7 +535,7 @@ function calculateCombinedCabling(selectedScreenIds, config) {
 
 function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   // Eco/greyscale print mode support — reassign module-level colors
-  var isPrintMode = ecoPrintMode || greyscalePrintMode;
+  var isPrintMode = ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode;
   function ccPrintColor(hex) {
     if (greyscalePrintMode && typeof toGreyscale === 'function') return toGreyscale(hex);
     if (ecoPrintMode && typeof toPastelColor === 'function') return toPastelColor(hex);

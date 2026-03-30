@@ -1,5 +1,5 @@
 {
-  "version": "2.10.59",
+  "version": "2.10.60",
   "updated": "2026-03-30",
-  "changelog": "Pin structure info boxes to explicit grid columns to prevent overflow"
+  "changelog": "Split structure info columns at section boundaries not midpoint in PDF preview"
 }

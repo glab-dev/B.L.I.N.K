@@ -568,10 +568,19 @@ function buildPageModel() {
           if (structLines.length > 0) {
             const structInfoH = Math.min(structLines.length * 3.5, ppPageHeight - yPos - PP_MARGIN - cabReserveH);
             const structColW = (usableWidth - 4) / 2;
-            // Split lines into two columns at rough midpoint
-            const midIdx = Math.ceil(structLines.length / 2);
-            const col1Lines = structLines.slice(0, midIdx);
-            const col2Lines = structLines.slice(midIdx);
+            // Split at section boundaries: col1 = Pickup Weights + Connecting Plates, col2 = rest
+            // Find last index of Connecting Plates section (last line before Ground Support / Floor Frames / Total header)
+            const col2Headers = ['Ground Support Hardware', 'Floor Frames', 'Total Structure Weight'];
+            let splitIdx = structLines.length; // default: everything in col1
+            for (let i = 0; i < structLines.length; i++) {
+              const line = structLines[i];
+              if (line.header && col2Headers.some(h => line.text === h)) {
+                splitIdx = i;
+                break;
+              }
+            }
+            const col1Lines = structLines.slice(0, splitIdx);
+            const col2Lines = structLines.slice(splitIdx);
 
             layoutPage.elements.push({
               id: screenId + '_struct_info_1',

@@ -1184,8 +1184,25 @@ function buildStructureInfoLines(screenId) {
     lines.push({ text: '' });
   }
 
-  // Ground Support
+  // Connecting Plates
   var structureType = data.structureType || 'hanging';
+  var useConnectingPlates = (typeof shouldUseConnectingPlates === 'function') && shouldUseConnectingPlates(panelType);
+  var platesWeightKg = 0;
+  if (useConnectingPlates && typeof calculateConnectingPlates === 'function') {
+    var plates = calculateConnectingPlates(pw, ph,
+      (typeof PLATE_WEIGHTS !== 'undefined') ? PLATE_WEIGHTS.plate2wayKg : 0,
+      (typeof PLATE_WEIGHTS !== 'undefined') ? PLATE_WEIGHTS.plate4wayKg : 0);
+    platesWeightKg = plates.totalPlateWeight || 0;
+    if (plates.total2way > 0 || plates.total4way > 0) {
+      lines.push({ text: 'Connecting Plates', bold: true, header: true });
+      if (plates.total2way > 0) lines.push({ text: '  2-Way: ' + plates.total2way });
+      if (plates.total4way > 0) lines.push({ text: '  4-Way: ' + plates.total4way });
+      lines.push({ text: '  Total Weight: ' + toDisplay(platesWeightKg) + ' ' + wtUnit, bold: true });
+      lines.push({ text: '' });
+    }
+  }
+
+  // Ground Support
   var groundSupportWeightKg = 0;
   if (structureType === 'ground' && typeof showBottomBumper !== 'undefined' && showBottomBumper) {
     if (typeof calculateGroundSupportHardware === 'function') {
@@ -1242,23 +1259,6 @@ function buildStructureInfoLines(screenId) {
         lines.push({ text: '  Total Weight: ' + toDisplay(floorFramesWeightKg) + ' ' + wtUnit, bold: true });
         lines.push({ text: '' });
       }
-    }
-  }
-
-  // Connecting Plates
-  var useConnectingPlates = (typeof shouldUseConnectingPlates === 'function') && shouldUseConnectingPlates(panelType);
-  var platesWeightKg = 0;
-  if (useConnectingPlates && typeof calculateConnectingPlates === 'function') {
-    var plates = calculateConnectingPlates(pw, ph,
-      (typeof PLATE_WEIGHTS !== 'undefined') ? PLATE_WEIGHTS.plate2wayKg : 0,
-      (typeof PLATE_WEIGHTS !== 'undefined') ? PLATE_WEIGHTS.plate4wayKg : 0);
-    platesWeightKg = plates.totalPlateWeight || 0;
-    if (plates.total2way > 0 || plates.total4way > 0) {
-      lines.push({ text: 'Connecting Plates', bold: true, header: true });
-      if (plates.total2way > 0) lines.push({ text: '  2-Way: ' + plates.total2way });
-      if (plates.total4way > 0) lines.push({ text: '  4-Way: ' + plates.total4way });
-      lines.push({ text: '  Total Weight: ' + toDisplay(platesWeightKg) + ' ' + wtUnit, bold: true });
-      lines.push({ text: '' });
     }
   }
 

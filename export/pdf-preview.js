@@ -745,12 +745,16 @@ function buildPageModel() {
       fontSize: 14, bold: true
     });
 
+    // Pre-compute system gear height to reserve space at the bottom
+    const sysLinesPreview = buildSystemGearLines(screenIds);
+    const sysReserveH = sysLinesPreview.length > 0 ? Math.max(sysLinesPreview.length * 3.5, 40) + 6 : 0;
+
     // Lay out each screen's gear as its own column (up to 3 columns)
     const numCols = Math.min(screenIds.length, 3);
     const colGap = 3;
     const colW = (usableWidth - colGap * (numCols - 1)) / numCols;
     const bodyY = PP_MARGIN + 10;
-    const bodyH = ppPageHeight - bodyY - PP_MARGIN - 10;
+    const bodyH = ppPageHeight - bodyY - PP_MARGIN - 10 - sysReserveH;
 
     screenIds.forEach((screenId, colIdx) => {
       const screen = screens[screenId];

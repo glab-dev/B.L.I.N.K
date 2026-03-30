@@ -1557,11 +1557,11 @@ canvas:focus {
   font-size: 12px;
 }
 
-.structure-info-box.weights { border-color: #4a9eff; }
-.structure-info-box.plates { border-color: #6fc276; }
-.structure-info-box.ground-support { border-color: #00CED1; }
-.structure-info-box.floor-frames { border-color: #4ecdc4; }
-.structure-info-box.total-weight { border-color: #FFD700; }
+.structure-info-box.weights       { border-color: #4a9eff; grid-column: 1; }
+.structure-info-box.plates        { border-color: #6fc276; grid-column: 1; }
+.structure-info-box.ground-support{ border-color: #00CED1; grid-column: 2; }
+.structure-info-box.floor-frames  { border-color: #4ecdc4; grid-column: 1; }
+.structure-info-box.total-weight  { border-color: #FFD700; grid-column: 2; }
 
 .structure-info-title {
   position: absolute;

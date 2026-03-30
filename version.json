@@ -1,5 +1,5 @@
 {
-  "version": "2.10.58",
+  "version": "2.10.59",
   "updated": "2026-03-30",
-  "changelog": "Reorder structure info: Connecting Plates before Ground Support Hardware"
+  "changelog": "Pin structure info boxes to explicit grid columns to prevent overflow"
 }

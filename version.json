@@ -1,5 +1,5 @@
 {
-  "version": "2.10.61",
+  "version": "2.10.62",
   "updated": "2026-03-30",
-  "changelog": "Reserve space for system gear in multi-screen gear list page preview"
+  "changelog": "Use white background for combined views in PDF preview export"
 }

@@ -1131,7 +1131,7 @@ function initCombinedView() {
         canvas.width = 100;
         canvas.height = 100;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
+        ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#1a1a1a';
         ctx.fillRect(0, 0, 100, 100);
         ctx.fillStyle = '#888';
         ctx.font = '10px Arial';
@@ -1364,7 +1364,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   const ctx = canvas.getContext('2d');
 
   // Background — white in eco/greyscale print mode, black in normal mode
-  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#000';
+  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#000';
   ctx.fillRect(0, 0, adjustedWidth, adjustedHeight);
 
   const leftPadding = 20;
@@ -1449,9 +1449,9 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
 
         const hasDeleted = screenDeletedPanels.has(panelKey);
         if(hasDeleted) {
-          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
+          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#1a1a1a';
           ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode) ? '#cccccc' : '#333333';
+          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
@@ -1486,7 +1486,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     const screenTotalHeight = screenHasCB5HalfRow ? (screenOriginalPh * drawPanelHeight + halfPanelDrawHeight) : (ph * drawPanelHeight);
 
     // Draw screen label (scale font with panel size)
-    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#000' : '#fff';
+    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000' : '#fff';
     const labelFontSize = Math.max(8, Math.min(14, drawPanelSize * 0.35));
     ctx.font = `bold ${labelFontSize}px Arial`;
     ctx.textAlign = 'center';
@@ -1610,7 +1610,7 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
   ctx.fillRect(0, 0, canvasWidth, socaLabelHeight);
 
   // Panel area background — white in eco/greyscale print mode, black in normal mode
-  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#000';
+  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#000';
   ctx.fillRect(0, socaLabelHeight, canvasWidth, canvasHeight);
 
   // Draw black border at bottom of SOCA label area
@@ -1744,9 +1744,9 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
 
         const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
         if(hasDeleted) {
-          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
+          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#1a1a1a';
           ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode) ? '#cccccc' : '#333333';
+          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
@@ -1857,7 +1857,7 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     }
 
     // Draw screen label
-    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#000' : '#fff';
+    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000' : '#fff';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - 10);
@@ -1874,7 +1874,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
   const ctx = canvas.getContext('2d');
 
   // Background — white in eco/greyscale print mode, black in normal mode
-  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#000';
+  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#000';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   const leftPadding = 20;
@@ -2022,9 +2022,9 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
 
         const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
         if(hasDeleted) {
-          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
+          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#1a1a1a';
           ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode) ? '#cccccc' : '#333333';
+          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#cccccc' : '#333333';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
           ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
@@ -2047,7 +2047,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     }
 
     // Draw screen label
-    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#000' : '#fff';
+    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000' : '#fff';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(screen.name, screenX + (pw * drawPanelWidth) / 2, screenY - 10);
@@ -2066,7 +2066,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
   const ctx = canvas.getContext('2d');
 
   // Dark background (same as original structure layout)
-  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
+  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const leftPadding = 20;
@@ -2203,7 +2203,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
         ctx.strokeRect(bumperX, bumperY, bumperWidthPx, bumperHeight);
 
         // Bumper label (black for eco print, white otherwise)
-        ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#000000' : '#FFFFFF';
+        ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000000' : '#FFFFFF';
         ctx.font = 'bold 11px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -2213,7 +2213,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     }
 
     // Draw screen label
-    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#000' : '#fff';
+    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000' : '#fff';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     let labelY;

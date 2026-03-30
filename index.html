@@ -3234,8 +3234,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.61';
-const APP_CHANGELOG = 'Reserve space for system gear in multi-screen gear list page preview';
+const APP_VERSION = '2.10.62';
+const APP_CHANGELOG = 'Use white background for combined views in PDF preview export';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -3292,6 +3292,8 @@ function switchHelpTab(tab) {
 let ecoPrintMode = false;
 // Greyscale print mode - converts all colors to greyscale
 let greyscalePrintMode = false;
+// PDF white background mode - white background only, preserves panel colors
+let pdfWhiteBgMode = false;
 
 // Canvas movement undo/redo state
 let canvasMoveHistory = [];

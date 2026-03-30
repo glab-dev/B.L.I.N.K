@@ -260,9 +260,12 @@ function captureAllCanvasImages(callback) {
       screenIds.forEach(id => combinedSelectedScreens.add(id));
     }
 
+    // Force white background for combined canvases in PDF
+    pdfWhiteBgMode = true;
     if (typeof renderCombinedView === 'function') {
       renderCombinedView();
     }
+    pdfWhiteBgMode = false;
 
     const combinedCaptures = [
       { id: 'combinedStandardCanvas', key: 'combined_standard' },

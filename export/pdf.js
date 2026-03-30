@@ -964,7 +964,7 @@ function buildPdfDocDefinition(opts, canvasCache) {
 
     // Assemble this screen's specs + gear columns (+ system gear as col3 on first screen)
     if (specsStack.length > 0 || gearStack.length > 0) {
-      const useThreeCols = sIdx === 0 && sysStack.length > 0;
+      const useThreeCols = sIdx === 0 && sysStack.length > 0 && screenIds.length === 1;
       const sysColW = Math.floor(contentWidth * 0.22);
       screenContent.push({
         columns: useThreeCols
@@ -1033,7 +1033,10 @@ function buildPdfDocDefinition(opts, canvasCache) {
     screenContent.forEach(el => content.push(el));
   });
 
-  // System gear (Signal Cables, Utility, Spares) is rendered in col3 of the first screen above.
+  // Multi-screen: append system gear after all screen pages (flows on same page as last gear list)
+  if (screenIds.length > 1 && sysStack.length > 0) {
+    sysStack.forEach(el => content.push(el));
+  }
 
   return {
     pageSize: isLetter ? 'LETTER' : 'A4',

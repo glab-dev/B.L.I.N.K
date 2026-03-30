@@ -1,5 +1,5 @@
 {
-  "version": "2.10.56",
+  "version": "2.10.57",
   "updated": "2026-03-29",
-  "changelog": "Remove screen count label from PDF header banner"
+  "changelog": "Move system gear to gear list page for multi-screen PDF exports"
 }

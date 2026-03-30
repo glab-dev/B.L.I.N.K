@@ -422,7 +422,7 @@ function buildPageModel() {
         fontSize: 10
       });
 
-      const useThreeCols = sIdx === 0 && opts.gearList;
+      const useThreeCols = sIdx === 0 && opts.gearList && screenIds.length === 1;
       const gap = 4;
       const sysColW = Math.floor(usableWidth * 0.22);
       const col1W = useThreeCols ? Math.floor(usableWidth * 0.35) : Math.floor((usableWidth - gap) / 2);
@@ -759,7 +759,12 @@ function buildPageModel() {
 
     addWatermark(gearPage, 'gear');
     pdfPageModel.push(gearPage);
-    // System gear is placed in col3 of the first screen's specs page (not here)
+
+    // Track this page so system gear appears below the screen gear columns
+    gearPageForSystem = gearPage;
+    systemGearX = PP_MARGIN;
+    systemGearY = bodyY + bodyH + 4;
+    systemGearW = usableWidth / 2;
   }
 
   // ========== SYSTEM-WIDE GEAR (signal cables, utility, spares) ==========

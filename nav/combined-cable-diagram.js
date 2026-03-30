@@ -552,7 +552,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   CC_PROC_COLOR = ccPrintColor('#4ECDC4');
   CC_BG_COLOR = isPrintMode ? '#ffffff' : '#1a1a1a';
   CC_FLOOR_COLOR = isPrintMode ? '#cccccc' : '#555555';
-  CC_PANEL_COLOR = isPrintMode ? '#cccccc' : '#555555';
+  CC_PANEL_COLOR = '#000000';
   CC_DELETED_COLOR = isPrintMode ? '#dddddd' : '#333333';
   CC_PANEL_FILL = isPrintMode ? '#f5f5f5' : '#2a2a2a';
   var ccFgColor = isPrintMode ? '#000000' : '#ffffff';

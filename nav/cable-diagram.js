@@ -99,7 +99,7 @@ function renderCableDiagram(screenId) {
   const bgColor = cableDiagramPdfMode ? '#f0f0f0' : (isPrintMode ? '#ffffff' : '#1a1a1a');
   const fgColor = isPrintMode ? '#000000' : '#ffffff';
   const dimColor = isPrintMode ? '#888888' : '#999999';
-  const gridColor = isPrintMode ? '#cccccc' : '#555555';
+  const gridColor = '#000000';
   const gridDeletedColor = isPrintMode ? '#dddddd' : '#333333';
   const POWER_COLOR = applyPrintColor('#FF6B35');
   const DATA_COLOR = applyPrintColor('#00CED1');

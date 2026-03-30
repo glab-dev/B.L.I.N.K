@@ -1,5 +1,5 @@
 {
-  "version": "2.10.64",
+  "version": "2.10.65",
   "updated": "2026-03-30",
-  "changelog": "Use black panel outlines in cable diagram and combined cable layout"
+  "changelog": "Increase font sizes and box dimensions in cable layout diagrams"
 }

@@ -1106,7 +1106,7 @@ function drawCableEquipmentBox(ctx, x, y, w, h, label, color) {
   ctx.strokeRect(x, y, w, h);
 
   // Label (responsive font: smaller when box is narrow on mobile)
-  var fontSize = isPdf ? (w < 50 ? 14 : 16) : (w < 40 ? 8 : 10);
+  var fontSize = cableDiagramPdfMode ? (w < 50 ? 14 : 16) : (w < 40 ? 8 : 10);
   ctx.fillStyle = '#000000';
   ctx.font = 'bold ' + fontSize + 'px Arial';
   ctx.textAlign = 'center';

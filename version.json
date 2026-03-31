@@ -1,5 +1,5 @@
 {
-  "version": "2.10.67",
+  "version": "2.10.68",
   "updated": "2026-03-30",
-  "changelog": "Revert app cable layout sizes; increase font and box sizes only in PDF mode"
+  "changelog": "Fix ReferenceError in drawCableEquipmentBox caused by out-of-scope isPdf"
 }

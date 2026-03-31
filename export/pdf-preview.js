@@ -1866,22 +1866,18 @@ function checkOverlaps(pageIndex) {
 // ==================== EXPORT FROM PREVIEW ====================
 
 function exportFromPreview() {
-  if (!pdfPageModel || pdfPageModel.length === 0) {
-    closePrintPreview();
-    exportPDF();
-    return;
-  }
-
   if (!window.pdfMake) {
     showAlert('PDF library not loaded. Please check your connection and refresh.');
     return;
   }
 
+  const opts = getPrintPreviewOptions();
+
   // Loading overlay
   const overlay = document.createElement('div');
   overlay.id = 'ppExportOverlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(26,26,26,0.95);z-index:10000;display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;font-family:-apple-system,Arial,sans-serif;';
-  overlay.innerHTML = '<div style="font-size:20px;margin-bottom:12px;">Exporting PDF...</div><div id="ppExportStatus" style="font-size:13px;color:#888;">Capturing preview pages</div>';
+  overlay.innerHTML = '<div style="font-size:20px;margin-bottom:12px;">Exporting PDF...</div><div id="ppExportStatus" style="font-size:13px;color:#888;">Capturing layouts\u2026</div>';
   document.body.appendChild(overlay);
 
   function removeOverlay() {
@@ -1889,49 +1885,73 @@ function exportFromPreview() {
     if (el) el.remove();
   }
 
-  // Render each preview page at ~190 DPI into offscreen canvases
-  const exportScale = 7.5; // px/mm
-  const savedScale = ppScale;
-  ppScale = exportScale;
-  ppIsExporting = true;
+  function setStatus(msg) {
+    const el = document.getElementById('ppExportStatus');
+    if (el) el.textContent = msg;
+  }
 
-  const pageImages = pdfPageModel.map((page, pageIndex) => {
-    const offscreen = document.createElement('canvas');
-    offscreen.width  = Math.round(ppPageWidth  * exportScale);
-    offscreen.height = Math.round(ppPageHeight * exportScale);
-    renderPreviewPage(pageIndex, offscreen);
-    return offscreen.toDataURL('image/png');
-  });
+  // Apply eco/greyscale modes so canvas captures use correct colors
+  ecoPrintMode = opts.ecoFriendly;
+  greyscalePrintMode = opts.greyscale;
 
-  ppIsExporting = false;
-  ppScale = savedScale;
-  pdfPageModel.forEach((_, i) => renderPreviewPage(i));
+  // Capture high-res canvas images (same path as simple mode export)
+  const canvasCache = pdfCaptureCanvases();
 
-  const statusEl = document.getElementById('ppExportStatus');
-  if (statusEl) statusEl.textContent = 'Generating PDF file\u2026';
+  // Restore normal colors after capture
+  ecoPrintMode = false;
+  greyscalePrintMode = false;
+  generateLayout('standard');
+  generateLayout('power');
+  generateLayout('data');
+  generateStructureLayout();
+  if (typeof switchMobileView === 'function' && typeof currentAppMode !== 'undefined') {
+    switchMobileView(currentAppMode);
+  }
 
-  // Assemble PDF: one full-page image per page
-  const isLandscape = pdfPageOrientation === 'l';
-  const isLetter    = pdfPageFormat === 'letter';
-  const pgW = isLandscape ? (isLetter ? 792 : 842) : (isLetter ? 612 : 595);
-  const pgH = isLandscape ? (isLetter ? 612 : 595) : (isLetter ? 792 : 842);
+  setStatus('Building PDF\u2026');
 
-  const content = pageImages.map((imgDataUrl, i) => {
-    const el = { image: imgDataUrl, width: pgW, height: pgH, absolutePosition: { x: 0, y: 0 } };
-    if (i > 0) el.pageBreak = 'before';
-    return el;
-  });
+  // Re-apply for doc generation
+  ecoPrintMode = opts.ecoFriendly;
+  greyscalePrintMode = opts.greyscale;
+
+  const docDef = buildComplexPdf(opts, canvasCache);
+
+  ecoPrintMode = false;
+  greyscalePrintMode = false;
+
+  setStatus('Saving\u2026');
 
   const configName = document.getElementById('configName')?.value?.trim() || 'LED Wall';
-  const filename = configName.replace(/[^a-z0-9]/gi, '_') + '_LED_Report.pdf';
+  const dateStr    = new Date().toISOString().slice(0, 10);
+  const filename   = configName.replace(/[^a-z0-9]/gi, '_') + '_LED_Report_' + dateStr + '.pdf';
 
-  pdfMake.createPdf({
-    pageSize: isLetter ? 'LETTER' : 'A4',
-    pageOrientation: isLandscape ? 'landscape' : 'portrait',
-    pageMargins: [0, 0, 0, 0],
-    content: content
-  }).download(filename, () => {
-    removeOverlay();
-    closePrintPreview();
-  });
+  const isMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
+    (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent));
+
+  if (isMobile && navigator.share && navigator.canShare) {
+    pdfMake.createPdf(docDef).getBlob(function(blob) {
+      const file = new File([blob], filename, { type: 'application/pdf' });
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file] }).then(function() {
+          removeOverlay();
+          closePrintPreview();
+        }).catch(function() {
+          pdfMake.createPdf(docDef).download(filename, function() {
+            removeOverlay();
+            closePrintPreview();
+          });
+        });
+      } else {
+        pdfMake.createPdf(docDef).download(filename, function() {
+          removeOverlay();
+          closePrintPreview();
+        });
+      }
+    });
+  } else {
+    pdfMake.createPdf(docDef).download(filename, function() {
+      removeOverlay();
+      closePrintPreview();
+    });
+  }
 }

@@ -756,6 +756,479 @@ function buildSimplePdf(canvasCache) {
   };
 }
 
+/**
+ * Builds the COMPLEX MODE 4-column summary bar (expanded fields).
+ */
+function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData) {
+  const p   = panelSpec || {};
+  const data = screenData || {};
+  const cd   = calcData || {};
+  const sd   = gearScreenData || {};
+  const eq   = sd.equipment || {};
+  const pw   = parseInt(data.panelsWide) || 0;
+  const ph   = parseInt(data.panelsHigh) || 0;
+
+  const panelWidthM  = p.width_m  || 0;
+  const panelHeightM = p.height_m || 0;
+  const wallWidthFt  = pw * panelWidthM * 3.28084;
+  const wallHeightFt = ph * panelHeightM * 3.28084;
+  const wallWidthM   = pw * panelWidthM;
+  const wallHeightM  = ph * panelHeightM;
+
+  const activePanels  = cd.activePanels || (pw * ph);
+  const totalPixels   = pw * (p.res_x || 0) * ph * (p.res_y || 0);
+  const panelWtKg     = p.weight_kg || 0;
+  const panelWtLbs    = panelWtKg * 2.20462;
+  const panelsTotalWtLbs = Math.ceil(activePanels * panelWtLbs);
+
+  // Bumper weights
+  const b1w = (cd.bumper1wCount || 0) * ((p.bumper_1w_lbs || 0));
+  const b2w = (cd.bumper2wCount || 0) * ((p.bumper_2w_lbs || 0));
+  const b4w = (cd.bumper4wCount || 0) * ((p.bumper_4w_lbs || 0));
+  const bumperWtLbs = b1w + b2w + b4w;
+  const structWtLbs = bumperWtLbs; // structure weight = bumper hardware weight in most configs
+
+  const totalWtLbs = panelsTotalWtLbs + Math.ceil(bumperWtLbs);
+
+  const powerType     = data.powerType || 'max';
+  const powerPerPanel = (powerType === 'max') ? (p.power_max_w || 0) : (p.power_avg_w || 0);
+  const totalPowerW   = activePanels * powerPerPanel;
+  const voltage       = parseInt(data.voltage) || 208;
+  const breaker       = parseInt(data.breaker) || 20;
+  const phase         = parseInt(data.phase) || 3;
+  const ampsTotal     = voltage > 0 ? totalPowerW / voltage : 0;
+  const ampsPhase     = phase === 3 ? ampsTotal / 1.732 : ampsTotal;
+  const circuits      = cd.circuitsNeeded || 0;
+  const maxPpc        = powerPerPanel > 0 ? Math.floor((voltage * breaker) / powerPerPanel) : 0;
+
+  const dataLines    = cd.dataLines    || 0;
+  const panelsPerDL  = cd.panelsPerDataLine || 0;
+  const portsNeeded  = cd.portsNeededFinal || cd.portsNeeded || 0;
+  const procName     = eq.processorName || '';
+  const procCount    = eq.processorCount || 0;
+
+  const colPanel = buildSummaryColumn('PANEL', [
+    ['Model',         `${p.brand || ''} ${p.name || ''}`.trim() || null],
+    ['Pixel Pitch',   p.pixel_pitch_mm ? `${p.pixel_pitch_mm} mm` : null],
+    ['Size',          (panelWidthM > 0 && panelHeightM > 0) ? `${(panelWidthM*3.28084).toFixed(2)}' × ${(panelHeightM*3.28084).toFixed(2)}'` : null],
+    ['Resolution',    (p.res_x && p.res_y) ? `${p.res_x} × ${p.res_y} px` : null],
+    ['Weight',        panelWtLbs > 0 ? `${panelWtLbs.toFixed(1)} lbs` : null],
+    ['Brightness',    p.brightness_nits ? `${p.brightness_nits} nits` : null],
+    ['Power Max/Avg', (p.power_max_w && p.power_avg_w) ? `${p.power_max_w}W / ${p.power_avg_w}W` : null],
+    ['Max Hanging',   p.max_hanging ? `${p.max_hanging}` : null],
+    ['Max Stacking',  p.max_stacking ? `${p.max_stacking}` : null],
+  ]);
+
+  const colWall = buildSummaryColumn('WALL', [
+    ['Dimensions',    (wallWidthFt > 0 && wallHeightFt > 0) ? `${wallWidthFt.toFixed(1)}' × ${wallHeightFt.toFixed(1)}'` : null],
+    ['',              (wallWidthM > 0 && wallHeightM > 0) ? `(${wallWidthM.toFixed(2)} × ${wallHeightM.toFixed(2)} m)` : null],
+    [`${pw}×${ph} panels`, activePanels ? `${activePanels} active` : null],
+    ['Resolution',    (pw > 0 && ph > 0 && p.res_x) ? `${pw * p.res_x} × ${ph * p.res_y} px` : null],
+    ['Total Pixels',  totalPixels > 0 ? (totalPixels >= 1000000 ? `${(totalPixels/1000000).toFixed(1)} MP` : totalPixels.toLocaleString()) : null],
+    ['Panels Weight', panelsTotalWtLbs > 0 ? `${panelsTotalWtLbs} lbs` : null],
+    ['Structure Wt',  structWtLbs > 0 ? `${Math.ceil(structWtLbs)} lbs` : null],
+    ['Total Weight',  totalWtLbs > 0 ? `${totalWtLbs} lbs` : null],
+  ]);
+
+  const colPower = buildSummaryColumn('POWER (MAX)', [
+    ['Total Power',   totalPowerW > 0 ? `${(totalPowerW/1000).toFixed(2)} kW` : null],
+    ['Total Amps',    ampsTotal > 0   ? `${ampsTotal.toFixed(1)} A @ ${voltage}V` : null],
+    ['Amps/Phase',    ampsPhase > 0   ? `${ampsPhase.toFixed(1)} A @ ${voltage}V` : null],
+    ['Circuits',      circuits > 0    ? circuits : null],
+    ['Max/Circuit',   maxPpc > 0      ? `${maxPpc} panels` : null],
+  ]);
+
+  const colData = buildSummaryColumn('DATA', [
+    ['Processor',     (procName && procCount > 0) ? `${procCount} × ${procName}` : (procName || null)],
+    ['Data Lines',    dataLines > 0  ? dataLines  : null],
+    ['Ports Needed',  portsNeeded > 0 ? portsNeeded : null],
+    ['Max/Data Line', panelsPerDL > 0 ? `${panelsPerDL} panels` : null],
+    ['Frame Rate',    data.frameRate  ? `${data.frameRate} fps` : null],
+    ['Bit Depth',     data.bitDepth   ? `${data.bitDepth}-bit`  : null],
+    ['Redundancy',    data.redundancy ? 'Yes' : 'No'],
+  ]);
+
+  return buildSummaryBar([colPanel, colWall, colPower, colData]);
+}
+
+/**
+ * Builds a single gear section (header bar + item rows) for use in the 3-column gear list.
+ * Returns null if there are no items.
+ * @param {string} title - section header text
+ * @param {Array<{qty: number|string, item: string}>} items
+ * @returns {object|null} pdfmake element or null
+ */
+function buildGearSection(title, items) {
+  const validItems = (items || []).filter(function(i) {
+    return i && i.item && (Number(i.qty) > 0 || (typeof i.qty === 'string' && i.qty !== '' && i.qty !== '0'));
+  });
+  if (validItems.length === 0) return null;
+
+  const tc = PDF_TOKENS.colors;
+  const headerBg = (typeof greyscalePrintMode !== 'undefined' && greyscalePrintMode) ? '#555'
+    : (typeof ecoPrintMode !== 'undefined' && ecoPrintMode) ? '#6b7280'
+    : tc.sectionHeaderBg;
+
+  const rows = validItems.map(function(i) {
+    return {
+      columns: [
+        { text: String(i.qty), fontSize: 8, color: tc.textItem, bold: true, width: 22 },
+        { text: i.item, fontSize: 8, color: tc.textItem, width: '*' }
+      ],
+      margin: [4, 1.5, 4, 1.5],
+      columnGap: 4
+    };
+  });
+
+  return {
+    stack: [
+      // Header bar
+      {
+        text: title.toUpperCase(),
+        fontSize: 8.5, bold: true, color: tc.headerText,
+        fillColor: headerBg,
+        margin: [6, 4, 6, 4]
+      },
+      // Body
+      {
+        stack: rows,
+        fillColor: tc.sectionBodyBg,
+        margin: [0, 0, 0, 0]
+      }
+    ],
+    margin: [0, 0, 0, 6]
+  };
+}
+
+/**
+ * Builds the 3-column gear list for one screen.
+ * Column 1: Equipment, Rigging Hardware, Ground Support (or Floor Hardware)
+ * Column 2: Data Cables (+ Proc→DistBox merged), Power Cables
+ * Column 3: Signal Cables, Utility, Spares
+ */
+function buildGearListContent(gearData, screenIndex, contentWidth) {
+  const sd  = gearData.screens[screenIndex];
+  if (!sd) return { text: 'No gear data', fontSize: 8, color: '#999' };
+
+  const eq  = sd.equipment    || {};
+  const rig = sd.rigging      || {};
+  const gs  = sd.groundSupport || {};
+  const fh  = sd.floorHardware || {};
+  const dc  = sd.dataCables   || {};
+  const pc  = sd.powerCables  || {};
+  const p2d = sd.processorToDistBox || {};
+
+  // --- Column 1: Equipment, Rigging, Ground Support / Floor Hardware ---
+  const eqItems = [];
+  if (eq.isFirstScreenInGroup) {
+    if (eq.processorCount > 0) eqItems.push({ qty: eq.processorCount, item: eq.processorName || 'Processor' });
+    if (eq.distBoxCount > 0)   eqItems.push({ qty: eq.distBoxCount,   item: eq.distBoxName   || 'Dist Box' });
+  }
+  if (eq.activeFullPanels > 0) eqItems.push({ qty: eq.activeFullPanels, item: `${eq.panelBrand || ''} ${eq.panelName || ''}`.trim() });
+  if (eq.activeHalfPanels > 0) eqItems.push({ qty: eq.activeHalfPanels, item: `${eq.panelBrand || ''} ${eq.halfPanelName || ''}`.trim() });
+
+  const rigItems = [];
+  if (rig.hasRigging) {
+    if (rig.bumper1w > 0) rigItems.push({ qty: rig.bumper1w, item: '1W Bumpers' });
+    if (rig.bumper2w > 0) rigItems.push({ qty: rig.bumper2w, item: '2W Bumpers' });
+    if (rig.bumper4w > 0) rigItems.push({ qty: rig.bumper4w, item: '4W Bumpers' });
+    if (rig.plates4way > 0) rigItems.push({ qty: rig.plates4way, item: '4W Connecting Plates' });
+    if (rig.plates2way > 0) rigItems.push({ qty: rig.plates2way, item: '2W Connecting Plates' });
+    if (rig.shackles > 0)   rigItems.push({ qty: rig.shackles,   item: '5/8" Shackles' });
+    if (rig.cheeseye > 0)   rigItems.push({ qty: rig.cheeseye,   item: 'Cheeseye' });
+  }
+
+  const gsItems = [];
+  if (gs.hasGS) {
+    if (gs.rearTruss > 0)          gsItems.push({ qty: gs.rearTruss,          item: 'Rear Truss' });
+    if (gs.baseTruss > 0)          gsItems.push({ qty: gs.baseTruss,          item: 'Base Truss' });
+    if (gs.bridgeClamps > 0)       gsItems.push({ qty: gs.bridgeClamps,       item: 'Bridge Clamps' });
+    if (gs.rearBridgeAdapters > 0) gsItems.push({ qty: gs.rearBridgeAdapters, item: 'Rear Bridge Adapter' });
+    if (gs.sandbags > 0)           gsItems.push({ qty: gs.sandbags,           item: 'Sandbags' });
+    if (gs.swivelCheeseboroughs > 0) gsItems.push({ qty: gs.swivelCheeseboroughs, item: 'Swivel Cheeseborough' });
+    if (gs.pipes > 0)              gsItems.push({ qty: gs.pipes,              item: `Pipe${gs.pipeLengthStr || ''}` });
+  }
+
+  const fhItems = [];
+  if (fh.hasFloorFrames) {
+    if (fh.frame3x2 > 0) fhItems.push({ qty: fh.frame3x2, item: '3x2 Frame' });
+    if (fh.frame2x2 > 0) fhItems.push({ qty: fh.frame2x2, item: '2x2 Frame' });
+    if (fh.frame2x1 > 0) fhItems.push({ qty: fh.frame2x1, item: '2x1 Frame' });
+    if (fh.frame1x1 > 0) fhItems.push({ qty: fh.frame1x1, item: '1x1 Frame' });
+  }
+
+  // --- Column 2: Data Cables (+ Proc→DistBox), Power Cables ---
+  const dcItems = [];
+  if (dc.jumperCount > 0) dcItems.push({ qty: dc.jumperCount, item: `Data Jumpers ${dc.dataJumperLen || ''}'`.trim() });
+  if (dc.crossJumperLen && dc.crossJumperCount > 0) dcItems.push({ qty: dc.crossJumperCount, item: `Cross Jumpers ${dc.crossJumperLen}'` });
+  if (dc.jumpersBuiltin && dc.cat5CouplerCount > 0) dcItems.push({ qty: dc.cat5CouplerCount, item: 'Cat5 Couplers' });
+  const cat6Entries = Object.entries(dc.cat6ByLength || {}).sort(function(a, b) { return Number(a[0]) - Number(b[0]); });
+  cat6Entries.forEach(function(e) {
+    if (Number(e[1]) > 0) dcItems.push({ qty: e[1], item: `${e[0]}' Cat6` });
+  });
+  // Proc → Dist Box: merged with dashed separator
+  if (p2d && p2d.count > 0) {
+    dcItems.push({ qty: '— — —', item: 'Proc → Dist Box' });
+    dcItems.push({ qty: p2d.count, item: p2d.cableType === 'Fiber'
+      ? `Fiber OpticalCON ${p2d.cableLength || ''}'`.trim()
+      : `CAT6A EtherCON ${p2d.cableLength || ''}'`.trim()
+    });
+  }
+
+  const pcItems = [];
+  if (pc.jumperCount > 0) pcItems.push({ qty: pc.jumperCount, item: `Power Jumpers ${pc.powerJumperLen || ''}'`.trim() });
+  if (pc.socaSplays > 0)  pcItems.push({ qty: pc.socaSplays,  item: 'Soca Splays' });
+  const socaEntries = Object.entries(pc.socaByLength || {}).sort(function(a, b) { return Number(a[0]) - Number(b[0]); });
+  socaEntries.forEach(function(e) {
+    if (Number(e[1]) > 0) pcItems.push({ qty: e[1], item: `Soca ${e[0]}'` });
+  });
+  if (pc.true1_25 > 0)    pcItems.push({ qty: pc.true1_25,    item: "True1 25'" });
+  if (pc.true1_10 > 0)    pcItems.push({ qty: pc.true1_10,    item: "True1 10'" });
+  if (pc.true1_5  > 0)    pcItems.push({ qty: pc.true1_5,     item: "True1 5'"  });
+  if (pc.true1Twofer > 0) pcItems.push({ qty: pc.true1Twofer, item: 'True1 Twofer' });
+
+  // --- Column 3: Signal Cables, Utility, Spares ---
+  const sc = gearData.signalCables || {};
+  const scItems = [];
+  if (sc.serverFiberLine && sc.serverFiberLine.count > 0) scItems.push({ qty: sc.serverFiberLine.count, item: sc.serverFiberLine.label });
+  Object.entries(sc.sdiByLength || {}).forEach(function(e) {
+    if (Number(e[1]) > 0) scItems.push({ qty: e[1], item: `${e[0]}' ${sc.sdiType || 'SDI'}` });
+  });
+  Object.entries(sc.hdmi || {}).forEach(function(e) {
+    if (Number(e[1]) > 0) scItems.push({ qty: e[1], item: `${e[0]}' HDMI` });
+  });
+
+  const u = gearData.utility || {};
+  const utilItems = [];
+  if (u.ug10  > 0) utilItems.push({ qty: u.ug10,      item: "10' Utility Grip" });
+  if (u.ug25  > 0) utilItems.push({ qty: u.ug25,      item: "25' Utility Grip" });
+  if (u.ug50  > 0) utilItems.push({ qty: u.ug50,      item: "50' Utility Grip" });
+  if (u.ugTwofers > 0) utilItems.push({ qty: u.ugTwofers, item: 'Utility Twofers' });
+  if (u.powerBars > 0) utilItems.push({ qty: u.powerBars, item: 'Power Bars' });
+
+  const sp = gearData.spares || {};
+  const spareItems = [];
+  Object.entries(sp.panelsByType || {}).forEach(function(e) {
+    if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: `${e[0]} (spare)` });
+  });
+  if (sp.shackles    > 0) spareItems.push({ qty: sp.shackles,    item: 'Shackles (spare)' });
+  if (sp.cheeseyes   > 0) spareItems.push({ qty: sp.cheeseyes,   item: 'Cheeseyes (spare)' });
+  if (sp.crossJumpers > 0 && sp.crossJumperLen) spareItems.push({ qty: sp.crossJumpers, item: `${sp.crossJumperLen}' Cross Jumpers (spare)` });
+  if (sp.cat5Couplers > 0) spareItems.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers (spare)' });
+  Object.entries(sp.cat6ByLength || {}).forEach(function(e) {
+    if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: `${e[0]}' Cat6 (spare)` });
+  });
+  if (sp.socaSplays > 0)  spareItems.push({ qty: sp.socaSplays, item: 'Soca Splays (spare)' });
+  if (sp.true1_25   > 0)  spareItems.push({ qty: sp.true1_25,   item: "25' True1 (spare)" });
+  if (sp.true1_10   > 0)  spareItems.push({ qty: sp.true1_10,   item: "10' True1 (spare)" });
+  if (sp.true1_5    > 0)  spareItems.push({ qty: sp.true1_5,    item: "5' True1 (spare)"  });
+  if (sp.true1Twofer > 0) spareItems.push({ qty: sp.true1Twofer, item: 'True1 Twofers (spare)' });
+
+  // Build column stacks (skip null sections)
+  function col(sections) {
+    const elements = sections.filter(Boolean);
+    if (elements.length === 0) return { text: '', width: '*' };
+    return { stack: elements, width: '*' };
+  }
+
+  const colW = Math.floor((contentWidth - 16) / 3); // 2 gaps of 8pt each
+
+  const col1 = col([
+    buildGearSection('EQUIPMENT',       eqItems),
+    buildGearSection('RIGGING HARDWARE', rigItems),
+    gs.hasGS ? buildGearSection('GROUND SUPPORT', gsItems) : null,
+    fh.hasFloorFrames ? buildGearSection('FLOOR HARDWARE', fhItems) : null,
+  ]);
+  const col2 = col([
+    buildGearSection('DATA CABLES',  dcItems),
+    buildGearSection('POWER CABLES', pcItems),
+  ]);
+  const col3 = col([
+    scItems.length > 0  ? buildGearSection('SIGNAL CABLES', scItems)  : null,
+    utilItems.length > 0 ? buildGearSection('UTILITY',      utilItems) : null,
+    spareItems.length > 0 ? buildGearSection('SPARES',      spareItems) : null,
+  ]);
+
+  return {
+    columns: [
+      Object.assign({}, col1, { width: colW }),
+      { width: 8, text: '' },
+      Object.assign({}, col2, { width: colW }),
+      { width: 8, text: '' },
+      Object.assign({}, col3, { width: colW }),
+    ],
+    columnGap: 0,
+    margin: [0, 0, 0, 0]
+  };
+}
+
+/**
+ * Builds the complete COMPLEX MODE pdfmake document definition.
+ * Structure per screen:
+ *   Page 1 (Hero):        Header + screen label + expanded summary + standard grid
+ *   Page 2 (Gear List):   Header + "GEAR LIST" label + 3-column gear list
+ *   Page 3 (Power/Data):  Header + power grid + legend + data grid + legend
+ *   Page 4 (Structure/Cabling): Header + structure grid + tables + cabling diagram
+ *   (Pages 3+4 collapse to 1 page for wide/short walls)
+ */
+function buildComplexPdf(opts, canvasCache) {
+  const format      = pdfPageFormat      || 'a4';
+  const orientation = pdfPageOrientation || 'p';
+  const dims        = pdfGetPageDimensions(format, orientation);
+  const cw          = dims.contentWidth;
+  const uh          = dims.usableHeight;
+  const m           = PDF_TOKENS.layout;
+  const tc          = PDF_TOKENS.colors;
+
+  const screenIds = Object.keys(screens).sort(function(a, b) {
+    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
+  });
+  const gearData    = buildGearListData(screenIds);
+  const allPanels   = getAllPanels();
+  const configName  = document.getElementById('configName')?.value?.trim() || 'LED Wall';
+  const dateStr     = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+  const logoData    = (typeof projectLogo !== 'undefined') ? projectLogo : null;
+
+  const content = [];
+
+  function sectionLabel(text) {
+    return {
+      text: text.toUpperCase(),
+      fontSize: 10, bold: true, color: tc.headerBg,
+      margin: [0, 0, 0, 6]
+    };
+  }
+
+  function gridImage(key, pw, ph, maxH) {
+    const imgData = canvasCache && canvasCache[key];
+    if (!imgData || !imgData.dataUrl) return null;
+    const { renderWidth, renderHeight } = calculateGridScale(pw, ph, cw, maxH);
+    return {
+      image: imgData.dataUrl,
+      width: renderWidth, height: renderHeight,
+      alignment: 'center',
+      margin: [0, 0, 0, 4]
+    };
+  }
+
+  screenIds.forEach(function(screenId, sIdx) {
+    const screen    = screens[screenId];
+    if (!screen) return;
+    const data      = screen.data          || {};
+    const calcData  = screen.calculatedData || {};
+    const panelSpec = allPanels[data.panelType] || {};
+    const pw        = parseInt(data.panelsWide) || 0;
+    const ph        = parseInt(data.panelsHigh) || 0;
+    const sd        = gearData.screens[sIdx];
+    const resStr    = (pw > 0 && ph > 0 && panelSpec.res_x && panelSpec.res_y)
+      ? `${pw * panelSpec.res_x} × ${ph * panelSpec.res_y} px` : '';
+
+    // Determine adaptive layout collapse
+    const collapseLayouts = canCollapseLayoutPages(pw, ph, format, orientation, null);
+
+    // ===== PAGE 1: HERO =====
+    if (opts.specs !== false || opts.standard !== false) {
+      if (sIdx > 0) content.push({ text: '', pageBreak: 'before' });
+      content.push(buildPdfHeader(configName, dateStr, logoData));
+      content.push({
+        text: screen.name.toUpperCase(),
+        fontSize: 11, bold: true, color: tc.headerBg,
+        margin: [0, 2, 0, 6]
+      });
+      if (opts.specs !== false) {
+        content.push(buildComplexSummaryBar(data, calcData, panelSpec, sd));
+      }
+      if (opts.standard !== false) {
+        const usedAbove = m.headerBarH + 6 + m.screenLabelH + m.summaryBarHExp + 8;
+        const remainH   = uh - usedAbove - m.resolutionLblH - 8;
+        const img = gridImage(screenId + '_standard', pw, ph, remainH);
+        if (img) content.push(img);
+        if (resStr) content.push({ text: resStr, fontSize: 9, color: tc.textMuted, alignment: 'center', margin: [0, 0, 0, 0] });
+      }
+    }
+
+    // ===== PAGE 2: GEAR LIST =====
+    if (opts.gearList !== false && sd) {
+      content.push({ text: '', pageBreak: 'before' });
+      content.push(buildPdfHeader(configName, dateStr, logoData));
+      content.push(sectionLabel(`${screen.name} — Gear List`));
+      content.push(buildGearListContent(gearData, sIdx, cw));
+    }
+
+    // ===== PAGES 3 (& 4): POWER / DATA / STRUCTURE / CABLING =====
+    const hasLayouts = opts.power !== false || opts.data !== false || opts.structure !== false || opts.cabling !== false;
+    if (hasLayouts) {
+      // Page 3: Power + Data layouts
+      if (!collapseLayouts) {
+        content.push({ text: '', pageBreak: 'before' });
+        content.push(buildPdfHeader(configName, dateStr, logoData));
+      } else {
+        content.push({ text: '', pageBreak: 'before' });
+        content.push(buildPdfHeader(configName, dateStr, logoData));
+      }
+
+      const singlePageMaxH = collapseLayouts ? Math.floor((uh - m.headerBarH - 80) / 4) : Math.floor((uh - m.headerBarH - 40) / 2);
+
+      if (opts.power !== false) {
+        content.push(sectionLabel('Power Layout'));
+        const img = gridImage(screenId + '_power', pw, ph, singlePageMaxH);
+        if (img) content.push(img);
+      }
+
+      if (opts.data !== false) {
+        content.push(sectionLabel('Data Layout'));
+        const img = gridImage(screenId + '_data', pw, ph, singlePageMaxH);
+        if (img) content.push(img);
+      }
+
+      // Structure + Cabling (same page when collapsing, new page otherwise)
+      if (opts.structure !== false || opts.cabling !== false) {
+        if (!collapseLayouts) {
+          content.push({ text: '', pageBreak: 'before' });
+          content.push(buildPdfHeader(configName, dateStr, logoData));
+        }
+
+        if (opts.structure !== false) {
+          content.push(sectionLabel('Structure Layout'));
+          const img = gridImage(screenId + '_structure', pw, ph, singlePageMaxH);
+          if (img) content.push(img);
+        }
+
+        if (opts.cabling !== false) {
+          content.push(sectionLabel('Cabling Layout'));
+          const cabImg = canvasCache && canvasCache[screenId + '_cabling'];
+          if (cabImg && cabImg.dataUrl) {
+            // Cabling is typically very wide — fit to content width
+            const cabH = Math.floor(cw * (cabImg.aspectRatio || 0.33));
+            const cappedH = Math.min(cabH, singlePageMaxH * 1.5);
+            content.push({
+              image: cabImg.dataUrl,
+              width: cw, height: cappedH,
+              alignment: 'center',
+              margin: [0, 0, 0, 4]
+            });
+          }
+        }
+      }
+    }
+
+    // Page footer
+    content.push({
+      text: `Page ${content.filter(function(el) { return el && el.pageBreak; }).length + 1}`,
+      fontSize: 8, color: tc.textFaint, alignment: 'center',
+      margin: [0, 4, 0, 0]
+    });
+  });
+
+  return {
+    pageSize:        (format === 'letter') ? 'LETTER' : 'A4',
+    pageOrientation: orientation === 'l' ? 'landscape' : 'portrait',
+    pageMargins:     [m.pageMarginLeft, m.pageMarginTop, m.pageMarginRight, m.pageMarginBottom],
+    content:         content,
+    defaultStyle:    { font: 'Roboto', fontSize: 9, color: tc.textPrimary }
+  };
+}
+
 // ==================== END NEW LAYOUT ENGINE BUILDERS ====================
 
 function getPdfColors() {

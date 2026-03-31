@@ -1,5 +1,5 @@
 {
-  "version": "2.10.71",
+  "version": "2.10.72",
   "updated": "2026-03-31",
-  "changelog": "Add simple mode redesign: B.L.I.N.K. REPORT header, 4-column summary bar, buildSimplePdf"
+  "changelog": "Add complex mode PDF: hero, gear list, layout pages; wire exportFromPreview to buildComplexPdf"
 }

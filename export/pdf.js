@@ -1234,7 +1234,7 @@ function buildComplexPdf(opts, canvasCache) {
 
     // ===== PAGE 1: HERO =====
     if (opts.specs !== false || opts.standard !== false) {
-      if (sIdx > 0) content.push({ text: '', pageBreak: 'before' });
+      if (sIdx > 0 || screenIds.length > 1) content.push({ text: '', pageBreak: 'before' });
       content.push(buildPdfHeader(configName, dateStr, logoData));
       content.push({
         text: screen.name.toUpperCase(),
@@ -1264,14 +1264,9 @@ function buildComplexPdf(opts, canvasCache) {
     // ===== PAGES 3 (& 4): POWER / DATA / STRUCTURE / CABLING =====
     const hasLayouts = opts.power !== false || opts.data !== false || opts.structure !== false || opts.cabling !== false;
     if (hasLayouts) {
-      // Page 3: Power + Data layouts
-      if (!collapseLayouts) {
-        content.push({ text: '', pageBreak: 'before' });
-        content.push(buildPdfHeader(configName, dateStr, logoData));
-      } else {
-        content.push({ text: '', pageBreak: 'before' });
-        content.push(buildPdfHeader(configName, dateStr, logoData));
-      }
+      // Page 3: Power + Data layouts (always new page; collapse controls whether page 4 exists)
+      content.push({ text: '', pageBreak: 'before' });
+      content.push(buildPdfHeader(configName, dateStr, logoData));
 
       const singlePageMaxH = collapseLayouts ? Math.floor((uh - m.headerBarH - 80) / 4) : Math.floor((uh - m.headerBarH - 40) / 2);
 

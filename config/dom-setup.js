@@ -95,17 +95,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if(btnPDF) btnPDF.addEventListener('click', function(e) {
       e.preventDefault();
-      // Show print preview for complex and combined views, simple view exports specs only
+      const isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
+        (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+
       if(currentMobileView === 'complex' || currentMobileView === 'combined' || currentMobileView === 'gear') {
-        openPrintPreview();
+        // Complex mode: desktop gets print preview; mobile exports directly (no preview UI on mobile)
+        if(isMobileDevice) {
+          exportComplexMobileDirect();
+        } else {
+          openPrintPreview();
+        }
       } else {
-        // Simple view - export specs only directly
-        pdfExportOptions.specs = true;
-        pdfExportOptions.gearList = false;
-        pdfExportOptions.standard = false;
-        pdfExportOptions.power = false;
-        pdfExportOptions.data = false;
-        pdfExportOptions.structure = false;
+        // Simple view — export directly (single-page redesigned layout)
         exportPDF();
       }
     });

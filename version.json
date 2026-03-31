@@ -1,5 +1,5 @@
 {
-  "version": "2.10.72",
+  "version": "2.10.73",
   "updated": "2026-03-31",
-  "changelog": "Add complex mode PDF: hero, gear list, layout pages; wire exportFromPreview to buildComplexPdf"
+  "changelog": "Add mobile direct complex PDF export; bypass print preview on mobile devices"
 }

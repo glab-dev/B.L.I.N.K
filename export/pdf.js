@@ -1800,6 +1800,83 @@ function buildPdfDocDefinition(opts, canvasCache) {
   };
 }
 
+/**
+ * Mobile complex mode: generates and downloads the full complex PDF directly,
+ * bypassing the print preview UI entirely. All elements enabled.
+ */
+function exportComplexMobileDirect() {
+  if (!window.pdfMake) {
+    showAlert('PDF library not loaded. Please check your internet connection and refresh the page.');
+    return;
+  }
+
+  saveCurrentScreenData();
+
+  // Eco/greyscale default to off on mobile direct export
+  ecoPrintMode = false;
+  greyscalePrintMode = false;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'pdfExportOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(26,26,26,1);z-index:10000;display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;font-family:-apple-system,Arial,sans-serif;';
+  overlay.innerHTML = '<div style="font-size:24px;margin-bottom:20px;">Generating PDF...</div><div id="pdfProgress" style="font-size:16px;color:#888;">Capturing layouts\u2026</div>';
+  document.body.appendChild(overlay);
+
+  function setStatus(msg) {
+    const el = document.getElementById('pdfProgress');
+    if (el) el.textContent = msg;
+  }
+  function removeOverlay() {
+    const el = document.getElementById('pdfExportOverlay');
+    if (el) el.remove();
+  }
+
+  const canvasCache = pdfCaptureCanvases();
+
+  // Restore normal colors after capture
+  ecoPrintMode = false;
+  greyscalePrintMode = false;
+  generateLayout('standard');
+  generateLayout('power');
+  generateLayout('data');
+  generateStructureLayout();
+  if (typeof switchMobileView === 'function' && typeof currentAppMode !== 'undefined') {
+    switchMobileView(currentAppMode);
+  }
+
+  setStatus('Building PDF\u2026');
+
+  // All elements enabled for mobile direct export
+  const opts = {
+    specs: true, gearList: true, standard: true,
+    power: true, data: true, structure: true, cabling: true,
+    ecoFriendly: false, greyscale: false
+  };
+
+  const docDef = buildComplexPdf(opts, canvasCache);
+
+  setStatus('Saving\u2026');
+
+  const configName = (document.getElementById('configName')?.value?.trim() || 'LED_Wall').replace(/[<>:"/\\|?*]/g, '_');
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const filename = `${configName}_LED_Report_${dateStr}.pdf`;
+
+  if (navigator.share && navigator.canShare) {
+    pdfMake.createPdf(docDef).getBlob(function(blob) {
+      const file = new File([blob], filename, { type: 'application/pdf' });
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file] }).then(removeOverlay).catch(function() {
+          pdfMake.createPdf(docDef).download(filename, removeOverlay);
+        });
+      } else {
+        pdfMake.createPdf(docDef).download(filename, removeOverlay);
+      }
+    });
+  } else {
+    pdfMake.createPdf(docDef).download(filename, removeOverlay);
+  }
+}
+
 function exportPDF() {
   try {
     if (!window.pdfMake) {

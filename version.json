@@ -1,5 +1,5 @@
 {
-  "version": "2.10.69",
-  "updated": "2026-03-30",
-  "changelog": "Restore grey panel outlines in app cable layouts; keep black only in PDF mode"
+  "version": "2.10.70",
+  "updated": "2026-03-31",
+  "changelog": "Add pdfLayoutEngine.js foundation with design tokens, grid scaling, and page composition logic"
 }

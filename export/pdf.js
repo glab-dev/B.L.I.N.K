@@ -1090,6 +1090,8 @@ function buildComplexPdf(opts, canvasCache) {
   const logoData    = (typeof projectLogo !== 'undefined') ? projectLogo : null;
 
   const content = [];
+  // Track page starts so summary cards can show correct page references
+  const screenPageStarts = {};
 
   function sectionLabel(text) {
     return {
@@ -1109,6 +1111,110 @@ function buildComplexPdf(opts, canvasCache) {
       alignment: 'center',
       margin: [0, 0, 0, 4]
     };
+  }
+
+  // For multi-screen: summary page page-reference is 1-based index in final PDF.
+  // We calculate page starts by counting pageBreak elements as we build.
+  // Summary page itself = page 1; so all screen hero pages start at 2+.
+  // We do a pre-pass to record approximate starts (1 summary + N pages per screen).
+  if (screenIds.length > 1) {
+    let pageAccum = 2; // page 1 = summary page; screen 1 hero = page 2
+    screenIds.forEach(function(sid) {
+      screenPageStarts[sid] = pageAccum;
+      const scr = screens[sid];
+      const pd = scr && scr.data ? scr.data : {};
+      const pw2 = parseInt(pd.panelsWide) || 0;
+      const ph2 = parseInt(pd.panelsHigh) || 0;
+      const plan = buildComplexPagePlan(pw2, ph2,
+        { specs: opts.specs !== false, gearList: opts.gearList !== false,
+          standard: opts.standard !== false, power: opts.power !== false,
+          data: opts.data !== false, structure: opts.structure !== false,
+          cabling: opts.cabling !== false },
+        format, orientation);
+      pageAccum += plan.pageCount;
+    });
+  }
+
+  // ===== MULTI-SCREEN SUMMARY PAGE =====
+  if (screenIds.length > 1) {
+    content.push(buildPdfHeader(configName, dateStr, logoData));
+    content.push({ text: 'PROJECT SUMMARY', fontSize: 12, bold: true, color: tc.headerBg, margin: [0, 2, 0, 8] });
+
+    // Aggregate stats
+    let totalPowerW = 0;
+    let totalWeightLbs = 0;
+    const panelTypeCounts = {};
+
+    screenIds.forEach(function(sid) {
+      const scr = screens[sid];
+      const d   = (scr && scr.data)           || {};
+      const cd  = (scr && scr.calculatedData)  || {};
+      const p   = allPanels[d.panelType]        || {};
+      const active = cd.activePanels || (parseInt(d.panelsWide) || 0) * (parseInt(d.panelsHigh) || 0);
+      const pwType = d.powerType || 'max';
+      const ppp = (pwType === 'max') ? (p.power_max_w || 0) : (p.power_avg_w || 0);
+      totalPowerW   += active * ppp;
+      totalWeightLbs += Math.ceil(active * (p.weight_kg || 0) * 2.20462);
+      const panelKey = `${p.brand || ''} ${p.name || d.panelType || ''}`.trim();
+      panelTypeCounts[panelKey] = (panelTypeCounts[panelKey] || 0) + active;
+    });
+
+    const panelKeys   = Object.keys(panelTypeCounts);
+    const panelSummary = panelKeys.length === 1
+      ? `${Object.values(panelTypeCounts)[0]} × ${panelKeys[0]}`
+      : panelKeys.map(function(k) { return `${panelTypeCounts[k]} × ${k}`; }).join(', ');
+
+    const summaryItems = [
+      ['Screens',       screenIds.length],
+      ['Total Power',   totalPowerW > 0 ? `${(totalPowerW/1000).toFixed(2)} kW` : '—'],
+      ['Total Weight',  totalWeightLbs > 0 ? `${totalWeightLbs} lbs` : '—'],
+      ['Panels',        panelSummary || '—'],
+    ];
+
+    const aggRows = summaryItems.map(function(r) {
+      return [
+        { text: r[0], bold: true, fontSize: 8, color: tc.textMuted, border: [false,false,false,false] },
+        { text: String(r[1]), fontSize: 8, border: [false,false,false,false] }
+      ];
+    });
+    content.push({
+      table: { widths: [80, '*'], body: aggRows },
+      layout: { hLineWidth: () => 0.3, vLineWidth: () => 0, hLineColor: () => tc.sectionBorder,
+                paddingLeft: () => 0, paddingRight: () => 4, paddingTop: () => 3, paddingBottom: () => 3 },
+      margin: [0, 0, 0, 12]
+    });
+
+    // Per-screen summary cards
+    content.push({ text: 'SCREENS', fontSize: 9, bold: true, color: tc.headerBg, margin: [0, 0, 0, 6] });
+
+    const cardRows = [];
+    screenIds.forEach(function(sid) {
+      const scr = screens[sid];
+      const d   = (scr && scr.data)           || {};
+      const cd  = (scr && scr.calculatedData)  || {};
+      const p   = allPanels[d.panelType]        || {};
+      const pw2 = parseInt(d.panelsWide) || 0;
+      const ph2 = parseInt(d.panelsHigh) || 0;
+      const active = cd.activePanels || (pw2 * ph2);
+      const wFt = (pw2 * (p.width_m  || 0) * 3.28084).toFixed(1);
+      const hFt = (ph2 * (p.height_m || 0) * 3.28084).toFixed(1);
+      const startPage = screenPageStarts[sid] || '—';
+
+      cardRows.push([
+        { text: scr.name || sid, bold: true, fontSize: 9, border: [false,false,false,true], borderColor: [null,null,null,tc.sectionBorder] },
+        { text: `${pw2}×${ph2}  ${wFt}' × ${hFt}'`, fontSize: 8, color: tc.textMuted, border: [false,false,false,true], borderColor: [null,null,null,tc.sectionBorder] },
+        { text: `${active} panels`, fontSize: 8, color: tc.textMuted, border: [false,false,false,true], borderColor: [null,null,null,tc.sectionBorder] },
+        { text: `p. ${startPage}`, fontSize: 8, color: tc.textMuted, alignment: 'right', border: [false,false,false,true], borderColor: [null,null,null,tc.sectionBorder] },
+      ]);
+    });
+
+    content.push({
+      table: { widths: ['*', '*', 'auto', 'auto'], body: cardRows },
+      layout: { hLineWidth: (i, node) => (i === node.table.body.length) ? 0 : 0.3, vLineWidth: () => 0,
+                hLineColor: () => tc.sectionBorder,
+                paddingLeft: () => 0, paddingRight: () => 6, paddingTop: () => 4, paddingBottom: () => 4 },
+      margin: [0, 0, 0, 0]
+    });
   }
 
   screenIds.forEach(function(screenId, sIdx) {

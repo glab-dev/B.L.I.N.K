@@ -114,7 +114,9 @@ async function saveConfiguration() {
     displayLengthUnit: displayLengthUnit,
     displayWeightUnit: displayWeightUnit,
     // Per-project gear code overrides (if any)
-    gearCodeOverrides: (typeof getGearCodeOverridesForSave === 'function') ? getGearCodeOverridesForSave() : undefined
+    gearCodeOverrides: (typeof getGearCodeOverridesForSave === 'function') ? getGearCodeOverridesForSave() : undefined,
+    // Project logo (base64 data URL) — null if no logo uploaded
+    logo: (typeof projectLogo !== 'undefined') ? projectLogo : null
   };
   
   // Add to recent projects
@@ -309,6 +311,11 @@ function applyConfiguration(config) {
     // Restore per-project gear code overrides
     if(typeof loadProjectGearCodeOverrides === 'function') {
       loadProjectGearCodeOverrides(config.gearCodeOverrides || {});
+    }
+
+    // Restore project logo
+    if (typeof projectLogo !== 'undefined') {
+      projectLogo = config.logo || null;
     }
 
     // Update unit buttons

@@ -1696,9 +1696,30 @@
           </div>
         </div>
         <hr class="modal-divider">
+        <p class="modal-hint">Adjust</p>
+        <div class="checkbox-list">
+          <label class="checkbox-label">
+            <input type="checkbox" id="ppManualAdjust" onchange="ppSetManualAdjust(this.checked)">
+            <span>Manual Adjust</span>
+          </label>
+        </div>
+        <hr class="modal-divider">
+        <p class="modal-hint">Logo</p>
+        <div id="ppLogoSection">
+          <button type="button" id="ppLogoUploadBtn" class="pp-logo-btn" onclick="document.getElementById('ppLogoInput').click()">Upload Logo</button>
+          <input type="file" id="ppLogoInput" accept=".png,.jpg,.jpeg,.svg,.webp" style="display:none" onchange="ppHandleLogoUpload(this)">
+          <div id="ppLogoPreview" style="display:none" class="pp-logo-preview">
+            <img id="ppLogoThumb" alt="Logo preview">
+            <button type="button" class="pp-logo-remove-btn" onclick="ppRemoveLogo()">Remove</button>
+          </div>
+        </div>
+        <hr class="modal-divider">
         <div class="print-preview-actions">
           <button class="btn-secondary" onclick="closePrintPreview()">Cancel</button>
-          <button class="btn-primary" onclick="exportFromPreview()">Export PDF</button>
+          <div class="pp-export-row">
+            <span id="ppPageCount" class="pp-page-count"></span>
+            <button class="btn-primary" onclick="exportFromPreview()">Export PDF</button>
+          </div>
         </div>
       </div>
       <!-- RIGHT: Preview Area -->
@@ -3235,8 +3256,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.73';
-const APP_CHANGELOG = 'Add mobile direct complex PDF export; bypass print preview on mobile devices';
+const APP_VERSION = '2.10.74';
+const APP_CHANGELOG = 'Add Manual Adjust toggle, logo upload, page count indicator to print preview; save logo in project schema';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -3293,6 +3314,8 @@ function switchHelpTab(tab) {
 let ecoPrintMode = false;
 // Greyscale print mode - converts all colors to greyscale
 let greyscalePrintMode = false;
+// Project logo — { data: 'data:image/...;base64,...', fileName: 'logo.png' } or null
+let projectLogo = null;
 // PDF white background mode - white background only, preserves panel colors
 let pdfWhiteBgMode = false;
 

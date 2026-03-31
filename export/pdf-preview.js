@@ -18,6 +18,9 @@ let pdfPageModel = [];
 // Preview scale (mm → canvas pixels)
 let ppScale = 1;
 
+// Manual Adjust toggle — when false, drag is disabled
+let ppManualAdjust = false;
+
 // Drag state
 let ppSelectedElement = null; // { pageIndex, elementId }
 let ppDragState = {
@@ -84,6 +87,25 @@ function openPrintPreview() {
   ppDragState.isDragging = false;
   ppCurrentEco = false;
   ppCurrentGreyscale = false;
+
+  // Reset Manual Adjust
+  ppManualAdjust = false;
+  const ppManualAdjustEl = document.getElementById('ppManualAdjust');
+  if (ppManualAdjustEl) ppManualAdjustEl.checked = false;
+
+  // Sync logo UI with current projectLogo state
+  const logoData = (typeof projectLogo !== 'undefined') ? projectLogo : null;
+  const ppLogoPreview = document.getElementById('ppLogoPreview');
+  const ppLogoThumb   = document.getElementById('ppLogoThumb');
+  const ppLogoUploadBtn = document.getElementById('ppLogoUploadBtn');
+  if (logoData && logoData.data) {
+    if (ppLogoThumb)   ppLogoThumb.src = logoData.data;
+    if (ppLogoPreview) ppLogoPreview.style.display = 'flex';
+    if (ppLogoUploadBtn) ppLogoUploadBtn.style.display = 'none';
+  } else {
+    if (ppLogoPreview) ppLogoPreview.style.display = 'none';
+    if (ppLogoUploadBtn) ppLogoUploadBtn.style.display = '';
+  }
 
   // Show modal
   modal.classList.add('active');
@@ -346,10 +368,75 @@ function onPreviewOptionChange() {
   }
 }
 
+// ==================== MANUAL ADJUST ====================
+
+function ppSetManualAdjust(enabled) {
+  ppManualAdjust = enabled;
+  // Visual feedback: highlight page canvases when drag is active
+  const canvases = document.querySelectorAll('.preview-page-canvas');
+  canvases.forEach(function(c) {
+    c.style.cursor = enabled ? 'grab' : 'default';
+    c.style.outline = enabled ? '2px dashed #2d8a5e' : 'none';
+  });
+}
+
+// ==================== LOGO UPLOAD ====================
+
+function ppHandleLogoUpload(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const MAX_SIZE = 200 * 1024; // 200 KB
+  if (file.size > MAX_SIZE) {
+    showAlert('Logo file too large. Maximum size is 200 KB.');
+    input.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    projectLogo = { data: e.target.result, fileName: file.name };
+
+    // Show thumbnail
+    const thumb = document.getElementById('ppLogoThumb');
+    const preview = document.getElementById('ppLogoPreview');
+    if (thumb) thumb.src = projectLogo.data;
+    if (preview) preview.style.display = 'flex';
+
+    const uploadBtn = document.getElementById('ppLogoUploadBtn');
+    if (uploadBtn) uploadBtn.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function ppRemoveLogo() {
+  projectLogo = null;
+
+  const preview = document.getElementById('ppLogoPreview');
+  const thumb   = document.getElementById('ppLogoThumb');
+  const input   = document.getElementById('ppLogoInput');
+  const uploadBtn = document.getElementById('ppLogoUploadBtn');
+
+  if (preview) preview.style.display = 'none';
+  if (thumb)   thumb.src = '';
+  if (input)   input.value = '';
+  if (uploadBtn) uploadBtn.style.display = '';
+}
+
+// ==================== PAGE COUNT INDICATOR ====================
+
+function ppUpdatePageCount() {
+  const el = document.getElementById('ppPageCount');
+  if (!el) return;
+  const count = pdfPageModel ? pdfPageModel.length : 0;
+  el.textContent = count > 0 ? `${count} page${count === 1 ? '' : 's'}` : '';
+}
+
 // ==================== REBUILD PREVIEW ====================
 
 function rebuildPreview() {
   buildPageModel();
+  ppUpdatePageCount();
   // Preserve scroll position across re-render
   const scrollArea = document.querySelector('.print-preview-area');
   const savedScroll = scrollArea ? scrollArea.scrollTop : 0;
@@ -1684,6 +1771,9 @@ function ppFindPageCanvasAtPoint(clientX, clientY) {
 }
 
 function ppHandlePointerDown(e, canvas, pageIndex) {
+  // Drag is only active when Manual Adjust is on
+  if (!ppManualAdjust) return;
+
   const coords = ppGetPageCoords(e, canvas);
   const hitEl = ppHitTestElement(pageIndex, coords.mmX, coords.mmY);
 

@@ -1,5 +1,5 @@
 {
-  "version": "2.10.73",
+  "version": "2.10.74",
   "updated": "2026-03-31",
-  "changelog": "Add mobile direct complex PDF export; bypass print preview on mobile devices"
+  "changelog": "Add Manual Adjust toggle, logo upload, page count indicator to print preview; save logo in project schema"
 }

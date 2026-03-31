@@ -6597,14 +6597,78 @@ canvas:focus {
 }
 .print-preview-actions {
   display: flex;
+  flex-direction: column;
   gap: 8px;
   padding-top: 4px;
 }
-.print-preview-actions .btn-secondary,
-.print-preview-actions .btn-primary {
+.print-preview-actions .btn-secondary {
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 36px;
+  font-size: 13px;
+}
+.pp-export-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pp-export-row .btn-primary {
   flex: 1;
   min-height: 36px;
   font-size: 13px;
+  margin-bottom: 0;
+}
+.pp-page-count {
+  font-family: 'Roboto Condensed', sans-serif;
+  font-size: 11px;
+  color: #888;
+  white-space: nowrap;
+}
+.pp-logo-btn {
+  background: #2a2a2a !important;
+  border: 1px solid #444 !important;
+  border-radius: 4px !important;
+  color: #ccc !important;
+  font-size: 12px !important;
+  font-weight: normal !important;
+  padding: 5px 10px !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  margin-bottom: 6px !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  letter-spacing: normal !important;
+}
+.pp-logo-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.pp-logo-preview img {
+  max-height: 32px;
+  max-width: 80px;
+  object-fit: contain;
+  border: 1px solid #444;
+  border-radius: 3px;
+  background: #fff;
+  padding: 2px;
+}
+.pp-logo-remove-btn {
+  background: none !important;
+  border: 1px solid #555 !important;
+  border-radius: 3px !important;
+  color: #aaa !important;
+  font-size: 11px !important;
+  font-weight: normal !important;
+  padding: 3px 7px !important;
+  min-height: 0 !important;
+  width: auto !important;
+  margin-bottom: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  letter-spacing: normal !important;
+  cursor: pointer;
 }
 .print-preview-area {
   flex: 1;

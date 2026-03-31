@@ -483,6 +483,281 @@ function confirmPdfExport() {
 
 // ==================== PDF GENERATION (pdfmake) ====================
 
+// ==================== NEW LAYOUT ENGINE BUILDERS ====================
+// These functions implement the redesigned PDF layout from BLINK_PDF_REDESIGN_PLAN.md.
+// They use pdfmake column/table constructs to produce professional output.
+
+/**
+ * Builds the B.L.I.N.K. REPORT header bar for any page.
+ * Full-width dark green bar: left=title, center=project name, right=date [logo].
+ * @param {string} configName - project name
+ * @param {string} dateStr - formatted date string
+ * @param {object|null} logoData - { data: 'data:image/...;base64,...' } or null
+ * @param {number} contentWidth - usable content width in pt
+ * @returns {object} pdfmake content element
+ */
+function buildPdfHeader(configName, dateStr, logoData) {
+  const tc = PDF_TOKENS.colors;
+  const headerBg = (typeof greyscalePrintMode !== 'undefined' && greyscalePrintMode) ? '#444'
+    : (typeof ecoPrintMode !== 'undefined' && ecoPrintMode) ? '#4b5563'
+    : tc.headerBg;
+
+  const titleCell = {
+    text: 'B.L.I.N.K. REPORT',
+    bold: true, fontSize: 10, color: tc.headerText,
+    fillColor: headerBg, border: [false, false, false, false],
+    margin: [10, 7, 6, 7], noWrap: true
+  };
+
+  const nameCell = {
+    text: configName || 'LED Wall',
+    bold: true, fontSize: 11, color: tc.headerText,
+    fillColor: headerBg, border: [false, false, false, false],
+    margin: [0, 7, 0, 7], alignment: 'center'
+  };
+
+  // Right side: logo + date, or just date
+  const rightStack = [];
+  if (logoData && logoData.data) {
+    rightStack.push({ image: logoData.data, fit: [60, 22], alignment: 'right', margin: [0, 3, 10, 0] });
+  }
+  rightStack.push({ text: dateStr, fontSize: 8, color: tc.headerText, alignment: 'right', margin: [0, logoData && logoData.data ? 1 : 7, 10, 7] });
+
+  const rightCell = {
+    stack: rightStack,
+    fillColor: headerBg, border: [false, false, false, false],
+    alignment: 'right'
+  };
+
+  return {
+    table: { widths: ['auto', '*', 'auto'], body: [[titleCell, nameCell, rightCell]] },
+    layout: 'noBorders',
+    margin: [0, 0, 0, 6]
+  };
+}
+
+/**
+ * Builds one column of the 4-column summary bar.
+ * @param {string} label - PANEL, WALL, POWER, DATA
+ * @param {Array<[string,string]>} rows - [label, value] pairs (falsy values are skipped)
+ * @returns {object} pdfmake stack element
+ */
+function buildSummaryColumn(label, rows) {
+  const tc = PDF_TOKENS.colors;
+  const validRows = rows.filter(function(r) { return r[1] !== null && r[1] !== undefined && r[1] !== ''; });
+
+  const bodyLines = validRows.map(function(r) {
+    return {
+      columns: [
+        { text: r[0], fontSize: 7.5, color: tc.textMuted, width: '*', margin: [0, 0, 2, 0] },
+        { text: String(r[1]), fontSize: 7.5, color: tc.textItem, bold: true, width: 'auto', alignment: 'right' }
+      ],
+      columnGap: 2,
+      margin: [0, 1, 0, 1]
+    };
+  });
+
+  return {
+    stack: [
+      {
+        text: label,
+        fontSize: 8, bold: true, color: tc.headerBg,
+        border: [false, false, false, false],
+        margin: [0, 0, 0, 3],
+        decoration: 'underline', decorationColor: tc.summaryAccent
+      },
+      ...bodyLines
+    ],
+    margin: [6, 6, 6, 6]
+  };
+}
+
+/**
+ * Wraps 4 summary columns in a light-background row with accents.
+ * @param {Array} columns - 4 pdfmake stack elements (from buildSummaryColumn)
+ * @returns {object} pdfmake columns element
+ */
+function buildSummaryBar(columns) {
+  const tc = PDF_TOKENS.colors;
+  const cells = columns.map(function(col) {
+    return {
+      stack: [col],
+      fillColor: tc.summaryBg,
+      border: [true, true, true, true],
+      borderColor: [tc.sectionBorder, tc.sectionBorder, tc.sectionBorder, tc.sectionBorder]
+    };
+  });
+  return {
+    table: { widths: ['*', '*', '*', '*'], body: [cells] },
+    layout: {
+      hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+      hLineColor: () => tc.sectionBorder, vLineColor: () => tc.sectionBorder,
+      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0
+    },
+    margin: [0, 0, 0, 8]
+  };
+}
+
+/**
+ * Builds the SIMPLE MODE 4-column summary bar.
+ * Condensed: Panel / Wall / Power / Data
+ */
+function buildSimpleSummaryBar(screenData, calcData, panelSpec) {
+  const p = panelSpec || {};
+  const data = screenData || {};
+  const cd = calcData || {};
+  const pw = parseInt(data.panelsWide) || 0;
+  const ph = parseInt(data.panelsHigh) || 0;
+
+  const panelWidthM  = p.width_m  || 0;
+  const panelHeightM = p.height_m || 0;
+  const wallWidthFt  = pw * panelWidthM * 3.28084;
+  const wallHeightFt = ph * panelHeightM * 3.28084;
+  const wallWidthM   = pw * panelWidthM;
+  const wallHeightM  = ph * panelHeightM;
+
+  const activePanels  = cd.activePanels || (pw * ph);
+  const totalPixels   = pw * (p.res_x || 0) * ph * (p.res_y || 0);
+  const estWeightLbs  = Math.ceil(activePanels * (p.weight_kg || 0) * 2.20462);
+
+  const powerType     = data.powerType || 'max';
+  const powerPerPanel = (powerType === 'max') ? (p.power_max_w || 0) : (p.power_avg_w || 0);
+  const totalPowerW   = activePanels * powerPerPanel;
+  const voltage       = parseInt(data.voltage) || 208;
+  const breaker       = parseInt(data.breaker) || 20;
+  const phase         = parseInt(data.phase) || 3;
+  const ampsTotal     = voltage > 0 ? totalPowerW / voltage : 0;
+  const ampsPhase     = phase === 3 ? ampsTotal / 1.732 : ampsTotal;
+  const circuits      = cd.circuitsNeeded || 0;
+  const maxPpc        = powerPerPanel > 0 ? Math.floor((voltage * breaker) / powerPerPanel) : 0;
+
+  const panelPitchStr = p.pixel_pitch_mm ? `${p.pixel_pitch_mm} mm` : null;
+  const panelSizeStr  = (panelWidthM > 0 && panelHeightM > 0)
+    ? `${(panelWidthM * 3.28084).toFixed(2)}' × ${(panelHeightM * 3.28084).toFixed(2)}'`
+    : null;
+  const panelResStr   = (p.res_x && p.res_y) ? `${p.res_x} × ${p.res_y} px` : null;
+  const panelWtStr    = p.weight_kg ? `${(p.weight_kg * 2.20462).toFixed(1)} lbs` : null;
+
+  const wallDimStr    = (wallWidthFt > 0 && wallHeightFt > 0)
+    ? `${wallWidthFt.toFixed(1)}' × ${wallHeightFt.toFixed(1)}'`
+    : null;
+  const wallMetStr    = (wallWidthM > 0 && wallHeightM > 0)
+    ? `(${wallWidthM.toFixed(2)} × ${wallHeightM.toFixed(2)} m)`
+    : null;
+  const wallResStr    = (pw > 0 && ph > 0 && p.res_x && p.res_y)
+    ? `${pw * p.res_x} × ${ph * p.res_y} px`
+    : null;
+  const totalPixStr   = totalPixels > 0
+    ? (totalPixels >= 1000000 ? `${(totalPixels/1000000).toFixed(1)} MP` : totalPixels.toLocaleString())
+    : null;
+  const wallWtStr     = estWeightLbs > 0 ? `${estWeightLbs} lbs` : null;
+
+  const colPanel = buildSummaryColumn('PANEL', [
+    ['Model',        `${p.brand || ''} ${p.name || ''}`.trim() || null],
+    ['Pixel Pitch',  panelPitchStr],
+    ['Size',         panelSizeStr],
+    ['Resolution',   panelResStr],
+    ['Weight',       panelWtStr],
+  ]);
+  const colWall = buildSummaryColumn('WALL', [
+    ['Dimensions',   wallDimStr],
+    ['',             wallMetStr],
+    [`${pw}×${ph} panels`, activePanels ? `${activePanels} active` : null],
+    ['Resolution',   wallResStr],
+    ['Total Pixels', totalPixStr],
+    ['Weight',       wallWtStr],
+  ]);
+  const colPower = buildSummaryColumn('POWER (MAX)', [
+    ['Total Power',   totalPowerW > 0 ? `${(totalPowerW/1000).toFixed(2)} kW` : null],
+    ['Total Amps',    ampsTotal > 0   ? `${ampsTotal.toFixed(1)} A @ ${voltage}V` : null],
+    ['Amps/Phase',    ampsPhase > 0   ? `${ampsPhase.toFixed(1)} A @ ${voltage}V` : null],
+    ['Circuits',      circuits > 0    ? circuits : null],
+    ['Max/Circuit',   maxPpc > 0      ? `${maxPpc} panels` : null],
+  ]);
+  const panelsPerDL  = cd.panelsPerDataLine || 0;
+  const colData = buildSummaryColumn('DATA', [
+    ['Port Capacity', p.max_panels_per_data ? `${p.max_panels_per_data} panels/port` : null],
+    ['Max/Data Line', panelsPerDL > 0 ? `${panelsPerDL} panels` : null],
+  ]);
+
+  return buildSummaryBar([colPanel, colWall, colPower, colData]);
+}
+
+/**
+ * Builds the complete SIMPLE MODE pdfmake document definition.
+ * Single page: Header + 4-col summary + standard grid + resolution label.
+ */
+function buildSimplePdf(canvasCache) {
+  const format      = pdfPageFormat      || 'a4';
+  const orientation = pdfPageOrientation || 'p';
+  const dims        = pdfGetPageDimensions(format, orientation);
+  const cw          = dims.contentWidth;
+  const uh          = dims.usableHeight;
+  const m           = PDF_TOKENS.layout;
+
+  const screenIds   = Object.keys(screens).sort(function(a, b) {
+    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
+  });
+  const screenId    = screenIds[0];
+  const screen      = screens[screenId];
+  const data        = (screen && screen.data)          || {};
+  const calcData    = (screen && screen.calculatedData) || {};
+  const allPanels   = getAllPanels();
+  const panelSpec   = allPanels[data.panelType] || {};
+
+  const configName  = document.getElementById('configName')?.value?.trim() || 'LED Wall';
+  const dateStr     = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+  const logoData    = (typeof projectLogo !== 'undefined') ? projectLogo : null;
+
+  const content = [];
+
+  // 1. Header bar
+  content.push(buildPdfHeader(configName, dateStr, logoData));
+
+  // 2. Summary bar (simple / condensed)
+  content.push(buildSimpleSummaryBar(data, calcData, panelSpec));
+
+  // 3. Standard layout grid
+  const pw = parseInt(data.panelsWide) || 0;
+  const ph = parseInt(data.panelsHigh) || 0;
+  const imgKey = screenId + '_standard';
+  const imgData = canvasCache && canvasCache[imgKey];
+
+  if (imgData && imgData.dataUrl && pw > 0 && ph > 0) {
+    // Calculate how much vertical space remains for the grid
+    const usedAbove = m.headerBarH + 6 + m.summaryBarHExp + 8; // header + gap + summary + gap
+    const remainH   = uh - usedAbove - m.resolutionLblH - 8;
+    const { renderWidth, renderHeight } = calculateGridScale(pw, ph, cw, remainH);
+
+    content.push({
+      image: imgData.dataUrl,
+      width:  renderWidth,
+      height: renderHeight,
+      alignment: 'center',
+      margin: [0, 0, 0, 4]
+    });
+
+    // Resolution label
+    const resStr = `${pw * (panelSpec.res_x || 0)} × ${ph * (panelSpec.res_y || 0)} px`;
+    content.push({
+      text: resStr,
+      fontSize: 9, color: PDF_TOKENS.colors.textMuted,
+      alignment: 'center',
+      margin: [0, 0, 0, 0]
+    });
+  }
+
+  return {
+    pageSize:        (format === 'letter') ? 'LETTER' : 'A4',
+    pageOrientation: orientation === 'l' ? 'landscape' : 'portrait',
+    pageMargins:     [m.pageMarginLeft, m.pageMarginTop, m.pageMarginRight, m.pageMarginBottom],
+    content:         content,
+    defaultStyle:    { font: 'Roboto', fontSize: 9, color: PDF_TOKENS.colors.textPrimary }
+  };
+}
+
+// ==================== END NEW LAYOUT ENGINE BUILDERS ====================
+
 function getPdfColors() {
   if (typeof greyscalePrintMode !== 'undefined' && greyscalePrintMode) {
     return { accent: '#555', headerBg: '#555', headerText: '#fff', rowAlt: '#f0f0f0', text: '#333', bannerText: '#fff' };
@@ -1116,7 +1391,12 @@ function exportPDF() {
     // Re-apply colors for doc generation
     ecoPrintMode = opts.ecoFriendly;
     greyscalePrintMode = opts.greyscale;
-    const docDef = buildPdfDocDefinition(opts, canvasCache);
+    // Simple mode: single-page redesigned layout (header + 4-col summary + grid)
+    // Complex mode: handled by exportFromPreview() which calls buildComplexPdf()
+    const isSimpleMode = typeof currentAppMode !== 'undefined' && currentAppMode === 'simple';
+    const docDef = isSimpleMode
+      ? buildSimplePdf(canvasCache)
+      : buildPdfDocDefinition(opts, canvasCache);
     ecoPrintMode = false;
     greyscalePrintMode = false;
 

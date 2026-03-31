@@ -1,5 +1,5 @@
 {
-  "version": "2.10.70",
+  "version": "2.10.71",
   "updated": "2026-03-31",
-  "changelog": "Add pdfLayoutEngine.js foundation with design tokens, grid scaling, and page composition logic"
+  "changelog": "Add simple mode redesign: B.L.I.N.K. REPORT header, 4-column summary bar, buildSimplePdf"
 }

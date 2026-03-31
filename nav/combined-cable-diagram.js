@@ -648,9 +648,11 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   var containerWidth = container.clientWidth || 400;
   var canvasW = containerWidth;
   var isSmall = canvasW < 500;
+  var isPdf = (typeof pdfWhiteBgMode !== 'undefined' && pdfWhiteBgMode);
   var rightMarginExtra = (dropPos === 'sl') ? 15 : 0;
   var MARGIN = { top: isSmall ? 30 : 50, bottom: isSmall ? 25 : 40, left: isSmall ? 14 : 20, right: (isSmall ? 25 : 30) + rightMarginExtra };
-  var BOX_W = isSmall ? 52 : 64, BOX_H = isSmall ? 28 : 34;
+  var BOX_W = isPdf ? (isSmall ? 52 : 64) : (isSmall ? 38 : 48);
+  var BOX_H = isPdf ? (isSmall ? 28 : 34) : (isSmall ? 18 : 24);
 
   // ---- Scene layout in feet (matching per-screen cable diagram pattern) ----
   var wallWidthFt = bbW / ftToPx;
@@ -728,7 +730,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   ctx.setLineDash([]);
 
   ctx.fillStyle = ccDimColor;
-  ctx.font = '15px Arial';
+  ctx.font = (isPdf ? 15 : 9) + 'px Arial';
   ctx.textAlign = 'left';
   ctx.fillText('FLOOR', MARGIN.left + 4, floorY + 12);
 
@@ -795,7 +797,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
 
     // Screen label (name only, no per-screen dimensions)
     ctx.fillStyle = isPrintMode ? ccFgColor : screenColor;
-    ctx.font = 'bold ' + (isSmall ? '15' : '17') + 'px Arial';
+    ctx.font = 'bold ' + (isPdf ? (isSmall ? '15' : '17') : (isSmall ? '9' : '11')) + 'px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(sp.screen.name || sp.screenId, screenLeft + screenW / 2, screenTop - 14);
   });
@@ -843,7 +845,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     var srvLabelText = cfg.serverToProcessor + "'";
     var srvLabelX = serverCanvasX + BOX_W + 4;
     var srvLabelMidY = (serverBoxCenterY + equipY + BOX_H / 2) / 2;
-    ctx.font = 'bold ' + (isSmall ? 13 : 16) + 'px Arial';
+    ctx.font = 'bold ' + (isPdf ? (isSmall ? 13 : 16) : (isSmall ? 7 : 10)) + 'px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     var srvTw = ctx.measureText(srvLabelText).width + 6;
@@ -1339,7 +1341,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
 
     // Screen label with background for readability
     var labelText = sp.screen.name || sp.screenId;
-    ctx.font = 'bold ' + (isSmall ? '15' : '17') + 'px Arial';
+    ctx.font = 'bold ' + (isPdf ? (isSmall ? '15' : '17') : (isSmall ? '9' : '11')) + 'px Arial';
     ctx.textAlign = 'center';
     var labelW = ctx.measureText(labelText).width + 6;
     var labelH = isSmall ? 15 : 17;
@@ -1406,34 +1408,36 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   if (redundancy) legendItems.push({ color: CC_BACKUP_COLOR, label: 'Backup' });
   if (cfg.cablePick > 0) legendItems.push({ color: CC_PICK_COLOR, label: 'Pick' });
 
-  var legendFontSize = isSmall ? 14 : 16;
-  var legendSpacing = isSmall ? 26 : 38;
+  var legendFontSize = isPdf ? (isSmall ? 14 : 16) : (isSmall ? 8 : 9);
+  var legendSpacing = isPdf ? (isSmall ? 26 : 38) : (isSmall ? 18 : 28);
+  var legendSq = isPdf ? 14 : 8;
+  var legendTx = isPdf ? 18 : 12;
   ctx.font = legendFontSize + 'px Arial';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
 
   var legendX = MARGIN.left + 4;
-  var legendY = canvasH - 24;
+  var legendY = isPdf ? canvasH - 24 : canvasH - 22;
   var legendMaxX = canvasW - MARGIN.right;
 
   for (var li = 0; li < legendItems.length; li++) {
     var item = legendItems[li];
-    var itemW = ctx.measureText(item.label).width + 18 + legendSpacing;
+    var itemW = ctx.measureText(item.label).width + legendTx + legendSpacing;
     // Wrap to next row if this item would overflow
     if (legendX + itemW > legendMaxX && legendX > MARGIN.left + 10) {
       legendX = MARGIN.left + 4;
-      legendY += 18;
+      legendY += isPdf ? 18 : 14;
     }
     ctx.fillStyle = item.color;
-    ctx.fillRect(legendX, legendY - 7, 14, 14);
+    ctx.fillRect(legendX, legendY - legendSq / 2, legendSq, legendSq);
     ctx.fillStyle = ccLegendTextColor;
-    ctx.fillText(item.label, legendX + 18, legendY);
+    ctx.fillText(item.label, legendX + legendTx, legendY);
     legendX += ctx.measureText(item.label).width + legendSpacing;
   }
 
   // ---- Summary Text ----
   ctx.fillStyle = ccSummaryColor;
-  ctx.font = (isSmall ? 14 : 16) + 'px Arial';
+  ctx.font = (isPdf ? (isSmall ? 14 : 16) : (isSmall ? 8 : 9)) + 'px Arial';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   var shared = calcData.shared;

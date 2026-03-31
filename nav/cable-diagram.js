@@ -54,10 +54,12 @@ function renderCableDiagram(screenId) {
   const containerWidth = container.clientWidth || 300;
   const canvasW = containerWidth;
 
-  // Layout constants — tighter on small screens
+  // Layout constants — tighter on small screens; larger in PDF mode for readability
   const isSmall = canvasW < 500;
+  const isPdf = cableDiagramPdfMode;
   const MARGIN = { top: isSmall ? 35 : 50, bottom: isSmall ? 40 : 55, left: isSmall ? 10 : 20, right: isSmall ? 42 : 50 };
-  const BOX_W = isSmall ? 52 : 64, BOX_H = isSmall ? 28 : 34;
+  const BOX_W = isPdf ? (isSmall ? 52 : 64) : (isSmall ? 40 : 48);
+  const BOX_H = isPdf ? (isSmall ? 28 : 34) : (isSmall ? 20 : 24);
   const PICK_GAP = isSmall ? 20 : 30;
   const PICK_RADIUS = isSmall ? 6 : 8;
   const dpr = window.devicePixelRatio || 1;
@@ -163,7 +165,7 @@ function renderCableDiagram(screenId) {
 
   // Floor label
   ctx.fillStyle = dimColor;
-  ctx.font = '15px Arial';
+  ctx.font = (isPdf ? 15 : 9) + 'px Arial';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText('FLOOR', MARGIN.left - 10, floorY - 8);
@@ -972,35 +974,38 @@ function renderCableDiagram(screenId) {
     processorToWall + "'", fgColor, bgColor);
 
   // === Legend ===
-  const legendY = canvasH - 18;
-  ctx.font = '16px Arial';
+  const legendSq = isPdf ? 16 : 10;
+  const legendTx = isPdf ? 20 : 14;
+  const legendY = isPdf ? canvasH - 18 : canvasH - 14;
+  ctx.font = (isPdf ? 16 : 10) + 'px Arial';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
 
   ctx.fillStyle = POWER_COLOR;
-  ctx.fillRect(MARGIN.left, legendY - 8, 16, 16);
+  ctx.fillRect(MARGIN.left, legendY - legendSq / 2, legendSq, legendSq);
   ctx.fillStyle = fgColor;
-  ctx.fillText('Power', MARGIN.left + 20, legendY);
+  ctx.fillText('Power', MARGIN.left + legendTx, legendY);
 
+  const dataOffX = isPdf ? 90 : 58;
   ctx.fillStyle = DATA_COLOR;
-  ctx.fillRect(MARGIN.left + 90, legendY - 8, 16, 16);
+  ctx.fillRect(MARGIN.left + dataOffX, legendY - legendSq / 2, legendSq, legendSq);
   ctx.fillStyle = fgColor;
-  ctx.fillText('Data (' + dataLineCount + ')', MARGIN.left + 110, legendY);
+  ctx.fillText('Data (' + dataLineCount + ')', MARGIN.left + dataOffX + legendTx, legendY);
 
-  let legendOffset = 196;
+  let legendOffset = isPdf ? 196 : 120;
   if (dataRedundancy) {
     ctx.fillStyle = BACKUP_COLOR;
-    ctx.fillRect(MARGIN.left + legendOffset, legendY - 8, 16, 16);
+    ctx.fillRect(MARGIN.left + legendOffset, legendY - legendSq / 2, legendSq, legendSq);
     ctx.fillStyle = fgColor;
-    ctx.fillText('Backup (' + dataLineCount + ')', MARGIN.left + legendOffset + 20, legendY);
-    legendOffset += 128;
+    ctx.fillText('Backup (' + dataLineCount + ')', MARGIN.left + legendOffset + legendTx, legendY);
+    legendOffset += isPdf ? 128 : 80;
   }
   if (cablePick > 0) {
     ctx.fillStyle = PICK_COLOR;
-    ctx.fillRect(MARGIN.left + legendOffset, legendY - 8, 16, 16);
+    ctx.fillRect(MARGIN.left + legendOffset, legendY - legendSq / 2, legendSq, legendSq);
     ctx.fillStyle = fgColor;
-    ctx.fillText('Pick', MARGIN.left + legendOffset + 20, legendY);
-    legendOffset += 74;
+    ctx.fillText('Pick', MARGIN.left + legendOffset + legendTx, legendY);
+    legendOffset += isPdf ? 74 : 48;
   }
 
   if (distBoxOnWall) {
@@ -1011,33 +1016,33 @@ function renderCableDiagram(screenId) {
     const legendTwoBoxes = dataRedundancy && (legendMainHoriz !== legendBackupHoriz || legendMainVert !== legendBackupVert);
 
     ctx.fillStyle = DISTBOX_COLOR;
-    ctx.fillRect(MARGIN.left + legendOffset, legendY - 8, 16, 16);
+    ctx.fillRect(MARGIN.left + legendOffset, legendY - legendSq / 2, legendSq, legendSq);
     ctx.fillStyle = fgColor;
-    ctx.fillText(legendTwoBoxes ? 'Main Trunk' : 'Trunk', MARGIN.left + legendOffset + 20, legendY);
-    legendOffset += legendTwoBoxes ? 120 : 88;
+    ctx.fillText(legendTwoBoxes ? 'Main Trunk' : 'Trunk', MARGIN.left + legendOffset + legendTx, legendY);
+    legendOffset += legendTwoBoxes ? (isPdf ? 120 : 75) : (isPdf ? 88 : 55);
 
     if (legendTwoBoxes) {
       ctx.fillStyle = TRUNK_COLOR;
-      ctx.fillRect(MARGIN.left + legendOffset, legendY - 8, 16, 16);
+      ctx.fillRect(MARGIN.left + legendOffset, legendY - legendSq / 2, legendSq, legendSq);
       ctx.fillStyle = fgColor;
-      ctx.fillText('Backup Trunk', MARGIN.left + legendOffset + 20, legendY);
-      legendOffset += 134;
+      ctx.fillText('Backup Trunk', MARGIN.left + legendOffset + legendTx, legendY);
+      legendOffset += isPdf ? 134 : 85;
     }
 
     ctx.strokeStyle = DISTBOX_COLOR;
     ctx.lineWidth = 2;
-    ctx.strokeRect(MARGIN.left + legendOffset, legendY - 8, 16, 16);
+    ctx.strokeRect(MARGIN.left + legendOffset, legendY - legendSq / 2, legendSq, legendSq);
     ctx.fillStyle = fgColor;
-    ctx.fillText('Dist Box', MARGIN.left + legendOffset + 20, legendY);
-    legendOffset += 96;
+    ctx.fillText('Dist Box', MARGIN.left + legendOffset + legendTx, legendY);
+    legendOffset += isPdf ? 96 : 60;
   }
 
   if (serverToProcessor > 0) {
     ctx.fillStyle = SERVER_COLOR;
-    ctx.fillRect(MARGIN.left + legendOffset, legendY - 8, 16, 16);
+    ctx.fillRect(MARGIN.left + legendOffset, legendY - legendSq / 2, legendSq, legendSq);
     ctx.fillStyle = fgColor;
-    ctx.fillText('Server', MARGIN.left + legendOffset + 20, legendY);
-    legendOffset += 88;
+    ctx.fillText('Server', MARGIN.left + legendOffset + legendTx, legendY);
+    legendOffset += isPdf ? 88 : 55;
   }
 
   ctx.restore();
@@ -1075,7 +1080,7 @@ function drawCableDimensionLine(ctx, x1, y1, x2, y2, label, fgColor, bgColor) {
   // Label with background
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
-  const fontSize = 16;
+  const fontSize = cableDiagramPdfMode ? 16 : 10;
   ctx.font = fontSize + 'px Arial';
   const textW = ctx.measureText(label).width;
   const pad = 3;
@@ -1101,7 +1106,7 @@ function drawCableEquipmentBox(ctx, x, y, w, h, label, color) {
   ctx.strokeRect(x, y, w, h);
 
   // Label (responsive font: smaller when box is narrow on mobile)
-  var fontSize = w < 50 ? 14 : 16;
+  var fontSize = isPdf ? (w < 50 ? 14 : 16) : (w < 40 ? 8 : 10);
   ctx.fillStyle = '#000000';
   ctx.font = 'bold ' + fontSize + 'px Arial';
   ctx.textAlign = 'center';

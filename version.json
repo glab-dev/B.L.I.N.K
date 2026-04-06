@@ -1,5 +1,5 @@
 {
-  "version": "2.10.90",
-  "updated": "2026-04-05",
-  "changelog": "Fix SOCA and circuit label font sizes in PDF power layout using canvas-to-PDF scale factor"
+  "version": "2.10.91",
+  "updated": "2026-04-06",
+  "changelog": "Fix SOCA label stretch and size in PDF power layout by correcting canvas scale formula and aspect ratio"
 }

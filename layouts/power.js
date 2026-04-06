@@ -7,7 +7,7 @@ function renderPowerLayout(params) {
 
   const _pdfMode = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
   const pdfContentPt = 539;
-  const canvasScale = _pdfMode ? (canvas.width * 2) / pdfContentPt : 1;
+  const canvasScale = _pdfMode ? canvas.width / pdfContentPt : 1;
   const socaLabelHeight = _pdfMode ? Math.round(50 * canvasScale) : 60;
   canvas.height += socaLabelHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);

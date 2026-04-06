@@ -1180,7 +1180,13 @@ function buildComplexPdf(opts, canvasCache) {
   function gridImage(key, pw, ph, maxH) {
     const imgData = canvasCache && canvasCache[key];
     if (!imgData || !imgData.dataUrl) return null;
-    const { renderWidth, renderHeight } = calculateGridScale(pw, ph, cw, maxH);
+    const aspect = imgData.aspectRatio || (ph / pw);
+    let renderWidth = cw;
+    let renderHeight = Math.round(renderWidth * aspect);
+    if (renderHeight > maxH) {
+      renderHeight = maxH;
+      renderWidth = Math.round(renderHeight / aspect);
+    }
     return {
       image: imgData.dataUrl,
       width: renderWidth, height: renderHeight,
@@ -1632,9 +1638,6 @@ function pdfCaptureCanvases() {
     if (cableContainer && savedCableWidth !== null) cableContainer.style.width = savedCableWidth;
     else if (cableContainer) cableContainer.style.width = '';
 
-    const stdCanvas = document.getElementById('standardCanvas');
-    const stdAspect = (stdCanvas && stdCanvas.width > 0) ? stdCanvas.height / stdCanvas.width : null;
-
     [
       { id: 'standardCanvas',     key: screenId + '_standard' },
       { id: 'powerCanvas',        key: screenId + '_power' },
@@ -1645,8 +1648,7 @@ function pdfCaptureCanvases() {
       const canvas = document.getElementById(cap.id);
       if (canvas && canvas.width > 0 && canvas.height > 0) {
         const isPng = cap.id === 'cableDiagramCanvas';
-        const useAspect = (cap.id === 'powerCanvas' && stdAspect !== null)
-          ? stdAspect : canvas.height / canvas.width;
+        const useAspect = canvas.height / canvas.width;
         // Render at 2x resolution to prevent blurry text in PDF
         const scale = 2;
         const hiRes = document.createElement('canvas');

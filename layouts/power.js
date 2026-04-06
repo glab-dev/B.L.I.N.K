@@ -6,7 +6,7 @@ function renderPowerLayout(params) {
   const {pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, panelsPerCircuit} = params;
 
   const _pdfMode = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
-  const socaLabelHeight = _pdfMode ? 75 : 60;
+  const socaLabelHeight = _pdfMode ? 100 : 60;
   canvas.height += socaLabelHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -201,9 +201,15 @@ function renderPowerLayout(params) {
   }
 
   const _pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  // Scale SOCA fonts proportionally to panelWidth so text stays legible regardless of canvas size
+  const socaFontLg = Math.round(panelWidth * 0.22); // ~18px at 80px panels, ~10px at 47px
+  const socaFontSm = Math.round(panelWidth * 0.16); // ~13px at 80px panels, ~8px at 47px
+  const lineY = Math.round(socaLabelHeight * 0.50); // centre of label area
+  const tickH = Math.round(socaLabelHeight * 0.13);
+
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 3;
-  ctx.font = (_pdf ? 'bold 18px Arial' : 'bold 16px Arial');
+  ctx.font = `bold ${socaFontLg}px Arial`;
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -212,7 +218,6 @@ function renderPowerLayout(params) {
     const startCircuit = s * 6;
     const endCircuit = Math.min((s + 1) * 6 - 1, totalCircuits - 1);
 
-    // Find the leftmost and rightmost panels in this SOCA group
     let minX = Infinity;
     let maxX = -Infinity;
 
@@ -226,40 +231,38 @@ function renderPowerLayout(params) {
       }
     }
 
-    // If no panels found, skip this SOCA
     if(minX === Infinity) continue;
 
-    const lineY = 35;
     const startX = minX;
     const endX = maxX + panelWidth;
     const midX = (startX + endX) / 2;
 
-    // Draw horizontal line across the top
+    // Horizontal line
     ctx.beginPath();
     ctx.moveTo(startX, lineY);
     ctx.lineTo(endX, lineY);
     ctx.stroke();
 
-    // Draw vertical ticks at the ends
+    // Vertical ticks
     ctx.beginPath();
-    ctx.moveTo(startX, lineY - 8);
-    ctx.lineTo(startX, lineY + 8);
+    ctx.moveTo(startX, lineY - tickH);
+    ctx.lineTo(startX, lineY + tickH);
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.moveTo(endX, lineY - 8);
-    ctx.lineTo(endX, lineY + 8);
+    ctx.moveTo(endX, lineY - tickH);
+    ctx.lineTo(endX, lineY + tickH);
     ctx.stroke();
 
-    // Draw SOCA label above the line
-    ctx.fillText(`SOCA ${s + 1}`, midX, lineY - 20);
+    // SOCA label above line
+    ctx.font = `bold ${socaFontLg}px Arial`;
+    ctx.fillText(`SOCA ${s + 1}`, midX, lineY - Math.round(socaLabelHeight * 0.22));
 
-    // Draw circuit range below the line
-    ctx.font = (_pdf ? '14px Arial' : '12px Arial');
+    // Circuit range below line
+    ctx.font = `${socaFontSm}px Arial`;
     const circuitRange = startCircuit === endCircuit ?
       `Circuit ${startCircuit + 1}` :
       `Circuits ${startCircuit + 1}-${endCircuit + 1}`;
-    ctx.fillText(circuitRange, midX, lineY + 20);
-    ctx.font = (_pdf ? 'bold 18px Arial' : 'bold 16px Arial');
+    ctx.fillText(circuitRange, midX, lineY + Math.round(socaLabelHeight * 0.22));
   }
 }

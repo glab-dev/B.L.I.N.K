@@ -1,5 +1,5 @@
 {
-  "version": "2.10.88",
+  "version": "2.10.89",
   "updated": "2026-04-06",
-  "changelog": "Add space between circuit range label and panels in PDF power layout"
+  "changelog": "Scale SOCA and circuit label fonts proportionally to panel size in PDF power layout"
 }

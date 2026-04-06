@@ -1,5 +1,5 @@
 {
-  "version": "2.10.83",
+  "version": "2.10.84",
   "updated": "2026-04-05",
-  "changelog": "Add structure weight tables to complex mode PDF structure page"
+  "changelog": "Move panel metric size to its own row in complex mode PDF specs"
 }

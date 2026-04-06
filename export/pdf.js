@@ -829,7 +829,8 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
   const colPanel = buildSummaryColumn('PANEL', [
     ['Model',         `${p.brand || ''} ${p.name || ''}`.trim() || null],
     ['Pixel Pitch',   p.pixel_pitch_mm ? `${p.pixel_pitch_mm} mm` : null],
-    ['Size',          (panelWidthM > 0 && panelHeightM > 0) ? `${(panelWidthM*3.28084).toFixed(3)}' × ${(panelHeightM*3.28084).toFixed(3)}' (${panelWidthM.toFixed(3)} × ${panelHeightM.toFixed(3)} m)` : null],
+    ['Size',          (panelWidthM > 0 && panelHeightM > 0) ? `${(panelWidthM*3.28084).toFixed(3)}' × ${(panelHeightM*3.28084).toFixed(3)}'` : null],
+    ['',              (panelWidthM > 0 && panelHeightM > 0) ? `(${panelWidthM.toFixed(3)} × ${panelHeightM.toFixed(3)} m)` : null],
     ['Resolution',    (p.res_x && p.res_y) ? `${p.res_x} × ${p.res_y} px` : null],
     ['Weight',        panelWtLbs > 0 ? `${Math.round(panelWtLbs)} lbs (${Math.round(panelWtKg)} kg)` : null],
     ['Brightness',    p.brightness_nits ? `${p.brightness_nits} nits` : null],

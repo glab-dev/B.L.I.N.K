@@ -1,5 +1,5 @@
 {
-  "version": "2.10.78",
-  "updated": "2026-03-31",
-  "changelog": "Rewrite print preview buildPageModel to mirror new PDF page structure"
+  "version": "2.10.79",
+  "updated": "2026-04-05",
+  "changelog": "Fix port capacity to show max pixels per port instead of panels per port"
 }

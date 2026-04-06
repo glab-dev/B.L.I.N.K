@@ -9,7 +9,8 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
   const panelType = document.getElementById('panelType').value;
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
 
-  ctx.font = 'bold 10px Arial';
+  const _pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  ctx.font = (_pdf ? 'bold 12px Arial' : 'bold 10px Arial');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -163,17 +164,17 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
 
     if(isSmallBumper || (isMobile && bumper.type === '4w')) {
       // Only show weight (centered)
-      ctx.font = 'bold 9px Arial';
+      ctx.font = (_pdf ? 'bold 11px Arial' : 'bold 9px Arial');
       const weightValue = displayWeightUnit === 'lbs' ? Math.ceil(pickupWeight.lbs) : Math.ceil(pickupWeight.kg);
       const weightText = `${weightValue}${displayWeightUnit}`;
       ctx.fillText(weightText, x + width/2, y + height/2);
     } else {
       // Show both label and weight
-      ctx.font = 'bold 10px Arial';
+      ctx.font = (_pdf ? 'bold 12px Arial' : 'bold 10px Arial');
       ctx.fillText(label, x + width/2, y + height/2 - 6);
 
       // Draw weight below label using selected unit
-      ctx.font = '9px Arial';
+      ctx.font = (_pdf ? '11px Arial' : '9px Arial');
       const weightValue = displayWeightUnit === 'lbs' ? Math.ceil(pickupWeight.lbs) : Math.ceil(pickupWeight.kg);
       const weightText = `${weightValue}${displayWeightUnit}`;
       ctx.fillText(weightText, x + width/2, y + height/2 + 6);
@@ -467,8 +468,9 @@ function drawBumpersAdaptive(ctx, pw, ph, size, bumperHeight, yBase, type) {
   // Determine if we need a 1w bumper
   const needsOneW = pw % 2 === 1;
   
-  ctx.font = 'bold 12px Arial';
-  
+  const _pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  ctx.font = (_pdf ? 'bold 14px Arial' : 'bold 12px Arial');
+
   if(!needsOneW) {
     // Even number of panels - just draw 2w bumpers
     for(let c = 0; c < pw; c += 2) {
@@ -608,10 +610,11 @@ function draw4WayBumpers(ctx, pw, ph, size, bumperHeight, yBase, type) {
   const fourWayGap = 5; // Gap between 2W and 4W bumpers
   const fourWayCount = Math.floor(pw / 4); // Each 4W covers 4 columns
   
-  ctx.font = 'bold 10px Arial';
+  const _pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  ctx.font = (_pdf ? 'bold 12px Arial' : 'bold 10px Arial');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  
+
   for(let i = 0; i < fourWayCount; i++) {
     // Each 4-way bumper is centered over 4 columns with 0.5 panel offset on each side
     // First 4W: from column 0.5 to 4.5 (4 panel widths, centered over panels 1,2,3,4)

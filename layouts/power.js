@@ -161,7 +161,8 @@ function renderPowerLayout(params) {
       // Always use black text (no black panels in power layout)
       ctx.fillStyle = '#000000';
 
-      ctx.font = '11px Arial';
+      const _pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+      ctx.font = (_pdf ? '13px Arial' : '11px Arial');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(`${c+1}.${r+1}`, x+panelWidth/2, y+currentPanelHeight/2);
@@ -198,9 +199,10 @@ function renderPowerLayout(params) {
     }
   }
 
+  const _pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 3;
-  ctx.font = 'bold 16px Arial';
+  ctx.font = (_pdf ? 'bold 18px Arial' : 'bold 16px Arial');
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -252,11 +254,11 @@ function renderPowerLayout(params) {
     ctx.fillText(`SOCA ${s + 1}`, midX, lineY - 20);
 
     // Draw circuit range below the line
-    ctx.font = '12px Arial';
+    ctx.font = (_pdf ? '14px Arial' : '12px Arial');
     const circuitRange = startCircuit === endCircuit ?
       `Circuit ${startCircuit + 1}` :
       `Circuits ${startCircuit + 1}-${endCircuit + 1}`;
     ctx.fillText(circuitRange, midX, lineY + 20);
-    ctx.font = 'bold 16px Arial';
+    ctx.font = (_pdf ? 'bold 18px Arial' : 'bold 16px Arial');
   }
 }

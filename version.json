@@ -1,5 +1,5 @@
 {
-  "version": "2.10.82",
+  "version": "2.10.83",
   "updated": "2026-04-05",
-  "changelog": "Fix complex mode PDF specs: structure weight, panel size metric, bumper weights, total pixels, port capacity, frame rate unit"
+  "changelog": "Add structure weight tables to complex mode PDF structure page"
 }

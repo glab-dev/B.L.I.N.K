@@ -1100,6 +1100,42 @@ function buildGearListContent(gearData, screenIndex, contentWidth) {
 }
 
 /**
+ * Converts structure info lines (from buildStructureInfoLines) into a 2-column pdfmake block.
+ * Left column: Pickup Weights. Right column: Ground Support / Floor Frames / Total Structure Weight.
+ */
+function buildStructureInfoPdf(screenId, cw) {
+  if (typeof buildStructureInfoLines !== 'function') return null;
+  const lines = buildStructureInfoLines(screenId);
+  if (!lines || lines.length === 0) return null;
+
+  const tc = PDF_TOKENS.colors;
+  const col2Headers = ['Ground Support Hardware', 'Floor Frames', 'Total Structure Weight'];
+  let splitIdx = lines.length;
+  for (var i = 0; i < lines.length; i++) {
+    if (lines[i].header && col2Headers.some(function(h) { return lines[i].text === h; })) { splitIdx = i; break; }
+  }
+
+  function linesToPdf(slice) {
+    return slice.map(function(l) {
+      if (!l.text) return { text: ' ', fontSize: 4, margin: [0, 1, 0, 1] };
+      if (l.header) return { text: l.text, bold: true, fontSize: 8, color: tc.headerBg, margin: [0, 4, 0, 2] };
+      if (l.bold)   return { text: l.text, bold: true, fontSize: 7.5 };
+      return { text: l.text, fontSize: 7.5 };
+    });
+  }
+
+  const colW = (cw - 8) / 2;
+  return {
+    columns: [
+      { width: colW, stack: linesToPdf(lines.slice(0, splitIdx)) },
+      { width: colW, stack: linesToPdf(lines.slice(splitIdx)) }
+    ],
+    columnGap: 8,
+    margin: [0, 6, 0, 6]
+  };
+}
+
+/**
  * Builds the complete COMPLEX MODE pdfmake document definition.
  * Structure per screen:
  *   Page 1 (Hero):        Header + screen label + expanded summary + standard grid
@@ -1347,6 +1383,8 @@ function buildComplexPdf(opts, canvasCache) {
           content.push(sectionLabel('Structure Layout'));
           const img = gridImage(screenId + '_structure', pw, ph, singlePageMaxH);
           if (img) content.push(img);
+          const structInfo = buildStructureInfoPdf(screenId, cw);
+          if (structInfo) content.push(structInfo);
         }
 
         if (opts.cabling !== false) {

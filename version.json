@@ -1,5 +1,5 @@
 {
-  "version": "2.10.92",
+  "version": "2.10.93",
   "updated": "2026-04-06",
-  "changelog": "Restyle structure tables in PDF as 4-column summary bar cards with bold titles and green accents"
+  "changelog": "Change PDF section labels and structure table card titles from dark green to black"
 }

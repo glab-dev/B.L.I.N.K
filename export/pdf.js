@@ -1134,7 +1134,7 @@ function buildStructureInfoPdf(screenId) {
   function buildCard(table) {
     const titleEl = {
       text: table.title,
-      fontSize: 9, bold: true, color: tc.headerBg,
+      fontSize: 9, bold: true, color: '#000000',
       decoration: 'underline', decorationColor: tc.summaryAccent,
       margin: [0, 0, 0, 4]
     };
@@ -1212,7 +1212,7 @@ function buildComplexPdf(opts, canvasCache) {
   function sectionLabel(text) {
     return {
       text: text.toUpperCase(),
-      fontSize: 10, bold: true, color: tc.headerBg,
+      fontSize: 10, bold: true, color: '#000000',
       margin: [0, 0, 0, 6]
     };
   }

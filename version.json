@@ -1,5 +1,5 @@
 {
-  "version": "2.10.76",
-  "updated": "2026-03-31",
-  "changelog": "Fix missing page break between summary page and first screen; remove redundant if/else in layout section"
+  "version": "2.10.77",
+  "updated": "2026-04-05",
+  "changelog": "Fix gear section headers, power units (W), footer positioning, landscape layout headers, simple mode multi-screen export"
 }

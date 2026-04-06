@@ -668,7 +668,7 @@ function buildSimpleSummaryBar(screenData, calcData, panelSpec) {
     ['Weight',       wallWtStr],
   ]);
   const colPower = buildSummaryColumn('POWER (MAX)', [
-    ['Total Power',   totalPowerW > 0 ? `${(totalPowerW/1000).toFixed(2)} kW` : null],
+    ['Total Power',   totalPowerW > 0 ? `${totalPowerW.toLocaleString()} W` : null],
     ['Total Amps',    ampsTotal > 0   ? `${ampsTotal.toFixed(1)} A @ ${voltage}V` : null],
     ['Amps/Phase',    ampsPhase > 0   ? `${ampsPhase.toFixed(1)} A @ ${voltage}V` : null],
     ['Circuits',      circuits > 0    ? circuits : null],
@@ -698,60 +698,69 @@ function buildSimplePdf(canvasCache) {
   const screenIds   = Object.keys(screens).sort(function(a, b) {
     return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
   });
-  const screenId    = screenIds[0];
-  const screen      = screens[screenId];
-  const data        = (screen && screen.data)          || {};
-  const calcData    = (screen && screen.calculatedData) || {};
   const allPanels   = getAllPanels();
-  const panelSpec   = allPanels[data.panelType] || {};
-
   const configName  = document.getElementById('configName')?.value?.trim() || 'LED Wall';
   const dateStr     = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
   const logoData    = (typeof projectLogo !== 'undefined') ? projectLogo : null;
 
   const content = [];
 
-  // 1. Header bar
-  content.push(buildPdfHeader(configName, dateStr, logoData));
+  // Iterate all screens — each gets its own page
+  screenIds.forEach(function(screenId, sIdx) {
+    const screen    = screens[screenId];
+    if (!screen) return;
+    const data      = screen.data          || {};
+    const calcData  = screen.calculatedData || {};
+    const panelSpec = allPanels[data.panelType] || {};
+    const pw        = parseInt(data.panelsWide) || 0;
+    const ph        = parseInt(data.panelsHigh) || 0;
 
-  // 2. Summary bar (simple / condensed)
-  content.push(buildSimpleSummaryBar(data, calcData, panelSpec));
+    if (sIdx > 0) content.push({ text: '', pageBreak: 'before' });
 
-  // 3. Standard layout grid
-  const pw = parseInt(data.panelsWide) || 0;
-  const ph = parseInt(data.panelsHigh) || 0;
-  const imgKey = screenId + '_standard';
-  const imgData = canvasCache && canvasCache[imgKey];
+    // 1. Header bar
+    content.push(buildPdfHeader(configName, dateStr, logoData));
 
-  if (imgData && imgData.dataUrl && pw > 0 && ph > 0) {
-    // Calculate how much vertical space remains for the grid
-    const usedAbove = m.headerBarH + 6 + m.summaryBarHExp + 8; // header + gap + summary + gap
-    const remainH   = uh - usedAbove - m.resolutionLblH - 8;
-    const { renderWidth, renderHeight } = calculateGridScale(pw, ph, cw, remainH);
+    // 2. Summary bar (simple / condensed)
+    content.push(buildSimpleSummaryBar(data, calcData, panelSpec));
 
-    content.push({
-      image: imgData.dataUrl,
-      width:  renderWidth,
-      height: renderHeight,
-      alignment: 'center',
-      margin: [0, 0, 0, 4]
-    });
+    // 3. Standard layout grid
+    const imgKey  = screenId + '_standard';
+    const imgData = canvasCache && canvasCache[imgKey];
 
-    // Resolution label
-    const resStr = `${pw * (panelSpec.res_x || 0)} × ${ph * (panelSpec.res_y || 0)} px`;
-    content.push({
-      text: resStr,
-      fontSize: 9, color: PDF_TOKENS.colors.textMuted,
-      alignment: 'center',
-      margin: [0, 0, 0, 0]
-    });
-  }
+    if (imgData && imgData.dataUrl && pw > 0 && ph > 0) {
+      const usedAbove = m.headerBarH + 6 + m.summaryBarHExp + 8;
+      const remainH   = uh - usedAbove - m.resolutionLblH - 8;
+      const { renderWidth, renderHeight } = calculateGridScale(pw, ph, cw, remainH);
 
+      content.push({
+        image: imgData.dataUrl,
+        width:  renderWidth,
+        height: renderHeight,
+        alignment: 'center',
+        margin: [0, 0, 0, 4]
+      });
+
+      // Resolution label
+      const resStr = `${pw * (panelSpec.res_x || 0)} × ${ph * (panelSpec.res_y || 0)} px`;
+      content.push({
+        text: resStr,
+        fontSize: 9, color: PDF_TOKENS.colors.textMuted,
+        alignment: 'center',
+        margin: [0, 0, 0, 0]
+      });
+    }
+  });
+
+  const footerColors = PDF_TOKENS.colors;
   return {
     pageSize:        (format === 'letter') ? 'LETTER' : 'A4',
     pageOrientation: orientation === 'l' ? 'landscape' : 'portrait',
     pageMargins:     [m.pageMarginLeft, m.pageMarginTop, m.pageMarginRight, m.pageMarginBottom],
     content:         content,
+    footer: function(currentPage, pageCount) {
+      return { text: 'Page ' + currentPage + ' of ' + pageCount,
+        fontSize: 8, color: footerColors.textFaint, alignment: 'center', margin: [0, 4, 0, 4] };
+    },
     defaultStyle:    { font: 'Roboto', fontSize: 9, color: PDF_TOKENS.colors.textPrimary }
   };
 }
@@ -831,7 +840,7 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
   ]);
 
   const colPower = buildSummaryColumn('POWER (MAX)', [
-    ['Total Power',   totalPowerW > 0 ? `${(totalPowerW/1000).toFixed(2)} kW` : null],
+    ['Total Power',   totalPowerW > 0 ? `${totalPowerW.toLocaleString()} W` : null],
     ['Total Amps',    ampsTotal > 0   ? `${ampsTotal.toFixed(1)} A @ ${voltage}V` : null],
     ['Amps/Phase',    ampsPhase > 0   ? `${ampsPhase.toFixed(1)} A @ ${voltage}V` : null],
     ['Circuits',      circuits > 0    ? circuits : null],
@@ -869,31 +878,44 @@ function buildGearSection(title, items) {
     : (typeof ecoPrintMode !== 'undefined' && ecoPrintMode) ? '#6b7280'
     : tc.sectionHeaderBg;
 
-  const rows = validItems.map(function(i) {
-    return {
+  // pdfmake fillColor only works on table cells — use tables for header and body
+  const bodyRows = validItems.map(function(i) {
+    return [{
       columns: [
         { text: String(i.qty), fontSize: 8, color: tc.textItem, bold: true, width: 22 },
         { text: i.item, fontSize: 8, color: tc.textItem, width: '*' }
       ],
-      margin: [4, 1.5, 4, 1.5],
-      columnGap: 4
-    };
+      columnGap: 4,
+      margin: [4, 2, 4, 2]
+    }];
   });
 
   return {
     stack: [
-      // Header bar
+      // Header bar — table so fillColor renders
       {
-        text: title.toUpperCase(),
-        fontSize: 8.5, bold: true, color: tc.headerText,
-        fillColor: headerBg,
-        margin: [6, 4, 6, 4]
+        table: { widths: ['*'], body: [[{
+          text: title.toUpperCase(),
+          fontSize: 8.5, bold: true, color: tc.headerText,
+          fillColor: headerBg,
+          border: [false, false, false, false],
+          margin: [6, 4, 6, 4]
+        }]] },
+        layout: { hLineWidth: function() { return 0; }, vLineWidth: function() { return 0; },
+                  paddingLeft: function() { return 0; }, paddingRight: function() { return 0; },
+                  paddingTop: function() { return 0; }, paddingBottom: function() { return 0; } }
       },
-      // Body
+      // Body — table so fillColor renders on each row
       {
-        stack: rows,
-        fillColor: tc.sectionBodyBg,
-        margin: [0, 0, 0, 0]
+        table: { widths: ['*'], body: bodyRows.map(function(row) {
+          return [{ stack: [row[0]], fillColor: tc.sectionBodyBg,
+            border: [true, false, true, true],
+            borderColor: [tc.sectionBorder, null, tc.sectionBorder, tc.sectionBorder],
+            margin: [0, 0, 0, 0] }];
+        }) },
+        layout: { hLineWidth: function() { return 0; }, vLineWidth: function() { return 0; },
+                  paddingLeft: function() { return 0; }, paddingRight: function() { return 0; },
+                  paddingTop: function() { return 0; }, paddingBottom: function() { return 0; } }
       }
     ],
     margin: [0, 0, 0, 6]
@@ -1166,7 +1188,7 @@ function buildComplexPdf(opts, canvasCache) {
 
     const summaryItems = [
       ['Screens',       screenIds.length],
-      ['Total Power',   totalPowerW > 0 ? `${(totalPowerW/1000).toFixed(2)} kW` : '—'],
+      ['Total Power',   totalPowerW > 0 ? `${totalPowerW.toLocaleString()} W` : '—'],
       ['Total Weight',  totalWeightLbs > 0 ? `${totalWeightLbs} lbs` : '—'],
       ['Panels',        panelSummary || '—'],
     ];
@@ -1268,7 +1290,19 @@ function buildComplexPdf(opts, canvasCache) {
       content.push({ text: '', pageBreak: 'before' });
       content.push(buildPdfHeader(configName, dateStr, logoData));
 
-      const singlePageMaxH = collapseLayouts ? Math.floor((uh - m.headerBarH - 80) / 4) : Math.floor((uh - m.headerBarH - 40) / 2);
+      // Overhead per page: header + 2 labels + 2 after-label gaps + 2 image margins + safety buffer
+      const layoutOverhead = m.headerBarH + m.afterHeaderGap + 2 * m.sectionLabelH + 2 * m.afterLabelGap + 2 * 4 + 20;
+      const singlePageMaxH = collapseLayouts
+        ? Math.floor((uh - m.headerBarH - 80) / 4)
+        : Math.floor((uh - layoutOverhead) / 2);
+
+      // Determine if power+data actually fit together (considering actual rendered heights)
+      let powerFitsWithData = true;
+      if (!collapseLayouts && opts.power !== false && opts.data !== false && pw > 0 && ph > 0) {
+        const { renderHeight: powerH } = calculateGridScale(pw, ph, cw, singlePageMaxH);
+        const { renderHeight: dataH  } = calculateGridScale(pw, ph, cw, singlePageMaxH);
+        powerFitsWithData = (powerH + dataH + layoutOverhead) <= uh;
+      }
 
       if (opts.power !== false) {
         content.push(sectionLabel('Power Layout'));
@@ -1277,6 +1311,11 @@ function buildComplexPdf(opts, canvasCache) {
       }
 
       if (opts.data !== false) {
+        // If power and data don't both fit on the same page, start a new page with its own header
+        if (!powerFitsWithData) {
+          content.push({ text: '', pageBreak: 'before' });
+          content.push(buildPdfHeader(configName, dateStr, logoData));
+        }
         content.push(sectionLabel('Data Layout'));
         const img = gridImage(screenId + '_data', pw, ph, singlePageMaxH);
         if (img) content.push(img);
@@ -1313,12 +1352,6 @@ function buildComplexPdf(opts, canvasCache) {
       }
     }
 
-    // Page footer
-    content.push({
-      text: `Page ${content.filter(function(el) { return el && el.pageBreak; }).length + 1}`,
-      fontSize: 8, color: tc.textFaint, alignment: 'center',
-      margin: [0, 4, 0, 0]
-    });
   });
 
   return {
@@ -1326,6 +1359,10 @@ function buildComplexPdf(opts, canvasCache) {
     pageOrientation: orientation === 'l' ? 'landscape' : 'portrait',
     pageMargins:     [m.pageMarginLeft, m.pageMarginTop, m.pageMarginRight, m.pageMarginBottom],
     content:         content,
+    footer: function(currentPage, pageCount) {
+      return { text: 'Page ' + currentPage + ' of ' + pageCount,
+        fontSize: 8, color: tc.textFaint, alignment: 'center', margin: [0, 4, 0, 4] };
+    },
     defaultStyle:    { font: 'Roboto', fontSize: 9, color: tc.textPrimary }
   };
 }

@@ -6,7 +6,9 @@ function renderPowerLayout(params) {
   const {pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, panelsPerCircuit} = params;
 
   const _pdfMode = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
-  const socaLabelHeight = _pdfMode ? 100 : 60;
+  const pdfContentPt = 539;
+  const canvasScale = _pdfMode ? (canvas.width * 2) / pdfContentPt : 1;
+  const socaLabelHeight = _pdfMode ? Math.round(50 * canvasScale) : 60;
   canvas.height += socaLabelHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -200,12 +202,10 @@ function renderPowerLayout(params) {
     }
   }
 
-  const _pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
-  // Scale SOCA fonts proportionally to panelWidth so text stays legible regardless of canvas size
-  const socaFontLg = Math.round(panelWidth * 0.22); // ~18px at 80px panels, ~10px at 47px
-  const socaFontSm = Math.round(panelWidth * 0.16); // ~13px at 80px panels, ~8px at 47px
-  const lineY = Math.round(socaLabelHeight * 0.50); // centre of label area
-  const tickH = Math.round(socaLabelHeight * 0.13);
+  const socaFontLg = _pdfMode ? Math.round(16 * canvasScale) : 16;
+  const socaFontSm = _pdfMode ? Math.round(11 * canvasScale) : 12;
+  const lineY = Math.round(socaLabelHeight * 0.50);
+  const tickH = _pdfMode ? Math.round(8 * canvasScale) : Math.round(socaLabelHeight * 0.13);
 
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 3;

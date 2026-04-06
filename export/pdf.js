@@ -1,6 +1,8 @@
 // ==================== PDF EXPORT ====================
 // PDF export modal, gear list email, multi-screen PDF generation.
 
+var pdfLayoutCaptureMode = false; // Set true during pdfCaptureCanvases to raise canvas resolution cap
+
 // PDF Export Options Modal Functions
 let pdfExportOptions = {
   specs: true,
@@ -1601,6 +1603,17 @@ function pdfCaptureCanvases() {
   });
   if (mainContainer) void mainContainer.offsetWidth;
 
+  // Set layout containers to 4000px so generateLayout renders at maxSize (80px panels)
+  // instead of being limited by the 800px canvas cap. Normal rendering is unaffected.
+  const layoutContainerIds = ['standardContainer', 'powerContainer', 'dataContainer', 'structureContainer'];
+  const savedLayoutWidths = {};
+  layoutContainerIds.forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) { savedLayoutWidths[id] = el.style.width; el.style.width = '4000px'; }
+  });
+  pdfLayoutCaptureMode = true;
+  void (document.getElementById('standardContainer') || document.body).offsetWidth; // force reflow
+
   screenIds.forEach(screenId => {
     switchToScreen(screenId);
     generateLayout('standard');
@@ -1647,6 +1660,13 @@ function pdfCaptureCanvases() {
         };
       }
     });
+  });
+
+  // Restore layout container widths and capture mode flag
+  pdfLayoutCaptureMode = false;
+  layoutContainerIds.forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.width = savedLayoutWidths[id] !== undefined ? savedLayoutWidths[id] : '';
   });
 
   switchToScreen(originalScreenId);

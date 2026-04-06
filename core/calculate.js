@@ -1846,7 +1846,9 @@ function generateLayout(mode){
     container.style.display = 'block';
   }
   const containerWidth = container.clientWidth - 32; // Account for padding
-  const maxCanvasWidth = Math.min(containerWidth, 800); // Cap at 800px max
+  const maxCanvasWidth = (typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode)
+    ? Math.min(containerWidth, 4000)
+    : Math.min(containerWidth, 800); // Cap at 800px max in normal mode
   const minSize = 30; // Minimum panel size
   const maxSize = 80; // Maximum panel size
   const calculatedSize = Math.floor(maxCanvasWidth / pw);

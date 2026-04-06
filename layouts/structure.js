@@ -110,7 +110,9 @@ function generateStructureLayout(){
     structContainer.style.display = 'block';
   }
   const structContainerWidth = structContainer.clientWidth - 32; // Account for padding
-  const maxStructCanvasWidth = Math.min(structContainerWidth, 800); // Cap at 800px max
+  const maxStructCanvasWidth = (typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode)
+    ? Math.min(structContainerWidth, 4000)
+    : Math.min(structContainerWidth, 800); // Cap at 800px max in normal mode
   const minStructSize = 30; // Minimum panel size
   const maxStructSize = 80; // Maximum panel size
   const calculatedStructSize = Math.floor(maxStructCanvasWidth / pw);

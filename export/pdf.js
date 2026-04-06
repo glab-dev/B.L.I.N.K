@@ -1103,39 +1103,79 @@ function buildGearListContent(gearData, screenIndex, contentWidth) {
 }
 
 /**
- * Converts structure info lines (from buildStructureInfoLines) into a 2-column pdfmake block.
- * Left column: Pickup Weights. Right column: Ground Support / Floor Frames / Total Structure Weight.
+ * Converts structure info lines (from buildStructureInfoLines) into a 4-column card layout
+ * matching the hero page summary bar style. Each section (Pickup Weights, Connecting Plates,
+ * Ground Support Hardware, Total Structure Weight) becomes one equal-width column card.
+ * Handles any number of tables dynamically — wraps to additional rows if > 4.
  */
-function buildStructureInfoPdf(screenId, cw) {
+function buildStructureInfoPdf(screenId) {
   if (typeof buildStructureInfoLines !== 'function') return null;
   const lines = buildStructureInfoLines(screenId);
   if (!lines || lines.length === 0) return null;
 
   const tc = PDF_TOKENS.colors;
-  const col2Headers = ['Ground Support Hardware', 'Floor Frames', 'Total Structure Weight'];
-  let splitIdx = lines.length;
-  for (var i = 0; i < lines.length; i++) {
-    if (lines[i].header && col2Headers.some(function(h) { return lines[i].text === h; })) { splitIdx = i; break; }
-  }
 
-  function linesToPdf(slice) {
-    return slice.map(function(l) {
-      if (!l.text) return { text: ' ', fontSize: 4, margin: [0, 1, 0, 1] };
-      if (l.header) return { text: l.text, bold: true, fontSize: 8, color: tc.headerBg, margin: [0, 4, 0, 2] };
-      if (l.bold)   return { text: l.text, bold: true, fontSize: 7.5 };
-      return { text: l.text, fontSize: 7.5 };
+  // Parse flat line array into table objects {title, items[]}
+  const tables = [];
+  let current = null;
+  lines.forEach(function(l) {
+    if (l.header) {
+      if (current) tables.push(current);
+      current = { title: l.text, items: [] };
+    } else if (current) {
+      if (!l.text) return; // skip blank spacer lines
+      current.items.push(l);
+    }
+  });
+  if (current) tables.push(current);
+  if (tables.length === 0) return null;
+
+  // Build one column card for a single table
+  function buildCard(table) {
+    const titleEl = {
+      text: table.title,
+      fontSize: 9, bold: true, color: tc.headerBg,
+      decoration: 'underline', decorationColor: tc.summaryAccent,
+      margin: [0, 0, 0, 4]
+    };
+    const itemEls = table.items.map(function(item) {
+      if (item.bold) {
+        return { text: item.text.trim(), fontSize: 8, bold: true, color: tc.headerBg, margin: [0, 4, 0, 0] };
+      }
+      return { text: item.text.trim(), fontSize: 8, color: tc.textSecondary, lineHeight: 1.3 };
     });
+    return { stack: [titleEl].concat(itemEls), margin: [6, 6, 6, 6] };
   }
 
-  const colW = (cw - 8) / 2;
-  return {
-    columns: [
-      { width: colW, stack: linesToPdf(lines.slice(0, splitIdx)) },
-      { width: colW, stack: linesToPdf(lines.slice(splitIdx)) }
-    ],
-    columnGap: 8,
-    margin: [0, 6, 0, 6]
-  };
+  // Wrap up to 4 table cards in a summary-bar-style 4-column row
+  function buildRow(rowTables) {
+    const padded = rowTables.slice();
+    while (padded.length < 4) padded.push(null);
+    const cells = padded.map(function(t) {
+      return {
+        stack: t ? [buildCard(t)] : [{ text: ' ', fontSize: 4 }],
+        fillColor: tc.summaryBg,
+        border: [true, true, true, true],
+        borderColor: [tc.sectionBorder, tc.sectionBorder, tc.sectionBorder, tc.sectionBorder]
+      };
+    });
+    return {
+      table: { widths: ['*', '*', '*', '*'], body: [cells] },
+      layout: {
+        hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+        hLineColor: () => tc.sectionBorder, vLineColor: () => tc.sectionBorder,
+        paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0
+      },
+      margin: [0, 6, 0, 4]
+    };
+  }
+
+  // Group tables into rows of 4, return single block or stacked rows
+  const blocks = [];
+  for (let i = 0; i < tables.length; i += 4) {
+    blocks.push(buildRow(tables.slice(i, i + 4)));
+  }
+  return blocks.length === 1 ? blocks[0] : { stack: blocks };
 }
 
 /**

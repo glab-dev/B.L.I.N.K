@@ -1,5 +1,5 @@
 {
-  "version": "2.10.81",
+  "version": "2.10.82",
   "updated": "2026-04-05",
-  "changelog": "Show total pixels as full number in simple mode PDF summary"
+  "changelog": "Fix complex mode PDF specs: structure weight, panel size metric, bumper weights, total pixels, port capacity, frame rate unit"
 }

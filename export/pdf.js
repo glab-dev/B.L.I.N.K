@@ -790,14 +790,20 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
   const panelWtLbs    = panelWtKg * 2.20462;
   const panelsTotalWtLbs = Math.ceil(activePanels * panelWtLbs);
 
-  // Bumper weights
-  const b1w = (cd.bumper1wCount || 0) * ((p.bumper_1w_lbs || 0));
-  const b2w = (cd.bumper2wCount || 0) * ((p.bumper_2w_lbs || 0));
-  const b4w = (cd.bumper4wCount || 0) * ((p.bumper_4w_lbs || 0));
-  const bumperWtLbs = b1w + b2w + b4w;
-  const structWtLbs = bumperWtLbs; // structure weight = bumper hardware weight in most configs
+  // Structure weight — read pre-computed fields from calculatedData (mirrors pdf-preview.js)
+  const structureType = data.structureType || 'hanging';
+  let structureWeightKg = 0;
+  if (structureType === 'floor' && p.is_floor_panel && p.floor_frames) {
+    const floorFrames = cd.floorFrames || {};
+    structureWeightKg = floorFrames.totalWeightLbs ? floorFrames.totalWeightLbs / 2.20462 : (floorFrames.totalWeightKg || 0);
+  } else {
+    structureWeightKg += (cd.bumperWeightKg || 0);
+    structureWeightKg += (cd.platesWeightKg || 0);
+    if (structureType === 'ground') structureWeightKg += (cd.groundSupportWeightKg || 0);
+  }
+  const structWtLbs = Math.ceil(structureWeightKg * 2.20462);
 
-  const totalWtLbs = panelsTotalWtLbs + Math.ceil(bumperWtLbs);
+  const totalWtLbs = panelsTotalWtLbs + structWtLbs;
 
   const powerType     = data.powerType || 'max';
   const powerPerPanel = (powerType === 'max') ? (p.power_max_w || 0) : (p.power_avg_w || 0);
@@ -816,16 +822,21 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
   const procName     = eq.processorName || '';
   const procCount    = eq.processorCount || 0;
 
+  const bumperWtStr = (p.bumper_1w_lbs || p.bumper_2w_lbs)
+    ? [p.bumper_1w_lbs ? `1W=${Math.round(p.bumper_1w_lbs)} lbs` : null, p.bumper_2w_lbs ? `2W=${Math.round(p.bumper_2w_lbs)} lbs` : null].filter(Boolean).join(', ')
+    : null;
+
   const colPanel = buildSummaryColumn('PANEL', [
     ['Model',         `${p.brand || ''} ${p.name || ''}`.trim() || null],
     ['Pixel Pitch',   p.pixel_pitch_mm ? `${p.pixel_pitch_mm} mm` : null],
-    ['Size',          (panelWidthM > 0 && panelHeightM > 0) ? `${(panelWidthM*3.28084).toFixed(2)}' × ${(panelHeightM*3.28084).toFixed(2)}'` : null],
+    ['Size',          (panelWidthM > 0 && panelHeightM > 0) ? `${(panelWidthM*3.28084).toFixed(3)}' × ${(panelHeightM*3.28084).toFixed(3)}' (${panelWidthM.toFixed(3)} × ${panelHeightM.toFixed(3)} m)` : null],
     ['Resolution',    (p.res_x && p.res_y) ? `${p.res_x} × ${p.res_y} px` : null],
-    ['Weight',        panelWtLbs > 0 ? `${panelWtLbs.toFixed(1)} lbs` : null],
+    ['Weight',        panelWtLbs > 0 ? `${Math.round(panelWtLbs)} lbs (${Math.round(panelWtKg)} kg)` : null],
     ['Brightness',    p.brightness_nits ? `${p.brightness_nits} nits` : null],
     ['Power Max/Avg', (p.power_max_w && p.power_avg_w) ? `${p.power_max_w}W / ${p.power_avg_w}W` : null],
-    ['Max Hanging',   p.max_hanging ? `${p.max_hanging}` : null],
-    ['Max Stacking',  p.max_stacking ? `${p.max_stacking}` : null],
+    ['Max Hanging',   p.max_hanging ? `${p.max_hanging} panels` : null],
+    ['Max Stacking',  p.max_stacking ? `${p.max_stacking} panels` : null],
+    ['Bumper Weights', bumperWtStr],
   ]);
 
   const colWall = buildSummaryColumn('WALL', [
@@ -833,7 +844,7 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
     ['',              (wallWidthM > 0 && wallHeightM > 0) ? `(${wallWidthM.toFixed(2)} × ${wallHeightM.toFixed(2)} m)` : null],
     [`${pw}×${ph} panels`, activePanels ? `${activePanels} active` : null],
     ['Resolution',    (pw > 0 && ph > 0 && p.res_x) ? `${pw * p.res_x} × ${ph * p.res_y} px` : null],
-    ['Total Pixels',  totalPixels > 0 ? (totalPixels >= 1000000 ? `${(totalPixels/1000000).toFixed(1)} MP` : totalPixels.toLocaleString()) : null],
+    ['Total Pixels',  totalPixels > 0 ? totalPixels.toLocaleString() + ' px' : null],
     ['Panels Weight', panelsTotalWtLbs > 0 ? `${panelsTotalWtLbs} lbs` : null],
     ['Structure Wt',  structWtLbs > 0 ? `${Math.ceil(structWtLbs)} lbs` : null],
     ['Total Weight',  totalWtLbs > 0 ? `${totalWtLbs} lbs` : null],
@@ -847,12 +858,16 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
     ['Max/Circuit',   maxPpc > 0      ? `${maxPpc} panels` : null],
   ]);
 
+  const procSpec    = (getAllProcessors && data.processor) ? (getAllProcessors()[data.processor] || {}) : {};
+  const pixPerPort  = procSpec.base_pixels_1g || 0;
+
   const colData = buildSummaryColumn('DATA', [
     ['Processor',     (procName && procCount > 0) ? `${procCount} × ${procName}` : (procName || null)],
     ['Data Lines',    dataLines > 0  ? dataLines  : null],
     ['Ports Needed',  portsNeeded > 0 ? portsNeeded : null],
+    ['Port Capacity', pixPerPort > 0  ? `${pixPerPort.toLocaleString()} px` : null],
     ['Max/Data Line', panelsPerDL > 0 ? `${panelsPerDL} panels` : null],
-    ['Frame Rate',    data.frameRate  ? `${data.frameRate} fps` : null],
+    ['Frame Rate',    data.frameRate  ? `${data.frameRate} Hz` : null],
     ['Bit Depth',     data.bitDepth   ? `${data.bitDepth}-bit`  : null],
     ['Redundancy',    data.redundancy ? 'Yes' : 'No'],
   ]);

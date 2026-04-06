@@ -456,449 +456,571 @@ function buildPageModel() {
     return numA - numB;
   });
 
-  const usableWidth = ppPageWidth - 2 * PP_MARGIN;
+  const usableWidth  = ppPageWidth  - 2 * PP_MARGIN;
+  const usableHeight = ppPageHeight - 2 * PP_MARGIN;
+
+  // Design tokens matching PDF_TOKENS
+  const headerH   = 8;   // mm — B.L.I.N.K. REPORT bar
+  const screenLblH = 6;  // mm — screen name label
+  const summaryH  = 26;  // mm — 4-col summary bar
+  const sectionLblH = 5; // mm — "POWER LAYOUT" / "DATA LAYOUT" labels
 
   // Accent color matching exported PDF (eco/greyscale aware)
-  ppCurrentAccentColor = opts.greyscale ? '#555' : opts.ecoFriendly ? '#6b7280' : '#10b981';
+  ppCurrentAccentColor = opts.greyscale ? '#555' : opts.ecoFriendly ? '#6b7280' : '#1a3a2a';
 
-  // Use consistent layout sizing regardless of orientation
-  const layoutFixedW = 114;
-  const layoutMaxH = 70;
-  const structureFixedW = 160;
-  const structureMaxH = 80;
+  const configName = document.getElementById('configName')?.value?.trim() || 'LED Wall';
+  const dateStr    = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
 
-  function addWatermark(page, suffix) {
-    // Footer removed
+  // Helper: push a header-bar element onto a page
+  function pushHeader(page, y) {
+    page.elements.push({
+      id: page.pageNum + '_header',
+      type: 'banner',
+      text: 'B.L.I.N.K. REPORT',
+      centerText: configName,
+      rightText: dateStr,
+      x: PP_MARGIN, y: y, w: usableWidth, h: headerH,
+      fontSize: 9
+    });
+    return y + headerH + 1;
   }
 
-  // Track which page to attach system-wide gear to (so it appears on the same page as the gear list)
-  let sysGearInCol3 = false; // true when system gear was placed in col3 of first screen
-  let gearPageForSystem = null;
-  let systemGearX = PP_MARGIN;
-  let systemGearY = PP_MARGIN + 10;
-  let systemGearW = usableWidth / 2;
+  // Helper: build gear lines split into 3 column arrays (mirrors buildGearListContent)
+  function buildGearColumns(screenId) {
+    const gearData = (typeof buildGearListData === 'function') ? buildGearListData([screenId]) : null;
+    if (!gearData || !gearData.screens || gearData.screens.length === 0) return [[], [], []];
+    const sd  = gearData.screens[0];
+    const eq  = sd.equipment    || {};
+    const rig = sd.rigging      || {};
+    const gs  = sd.groundSupport || {};
+    const fh  = sd.floorHardware || {};
+    const dc  = sd.dataCables   || {};
+    const pc  = sd.powerCables  || {};
+    const p2d = sd.processorToDistBox || {};
+    const sig = gearData.signalCables || {};
+    const util = gearData.utility || {};
+    const sp  = gearData.spares || {};
 
-  // ========== PER-SCREEN PAGES (title on first screen's page, matching pdf.js) ==========
+    function section(title, lines) {
+      if (lines.length === 0) return [];
+      return [{ text: title, bold: true, header: true }, ...lines];
+    }
+    function item(qty, label) {
+      return qty > 0 ? [{ text: qty + ' × ' + label }] : [];
+    }
+
+    // Col 1: Equipment, Rigging, Ground Support / Floor Hardware
+    const eqLines = [];
+    if (eq.isFirstScreenInGroup) {
+      if (eq.processorCount > 0) eqLines.push({ text: eq.processorCount + ' × ' + (eq.processorName || 'Processor') });
+      if (eq.distBoxCount   > 0) eqLines.push({ text: eq.distBoxCount   + ' × ' + (eq.distBoxName   || 'Dist Box') });
+    }
+    if (eq.activeFullPanels > 0) eqLines.push({ text: eq.activeFullPanels + ' × ' + (eq.panelBrand || '') + ' ' + (eq.panelName || '') });
+    if (eq.activeHalfPanels > 0) eqLines.push({ text: eq.activeHalfPanels + ' × ' + (eq.panelBrand || '') + ' ' + (eq.halfPanelName || '') });
+
+    const rigLines = [];
+    if (rig.hasRigging) {
+      if (rig.bumper1w > 0) rigLines.push({ text: rig.bumper1w + ' × 1W Bumpers' });
+      if (rig.bumper2w > 0) rigLines.push({ text: rig.bumper2w + ' × 2W Bumpers' });
+      if (rig.bumper4w > 0) rigLines.push({ text: rig.bumper4w + ' × 4W Bumpers' });
+      if (rig.plates4way > 0) rigLines.push({ text: rig.plates4way + ' × 4W Conn. Plates' });
+      if (rig.plates2way > 0) rigLines.push({ text: rig.plates2way + ' × 2W Conn. Plates' });
+      if (rig.shackles  > 0) rigLines.push({ text: rig.shackles  + " × Shackles" });
+      if (rig.cheeseye  > 0) rigLines.push({ text: rig.cheeseye  + " × Cheeseye" });
+    }
+    const gsLines = [];
+    if (gs && gs.hasGS) {
+      if (gs.rearTruss       > 0) gsLines.push({ text: gs.rearTruss       + ' × Rear Truss' });
+      if (gs.baseTruss       > 0) gsLines.push({ text: gs.baseTruss       + ' × Base Truss' });
+      if (gs.bridgeClamps    > 0) gsLines.push({ text: gs.bridgeClamps    + ' × Bridge Clamps' });
+      if (gs.rearBridgeAdapters > 0) gsLines.push({ text: gs.rearBridgeAdapters + ' × Rear Bridge Adapter' });
+      if (gs.sandbags        > 0) gsLines.push({ text: gs.sandbags        + ' × Sandbags' });
+    }
+    const fhLines = [];
+    if (fh && fh.hasFloorFrames) {
+      if (fh.frame3x2 > 0) fhLines.push({ text: fh.frame3x2 + ' × 3×2 Frame' });
+      if (fh.frame2x2 > 0) fhLines.push({ text: fh.frame2x2 + ' × 2×2 Frame' });
+      if (fh.frame2x1 > 0) fhLines.push({ text: fh.frame2x1 + ' × 2×1 Frame' });
+      if (fh.frame1x1 > 0) fhLines.push({ text: fh.frame1x1 + ' × 1×1 Frame' });
+    }
+    const col1 = [
+      ...section('EQUIPMENT',       eqLines),
+      ...(rigLines.length > 0 ? section('RIGGING HARDWARE', rigLines) : []),
+      ...(gsLines.length  > 0 ? section('GROUND SUPPORT',   gsLines)  : []),
+      ...(fhLines.length  > 0 ? section('FLOOR HARDWARE',   fhLines)  : []),
+    ];
+
+    // Col 2: Data Cables (+ Proc→Dist merged), Power Cables
+    const dcLines = [];
+    if (dc.jumperCount > 0) dcLines.push({ text: dc.jumperCount + ' × Data Jumpers ' + (dc.dataJumperLen || '') });
+    if (dc.crossJumperCount > 0) dcLines.push({ text: dc.crossJumperCount + ' × Data Cross Jumpers ' + (dc.crossJumperLen || '') });
+    Object.keys(dc.cat6ByLength || {}).sort((a,b) => b-a).forEach(len => {
+      if (dc.cat6ByLength[len] > 0) dcLines.push({ text: dc.cat6ByLength[len] + " × " + len + "' Cat6" });
+    });
+    if (p2d && p2d.count > 0) {
+      dcLines.push({ text: '— Proc → Dist Box —', bold: true });
+      dcLines.push({ text: p2d.count + ' × ' + (p2d.cableType || '') + ' ' + (p2d.cableLength || '') + "'" });
+    }
+    const pcLines = [];
+    if (pc.jumperCount > 0) pcLines.push({ text: pc.jumperCount + ' × Power Jumpers ' + (pc.powerJumperLen || '') });
+    if (pc.socaSplays  > 0) pcLines.push({ text: pc.socaSplays  + ' × Soca Splays' });
+    Object.keys(pc.socaByLength || {}).sort((a,b) => b-a).forEach(len => {
+      if (pc.socaByLength[len] > 0) pcLines.push({ text: pc.socaByLength[len] + " × " + len + "' Soca" });
+    });
+    if (pc.true1_25 > 0) pcLines.push({ text: pc.true1_25 + " × 25' True1" });
+    if (pc.true1_10 > 0) pcLines.push({ text: pc.true1_10 + " × 10' True1" });
+    if (pc.true1_5  > 0) pcLines.push({ text: pc.true1_5  + " × 5' True1" });
+    if (pc.true1Twofer > 0) pcLines.push({ text: pc.true1Twofer + ' × True1 Twofer' });
+    const col2 = [
+      ...section('DATA CABLES',  dcLines),
+      ...(pcLines.length > 0 ? section('POWER CABLES', pcLines) : []),
+    ];
+
+    // Col 3: Signal Cables, Utility, Spares
+    const scLines = [];
+    if (sig) {
+      if (sig.serverFiberLine) scLines.push({ text: sig.serverFiberLine.count + ' × ' + sig.serverFiberLine.label });
+      Object.keys(sig.sdiByLength || {}).sort((a,b) => b-a).forEach(len => {
+        if (sig.sdiByLength[len] > 0) scLines.push({ text: sig.sdiByLength[len] + " × " + len + "' " + (sig.sdiType || 'SDI') });
+      });
+      if (sig.hdmi && sig.hdmi[25] > 0) scLines.push({ text: sig.hdmi[25] + " × 25' HDMI" });
+      if (sig.hdmi && sig.hdmi[10] > 0) scLines.push({ text: sig.hdmi[10] + " × 10' HDMI" });
+      if (sig.hdmi && sig.hdmi[6]  > 0) scLines.push({ text: sig.hdmi[6]  + " × 6' HDMI" });
+    }
+    const utilLines = [];
+    if (util) {
+      if (util.ug10      > 0) utilLines.push({ text: util.ug10      + " × UG 10'" });
+      if (util.ug25      > 0) utilLines.push({ text: util.ug25      + " × UG 25'" });
+      if (util.ug50      > 0) utilLines.push({ text: util.ug50      + " × UG 50'" });
+      if (util.ugTwofers > 0) utilLines.push({ text: util.ugTwofers + ' × UG Twofers' });
+      if (util.powerBars > 0) utilLines.push({ text: util.powerBars + ' × Power Bars' });
+    }
+    const spLines = [];
+    if (sp) {
+      Object.entries(sp.panelsByType || {}).forEach(([k,v]) => { if (v > 0) spLines.push({ text: v + ' × ' + k }); });
+      if (sp.shackles    > 0) spLines.push({ text: sp.shackles    + ' × Shackles' });
+      if (sp.cheeseyes   > 0) spLines.push({ text: sp.cheeseyes   + ' × Cheeseyes' });
+      if (sp.true1_25    > 0) spLines.push({ text: sp.true1_25    + " × 25' True1" });
+      if (sp.true1_10    > 0) spLines.push({ text: sp.true1_10    + " × 10' True1" });
+      if (sp.true1_5     > 0) spLines.push({ text: sp.true1_5     + " × 5' True1" });
+      if (sp.true1Twofer > 0) spLines.push({ text: sp.true1Twofer + ' × True1 Twofer' });
+    }
+    const col3 = [
+      ...(scLines.length   > 0 ? section('SIGNAL CABLES', scLines)   : []),
+      ...(utilLines.length > 0 ? section('UTILITY',       utilLines) : []),
+      ...(spLines.length   > 0 ? section('SPARES',        spLines)   : []),
+    ];
+
+    return [col1, col2, col3];
+  }
+
+  // Helper: build 4-col summary lines (mirrors buildComplexSummaryBar)
+  function buildSummaryColumns(screenId) {
+    const screen = screens[screenId];
+    if (!screen) return [[], [], [], []];
+    const data = screen.data || {};
+    const cd   = screen.calculatedData || {};
+    const allPanels = (typeof getAllPanels === 'function') ? getAllPanels() : {};
+    const p = allPanels[data.panelType] || {};
+    const pw = parseInt(data.panelsWide) || 0;
+    const ph = parseInt(data.panelsHigh) || 0;
+    const activePanels = cd.activePanels || (pw * ph);
+    const panelWtLbs = (p.weight_kg || 0) * 2.20462;
+    const wallWFt = (pw * (p.width_m  || 0) * 3.28084).toFixed(1);
+    const wallHFt = (ph * (p.height_m || 0) * 3.28084).toFixed(1);
+    const powerType = data.powerType || 'max';
+    const ppp = (powerType === 'max') ? (p.power_max_w || 0) : (p.power_avg_w || 0);
+    const totalPowerW = activePanels * ppp;
+    const voltage = parseInt(data.voltage) || 208;
+    const ampsTotal = voltage > 0 ? totalPowerW / voltage : 0;
+
+    function row(label, value) { return value ? { text: label + ': ' + value } : null; }
+    function rows(arr) { return arr.filter(Boolean); }
+
+    const col1 = rows([
+      { text: 'PANEL', bold: true, header: true },
+      row('Model',       ((p.brand || '') + ' ' + (p.name || '')).trim() || null),
+      row('Pitch',       p.pixel_pitch_mm ? p.pixel_pitch_mm + ' mm' : null),
+      row('Size',        (p.width_m && p.height_m) ? (p.width_m*3.28084).toFixed(2) + "' × " + (p.height_m*3.28084).toFixed(2) + "'" : null),
+      row('Resolution',  (p.res_x && p.res_y) ? p.res_x + ' × ' + p.res_y + ' px' : null),
+      row('Weight',      panelWtLbs > 0 ? panelWtLbs.toFixed(1) + ' lbs' : null),
+      row('Brightness',  p.brightness_nits ? p.brightness_nits + ' nits' : null),
+      row('Max Hang',    p.max_hanging ? String(p.max_hanging) : null),
+    ]);
+    const col2 = rows([
+      { text: 'WALL', bold: true, header: true },
+      row('Dims',        (wallWFt > 0 && wallHFt > 0) ? wallWFt + "' × " + wallHFt + "'" : null),
+      row('Panels',      activePanels ? pw + '×' + ph + ' (' + activePanels + ')' : null),
+      row('Resolution',  (pw > 0 && p.res_x) ? (pw*p.res_x) + ' × ' + (ph*p.res_y) + ' px' : null),
+      row('Weight',      activePanels > 0 && panelWtLbs > 0 ? Math.ceil(activePanels * panelWtLbs) + ' lbs' : null),
+    ]);
+    const col3 = rows([
+      { text: 'POWER', bold: true, header: true },
+      row('Total',       totalPowerW > 0 ? totalPowerW.toLocaleString() + ' W' : null),
+      row('Amps',        ampsTotal > 0 ? ampsTotal.toFixed(1) + ' A @ ' + voltage + 'V' : null),
+      row('Circuits',    cd.circuitsNeeded > 0 ? String(cd.circuitsNeeded) : null),
+    ]);
+    const col4 = rows([
+      { text: 'DATA', bold: true, header: true },
+      row('Data Lines',  cd.dataLines   > 0 ? String(cd.dataLines)   : null),
+      row('Ports Needed',cd.portsNeededFinal > 0 ? String(cd.portsNeededFinal) : null),
+      row('Max/Line',    cd.panelsPerDataLine > 0 ? cd.panelsPerDataLine + ' panels' : null),
+    ]);
+    return [col1, col2, col3, col4];
+  }
+
+  // ========== MULTI-SCREEN SUMMARY PAGE ==========
+  if (screenIds.length > 1) {
+    const sumPage = { pageNum: 1, elements: [] };
+    let y = pushHeader(sumPage, PP_MARGIN);
+    sumPage.elements.push({
+      id: 'summary_title',
+      type: 'text', text: 'PROJECT SUMMARY', bold: true,
+      x: PP_MARGIN, y: y, w: usableWidth, h: 6, fontSize: 10
+    });
+    y += 8;
+
+    // Aggregate stats row
+    let totalPowerW = 0, totalWeightLbs = 0;
+    const panelTypeCounts = {};
+    const allPanelsRef = (typeof getAllPanels === 'function') ? getAllPanels() : {};
+    screenIds.forEach(sid => {
+      const scr = screens[sid];
+      const d = (scr && scr.data) || {};
+      const cd = (scr && scr.calculatedData) || {};
+      const p = allPanelsRef[d.panelType] || {};
+      const active = cd.activePanels || (parseInt(d.panelsWide)||0) * (parseInt(d.panelsHigh)||0);
+      const ppp = (d.powerType === 'avg') ? (p.power_avg_w||0) : (p.power_max_w||0);
+      totalPowerW += active * ppp;
+      totalWeightLbs += Math.ceil(active * (p.weight_kg||0) * 2.20462);
+      const key = ((p.brand||'') + ' ' + (p.name||d.panelType||'')).trim();
+      panelTypeCounts[key] = (panelTypeCounts[key]||0) + active;
+    });
+    const panelKeys = Object.keys(panelTypeCounts);
+    const panelSummary = panelKeys.length === 1
+      ? panelTypeCounts[panelKeys[0]] + ' × ' + panelKeys[0]
+      : panelKeys.map(k => panelTypeCounts[k] + ' × ' + k).join(', ');
+
+    const statColW = Math.floor(usableWidth / 4);
+    const stats = [
+      ['Screens', String(screenIds.length)],
+      ['Total Power', totalPowerW > 0 ? totalPowerW.toLocaleString() + ' W' : '—'],
+      ['Total Weight', totalWeightLbs > 0 ? totalWeightLbs + ' lbs' : '—'],
+      ['Panels', panelSummary || '—'],
+    ];
+    stats.forEach((st, i) => {
+      sumPage.elements.push({
+        id: 'stat_' + i,
+        type: 'textblock',
+        lines: [{ text: st[0], bold: true, header: true }, { text: st[1] }],
+        x: PP_MARGIN + i * statColW, y: y, w: statColW - 2, h: 12,
+        fontSize: 8
+      });
+    });
+    y += 14;
+
+    // Per-screen cards
+    sumPage.elements.push({
+      id: 'screens_label',
+      type: 'text', text: 'SCREENS', bold: true,
+      x: PP_MARGIN, y: y, w: usableWidth, h: 5, fontSize: 9
+    });
+    y += 7;
+    screenIds.forEach((sid, i) => {
+      const scr = screens[sid];
+      const d = (scr && scr.data) || {};
+      const p = allPanelsRef[d.panelType] || {};
+      const pw2 = parseInt(d.panelsWide)||0;
+      const ph2 = parseInt(d.panelsHigh)||0;
+      const wFt = (pw2 * (p.width_m||0) * 3.28084).toFixed(1);
+      const hFt = (ph2 * (p.height_m||0) * 3.28084).toFixed(1);
+      const active = (scr && scr.calculatedData && scr.calculatedData.activePanels) || pw2 * ph2;
+      sumPage.elements.push({
+        id: 'screen_card_' + i,
+        type: 'textblock',
+        lines: [
+          { text: (scr && scr.name) || sid, bold: true, header: true },
+          { text: pw2 + '×' + ph2 + '  ' + wFt + "' × " + hFt + "'  " + active + ' panels' }
+        ],
+        x: PP_MARGIN, y: y, w: usableWidth, h: 10,
+        fontSize: 8
+      });
+      y += 12;
+    });
+
+    pdfPageModel.push(sumPage);
+  }
+
+  // ========== PER-SCREEN PAGES — mirrors buildComplexPdf structure ==========
   screenIds.forEach((screenId, sIdx) => {
     const screen = screens[screenId];
     if (!screen) return;
 
-    // --- Specs + Gear List page ---
-    if (opts.specs || opts.gearList) {
-      const specsPage = { pageNum: pdfPageModel.length + 1, elements: [] };
-      let headerY = PP_MARGIN;
+    // ---- PAGE: HERO (header + screen name + 4-col summary + standard grid) ----
+    if (opts.specs !== false || opts.standard !== false) {
+      const heroPage = { pageNum: pdfPageModel.length + 1, elements: [] };
+      let y = pushHeader(heroPage, PP_MARGIN);
 
-      // First screen: compact single-row title banner matching pdf.js header
-      if (sIdx === 0) {
-        const configName = document.getElementById('configName')?.value?.trim() || 'LED Wall';
-        const dateStr = new Date().toLocaleDateString();
-        specsPage.elements.push({
-          id: 'title_banner',
-          type: 'banner',
-          text: 'B.L.I.N.K. LED REPORT',
-          centerText: configName,
-          rightText: dateStr,
-          x: PP_MARGIN, y: headerY, w: usableWidth, h: 8,
-          fontSize: 11
-        });
-        headerY += 10;
-      }
-
-      specsPage.elements.push({
-        id: screenId + '_header',
-        type: 'banner',
-        text: screen.name.toUpperCase(),
-        x: PP_MARGIN, y: headerY, w: usableWidth, h: 6,
-        fontSize: 10
+      // Screen name label
+      heroPage.elements.push({
+        id: screenId + '_name',
+        type: 'text', text: (screen.name || screenId).toUpperCase(), bold: true,
+        x: PP_MARGIN, y: y, w: usableWidth, h: screenLblH, fontSize: 10
       });
+      y += screenLblH + 2;
 
-      const useThreeCols = sIdx === 0 && opts.gearList && screenIds.length === 1;
-      const gap = 4;
-      const sysColW = Math.floor(usableWidth * 0.22);
-      const col1W = useThreeCols ? Math.floor(usableWidth * 0.35) : Math.floor((usableWidth - gap) / 2);
-      const col2W = useThreeCols ? usableWidth - col1W - sysColW - 2 * gap : Math.floor((usableWidth - gap) / 2);
-      const colWidth = col1W; // used by specSections below
-      const col1X = PP_MARGIN;
-      const col2X = useThreeCols ? PP_MARGIN + col1W + gap : ppPageWidth / 2 + 2;
-      const col3X = useThreeCols ? col2X + col2W + gap : 0;
-      const bodyY = headerY + 7;
-
-      if (opts.specs) {
-        const specLines = buildSpecsLines(screenId);
-        // Split into per-section arrays so each is individually draggable
-        const specSections = [];
-        let currentSection = null;
-        specLines.forEach(line => {
-          if (typeof line === 'object' && line.header) {
-            if (currentSection) specSections.push(currentSection);
-            currentSection = [line];
-          } else if (currentSection) {
-            currentSection.push(line);
-          }
-        });
-        if (currentSection) specSections.push(currentSection);
-
-        let specSectionY = bodyY;
-        specSections.forEach((sectionLines, i) => {
-          const sectionH = Math.min(Math.max(sectionLines.length * 3.5 + 3, 14), 60);
-          specsPage.elements.push({
-            id: screenId + '_specs_' + i,
-            type: 'textblock',
-            lines: sectionLines,
-            x: col1X, y: specSectionY, w: colWidth, h: sectionH,
-            fontSize: 8
+      // 4-column summary bar
+      if (opts.specs !== false) {
+        const [sc1, sc2, sc3, sc4] = buildSummaryColumns(screenId);
+        const colW4 = Math.floor((usableWidth - 3) / 4);
+        [[sc1, 0],[sc2, 1],[sc3, 2],[sc4, 3]].forEach(([lines, ci]) => {
+          heroPage.elements.push({
+            id: screenId + '_sum_' + ci,
+            type: 'textblock', lines: lines,
+            x: PP_MARGIN + ci * (colW4 + 1), y: y, w: colW4, h: summaryH,
+            fontSize: 7
           });
-          specSectionY += sectionH + 2;
         });
+        y += summaryH + 2;
       }
 
-      if (opts.gearList && screenIds.length === 1) {
-        const gearLines = buildGearLines(screenId);
-        const gearHeight = Math.max(gearLines.length * 3.5, 40);
-        const cappedGearH = Math.min(gearHeight, ppPageHeight - bodyY - PP_MARGIN - 10);
-        specsPage.elements.push({
-          id: screenId + '_gearlist',
-          type: 'textblock',
-          lines: gearLines,
-          x: col2X, y: bodyY, w: col2W, h: cappedGearH,
-          fontSize: 8
-        });
-      }
-      // col3: system gear alongside specs/gear on first screen
-      if (useThreeCols) {
-        const sysLines = buildSystemGearLines(screenIds);
-        if (sysLines.length > 0) {
-          const sysH = Math.max(sysLines.length * 3.5, 40);
-          specsPage.elements.push({
-            id: 'system_gear',
-            type: 'textblock',
-            lines: sysLines,
-            x: col3X, y: bodyY, w: sysColW, h: sysH,
-            fontSize: 8
-          });
-        }
-        gearPageForSystem = null; // system gear is in col3, don't add it again below
-        sysGearInCol3 = true;
-      }
-
-      addWatermark(specsPage, 'specs_' + screenId);
-      pdfPageModel.push(specsPage);
-    }
-
-    // --- Layout pages ---
-    const layoutsToAdd = [];
-    if (opts.standard && ppCanvasCache[screenId + '_standard']) {
-      layoutsToAdd.push({ key: screenId + '_standard', title: 'Standard Layout', fixedW: layoutFixedW, maxH: layoutMaxH });
-    }
-    if (opts.power && ppCanvasCache[screenId + '_power']) {
-      layoutsToAdd.push({ key: screenId + '_power', title: 'Power Layout', fixedW: layoutFixedW, maxH: layoutMaxH });
-    }
-    if (opts.data && ppCanvasCache[screenId + '_data']) {
-      layoutsToAdd.push({ key: screenId + '_data', title: 'Data Layout', fixedW: layoutFixedW, maxH: layoutMaxH });
-    }
-    if (opts.structure && ppCanvasCache[screenId + '_structure']) {
-      layoutsToAdd.push({ key: screenId + '_structure', title: 'Structure Layout', fixedW: structureFixedW, maxH: structureMaxH, isStructure: true });
-    }
-    if (opts.cabling && ppCanvasCache[screenId + '_cabling']) {
-      layoutsToAdd.push({ key: screenId + '_cabling', title: 'Cabling Layout', fixedW: usableWidth, maxH: 0 });
-    }
-
-    if (layoutsToAdd.length > 0) {
-      let layoutPage = { pageNum: pdfPageModel.length + 1, elements: [] };
-      let yPos = PP_MARGIN;
-
-      layoutsToAdd.forEach((layout, lIdx) => {
-        const cached = ppCanvasCache[layout.key];
-        if (!cached || layout._placed) return;
-
-        // Structure layout gets its own page (matching pdf.js)
-        if (layout.isStructure) {
-          // Finish current layout page if it has content
-          if (layoutPage.elements.length > 0) {
-            addWatermark(layoutPage, 'layout_' + screenId + '_' + lIdx);
-            pdfPageModel.push(layoutPage);
-            layoutPage = { pageNum: pdfPageModel.length + 1, elements: [] };
-            yPos = PP_MARGIN;
-          }
-
-          let imgW = layout.fixedW;
-          let imgH = imgW * cached.aspectRatio;
-          if (layout.maxH > 0 && imgH > layout.maxH) {
-            imgH = layout.maxH;
-            imgW = layout.maxH / cached.aspectRatio;
-          }
-
-          const titleH = 6;
-          layoutPage.elements.push({
-            id: layout.key,
-            type: 'layout',
-            title: layout.title,
-            imageKey: layout.key,
-            x: PP_MARGIN, y: yPos, w: imgW, h: titleH + imgH,
-            titleH: titleH,
-            fontSize: 11
-          });
-          yPos += titleH + imgH + 4;
-
-          // Add structure info below the image (2-column textblocks)
-          const structLines = buildStructureInfoLines(screenId);
-          // Pre-check if cabling follows AND fits below current yPos on this page
-          const nextLayout = layoutsToAdd[lIdx + 1];
-          const cabFollows = (() => {
-            if (!nextLayout || !nextLayout.key.endsWith('_cabling')) return false;
-            if (!ppCanvasCache[nextLayout.key]) return false;
-            const cabH = nextLayout.fixedW * ppCanvasCache[nextLayout.key].aspectRatio;
-            // Reserve 40mm for structure info text if there is any, so it isn't squeezed out
-            const minStructH = structLines.length > 0 ? 40 : 0;
-            return (cabH + 14 + minStructH) <= (ppPageHeight - yPos - PP_MARGIN);
-          })();
-          const cabReserveH = cabFollows
-            ? (nextLayout.fixedW * ppCanvasCache[nextLayout.key].aspectRatio + 6 + 4 + 4)
-            : 0;
-          if (structLines.length > 0) {
-            const structInfoH = Math.min(structLines.length * 3.5, ppPageHeight - yPos - PP_MARGIN - cabReserveH);
-            const structColW = (usableWidth - 4) / 2;
-            // Split at section boundaries: col1 = Pickup Weights + Connecting Plates, col2 = rest
-            // Find last index of Connecting Plates section (last line before Ground Support / Floor Frames / Total header)
-            const col2Headers = ['Ground Support Hardware', 'Floor Frames', 'Total Structure Weight'];
-            let splitIdx = structLines.length; // default: everything in col1
-            for (let i = 0; i < structLines.length; i++) {
-              const line = structLines[i];
-              if (line.header && col2Headers.some(h => line.text === h)) {
-                splitIdx = i;
-                break;
-              }
-            }
-            const col1Lines = structLines.slice(0, splitIdx);
-            const col2Lines = structLines.slice(splitIdx);
-
-            layoutPage.elements.push({
-              id: screenId + '_struct_info_1',
-              type: 'textblock',
-              lines: col1Lines,
-              x: PP_MARGIN, y: yPos, w: structColW, h: structInfoH,
-              fontSize: 8
-            });
-            if (col2Lines.length > 0) {
-              layoutPage.elements.push({
-                id: screenId + '_struct_info_2',
-                type: 'textblock',
-                lines: col2Lines,
-                x: ppPageWidth / 2 + 2, y: yPos, w: structColW, h: structInfoH,
-                fontSize: 8
-              });
-            }
-            yPos += structInfoH + 4;
-          }
-
-          // Place cabling layout below structure on the same page, capped to remaining space
-          if (cabFollows && nextLayout && nextLayout.key.endsWith('_cabling')) {
-            const cabCached = ppCanvasCache[nextLayout.key];
-            if (cabCached) {
-              const cabTitleH = 6;
-              const maxCabH = ppPageHeight - yPos - PP_MARGIN - cabTitleH - 4;
-              let cabW = nextLayout.fixedW;
-              let cabH = cabW * cabCached.aspectRatio;
-              if (cabH > maxCabH && cabCached.aspectRatio > 0) {
-                cabH = maxCabH;
-                cabW = Math.floor(maxCabH / cabCached.aspectRatio);
-              }
-              layoutPage.elements.push({
-                id: nextLayout.key,
-                type: 'layout',
-                title: nextLayout.title,
-                imageKey: nextLayout.key,
-                x: PP_MARGIN, y: yPos, w: cabW, h: cabTitleH + cabH,
-                titleH: cabTitleH,
-                fontSize: 11
-              });
-              yPos += cabTitleH + cabH + 8;
-              nextLayout._placed = true;
-            }
-          }
-
-          // Structure page is done — push and start new page for remaining layouts
-          addWatermark(layoutPage, 'structure_' + screenId);
-          pdfPageModel.push(layoutPage);
-          layoutPage = { pageNum: pdfPageModel.length + 1, elements: [] };
-          yPos = PP_MARGIN;
-          return;
-        }
-
-        // Fixed width, height from aspect ratio, max-height cap with proportional width shrink
-        let imgW = layout.fixedW;
-        let imgH = imgW * cached.aspectRatio;
-        if (layout.maxH > 0 && imgH > layout.maxH) {
-          imgH = layout.maxH;
-          imgW = layout.maxH / cached.aspectRatio;
-        }
-
-        const neededHeight = imgH + 14;
-
-        // Page break if needed
-        if (yPos + neededHeight > ppPageHeight - PP_MARGIN) {
-          addWatermark(layoutPage, 'layout_' + screenId + '_' + lIdx);
-          pdfPageModel.push(layoutPage);
-          layoutPage = { pageNum: pdfPageModel.length + 1, elements: [] };
-          yPos = PP_MARGIN;
-        }
-
-        // Layout title + image as single draggable element
-        const titleH = 6;
-        layoutPage.elements.push({
-          id: layout.key,
+      // Standard grid image
+      if (opts.standard !== false && ppCanvasCache[screenId + '_standard']) {
+        const cached = ppCanvasCache[screenId + '_standard'];
+        const data = screen.data || {};
+        const pw = parseInt(data.panelsWide) || 0;
+        const ph = parseInt(data.panelsHigh) || 0;
+        const remainH = ppPageHeight - y - PP_MARGIN - 8;
+        const maxGridW = usableWidth * 0.85;
+        const { renderWidth: gw, renderHeight: gh } = (typeof calculateGridScale === 'function')
+          ? calculateGridScale(pw, ph, maxGridW, remainH)
+          : { renderWidth: maxGridW, renderHeight: remainH };
+        const offsetX = (usableWidth - gw) / 2;
+        heroPage.elements.push({
+          id: screenId + '_standard',
           type: 'layout',
-          title: layout.title,
-          imageKey: layout.key,
-          x: PP_MARGIN, y: yPos, w: imgW, h: titleH + imgH,
-          titleH: titleH,
-          fontSize: 11
+          title: '',
+          imageKey: screenId + '_standard',
+          x: PP_MARGIN + offsetX, y: y, w: gw, h: gh,
+          titleH: 0, fontSize: 9
         });
-        yPos += titleH + imgH + 8;
+        y += gh + 2;
+        if (pw > 0 && ph > 0) {
+          const allPanelsRef2 = (typeof getAllPanels === 'function') ? getAllPanels() : {};
+          const p2 = allPanelsRef2[data.panelType] || {};
+          if (p2.res_x && p2.res_y) {
+            heroPage.elements.push({
+              id: screenId + '_res_label',
+              type: 'text', text: (pw * p2.res_x) + ' × ' + (ph * p2.res_y) + ' px',
+              x: PP_MARGIN, y: y, w: usableWidth, h: 4, fontSize: 7
+            });
+          }
+        }
+      }
+
+      pdfPageModel.push(heroPage);
+    }
+
+    // ---- PAGE: GEAR LIST ----
+    if (opts.gearList !== false) {
+      const gearPage = { pageNum: pdfPageModel.length + 1, elements: [] };
+      let y = pushHeader(gearPage, PP_MARGIN);
+
+      gearPage.elements.push({
+        id: screenId + '_gear_title',
+        type: 'text', text: (screen.name || screenId).toUpperCase() + ' — GEAR LIST', bold: true,
+        x: PP_MARGIN, y: y, w: usableWidth, h: screenLblH, fontSize: 10
+      });
+      y += screenLblH + 2;
+
+      const [gc1, gc2, gc3] = buildGearColumns(screenId);
+      const gColW = Math.floor((usableWidth - 4) / 3);
+      const gColH = ppPageHeight - y - PP_MARGIN - 4;
+      [[gc1, 0],[gc2, 1],[gc3, 2]].forEach(([lines, ci]) => {
+        gearPage.elements.push({
+          id: screenId + '_gear_col_' + ci,
+          type: 'textblock', lines: lines,
+          x: PP_MARGIN + ci * (gColW + 2), y: y, w: gColW, h: gColH,
+          fontSize: 7
+        });
       });
 
-      // Only push if there are elements (structure path may have already pushed the last page)
-      if (layoutPage.elements.length > 0) {
-        addWatermark(layoutPage, 'layout_last_' + screenId);
-        pdfPageModel.push(layoutPage);
+      pdfPageModel.push(gearPage);
+    }
+
+    // ---- PAGE: POWER + DATA ----
+    const hasPowerData = opts.power !== false || opts.data !== false;
+    if (hasPowerData) {
+      const pdPage = { pageNum: pdfPageModel.length + 1, elements: [] };
+      let y = pushHeader(pdPage, PP_MARGIN);
+
+      const maxGridH = Math.floor((usableHeight - headerH - 2 * sectionLblH - 10) / 2);
+
+      if (opts.power !== false && ppCanvasCache[screenId + '_power']) {
+        const cached = ppCanvasCache[screenId + '_power'];
+        const data = screen.data || {};
+        const pw = parseInt(data.panelsWide)||0;
+        const ph = parseInt(data.panelsHigh)||0;
+        const { renderWidth: gw, renderHeight: gh } = (typeof calculateGridScale === 'function')
+          ? calculateGridScale(pw, ph, usableWidth, maxGridH)
+          : { renderWidth: usableWidth, renderHeight: maxGridH };
+        pdPage.elements.push({
+          id: screenId + '_power_lbl',
+          type: 'text', text: 'POWER LAYOUT', bold: true,
+          x: PP_MARGIN, y: y, w: usableWidth, h: sectionLblH, fontSize: 9
+        });
+        y += sectionLblH + 1;
+        const offX = (usableWidth - gw) / 2;
+        pdPage.elements.push({
+          id: screenId + '_power',
+          type: 'layout', title: '', imageKey: screenId + '_power',
+          x: PP_MARGIN + offX, y: y, w: gw, h: gh,
+          titleH: 0, fontSize: 9
+        });
+        y += gh + 3;
       }
+
+      if (opts.data !== false && ppCanvasCache[screenId + '_data']) {
+        const cached = ppCanvasCache[screenId + '_data'];
+        const data = screen.data || {};
+        const pw = parseInt(data.panelsWide)||0;
+        const ph = parseInt(data.panelsHigh)||0;
+        const { renderWidth: gw, renderHeight: gh } = (typeof calculateGridScale === 'function')
+          ? calculateGridScale(pw, ph, usableWidth, maxGridH)
+          : { renderWidth: usableWidth, renderHeight: maxGridH };
+        pdPage.elements.push({
+          id: screenId + '_data_lbl',
+          type: 'text', text: 'DATA LAYOUT', bold: true,
+          x: PP_MARGIN, y: y, w: usableWidth, h: sectionLblH, fontSize: 9
+        });
+        y += sectionLblH + 1;
+        const offX = (usableWidth - gw) / 2;
+        pdPage.elements.push({
+          id: screenId + '_data',
+          type: 'layout', title: '', imageKey: screenId + '_data',
+          x: PP_MARGIN + offX, y: y, w: gw, h: gh,
+          titleH: 0, fontSize: 9
+        });
+      }
+
+      pdfPageModel.push(pdPage);
+    }
+
+    // ---- PAGE: STRUCTURE + CABLING ----
+    const hasStructCabling = opts.structure !== false || opts.cabling !== false;
+    if (hasStructCabling) {
+      const scPage = { pageNum: pdfPageModel.length + 1, elements: [] };
+      let y = pushHeader(scPage, PP_MARGIN);
+
+      const maxStructH = Math.floor((usableHeight - headerH - 2 * sectionLblH - 10) / 2);
+
+      if (opts.structure !== false && ppCanvasCache[screenId + '_structure']) {
+        const data = screen.data || {};
+        const pw = parseInt(data.panelsWide)||0;
+        const ph = parseInt(data.panelsHigh)||0;
+        const { renderWidth: gw, renderHeight: gh } = (typeof calculateGridScale === 'function')
+          ? calculateGridScale(pw, ph, usableWidth, maxStructH)
+          : { renderWidth: usableWidth, renderHeight: maxStructH };
+        scPage.elements.push({
+          id: screenId + '_struct_lbl',
+          type: 'text', text: 'STRUCTURE LAYOUT', bold: true,
+          x: PP_MARGIN, y: y, w: usableWidth, h: sectionLblH, fontSize: 9
+        });
+        y += sectionLblH + 1;
+        const offX = (usableWidth - gw) / 2;
+        scPage.elements.push({
+          id: screenId + '_structure',
+          type: 'layout', title: '', imageKey: screenId + '_structure',
+          x: PP_MARGIN + offX, y: y, w: gw, h: gh,
+          titleH: 0, fontSize: 9
+        });
+        y += gh + 3;
+
+        // Structure info textblocks (2 columns)
+        const structLines = buildStructureInfoLines(screenId);
+        if (structLines.length > 0) {
+          const structColW = (usableWidth - 4) / 2;
+          const col2Headers = ['Ground Support Hardware', 'Floor Frames', 'Total Structure Weight'];
+          let splitIdx = structLines.length;
+          for (let i = 0; i < structLines.length; i++) {
+            if (structLines[i].header && col2Headers.some(h => structLines[i].text === h)) { splitIdx = i; break; }
+          }
+          const stH = Math.min(structLines.length * 3.5, 30);
+          scPage.elements.push({
+            id: screenId + '_struct_info_1', type: 'textblock',
+            lines: structLines.slice(0, splitIdx),
+            x: PP_MARGIN, y: y, w: structColW, h: stH, fontSize: 7
+          });
+          if (splitIdx < structLines.length) {
+            scPage.elements.push({
+              id: screenId + '_struct_info_2', type: 'textblock',
+              lines: structLines.slice(splitIdx),
+              x: PP_MARGIN + structColW + 4, y: y, w: structColW, h: stH, fontSize: 7
+            });
+          }
+          y += stH + 3;
+        }
+      }
+
+      if (opts.cabling !== false && ppCanvasCache[screenId + '_cabling']) {
+        const cabCached = ppCanvasCache[screenId + '_cabling'];
+        const maxCabH = Math.max(10, ppPageHeight - y - PP_MARGIN - sectionLblH - 3);
+        const cabW = usableWidth;
+        let cabH = cabW * (cabCached.aspectRatio || 0.33);
+        if (cabH > maxCabH) cabH = maxCabH;
+        scPage.elements.push({
+          id: screenId + '_cabling_lbl',
+          type: 'text', text: 'CABLING LAYOUT', bold: true,
+          x: PP_MARGIN, y: y, w: usableWidth, h: sectionLblH, fontSize: 9
+        });
+        y += sectionLblH + 1;
+        scPage.elements.push({
+          id: screenId + '_cabling',
+          type: 'layout', title: '', imageKey: screenId + '_cabling',
+          x: PP_MARGIN, y: y, w: cabW, h: cabH,
+          titleH: 0, fontSize: 9
+        });
+      }
+
+      pdfPageModel.push(scPage);
     }
   });
 
-  // ========== COMBINED VIEW PAGES ==========
+  // ========== COMBINED VIEW PAGES (preserved from original) ==========
   if (opts.combined && Object.keys(screens).length > 1) {
     const combinedLayouts = [
       { key: 'combined_standard', title: 'Combined Standard Layout' },
-      { key: 'combined_power', title: 'Combined Power Layout' },
-      { key: 'combined_data', title: 'Combined Data Layout' },
+      { key: 'combined_power',    title: 'Combined Power Layout' },
+      { key: 'combined_data',     title: 'Combined Data Layout' },
       { key: 'combined_structure', title: 'Combined Structure Layout' },
-      { key: 'combined_cabling', title: 'Combined Cabling Layout' }
+      { key: 'combined_cabling',  title: 'Combined Cabling Layout' }
     ];
-
     let combinedPage = { pageNum: pdfPageModel.length + 1, elements: [] };
     let yPos = PP_MARGIN;
-
     combinedPage.elements.push({
-      id: 'combined_header',
-      type: 'text',
-      text: 'Combined View',
-      x: PP_MARGIN, y: yPos, w: usableWidth, h: 8,
-      fontSize: 14, bold: true
+      id: 'combined_header', type: 'text', text: 'COMBINED VIEW', bold: true,
+      x: PP_MARGIN, y: yPos, w: usableWidth, h: 8, fontSize: 12
     });
     yPos += 10;
-
     combinedLayouts.forEach((layout, lIdx) => {
       const cached = ppCanvasCache[layout.key];
       if (!cached) return;
-
-      let imgW = structureFixedW;
+      let imgW = usableWidth;
       let imgH = imgW * cached.aspectRatio;
-      if (imgH > structureMaxH) {
-        imgH = structureMaxH;
-        imgW = structureMaxH / cached.aspectRatio;
-      }
-      const neededHeight = imgH + 14;
-
-      if (yPos + neededHeight > ppPageHeight - PP_MARGIN) {
-        addWatermark(combinedPage, 'combined_' + lIdx);
+      if (imgH > 60) { imgH = 60; imgW = 60 / cached.aspectRatio; }
+      const neededH = imgH + 10;
+      if (yPos + neededH > ppPageHeight - PP_MARGIN) {
         pdfPageModel.push(combinedPage);
         combinedPage = { pageNum: pdfPageModel.length + 1, elements: [] };
         yPos = PP_MARGIN;
       }
-
-      // Combined layout title + image as single draggable element
-      const titleH = 6;
       combinedPage.elements.push({
-        id: layout.key,
-        type: 'layout',
-        title: layout.title,
-        imageKey: layout.key,
-        x: PP_MARGIN, y: yPos, w: imgW, h: titleH + imgH,
-        titleH: titleH,
-        fontSize: 11
+        id: layout.key, type: 'layout', title: layout.title, imageKey: layout.key,
+        x: PP_MARGIN, y: yPos, w: imgW, h: 6 + imgH, titleH: 6, fontSize: 9
       });
-      yPos += titleH + imgH + 8;
+      yPos += 6 + imgH + 4;
     });
-
-    addWatermark(combinedPage, 'combined_last');
-    pdfPageModel.push(combinedPage);
-  }
-
-  // ========== MULTI-SCREEN GEAR LIST PAGES ==========
-  if (opts.gearList && screenIds.length > 1) {
-    const gearPage = { pageNum: pdfPageModel.length + 1, elements: [] };
-    gearPage.elements.push({
-      id: 'gearlist_header',
-      type: 'text',
-      text: 'Gear List',
-      x: PP_MARGIN, y: PP_MARGIN, w: usableWidth, h: 8,
-      fontSize: 14, bold: true
-    });
-
-    // Pre-compute system gear height to reserve space at the bottom
-    const sysLinesPreview = buildSystemGearLines(screenIds);
-    const sysReserveH = sysLinesPreview.length > 0 ? Math.max(sysLinesPreview.length * 3.5, 40) + 6 : 0;
-
-    // Lay out each screen's gear as its own column (up to 3 columns)
-    const numCols = Math.min(screenIds.length, 3);
-    const colGap = 3;
-    const colW = (usableWidth - colGap * (numCols - 1)) / numCols;
-    const bodyY = PP_MARGIN + 10;
-    const bodyH = ppPageHeight - bodyY - PP_MARGIN - 10 - sysReserveH;
-
-    screenIds.forEach((screenId, colIdx) => {
-      const screen = screens[screenId];
-      const colLines = [{ text: screen.name, bold: true, header: true }];
-      buildGearLines(screenId).forEach(l => colLines.push(l));
-      const colX = PP_MARGIN + colIdx * (colW + colGap);
-      gearPage.elements.push({
-        id: 'gearlist_' + screenId,
-        type: 'textblock',
-        lines: colLines,
-        x: colX, y: bodyY, w: colW, h: bodyH,
-        fontSize: 8
-      });
-    });
-
-    addWatermark(gearPage, 'gear');
-    pdfPageModel.push(gearPage);
-
-    // Track this page so system gear appears below the screen gear columns
-    gearPageForSystem = gearPage;
-    systemGearX = PP_MARGIN;
-    systemGearY = bodyY + bodyH + 4;
-    systemGearW = usableWidth / 2;
-  }
-
-  // ========== SYSTEM-WIDE GEAR (signal cables, utility, spares) ==========
-  // Placed on the same page as the gear list (specs page for single-screen,
-  // multi-screen gear page for multi-screen) rather than a separate page.
-  if (opts.gearList && !sysGearInCol3) {
-    const sysLines = buildSystemGearLines(screenIds);
-    if (sysLines.length > 0) {
-      const sysHeight = Math.max(sysLines.length * 3.5, 40);
-      if (gearPageForSystem) {
-        gearPageForSystem.elements.push({
-          id: 'system_gear',
-          type: 'textblock',
-          lines: sysLines,
-          x: systemGearX, y: systemGearY, w: systemGearW, h: sysHeight,
-          fontSize: 8
-        });
-      } else {
-        // Fallback: no gear page was built (e.g. gearList was off for screens), use a new page
-        const sysPage = { pageNum: pdfPageModel.length + 1, elements: [] };
-        sysPage.elements.push({
-          id: 'system_gear',
-          type: 'textblock',
-          lines: sysLines,
-          x: PP_MARGIN, y: PP_MARGIN + 10, w: usableWidth / 2, h: sysHeight,
-          fontSize: 8
-        });
-        addWatermark(sysPage, 'system');
-        pdfPageModel.push(sysPage);
-      }
-    }
+    if (combinedPage.elements.length > 0) pdfPageModel.push(combinedPage);
   }
 }
 

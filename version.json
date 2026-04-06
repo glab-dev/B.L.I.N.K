@@ -1,5 +1,5 @@
 {
-  "version": "2.10.93",
+  "version": "2.10.94",
   "updated": "2026-04-06",
-  "changelog": "Change PDF section labels and structure table card titles from dark green to black"
+  "changelog": "Change PDF summary column headers, structure card underlines, and total lines to black"
 }

@@ -563,10 +563,10 @@ function buildSummaryColumn(label, rows) {
     stack: [
       {
         text: label,
-        fontSize: 8, bold: true, color: tc.headerBg,
+        fontSize: 8, bold: true, color: '#000000',
         border: [false, false, false, false],
         margin: [0, 0, 0, 3],
-        decoration: 'underline', decorationColor: tc.summaryAccent
+        decoration: 'underline', decorationColor: '#000000'
       },
       ...bodyLines
     ],
@@ -1135,12 +1135,12 @@ function buildStructureInfoPdf(screenId) {
     const titleEl = {
       text: table.title,
       fontSize: 9, bold: true, color: '#000000',
-      decoration: 'underline', decorationColor: tc.summaryAccent,
+      decoration: 'underline', decorationColor: '#000000',
       margin: [0, 0, 0, 4]
     };
     const itemEls = table.items.map(function(item) {
       if (item.bold) {
-        return { text: item.text.trim(), fontSize: 8, bold: true, color: tc.headerBg, margin: [0, 4, 0, 0] };
+        return { text: item.text.trim(), fontSize: 8, bold: true, color: '#000000', margin: [0, 4, 0, 0] };
       }
       return { text: item.text.trim(), fontSize: 8, color: tc.textSecondary, lineHeight: 1.3 };
     });

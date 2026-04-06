@@ -675,7 +675,7 @@ function buildSimpleSummaryBar(screenData, calcData, panelSpec) {
     ['Max/Circuit',   maxPpc > 0      ? `${maxPpc} panels` : null],
   ]);
   const panelsPerDL  = cd.panelsPerDataLine || 0;
-  const procSpec     = (getAllProcessors && data.processorType) ? (getAllProcessors()[data.processorType] || {}) : {};
+  const procSpec     = (getAllProcessors && data.processor) ? (getAllProcessors()[data.processor] || {}) : {};
   const pixPerPort   = procSpec.base_pixels_1g || 0;
   const colData = buildSummaryColumn('DATA', [
     ['Port Capacity', pixPerPort > 0 ? `${pixPerPort.toLocaleString()} px/port` : null],

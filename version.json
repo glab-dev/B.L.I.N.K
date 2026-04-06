@@ -1,5 +1,5 @@
 {
-  "version": "2.10.79",
+  "version": "2.10.80",
   "updated": "2026-04-05",
-  "changelog": "Fix port capacity to show max pixels per port instead of panels per port"
+  "changelog": "Fix port capacity lookup using correct data.processor field name"
 }

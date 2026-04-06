@@ -647,9 +647,7 @@ function buildSimpleSummaryBar(screenData, calcData, panelSpec) {
   const wallResStr    = (pw > 0 && ph > 0 && p.res_x && p.res_y)
     ? `${pw * p.res_x} × ${ph * p.res_y} px`
     : null;
-  const totalPixStr   = totalPixels > 0
-    ? (totalPixels >= 1000000 ? `${(totalPixels/1000000).toFixed(1)} MP` : totalPixels.toLocaleString())
-    : null;
+  const totalPixStr   = totalPixels > 0 ? totalPixels.toLocaleString() + ' px' : null;
   const wallWtStr     = estWeightLbs > 0 ? `${estWeightLbs} lbs` : null;
 
   const colPanel = buildSummaryColumn('PANEL', [

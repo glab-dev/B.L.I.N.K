@@ -1,5 +1,5 @@
 {
-  "version": "2.10.80",
+  "version": "2.10.81",
   "updated": "2026-04-05",
-  "changelog": "Fix port capacity lookup using correct data.processor field name"
+  "changelog": "Show total pixels as full number in simple mode PDF summary"
 }

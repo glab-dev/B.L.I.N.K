@@ -1,5 +1,5 @@
 {
-  "version": "2.10.87",
+  "version": "2.10.88",
   "updated": "2026-04-06",
-  "changelog": "Increase bumper and power layout font sizes by 2px in PDF capture mode"
+  "changelog": "Add space between circuit range label and panels in PDF power layout"
 }

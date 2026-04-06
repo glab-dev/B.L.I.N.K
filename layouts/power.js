@@ -5,7 +5,8 @@
 function renderPowerLayout(params) {
   const {pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, panelsPerCircuit} = params;
 
-  const socaLabelHeight = 60;
+  const _pdfMode = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  const socaLabelHeight = _pdfMode ? 75 : 60;
   canvas.height += socaLabelHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 

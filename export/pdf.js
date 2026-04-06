@@ -837,7 +837,7 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
     ['Power Max/Avg', (p.power_max_w && p.power_avg_w) ? `${p.power_max_w}W / ${p.power_avg_w}W` : null],
     ['Max Hanging',   p.max_hanging ? `${p.max_hanging} panels` : null],
     ['Max Stacking',  p.max_stacking ? `${p.max_stacking} panels` : null],
-    ['Bumper Weights', bumperWtStr],
+    ['Bumpers',        bumperWtStr],
   ]);
 
   const colWall = buildSummaryColumn('WALL', [

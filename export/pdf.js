@@ -729,7 +729,7 @@ function buildSimplePdf(canvasCache) {
     const imgKey  = screenId + '_standard';
     const imgData = canvasCache && canvasCache[imgKey];
 
-    if (imgData && imgData.dataUrl && pw > 0 && ph > 0) {
+    if (imgData && imgData.dataUrl && pw * ph > 1) {
       const usedAbove = m.headerBarH + 6 + m.summaryBarHExp + 8;
       const remainH   = uh - usedAbove - m.resolutionLblH - 8;
       const { renderWidth, renderHeight } = calculateGridScale(pw, ph, cw, remainH);
@@ -1218,6 +1218,7 @@ function buildComplexPdf(opts, canvasCache) {
   }
 
   function gridImage(key, pw, ph, maxH) {
+    if (!pw || !ph || pw * ph <= 1) return null;
     const imgData = canvasCache && canvasCache[key];
     if (!imgData || !imgData.dataUrl) return null;
     const aspect = imgData.aspectRatio || (ph / pw);

@@ -1,5 +1,5 @@
 {
-  "version": "2.10.95",
-  "updated": "2026-04-06",
-  "changelog": "Change screen name, PROJECT SUMMARY, and SCREENS labels in PDF from dark green to black"
+  "version": "2.10.96",
+  "updated": "2026-04-07",
+  "changelog": "Hide layout grid images in PDF and preview when wall has 1 or fewer panels configured"
 }

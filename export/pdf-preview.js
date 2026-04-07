@@ -244,14 +244,17 @@ function captureAllCanvasImages(callback) {
     if (cableContainer && savedCableWidth !== null) cableContainer.style.width = savedCableWidth;
     else if (cableContainer) cableContainer.style.width = '';
 
-    // Capture each canvas
-    const captures = [
+    // Capture each canvas — skip for empty/default walls (≤1 panel total)
+    const _capData = screens[screenId] && screens[screenId].data || {};
+    const _capPw = parseInt(_capData.panelsWide) || 0;
+    const _capPh = parseInt(_capData.panelsHigh) || 0;
+    const captures = (_capPw * _capPh > 1) ? [
       { id: 'standardCanvas', key: screenId + '_standard' },
       { id: 'powerCanvas', key: screenId + '_power' },
       { id: 'dataCanvas', key: screenId + '_data' },
       { id: 'structureCanvas', key: screenId + '_structure' },
       { id: 'cableDiagramCanvas', key: screenId + '_cabling' }
-    ];
+    ] : [];
 
     const stdCanvas = document.getElementById('standardCanvas');
     const stdAspectRatio = (stdCanvas && stdCanvas.width > 0) ? stdCanvas.height / stdCanvas.width : null;

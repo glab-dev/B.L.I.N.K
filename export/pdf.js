@@ -1236,6 +1236,77 @@ function buildComplexPdf(opts, canvasCache) {
     };
   }
 
+  function escXml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function buildCombinedDiagram(sids) {
+    const LABEL_H   = 14;
+    const BOX_H     = 90;
+    const SVG_H     = LABEL_H + BOX_H + LABEL_H + 4;
+    const GAP       = 5;
+
+    const items = sids.map(function(sid) {
+      const scr = screens[sid];
+      const d   = (scr && scr.data) || {};
+      const p   = allPanels[d.panelType] || {};
+      const pw  = parseInt(d.panelsWide) || 1;
+      const ph  = parseInt(d.panelsHigh) || 1;
+      return {
+        name:  (scr && scr.name)  || sid,
+        color: (scr && scr.color) || '#888888',
+        realW: pw * (p.width_m  || 0.5),
+        realH: ph * (p.height_m || 0.5),
+        pw: pw, ph: ph
+      };
+    });
+
+    const n          = items.length;
+    const totalGapW  = (n - 1) * GAP;
+    const totalRealW = items.reduce(function(s, it) { return s + it.realW; }, 0);
+    const maxRealH   = items.reduce(function(m, it) { return Math.max(m, it.realH); }, 0);
+
+    const hScale     = (cw - totalGapW) / totalRealW;
+    const vScale     = BOX_H / maxRealH;
+    const scale      = Math.min(hScale, vScale);
+
+    const diagW      = items.reduce(function(s, it) { return s + it.realW * scale; }, 0) + totalGapW;
+    const startX     = (cw - diagW) / 2;
+    const diagTop    = LABEL_H + 2;
+    const diagBottom = diagTop + BOX_H;
+
+    var parts = [
+      '<svg xmlns="http://www.w3.org/2000/svg" width="' + cw + '" height="' + SVG_H + '">',
+      '<rect x="0" y="0" width="' + cw + '" height="' + SVG_H + '" fill="#f5f5f0"/>'
+    ];
+
+    var cx = startX;
+    items.forEach(function(it) {
+      var bw    = it.realW * scale;
+      var bh    = it.realH * scale;
+      var bx    = cx;
+      var by    = diagBottom - bh;
+      var midX  = cx + bw / 2;
+      var wFt   = (it.realW * 3.28084).toFixed(1);
+      var hFt   = (it.realH * 3.28084).toFixed(1);
+      var dim   = it.pw + '\xd7' + it.ph + '  ' + wFt + "' \xd7 " + hFt + "'";
+
+      parts.push('<text x="' + midX.toFixed(1) + '" y="' + (diagTop - 2).toFixed(1) + '" font-size="9" fill="#222222" text-anchor="middle" font-family="Helvetica-Bold">' + escXml(it.name) + '</text>');
+      parts.push('<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + it.color + '" stroke="#000000" stroke-width="0.5"/>');
+      parts.push('<text x="' + midX.toFixed(1) + '" y="' + (diagBottom + LABEL_H - 2).toFixed(1) + '" font-size="8" fill="#666666" text-anchor="middle" font-family="Helvetica">' + escXml(dim) + '</text>');
+
+      cx += bw + GAP;
+    });
+
+    parts.push('</svg>');
+
+    return { svg: parts.join(''), width: cw, height: SVG_H, margin: [0, 0, 0, 12] };
+  }
+
   // For multi-screen: summary page page-reference is 1-based index in final PDF.
   // We calculate page starts by counting pageBreak elements as we build.
   // Summary page itself = page 1; so all screen hero pages start at 2+.
@@ -1306,6 +1377,12 @@ function buildComplexPdf(opts, canvasCache) {
                 paddingLeft: () => 0, paddingRight: () => 4, paddingTop: () => 3, paddingBottom: () => 3 },
       margin: [0, 0, 0, 12]
     });
+
+    // Combined view diagram
+    if (opts.combined && screenIds.length > 1) {
+      content.push(sectionLabel('Combined View'));
+      content.push(buildCombinedDiagram(screenIds));
+    }
 
     // Per-screen summary cards
     content.push({ text: 'SCREENS', fontSize: 9, bold: true, color: '#000000', margin: [0, 0, 0, 6] });

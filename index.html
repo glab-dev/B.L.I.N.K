@@ -1724,14 +1724,7 @@
       </div>
       <!-- RIGHT: Preview Area -->
       <div class="print-preview-area">
-        <div class="preview-zoom-controls">
-          <button class="preview-zoom-btn" onclick="ppZoomOut()" title="Zoom Out">−</button>
-          <button class="preview-zoom-btn preview-zoom-reset" onclick="ppZoomReset()" title="Reset Zoom">100%</button>
-          <button class="preview-zoom-btn" onclick="ppZoomIn()" title="Zoom In">+</button>
-        </div>
-        <div id="previewPagesContainer" class="preview-pages-scroll">
-          <!-- Preview page canvases inserted dynamically -->
-        </div>
+        <iframe id="pdfPreviewFrame" class="pdf-preview-iframe"></iframe>
       </div>
     </div>
   </div>
@@ -3256,8 +3249,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.97';
-const APP_CHANGELOG = 'Skip gear list and layout pages in PDF and preview for empty or default single-panel walls';
+const APP_VERSION = '2.10.98';
+const APP_CHANGELOG = 'Replace canvas print preview with live pdfmake iframe for exact PDF match';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

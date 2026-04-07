@@ -1,5 +1,5 @@
 {
-  "version": "2.10.97",
+  "version": "2.10.98",
   "updated": "2026-04-07",
-  "changelog": "Skip gear list and layout pages in PDF and preview for empty or default single-panel walls"
+  "changelog": "Replace canvas print preview with live pdfmake iframe for exact PDF match"
 }

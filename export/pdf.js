@@ -1377,7 +1377,7 @@ function buildComplexPdf(opts, canvasCache) {
     }
 
     // ===== PAGE 2: GEAR LIST =====
-    if (opts.gearList !== false && sd) {
+    if (opts.gearList !== false && sd && pw * ph > 1) {
       content.push({ text: '', pageBreak: 'before' });
       content.push(buildPdfHeader(configName, dateStr, logoData));
       content.push(sectionLabel(`${screen.name} — Gear List`));
@@ -1386,7 +1386,7 @@ function buildComplexPdf(opts, canvasCache) {
 
     // ===== PAGES 3 (& 4): POWER / DATA / STRUCTURE / CABLING =====
     const hasLayouts = opts.power !== false || opts.data !== false || opts.structure !== false || opts.cabling !== false;
-    if (hasLayouts) {
+    if (hasLayouts && pw * ph > 1) {
       // Page 3: Power + Data layouts (always new page; collapse controls whether page 4 exists)
       content.push({ text: '', pageBreak: 'before' });
       content.push(buildPdfHeader(configName, dateStr, logoData));

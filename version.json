@@ -1,5 +1,5 @@
 {
-  "version": "2.10.96",
+  "version": "2.10.97",
   "updated": "2026-04-07",
-  "changelog": "Hide layout grid images in PDF and preview when wall has 1 or fewer panels configured"
+  "changelog": "Skip gear list and layout pages in PDF and preview for empty or default single-panel walls"
 }

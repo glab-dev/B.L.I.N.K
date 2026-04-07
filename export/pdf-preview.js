@@ -758,6 +758,8 @@ function buildPageModel() {
   screenIds.forEach((screenId, sIdx) => {
     const screen = screens[screenId];
     if (!screen) return;
+    const _sd = screen.data || {};
+    const _hasContent = (parseInt(_sd.panelsWide) || 0) * (parseInt(_sd.panelsHigh) || 0) > 1;
 
     // ---- PAGE: HERO (header + screen name + 4-col summary + standard grid) ----
     if (opts.specs !== false || opts.standard !== false) {
@@ -825,7 +827,7 @@ function buildPageModel() {
     }
 
     // ---- PAGE: GEAR LIST ----
-    if (opts.gearList !== false) {
+    if (opts.gearList !== false && _hasContent) {
       const gearPage = { pageNum: pdfPageModel.length + 1, elements: [] };
       let y = pushHeader(gearPage, PP_MARGIN);
 
@@ -853,7 +855,7 @@ function buildPageModel() {
 
     // ---- PAGE: POWER + DATA ----
     const hasPowerData = opts.power !== false || opts.data !== false;
-    if (hasPowerData) {
+    if (hasPowerData && _hasContent) {
       const pdPage = { pageNum: pdfPageModel.length + 1, elements: [] };
       let y = pushHeader(pdPage, PP_MARGIN);
 
@@ -911,7 +913,7 @@ function buildPageModel() {
 
     // ---- PAGE: STRUCTURE + CABLING ----
     const hasStructCabling = opts.structure !== false || opts.cabling !== false;
-    if (hasStructCabling) {
+    if (hasStructCabling && _hasContent) {
       const scPage = { pageNum: pdfPageModel.length + 1, elements: [] };
       let y = pushHeader(scPage, PP_MARGIN);
 

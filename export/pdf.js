@@ -1260,7 +1260,7 @@ function buildComplexPdf(opts, canvasCache) {
   // ===== MULTI-SCREEN SUMMARY PAGE =====
   if (screenIds.length > 1) {
     content.push(buildPdfHeader(configName, dateStr, logoData));
-    content.push({ text: 'PROJECT SUMMARY', fontSize: 12, bold: true, color: tc.headerBg, margin: [0, 2, 0, 8] });
+    content.push({ text: 'PROJECT SUMMARY', fontSize: 12, bold: true, color: '#000000', margin: [0, 2, 0, 8] });
 
     // Aggregate stats
     let totalPowerW = 0;
@@ -1307,7 +1307,7 @@ function buildComplexPdf(opts, canvasCache) {
     });
 
     // Per-screen summary cards
-    content.push({ text: 'SCREENS', fontSize: 9, bold: true, color: tc.headerBg, margin: [0, 0, 0, 6] });
+    content.push({ text: 'SCREENS', fontSize: 9, bold: true, color: '#000000', margin: [0, 0, 0, 6] });
 
     const cardRows = [];
     screenIds.forEach(function(sid) {
@@ -1360,7 +1360,7 @@ function buildComplexPdf(opts, canvasCache) {
       content.push(buildPdfHeader(configName, dateStr, logoData));
       content.push({
         text: screen.name.toUpperCase(),
-        fontSize: 11, bold: true, color: tc.headerBg,
+        fontSize: 11, bold: true, color: '#000000',
         margin: [0, 2, 0, 6]
       });
       if (opts.specs !== false) {

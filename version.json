@@ -1,5 +1,5 @@
 {
-  "version": "2.10.107",
+  "version": "2.10.108",
   "updated": "2026-04-09",
-  "changelog": "Restructure multi-screen summary SCREENS table into 5 labeled columns with header row"
+  "changelog": "Rename Utility Grip to UG, Utility Twofers to UG Twofers, and flip True1 cable length order"
 }

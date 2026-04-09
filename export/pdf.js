@@ -1022,9 +1022,9 @@ function buildGearListContent(gearData, screenIndex, contentWidth) {
   socaEntries.forEach(function(e) {
     if (Number(e[1]) > 0) pcItems.push({ qty: e[1], item: `Soca ${e[0]}'` });
   });
-  if (pc.true1_25 > 0)    pcItems.push({ qty: pc.true1_25,    item: "True1 25'" });
-  if (pc.true1_10 > 0)    pcItems.push({ qty: pc.true1_10,    item: "True1 10'" });
-  if (pc.true1_5  > 0)    pcItems.push({ qty: pc.true1_5,     item: "True1 5'"  });
+  if (pc.true1_25 > 0)    pcItems.push({ qty: pc.true1_25,    item: "25' True1" });
+  if (pc.true1_10 > 0)    pcItems.push({ qty: pc.true1_10,    item: "10' True1" });
+  if (pc.true1_5  > 0)    pcItems.push({ qty: pc.true1_5,     item: "5' True1"  });
   if (pc.true1Twofer > 0) pcItems.push({ qty: pc.true1Twofer, item: 'True1 Twofer' });
 
   // --- Column 3: Signal Cables, Utility, Spares ---
@@ -1040,10 +1040,10 @@ function buildGearListContent(gearData, screenIndex, contentWidth) {
 
   const u = gearData.utility || {};
   const utilItems = [];
-  if (u.ug10  > 0) utilItems.push({ qty: u.ug10,      item: "10' Utility Grip" });
-  if (u.ug25  > 0) utilItems.push({ qty: u.ug25,      item: "25' Utility Grip" });
-  if (u.ug50  > 0) utilItems.push({ qty: u.ug50,      item: "50' Utility Grip" });
-  if (u.ugTwofers > 0) utilItems.push({ qty: u.ugTwofers, item: 'Utility Twofers' });
+  if (u.ug10  > 0) utilItems.push({ qty: u.ug10,      item: "10' UG" });
+  if (u.ug25  > 0) utilItems.push({ qty: u.ug25,      item: "25' UG" });
+  if (u.ug50  > 0) utilItems.push({ qty: u.ug50,      item: "50' UG" });
+  if (u.ugTwofers > 0) utilItems.push({ qty: u.ugTwofers, item: 'UG Twofers' });
   if (u.powerBars > 0) utilItems.push({ qty: u.powerBars, item: 'Power Bars' });
 
   const sp = gearData.spares || {};
@@ -1062,7 +1062,7 @@ function buildGearListContent(gearData, screenIndex, contentWidth) {
   if (sp.true1_25   > 0)  spareItems.push({ qty: sp.true1_25,   item: "25' True1" });
   if (sp.true1_10   > 0)  spareItems.push({ qty: sp.true1_10,   item: "10' True1" });
   if (sp.true1_5    > 0)  spareItems.push({ qty: sp.true1_5,    item: "5' True1"  });
-  if (sp.true1Twofer > 0) spareItems.push({ qty: sp.true1Twofer, item: 'True1 Twofers' });
+  if (sp.true1Twofer > 0) spareItems.push({ qty: sp.true1Twofer, item: 'True1 Twofer' });
 
   // Build column stacks (skip null sections)
   function col(sections) {
@@ -1657,9 +1657,9 @@ function buildComplexPdf(opts, canvasCache) {
         Object.entries(pc.socaByLength || {}).sort(function(a, b) { return Number(a[0]) - Number(b[0]); }).forEach(function(e) {
           if (Number(e[1]) > 0) pcItems.push({ qty: e[1], item: 'Soca ' + e[0] + "'" });
         });
-        if (pc.true1_25    > 0) pcItems.push({ qty: pc.true1_25,    item: "True1 25'" });
-        if (pc.true1_10    > 0) pcItems.push({ qty: pc.true1_10,    item: "True1 10'" });
-        if (pc.true1_5     > 0) pcItems.push({ qty: pc.true1_5,     item: "True1 5'"  });
+        if (pc.true1_25    > 0) pcItems.push({ qty: pc.true1_25,    item: "25' True1" });
+        if (pc.true1_10    > 0) pcItems.push({ qty: pc.true1_10,    item: "10' True1" });
+        if (pc.true1_5     > 0) pcItems.push({ qty: pc.true1_5,     item: "5' True1"  });
         if (pc.true1Twofer > 0) pcItems.push({ qty: pc.true1Twofer, item: 'True1 Twofer' });
 
         const colSections = [
@@ -1691,10 +1691,10 @@ function buildComplexPdf(opts, canvasCache) {
 
       const u = gearData.utility || {};
       const utilItems = [];
-      if (u.ug10     > 0) utilItems.push({ qty: u.ug10,     item: "10' Utility Grip" });
-      if (u.ug25     > 0) utilItems.push({ qty: u.ug25,     item: "25' Utility Grip" });
-      if (u.ug50     > 0) utilItems.push({ qty: u.ug50,     item: "50' Utility Grip" });
-      if (u.ugTwofers > 0) utilItems.push({ qty: u.ugTwofers, item: 'Utility Twofers' });
+      if (u.ug10     > 0) utilItems.push({ qty: u.ug10,     item: "10' UG" });
+      if (u.ug25     > 0) utilItems.push({ qty: u.ug25,     item: "25' UG" });
+      if (u.ug50     > 0) utilItems.push({ qty: u.ug50,     item: "50' UG" });
+      if (u.ugTwofers > 0) utilItems.push({ qty: u.ugTwofers, item: 'UG Twofers' });
       if (u.powerBars > 0) utilItems.push({ qty: u.powerBars, item: 'Power Bars' });
 
       const sp = gearData.spares || {};
@@ -1713,7 +1713,7 @@ function buildComplexPdf(opts, canvasCache) {
       if (sp.true1_25    > 0) spareItems.push({ qty: sp.true1_25,    item: "25' True1" });
       if (sp.true1_10    > 0) spareItems.push({ qty: sp.true1_10,    item: "10' True1" });
       if (sp.true1_5     > 0) spareItems.push({ qty: sp.true1_5,     item: "5' True1"  });
-      if (sp.true1Twofer > 0) spareItems.push({ qty: sp.true1Twofer, item: 'True1 Twofers' });
+      if (sp.true1Twofer > 0) spareItems.push({ qty: sp.true1Twofer, item: 'True1 Twofer' });
 
       const sharedSections = [
         scItems.length    > 0 ? buildGearSection('SIGNAL CABLES', scItems)  : null,
@@ -1857,9 +1857,9 @@ function pdfBuildGearRows(sd) {
     for (const [len, count] of socaLengths) {
       if (count > 0) addRow(count, `Soca ${len}'`);
     }
-    addRow(pc.true1_25, "True1 25'");
-    addRow(pc.true1_10, "True1 10'");
-    addRow(pc.true1_5, "True1 5'");
+    addRow(pc.true1_25, "25' True1");
+    addRow(pc.true1_10, "10' True1");
+    addRow(pc.true1_5, "5' True1");
     addRow(pc.true1Twofer, 'True1 Twofer');
   }
 
@@ -2101,10 +2101,10 @@ function buildPdfDocDefinition(opts, canvasCache) {
     if (gearData.utility) {
       const u = gearData.utility;
       const uRows = [];
-      if (u.ug10  > 0) uRows.push({ qty: u.ug10,      item: "10' Utility Grip" });
-      if (u.ug25  > 0) uRows.push({ qty: u.ug25,      item: "25' Utility Grip" });
-      if (u.ug50  > 0) uRows.push({ qty: u.ug50,      item: "50' Utility Grip" });
-      if (u.ugTwofers > 0) uRows.push({ qty: u.ugTwofers, item: 'Utility Twofers' });
+      if (u.ug10  > 0) uRows.push({ qty: u.ug10,      item: "10' UG" });
+      if (u.ug25  > 0) uRows.push({ qty: u.ug25,      item: "25' UG" });
+      if (u.ug50  > 0) uRows.push({ qty: u.ug50,      item: "50' UG" });
+      if (u.ugTwofers > 0) uRows.push({ qty: u.ugTwofers, item: 'UG Twofers' });
       if (u.powerBars > 0) uRows.push({ qty: u.powerBars,  item: 'Power Bars' });
       if (uRows.length > 0) {
         sysStack.push(pdfSectionBar('Utility', colors));

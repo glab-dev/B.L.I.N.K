@@ -1049,20 +1049,20 @@ function buildGearListContent(gearData, screenIndex, contentWidth) {
   const sp = gearData.spares || {};
   const spareItems = [];
   Object.entries(sp.panelsByType || {}).forEach(function(e) {
-    if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: `${e[0]} (spare)` });
+    if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: e[0] });
   });
-  if (sp.shackles    > 0) spareItems.push({ qty: sp.shackles,    item: 'Shackles (spare)' });
-  if (sp.cheeseyes   > 0) spareItems.push({ qty: sp.cheeseyes,   item: 'Cheeseyes (spare)' });
-  if (sp.crossJumpers > 0 && sp.crossJumperLen) spareItems.push({ qty: sp.crossJumpers, item: `${sp.crossJumperLen}' Cross Jumpers (spare)` });
-  if (sp.cat5Couplers > 0) spareItems.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers (spare)' });
+  if (sp.shackles    > 0) spareItems.push({ qty: sp.shackles,    item: 'Shackles' });
+  if (sp.cheeseyes   > 0) spareItems.push({ qty: sp.cheeseyes,   item: 'Cheeseyes' });
+  if (sp.crossJumpers > 0 && sp.crossJumperLen) spareItems.push({ qty: sp.crossJumpers, item: `${sp.crossJumperLen}' Cross Jumpers` });
+  if (sp.cat5Couplers > 0) spareItems.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers' });
   Object.entries(sp.cat6ByLength || {}).forEach(function(e) {
-    if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: `${e[0]}' Cat6 (spare)` });
+    if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: `${e[0]}' Cat6` });
   });
-  if (sp.socaSplays > 0)  spareItems.push({ qty: sp.socaSplays, item: 'Soca Splays (spare)' });
-  if (sp.true1_25   > 0)  spareItems.push({ qty: sp.true1_25,   item: "25' True1 (spare)" });
-  if (sp.true1_10   > 0)  spareItems.push({ qty: sp.true1_10,   item: "10' True1 (spare)" });
-  if (sp.true1_5    > 0)  spareItems.push({ qty: sp.true1_5,    item: "5' True1 (spare)"  });
-  if (sp.true1Twofer > 0) spareItems.push({ qty: sp.true1Twofer, item: 'True1 Twofers (spare)' });
+  if (sp.socaSplays > 0)  spareItems.push({ qty: sp.socaSplays, item: 'Soca Splays' });
+  if (sp.true1_25   > 0)  spareItems.push({ qty: sp.true1_25,   item: "25' True1" });
+  if (sp.true1_10   > 0)  spareItems.push({ qty: sp.true1_10,   item: "10' True1" });
+  if (sp.true1_5    > 0)  spareItems.push({ qty: sp.true1_5,    item: "5' True1"  });
+  if (sp.true1Twofer > 0) spareItems.push({ qty: sp.true1Twofer, item: 'True1 Twofers' });
 
   // Build column stacks (skip null sections)
   function col(sections) {
@@ -1686,20 +1686,20 @@ function buildComplexPdf(opts, canvasCache) {
       const sp = gearData.spares || {};
       const spareItems = [];
       Object.entries(sp.panelsByType || {}).forEach(function(e) {
-        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: e[0] + ' (spare)' });
+        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: e[0] });
       });
-      if (sp.shackles    > 0) spareItems.push({ qty: sp.shackles,    item: 'Shackles (spare)' });
-      if (sp.cheeseyes   > 0) spareItems.push({ qty: sp.cheeseyes,   item: 'Cheeseyes (spare)' });
-      if (sp.crossJumpers > 0 && sp.crossJumperLen) spareItems.push({ qty: sp.crossJumpers, item: sp.crossJumperLen + "' Cross Jumpers (spare)" });
-      if (sp.cat5Couplers > 0) spareItems.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers (spare)' });
+      if (sp.shackles    > 0) spareItems.push({ qty: sp.shackles,    item: 'Shackles' });
+      if (sp.cheeseyes   > 0) spareItems.push({ qty: sp.cheeseyes,   item: 'Cheeseyes' });
+      if (sp.crossJumpers > 0 && sp.crossJumperLen) spareItems.push({ qty: sp.crossJumpers, item: sp.crossJumperLen + "' Cross Jumpers" });
+      if (sp.cat5Couplers > 0) spareItems.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers' });
       Object.entries(sp.cat6ByLength || {}).forEach(function(e) {
-        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: e[0] + "' Cat6 (spare)" });
+        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: e[0] + "' Cat6" });
       });
-      if (sp.socaSplays  > 0) spareItems.push({ qty: sp.socaSplays,  item: 'Soca Splays (spare)' });
-      if (sp.true1_25    > 0) spareItems.push({ qty: sp.true1_25,    item: "25' True1 (spare)" });
-      if (sp.true1_10    > 0) spareItems.push({ qty: sp.true1_10,    item: "10' True1 (spare)" });
-      if (sp.true1_5     > 0) spareItems.push({ qty: sp.true1_5,     item: "5' True1 (spare)"  });
-      if (sp.true1Twofer > 0) spareItems.push({ qty: sp.true1Twofer, item: 'True1 Twofers (spare)' });
+      if (sp.socaSplays  > 0) spareItems.push({ qty: sp.socaSplays,  item: 'Soca Splays' });
+      if (sp.true1_25    > 0) spareItems.push({ qty: sp.true1_25,    item: "25' True1" });
+      if (sp.true1_10    > 0) spareItems.push({ qty: sp.true1_10,    item: "10' True1" });
+      if (sp.true1_5     > 0) spareItems.push({ qty: sp.true1_5,     item: "5' True1"  });
+      if (sp.true1Twofer > 0) spareItems.push({ qty: sp.true1Twofer, item: 'True1 Twofers' });
 
       const sharedSections = [
         scItems.length    > 0 ? buildGearSection('SIGNAL CABLES', scItems)  : null,
@@ -2101,20 +2101,20 @@ function buildPdfDocDefinition(opts, canvasCache) {
       const sp = gearData.spares;
       const spRows = [];
       Object.entries(sp.panelsByType || {}).forEach(([name, count]) => {
-        if (count > 0) spRows.push({ qty: count, item: `${name} (spare)` });
+        if (count > 0) spRows.push({ qty: count, item: name });
       });
-      if (sp.shackles    > 0) spRows.push({ qty: sp.shackles,    item: 'Shackles (spare)' });
-      if (sp.cheeseyes   > 0) spRows.push({ qty: sp.cheeseyes,   item: 'Cheeseyes (spare)' });
-      if (sp.crossJumpers > 0 && sp.crossJumperLen) spRows.push({ qty: sp.crossJumpers, item: `${sp.crossJumperLen}ft Cross Jumpers (spare)` });
-      if (sp.cat5Couplers > 0) spRows.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers (spare)' });
+      if (sp.shackles    > 0) spRows.push({ qty: sp.shackles,    item: 'Shackles' });
+      if (sp.cheeseyes   > 0) spRows.push({ qty: sp.cheeseyes,   item: 'Cheeseyes' });
+      if (sp.crossJumpers > 0 && sp.crossJumperLen) spRows.push({ qty: sp.crossJumpers, item: `${sp.crossJumperLen}ft Cross Jumpers` });
+      if (sp.cat5Couplers > 0) spRows.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers' });
       Object.entries(sp.cat6ByLength || {}).forEach(([len, count]) => {
-        if (count > 0) spRows.push({ qty: count, item: `${len}' Cat6 (spare)` });
+        if (count > 0) spRows.push({ qty: count, item: `${len}' Cat6` });
       });
-      if (sp.socaSplays  > 0) spRows.push({ qty: sp.socaSplays,  item: 'Soca Splays (spare)' });
-      if (sp.true1_25    > 0) spRows.push({ qty: sp.true1_25,    item: "25' True1 (spare)" });
-      if (sp.true1_10    > 0) spRows.push({ qty: sp.true1_10,    item: "10' True1 (spare)" });
-      if (sp.true1_5     > 0) spRows.push({ qty: sp.true1_5,     item: "5' True1 (spare)" });
-      if (sp.true1Twofer > 0) spRows.push({ qty: sp.true1Twofer, item: 'True1 Twofers (spare)' });
+      if (sp.socaSplays  > 0) spRows.push({ qty: sp.socaSplays,  item: 'Soca Splays' });
+      if (sp.true1_25    > 0) spRows.push({ qty: sp.true1_25,    item: "25' True1" });
+      if (sp.true1_10    > 0) spRows.push({ qty: sp.true1_10,    item: "10' True1" });
+      if (sp.true1_5     > 0) spRows.push({ qty: sp.true1_5,     item: "5' True1" });
+      if (sp.true1Twofer > 0) spRows.push({ qty: sp.true1Twofer, item: 'True1 Twofers' });
       if (spRows.length > 0) {
         sysStack.push(pdfSectionBar('Spares', colors));
         sysStack.push(pdfBuildGearTable(spRows, colors));

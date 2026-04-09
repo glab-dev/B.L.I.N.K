@@ -1,5 +1,5 @@
 {
-  "version": "2.10.105",
+  "version": "2.10.106",
   "updated": "2026-04-09",
-  "changelog": "Fix blurry structure layout bumper labels by raising panel size cap and scaling fonts in PDF mode"
+  "changelog": "Remove redundant (spare) suffix from gear list spares section items"
 }

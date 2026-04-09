@@ -10,6 +10,11 @@ let pdfPageOrientation = 'p';
 let ppPageWidth = 210;
 let ppPageHeight = 297;
 
+// Canvas cache reuse — avoid re-capturing canvases when only doc-level options change
+let _ppCanvasCache = null;
+let _ppLastEco = false;
+let _ppLastGreyscale = false;
+
 // ==================== MODAL OPEN / CLOSE ====================
 
 function openPrintPreview() {
@@ -53,6 +58,11 @@ function openPrintPreview() {
     if (ppLogoPreview) ppLogoPreview.style.display = 'none';
     if (ppLogoUploadBtn) ppLogoUploadBtn.style.display = '';
   }
+
+  // Invalidate canvas cache so first open always re-captures
+  _ppCanvasCache = null;
+  _ppLastEco = false;
+  _ppLastGreyscale = false;
 
   // Show modal then render
   modal.classList.add('active');
@@ -363,16 +373,22 @@ function rebuildPreview() {
   // Defer heavy work one frame so the browser paints the loading state first
   setTimeout(function() {
     const opts = getPrintPreviewOptions();
-    ecoPrintMode = opts.ecoFriendly;
-    greyscalePrintMode = opts.greyscale;
+    const needsCapture = !_ppCanvasCache ||
+      opts.ecoFriendly !== _ppLastEco ||
+      opts.greyscale !== _ppLastGreyscale;
 
-    const canvasCache = pdfCaptureCanvases();
+    if (needsCapture) {
+      ecoPrintMode = opts.ecoFriendly;
+      greyscalePrintMode = opts.greyscale;
+      _ppCanvasCache = pdfCaptureCanvases();
+      _ppLastEco = opts.ecoFriendly;
+      _ppLastGreyscale = opts.greyscale;
+      // Restore normal colors after capture
+      ecoPrintMode = false;
+      greyscalePrintMode = false;
+    }
 
-    // Restore normal colors after capture
-    ecoPrintMode = false;
-    greyscalePrintMode = false;
-
-    const docDef = buildComplexPdf(opts, canvasCache);
+    const docDef = buildComplexPdf(opts, _ppCanvasCache);
 
     pdfMake.createPdf(docDef).getBlob(function(blob) {
       const url = URL.createObjectURL(blob);

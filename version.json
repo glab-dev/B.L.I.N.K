@@ -1,5 +1,5 @@
 {
-  "version": "2.10.109",
+  "version": "2.10.110",
   "updated": "2026-04-09",
-  "changelog": "Show resolution under combined view screens and add loading overlay to PDF preview"
+  "changelog": "Cache canvas capture in PDF preview so combined view toggle is instant"
 }

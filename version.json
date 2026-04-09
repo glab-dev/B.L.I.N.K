@@ -1,5 +1,5 @@
 {
-  "version": "2.10.101",
-  "updated": "2026-04-08",
-  "changelog": "Fix multi-screen PDF standard canvas size, SOCA labels, cabling height, and combined gear list"
+  "version": "2.10.102",
+  "updated": "2026-04-09",
+  "changelog": "Fix SOCA label font sizes per screen count, label spacing, cable diagram aspect ratio and label sizes"
 }

@@ -1537,12 +1537,10 @@ function buildComplexPdf(opts, canvasCache) {
           content.push(sectionLabel('Cabling Layout'));
           const cabImg = canvasCache && canvasCache[screenId + '_cabling'];
           if (cabImg && cabImg.dataUrl) {
-            // Cabling is typically very wide — fit to content width
-            const cabH = Math.floor(cw * (cabImg.aspectRatio || 0.33));
-            const cappedH = Math.min(cabH, 350);
+            // Cabling — use fit to maintain aspect ratio (no distortion)
             content.push({
               image: cabImg.dataUrl,
-              width: cw, height: cappedH,
+              fit: [cw, 500],
               alignment: 'center',
               margin: [0, 0, 0, 4]
             });
@@ -1917,6 +1915,7 @@ function pdfCaptureCanvases() {
     const el = document.getElementById(id);
     if (el) { savedLayoutWidths[id] = el.style.width; el.style.width = '4000px'; }
   });
+  pdfMultiScreenCapture = screenIds.length > 1;
   pdfLayoutCaptureMode = true;
   void (document.getElementById('standardContainer') || document.body).offsetWidth; // force reflow
 
@@ -1964,8 +1963,9 @@ function pdfCaptureCanvases() {
     });
   });
 
-  // Restore layout container widths and capture mode flag
+  // Restore layout container widths and capture mode flags
   pdfLayoutCaptureMode = false;
+  pdfMultiScreenCapture = false;
   layoutContainerIds.forEach(function(id) {
     const el = document.getElementById(id);
     if (el) el.style.width = savedLayoutWidths[id] !== undefined ? savedLayoutWidths[id] : '';

@@ -351,7 +351,7 @@ function renderCableDiagram(screenId) {
         ctx.lineTo(_bracketEndX, bracketY - 6);
         ctx.stroke();
         ctx.fillStyle = isPrintMode ? fgColor : POWER_COLOR;
-        ctx.font = 'bold 10px Arial';
+        ctx.font = (isPdf ? 'bold 16px' : 'bold 10px') + ' Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.fillText('SOCA ' + (_s + 1), _landingX, bracketY + 2);
@@ -364,7 +364,7 @@ function renderCableDiagram(screenId) {
         ctx.lineTo(_bracketEndX, bracketY + 6);
         ctx.stroke();
         ctx.fillStyle = isPrintMode ? fgColor : POWER_COLOR;
-        ctx.font = 'bold 10px Arial';
+        ctx.font = (isPdf ? 'bold 16px' : 'bold 10px') + ' Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.fillText('SOCA ' + (_s + 1), _landingX, bracketY - 2);
@@ -379,7 +379,7 @@ function renderCableDiagram(screenId) {
 
   // Helper: draw a label to the right of a dot with dark background
   function drawCableLabel(labelText, x, y, color) {
-    ctx.font = 'bold 10px Arial';
+    ctx.font = (cableDiagramPdfMode ? 'bold 16px' : 'bold 10px') + ' Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     const lw = ctx.measureText(labelText).width + 4;
@@ -974,10 +974,10 @@ function renderCableDiagram(screenId) {
     processorToWall + "'", fgColor, bgColor);
 
   // === Legend ===
-  const legendSq = isPdf ? 16 : 10;
-  const legendTx = isPdf ? 20 : 14;
+  const legendSq = isPdf ? 20 : 10;
+  const legendTx = isPdf ? 24 : 14;
   const legendY = isPdf ? canvasH - 18 : canvasH - 14;
-  ctx.font = (isPdf ? 16 : 10) + 'px Arial';
+  ctx.font = (isPdf ? 20 : 10) + 'px Arial';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
 
@@ -1080,7 +1080,7 @@ function drawCableDimensionLine(ctx, x1, y1, x2, y2, label, fgColor, bgColor) {
   // Label with background
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
-  const fontSize = cableDiagramPdfMode ? 16 : 10;
+  const fontSize = cableDiagramPdfMode ? 24 : 10;
   ctx.font = fontSize + 'px Arial';
   const textW = ctx.measureText(label).width;
   const pad = 3;
@@ -1106,7 +1106,7 @@ function drawCableEquipmentBox(ctx, x, y, w, h, label, color) {
   ctx.strokeRect(x, y, w, h);
 
   // Label (responsive font: smaller when box is narrow on mobile)
-  var fontSize = cableDiagramPdfMode ? (w < 50 ? 14 : 16) : (w < 40 ? 8 : 10);
+  var fontSize = cableDiagramPdfMode ? (w < 50 ? 18 : 22) : (w < 40 ? 8 : 10);
   ctx.fillStyle = '#000000';
   ctx.font = 'bold ' + fontSize + 'px Arial';
   ctx.textAlign = 'center';

@@ -6,9 +6,10 @@ function renderPowerLayout(params) {
   const {pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, panelsPerCircuit} = params;
 
   const _pdfMode = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  const _isMultiScreen = typeof pdfMultiScreenCapture !== 'undefined' && pdfMultiScreenCapture;
   const pdfContentPt = 539;
   const canvasScale = _pdfMode ? canvas.width / pdfContentPt : 1;
-  const socaLabelHeight = _pdfMode ? Math.round(50 * canvasScale) : 60;
+  const socaLabelHeight = _pdfMode ? Math.round((_isMultiScreen ? 80 : 50) * canvasScale) : 60;
   canvas.height += socaLabelHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -202,8 +203,8 @@ function renderPowerLayout(params) {
     }
   }
 
-  const socaFontLg = _pdfMode ? Math.round(28 * canvasScale) : 16;
-  const socaFontSm = _pdfMode ? Math.round(19 * canvasScale) : 12;
+  const socaFontLg = _pdfMode ? Math.round((_isMultiScreen ? 28 : 16) * canvasScale) : 16;
+  const socaFontSm = _pdfMode ? Math.round((_isMultiScreen ? 19 : 11) * canvasScale) : 12;
   const lineY = Math.round(socaLabelHeight * 0.50);
   const tickH = _pdfMode ? Math.round(8 * canvasScale) : Math.round(socaLabelHeight * 0.13);
 

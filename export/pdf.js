@@ -1246,7 +1246,7 @@ function buildComplexPdf(opts, canvasCache) {
 
   function buildCombinedDiagram(sids) {
     const LABEL_H   = 14;
-    const BOX_H     = 90;
+    const BOX_H     = 120;
     const SVG_H     = LABEL_H + BOX_H + LABEL_H + 4;
     const GAP       = 5;
 
@@ -1256,12 +1256,15 @@ function buildComplexPdf(opts, canvasCache) {
       const p   = allPanels[d.panelType] || {};
       const pw  = parseInt(d.panelsWide) || 1;
       const ph  = parseInt(d.panelsHigh) || 1;
+      const dp  = d.deletedPanels;
+      const deletedSet = dp instanceof Set ? dp : (dp ? new Set(dp) : new Set());
       return {
         name:  (scr && scr.name)  || sid,
         color: (scr && scr.color) || '#888888',
         realW: pw * (p.width_m  || 0.5),
         realH: ph * (p.height_m || 0.5),
-        pw: pw, ph: ph
+        pw: pw, ph: ph,
+        deletedPanels: deletedSet
       };
     });
 
@@ -1295,8 +1298,28 @@ function buildComplexPdf(opts, canvasCache) {
       var hFt   = (it.realH * 3.28084).toFixed(1);
       var dim   = it.pw + '\xd7' + it.ph + '  ' + wFt + "' \xd7 " + hFt + "'";
 
+      var cellW = bw / it.pw;
+      var cellH = bh / it.ph;
+      var gap   = 0.5;
+
+      // Dark background for the full wall area (shows through as dead panels)
+      parts.push('<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="#111111" stroke="#000000" stroke-width="0.5"/>');
+
+      // Draw each panel cell — active = screen color, deleted = dark (background shows)
+      for (var r = 0; r < it.ph; r++) {
+        for (var c = 0; c < it.pw; c++) {
+          var key = c + ',' + r;
+          if (!it.deletedPanels.has(key)) {
+            var px = bx + c * cellW + gap;
+            var py = by + r * cellH + gap;
+            var pw2 = cellW - gap * 2;
+            var ph2 = cellH - gap * 2;
+            parts.push('<rect x="' + px.toFixed(1) + '" y="' + py.toFixed(1) + '" width="' + pw2.toFixed(1) + '" height="' + ph2.toFixed(1) + '" fill="' + it.color + '"/>');
+          }
+        }
+      }
+
       parts.push('<text x="' + midX.toFixed(1) + '" y="' + (diagTop - 2).toFixed(1) + '" font-size="9" fill="#222222" text-anchor="middle" font-family="Helvetica-Bold">' + escXml(it.name) + '</text>');
-      parts.push('<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + it.color + '" stroke="#000000" stroke-width="0.5"/>');
       parts.push('<text x="' + midX.toFixed(1) + '" y="' + (diagBottom + LABEL_H - 2).toFixed(1) + '" font-size="8" fill="#666666" text-anchor="middle" font-family="Helvetica">' + escXml(dim) + '</text>');
 
       cx += bw + GAP;
@@ -1446,7 +1469,7 @@ function buildComplexPdf(opts, canvasCache) {
       }
       if (opts.standard !== false) {
         const usedAbove = m.headerBarH + 6 + m.screenLabelH + m.summaryBarHExp + 8;
-        const remainH   = uh - usedAbove - m.resolutionLblH - 8;
+        const remainH   = uh - usedAbove - m.resolutionLblH - 80;
         const img = gridImage(screenId + '_standard', pw, ph, remainH);
         if (img) content.push(img);
         if (resStr) content.push({ text: resStr, fontSize: 9, color: tc.textMuted, alignment: 'center', margin: [0, 0, 0, 0] });
@@ -1472,7 +1495,7 @@ function buildComplexPdf(opts, canvasCache) {
       const layoutOverhead = m.headerBarH + m.afterHeaderGap + 2 * m.sectionLabelH + 2 * m.afterLabelGap + 2 * 4 + 20;
       const singlePageMaxH = collapseLayouts
         ? Math.floor((uh - m.headerBarH - 80) / 4)
-        : Math.floor((uh - layoutOverhead) / 2);
+        : Math.floor((uh - layoutOverhead) / 3);
 
       // Determine if power+data actually fit together (considering actual rendered heights)
       let powerFitsWithData = true;
@@ -1520,7 +1543,7 @@ function buildComplexPdf(opts, canvasCache) {
           if (cabImg && cabImg.dataUrl) {
             // Cabling is typically very wide — fit to content width
             const cabH = Math.floor(cw * (cabImg.aspectRatio || 0.33));
-            const cappedH = Math.min(cabH, singlePageMaxH * 1.5);
+            const cappedH = Math.min(cabH, singlePageMaxH);
             content.push({
               image: cabImg.dataUrl,
               width: cw, height: cappedH,

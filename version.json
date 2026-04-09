@@ -1,5 +1,5 @@
 {
-  "version": "2.10.99",
-  "updated": "2026-04-06",
-  "changelog": "Add combined view SVG diagram to multi-screen PDF summary page"
+  "version": "2.10.100",
+  "updated": "2026-04-08",
+  "changelog": "Fix multi-screen PDF layout sizing and show dead panels in combined view"
 }

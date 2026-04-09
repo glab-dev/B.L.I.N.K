@@ -1249,6 +1249,9 @@ function buildComplexPdf(opts, canvasCache) {
   }
 
   function buildCombinedDiagram(sids) {
+    const _grey = (typeof greyscalePrintMode !== 'undefined' && greyscalePrintMode);
+    const _eco  = (typeof ecoPrintMode !== 'undefined' && ecoPrintMode);
+
     const LABEL_H   = 14;
     const BOX_H     = 120;
     const SVG_H     = LABEL_H + BOX_H + LABEL_H + 4;
@@ -1309,9 +1312,11 @@ function buildComplexPdf(opts, canvasCache) {
       var gap   = 0.5;
 
       // Dark background for the full wall area (shows through as dead panels)
-      parts.push('<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="#111111" stroke="#000000" stroke-width="0.5"/>');
+      var deadFill = _grey ? '#555555' : '#111111';
+      parts.push('<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + deadFill + '" stroke="#000000" stroke-width="0.5"/>');
 
       // Draw each panel cell — active = screen color, deleted = dark (background shows)
+      var activeFill = _grey ? '#aaaaaa' : (_eco ? '#888888' : it.color);
       for (var r = 0; r < it.ph; r++) {
         for (var c = 0; c < it.pw; c++) {
           var key = c + ',' + r;
@@ -1320,12 +1325,13 @@ function buildComplexPdf(opts, canvasCache) {
             var py = by + r * cellH + gap;
             var pw2 = cellW - gap * 2;
             var ph2 = cellH - gap * 2;
-            parts.push('<rect x="' + px.toFixed(1) + '" y="' + py.toFixed(1) + '" width="' + pw2.toFixed(1) + '" height="' + ph2.toFixed(1) + '" fill="' + it.color + '"/>');
+            parts.push('<rect x="' + px.toFixed(1) + '" y="' + py.toFixed(1) + '" width="' + pw2.toFixed(1) + '" height="' + ph2.toFixed(1) + '" fill="' + activeFill + '"/>');
           }
         }
       }
 
-      parts.push('<text x="' + midX.toFixed(1) + '" y="' + (diagTop - 2).toFixed(1) + '" font-size="9" fill="#222222" text-anchor="middle" font-family="Helvetica-Bold">' + escXml(it.name) + '</text>');
+      var nameFill = _grey ? '#444444' : '#222222';
+      parts.push('<text x="' + midX.toFixed(1) + '" y="' + (diagTop - 2).toFixed(1) + '" font-size="9" fill="' + nameFill + '" text-anchor="middle" font-family="Helvetica-Bold">' + escXml(it.name) + '</text>');
       parts.push('<text x="' + midX.toFixed(1) + '" y="' + (diagBottom + LABEL_H - 2).toFixed(1) + '" font-size="8" fill="#666666" text-anchor="middle" font-family="Helvetica">' + escXml(dim) + '</text>');
 
       cx += bw + GAP;

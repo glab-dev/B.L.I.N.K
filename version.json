@@ -1,5 +1,5 @@
 {
-  "version": "2.10.110",
+  "version": "2.10.111",
   "updated": "2026-04-09",
-  "changelog": "Cache canvas capture in PDF preview so combined view toggle is instant"
+  "changelog": "Fix eco/greyscale for headers and combined view, remove overlay flash on cached toggles"
 }

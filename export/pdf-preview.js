@@ -359,44 +359,56 @@ function rebuildPreview() {
   const iframe = document.getElementById('pdfPreviewFrame');
   if (!iframe) return;
 
-  // Revoke previous blob URL to avoid memory leak
-  if (iframe._blobUrl) {
-    URL.revokeObjectURL(iframe._blobUrl);
-    iframe._blobUrl = null;
-  }
-  iframe.src = 'about:blank';
+  const opts = getPrintPreviewOptions();
+  const needsCapture = !_ppCanvasCache ||
+    opts.ecoFriendly !== _ppLastEco ||
+    opts.greyscale !== _ppLastGreyscale;
 
-  // Show loading overlay immediately so the UI feels responsive
-  const loader = document.getElementById('pdfPreviewLoading');
-  if (loader) loader.style.display = 'flex';
-
-  // Defer heavy work one frame so the browser paints the loading state first
-  setTimeout(function() {
-    const opts = getPrintPreviewOptions();
-    const needsCapture = !_ppCanvasCache ||
-      opts.ecoFriendly !== _ppLastEco ||
-      opts.greyscale !== _ppLastGreyscale;
-
-    if (needsCapture) {
+  if (needsCapture) {
+    // Slow path: canvas recapture needed — show overlay, clear iframe
+    if (iframe._blobUrl) { URL.revokeObjectURL(iframe._blobUrl); iframe._blobUrl = null; }
+    iframe.src = 'about:blank';
+    const loader = document.getElementById('pdfPreviewLoading');
+    if (loader) loader.style.display = 'flex';
+    setTimeout(function() {
       ecoPrintMode = opts.ecoFriendly;
       greyscalePrintMode = opts.greyscale;
       _ppCanvasCache = pdfCaptureCanvases();
       _ppLastEco = opts.ecoFriendly;
       _ppLastGreyscale = opts.greyscale;
-      // Restore normal colors after capture
       ecoPrintMode = false;
       greyscalePrintMode = false;
-    }
 
+      // Set modes so headers/gear list/combined diagram render with correct colors
+      ecoPrintMode = opts.ecoFriendly;
+      greyscalePrintMode = opts.greyscale;
+      const docDef = buildComplexPdf(opts, _ppCanvasCache);
+      ecoPrintMode = false;
+      greyscalePrintMode = false;
+
+      pdfMake.createPdf(docDef).getBlob(function(blob) {
+        const url = URL.createObjectURL(blob);
+        iframe._blobUrl = url;
+        iframe.src = url;
+        if (loader) loader.style.display = 'none';
+      });
+    }, 0);
+  } else {
+    // Fast path: cache valid — no overlay, old PDF stays visible, silently swap when ready
+    ecoPrintMode = opts.ecoFriendly;
+    greyscalePrintMode = opts.greyscale;
     const docDef = buildComplexPdf(opts, _ppCanvasCache);
+    ecoPrintMode = false;
+    greyscalePrintMode = false;
 
     pdfMake.createPdf(docDef).getBlob(function(blob) {
+      const oldUrl = iframe._blobUrl;
       const url = URL.createObjectURL(blob);
       iframe._blobUrl = url;
       iframe.src = url;
-      if (loader) loader.style.display = 'none';
+      if (oldUrl) URL.revokeObjectURL(oldUrl);
     });
-  }, 0);
+  }
 }
 
 function buildStructureInfoLines(screenId) {

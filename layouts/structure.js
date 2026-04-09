@@ -114,7 +114,8 @@ function generateStructureLayout(){
     ? Math.min(structContainerWidth, 4000)
     : Math.min(structContainerWidth, 800); // Cap at 800px max in normal mode
   const minStructSize = 30; // Minimum panel size
-  const maxStructSize = 80; // Maximum panel size
+  const _pdfCapture = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  const maxStructSize = _pdfCapture ? 200 : 80; // Higher cap in PDF mode for sharp text
   const calculatedStructSize = Math.floor(maxStructCanvasWidth / pw);
   const size = Math.max(minStructSize, Math.min(maxStructSize, calculatedStructSize));
 

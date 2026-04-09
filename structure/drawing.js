@@ -10,7 +10,6 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
 
   const _pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
-  ctx.font = (_pdf ? 'bold 12px Arial' : 'bold 10px Arial');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -162,22 +161,27 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
     const isMobile = window.innerWidth <= 768;
     const isSmallBumper = height < 25;
 
+    // Scale font with bumper height — ensures crisp text at any canvas resolution
+    const bumperFontLg = Math.max(_pdf ? 12 : 10, Math.floor(height * 0.28));
+    const bumperFontSm = Math.max(_pdf ? 11 : 9,  Math.floor(height * 0.22));
+    const labelOffset  = Math.max(6, Math.floor(height * 0.18));
+
     if(isSmallBumper || (isMobile && bumper.type === '4w')) {
       // Only show weight (centered)
-      ctx.font = (_pdf ? 'bold 11px Arial' : 'bold 9px Arial');
+      ctx.font = `bold ${bumperFontSm}px Arial`;
       const weightValue = displayWeightUnit === 'lbs' ? Math.ceil(pickupWeight.lbs) : Math.ceil(pickupWeight.kg);
       const weightText = `${weightValue}${displayWeightUnit}`;
       ctx.fillText(weightText, x + width/2, y + height/2);
     } else {
       // Show both label and weight
-      ctx.font = (_pdf ? 'bold 12px Arial' : 'bold 10px Arial');
-      ctx.fillText(label, x + width/2, y + height/2 - 6);
+      ctx.font = `bold ${bumperFontLg}px Arial`;
+      ctx.fillText(label, x + width/2, y + height/2 - labelOffset);
 
       // Draw weight below label using selected unit
-      ctx.font = (_pdf ? '11px Arial' : '9px Arial');
+      ctx.font = `${bumperFontSm}px Arial`;
       const weightValue = displayWeightUnit === 'lbs' ? Math.ceil(pickupWeight.lbs) : Math.ceil(pickupWeight.kg);
       const weightText = `${weightValue}${displayWeightUnit}`;
-      ctx.fillText(weightText, x + width/2, y + height/2 + 6);
+      ctx.fillText(weightText, x + width/2, y + height/2 + labelOffset);
     }
   });
 }

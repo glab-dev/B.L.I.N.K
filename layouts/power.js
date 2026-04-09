@@ -202,8 +202,8 @@ function renderPowerLayout(params) {
     }
   }
 
-  const socaFontLg = _pdfMode ? Math.round(16 * canvasScale) : 16;
-  const socaFontSm = _pdfMode ? Math.round(11 * canvasScale) : 12;
+  const socaFontLg = _pdfMode ? Math.round(28 * canvasScale) : 16;
+  const socaFontSm = _pdfMode ? Math.round(19 * canvasScale) : 12;
   const lineY = Math.round(socaLabelHeight * 0.50);
   const tickH = _pdfMode ? Math.round(8 * canvasScale) : Math.round(socaLabelHeight * 0.13);
 

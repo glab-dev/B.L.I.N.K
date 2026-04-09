@@ -1209,6 +1209,10 @@ function buildComplexPdf(opts, canvasCache) {
   // Track page starts so summary cards can show correct page references
   const screenPageStarts = {};
 
+  // Max height for layout images (power, data, structure, standard canvas) — 3 images per page
+  const layoutOverheadShared = m.headerBarH + m.afterHeaderGap + 2 * m.sectionLabelH + 2 * m.afterLabelGap + 2 * 4 + 20;
+  const layoutImgMaxH = Math.floor((uh - layoutOverheadShared) / 3);
+
   function sectionLabel(text) {
     return {
       text: text.toUpperCase(),
@@ -1469,22 +1473,14 @@ function buildComplexPdf(opts, canvasCache) {
       }
       if (opts.standard !== false) {
         const usedAbove = m.headerBarH + 6 + m.screenLabelH + m.summaryBarHExp + 8;
-        const remainH   = uh - usedAbove - m.resolutionLblH - 80;
+        const remainH   = Math.min(uh - usedAbove - m.resolutionLblH - 80, layoutImgMaxH);
         const img = gridImage(screenId + '_standard', pw, ph, remainH);
         if (img) content.push(img);
         if (resStr) content.push({ text: resStr, fontSize: 9, color: tc.textMuted, alignment: 'center', margin: [0, 0, 0, 0] });
       }
     }
 
-    // ===== PAGE 2: GEAR LIST =====
-    if (opts.gearList !== false && sd && pw * ph > 1) {
-      content.push({ text: '', pageBreak: 'before' });
-      content.push(buildPdfHeader(configName, dateStr, logoData));
-      content.push(sectionLabel(`${screen.name} — Gear List`));
-      content.push(buildGearListContent(gearData, sIdx, cw));
-    }
-
-    // ===== PAGES 3 (& 4): POWER / DATA / STRUCTURE / CABLING =====
+    // ===== PAGES 2 (& 3): POWER / DATA / STRUCTURE / CABLING =====
     const hasLayouts = opts.power !== false || opts.data !== false || opts.structure !== false || opts.cabling !== false;
     if (hasLayouts && pw * ph > 1) {
       // Page 3: Power + Data layouts (always new page; collapse controls whether page 4 exists)
@@ -1543,7 +1539,7 @@ function buildComplexPdf(opts, canvasCache) {
           if (cabImg && cabImg.dataUrl) {
             // Cabling is typically very wide — fit to content width
             const cabH = Math.floor(cw * (cabImg.aspectRatio || 0.33));
-            const cappedH = Math.min(cabH, singlePageMaxH);
+            const cappedH = Math.min(cabH, 350);
             content.push({
               image: cabImg.dataUrl,
               width: cw, height: cappedH,
@@ -1556,6 +1552,169 @@ function buildComplexPdf(opts, canvasCache) {
     }
 
   });
+
+  // ===== COMBINED GEAR LIST PAGE (last page) =====
+  if (opts.gearList !== false) {
+    const gearScreenIds = screenIds.filter(function(sid) {
+      const d = (screens[sid] && screens[sid].data) || {};
+      return (parseInt(d.panelsWide) || 0) * (parseInt(d.panelsHigh) || 0) > 1;
+    });
+
+    if (gearScreenIds.length > 0) {
+      content.push({ text: '', pageBreak: 'before' });
+      content.push(buildPdfHeader(configName, dateStr, logoData));
+      content.push(sectionLabel('Gear List — All Screens'));
+
+      const numCols = gearScreenIds.length;
+      const colGap = 8;
+      const colW = Math.floor((cw - colGap * (numCols - 1)) / numCols);
+
+      var colDefs = [];
+      gearScreenIds.forEach(function(sid, ci) {
+        const scr = screens[sid];
+        const sIdx = screenIds.indexOf(sid);
+        const sd = gearData.screens[sIdx] || {};
+        const eq  = sd.equipment          || {};
+        const rig = sd.rigging            || {};
+        const gs  = sd.groundSupport      || {};
+        const fh  = sd.floorHardware      || {};
+        const dc  = sd.dataCables         || {};
+        const pc  = sd.powerCables        || {};
+        const p2d = sd.processorToDistBox || {};
+
+        const eqItems = [];
+        if (eq.isFirstScreenInGroup) {
+          if (eq.processorCount > 0) eqItems.push({ qty: eq.processorCount, item: eq.processorName || 'Processor' });
+          if (eq.distBoxCount   > 0) eqItems.push({ qty: eq.distBoxCount,   item: eq.distBoxName   || 'Dist Box' });
+        }
+        if (eq.activeFullPanels > 0) eqItems.push({ qty: eq.activeFullPanels, item: ((eq.panelBrand || '') + ' ' + (eq.panelName || '')).trim() });
+        if (eq.activeHalfPanels > 0) eqItems.push({ qty: eq.activeHalfPanels, item: ((eq.panelBrand || '') + ' ' + (eq.halfPanelName || '')).trim() });
+
+        const rigItems = [];
+        if (rig.hasRigging) {
+          if (rig.bumper1w   > 0) rigItems.push({ qty: rig.bumper1w,   item: '1W Bumpers' });
+          if (rig.bumper2w   > 0) rigItems.push({ qty: rig.bumper2w,   item: '2W Bumpers' });
+          if (rig.bumper4w   > 0) rigItems.push({ qty: rig.bumper4w,   item: '4W Bumpers' });
+          if (rig.plates4way > 0) rigItems.push({ qty: rig.plates4way, item: '4W Connecting Plates' });
+          if (rig.plates2way > 0) rigItems.push({ qty: rig.plates2way, item: '2W Connecting Plates' });
+          if (rig.shackles   > 0) rigItems.push({ qty: rig.shackles,   item: '5/8" Shackles' });
+          if (rig.cheeseye   > 0) rigItems.push({ qty: rig.cheeseye,   item: 'Cheeseye' });
+        }
+
+        const gsItems = [];
+        if (gs.hasGS) {
+          if (gs.rearTruss          > 0) gsItems.push({ qty: gs.rearTruss,          item: 'Rear Truss' });
+          if (gs.baseTruss          > 0) gsItems.push({ qty: gs.baseTruss,          item: 'Base Truss' });
+          if (gs.bridgeClamps       > 0) gsItems.push({ qty: gs.bridgeClamps,       item: 'Bridge Clamps' });
+          if (gs.rearBridgeAdapters > 0) gsItems.push({ qty: gs.rearBridgeAdapters, item: 'Rear Bridge Adapter' });
+          if (gs.sandbags           > 0) gsItems.push({ qty: gs.sandbags,           item: 'Sandbags' });
+          if (gs.swivelCheeseboroughs > 0) gsItems.push({ qty: gs.swivelCheeseboroughs, item: 'Swivel Cheeseborough' });
+          if (gs.pipes              > 0) gsItems.push({ qty: gs.pipes,              item: 'Pipe' + (gs.pipeLengthStr || '') });
+        }
+
+        const fhItems = [];
+        if (fh.hasFloorFrames) {
+          if (fh.frame3x2 > 0) fhItems.push({ qty: fh.frame3x2, item: '3x2 Frame' });
+          if (fh.frame2x2 > 0) fhItems.push({ qty: fh.frame2x2, item: '2x2 Frame' });
+          if (fh.frame2x1 > 0) fhItems.push({ qty: fh.frame2x1, item: '2x1 Frame' });
+          if (fh.frame1x1 > 0) fhItems.push({ qty: fh.frame1x1, item: '1x1 Frame' });
+        }
+
+        const dcItems = [];
+        if (dc.jumperCount > 0) dcItems.push({ qty: dc.jumperCount, item: ('Data Jumpers ' + (dc.dataJumperLen || '') + "'").trim() });
+        if (dc.crossJumperLen && dc.crossJumperCount > 0) dcItems.push({ qty: dc.crossJumperCount, item: "Cross Jumpers " + dc.crossJumperLen + "'" });
+        if (dc.jumpersBuiltin && dc.cat5CouplerCount > 0) dcItems.push({ qty: dc.cat5CouplerCount, item: 'Cat5 Couplers' });
+        Object.entries(dc.cat6ByLength || {}).sort(function(a, b) { return Number(a[0]) - Number(b[0]); }).forEach(function(e) {
+          if (Number(e[1]) > 0) dcItems.push({ qty: e[1], item: e[0] + "' Cat6" });
+        });
+        if (p2d && p2d.count > 0) {
+          dcItems.push({ qty: '— — —', item: 'Proc → Dist Box' });
+          dcItems.push({ qty: p2d.count, item: p2d.cableType === 'Fiber'
+            ? ('Fiber OpticalCON ' + (p2d.cableLength || '') + "'").trim()
+            : ('CAT6A EtherCON ' + (p2d.cableLength || '') + "'").trim() });
+        }
+
+        const pcItems = [];
+        if (pc.jumperCount  > 0) pcItems.push({ qty: pc.jumperCount,  item: ('Power Jumpers ' + (pc.powerJumperLen || '') + "'").trim() });
+        if (pc.socaSplays   > 0) pcItems.push({ qty: pc.socaSplays,   item: 'Soca Splays' });
+        Object.entries(pc.socaByLength || {}).sort(function(a, b) { return Number(a[0]) - Number(b[0]); }).forEach(function(e) {
+          if (Number(e[1]) > 0) pcItems.push({ qty: e[1], item: 'Soca ' + e[0] + "'" });
+        });
+        if (pc.true1_25    > 0) pcItems.push({ qty: pc.true1_25,    item: "True1 25'" });
+        if (pc.true1_10    > 0) pcItems.push({ qty: pc.true1_10,    item: "True1 10'" });
+        if (pc.true1_5     > 0) pcItems.push({ qty: pc.true1_5,     item: "True1 5'"  });
+        if (pc.true1Twofer > 0) pcItems.push({ qty: pc.true1Twofer, item: 'True1 Twofer' });
+
+        const colSections = [
+          { text: (scr && scr.name) ? scr.name.toUpperCase() : sid, fontSize: 9, bold: true, margin: [0, 0, 0, 4] },
+          buildGearSection('EQUIPMENT', eqItems),
+          buildGearSection('RIGGING HARDWARE', rigItems),
+          gs.hasGS       ? buildGearSection('GROUND SUPPORT', gsItems)   : null,
+          fh.hasFloorFrames ? buildGearSection('FLOOR HARDWARE', fhItems) : null,
+          buildGearSection('DATA CABLES',  dcItems),
+          buildGearSection('POWER CABLES', pcItems),
+        ].filter(Boolean);
+
+        if (ci > 0) colDefs.push({ width: colGap, text: '' });
+        colDefs.push({ stack: colSections, width: colW });
+      });
+
+      content.push({ columns: colDefs, columnGap: 0, margin: [0, 0, 0, 12] });
+
+      // Shared: Signal Cables, Utility, Spares (appear once for the whole rig)
+      const sc = gearData.signalCables || {};
+      const scItems = [];
+      if (sc.serverFiberLine && sc.serverFiberLine.count > 0) scItems.push({ qty: sc.serverFiberLine.count, item: sc.serverFiberLine.label });
+      Object.entries(sc.sdiByLength || {}).forEach(function(e) {
+        if (Number(e[1]) > 0) scItems.push({ qty: e[1], item: e[0] + "' " + (sc.sdiType || 'SDI') });
+      });
+      Object.entries(sc.hdmi || {}).forEach(function(e) {
+        if (Number(e[1]) > 0) scItems.push({ qty: e[1], item: e[0] + "' HDMI" });
+      });
+
+      const u = gearData.utility || {};
+      const utilItems = [];
+      if (u.ug10     > 0) utilItems.push({ qty: u.ug10,     item: "10' Utility Grip" });
+      if (u.ug25     > 0) utilItems.push({ qty: u.ug25,     item: "25' Utility Grip" });
+      if (u.ug50     > 0) utilItems.push({ qty: u.ug50,     item: "50' Utility Grip" });
+      if (u.ugTwofers > 0) utilItems.push({ qty: u.ugTwofers, item: 'Utility Twofers' });
+      if (u.powerBars > 0) utilItems.push({ qty: u.powerBars, item: 'Power Bars' });
+
+      const sp = gearData.spares || {};
+      const spareItems = [];
+      Object.entries(sp.panelsByType || {}).forEach(function(e) {
+        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: e[0] + ' (spare)' });
+      });
+      if (sp.shackles    > 0) spareItems.push({ qty: sp.shackles,    item: 'Shackles (spare)' });
+      if (sp.cheeseyes   > 0) spareItems.push({ qty: sp.cheeseyes,   item: 'Cheeseyes (spare)' });
+      if (sp.crossJumpers > 0 && sp.crossJumperLen) spareItems.push({ qty: sp.crossJumpers, item: sp.crossJumperLen + "' Cross Jumpers (spare)" });
+      if (sp.cat5Couplers > 0) spareItems.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers (spare)' });
+      Object.entries(sp.cat6ByLength || {}).forEach(function(e) {
+        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: e[0] + "' Cat6 (spare)" });
+      });
+      if (sp.socaSplays  > 0) spareItems.push({ qty: sp.socaSplays,  item: 'Soca Splays (spare)' });
+      if (sp.true1_25    > 0) spareItems.push({ qty: sp.true1_25,    item: "25' True1 (spare)" });
+      if (sp.true1_10    > 0) spareItems.push({ qty: sp.true1_10,    item: "10' True1 (spare)" });
+      if (sp.true1_5     > 0) spareItems.push({ qty: sp.true1_5,     item: "5' True1 (spare)"  });
+      if (sp.true1Twofer > 0) spareItems.push({ qty: sp.true1Twofer, item: 'True1 Twofers (spare)' });
+
+      const sharedSections = [
+        scItems.length    > 0 ? buildGearSection('SIGNAL CABLES', scItems)  : null,
+        utilItems.length  > 0 ? buildGearSection('UTILITY',       utilItems) : null,
+        spareItems.length > 0 ? buildGearSection('SPARES',        spareItems) : null,
+      ].filter(Boolean);
+
+      if (sharedSections.length > 0) {
+        const sharedColW = Math.floor((cw - 16) / 3);
+        const sharedCols = [];
+        sharedSections.forEach(function(sec, i) {
+          if (i > 0) sharedCols.push({ width: 8, text: '' });
+          sharedCols.push({ stack: [sec], width: sharedColW });
+        });
+        content.push({ columns: sharedCols, columnGap: 0 });
+      }
+    }
+  }
 
   return {
     pageSize:        (format === 'letter') ? 'LETTER' : 'A4',

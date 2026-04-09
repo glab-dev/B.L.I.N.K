@@ -1,5 +1,5 @@
 {
-  "version": "2.10.100",
+  "version": "2.10.101",
   "updated": "2026-04-08",
-  "changelog": "Fix multi-screen PDF layout sizing and show dead panels in combined view"
+  "changelog": "Fix multi-screen PDF standard canvas size, SOCA labels, cabling height, and combined gear list"
 }

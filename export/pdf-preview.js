@@ -356,23 +356,31 @@ function rebuildPreview() {
   }
   iframe.src = 'about:blank';
 
-  const opts = getPrintPreviewOptions();
-  ecoPrintMode = opts.ecoFriendly;
-  greyscalePrintMode = opts.greyscale;
+  // Show loading overlay immediately so the UI feels responsive
+  const loader = document.getElementById('pdfPreviewLoading');
+  if (loader) loader.style.display = 'flex';
 
-  const canvasCache = pdfCaptureCanvases();
+  // Defer heavy work one frame so the browser paints the loading state first
+  setTimeout(function() {
+    const opts = getPrintPreviewOptions();
+    ecoPrintMode = opts.ecoFriendly;
+    greyscalePrintMode = opts.greyscale;
 
-  // Restore normal colors after capture
-  ecoPrintMode = false;
-  greyscalePrintMode = false;
+    const canvasCache = pdfCaptureCanvases();
 
-  const docDef = buildComplexPdf(opts, canvasCache);
+    // Restore normal colors after capture
+    ecoPrintMode = false;
+    greyscalePrintMode = false;
 
-  pdfMake.createPdf(docDef).getBlob(function(blob) {
-    const url = URL.createObjectURL(blob);
-    iframe._blobUrl = url;
-    iframe.src = url;
-  });
+    const docDef = buildComplexPdf(opts, canvasCache);
+
+    pdfMake.createPdf(docDef).getBlob(function(blob) {
+      const url = URL.createObjectURL(blob);
+      iframe._blobUrl = url;
+      iframe.src = url;
+      if (loader) loader.style.display = 'none';
+    });
+  }, 0);
 }
 
 function buildStructureInfoLines(screenId) {

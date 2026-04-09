@@ -1723,8 +1723,9 @@
         </div>
       </div>
       <!-- RIGHT: Preview Area -->
-      <div class="print-preview-area">
+      <div class="print-preview-area" style="position:relative;">
         <iframe id="pdfPreviewFrame" class="pdf-preview-iframe"></iframe>
+        <div id="pdfPreviewLoading" style="display:none;position:absolute;inset:0;background:rgba(245,245,240,0.92);display:flex;align-items:center;justify-content:center;font-family:'Roboto Condensed',sans-serif;font-size:14px;color:#555;letter-spacing:0.05em;">Generating PDF…</div>
       </div>
     </div>
   </div>
@@ -3249,8 +3250,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.108';
-const APP_CHANGELOG = 'Rename Utility Grip to UG, Utility Twofers to UG Twofers, and flip True1 cable length order';
+const APP_VERSION = '2.10.109';
+const APP_CHANGELOG = 'Show resolution under combined view screens and add loading overlay to PDF preview';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

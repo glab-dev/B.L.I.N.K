@@ -1268,6 +1268,8 @@ function buildComplexPdf(opts, canvasCache) {
         realW: pw * (p.width_m  || 0.5),
         realH: ph * (p.height_m || 0.5),
         pw: pw, ph: ph,
+        resX: p.res_x || 0,
+        resY: p.res_y || 0,
         deletedPanels: deletedSet
       };
     });
@@ -1298,9 +1300,9 @@ function buildComplexPdf(opts, canvasCache) {
       var bx    = cx;
       var by    = diagBottom - bh;
       var midX  = cx + bw / 2;
-      var wFt   = (it.realW * 3.28084).toFixed(1);
-      var hFt   = (it.realH * 3.28084).toFixed(1);
-      var dim   = it.pw + '\xd7' + it.ph + '  ' + wFt + "' \xd7 " + hFt + "'";
+      var dim   = (it.resX && it.resY)
+        ? (it.pw * it.resX) + '\xd7' + (it.ph * it.resY) + ' px'
+        : it.pw + '\xd7' + it.ph;
 
       var cellW = bw / it.pw;
       var cellH = bh / it.ph;

@@ -1,5 +1,5 @@
 {
-  "version": "2.10.108",
+  "version": "2.10.109",
   "updated": "2026-04-09",
-  "changelog": "Rename Utility Grip to UG, Utility Twofers to UG Twofers, and flip True1 cable length order"
+  "changelog": "Show resolution under combined view screens and add loading overlay to PDF preview"
 }

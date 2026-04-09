@@ -1503,7 +1503,10 @@ function buildComplexPdf(opts, canvasCache) {
 
       if (opts.power !== false) {
         content.push(sectionLabel('Power Layout'));
-        const img = gridImage(screenId + '_power', pw, ph, singlePageMaxH);
+        const powerImgData = canvasCache && canvasCache[screenId + '_power'];
+        const socaFrac = (powerImgData && powerImgData.socaBarFraction) || 0;
+        const powerMaxH = socaFrac > 0 ? Math.round(singlePageMaxH / (1 - socaFrac)) : singlePageMaxH;
+        const img = gridImage(screenId + '_power', pw, ph, powerMaxH);
         if (img) content.push(img);
       }
 
@@ -1537,10 +1540,10 @@ function buildComplexPdf(opts, canvasCache) {
           content.push(sectionLabel('Cabling Layout'));
           const cabImg = canvasCache && canvasCache[screenId + '_cabling'];
           if (cabImg && cabImg.dataUrl) {
-            // Cabling — use fit to maintain aspect ratio (no distortion)
+            // Cabling — use fit to maintain aspect ratio, capped to leave room on structure page
             content.push({
               image: cabImg.dataUrl,
-              fit: [cw, 500],
+              fit: [cw, 300],
               alignment: 'center',
               margin: [0, 0, 0, 4]
             });
@@ -1961,6 +1964,10 @@ function pdfCaptureCanvases() {
         };
       }
     });
+    // Store SOCA bar fraction for power image so pdf.js can equalize grid height with data
+    if (typeof _pdfPowerSocaFraction !== 'undefined' && cache[screenId + '_power']) {
+      cache[screenId + '_power'].socaBarFraction = _pdfPowerSocaFraction;
+    }
   });
 
   // Restore layout container widths and capture mode flags

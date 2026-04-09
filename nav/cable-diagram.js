@@ -58,7 +58,7 @@ function renderCableDiagram(screenId) {
   const isSmall = canvasW < 500;
   const isPdf = cableDiagramPdfMode;
   const MARGIN = { top: isSmall ? 35 : 50, bottom: isSmall ? 40 : 55, left: isSmall ? 10 : 20, right: isSmall ? 42 : 50 };
-  const BOX_W = isPdf ? (isSmall ? 52 : 64) : (isSmall ? 40 : 48);
+  const BOX_W = isPdf ? (isSmall ? 52 : 90) : (isSmall ? 40 : 48);
   const BOX_H = isPdf ? (isSmall ? 28 : 34) : (isSmall ? 20 : 24);
   const PICK_GAP = isSmall ? 20 : 30;
   const PICK_RADIUS = isSmall ? 6 : 8;
@@ -854,12 +854,14 @@ function renderCableDiagram(screenId) {
     const srvLabelText = serverToProcessor + "'";
     const srvLabelX = serverBoxX + BOX_W + 4;
     const srvLabelY = (serverBoxCenterY + equipY + BOX_H / 2) / 2;
-    ctx.font = 'bold 10px Arial';
+    const srvFontSize = cableDiagramPdfMode ? 24 : 10;
+    ctx.font = 'bold ' + srvFontSize + 'px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     const srvTw = ctx.measureText(srvLabelText).width + 6;
+    const srvTh = srvFontSize + 6;
     ctx.fillStyle = bgColor;
-    ctx.fillRect(srvLabelX, srvLabelY - 7, srvTw, 14);
+    ctx.fillRect(srvLabelX, srvLabelY - srvTh / 2, srvTw, srvTh);
     ctx.fillStyle = isPrintMode ? fgColor : SERVER_COLOR;
     ctx.fillText(srvLabelText, srvLabelX + 2, srvLabelY);
   }
@@ -902,7 +904,7 @@ function renderCableDiagram(screenId) {
     ctx.lineWidth = 2;
     ctx.strokeRect(mainDbX, mainDbY, BOX_W, BOX_H);
     ctx.fillStyle = isPrintMode ? fgColor : DISTBOX_COLOR;
-    ctx.font = 'bold 10px Arial';
+    ctx.font = (cableDiagramPdfMode ? 'bold 18px' : 'bold 10px') + ' Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(dbTwoBoxes ? 'MAIN' : 'DIST BOX', mainDbCenterX, mainDbY + BOX_H / 2);
@@ -920,7 +922,7 @@ function renderCableDiagram(screenId) {
       ctx.lineWidth = 2;
       ctx.strokeRect(backupDbX, backupDbY, BOX_W, BOX_H);
       ctx.fillStyle = isPrintMode ? fgColor : TRUNK_COLOR;
-      ctx.font = 'bold 10px Arial';
+      ctx.font = (cableDiagramPdfMode ? 'bold 18px' : 'bold 10px') + ' Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('BACKUP', backupDbCenterX, backupDbY + BOX_H / 2);
@@ -935,8 +937,9 @@ function renderCableDiagram(screenId) {
   drawCableDimensionLine(ctx, wallRightX + dimOffsetRight, wallTopY, wallRightX + dimOffsetRight, wallBottomY,
     wallHeightFt + "'", fgColor, bgColor);
 
-  // Wall width — above wall
-  drawCableDimensionLine(ctx, adjWallLeftX, wallTopY - 12, wallRightX, wallTopY - 12,
+  // Wall width — above wall (move up in PDF mode when SOCA is also at top to avoid overlap)
+  const wallWidthDimY = wallTopY - (powerInPos !== 'bottom' ? (isPdf ? 42 : 22) : 12);
+  drawCableDimensionLine(ctx, adjWallLeftX, wallWidthDimY, wallRightX, wallWidthDimY,
     wallWidthFt + "'", fgColor, bgColor);
 
   // Wall to floor — right side, between wall bottom and floor

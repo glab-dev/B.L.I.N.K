@@ -1,5 +1,5 @@
 {
-  "version": "2.10.102",
+  "version": "2.10.103",
   "updated": "2026-04-09",
-  "changelog": "Fix SOCA label font sizes per screen count, label spacing, cable diagram aspect ratio and label sizes"
+  "changelog": "Fix circuits label size, equalize power/data grid height, fix cabling fit and cable diagram label issues"
 }

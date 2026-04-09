@@ -57,7 +57,7 @@ function renderCableDiagram(screenId) {
   // Layout constants — tighter on small screens; larger in PDF mode for readability
   const isSmall = canvasW < 500;
   const isPdf = cableDiagramPdfMode;
-  const MARGIN = { top: isSmall ? 35 : 50, bottom: isSmall ? 40 : 55, left: isSmall ? 10 : 20, right: isSmall ? 42 : 50 };
+  const MARGIN = { top: isPdf ? (isSmall ? 60 : 90) : (isSmall ? 35 : 50), bottom: isSmall ? 40 : 55, left: isSmall ? 10 : 20, right: isSmall ? 42 : 50 };
   const BOX_W = isPdf ? (isSmall ? 52 : 90) : (isSmall ? 40 : 48);
   const BOX_H = isPdf ? (isSmall ? 28 : 34) : (isSmall ? 20 : 24);
   const PICK_GAP = isSmall ? 20 : 30;
@@ -937,8 +937,9 @@ function renderCableDiagram(screenId) {
   drawCableDimensionLine(ctx, wallRightX + dimOffsetRight, wallTopY, wallRightX + dimOffsetRight, wallBottomY,
     wallHeightFt + "'", fgColor, bgColor);
 
-  // Wall width — above wall (move up in PDF mode when SOCA is also at top to avoid overlap)
-  const wallWidthDimY = wallTopY - (powerInPos !== 'bottom' ? (isPdf ? 42 : 22) : 12);
+  // Wall width — above wall. When power enters from top (SOCA bracket also above wall),
+  // push the dimension line high enough to clear the bracket + label text.
+  const wallWidthDimY = wallTopY - (powerInPos !== 'bottom' ? (isPdf ? 65 : 22) : 12);
   drawCableDimensionLine(ctx, adjWallLeftX, wallWidthDimY, wallRightX, wallWidthDimY,
     wallWidthFt + "'", fgColor, bgColor);
 

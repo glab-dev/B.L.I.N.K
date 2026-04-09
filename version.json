@@ -1,5 +1,5 @@
 {
-  "version": "2.10.103",
+  "version": "2.10.104",
   "updated": "2026-04-09",
-  "changelog": "Fix circuits label size, equalize power/data grid height, fix cabling fit and cable diagram label issues"
+  "changelog": "Increase cable diagram top margin in PDF mode and fix wall width dim overlap with SOCA bracket"
 }

@@ -1540,10 +1540,12 @@ function buildComplexPdf(opts, canvasCache) {
           content.push(sectionLabel('Cabling Layout'));
           const cabImg = canvasCache && canvasCache[screenId + '_cabling'];
           if (cabImg && cabImg.dataUrl) {
-            // Cabling — use fit to maintain aspect ratio, capped to leave room on structure page
+            // Cabling — use fit to maintain aspect ratio.
+            // Multi-screen: smaller images allow more room on structure page; single-screen has its own page.
+            const cabFitH = screenIds.length > 1 ? 380 : 440;
             content.push({
               image: cabImg.dataUrl,
-              fit: [cw, 300],
+              fit: [cw, cabFitH],
               alignment: 'center',
               margin: [0, 0, 0, 4]
             });

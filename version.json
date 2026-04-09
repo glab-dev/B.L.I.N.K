@@ -1,5 +1,5 @@
 {
-  "version": "2.10.106",
+  "version": "2.10.107",
   "updated": "2026-04-09",
-  "changelog": "Remove redundant (spare) suffix from gear list spares section items"
+  "changelog": "Restructure multi-screen summary SCREENS table into 5 labeled columns with header row"
 }

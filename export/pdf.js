@@ -1414,7 +1414,20 @@ function buildComplexPdf(opts, canvasCache) {
     // Per-screen summary cards
     content.push({ text: 'SCREENS', fontSize: 9, bold: true, color: '#000000', margin: [0, 0, 0, 6] });
 
+    const borderBottom = [false, false, false, true];
+    const borderNone   = [false, false, false, false];
+    const bColor = [null, null, null, tc.sectionBorder];
+
     const cardRows = [];
+    // Header row
+    cardRows.push([
+      { text: 'SCREEN',       fontSize: 7, bold: true, color: tc.textMuted, border: borderBottom, borderColor: bColor },
+      { text: 'PANELS',       fontSize: 7, bold: true, color: tc.textMuted, border: borderBottom, borderColor: bColor },
+      { text: 'DIMENSIONS',   fontSize: 7, bold: true, color: tc.textMuted, border: borderBottom, borderColor: bColor },
+      { text: 'TOTAL PANELS', fontSize: 7, bold: true, color: tc.textMuted, border: borderBottom, borderColor: bColor },
+      { text: 'PAGE',         fontSize: 7, bold: true, color: tc.textMuted, alignment: 'right', border: borderBottom, borderColor: bColor },
+    ]);
+
     screenIds.forEach(function(sid) {
       const scr = screens[sid];
       const d   = (scr && scr.data)           || {};
@@ -1428,18 +1441,19 @@ function buildComplexPdf(opts, canvasCache) {
       const startPage = screenPageStarts[sid] || '—';
 
       cardRows.push([
-        { text: scr.name || sid, bold: true, fontSize: 9, border: [false,false,false,true], borderColor: [null,null,null,tc.sectionBorder] },
-        { text: `${pw2}×${ph2}  ${wFt}' × ${hFt}'`, fontSize: 8, color: tc.textMuted, border: [false,false,false,true], borderColor: [null,null,null,tc.sectionBorder] },
-        { text: `${active} panels`, fontSize: 8, color: tc.textMuted, border: [false,false,false,true], borderColor: [null,null,null,tc.sectionBorder] },
-        { text: `p. ${startPage}`, fontSize: 8, color: tc.textMuted, alignment: 'right', border: [false,false,false,true], borderColor: [null,null,null,tc.sectionBorder] },
+        { text: scr.name || sid,        bold: true, fontSize: 9, border: borderBottom, borderColor: bColor },
+        { text: `${pw2}×${ph2}`,        fontSize: 8, color: tc.textMuted, border: borderBottom, borderColor: bColor },
+        { text: `${wFt}' × ${hFt}'`,   fontSize: 8, color: tc.textMuted, border: borderBottom, borderColor: bColor },
+        { text: `${active} panels`,     fontSize: 8, color: tc.textMuted, border: borderBottom, borderColor: bColor },
+        { text: `p. ${startPage}`,      fontSize: 8, color: tc.textMuted, alignment: 'right', border: borderBottom, borderColor: bColor },
       ]);
     });
 
     content.push({
-      table: { widths: ['*', '*', 'auto', 'auto'], body: cardRows },
+      table: { widths: ['auto', 'auto', '*', 'auto', 'auto'], body: cardRows },
       layout: { hLineWidth: (i, node) => (i === node.table.body.length) ? 0 : 0.3, vLineWidth: () => 0,
                 hLineColor: () => tc.sectionBorder,
-                paddingLeft: () => 0, paddingRight: () => 6, paddingTop: () => 4, paddingBottom: () => 4 },
+                paddingLeft: () => 0, paddingRight: () => 12, paddingTop: () => 4, paddingBottom: () => 4 },
       margin: [0, 0, 0, 0]
     });
   }

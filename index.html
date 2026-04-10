@@ -1724,8 +1724,9 @@
       </div>
       <!-- RIGHT: Preview Area -->
       <div class="print-preview-area" style="position:relative;">
-        <iframe id="pdfPreviewFrame" class="pdf-preview-iframe"></iframe>
-        <div id="pdfPreviewLoading" style="display:none;position:absolute;inset:0;background:rgba(245,245,240,0.92);display:flex;align-items:center;justify-content:center;font-family:'Roboto Condensed',sans-serif;font-size:14px;color:#555;letter-spacing:0.05em;">Generating PDF…</div>
+        <iframe id="pdfPreviewFrame" class="pdf-preview-iframe" style="position:absolute;inset:0;width:100%;height:100%;border:none;"></iframe>
+        <iframe id="pdfPreviewFrameB" class="pdf-preview-iframe" style="position:absolute;inset:0;width:100%;height:100%;border:none;display:none;"></iframe>
+        <div id="pdfPreviewLoading" style="display:none;position:absolute;inset:0;z-index:2;background:rgba(245,245,240,0.92);align-items:center;justify-content:center;font-family:'Roboto Condensed',sans-serif;font-size:14px;color:#555;letter-spacing:0.05em;">Generating PDF…</div>
       </div>
     </div>
   </div>
@@ -3250,8 +3251,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.111';
-const APP_CHANGELOG = 'Fix eco/greyscale for headers and combined view, remove overlay flash on cached toggles';
+const APP_VERSION = '2.10.112';
+const APP_CHANGELOG = 'Fix PDF preview flash, eco color lightening in combined view, and landscape panel lines';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

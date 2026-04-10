@@ -1,5 +1,5 @@
 {
-  "version": "2.10.111",
-  "updated": "2026-04-09",
-  "changelog": "Fix eco/greyscale for headers and combined view, remove overlay flash on cached toggles"
+  "version": "2.10.112",
+  "updated": "2026-04-10",
+  "changelog": "Fix PDF preview flash, eco color lightening in combined view, and landscape panel lines"
 }

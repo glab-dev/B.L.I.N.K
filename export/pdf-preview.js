@@ -15,6 +15,10 @@ let _ppCanvasCache = null;
 let _ppLastEco = false;
 let _ppLastGreyscale = false;
 
+// Double-buffer frames: 'A' = pdfPreviewFrame, 'B' = pdfPreviewFrameB
+// The active frame is visible; the standby frame loads silently then swaps
+let _ppActiveFrame = 'A';
+
 // ==================== MODAL OPEN / CLOSE ====================
 
 function openPrintPreview() {
@@ -63,6 +67,7 @@ function openPrintPreview() {
   _ppCanvasCache = null;
   _ppLastEco = false;
   _ppLastGreyscale = false;
+  _ppActiveFrame = 'A';
 
   // Show modal then render
   modal.classList.add('active');
@@ -77,15 +82,16 @@ function closePrintPreview() {
   ecoPrintMode = false;
   greyscalePrintMode = false;
 
-  // Revoke blob URL and clear iframe
-  const iframe = document.getElementById('pdfPreviewFrame');
-  if (iframe) {
-    if (iframe._blobUrl) {
-      URL.revokeObjectURL(iframe._blobUrl);
-      iframe._blobUrl = null;
+  // Revoke blob URLs and clear both frames
+  ['pdfPreviewFrame', 'pdfPreviewFrameB'].forEach(function(id) {
+    const f = document.getElementById(id);
+    if (f) {
+      f.onload = null;
+      if (f._blobUrl) { URL.revokeObjectURL(f._blobUrl); f._blobUrl = null; }
+      f.src = 'about:blank';
+      f.style.display = id === 'pdfPreviewFrame' ? '' : 'none';
     }
-    iframe.src = 'about:blank';
-  }
+  });
 
   reopenMenuIfNeeded();
 }
@@ -356,20 +362,60 @@ function ppRemoveLogo() {
 // ==================== REBUILD PREVIEW ====================
 
 function rebuildPreview() {
-  const iframe = document.getElementById('pdfPreviewFrame');
-  if (!iframe) return;
+  const frameA = document.getElementById('pdfPreviewFrame');
+  const frameB = document.getElementById('pdfPreviewFrameB');
+  if (!frameA || !frameB) return;
 
   const opts = getPrintPreviewOptions();
   const needsCapture = !_ppCanvasCache ||
     opts.ecoFriendly !== _ppLastEco ||
     opts.greyscale !== _ppLastGreyscale;
 
+  function _getFrames() {
+    const active  = _ppActiveFrame === 'A' ? frameA : frameB;
+    const standby = _ppActiveFrame === 'A' ? frameB : frameA;
+    return { active: active, standby: standby };
+  }
+
+  function _swapIn(url) {
+    const frames = _getFrames();
+    // Cancel any pending standby load
+    frames.standby.onload = null;
+    if (frames.standby._blobUrl) {
+      URL.revokeObjectURL(frames.standby._blobUrl);
+      frames.standby._blobUrl = null;
+    }
+    frames.standby._blobUrl = url;
+    frames.standby.onload = function() {
+      frames.standby.onload = null;
+      frames.standby.style.display = '';
+      frames.active.style.display = 'none';
+      if (frames.active._blobUrl) {
+        URL.revokeObjectURL(frames.active._blobUrl);
+        frames.active._blobUrl = null;
+        frames.active.src = 'about:blank';
+      }
+      _ppActiveFrame = _ppActiveFrame === 'A' ? 'B' : 'A';
+    };
+    frames.standby.src = url;
+  }
+
   if (needsCapture) {
-    // Slow path: canvas recapture needed — show overlay, clear iframe
-    if (iframe._blobUrl) { URL.revokeObjectURL(iframe._blobUrl); iframe._blobUrl = null; }
-    iframe.src = 'about:blank';
+    // Slow path: canvas recapture needed — show overlay, reset to frame A
+    const frames = _getFrames();
+    frames.standby.onload = null;
+    ['pdfPreviewFrame', 'pdfPreviewFrameB'].forEach(function(id) {
+      const f = document.getElementById(id);
+      if (f._blobUrl) { URL.revokeObjectURL(f._blobUrl); f._blobUrl = null; }
+      f.src = 'about:blank';
+    });
+    frameA.style.display = '';
+    frameB.style.display = 'none';
+    _ppActiveFrame = 'A';
+
     const loader = document.getElementById('pdfPreviewLoading');
     if (loader) loader.style.display = 'flex';
+
     setTimeout(function() {
       ecoPrintMode = opts.ecoFriendly;
       greyscalePrintMode = opts.greyscale;
@@ -379,7 +425,6 @@ function rebuildPreview() {
       ecoPrintMode = false;
       greyscalePrintMode = false;
 
-      // Set modes so headers/gear list/combined diagram render with correct colors
       ecoPrintMode = opts.ecoFriendly;
       greyscalePrintMode = opts.greyscale;
       const docDef = buildComplexPdf(opts, _ppCanvasCache);
@@ -388,13 +433,13 @@ function rebuildPreview() {
 
       pdfMake.createPdf(docDef).getBlob(function(blob) {
         const url = URL.createObjectURL(blob);
-        iframe._blobUrl = url;
-        iframe.src = url;
+        frameA._blobUrl = url;
+        frameA.src = url;
         if (loader) loader.style.display = 'none';
       });
     }, 0);
   } else {
-    // Fast path: cache valid — no overlay, old PDF stays visible, silently swap when ready
+    // Fast path: cache valid — build PDF and swap in silently, no overlay, no flash
     ecoPrintMode = opts.ecoFriendly;
     greyscalePrintMode = opts.greyscale;
     const docDef = buildComplexPdf(opts, _ppCanvasCache);
@@ -402,11 +447,7 @@ function rebuildPreview() {
     greyscalePrintMode = false;
 
     pdfMake.createPdf(docDef).getBlob(function(blob) {
-      const oldUrl = iframe._blobUrl;
-      const url = URL.createObjectURL(blob);
-      iframe._blobUrl = url;
-      iframe.src = url;
-      if (oldUrl) URL.revokeObjectURL(oldUrl);
+      _swapIn(URL.createObjectURL(blob));
     });
   }
 }

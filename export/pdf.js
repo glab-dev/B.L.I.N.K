@@ -1252,6 +1252,17 @@ function buildComplexPdf(opts, canvasCache) {
     const _grey = (typeof greyscalePrintMode !== 'undefined' && greyscalePrintMode);
     const _eco  = (typeof ecoPrintMode !== 'undefined' && ecoPrintMode);
 
+    // Lighten a hex color toward white by `amount` (0–1) — used for eco mode panels
+    function lightenHex(hex, amount) {
+      var r = parseInt(hex.slice(1,3), 16) || 0;
+      var g = parseInt(hex.slice(3,5), 16) || 0;
+      var b = parseInt(hex.slice(5,7), 16) || 0;
+      r = Math.round(r + (255 - r) * amount);
+      g = Math.round(g + (255 - g) * amount);
+      b = Math.round(b + (255 - b) * amount);
+      return '#' + r.toString(16).padStart(2,'0') + g.toString(16).padStart(2,'0') + b.toString(16).padStart(2,'0');
+    }
+
     const LABEL_H   = 14;
     const BOX_H     = 120;
     const SVG_H     = LABEL_H + BOX_H + LABEL_H + 4;
@@ -1309,14 +1320,14 @@ function buildComplexPdf(opts, canvasCache) {
 
       var cellW = bw / it.pw;
       var cellH = bh / it.ph;
-      var gap   = 0.5;
+      var gap   = 1;
 
       // Dark background for the full wall area (shows through as dead panels)
       var deadFill = _grey ? '#555555' : '#111111';
       parts.push('<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + deadFill + '" stroke="#000000" stroke-width="0.5"/>');
 
       // Draw each panel cell — active = screen color, deleted = dark (background shows)
-      var activeFill = _grey ? '#aaaaaa' : (_eco ? '#888888' : it.color);
+      var activeFill = _grey ? '#aaaaaa' : (_eco ? lightenHex(it.color, 0.45) : it.color);
       for (var r = 0; r < it.ph; r++) {
         for (var c = 0; c < it.pw; c++) {
           var key = c + ',' + r;

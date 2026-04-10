@@ -1507,25 +1507,31 @@ function buildComplexPdf(opts, canvasCache) {
       const headerOverhead = m.headerBarH + m.afterHeaderGap + m.screenLabelH + 6;
       const specBandH = opts.specs !== false ? m.summaryBarHExp + 8 : 0;
 
-      // Image scaled width-first — fills the column width so all columns look the same size.
-      // Height is derived from the aspect ratio. maxH is a safety ceiling to prevent overflow
-      // (should never be hit for normal wall sizes). Power will be slightly taller than Canvas/Data
-      // due to the SOCA bar, but all images share the same column width.
-      function lsImg(key, colW, maxH) {
+      // Image scaled width-first — fills the column width. topMargin pushes the image down
+      // so that bottoms align when columns have different heights (e.g. Power SOCA bar).
+      function lsImg(key, colW, maxH, topMargin) {
         const imgData = canvasCache && canvasCache[key];
         if (!imgData || !imgData.dataUrl || pw * ph <= 1) return null;
         const aspect = imgData.aspectRatio || (ph / pw);
         var w = colW;
         var h = Math.round(w * aspect);
         if (h > maxH) { h = maxH; w = Math.round(h / aspect); }
-        return { image: imgData.dataUrl, width: w, height: h, alignment: 'center', margin: [0, 0, 0, 4] };
+        return { image: imgData.dataUrl, width: w, height: h, alignment: 'center', margin: [0, topMargin || 0, 0, 4] };
       }
 
-      // Column block: label + image, for use inside pdfmake columns array
-      function lsColBlock(key, label, colW, maxH) {
+      // Returns the rendered image height at colW (capped at maxH), for spacer calculation.
+      function lsRenderedH(key, colW, maxH) {
+        var imgData = canvasCache && canvasCache[key];
+        if (!imgData || !imgData.dataUrl) return 0;
+        var aspect = imgData.aspectRatio || (ph / pw);
+        return Math.min(Math.round(colW * aspect), maxH);
+      }
+
+      // Column block: label at top, then image with optional top margin to bottom-align it.
+      function lsColBlock(key, label, colW, maxH, topMargin) {
         var items = [];
         if (label) items.push(sectionLabel(label));
-        var img = lsImg(key, colW, maxH);
+        var img = lsImg(key, colW, maxH, topMargin);
         if (img) items.push(img);
         return { stack: items, width: colW };
       }
@@ -1610,14 +1616,21 @@ function buildComplexPdf(opts, canvasCache) {
         if (lsHasLayouts) {
           var GAP3 = 20;
           var colW3 = Math.floor((cw - GAP3 * 2) / 3);
-          // 300pt safety ceiling — width-first scaling fills the column width naturally.
-          // A 4×5 wall at colW≈225pt renders at ~281pt, well under this ceiling.
+          // 300pt safety ceiling. Compute each image's actual rendered height, then add a
+          // top margin to shorter columns so all three grid bottoms align horizontally.
           var maxH3 = 300;
+          var hStd  = lsRenderedH(screenId + '_standard', colW3, maxH3);
+          var hPow  = lsRenderedH(screenId + '_power',    colW3, maxH3);
+          var hDat  = lsRenderedH(screenId + '_data',     colW3, maxH3);
+          var maxHRow = Math.max(hStd, hPow, hDat);
+          var topStd  = maxHRow - hStd;
+          var topPow  = maxHRow - hPow;
+          var topDat  = maxHRow - hDat;
           content.push({
             columns: [
-              opts.standard !== false ? lsColBlock(screenId + '_standard', 'Canvas',       colW3, maxH3) : { text: '', width: colW3 },
-              opts.power    !== false ? lsColBlock(screenId + '_power',    'Power Layout', colW3, maxH3) : { text: '', width: colW3 },
-              opts.data     !== false ? lsColBlock(screenId + '_data',     'Data Layout',  colW3, maxH3) : { text: '', width: colW3 }
+              opts.standard !== false ? lsColBlock(screenId + '_standard', 'Canvas',       colW3, maxH3, topStd) : { text: '', width: colW3 },
+              opts.power    !== false ? lsColBlock(screenId + '_power',    'Power Layout', colW3, maxH3, topPow) : { text: '', width: colW3 },
+              opts.data     !== false ? lsColBlock(screenId + '_data',     'Data Layout',  colW3, maxH3, topDat) : { text: '', width: colW3 }
             ],
             columnGap: GAP3
           });

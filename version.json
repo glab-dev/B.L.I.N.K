@@ -1,5 +1,5 @@
 {
-  "version": "2.10.115",
+  "version": "2.10.116",
   "updated": "2026-04-10",
-  "changelog": "Use width-first scaling in landscape 3-up row so all layouts match column width"
+  "changelog": "Bottom-align landscape 3-up layout images so grid bottoms line up across columns"
 }

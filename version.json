@@ -1,5 +1,5 @@
 {
-  "version": "2.10.117",
-  "updated": "2026-04-10",
-  "changelog": "Fix combined view panel grid lines to be uniform width using explicit SVG lines"
+  "version": "2.10.118",
+  "updated": "2026-04-09",
+  "changelog": "Remove unused Manual Adjust toggle from PDF preview options"
 }

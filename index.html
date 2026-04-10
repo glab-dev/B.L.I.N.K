@@ -1696,14 +1696,6 @@
           </div>
         </div>
         <hr class="modal-divider">
-        <p class="modal-hint">Adjust</p>
-        <div class="checkbox-list">
-          <label class="checkbox-label">
-            <input type="checkbox" id="ppManualAdjust" onchange="ppSetManualAdjust(this.checked)">
-            <span>Manual Adjust</span>
-          </label>
-        </div>
-        <hr class="modal-divider">
         <p class="modal-hint">Logo</p>
         <div id="ppLogoSection">
           <button type="button" id="ppLogoUploadBtn" class="pp-logo-btn" onclick="document.getElementById('ppLogoInput').click()">Upload Logo</button>
@@ -3251,8 +3243,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.117';
-const APP_CHANGELOG = 'Fix combined view panel grid lines to be uniform width using explicit SVG lines';
+const APP_VERSION = '2.10.118';
+const APP_CHANGELOG = 'Remove unused Manual Adjust toggle from PDF preview options';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

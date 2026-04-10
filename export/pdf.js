@@ -1327,28 +1327,43 @@ function buildComplexPdf(opts, canvasCache) {
         ? (it.pw * it.resX) + '\xd7' + (it.ph * it.resY) + ' px'
         : it.pw + '\xd7' + it.ph;
 
-      var cellW = bw / it.pw;
-      var cellH = bh / it.ph;
-      var gap   = 1;
-
-      // Dark background for the full wall area (shows through as dead panels)
-      var deadFill = _grey ? '#555555' : '#111111';
-      parts.push('<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + deadFill + '" stroke="#000000" stroke-width="0.5"/>');
-
-      // Draw each panel cell — active = screen color, deleted = dark (background shows)
+      // Fill each panel cell using exact cell boundaries (no gap subtraction — avoids
+      // float accumulation that makes gaps appear uneven). Grid lines are drawn explicitly
+      // afterward as SVG <line> elements, guaranteeing uniform 1pt line width everywhere.
       var activeFill = _grey ? '#aaaaaa' : (_eco ? lightenHex(it.color, 0.45) : it.color);
+      var deadFill   = _grey ? '#555555' : '#111111';
+
+      // Background (dead panels show as dark fill)
+      parts.push('<rect x="' + bx.toFixed(2) + '" y="' + by.toFixed(2) + '" width="' + bw.toFixed(2) + '" height="' + bh.toFixed(2) + '" fill="' + deadFill + '"/>');
+
+      // Active panel cells — sized to exact cell boundaries to avoid accumulation gaps
       for (var r = 0; r < it.ph; r++) {
         for (var c = 0; c < it.pw; c++) {
           var key = c + ',' + r;
           if (!it.deletedPanels.has(key)) {
-            var px = bx + c * cellW + gap;
-            var py = by + r * cellH + gap;
-            var pw2 = cellW - gap * 2;
-            var ph2 = cellH - gap * 2;
-            parts.push('<rect x="' + px.toFixed(1) + '" y="' + py.toFixed(1) + '" width="' + pw2.toFixed(1) + '" height="' + ph2.toFixed(1) + '" fill="' + activeFill + '"/>');
+            var cx1 = bx + (c / it.pw) * bw;
+            var cy1 = by + (r / it.ph) * bh;
+            var cx2 = bx + ((c + 1) / it.pw) * bw;
+            var cy2 = by + ((r + 1) / it.ph) * bh;
+            parts.push('<rect x="' + cx1.toFixed(2) + '" y="' + cy1.toFixed(2) + '" width="' + (cx2 - cx1).toFixed(2) + '" height="' + (cy2 - cy1).toFixed(2) + '" fill="' + activeFill + '"/>');
           }
         }
       }
+
+      // Explicit grid lines — uniform 1pt stroke, no float accumulation
+      var lineColor = '#000000';
+      var lineW = '0.75';
+      for (var gc = 1; gc < it.pw; gc++) {
+        var lx = bx + (gc / it.pw) * bw;
+        parts.push('<line x1="' + lx.toFixed(2) + '" y1="' + by.toFixed(2) + '" x2="' + lx.toFixed(2) + '" y2="' + (by + bh).toFixed(2) + '" stroke="' + lineColor + '" stroke-width="' + lineW + '"/>');
+      }
+      for (var gr = 1; gr < it.ph; gr++) {
+        var ly = by + (gr / it.ph) * bh;
+        parts.push('<line x1="' + bx.toFixed(2) + '" y1="' + ly.toFixed(2) + '" x2="' + (bx + bw).toFixed(2) + '" y2="' + ly.toFixed(2) + '" stroke="' + lineColor + '" stroke-width="' + lineW + '"/>');
+      }
+      // Outer border
+      parts.push('<rect x="' + bx.toFixed(2) + '" y="' + by.toFixed(2) + '" width="' + bw.toFixed(2) + '" height="' + bh.toFixed(2) + '" fill="none" stroke="' + lineColor + '" stroke-width="0.75"/>');
+
 
       var nameFill = _grey ? '#444444' : '#222222';
       parts.push('<text x="' + midX.toFixed(1) + '" y="' + (diagTop - 2).toFixed(1) + '" font-size="9" fill="' + nameFill + '" text-anchor="middle" font-family="Helvetica-Bold">' + escXml(it.name) + '</text>');

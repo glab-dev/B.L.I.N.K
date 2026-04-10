@@ -1,5 +1,5 @@
 {
-  "version": "2.10.116",
+  "version": "2.10.117",
   "updated": "2026-04-10",
-  "changelog": "Bottom-align landscape 3-up layout images so grid bottoms line up across columns"
+  "changelog": "Fix combined view panel grid lines to be uniform width using explicit SVG lines"
 }

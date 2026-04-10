@@ -1,5 +1,5 @@
 {
-  "version": "2.10.113",
+  "version": "2.10.114",
   "updated": "2026-04-10",
-  "changelog": "Add landscape PDF adaptive multi-column packing with pinned structure and cabling"
+  "changelog": "Fix landscape PDF column heights to be uniform and prevent overflow on Letter size"
 }

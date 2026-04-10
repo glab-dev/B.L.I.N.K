@@ -1507,13 +1507,17 @@ function buildComplexPdf(opts, canvasCache) {
       const headerOverhead = m.headerBarH + m.afterHeaderGap + m.screenLabelH + 6;
       const specBandH = opts.specs !== false ? m.summaryBarHExp + 8 : 0;
 
-      // Image scaled to fit a specific column width (replaces gridImage which always uses full cw)
-      function lsImg(key, colW, maxH) {
+      // Image scaled height-first to imgH — ensures all columns share the same row height.
+      // Width is derived from imgH / aspect, then capped at colW (never wider than the column).
+      // This is intentional: power (tallest aspect due to SOCA bar) will be narrower but centered,
+      // while canvas and data fill more of the column width. All images are the same height.
+      function lsImg(key, colW, imgH) {
         const imgData = canvasCache && canvasCache[key];
         if (!imgData || !imgData.dataUrl || pw * ph <= 1) return null;
         const aspect = imgData.aspectRatio || (ph / pw);
-        let w = colW, h = Math.round(w * aspect);
-        if (h > maxH) { h = maxH; w = Math.round(h / aspect); }
+        var h = imgH;
+        var w = Math.round(h / aspect);
+        if (w > colW) { w = colW; h = Math.round(w * aspect); } // only hit if very wide aspect
         return { image: imgData.dataUrl, width: w, height: h, alignment: 'center', margin: [0, 0, 0, 4] };
       }
 
@@ -1578,7 +1582,7 @@ function buildComplexPdf(opts, canvasCache) {
         if (lsHasLayouts) {
           var GAP4 = 14;
           var colW4 = Math.floor((cw - GAP4 * 3) / 4);
-          var rowH4 = Math.floor((uh - headerOverhead - specBandH - 160) * 0.6);
+          var rowH4 = 180; // fixed safe height for 4-up row
           content.push({
             columns: [
               opts.standard  !== false ? lsColBlock(screenId + '_standard',  'Canvas',           colW4, rowH4) : { text: '', width: colW4 },
@@ -1606,12 +1610,14 @@ function buildComplexPdf(opts, canvasCache) {
         if (lsHasLayouts) {
           var GAP3 = 20;
           var colW3 = Math.floor((cw - GAP3 * 2) / 3);
-          var rowH3 = uh - headerOverhead - specBandH - 20;
+          // Fixed safe height: 230pt fits on both A4 and Letter landscape regardless of spec band size.
+          // Height-first scaling in lsImg guarantees all three columns render at the same height.
+          var imgH3 = 230;
           content.push({
             columns: [
-              opts.standard !== false ? lsColBlock(screenId + '_standard', 'Canvas',       colW3, rowH3) : { text: '', width: colW3 },
-              opts.power    !== false ? lsColBlock(screenId + '_power',    'Power Layout', colW3, rowH3) : { text: '', width: colW3 },
-              opts.data     !== false ? lsColBlock(screenId + '_data',     'Data Layout',  colW3, rowH3) : { text: '', width: colW3 }
+              opts.standard !== false ? lsColBlock(screenId + '_standard', 'Canvas',       colW3, imgH3) : { text: '', width: colW3 },
+              opts.power    !== false ? lsColBlock(screenId + '_power',    'Power Layout', colW3, imgH3) : { text: '', width: colW3 },
+              opts.data     !== false ? lsColBlock(screenId + '_data',     'Data Layout',  colW3, imgH3) : { text: '', width: colW3 }
             ],
             columnGap: GAP3
           });
@@ -1627,8 +1633,8 @@ function buildComplexPdf(opts, canvasCache) {
         if (lsHasLayouts) {
           var GAP2 = 20;
           var halfW2 = Math.floor((cw - GAP2) / 2);
-          var canvasH2 = Math.floor((uh - headerOverhead - specBandH - 60) * 0.45);
-          var twoUpH2  = Math.floor((uh - headerOverhead - specBandH - 60) * 0.45);
+          var canvasH2 = 200; // fixed safe height for canvas full-width row
+          var twoUpH2  = 200; // fixed safe height for power/data 2-up row
           if (opts.standard !== false) {
             content.push(sectionLabel('Canvas'));
             var cImg2 = lsImg(screenId + '_standard', cw, canvasH2);

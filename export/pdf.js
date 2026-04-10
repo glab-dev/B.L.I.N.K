@@ -1240,6 +1240,15 @@ function buildComplexPdf(opts, canvasCache) {
     };
   }
 
+  function classifyScreenLandscape(pw, ph) {
+    const panels = pw * ph;
+    const gw = pw * 28; // estimated rendered width at 28pt per panel-column
+    if (panels <= 15 && gw <= 170) return 'tiny';   // 4-up, 1 page
+    if (panels <= 20 && gw <= 200) return 'small';  // 3-up page 1, struct+cable page 2
+    if (panels <= 40 && gw <= 260) return 'medium'; // canvas+2up page 1, struct+cable page 2
+    return 'large';                                  // 1-up, struct+cable still pinned
+  }
+
   function escXml(str) {
     return String(str)
       .replace(/&/g, '&amp;')
@@ -1491,6 +1500,191 @@ function buildComplexPdf(opts, canvasCache) {
 
     // Determine adaptive layout collapse
     const collapseLayouts = canCollapseLayoutPages(pw, ph, format, orientation, null);
+
+    // ===== LANDSCAPE: adaptive multi-column packing =====
+    if (orientation === 'l') {
+      const cls = classifyScreenLandscape(pw, ph);
+      const headerOverhead = m.headerBarH + m.afterHeaderGap + m.screenLabelH + 6;
+      const specBandH = opts.specs !== false ? m.summaryBarHExp + 8 : 0;
+
+      // Image scaled to fit a specific column width (replaces gridImage which always uses full cw)
+      function lsImg(key, colW, maxH) {
+        const imgData = canvasCache && canvasCache[key];
+        if (!imgData || !imgData.dataUrl || pw * ph <= 1) return null;
+        const aspect = imgData.aspectRatio || (ph / pw);
+        let w = colW, h = Math.round(w * aspect);
+        if (h > maxH) { h = maxH; w = Math.round(h / aspect); }
+        return { image: imgData.dataUrl, width: w, height: h, alignment: 'center', margin: [0, 0, 0, 4] };
+      }
+
+      // Column block: label + image, for use inside pdfmake columns array
+      function lsColBlock(key, label, colW, maxH) {
+        var items = [];
+        if (label) items.push(sectionLabel(label));
+        var img = lsImg(key, colW, maxH);
+        if (img) items.push(img);
+        return { stack: items, width: colW };
+      }
+
+      // Structure (left half) + Cabling (right half) side-by-side — pinned always on same page
+      function renderStructCablePinned() {
+        var GAP = 20;
+        var halfW = Math.floor((cw - GAP) / 2);
+        var pageH = uh - headerOverhead - 10;
+        var structImgH = Math.floor(pageH * 0.58);
+
+        var structItems = [];
+        if (opts.structure !== false) {
+          structItems.push(sectionLabel('Structure Layout'));
+          var sImg = lsImg(screenId + '_structure', halfW, structImgH);
+          if (sImg) structItems.push(sImg);
+          var structInfo = buildStructureInfoPdf(screenId, cw);
+          if (structInfo) structItems.push(structInfo);
+        }
+
+        var cableItems = [];
+        if (opts.cabling !== false) {
+          cableItems.push(sectionLabel('Cabling Layout'));
+          var cabImgData = canvasCache && canvasCache[screenId + '_cabling'];
+          if (cabImgData && cabImgData.dataUrl) {
+            var cabAspect = cabImgData.aspectRatio || (1 / 3);
+            var cw2 = halfW, ch2 = Math.round(cw2 * cabAspect);
+            if (ch2 > pageH) { ch2 = pageH; cw2 = Math.round(ch2 / cabAspect); }
+            cableItems.push({ image: cabImgData.dataUrl, width: Math.min(cw2, halfW), height: ch2, alignment: 'center', margin: [0, 0, 0, 4] });
+          }
+        }
+
+        content.push({
+          columns: [
+            { stack: structItems, width: halfW },
+            { stack: cableItems, width: halfW }
+          ],
+          columnGap: GAP
+        });
+      }
+
+      // Page break before each screen (same rule as portrait)
+      if (sIdx > 0 || screenIds.length > 1) content.push({ text: '', pageBreak: 'before' });
+
+      // Header + screen name on page 1 (shared by all classes)
+      content.push(buildPdfHeader(configName, dateStr, logoData));
+      content.push({ text: screen.name.toUpperCase(), fontSize: 11, bold: true, color: '#000000', margin: [0, 2, 0, 6] });
+      if (opts.specs !== false) content.push(buildComplexSummaryBar(data, calcData, panelSpec, sd));
+
+      var lsHasLayouts = pw * ph > 1 && (opts.power !== false || opts.data !== false || opts.structure !== false || opts.cabling !== false);
+
+      if (cls === 'tiny') {
+        // 4-up row + cabling full-width, all on 1 page
+        if (lsHasLayouts) {
+          var GAP4 = 14;
+          var colW4 = Math.floor((cw - GAP4 * 3) / 4);
+          var rowH4 = Math.floor((uh - headerOverhead - specBandH - 160) * 0.6);
+          content.push({
+            columns: [
+              opts.standard  !== false ? lsColBlock(screenId + '_standard',  'Canvas',           colW4, rowH4) : { text: '', width: colW4 },
+              opts.power     !== false ? lsColBlock(screenId + '_power',     'Power Layout',     colW4, rowH4) : { text: '', width: colW4 },
+              opts.data      !== false ? lsColBlock(screenId + '_data',      'Data Layout',      colW4, rowH4) : { text: '', width: colW4 },
+              opts.structure !== false ? lsColBlock(screenId + '_structure', 'Structure Layout', colW4, rowH4) : { text: '', width: colW4 }
+            ],
+            columnGap: GAP4,
+            margin: [0, 0, 0, 6]
+          });
+          if (opts.structure !== false) {
+            var si4 = buildStructureInfoPdf(screenId, cw);
+            if (si4) content.push(si4);
+          }
+          if (opts.cabling !== false) {
+            content.push(sectionLabel('Cabling Layout'));
+            var cab4 = canvasCache && canvasCache[screenId + '_cabling'];
+            if (cab4 && cab4.dataUrl) {
+              content.push({ image: cab4.dataUrl, fit: [cw, 150], alignment: 'center', margin: [0, 0, 0, 4] });
+            }
+          }
+        }
+      } else if (cls === 'small') {
+        // 3-up row page 1, struct+cable pinned page 2
+        if (lsHasLayouts) {
+          var GAP3 = 20;
+          var colW3 = Math.floor((cw - GAP3 * 2) / 3);
+          var rowH3 = uh - headerOverhead - specBandH - 20;
+          content.push({
+            columns: [
+              opts.standard !== false ? lsColBlock(screenId + '_standard', 'Canvas',       colW3, rowH3) : { text: '', width: colW3 },
+              opts.power    !== false ? lsColBlock(screenId + '_power',    'Power Layout', colW3, rowH3) : { text: '', width: colW3 },
+              opts.data     !== false ? lsColBlock(screenId + '_data',     'Data Layout',  colW3, rowH3) : { text: '', width: colW3 }
+            ],
+            columnGap: GAP3
+          });
+          if (opts.structure !== false || opts.cabling !== false) {
+            content.push({ text: '', pageBreak: 'before' });
+            content.push(buildPdfHeader(configName, dateStr, logoData));
+            content.push({ text: screen.name.toUpperCase(), fontSize: 11, bold: true, color: '#000000', margin: [0, 2, 0, 6] });
+            renderStructCablePinned();
+          }
+        }
+      } else if (cls === 'medium') {
+        // canvas full-width + power/data 2-up on page 1, struct+cable pinned page 2
+        if (lsHasLayouts) {
+          var GAP2 = 20;
+          var halfW2 = Math.floor((cw - GAP2) / 2);
+          var canvasH2 = Math.floor((uh - headerOverhead - specBandH - 60) * 0.45);
+          var twoUpH2  = Math.floor((uh - headerOverhead - specBandH - 60) * 0.45);
+          if (opts.standard !== false) {
+            content.push(sectionLabel('Canvas'));
+            var cImg2 = lsImg(screenId + '_standard', cw, canvasH2);
+            if (cImg2) content.push(cImg2);
+          }
+          content.push({
+            columns: [
+              opts.power !== false ? lsColBlock(screenId + '_power', 'Power Layout', halfW2, twoUpH2) : { text: '', width: halfW2 },
+              opts.data  !== false ? lsColBlock(screenId + '_data',  'Data Layout',  halfW2, twoUpH2) : { text: '', width: halfW2 }
+            ],
+            columnGap: GAP2
+          });
+          if (opts.structure !== false || opts.cabling !== false) {
+            content.push({ text: '', pageBreak: 'before' });
+            content.push(buildPdfHeader(configName, dateStr, logoData));
+            content.push({ text: screen.name.toUpperCase(), fontSize: 11, bold: true, color: '#000000', margin: [0, 2, 0, 6] });
+            renderStructCablePinned();
+          }
+        }
+      } else {
+        // large: canvas page 1, power+data page 2, struct+cable page 3 (still pinned)
+        if (lsHasLayouts) {
+          if (opts.standard !== false) {
+            var lgImg = gridImage(screenId + '_standard', pw, ph, layoutImgMaxH);
+            if (lgImg) content.push(lgImg);
+          }
+          if (opts.power !== false || opts.data !== false) {
+            content.push({ text: '', pageBreak: 'before' });
+            content.push(buildPdfHeader(configName, dateStr, logoData));
+            content.push({ text: screen.name.toUpperCase(), fontSize: 11, bold: true, color: '#000000', margin: [0, 2, 0, 6] });
+            if (opts.power !== false) {
+              content.push(sectionLabel('Power Layout'));
+              var pImgDataLg = canvasCache && canvasCache[screenId + '_power'];
+              var socaFracLg = (pImgDataLg && pImgDataLg.socaBarFraction) || 0;
+              var powerMaxHLg = socaFracLg > 0 ? Math.round(layoutImgMaxH / (1 - socaFracLg)) : layoutImgMaxH;
+              var pImgLg = gridImage(screenId + '_power', pw, ph, powerMaxHLg);
+              if (pImgLg) content.push(pImgLg);
+            }
+            if (opts.data !== false) {
+              content.push(sectionLabel('Data Layout'));
+              var dImgLg = gridImage(screenId + '_data', pw, ph, layoutImgMaxH);
+              if (dImgLg) content.push(dImgLg);
+            }
+          }
+          if (opts.structure !== false || opts.cabling !== false) {
+            content.push({ text: '', pageBreak: 'before' });
+            content.push(buildPdfHeader(configName, dateStr, logoData));
+            content.push({ text: screen.name.toUpperCase(), fontSize: 11, bold: true, color: '#000000', margin: [0, 2, 0, 6] });
+            renderStructCablePinned();
+          }
+        }
+      }
+
+      return; // skip portrait rendering path for this screen
+    }
+    // ===== END LANDSCAPE =====
 
     // ===== PAGE 1: HERO =====
     if (opts.specs !== false || opts.standard !== false) {

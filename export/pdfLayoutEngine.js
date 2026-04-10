@@ -210,25 +210,43 @@ function canCollapseLayoutPages(pw, ph, format, orientation, structureTablesPt) 
  * @returns {{ pageCount, collapseLayouts }}
  */
 function buildComplexPagePlan(pw, ph, opts, format, orientation) {
+  const hasHero    = opts.specs || opts.standard;
+  const hasLayouts = opts.power || opts.data || opts.structure || opts.cabling;
+
+  // Landscape uses adaptive multi-column packing — different page counts
+  if (orientation === 'l') {
+    const panels = pw * ph;
+    const gw = pw * 28;
+    let lsCls = 'large';
+    if (panels <= 15 && gw <= 170)      lsCls = 'tiny';
+    else if (panels <= 20 && gw <= 200) lsCls = 'small';
+    else if (panels <= 40 && gw <= 260) lsCls = 'medium';
+
+    let lsPages = 0;
+    if (hasHero)      lsPages++;
+    if (opts.gearList) lsPages++;
+    if (hasLayouts) {
+      if (lsCls === 'tiny')   lsPages += 1; // all layouts on 1 page
+      if (lsCls === 'small')  lsPages += 2; // 3-up + struct/cable
+      if (lsCls === 'medium') lsPages += 2; // canvas+2up + struct/cable
+      if (lsCls === 'large')  lsPages += 3; // canvas, power+data, struct+cable
+    }
+    return { pageCount: lsPages, collapseLayouts: lsCls === 'tiny' };
+  }
+
+  // Portrait: existing logic unchanged
   let pageCount = 0;
-
-  // Page 1: Hero (header + summary + standard grid)
-  const hasHero = opts.specs || opts.standard;
-  if (hasHero) pageCount++;
-
-  // Page 2: Gear List
+  if (hasHero)      pageCount++;
   if (opts.gearList) pageCount++;
 
-  // Pages 3 (and optionally 4): Layout diagrams
-  const hasLayouts = opts.power || opts.data || opts.structure || opts.cabling;
   if (hasLayouts) {
     const collapseLayouts = canCollapseLayoutPages(pw, ph, format, orientation, null);
     if (collapseLayouts) {
-      pageCount++; // All four layouts on one page
+      pageCount++;
     } else {
-      const hasPowerData = opts.power || opts.data;
+      const hasPowerData    = opts.power || opts.data;
       const hasStructCabling = opts.structure || opts.cabling;
-      if (hasPowerData)    pageCount++;
+      if (hasPowerData)     pageCount++;
       if (hasStructCabling) pageCount++;
     }
     return { pageCount, collapseLayouts };

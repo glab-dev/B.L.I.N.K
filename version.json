@@ -1,5 +1,5 @@
 {
-  "version": "2.10.112",
+  "version": "2.10.113",
   "updated": "2026-04-10",
-  "changelog": "Fix PDF preview flash, eco color lightening in combined view, and landscape panel lines"
+  "changelog": "Add landscape PDF adaptive multi-column packing with pinned structure and cabling"
 }

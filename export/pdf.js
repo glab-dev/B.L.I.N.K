@@ -1507,17 +1507,17 @@ function buildComplexPdf(opts, canvasCache) {
       const headerOverhead = m.headerBarH + m.afterHeaderGap + m.screenLabelH + 6;
       const specBandH = opts.specs !== false ? m.summaryBarHExp + 8 : 0;
 
-      // Image scaled height-first to imgH — ensures all columns share the same row height.
-      // Width is derived from imgH / aspect, then capped at colW (never wider than the column).
-      // This is intentional: power (tallest aspect due to SOCA bar) will be narrower but centered,
-      // while canvas and data fill more of the column width. All images are the same height.
-      function lsImg(key, colW, imgH) {
+      // Image scaled width-first — fills the column width so all columns look the same size.
+      // Height is derived from the aspect ratio. maxH is a safety ceiling to prevent overflow
+      // (should never be hit for normal wall sizes). Power will be slightly taller than Canvas/Data
+      // due to the SOCA bar, but all images share the same column width.
+      function lsImg(key, colW, maxH) {
         const imgData = canvasCache && canvasCache[key];
         if (!imgData || !imgData.dataUrl || pw * ph <= 1) return null;
         const aspect = imgData.aspectRatio || (ph / pw);
-        var h = imgH;
-        var w = Math.round(h / aspect);
-        if (w > colW) { w = colW; h = Math.round(w * aspect); } // only hit if very wide aspect
+        var w = colW;
+        var h = Math.round(w * aspect);
+        if (h > maxH) { h = maxH; w = Math.round(h / aspect); }
         return { image: imgData.dataUrl, width: w, height: h, alignment: 'center', margin: [0, 0, 0, 4] };
       }
 
@@ -1610,14 +1610,14 @@ function buildComplexPdf(opts, canvasCache) {
         if (lsHasLayouts) {
           var GAP3 = 20;
           var colW3 = Math.floor((cw - GAP3 * 2) / 3);
-          // Fixed safe height: 230pt fits on both A4 and Letter landscape regardless of spec band size.
-          // Height-first scaling in lsImg guarantees all three columns render at the same height.
-          var imgH3 = 230;
+          // 300pt safety ceiling — width-first scaling fills the column width naturally.
+          // A 4×5 wall at colW≈225pt renders at ~281pt, well under this ceiling.
+          var maxH3 = 300;
           content.push({
             columns: [
-              opts.standard !== false ? lsColBlock(screenId + '_standard', 'Canvas',       colW3, imgH3) : { text: '', width: colW3 },
-              opts.power    !== false ? lsColBlock(screenId + '_power',    'Power Layout', colW3, imgH3) : { text: '', width: colW3 },
-              opts.data     !== false ? lsColBlock(screenId + '_data',     'Data Layout',  colW3, imgH3) : { text: '', width: colW3 }
+              opts.standard !== false ? lsColBlock(screenId + '_standard', 'Canvas',       colW3, maxH3) : { text: '', width: colW3 },
+              opts.power    !== false ? lsColBlock(screenId + '_power',    'Power Layout', colW3, maxH3) : { text: '', width: colW3 },
+              opts.data     !== false ? lsColBlock(screenId + '_data',     'Data Layout',  colW3, maxH3) : { text: '', width: colW3 }
             ],
             columnGap: GAP3
           });

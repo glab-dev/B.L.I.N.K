@@ -1,5 +1,5 @@
 {
-  "version": "2.10.114",
+  "version": "2.10.115",
   "updated": "2026-04-10",
-  "changelog": "Fix landscape PDF column heights to be uniform and prevent overflow on Letter size"
+  "changelog": "Use width-first scaling in landscape 3-up row so all layouts match column width"
 }

@@ -185,6 +185,15 @@ function colorForIndex(i){
   return { fill: hexToRgba(base, alpha), text: getContrastColor(base), solid: base };
 }
 
+// ==================== MAILTO HELPER ====================
+function openMailtoLink(url) {
+  var a = document.createElement('a');
+  a.href = url;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 // ==================== MATH HELPERS ====================
 function toMeters(v, units){ return units==='m' ? v : v*0.3048; }
 function fromMeters(m, units){ return units==='m' ? m : m/0.3048; }

@@ -1,5 +1,5 @@
 {
-  "version": "2.10.118",
-  "updated": "2026-04-09",
-  "changelog": "Remove unused Manual Adjust toggle from PDF preview options"
+  "version": "2.10.119",
+  "updated": "2026-04-12",
+  "changelog": "Replace direct mailto triggers with Mail App / Gmail choice modal"
 }

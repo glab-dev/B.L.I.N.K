@@ -2,6 +2,7 @@
 // PDF export modal, gear list email, multi-screen PDF generation.
 
 var pdfLayoutCaptureMode = false; // Set true during pdfCaptureCanvases to raise canvas resolution cap
+var _emailSendParams = null;
 
 // PDF Export Options Modal Functions
 let pdfExportOptions = {
@@ -49,6 +50,62 @@ function openSendToJaredModal() {
 function closeSendToJaredModal() {
   document.getElementById('sendToJaredModal').classList.remove('active');
   reopenMenuIfNeeded();
+}
+
+// ==================== EMAIL SEND CHOICE MODAL ====================
+
+function openEmailSendModal(params) {
+  _emailSendParams = params;
+  var titleEl = document.getElementById('emailSendModalTitle');
+  if(titleEl) titleEl.textContent = params.title || 'Send Email';
+  document.getElementById('emailSendModal').classList.add('active');
+}
+
+function closeEmailSendModal() {
+  document.getElementById('emailSendModal').classList.remove('active');
+  _emailSendParams = null;
+}
+
+function confirmEmailSendMailApp() {
+  if(!_emailSendParams) return;
+  var p = _emailSendParams;
+  var subject = encodeURIComponent(p.subject || '');
+  var body = encodeURIComponent(p.body || '');
+  var mailtoUrl = 'mailto:' + (p.to || '') + '?subject=' + subject + '&body=' + body;
+  if(mailtoUrl.length > 16000) {
+    var truncNote = '\n\n(Gear list truncated due to email length limits - see full list in app)';
+    var maxBodyLen = 14000 - subject.length;
+    mailtoUrl = 'mailto:' + (p.to || '') + '?subject=' + subject +
+                '&body=' + encodeURIComponent((p.body || '').substring(0, maxBodyLen) + truncNote);
+  }
+  closeEmailSendModal();
+  openMailtoLink(mailtoUrl);
+  _downloadRpFile(p);
+}
+
+function confirmEmailSendGmail() {
+  if(!_emailSendParams) return;
+  var p = _emailSendParams;
+  var to = encodeURIComponent(p.to || '');
+  var su = encodeURIComponent(p.subject || '');
+  var body = encodeURIComponent(p.body || '');
+  var gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + to + '&su=' + su + '&body=' + body;
+  closeEmailSendModal();
+  window.open(gmailUrl, '_blank');
+  _downloadRpFile(p);
+}
+
+function _downloadRpFile(p) {
+  if(!p || !p.inventoryContent) return;
+  var blob = new Blob([p.inventoryContent], { type: 'text/plain' });
+  var url = URL.createObjectURL(blob);
+  var dl = document.createElement('a');
+  dl.href = url;
+  dl.download = p.fileName || 'inventory.txt';
+  document.body.appendChild(dl);
+  dl.click();
+  document.body.removeChild(dl);
+  URL.revokeObjectURL(url);
 }
 
 function confirmSendToJared() {
@@ -258,40 +315,26 @@ function sendGearListToJared(includeRP) {
     }
     navigator.share(shareData).catch(function(err) {
       if(err.name !== 'AbortError') {
-        openMailtoWithDownload(gearData.configName, text, inventoryContent, fileName);
+        openEmailSendModal({
+          title: 'Send to Jared',
+          to: '',
+          subject: 'LED Gear List - ' + gearData.configName,
+          body: text,
+          inventoryContent: inventoryContent,
+          fileName: fileName
+        });
       }
     });
   } else {
-    // Desktop: mailto + optional RP file download
-    openMailtoWithDownload(gearData.configName, text, inventoryContent, fileName);
-  }
-}
-
-function openMailtoWithDownload(configName, text, inventoryContent, fileName) {
-  var subject = encodeURIComponent('LED Gear List - ' + configName);
-  var body = encodeURIComponent(text);
-  var mailtoUrl = 'mailto:?subject=' + subject + '&body=' + body;
-  if(mailtoUrl.length > 16000) {
-    var truncNote = '\n\n(Gear list truncated due to email length limits - see full list in app)';
-    var maxBodyLen = 14000 - subject.length;
-    var truncBody = encodeURIComponent(text.substring(0, maxBodyLen) + truncNote);
-    mailtoUrl = 'mailto:?subject=' + subject + '&body=' + truncBody;
-  }
-  var a = document.createElement('a');
-  a.href = mailtoUrl;
-  a.click();
-
-  // Download the RP inventory text file only if content was generated
-  if(inventoryContent) {
-    var blob = new Blob([inventoryContent], { type: 'text/plain' });
-    var url = URL.createObjectURL(blob);
-    var dl = document.createElement('a');
-    dl.href = url;
-    dl.download = fileName;
-    document.body.appendChild(dl);
-    dl.click();
-    document.body.removeChild(dl);
-    URL.revokeObjectURL(url);
+    // Desktop: show email send choice modal
+    openEmailSendModal({
+      title: 'Send to Jared',
+      to: '',
+      subject: 'LED Gear List - ' + gearData.configName,
+      body: text,
+      inventoryContent: inventoryContent,
+      fileName: fileName
+    });
   }
 }
 

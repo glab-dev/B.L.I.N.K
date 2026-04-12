@@ -367,7 +367,7 @@ function closeRequestItemModal() {
 }
 
 function sendItemRequest() {
-  const nl = '%0D%0A';
+  const nl = '\n';
 
   if(currentRequestType === 'feature') {
     // Feature request mode
@@ -376,11 +376,10 @@ function sendItemRequest() {
       showAlert('Please describe your feature request.');
       return;
     }
-    const subject = encodeURIComponent('B.L.I.N.K. Feature Request');
-    const body = `Hi Gabriel,${nl}${nl}${encodeURIComponent(text)}${nl}${nl}Thank you!`;
-    const mailtoLink = `mailto:info@blink-led.com?subject=${subject}&body=${body}`;
-    window.location.href = mailtoLink;
+    const subjectRaw = 'B.L.I.N.K. Feature Request';
+    const bodyRaw = `Hi Gabriel,${nl}${nl}${text}${nl}${nl}Thank you!`;
     closeRequestItemModal();
+    openEmailSendModal({to: 'info@blink-led.com', subject: subjectRaw, body: bodyRaw, title: 'Send Request'});
     return;
   }
 
@@ -391,11 +390,10 @@ function sendItemRequest() {
       showAlert('Please describe your request.');
       return;
     }
-    const subject = encodeURIComponent('B.L.I.N.K. Other Request');
-    const body = `Hi Gabriel,${nl}${nl}${encodeURIComponent(text)}${nl}${nl}Thank you!`;
-    const mailtoLink = `mailto:info@blink-led.com?subject=${subject}&body=${body}`;
-    window.location.href = mailtoLink;
+    const subjectRaw = 'B.L.I.N.K. Other Request';
+    const bodyRaw = `Hi Gabriel,${nl}${nl}${text}${nl}${nl}Thank you!`;
     closeRequestItemModal();
+    openEmailSendModal({to: 'info@blink-led.com', subject: subjectRaw, body: bodyRaw, title: 'Send Request'});
     return;
   }
 
@@ -410,23 +408,20 @@ function sendItemRequest() {
   }
 
   const typeLabel = currentRequestType === 'panel' ? 'Panel' : 'Processor';
-  const subject = encodeURIComponent(`LED Calculator - ${typeLabel} Request: ${brand} ${model}`);
+  const subjectRaw = `LED Calculator - ${typeLabel} Request: ${brand} ${model}`;
 
-  // Use %0D%0A for line breaks (works better on mobile email clients)
-  let body = `Hi Gabriel,${nl}${nl}`;
-  body += `I'd like to request adding a new ${typeLabel.toLowerCase()} to the LED Calculator app.${nl}${nl}`;
-  body += `Type: ${typeLabel}${nl}`;
-  body += `Brand: ${brand}${nl}`;
-  body += `Model: ${model}${nl}`;
+  let bodyRaw = `Hi Gabriel,${nl}${nl}`;
+  bodyRaw += `I'd like to request adding a new ${typeLabel.toLowerCase()} to the LED Calculator app.${nl}${nl}`;
+  bodyRaw += `Type: ${typeLabel}${nl}`;
+  bodyRaw += `Brand: ${brand}${nl}`;
+  bodyRaw += `Model: ${model}${nl}`;
   if(notes) {
-    body += `${nl}Additional Info:${nl}${encodeURIComponent(notes)}${nl}`;
+    bodyRaw += `${nl}Additional Info:${nl}${notes}${nl}`;
   }
-  body += `${nl}Thank you!`;
-
-  const mailtoLink = `mailto:info@blink-led.com?subject=${subject}&body=${body}`;
-  window.location.href = mailtoLink;
+  bodyRaw += `${nl}Thank you!`;
 
   closeRequestItemModal();
+  openEmailSendModal({to: 'info@blink-led.com', subject: subjectRaw, body: bodyRaw, title: 'Send Request'});
 }
 
 // Delete custom processor

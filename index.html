@@ -207,7 +207,7 @@
       <div class="welcome-footer-links">
         <button class="welcome-footer-link" onclick="openHelpModal()">Help</button>
         <button class="welcome-footer-link" onclick="openTermsModal()">Terms of Use</button>
-        <button class="welcome-footer-link" onclick="window.location.href='mailto:info@blink-led.com'">Contact</button>
+        <button class="welcome-footer-link" onclick="openEmailSendModal({to:'info@blink-led.com',subject:'',body:'',title:'Contact Us'})">Contact</button>
       </div>
       <div class="welcome-footer-meta">
         <span id="welcomeVersionLine"></span>
@@ -1559,6 +1559,24 @@
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeSendToJaredModal()">Cancel</button>
       <button class="btn-primary" onclick="confirmSendToJared()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Email Send Choice Modal -->
+<div id="emailSendModal" class="modal-overlay">
+  <div class="modal-dialog modal-360">
+    <div class="modal-header">
+      <h2 class="modal-title" id="emailSendModalTitle">Send Email</h2>
+      <button class="modal-close" onclick="closeEmailSendModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-hint">Choose how to open this email:</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeEmailSendModal()">Cancel</button>
+      <button class="btn-secondary" onclick="confirmEmailSendMailApp()">Mail App</button>
+      <button class="btn-primary" onclick="confirmEmailSendGmail()">Gmail</button>
     </div>
   </div>
 </div>
@@ -3243,8 +3261,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.118';
-const APP_CHANGELOG = 'Remove unused Manual Adjust toggle from PDF preview options';
+const APP_VERSION = '2.10.119';
+const APP_CHANGELOG = 'Replace direct mailto triggers with Mail App / Gmail choice modal';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

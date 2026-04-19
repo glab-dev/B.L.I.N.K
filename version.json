@@ -1,5 +1,5 @@
 {
-  "version": "2.10.121",
+  "version": "2.10.122",
   "updated": "2026-04-19",
-  "changelog": "Stack structure weight tables in single column on mobile"
+  "changelog": "Fix recents wrong-item bug and sort newest project first"
 }

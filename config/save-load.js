@@ -636,6 +636,9 @@ async function upsertProjectToCloud(entry) {
   }
 }
 
+// Cache the list shown in the modal so clicks resolve against the same snapshot
+let _cachedRecents = null;
+
 async function showRecentProjects() {
   closeMobileMenu();
 
@@ -653,13 +656,19 @@ async function showRecentProjects() {
     return;
   }
 
+  // Sort newest first so the most recently saved project is always at the top
+  recents.sort(function(a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
+
+  // Cache this snapshot — click handlers use it directly instead of re-fetching
+  _cachedRecents = recents;
+
   let html = '';
-  recents.forEach(function(project, index) {
+  recents.forEach(function(project) {
     const date = new Date(project.timestamp);
     const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
     const screenLabel = project.screenCount === 1 ? '1 screen' : project.screenCount + ' screens';
 
-    html += '<button class="recent-project-item" onclick="loadFromRecent(' + index + ')">'
+    html += '<button class="recent-project-item" data-project-name="' + escapeHtml(project.name) + '" onclick="loadFromRecentByName(this.dataset.projectName)">'
       + '<div class="recent-project-name">' + escapeHtml(project.name) + '</div>'
       + '<div class="recent-project-meta">' + escapeHtml(dateStr) + ' &middot; ' + escapeHtml(screenLabel) + '</div>'
       + '</button>';
@@ -669,27 +678,24 @@ async function showRecentProjects() {
 
 function closeRecentProjectsModal() {
   document.getElementById('recentProjectsModal').classList.remove('active');
+  _cachedRecents = null;
   reopenMenuIfNeeded();
 }
 
-// Cache the last fetched recents so loadFromRecent can use them synchronously
-let _cachedRecents = null;
+function loadFromRecentByName(name) {
+  const recents = _cachedRecents;
+  if(!recents) return;
 
-async function loadFromRecent(index) {
-  // Fetch recents again (or use cached from showRecentProjects)
-  const recents = await getRecentProjects();
-  if(index < 0 || index >= recents.length) return;
-
-  const config = recents[index].configData;
-  if(!config) {
-    showAlert('Recent project data is corrupted.');
+  const project = recents.find(function(r) { return r.name === name; });
+  if(!project || !project.configData) {
+    showAlert('Recent project not found.');
     return;
   }
 
   closeRecentProjectsModal();
 
   try {
-    applyConfiguration(config);
+    applyConfiguration(project.configData);
   } catch(err) {
     showAlert('Error loading recent project: ' + err.message);
     console.error('Load recent error:', err);

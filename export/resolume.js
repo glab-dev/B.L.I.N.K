@@ -181,3 +181,122 @@ function exportResolumeXML(filename) {
   }
 }
 
+// Returns the Resolume XML as a Blob (for Export All), or null if no screens.
+function getResolumeXmlBlob() {
+  try {
+    const screenKeys = Object.keys(screens);
+    if(screenKeys.length === 0) return null;
+
+    const canvas = document.getElementById('canvasView');
+    const canvasWidth = canvas ? canvas.width : 1920;
+    const canvasHeight = canvas ? canvas.height : 1080;
+    const allPanels = getAllPanels();
+
+    function generateUniqueId() {
+      return Math.floor(Math.random() * 9000000000000000) + 1000000000000000;
+    }
+
+    let slicesXml = '';
+    screenKeys.forEach(key => {
+      const screen = screens[key];
+      const screenData = screen.data || screen;
+      const panelType = screenData.panelType || 'CB5_MKII';
+      const panel = allPanels[panelType];
+      if(!panel) return;
+      if(screen.visible === false) return;
+
+      const panelResX = panel.res_x || 1;
+      const panelResY = panel.res_y || 1;
+      const screenResX = (screenData.panelsWide || 0) * panelResX;
+      const screenResY = (screenData.panelsHigh || 0) * panelResY;
+      if(screenResX === 0 || screenResY === 0) return;
+
+      const screenX = screenData.canvasX || 0;
+      const screenY = screenData.canvasY || 0;
+
+      let verticesXml = '';
+      for(let row = 0; row < 4; row++) {
+        for(let col = 0; col < 4; col++) {
+          const x = screenX + Math.round((col / 3) * screenResX);
+          const y = screenY + Math.round((row / 3) * screenResY);
+          verticesXml += `
+                  <v x="${x}" y="${y}"/>`;
+        }
+      }
+
+      const inputVertices = `
+              <v x="${screenX}" y="${screenY}"/>
+              <v x="${screenX + screenResX}" y="${screenY}"/>
+              <v x="${screenX + screenResX}" y="${screenY + screenResY}"/>
+              <v x="${screenX}" y="${screenY + screenResY}"/>`;
+      const outputVertices = inputVertices;
+
+      slicesXml += `
+          <Slice>
+            <Params name="Common">
+              <Param name="Name" default="Layer" value="${escapeXml(screen.name || 'Screen')}"/>
+            </Params>
+            <InputRect orientation="0">${inputVertices}
+            </InputRect>
+            <OutputRect orientation="0">${outputVertices}
+            </OutputRect>
+            <Warper>
+              <Params name="Warper">
+                <ParamChoice name="Point Mode" default="PM_LINEAR" value="PM_LINEAR" storeChoices="0"/>
+                <Param name="Flip" default="0" value="0"/>
+              </Params>
+              <BezierWarper controlWidth="4" controlHeight="4">
+                <vertices>${verticesXml}
+                </vertices>
+              </BezierWarper>
+            </Warper>
+          </Slice>`;
+    });
+
+    let totalWidth = canvasWidth;
+    let totalHeight = canvasHeight;
+    screenKeys.forEach(key => {
+      const screen = screens[key];
+      if(screen.visible === false) return;
+      const screenData = screen.data || screen;
+      const panel = allPanels[screenData.panelType || 'CB5_MKII'];
+      if(!panel) return;
+      const screenResX = (screenData.panelsWide || 0) * (panel.res_x || 1);
+      const screenResY = (screenData.panelsHigh || 0) * (panel.res_y || 1);
+      totalWidth = Math.max(totalWidth, (screenData.canvasX || 0) + screenResX);
+      totalHeight = Math.max(totalHeight, (screenData.canvasY || 0) + screenResY);
+    });
+
+    const screenUniqueId = generateUniqueId();
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+
+<XmlState name="BLINK Export">
+  <versionInfo name="Resolume Arena" majorVersion="7" minorVersion="23" microVersion="2"
+               revision="51094"/>
+  <ScreenSetup name="ScreenSetup">
+    <Params name="ScreenSetupParams"/>
+    <screens>
+      <Screen name="Screen 1" uniqueId="${screenUniqueId}">
+        <layers>${slicesXml}
+        </layers>
+        <OutputDevice>
+          <OutputDeviceVirtual name="Screen 1" deviceId="VirtualScreen 1" idHash="${generateUniqueId()}"
+                               width="${totalWidth}" height="${totalHeight}">
+            <Params name="Params">
+              <ParamRange name="Width" default="${totalWidth}" value="${totalWidth}"/>
+              <ValueRange name="defaultRange" min="1" max="16384"/>
+              <ParamRange name="Height" default="${totalHeight}" value="${totalHeight}"/>
+            </Params>
+          </OutputDeviceVirtual>
+        </OutputDevice>
+      </Screen>
+    </screens>
+  </ScreenSetup>
+</XmlState>`;
+
+    return new Blob([xml], { type: 'application/xml' });
+  } catch(e) {
+    return null;
+  }
+}
+

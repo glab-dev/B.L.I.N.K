@@ -2044,7 +2044,8 @@
           <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; showRecentProjects()">Recent</button>
         </div>
         <div class="mobile-menu-btn-row">
-          <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; closeMobileMenu();">Export</button>
+          <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; closeMobileMenu();">Export PDF</button>
+          <button class="mobile-menu-btn accent" onclick="closeMobileMenu(); exportAll();">Export All</button>
           <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openSendToJaredModal(); closeMobileMenu();">Send to Jared</button>
         </div>
       </div>
@@ -3248,6 +3249,8 @@
 <script defer src="export/pdfLayoutEngine.js"></script>
 <script defer src="export/pdf.js"></script>
 <script defer src="export/pdf-preview.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
+<script defer src="export/export-all.js"></script>
 <!-- Config -->
 <script defer src="config/setup.js"></script>
 <script defer src="config/save-load.js"></script>
@@ -3261,8 +3264,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.10.122';
-const APP_CHANGELOG = 'Fix recents wrong-item bug and sort newest project first';
+const APP_VERSION = '2.11.0';
+const APP_CHANGELOG = 'Add Export All button that downloads ZIP with PDF, canvas, Resolume, gear list, and test pattern';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

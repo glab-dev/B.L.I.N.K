@@ -435,6 +435,45 @@ function exportOutlinePNG() {
   }
 }
 
+// Returns PNG blob, JPEG blob, and size label (for Export All). callback(pngBlob, jpegBlob, sizeLabel)
+function getCanvasExportBlobs(callback) {
+  try {
+    var canvas = document.getElementById('canvasView');
+    if(!canvas || canvas.width === 0 || document.getElementById('canvasContainer').style.display === 'none') {
+      callback(null, null, ''); return;
+    }
+
+    // Compute size label (same logic as exportCanvas())
+    var canvasSizeSelect = document.getElementById('canvasSize');
+    var sizeLabel = canvasSizeSelect.value === 'custom'
+      ? canvas.width + 'x' + canvas.height
+      : canvasSizeSelect.options[canvasSizeSelect.selectedIndex].text
+          .replace(/\s+/g, '_').replace(/[()]/g, '');
+
+    // Build clean export canvas
+    var exportCvs = document.createElement('canvas');
+    exportCvs.width = canvas.width;
+    exportCvs.height = canvas.height;
+    var ctx = exportCvs.getContext('2d');
+    if(cachedCanvasImageDataForExport) {
+      ctx.putImageData(cachedCanvasImageDataForExport, 0, 0);
+    } else {
+      if(typeof showCanvasView === 'function') showCanvasView();
+      if(cachedCanvasImageDataForExport) {
+        ctx.putImageData(cachedCanvasImageDataForExport, 0, 0);
+      } else {
+        ctx.drawImage(canvas, 0, 0);
+      }
+    }
+
+    exportCvs.toBlob(function(pngBlob) {
+      exportCvs.toBlob(function(jpegBlob) {
+        callback(pngBlob, jpegBlob, sizeLabel);
+      }, 'image/jpeg', 0.95);
+    }, 'image/png');
+  } catch(e) { callback(null, null, ''); }
+}
+
 function _downloadCanvasBlob(canvas, filename, mimeType) {
   mimeType = mimeType || 'image/png';
   var quality = mimeType === 'image/jpeg' ? 0.92 : undefined;

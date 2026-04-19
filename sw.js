@@ -2,7 +2,7 @@
 // Provides offline caching for the B.L.I.N.K. PWA.
 // SW_VERSION must match APP_VERSION in index.html and version.json.
 
-const SW_VERSION = '2.10.122';
+const SW_VERSION = '2.11.0';
 const CACHE_NAME = 'blink-v' + SW_VERSION;
 
 // Local app files to pre-cache on install
@@ -56,6 +56,7 @@ const LOCAL_ASSETS = [
   '/export/resolume.js',
   '/export/pdf.js',
   '/export/pdf-preview.js',
+  '/export/export-all.js',
   // config
   '/config/setup.js',
   '/config/save-load.js',
@@ -80,7 +81,8 @@ const LOCAL_ASSETS = [
 const CDN_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/pdfmake.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/vfs_fonts.js',
-  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js'
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js',
+  'https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js'
 ];
 
 // URLs that should always try network first (update-critical)

@@ -2813,3 +2813,22 @@ function exportPDF() {
   }
 }
 
+// Returns full PDF as a Blob (for Export All). Always uses the complete/complex PDF.
+function getPdfBlobForExportAll(callback) {
+  if (!window.pdfMake) { callback(null); return; }
+  try {
+    saveCurrentScreenData();
+    ecoPrintMode = false;
+    greyscalePrintMode = false;
+    var canvasCache = pdfCaptureCanvases();
+    ecoPrintMode = false;
+    greyscalePrintMode = false;
+    var opts = { specs: true, gearList: true, standard: true, power: true, data: true, structure: true, cabling: true };
+    var docDef = buildPdfDocDefinition(opts, canvasCache);
+    pdfMake.createPdf(docDef).getBlob(callback);
+  } catch(e) {
+    console.error('getPdfBlobForExportAll error:', e);
+    callback(null);
+  }
+}
+

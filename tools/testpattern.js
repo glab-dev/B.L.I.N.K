@@ -2694,6 +2694,153 @@ async function exportTestPatternVideo() {
   _tpRestartAnimationIfNeeded();
 }
 
+// Returns test pattern PNG as a Blob (for Export All), or calls callback(null) if not initialized.
+function getTestPatternPngBlob(callback) {
+  if(typeof _tpInitialized === 'undefined' || !_tpInitialized) { callback(null); return; }
+  var canvas = document.getElementById('tpCanvas');
+  if(!canvas || canvas.width === 0) { callback(null); return; }
+  renderTestPattern(true);
+  canvas.toBlob(function(blob) { callback(blob); }, 'image/png');
+}
+
+// Returns test pattern MP4 as a Blob (for Export All), or calls callback(null) if not available.
+// Same encoding logic as exportTestPatternVideo() but returns blob instead of downloading.
+async function getTestPatternMp4Blob(callback) {
+  if(typeof _tpInitialized === 'undefined' || !_tpInitialized) { callback(null); return; }
+  if(typeof VideoEncoder === 'undefined' || typeof Mp4Muxer === 'undefined') { callback(null); return; }
+  if(_tpIsRecording) { callback(null); return; }
+
+  var canvas = document.getElementById('tpCanvas');
+  if(!canvas || canvas.width === 0) { callback(null); return; }
+
+  var totalW = tpDisplayW * tpDisplaysWide;
+  var totalH = tpDisplayH * tpDisplaysHigh;
+  var fps = tpSweepFps;
+  var duration = tpSweepDuration;
+  var totalFrames = Math.round(fps * duration);
+  var hasSpinning = _tpNeedsAnimation();
+
+  _tpStopAnimation();
+  canvas.width = totalW;
+  canvas.height = totalH;
+  _tpIsRecording = true;
+
+  var savedSweepProgress = _tpSweepProgress;
+  var savedCircleAngle = _tpCircleAngle;
+
+  try {
+    var ctx = canvas.getContext('2d');
+    var bgImageData = null;
+
+    if(!hasSpinning) {
+      var savedSweepOn = tpSweepOn;
+      tpSweepOn = false;
+      renderTestPattern(true);
+      tpSweepOn = savedSweepOn;
+      bgImageData = ctx.getImageData(0, 0, totalW, totalH);
+    }
+
+    var pixels = totalW * totalH;
+    var scaledBitrate = Math.min(80000000, Math.max(40000000, Math.round(pixels / (1920 * 1080) * 40000000)));
+    var encoderConfig = null;
+    var muxerCodec = 'avc';
+
+    var h264Levels = [
+      { codec: 'avc1.640028', maxPixels: 2097152 },
+      { codec: 'avc1.640032', maxPixels: 8912896 },
+      { codec: 'avc1.640034', maxPixels: 8912896 },
+      { codec: 'avc1.64003C', maxPixels: 35651584 }
+    ];
+    var candidates = h264Levels.filter(function(l) { return l.maxPixels >= pixels; });
+    if(candidates.length === 0) candidates = [h264Levels[h264Levels.length - 1]];
+
+    for(var ci = 0; ci < candidates.length && !encoderConfig; ci++) {
+      var accels = ['prefer-hardware', 'prefer-software'];
+      for(var ai = 0; ai < accels.length && !encoderConfig; ai++) {
+        var testConfig = { codec: candidates[ci].codec, width: totalW, height: totalH, bitrate: scaledBitrate, framerate: fps, hardwareAcceleration: accels[ai] };
+        try { var support = await VideoEncoder.isConfigSupported(testConfig); if(support.supported) encoderConfig = support.config || testConfig; } catch(e) {}
+      }
+    }
+
+    if(!encoderConfig) {
+      var hevcCodecs = ['hvc1.1.6.L150.B0', 'hvc1.1.6.L153.B0', 'hvc1.1.6.L180.B0'];
+      for(var hi = 0; hi < hevcCodecs.length && !encoderConfig; hi++) {
+        var accels2 = ['prefer-hardware', 'prefer-software'];
+        for(var ai2 = 0; ai2 < accels2.length && !encoderConfig; ai2++) {
+          var hevcConfig = { codec: hevcCodecs[hi], width: totalW, height: totalH, bitrate: scaledBitrate, framerate: fps, hardwareAcceleration: accels2[ai2] };
+          try { var hevcSupport = await VideoEncoder.isConfigSupported(hevcConfig); if(hevcSupport.supported) { encoderConfig = hevcSupport.config || hevcConfig; muxerCodec = 'hevc'; } } catch(e) {}
+        }
+      }
+    }
+
+    if(!encoderConfig) {
+      var vp9Codecs = ['vp09.00.50.08', 'vp09.00.40.08', 'vp09.00.31.08'];
+      for(var vi = 0; vi < vp9Codecs.length && !encoderConfig; vi++) {
+        var accels3 = ['prefer-hardware', 'prefer-software'];
+        for(var ai3 = 0; ai3 < accels3.length && !encoderConfig; ai3++) {
+          var vp9Config = { codec: vp9Codecs[vi], width: totalW, height: totalH, bitrate: scaledBitrate, framerate: fps, hardwareAcceleration: accels3[ai3] };
+          try { var vp9Support = await VideoEncoder.isConfigSupported(vp9Config); if(vp9Support.supported) { encoderConfig = vp9Support.config || vp9Config; muxerCodec = 'vp9'; } } catch(e) {}
+        }
+      }
+    }
+
+    if(!encoderConfig) throw new Error('Browser does not support encoding at ' + totalW + 'x' + totalH);
+
+    var muxer = new Mp4Muxer.Muxer({
+      target: new Mp4Muxer.ArrayBufferTarget(),
+      video: { codec: muxerCodec, width: totalW, height: totalH },
+      fastStart: 'in-memory'
+    });
+
+    var encodeError = null;
+    var encoder = new VideoEncoder({
+      output: function(chunk, meta) { muxer.addVideoChunk(chunk, meta); },
+      error: function(e) { encodeError = e; }
+    });
+    encoderConfig.latencyMode = 'quality';
+    encoder.configure(encoderConfig);
+
+    var frameDurationUs = Math.round((1 / fps) * 1000000);
+    var keyFrameInterval = Math.max(1, Math.round(fps));
+
+    for(var i = 0; i < totalFrames; i++) {
+      if(encodeError) throw encodeError;
+      var t = i / totalFrames;
+      var frameTime = i / fps;
+      if(hasSpinning) {
+        _tpCircleAngle = frameTime * (2 * Math.PI / 5) * (tpCircleSpinSpeed / 100);
+        if(tpSweepOn) _tpSweepProgress = t;
+        renderTestPattern(true);
+      } else {
+        ctx.putImageData(bgImageData, 0, 0);
+        drawTPSweep(ctx, totalW, totalH, t);
+        drawTPSweepVertical(ctx, totalW, totalH, t);
+      }
+      var vf = new VideoFrame(canvas, { timestamp: i * frameDurationUs, duration: frameDurationUs });
+      encoder.encode(vf, { keyFrame: i % keyFrameInterval === 0 });
+      vf.close();
+      while(encoder.encodeQueueSize > 5) await new Promise(function(r) { setTimeout(r, 1); });
+      if(i % 5 === 0) await new Promise(function(r) { setTimeout(r, 0); });
+    }
+
+    await encoder.flush();
+    encoder.close();
+    muxer.finalize();
+
+    callback(new Blob([muxer.target.buffer], { type: 'video/mp4' }));
+
+  } catch(err) {
+    console.error('getTestPatternMp4Blob error:', err);
+    callback(null);
+  }
+
+  _tpSweepProgress = savedSweepProgress;
+  _tpCircleAngle = savedCircleAngle;
+  _tpIsRecording = false;
+  renderTestPattern(false);
+  _tpRestartAnimationIfNeeded();
+}
+
 function downloadVideoBlob(blob, filename, mimeType) {
   // Quick share: always use native share sheet
   if(_tpForceShare) {

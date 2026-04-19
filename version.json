@@ -1,5 +1,5 @@
 {
-  "version": "2.10.122",
+  "version": "2.11.0",
   "updated": "2026-04-19",
-  "changelog": "Fix recents wrong-item bug and sort newest project first"
+  "changelog": "Add Export All button that downloads ZIP with PDF, canvas, Resolume, gear list, and test pattern"
 }

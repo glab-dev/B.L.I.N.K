@@ -1,5 +1,5 @@
 {
-  "version": "2.11.5",
+  "version": "2.11.6",
   "updated": "2026-04-19",
-  "changelog": "Fix cabling layout label orphaning by detecting when structure and cabling won't fit on same page"
+  "changelog": "Match gear list section header color to page header dark green"
 }

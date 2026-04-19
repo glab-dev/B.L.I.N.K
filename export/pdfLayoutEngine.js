@@ -8,7 +8,7 @@
 const PDF_TOKENS = {
   colors: {
     headerBg:        '#1a3a2a',  // dark green — B.L.I.N.K. REPORT header bar
-    sectionHeaderBg: '#2d6b4a',  // medium green — gear list section headers
+    sectionHeaderBg: '#1a3a2a',  // dark green — gear list section headers (matches page header)
     sectionBodyBg:   '#f8f8f5',  // off-white — gear list section bodies
     sectionBorder:   '#e5e5e0',  // light gray — section body border
     summaryBg:       '#f5f5f0',  // light warm gray — summary column background

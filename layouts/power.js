@@ -209,9 +209,38 @@ function renderPowerLayout(params) {
   const lineY = Math.round(socaLabelHeight * 0.50);
   const tickH = _pdfMode ? Math.round(8 * canvasScale) : Math.round(socaLabelHeight * 0.13);
 
+  // Pre-pass: find the minimum font size that fits every SOCA's span,
+  // then use that single size for all labels so they stay consistent.
+  let lgSize = socaFontLg;
+  let smSize = socaFontSm;
+  for(let s = 0; s < socaGroups; s++){
+    const sc = s * 6;
+    const ec = Math.min((s + 1) * 6 - 1, totalCircuits - 1);
+    let mnX = Infinity, mxX = -Infinity;
+    for(let circuit = sc; circuit <= ec; circuit++){
+      if(circuitPanelMap.has(circuit)){
+        circuitPanelMap.get(circuit).forEach(p => {
+          mnX = Math.min(mnX, p.x);
+          mxX = Math.max(mxX, p.x);
+        });
+      }
+    }
+    if(mnX === Infinity) continue;
+    const span = (mxX + panelWidth) - mnX - 4;
+
+    ctx.font = `bold ${lgSize}px Arial`;
+    const socaW = ctx.measureText(`SOCA ${s + 1}`).width;
+    if(socaW > span) lgSize = Math.max(8, Math.floor(lgSize * span / socaW));
+
+    const rangeLabel = sc === ec ? `Circuit ${sc + 1}` : `Circuits ${sc + 1}-${ec + 1}`;
+    ctx.font = `${smSize}px Arial`;
+    const rangeW = ctx.measureText(rangeLabel).width;
+    if(rangeW > span) smSize = Math.max(7, Math.floor(smSize * span / rangeW));
+  }
+
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 3;
-  ctx.font = `bold ${socaFontLg}px Arial`;
+  ctx.font = `bold ${lgSize}px Arial`;
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -256,16 +285,15 @@ function renderPowerLayout(params) {
     ctx.lineTo(endX, lineY + tickH);
     ctx.stroke();
 
-    // SOCA label above line — constrain to SOCA span so right edge never clips
-    const socaWidth = endX - startX - 4;
-    ctx.font = `bold ${socaFontLg}px Arial`;
-    ctx.fillText(`SOCA ${s + 1}`, midX, lineY - Math.round(socaLabelHeight * 0.22), socaWidth);
+    // SOCA label above line — uniform font size, centered in span
+    ctx.font = `bold ${lgSize}px Arial`;
+    ctx.fillText(`SOCA ${s + 1}`, midX, lineY - Math.round(socaLabelHeight * 0.22));
 
-    // Circuit range below line
-    ctx.font = `${socaFontSm}px Arial`;
+    // Circuit range below line — uniform font size
+    ctx.font = `${smSize}px Arial`;
     const circuitRange = startCircuit === endCircuit ?
       `Circuit ${startCircuit + 1}` :
       `Circuits ${startCircuit + 1}-${endCircuit + 1}`;
-    ctx.fillText(circuitRange, midX, lineY + Math.round(socaLabelHeight * 0.22), socaWidth);
+    ctx.fillText(circuitRange, midX, lineY + Math.round(socaLabelHeight * 0.22));
   }
 }

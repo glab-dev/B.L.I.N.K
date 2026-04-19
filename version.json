@@ -1,5 +1,5 @@
 {
-  "version": "2.11.3",
+  "version": "2.11.4",
   "updated": "2026-04-19",
-  "changelog": "Fix SOCA and Circuits labels clipping at right edge of power layout PDF using fillText maxWidth"
+  "changelog": "Fix SOCA and Circuits labels to use uniform font size across all groups in power layout"
 }

@@ -4474,6 +4474,8 @@ canvas:focus {
     min-height: 39px !important;
   }
   .number-input-with-arrows input {
+    height: unset !important;
+    min-height: 0 !important;
     font-size: 12px !important;
     padding: 4px 8px !important;
   }

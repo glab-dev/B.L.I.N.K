@@ -1,5 +1,5 @@
 {
-  "version": "2.10.119",
-  "updated": "2026-04-12",
-  "changelog": "Replace direct mailto triggers with Mail App / Gmail choice modal"
+  "version": "2.10.120",
+  "updated": "2026-04-19",
+  "changelog": "Fix number input bottom border hidden by height overflow on mobile"
 }

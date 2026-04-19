@@ -1,5 +1,5 @@
 {
-  "version": "2.10.120",
+  "version": "2.10.121",
   "updated": "2026-04-19",
-  "changelog": "Fix number input bottom border hidden by height overflow on mobile"
+  "changelog": "Stack structure weight tables in single column on mobile"
 }

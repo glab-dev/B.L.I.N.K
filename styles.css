@@ -1630,9 +1630,13 @@ canvas:focus {
   padding-top: 6px;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .structure-info-panel {
     grid-template-columns: 1fr;
+  }
+
+  .structure-info-box {
+    grid-column: auto;
   }
 
   /* Constrain bumper toggle buttons width on mobile */

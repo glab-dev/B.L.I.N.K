@@ -439,7 +439,7 @@ function exportOutlinePNG() {
 function getCanvasExportBlobs(callback) {
   try {
     var canvas = document.getElementById('canvasView');
-    if(!canvas || canvas.width === 0 || document.getElementById('canvasContainer').style.display === 'none') {
+    if(!canvas || canvas.width === 0) {
       callback(null, null, ''); return;
     }
 

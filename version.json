@@ -1,5 +1,5 @@
 {
-  "version": "2.11.0",
+  "version": "2.11.1",
   "updated": "2026-04-19",
-  "changelog": "Add Export All button that downloads ZIP with PDF, canvas, Resolume, gear list, and test pattern"
+  "changelog": "Fix Export All: correct gear list format, canvas always exported, Send to Jared on own row, PDF matches Export PDF"
 }

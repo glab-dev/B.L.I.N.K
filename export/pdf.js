@@ -115,6 +115,162 @@ function confirmSendToJared() {
 }
 
 // Send Gear List Email
+// Builds the plain-text gear list used in emails (for Export All .txt file).
+function buildGearListText(gearData) {
+  var nl = '\n';
+  var line = function(label, value) {
+    if(value === 0 || value === '' || value === null || value === undefined || value === '0') return '';
+    if(typeof value === 'number') {
+      var cleanLabel = label.replace(/:$/, '').trim();
+      return ' - ' + value + ' x ' + cleanLabel + nl;
+    }
+    return ' - ' + label + ' ' + value + nl;
+  };
+  var hdr = function(title) { return nl + title.toUpperCase() + nl + '-'.repeat(title.length) + nl; };
+
+  var text = 'LED GEAR LIST' + nl;
+  text += 'Project: ' + gearData.configName + nl;
+  text += '======================================' + nl;
+
+  gearData.screens.forEach(function(sd) {
+    var eq = sd.equipment;
+    var rig = sd.rigging;
+    var gs = sd.groundSupport;
+    var fh = sd.floorHardware;
+    var dc = sd.dataCables;
+    var pc = sd.powerCables;
+    var p2d = sd.processorToDistBox;
+
+    text += nl + nl;
+    text += sd.screenName.toUpperCase() + nl;
+    text += '======================================' + nl;
+
+    text += hdr('Equipment');
+    if(eq.isFirstScreenInGroup && eq.processorCount > 0) {
+      text += ' - Processor:' + nl;
+      text += '     ' + eq.processorCount + ' x ' + eq.processorName + nl;
+      if(eq.distBoxCount > 0) text += '     ' + eq.distBoxCount + ' x ' + eq.distBoxName + nl;
+    } else if(eq.referencesScreenName) {
+      text += ' - Processor: See ' + eq.referencesScreenName + nl;
+    }
+    text += ' - Panels:' + nl;
+    text += '     ' + eq.activeFullPanels + ' x ' + eq.panelBrand + ' ' + eq.panelName + nl;
+    if(eq.activeHalfPanels > 0) text += '     ' + eq.activeHalfPanels + ' x ' + eq.panelBrand + ' ' + eq.halfPanelName + nl;
+
+    if(rig.hasRigging) {
+      text += hdr('Rigging Hardware');
+      text += line('1W Bumpers:', rig.bumper1w);
+      text += line('2W Bumpers:', rig.bumper2w);
+      text += line('4W Bumpers:', rig.bumper4w);
+      text += line('4W Connecting Plates:', rig.plates4way);
+      text += line('2W Connecting Plates:', rig.plates2way);
+      text += line('5/8" Shackles:', rig.shackles);
+      text += line('Cheeseye:', rig.cheeseye);
+    }
+
+    if(gs.hasGS) {
+      text += hdr('Ground Support');
+      text += line('Rear Truss:', gs.rearTruss);
+      text += line('Base Truss:', gs.baseTruss);
+      text += line('Bridge Clamps:', gs.bridgeClamps);
+      text += line('Rear Bridge Adapter:', gs.rearBridgeAdapters);
+      text += line('Sandbags:', gs.sandbags);
+      text += line('Swivel Cheeseborough:', gs.swivelCheeseboroughs);
+      if(gs.pipes > 0) text += line('Pipe' + gs.pipeLengthStr + ':', gs.pipes);
+    }
+
+    if(fh.hasFloorFrames) {
+      text += hdr('Floor Hardware');
+      if(fh.frame3x2 > 0) text += line('3x2 Frame:', fh.frame3x2);
+      if(fh.frame2x2 > 0) text += line('2x2 Frame:', fh.frame2x2);
+      if(fh.frame2x1 > 0) text += line('2x1 Frame:', fh.frame2x1);
+      if(fh.frame1x1 > 0) text += line('1x1 Frame:', fh.frame1x1);
+    }
+
+    text += hdr('Data Cables');
+    if(dc.jumperCount > 0) text += line('Jumpers ' + dc.dataJumperLen + "':", dc.jumperCount);
+    if(dc.crossJumperLen && dc.crossJumperCount > 0) text += line('Cross Jumpers ' + dc.crossJumperLen + "':", dc.crossJumperCount);
+    if(dc.jumpersBuiltin && dc.cat5CouplerCount > 0) text += line('Cat5 Couplers:', dc.cat5CouplerCount);
+    var cat6Lengths = Object.entries(dc.cat6ByLength).sort(function(a, b) { return a[0] - b[0]; });
+    for(var ci = 0; ci < cat6Lengths.length; ci++) {
+      text += ' - ' + cat6Lengths[ci][1] + " x " + cat6Lengths[ci][0] + "' Cat6" + nl;
+    }
+
+    text += hdr('Power Cables');
+    if(pc.jumperCount > 0) text += line('Jumpers ' + pc.powerJumperLen + "':", pc.jumperCount);
+    text += line('Soca Splays:', pc.socaSplays);
+    var socaLengths = Object.entries(pc.socaByLength).sort(function(a, b) { return a[0] - b[0]; });
+    for(var si = 0; si < socaLengths.length; si++) {
+      text += ' - ' + socaLengths[si][1] + " x " + socaLengths[si][0] + "' Soca" + nl;
+    }
+    text += line("25' True1:", pc.true1_25);
+    text += line("10' True1:", pc.true1_10);
+    text += line("5' True1:", pc.true1_5);
+    text += line('True1 Twofer:', pc.true1Twofer);
+
+    if(p2d.count > 0) {
+      text += hdr('Processor to Dist Box');
+      text += ' - ' + p2d.count + 'x ' + p2d.cableType + ' ' + p2d.cableLength + "'" + nl;
+    }
+  });
+
+  var sig = gearData.signalCables;
+  if(sig) {
+    text += nl + nl;
+    text += 'SIGNAL CABLES' + nl;
+    text += '======================================' + nl;
+    var sdiLengths = Object.keys(sig.sdiByLength).map(Number).sort(function(a, b) { return b - a; });
+    for(var li = 0; li < sdiLengths.length; li++) {
+      if(sig.sdiByLength[sdiLengths[li]] > 0) text += line(sdiLengths[li] + "' " + sig.sdiType + ':', sig.sdiByLength[sdiLengths[li]]);
+    }
+    if(sig.serverFiberLine) text += line(sig.serverFiberLine.label + ':', sig.serverFiberLine.count);
+    text += line("25' HDMI:", sig.hdmi[25]);
+    text += line("10' HDMI:", sig.hdmi[10]);
+    text += line("6' HDMI:", sig.hdmi[6]);
+  }
+
+  var util = gearData.utility;
+  if(util) {
+    text += hdr('Utility');
+    text += line("UG 10':", util.ug10);
+    text += line("UG 25':", util.ug25);
+    text += line("UG 50':", util.ug50);
+    text += line('UG Twofers:', util.ugTwofers);
+    text += line('Power Bars:', util.powerBars);
+  }
+
+  var sp = gearData.spares;
+  if(sp) {
+    text += nl + nl;
+    text += 'SPARES' + nl;
+    text += '======================================' + nl;
+    var panelEntries = Object.entries(sp.panelsByType || {});
+    for(var pi = 0; pi < panelEntries.length; pi++) {
+      text += line(panelEntries[pi][0] + ':', panelEntries[pi][1]);
+    }
+    text += nl;
+    if(sp.shackles) text += line('Shackles:', sp.shackles);
+    if(sp.cheeseyes) text += line('Cheeseyes:', sp.cheeseyes);
+    text += nl;
+    if(sp.crossJumpers) text += line('Cross Jumpers ' + sp.crossJumperLen + "':", sp.crossJumpers);
+    if(sp.cat5Couplers) text += line('Cat5 Couplers:', sp.cat5Couplers);
+    if(sp.cat6ByLength) {
+      var cat6Spare = Object.entries(sp.cat6ByLength).sort(function(a, b) { return Number(b[0]) - Number(a[0]); });
+      for(var ki = 0; ki < cat6Spare.length; ki++) {
+        if(cat6Spare[ki][1] > 0) text += line(cat6Spare[ki][0] + "' Cat6:", cat6Spare[ki][1]);
+      }
+    }
+    text += nl;
+    if(sp.socaSplays) text += line('Soca Splays:', sp.socaSplays);
+    if(sp.true1_25) text += line("25' True1:", sp.true1_25);
+    if(sp.true1_10) text += line("10' True1:", sp.true1_10);
+    if(sp.true1_5) text += line("5' True1:", sp.true1_5);
+    if(sp.true1Twofer) text += line('True1 Twofer:', sp.true1Twofer);
+  }
+
+  return text;
+}
+
 function sendGearListToJared(includeRP) {
   generateGearList();
 
@@ -2813,18 +2969,32 @@ function exportPDF() {
   }
 }
 
-// Returns full PDF as a Blob (for Export All). Always uses the complete/complex PDF.
+// Returns full PDF as a Blob (for Export All). Mirrors exportFromPreview() exactly.
 function getPdfBlobForExportAll(callback) {
   if (!window.pdfMake) { callback(null); return; }
   try {
     saveCurrentScreenData();
     ecoPrintMode = false;
     greyscalePrintMode = false;
+
     var canvasCache = pdfCaptureCanvases();
+
+    // Restore normal colors and regenerate layouts (same as exportFromPreview)
     ecoPrintMode = false;
     greyscalePrintMode = false;
-    var opts = { specs: true, gearList: true, standard: true, power: true, data: true, structure: true, cabling: true };
-    var docDef = buildPdfDocDefinition(opts, canvasCache);
+    generateLayout('standard');
+    generateLayout('power');
+    generateLayout('data');
+    generateStructureLayout();
+    if (typeof switchMobileView === 'function' && typeof currentAppMode !== 'undefined') {
+      switchMobileView(currentAppMode);
+    }
+
+    var opts = { specs: true, gearList: true, standard: true, power: true, data: true, structure: true, cabling: true, combined: false, ecoFriendly: false, greyscale: false };
+    var docDef = buildComplexPdf(opts, canvasCache);
+    ecoPrintMode = false;
+    greyscalePrintMode = false;
+
     pdfMake.createPdf(docDef).getBlob(callback);
   } catch(e) {
     console.error('getPdfBlobForExportAll error:', e);

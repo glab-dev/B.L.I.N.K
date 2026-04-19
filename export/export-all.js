@@ -52,13 +52,13 @@ async function exportAll() {
       if(xmlBlob) zip.file(name + '_resolume.xml', xmlBlob);
     } catch(e) {}
 
-    // Gear list .txt (sync, Apex tab-delimited format)
+    // Gear list .txt (plain-text email format — same as Send to Jared)
     try {
       var screenIds = Object.keys(screens).sort(function(a, b) {
         return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
       });
       var gearData = buildGearListData(screenIds);
-      var gearContent = buildGearInventoryContent(gearData);
+      var gearContent = buildGearListText(gearData);
       if(gearContent) zip.file(name + '_gear.txt', new Blob([gearContent], { type: 'text/plain' }));
     } catch(e) {}
 

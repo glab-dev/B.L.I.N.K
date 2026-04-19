@@ -2046,6 +2046,8 @@
         <div class="mobile-menu-btn-row">
           <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; closeMobileMenu();">Export PDF</button>
           <button class="mobile-menu-btn accent" onclick="closeMobileMenu(); exportAll();">Export All</button>
+        </div>
+        <div class="mobile-menu-btn-row">
           <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openSendToJaredModal(); closeMobileMenu();">Send to Jared</button>
         </div>
       </div>
@@ -3264,8 +3266,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.0';
-const APP_CHANGELOG = 'Add Export All button that downloads ZIP with PDF, canvas, Resolume, gear list, and test pattern';
+const APP_VERSION = '2.11.1';
+const APP_CHANGELOG = 'Fix Export All: correct gear list format, canvas always exported, Send to Jared on own row, PDF matches Export PDF';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

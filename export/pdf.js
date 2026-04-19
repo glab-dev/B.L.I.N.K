@@ -1997,6 +1997,23 @@ function buildComplexPdf(opts, canvasCache) {
         }
 
         if (opts.cabling !== false) {
+          // If structure is also on this page, check if cabling section fits too.
+          // If not, start a fresh page with its own header (same pattern as powerFitsWithData).
+          if (!collapseLayouts && opts.structure !== false) {
+            const { renderHeight: structImgH } = calculateGridScale(pw, ph, cw, singlePageMaxH);
+            const structInfoEstH = 160; // conservative estimate for pickup-weight / structure tables
+            const structSectionH = m.sectionLabelH + m.afterLabelGap + 4 + structImgH + structInfoEstH;
+            const cabFitHCheck = screenIds.length > 1 ? 380 : 440;
+            const cabImgData = canvasCache && canvasCache[screenId + '_cabling'];
+            const cabAspect = (cabImgData && cabImgData.aspectRatio) || 0.5;
+            const cabImgH = Math.min(cabFitHCheck, cw * cabAspect);
+            const cabSectionH = m.sectionLabelH + m.afterLabelGap + cabImgH + 4;
+            const pageUsable = uh - m.headerBarH - m.afterHeaderGap;
+            if (structSectionH + cabSectionH > pageUsable) {
+              content.push({ text: '', pageBreak: 'before' });
+              content.push(buildPdfHeader(configName, dateStr, logoData));
+            }
+          }
           content.push(sectionLabel('Cabling Layout'));
           const cabImg = canvasCache && canvasCache[screenId + '_cabling'];
           if (cabImg && cabImg.dataUrl) {

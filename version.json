@@ -1,5 +1,5 @@
 {
-  "version": "2.11.4",
+  "version": "2.11.5",
   "updated": "2026-04-19",
-  "changelog": "Fix SOCA and Circuits labels to use uniform font size across all groups in power layout"
+  "changelog": "Fix cabling layout label orphaning by detecting when structure and cabling won't fit on same page"
 }

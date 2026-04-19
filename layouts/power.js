@@ -256,15 +256,16 @@ function renderPowerLayout(params) {
     ctx.lineTo(endX, lineY + tickH);
     ctx.stroke();
 
-    // SOCA label above line
+    // SOCA label above line — constrain to SOCA span so right edge never clips
+    const socaWidth = endX - startX - 4;
     ctx.font = `bold ${socaFontLg}px Arial`;
-    ctx.fillText(`SOCA ${s + 1}`, midX, lineY - Math.round(socaLabelHeight * 0.22));
+    ctx.fillText(`SOCA ${s + 1}`, midX, lineY - Math.round(socaLabelHeight * 0.22), socaWidth);
 
     // Circuit range below line
     ctx.font = `${socaFontSm}px Arial`;
     const circuitRange = startCircuit === endCircuit ?
       `Circuit ${startCircuit + 1}` :
       `Circuits ${startCircuit + 1}-${endCircuit + 1}`;
-    ctx.fillText(circuitRange, midX, lineY + Math.round(socaLabelHeight * 0.22));
+    ctx.fillText(circuitRange, midX, lineY + Math.round(socaLabelHeight * 0.22), socaWidth);
   }
 }

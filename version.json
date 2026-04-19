@@ -1,5 +1,5 @@
 {
-  "version": "2.11.2",
+  "version": "2.11.3",
   "updated": "2026-04-19",
-  "changelog": "Fix structure tables single-column layout on mobile using !important to override grid-column specificity"
+  "changelog": "Fix SOCA and Circuits labels clipping at right edge of power layout PDF using fillText maxWidth"
 }

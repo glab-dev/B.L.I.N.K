@@ -1636,7 +1636,7 @@ canvas:focus {
   }
 
   .structure-info-box {
-    grid-column: auto;
+    grid-column: auto !important;
   }
 
   /* Constrain bumper toggle buttons width on mobile */

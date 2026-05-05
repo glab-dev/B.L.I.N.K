@@ -1,5 +1,5 @@
 {
-  "version": "2.11.6",
-  "updated": "2026-04-19",
-  "changelog": "Match gear list section header color to page header dark green"
+  "version": "2.11.7",
+  "updated": "2026-05-04",
+  "changelog": "Fix SW update race condition causing stale CSS on production"
 }

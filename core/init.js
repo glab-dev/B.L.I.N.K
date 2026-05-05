@@ -97,6 +97,9 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSuggestedCircuitLimit();
     updateSuggestedDataLimit();
 
+    // Sync SOCA label style toggle buttons with persisted setting
+    if(typeof initSocaLabelStyleButtons === 'function') initSocaLabelStyleButtons();
+
     // Update canvas view to ensure correct positioning
     if(typeof isWelcomePageVisible === 'undefined' || !isWelcomePageVisible) {
       setTimeout(() => { showCanvasView(); }, 150);

@@ -1656,6 +1656,18 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       }
     }
 
+    // Same conversion for customSocaAssignments
+    let screenCustomSocas = new Map();
+    if(data.customSocaAssignments instanceof Map) {
+      data.customSocaAssignments.forEach((val, key) => screenCustomSocas.set(key, val));
+    } else if(Array.isArray(data.customSocaAssignments)) {
+      data.customSocaAssignments.forEach(([key, val]) => screenCustomSocas.set(key, val));
+    } else if(data.customSocaAssignments && typeof data.customSocaAssignments.entries === 'function') {
+      for(const [key, val] of data.customSocaAssignments.entries()) {
+        screenCustomSocas.set(key, val);
+      }
+    }
+
     // Get panels per circuit - need to calculate like original if not set
     const allPanelsData = getAllPanels();
     const panelType = data.panelType || 'CB5_MKII';
@@ -1721,6 +1733,14 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       }
     });
 
+    // Compute SOCA group per panel — explicit assignment (1-based) wins over derived
+    const panelToSoca = new Map();
+    panelToCircuit.forEach((circuitNum, panelKey) => {
+      const explicit = screenCustomSocas.get(panelKey);
+      const socaIdx = (typeof explicit === 'number' && explicit >= 1) ? (explicit - 1) : Math.floor(circuitNum / 6);
+      panelToSoca.set(panelKey, socaIdx);
+    });
+
     // Calculate panel dimensions for CB5_MKII (rectangular) vs other panels (square)
     const screenHeightRatio = getPanelHeightRatio(panelType);
     const drawPanelWidth = panelSize;
@@ -1757,14 +1777,12 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
         const circuitNum = panelToCircuit.get(panelKey);
         if(circuitNum === undefined) continue;
 
-        // Use colorForIndex for resistor colors (same as original)
-        const socaGroup = Math.floor(circuitNum / 6);
+        // SOCA group: explicit assignment wins over derived
+        const socaGroup = panelToSoca.has(panelKey) ? panelToSoca.get(panelKey) : Math.floor(circuitNum / 6);
         const colorIndex = circuitNum % 6;
         const colors = colorForIndex(colorIndex);
 
-        // Lighten the color based on SOCA group (same as original)
-        const lightenPercent = socaGroup * 0.15;
-        const fillColor = lightenColor(colors.solid, lightenPercent);
+        const fillColor = applySocaShade(colors.solid, socaGroup);
 
         ctx.fillStyle = fillColor;
         ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
@@ -1774,35 +1792,27 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       }
     }
 
-    // Draw SOCA labels for this screen
-    let maxCircuitNum = 0;
-    panelToCircuit.forEach(circuitNum => {
-      if(circuitNum > maxCircuitNum) maxCircuitNum = circuitNum;
-    });
-    const totalCircuits = maxCircuitNum + 1;
-    const socaGroups = Math.ceil(totalCircuits / 6);
-
-    // Build circuit to panels map
-    const circuitPanelMap = new Map();
+    // Draw SOCA labels for this screen — iterate unique SOCA groups
+    const socaInfoMap = new Map();
     for(let c=0; c<pw; c++){
       for(let r=0; r<ph; r++){
         const panelKey = `${c},${r}`;
         const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
         if(hasDeleted) continue;
-
         const circuitNum = panelToCircuit.get(panelKey);
-        if(circuitNum !== undefined) {
-          if(!circuitPanelMap.has(circuitNum)) {
-            circuitPanelMap.set(circuitNum, []);
-          }
-          circuitPanelMap.get(circuitNum).push({
-            c: c,
-            r: r,
-            x: screenX + c * drawPanelWidth
-          });
+        if(circuitNum === undefined) continue;
+        const socaIdx = panelToSoca.has(panelKey) ? panelToSoca.get(panelKey) : Math.floor(circuitNum / 6);
+        const x = screenX + c * drawPanelWidth;
+        let info = socaInfoMap.get(socaIdx);
+        if(!info) {
+          info = { minX: Infinity, maxX: -Infinity };
+          socaInfoMap.set(socaIdx, info);
         }
+        if(x < info.minX) info.minX = x;
+        if(x > info.maxX) info.maxX = x;
       }
     }
+    const uniqueSocas = [...socaInfoMap.keys()].sort((a,b) => a - b);
 
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 3;
@@ -1811,37 +1821,18 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    for(let s = 0; s < socaGroups; s++){
-      const startCircuit = s * 6;
-      const endCircuit = Math.min((s + 1) * 6 - 1, totalCircuits - 1);
-
-      let minX = Infinity;
-      let maxX = -Infinity;
-
-      for(let circuit = startCircuit; circuit <= endCircuit; circuit++) {
-        if(circuitPanelMap.has(circuit)) {
-          const panels = circuitPanelMap.get(circuit);
-          panels.forEach(p => {
-            minX = Math.min(minX, p.x);
-            maxX = Math.max(maxX, p.x);
-          });
-        }
-      }
-
-      if(minX === Infinity) continue;
-
+    uniqueSocas.forEach(socaIdx => {
+      const info = socaInfoMap.get(socaIdx);
       const lineY = 35;
-      const startX = minX;
-      const endX = maxX + drawPanelWidth;
+      const startX = info.minX;
+      const endX = info.maxX + drawPanelWidth;
       const midX = (startX + endX) / 2;
 
-      // Draw horizontal line
       ctx.beginPath();
       ctx.moveTo(startX, lineY);
       ctx.lineTo(endX, lineY);
       ctx.stroke();
 
-      // Draw vertical ticks
       ctx.beginPath();
       ctx.moveTo(startX, lineY - 8);
       ctx.lineTo(startX, lineY + 8);
@@ -1852,9 +1843,8 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       ctx.lineTo(endX, lineY + 8);
       ctx.stroke();
 
-      // Draw SOCA label
-      ctx.fillText(`SOCA ${s + 1}`, midX, lineY - 18);
-    }
+      ctx.fillText(`SOCA ${formatSocaLabel(socaIdx)}`, midX, lineY - 18);
+    });
 
     // Draw screen label
     ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000' : '#fff';

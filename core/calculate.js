@@ -1448,16 +1448,16 @@ function createOutlineOnlyPowerCanvas() {
       while(usedCustomCircuits.has(autoCircuitCounter)) {
         autoCircuitCounter++;
       }
-      
+
       // Auto-assign to current circuit
       panelToCircuit.set(panel.key, autoCircuitCounter);
       panelsInCurrentAutoCircuit++;
-      
+
       // Move to next circuit when we reach the limit
       if(panelsInCurrentAutoCircuit >= panelsPerCircuit) {
         autoCircuitCounter++;
         panelsInCurrentAutoCircuit = 0;
-        
+
         // Skip over any custom circuits
         while(usedCustomCircuits.has(autoCircuitCounter)) {
           autoCircuitCounter++;
@@ -1465,7 +1465,15 @@ function createOutlineOnlyPowerCanvas() {
       }
     }
   });
-  
+
+  // SOCA group per panel — explicit assignment (1-based) wins over derived
+  const panelToSoca = new Map();
+  panelToCircuit.forEach((circuitNum, panelKey) => {
+    const explicit = customSocaAssignments.get(panelKey);
+    const socaIdx = (typeof explicit === 'number' && explicit >= 1) ? (explicit - 1) : Math.floor(circuitNum / 6);
+    panelToSoca.set(panelKey, socaIdx);
+  });
+
   ctx.font = '11px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -1490,12 +1498,11 @@ function createOutlineOnlyPowerCanvas() {
 
       const circuitNum = panelToCircuit.get(panelKey);
       if(circuitNum === undefined) continue;
-      
-      const socaGroup = Math.floor(circuitNum / 6);
+
+      const socaGroup = panelToSoca.has(panelKey) ? panelToSoca.get(panelKey) : Math.floor(circuitNum / 6);
       const colorIndex = circuitNum % 6;
       const colors = colorForIndex(colorIndex);
-      const lightenPercent = socaGroup * 0.15;
-      const baseColor = lightenColor(colors.solid, lightenPercent);
+      const baseColor = applySocaShade(colors.solid, socaGroup);
       
       // Make color more vibrant for PDF
       const outlineColor = getVibrantColorForPDF(baseColor);

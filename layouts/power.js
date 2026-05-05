@@ -121,6 +121,14 @@ function renderPowerLayout(params) {
     }
   });
 
+  // STEP 4: Compute SOCA group per panel — explicit assignment (1-based) wins over derived
+  const panelToSoca = new Map();
+  panelToCircuit.forEach((circuitNum, panelKey) => {
+    const explicit = customSocaAssignments.get(panelKey);
+    const socaIdx = (typeof explicit === 'number' && explicit >= 1) ? (explicit - 1) : Math.floor(circuitNum / 6);
+    panelToSoca.set(panelKey, socaIdx);
+  });
+
   // Draw all panels
   for(let c=0; c<pw; c++){
     for(let r=0; r<ph; r++){
@@ -148,14 +156,12 @@ function renderPowerLayout(params) {
       const circuitNum = panelToCircuit.get(panelKey);
       if(circuitNum === undefined) continue;
 
-      // Determine which SOCA group this circuit belongs to
-      const socaGroup = Math.floor(circuitNum / 6);
+      // SOCA group: explicit assignment wins over derived
+      const socaGroup = panelToSoca.has(panelKey) ? panelToSoca.get(panelKey) : Math.floor(circuitNum / 6);
       const colorIndex = circuitNum % 6;
       const colors = colorForIndex(colorIndex);
 
-      // Lighten the color based on SOCA group (10% lighter for each SOCA)
-      const lightenPercent = socaGroup * 0.15; // 15% lighter per SOCA group
-      const fillColor = lightenColor(colors.solid, lightenPercent);
+      const fillColor = applySocaShade(colors.solid, socaGroup);
 
       ctx.fillStyle = fillColor;
       ctx.fillRect(x, y, panelWidth, currentPanelHeight);
@@ -174,34 +180,38 @@ function renderPowerLayout(params) {
     }
   }
 
-  // Draw SOCA labels
-  // Find the actual max circuit number used (including custom assignments)
-  let maxCircuitNum = 0;
-  panelToCircuit.forEach(circuitNum => {
-    if(circuitNum > maxCircuitNum) maxCircuitNum = circuitNum;
-  });
-  const totalCircuits = maxCircuitNum + 1;
-  const socaGroups = Math.ceil(totalCircuits / 6);
-
-  // Build a map of circuit number -> panels with that circuit
-  const circuitPanelMap = new Map();
+  // Draw SOCA labels — iterate unique SOCA groups (explicit or derived)
+  // Build a map of socaIdx -> { minX, maxX, circuits: Set }
+  const socaInfoMap = new Map();
   for(let c=0; c<pw; c++){
     for(let r=0; r<ph; r++){
       const panelKey = `${c},${r}`;
       if(deletedPanels.has(panelKey)) continue;
-
       const circuitNum = panelToCircuit.get(panelKey);
-      if(circuitNum !== undefined) {
-        if(!circuitPanelMap.has(circuitNum)) {
-          circuitPanelMap.set(circuitNum, []);
-        }
-        circuitPanelMap.get(circuitNum).push({
-          c: c,
-          r: r,
-          x: c * panelWidth
-        });
+      if(circuitNum === undefined) continue;
+      const socaIdx = panelToSoca.has(panelKey) ? panelToSoca.get(panelKey) : Math.floor(circuitNum / 6);
+      const x = c * panelWidth;
+      let info = socaInfoMap.get(socaIdx);
+      if(!info) {
+        info = { minX: Infinity, maxX: -Infinity, circuits: new Set() };
+        socaInfoMap.set(socaIdx, info);
       }
+      if(x < info.minX) info.minX = x;
+      if(x > info.maxX) info.maxX = x;
+      info.circuits.add(circuitNum);
     }
+  }
+  const uniqueSocas = [...socaInfoMap.keys()].sort((a,b) => a - b);
+
+  function buildCircuitRangeLabel(circuitsSet) {
+    const sorted = [...circuitsSet].sort((a,b) => a - b).map(c => c + 1); // 1-based
+    if(sorted.length === 0) return '';
+    if(sorted.length === 1) return `Circuit ${sorted[0]}`;
+    // Contiguous?
+    const contiguous = sorted.every((v, i) => i === 0 || v === sorted[i-1] + 1);
+    if(contiguous) return `Circuits ${sorted[0]}-${sorted[sorted.length-1]}`;
+    if(sorted.length <= 3) return `Circuits ${sorted.join(', ')}`;
+    return `Circuits ${sorted.slice(0,3).join(', ')}…`;
   }
 
   const socaFontLg = _pdfMode ? Math.round((_isMultiScreen ? 28 : 16) * canvasScale) : 16;
@@ -209,72 +219,38 @@ function renderPowerLayout(params) {
   const lineY = Math.round(socaLabelHeight * 0.50);
   const tickH = _pdfMode ? Math.round(8 * canvasScale) : Math.round(socaLabelHeight * 0.13);
 
-  // Pre-pass: find the minimum font size that fits every SOCA's span,
-  // then use that single size for all labels so they stay consistent.
+  // Pre-pass: find a uniform font size that fits every SOCA's span.
   let lgSize = socaFontLg;
   let smSize = socaFontSm;
-  for(let s = 0; s < socaGroups; s++){
-    const sc = s * 6;
-    const ec = Math.min((s + 1) * 6 - 1, totalCircuits - 1);
-    let mnX = Infinity, mxX = -Infinity;
-    for(let circuit = sc; circuit <= ec; circuit++){
-      if(circuitPanelMap.has(circuit)){
-        circuitPanelMap.get(circuit).forEach(p => {
-          mnX = Math.min(mnX, p.x);
-          mxX = Math.max(mxX, p.x);
-        });
-      }
-    }
-    if(mnX === Infinity) continue;
-    const span = (mxX + panelWidth) - mnX - 4;
-
+  uniqueSocas.forEach(socaIdx => {
+    const info = socaInfoMap.get(socaIdx);
+    const span = (info.maxX + panelWidth) - info.minX - 4;
     ctx.font = `bold ${lgSize}px Arial`;
-    const socaW = ctx.measureText(`SOCA ${s + 1}`).width;
+    const socaW = ctx.measureText(`SOCA ${formatSocaLabel(socaIdx)}`).width;
     if(socaW > span) lgSize = Math.max(8, Math.floor(lgSize * span / socaW));
 
-    const rangeLabel = sc === ec ? `Circuit ${sc + 1}` : `Circuits ${sc + 1}-${ec + 1}`;
     ctx.font = `${smSize}px Arial`;
-    const rangeW = ctx.measureText(rangeLabel).width;
+    const rangeW = ctx.measureText(buildCircuitRangeLabel(info.circuits)).width;
     if(rangeW > span) smSize = Math.max(7, Math.floor(smSize * span / rangeW));
-  }
+  });
 
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 3;
-  ctx.font = `bold ${lgSize}px Arial`;
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  for(let s = 0; s < socaGroups; s++){
-    const startCircuit = s * 6;
-    const endCircuit = Math.min((s + 1) * 6 - 1, totalCircuits - 1);
-
-    let minX = Infinity;
-    let maxX = -Infinity;
-
-    for(let circuit = startCircuit; circuit <= endCircuit; circuit++) {
-      if(circuitPanelMap.has(circuit)) {
-        const panels = circuitPanelMap.get(circuit);
-        panels.forEach(p => {
-          minX = Math.min(minX, p.x);
-          maxX = Math.max(maxX, p.x);
-        });
-      }
-    }
-
-    if(minX === Infinity) continue;
-
-    const startX = minX;
-    const endX = maxX + panelWidth;
+  uniqueSocas.forEach(socaIdx => {
+    const info = socaInfoMap.get(socaIdx);
+    const startX = info.minX;
+    const endX = info.maxX + panelWidth;
     const midX = (startX + endX) / 2;
 
-    // Horizontal line
     ctx.beginPath();
     ctx.moveTo(startX, lineY);
     ctx.lineTo(endX, lineY);
     ctx.stroke();
 
-    // Vertical ticks
     ctx.beginPath();
     ctx.moveTo(startX, lineY - tickH);
     ctx.lineTo(startX, lineY + tickH);
@@ -285,15 +261,10 @@ function renderPowerLayout(params) {
     ctx.lineTo(endX, lineY + tickH);
     ctx.stroke();
 
-    // SOCA label above line — uniform font size, centered in span
     ctx.font = `bold ${lgSize}px Arial`;
-    ctx.fillText(`SOCA ${s + 1}`, midX, lineY - Math.round(socaLabelHeight * 0.22));
+    ctx.fillText(`SOCA ${formatSocaLabel(socaIdx)}`, midX, lineY - Math.round(socaLabelHeight * 0.22));
 
-    // Circuit range below line — uniform font size
     ctx.font = `${smSize}px Arial`;
-    const circuitRange = startCircuit === endCircuit ?
-      `Circuit ${startCircuit + 1}` :
-      `Circuits ${startCircuit + 1}-${endCircuit + 1}`;
-    ctx.fillText(circuitRange, midX, lineY + Math.round(socaLabelHeight * 0.22));
-  }
+    ctx.fillText(buildCircuitRangeLabel(info.circuits), midX, lineY + Math.round(socaLabelHeight * 0.22));
+  });
 }

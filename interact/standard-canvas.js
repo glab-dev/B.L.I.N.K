@@ -355,30 +355,40 @@ async function showCircuitNumberPrompt() {
   // selectedPanels during the async gap when the prompt modal is open
   const panelsToAssign = new Set(selectedPanels);
 
-  const circuitNum = await showPrompt(`Enter circuit number for ${panelsToAssign.size} selected panel(s):\n\n(Enter a number 1-999, or leave blank to clear custom assignment)`);
+  const result = await showSocaCircuitPrompt(panelsToAssign.size);
+  if(result === null) return; // User cancelled
 
-  if(circuitNum === null) return; // User cancelled
+  const socaRaw = (result.soca || '').trim();
+  const circRaw = (result.circuit || '').trim();
 
-  saveState(); // Save state before making changes
+  let socaNum = null;
+  if(socaRaw !== '') {
+    socaNum = parseInt(socaRaw);
+    if(isNaN(socaNum) || socaNum < 1 || socaNum > 99) {
+      showAlert('Please enter a valid SOCA number between 1 and 99');
+      return;
+    }
+  }
 
-  if(circuitNum.trim() === '') {
-    // Clear custom assignments for selected panels
-    panelsToAssign.forEach(key => {
-      customCircuitAssignments.delete(key);
-    });
-  } else {
-    const num = parseInt(circuitNum);
-    if(isNaN(num) || num < 1 || num > 999) {
+  let circNum = null;
+  if(circRaw !== '') {
+    circNum = parseInt(circRaw);
+    if(isNaN(circNum) || circNum < 1 || circNum > 999) {
       showAlert('Please enter a valid circuit number between 1 and 999');
       return;
     }
-
-    // Assign circuit number to selected panels
-    panelsToAssign.forEach(key => {
-      customCircuitAssignments.set(key, num);
-    });
   }
-  
+
+  saveState();
+
+  panelsToAssign.forEach(key => {
+    if(socaNum === null) customSocaAssignments.delete(key);
+    else customSocaAssignments.set(key, socaNum);
+
+    if(circNum === null) customCircuitAssignments.delete(key);
+    else customCircuitAssignments.set(key, circNum);
+  });
+
   selectedPanels.clear();
   calculate();
 }

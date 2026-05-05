@@ -4,6 +4,7 @@
 
 let _customAlertResolve = null;
 let _customAlertIsPrompt = false;
+let _customAlertIsDualField = false;
 
 function showAlert(message, title) {
   return new Promise(resolve => {
@@ -43,12 +44,38 @@ function showPrompt(message, defaultValue, title) {
   });
 }
 
+function showSocaCircuitPrompt(panelCount) {
+  return new Promise(resolve => {
+    _customAlertResolve = resolve;
+    _customAlertIsPrompt = true;
+    _customAlertIsDualField = true;
+    document.getElementById('customAlertTitle').textContent = 'Custom SOCA & Circuit';
+    document.getElementById('customAlertMessage').textContent =
+      `Enter SOCA # and/or Circuit # for ${panelCount} panel(s). Leave a field blank to clear that assignment.`;
+    const input1 = document.getElementById('customAlertInput');
+    const input2 = document.getElementById('customAlertInput2');
+    input1.placeholder = 'SOCA # (1-99)';
+    input2.placeholder = 'Circuit # (1-999)';
+    input1.style.display = '';
+    input2.style.display = '';
+    input1.value = '';
+    input2.value = '';
+    document.getElementById('customAlertCancelBtn').style.display = '';
+    document.getElementById('customAlertOkBtn').textContent = 'OK';
+    document.getElementById('customAlertModal').classList.add('active');
+    setTimeout(() => { input1.focus(); input1.select(); }, 50);
+  });
+}
+
 function closeCustomAlert(result) {
   const input = document.getElementById('customAlertInput');
+  const input2 = document.getElementById('customAlertInput2');
   const modal = document.getElementById('customAlertModal');
   modal.classList.remove('active');
   if (_customAlertResolve) {
-    if (_customAlertIsPrompt) {
+    if (_customAlertIsDualField) {
+      _customAlertResolve(result === false ? null : { soca: input.value, circuit: input2.value });
+    } else if (_customAlertIsPrompt) {
       _customAlertResolve(result === false ? null : input.value);
     } else {
       _customAlertResolve(result !== false && result !== undefined ? true : false);
@@ -56,8 +83,13 @@ function closeCustomAlert(result) {
     _customAlertResolve = null;
   }
   _customAlertIsPrompt = false;
+  _customAlertIsDualField = false;
   input.style.display = 'none';
   input.value = '';
+  input.placeholder = '';
+  input2.style.display = 'none';
+  input2.value = '';
+  input2.placeholder = '';
 }
 
 // Show a sign-in prompt with a Sign In button

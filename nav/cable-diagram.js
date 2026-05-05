@@ -354,7 +354,7 @@ function renderCableDiagram(screenId) {
         ctx.font = (isPdf ? 'bold 16px' : 'bold 10px') + ' Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText('SOCA ' + (_s + 1), _landingX, bracketY + 2);
+        ctx.fillText('SOCA ' + formatSocaLabel(_s), _landingX, bracketY + 2);
       } else {
         const bracketY = wallTopY - 18;
         ctx.beginPath();
@@ -367,7 +367,7 @@ function renderCableDiagram(screenId) {
         ctx.font = (isPdf ? 'bold 16px' : 'bold 10px') + ' Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.fillText('SOCA ' + (_s + 1), _landingX, bracketY - 2);
+        ctx.fillText('SOCA ' + formatSocaLabel(_s), _landingX, bracketY - 2);
       }
     });
   }

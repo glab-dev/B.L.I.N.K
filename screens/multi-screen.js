@@ -99,6 +99,7 @@ function getDefaultScreenData() {
     deletedPanels: new Set(),
     selectedPanels: new Set(),
     customCircuitAssignments: new Map(),
+    customSocaAssignments: new Map(),
     customDataLineAssignments: new Map(),
     undoHistory: [],
     redoHistory: []
@@ -279,19 +280,22 @@ function saveCurrentScreenData() {
   data.deletedPanels = new Set(deletedPanels); // Copy Set
   data.selectedPanels = new Set(selectedPanels); // Copy Set
   data.customCircuitAssignments = new Map(customCircuitAssignments); // Copy Map
+  data.customSocaAssignments = new Map(customSocaAssignments); // Copy Map
   data.customDataLineAssignments = new Map(customDataLineAssignments); // Copy Map
-  
+
   // Deep copy undo/redo history
   data.undoHistory = undoHistory.map(state => ({
     deletedPanels: new Set(state.deletedPanels),
     selectedPanels: new Set(state.selectedPanels),
     customCircuitAssignments: new Map(state.customCircuitAssignments),
+    customSocaAssignments: new Map(state.customSocaAssignments || []),
     customDataLineAssignments: new Map(state.customDataLineAssignments)
   }));
   data.redoHistory = redoHistory.map(state => ({
     deletedPanels: new Set(state.deletedPanels),
     selectedPanels: new Set(state.selectedPanels),
     customCircuitAssignments: new Map(state.customCircuitAssignments),
+    customSocaAssignments: new Map(state.customSocaAssignments || []),
     customDataLineAssignments: new Map(state.customDataLineAssignments)
   }));
 }
@@ -507,19 +511,22 @@ function loadScreenData(screenId) {
   deletedPanels = data.deletedPanels ? new Set(data.deletedPanels) : new Set();
   selectedPanels = data.selectedPanels ? new Set(data.selectedPanels) : new Set();
   customCircuitAssignments = data.customCircuitAssignments ? new Map(data.customCircuitAssignments) : new Map();
+  customSocaAssignments = data.customSocaAssignments ? new Map(data.customSocaAssignments) : new Map();
   customDataLineAssignments = data.customDataLineAssignments ? new Map(data.customDataLineAssignments) : new Map();
-  
+
   // Restore undo/redo history
   undoHistory = data.undoHistory ? data.undoHistory.map(state => ({
     deletedPanels: new Set(state.deletedPanels),
     selectedPanels: new Set(state.selectedPanels),
     customCircuitAssignments: new Map(state.customCircuitAssignments),
+    customSocaAssignments: new Map(state.customSocaAssignments || []),
     customDataLineAssignments: new Map(state.customDataLineAssignments)
   })) : [];
   redoHistory = data.redoHistory ? data.redoHistory.map(state => ({
     deletedPanels: new Set(state.deletedPanels),
     selectedPanels: new Set(state.selectedPanels),
     customCircuitAssignments: new Map(state.customCircuitAssignments),
+    customSocaAssignments: new Map(state.customSocaAssignments || []),
     customDataLineAssignments: new Map(state.customDataLineAssignments)
   })) : [];
   

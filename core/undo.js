@@ -8,6 +8,7 @@ function saveState() {
     deletedPanels: new Set(deletedPanels),
     selectedPanels: new Set(selectedPanels),
     customCircuitAssignments: new Map(customCircuitAssignments),
+    customSocaAssignments: new Map(customSocaAssignments),
     customDataLineAssignments: new Map(customDataLineAssignments)
   };
   
@@ -29,15 +30,17 @@ function undo() {
     deletedPanels: new Set(deletedPanels),
     selectedPanels: new Set(selectedPanels),
     customCircuitAssignments: new Map(customCircuitAssignments),
+    customSocaAssignments: new Map(customSocaAssignments),
     customDataLineAssignments: new Map(customDataLineAssignments)
   };
   redoHistory.push(currentState);
-  
+
   // Restore previous state
   const previousState = undoHistory.pop();
   deletedPanels = new Set(previousState.deletedPanels);
   selectedPanels = new Set(previousState.selectedPanels);
   customCircuitAssignments = new Map(previousState.customCircuitAssignments);
+  customSocaAssignments = new Map(previousState.customSocaAssignments || []);
   customDataLineAssignments = new Map(previousState.customDataLineAssignments);
   
   // Sync deleted panels to current screen data for canvas view
@@ -68,15 +71,17 @@ function redo() {
     deletedPanels: new Set(deletedPanels),
     selectedPanels: new Set(selectedPanels),
     customCircuitAssignments: new Map(customCircuitAssignments),
+    customSocaAssignments: new Map(customSocaAssignments),
     customDataLineAssignments: new Map(customDataLineAssignments)
   };
   undoHistory.push(currentState);
-  
+
   // Restore next state
   const nextState = redoHistory.pop();
   deletedPanels = new Set(nextState.deletedPanels);
   selectedPanels = new Set(nextState.selectedPanels);
   customCircuitAssignments = new Map(nextState.customCircuitAssignments);
+  customSocaAssignments = new Map(nextState.customSocaAssignments || []);
   customDataLineAssignments = new Map(nextState.customDataLineAssignments);
   
   // Sync deleted panels to current screen data for canvas view

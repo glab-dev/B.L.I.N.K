@@ -1,5 +1,5 @@
 {
-  "version": "2.11.9",
+  "version": "2.11.10",
   "updated": "2026-05-05",
-  "changelog": "Add SOCA label letters/numbers toggle and two-field custom SOCA+circuit prompt"
+  "changelog": "Show SOCA.Circuit inside power layout panels and add column/row number markers"
 }

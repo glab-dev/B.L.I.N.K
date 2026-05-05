@@ -9,21 +9,35 @@ function renderPowerLayout(params) {
   const _isMultiScreen = typeof pdfMultiScreenCapture !== 'undefined' && pdfMultiScreenCapture;
   const pdfContentPt = 539;
   const canvasScale = _pdfMode ? canvas.width / pdfContentPt : 1;
-  const socaLabelHeight = _pdfMode ? Math.round((_isMultiScreen ? 95 : 50) * canvasScale) : 60;
-  canvas.height += socaLabelHeight;
-  if (_pdfMode) { try { window._pdfPowerSocaFraction = socaLabelHeight / canvas.height; } catch(e) {} }
+  // Top row carries column-number markers; left column carries row-number markers.
+  // Panel labels now show SOCA.Circuit (e.g. "A.1"), so col/row info lives on the edges.
+  const colLabelHeight = _pdfMode ? Math.round((_isMultiScreen ? 50 : 28) * canvasScale) : 28;
+  const rowLabelWidth  = _pdfMode ? Math.round((_isMultiScreen ? 50 : 28) * canvasScale) : 28;
+  canvas.height += colLabelHeight;
+  canvas.width  += rowLabelWidth;
+  if (_pdfMode) {
+    try {
+      window._pdfPowerSocaFraction = colLabelHeight / canvas.height;
+      window._pdfPowerRowFraction  = rowLabelWidth / canvas.width;
+    } catch(e) {}
+  }
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Fill label area with white background (for PDF export - JPEG doesn't support transparency)
+  // Fill marker areas with white (JPEG doesn't support transparency)
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, socaLabelHeight);
+  ctx.fillRect(0, 0, canvas.width, colLabelHeight);
+  ctx.fillRect(0, 0, rowLabelWidth, canvas.height);
 
-  // Draw black border at bottom of SOCA label area (ensures visibility across all browsers)
+  // Border lines separating marker bands from the panel grid
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(0, socaLabelHeight);
-  ctx.lineTo(canvas.width, socaLabelHeight);
+  ctx.moveTo(0, colLabelHeight);
+  ctx.lineTo(canvas.width, colLabelHeight);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(rowLabelWidth, 0);
+  ctx.lineTo(rowLabelWidth, canvas.height);
   ctx.stroke();
 
   // Build column-by-column circuit assignments
@@ -137,8 +151,8 @@ function renderPowerLayout(params) {
       // Determine if this row is the half panel row
       const isHalfPanelRow = hasCB5HalfRow && r === originalPh;
       const currentPanelHeight = isHalfPanelRow ? halfPanelHeight : panelHeight;
-      const x = c * panelWidth;
-      const y = (isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight)) + socaLabelHeight;
+      const x = c * panelWidth + rowLabelWidth;
+      const y = (isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight)) + colLabelHeight;
 
       // Check if panel is deleted
       if(deletedPanels.has(panelKey)) {
@@ -176,95 +190,26 @@ function renderPowerLayout(params) {
       ctx.font = (_pdf ? '13px Arial' : '11px Arial');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`${c+1}.${r+1}`, x+panelWidth/2, y+currentPanelHeight/2);
+      ctx.fillText(`${formatSocaLabel(socaGroup)}.${circuitNum+1}`, x+panelWidth/2, y+currentPanelHeight/2);
     }
   }
 
-  // Draw SOCA labels — iterate unique SOCA groups (explicit or derived)
-  // Build a map of socaIdx -> { minX, maxX, circuits: Set }
-  const socaInfoMap = new Map();
-  for(let c=0; c<pw; c++){
-    for(let r=0; r<ph; r++){
-      const panelKey = `${c},${r}`;
-      if(deletedPanels.has(panelKey)) continue;
-      const circuitNum = panelToCircuit.get(panelKey);
-      if(circuitNum === undefined) continue;
-      const socaIdx = panelToSoca.has(panelKey) ? panelToSoca.get(panelKey) : Math.floor(circuitNum / 6);
-      const x = c * panelWidth;
-      let info = socaInfoMap.get(socaIdx);
-      if(!info) {
-        info = { minX: Infinity, maxX: -Infinity, circuits: new Set() };
-        socaInfoMap.set(socaIdx, info);
-      }
-      if(x < info.minX) info.minX = x;
-      if(x > info.maxX) info.maxX = x;
-      info.circuits.add(circuitNum);
-    }
-  }
-  const uniqueSocas = [...socaInfoMap.keys()].sort((a,b) => a - b);
-
-  function buildCircuitRangeLabel(circuitsSet) {
-    const sorted = [...circuitsSet].sort((a,b) => a - b).map(c => c + 1); // 1-based
-    if(sorted.length === 0) return '';
-    if(sorted.length === 1) return `Circuit ${sorted[0]}`;
-    // Contiguous?
-    const contiguous = sorted.every((v, i) => i === 0 || v === sorted[i-1] + 1);
-    if(contiguous) return `Circuits ${sorted[0]}-${sorted[sorted.length-1]}`;
-    if(sorted.length <= 3) return `Circuits ${sorted.join(', ')}`;
-    return `Circuits ${sorted.slice(0,3).join(', ')}…`;
-  }
-
-  const socaFontLg = _pdfMode ? Math.round((_isMultiScreen ? 28 : 16) * canvasScale) : 16;
-  const socaFontSm = _pdfMode ? Math.round((_isMultiScreen ? 26 : 11) * canvasScale) : 12;
-  const lineY = Math.round(socaLabelHeight * 0.50);
-  const tickH = _pdfMode ? Math.round(8 * canvasScale) : Math.round(socaLabelHeight * 0.13);
-
-  // Pre-pass: find a uniform font size that fits every SOCA's span.
-  let lgSize = socaFontLg;
-  let smSize = socaFontSm;
-  uniqueSocas.forEach(socaIdx => {
-    const info = socaInfoMap.get(socaIdx);
-    const span = (info.maxX + panelWidth) - info.minX - 4;
-    ctx.font = `bold ${lgSize}px Arial`;
-    const socaW = ctx.measureText(`SOCA ${formatSocaLabel(socaIdx)}`).width;
-    if(socaW > span) lgSize = Math.max(8, Math.floor(lgSize * span / socaW));
-
-    ctx.font = `${smSize}px Arial`;
-    const rangeW = ctx.measureText(buildCircuitRangeLabel(info.circuits)).width;
-    if(rangeW > span) smSize = Math.max(7, Math.floor(smSize * span / rangeW));
-  });
-
-  ctx.strokeStyle = '#000000';
-  ctx.lineWidth = 3;
+  // Column number markers along top, row number markers along left side
+  const markerFont = _pdfMode ? Math.round((_isMultiScreen ? 22 : 14) * canvasScale) : 13;
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.font = `bold ${markerFont}px Arial`;
 
-  uniqueSocas.forEach(socaIdx => {
-    const info = socaInfoMap.get(socaIdx);
-    const startX = info.minX;
-    const endX = info.maxX + panelWidth;
-    const midX = (startX + endX) / 2;
+  for(let c = 0; c < pw; c++) {
+    const cx = c * panelWidth + rowLabelWidth + panelWidth / 2;
+    ctx.fillText(`${c+1}`, cx, colLabelHeight / 2);
+  }
 
-    ctx.beginPath();
-    ctx.moveTo(startX, lineY);
-    ctx.lineTo(endX, lineY);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(startX, lineY - tickH);
-    ctx.lineTo(startX, lineY + tickH);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(endX, lineY - tickH);
-    ctx.lineTo(endX, lineY + tickH);
-    ctx.stroke();
-
-    ctx.font = `bold ${lgSize}px Arial`;
-    ctx.fillText(`SOCA ${formatSocaLabel(socaIdx)}`, midX, lineY - Math.round(socaLabelHeight * 0.22));
-
-    ctx.font = `${smSize}px Arial`;
-    ctx.fillText(buildCircuitRangeLabel(info.circuits), midX, lineY + Math.round(socaLabelHeight * 0.22));
-  });
+  for(let r = 0; r < ph; r++) {
+    const isHalfPanelRow = hasCB5HalfRow && r === originalPh;
+    const rowH = isHalfPanelRow ? halfPanelHeight : panelHeight;
+    const rowY = (isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight)) + colLabelHeight;
+    ctx.fillText(`${r+1}`, rowLabelWidth / 2, rowY + rowH / 2);
+  }
 }

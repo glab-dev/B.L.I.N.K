@@ -25,22 +25,17 @@ async function checkForUpdates() {
     if (latestVersion && latestVersion !== APP_VERSION) {
       console.log('Version check: Update available — v' + latestVersion);
 
+      // Trigger SW update check so the new SW is ready when user taps Update
       if (navigator.serviceWorker) {
         try {
           var reg = await navigator.serviceWorker.getRegistration();
           if (reg) await reg.update();
-          // If a new SW is already waiting, activate it immediately — no banner needed.
-          // controllerchange listener in nav/navigation.js will reload the page.
-          if (reg && reg.waiting) {
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-            return;
-          }
         } catch (swErr) {
           console.log('SW update check failed:', swErr.message);
         }
       }
 
-      // No waiting SW yet — show banner as fallback (hardRefreshApp handles activation)
+      // Show banner — user taps to apply update via hardRefreshApp()
       showUpdateBanner(latestVersion);
     } else if (latestVersion === APP_VERSION) {
       // App is up to date - clear any dismissed version tracking

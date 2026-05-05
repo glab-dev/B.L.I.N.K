@@ -1,5 +1,5 @@
 {
-  "version": "2.11.7",
+  "version": "2.11.8",
   "updated": "2026-05-04",
-  "changelog": "Fix SW update race condition causing stale CSS on production"
+  "changelog": "Revert SW auto-update to preserve user choice via update banner"
 }

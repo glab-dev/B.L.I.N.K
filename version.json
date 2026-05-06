@@ -1,5 +1,5 @@
 {
-  "version": "2.11.13",
+  "version": "2.11.14",
   "updated": "2026-05-06",
-  "changelog": "Add 'Assign SOCA #' context-menu action with auto-distributed circuits and accept letters or numbers in SOCA prompts"
+  "changelog": "Assign SOCA: one circuit per selected column, require 2x2+ selection, warn on >6 columns or column exceeding panels-per-circuit"
 }

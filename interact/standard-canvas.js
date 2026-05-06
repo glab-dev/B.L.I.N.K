@@ -303,7 +303,7 @@ function showContextMenu(x, y) {
     const [c, r] = key.split(',').map(Number);
     _socaCols.add(c); _socaRows.add(r);
   });
-  const _showAssignSoca = (_socaCols.size > 1 || _socaRows.size > 1);
+  const _showAssignSoca = (_socaCols.size > 1 && _socaRows.size > 1);
   let assignSocaOption = null;
   if (_showAssignSoca) {
     assignSocaOption = document.createElement('div');
@@ -436,27 +436,46 @@ async function showAssignSocaPrompt() {
   }
 
   const ppc = (typeof panelsPerCircuit === 'number' && panelsPerCircuit > 0) ? panelsPerCircuit : 6;
-  const circuitsNeeded = Math.ceil(panelsToAssign.size / ppc);
-  if(circuitsNeeded > 6) {
+
+  // Group selected panels by column — each column becomes one circuit within the SOCA
+  const byCol = new Map();
+  panelsToAssign.forEach(k => {
+    const [c, r] = k.split(',').map(Number);
+    if(!byCol.has(c)) byCol.set(c, []);
+    byCol.get(c).push(k);
+  });
+  const sortedCols = [...byCol.keys()].sort((a, b) => a - b);
+
+  if(sortedCols.length > 6) {
     showAlert(
-      `Selection requires ${circuitsNeeded} circuits, but a SOCA holds only 6. ` +
-      `Reduce the selection or raise panels-per-circuit.`
+      `Selection spans ${sortedCols.length} columns, but a SOCA holds only 6 circuits. ` +
+      `Reduce the selection.`
     );
     return;
   }
 
-  const sorted = [...panelsToAssign].map(k => {
-    const [c, r] = k.split(',').map(Number);
-    return { key: k, c, r };
-  }).sort((a, b) => (a.c - b.c) || (a.r - b.r));
+  let maxColCount = 0, worstCol = sortedCols[0];
+  sortedCols.forEach(c => {
+    const n = byCol.get(c).length;
+    if(n > maxColCount) { maxColCount = n; worstCol = c; }
+  });
+  if(maxColCount > ppc) {
+    showAlert(
+      `Column ${worstCol + 1} has ${maxColCount} selected panels, but the max per circuit is ${ppc}. ` +
+      `Raise panels-per-circuit or reduce the selection.`
+    );
+    return;
+  }
 
   const baseCircuit = (socaNum - 1) * 6 + 1;
 
   saveState();
-  sorted.forEach((p, idx) => {
-    const circuit = baseCircuit + Math.floor(idx / ppc);
-    customSocaAssignments.set(p.key, socaNum);
-    customCircuitAssignments.set(p.key, circuit);
+  sortedCols.forEach((c, colIdx) => {
+    const circuit = baseCircuit + colIdx;
+    byCol.get(c).forEach(key => {
+      customSocaAssignments.set(key, socaNum);
+      customCircuitAssignments.set(key, circuit);
+    });
   });
 
   selectedPanels.clear();

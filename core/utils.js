@@ -183,6 +183,26 @@ function initSocaLabelStyleButtons() {
   setSocaLabelStyle(socaLabelStyle);
 }
 
+// Inverse of formatSocaLabel — accepts "5" or "E" (case-insensitive) and
+// returns a 1-based SOCA number, or null if the input is invalid / out of range.
+function parseSocaInput(raw) {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).trim().toUpperCase();
+  if (s === '') return null;
+  if (/^\d+$/.test(s)) {
+    const n = parseInt(s, 10);
+    return (n >= 1 && n <= 99) ? n : null;
+  }
+  if (/^[A-Z]+$/.test(s)) {
+    let n = 0;
+    for (let i = 0; i < s.length; i++) {
+      n = n * 26 + (s.charCodeAt(i) - 64);
+    }
+    return (n >= 1 && n <= 99) ? n : null;
+  }
+  return null;
+}
+
 // Bounded shade cycle for SOCA groups — keeps adjacent SOCAs visually distinct
 // without fading to white. Lighten-only so black panel text stays readable on
 // dark base hues (brown, green, blue). Repeats every 6 SOCAs.

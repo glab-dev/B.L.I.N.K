@@ -297,6 +297,34 @@ function showContextMenu(x, y) {
     showCircuitNumberPrompt();
   });
   
+  // Assign SOCA option — only when selection spans 2+ columns OR 2+ rows
+  const _socaCols = new Set(), _socaRows = new Set();
+  selectedPanels.forEach(key => {
+    const [c, r] = key.split(',').map(Number);
+    _socaCols.add(c); _socaRows.add(r);
+  });
+  const _showAssignSoca = (_socaCols.size > 1 || _socaRows.size > 1);
+  let assignSocaOption = null;
+  if (_showAssignSoca) {
+    assignSocaOption = document.createElement('div');
+    assignSocaOption.textContent = `Assign SOCA # to ${selectedPanels.size} panel(s)`;
+    assignSocaOption.style.padding = '8px 12px';
+    assignSocaOption.style.cursor = 'pointer';
+    assignSocaOption.style.color = '#e0e0e0';
+    assignSocaOption.style.fontSize = '13px';
+    assignSocaOption.style.borderBottom = '1px solid #383838';
+    assignSocaOption.addEventListener('mouseover', function() {
+      assignSocaOption.style.background = '#0a66c2';
+    });
+    assignSocaOption.addEventListener('mouseout', function() {
+      assignSocaOption.style.background = 'transparent';
+    });
+    assignSocaOption.addEventListener('click', function() {
+      menu.remove();
+      showAssignSocaPrompt();
+    });
+  }
+
   // Assign Data Line option
   const assignDataLineOption = document.createElement('div');
   assignDataLineOption.textContent = `Assign Data Line # to ${selectedPanels.size} panel(s)`;
@@ -335,6 +363,7 @@ function showContextMenu(x, y) {
   });
   
   menu.appendChild(assignCircuitOption);
+  if (assignSocaOption) menu.appendChild(assignSocaOption);
   menu.appendChild(assignDataLineOption);
   menu.appendChild(deleteOption);
   document.body.appendChild(menu);
@@ -363,9 +392,9 @@ async function showCircuitNumberPrompt() {
 
   let socaNum = null;
   if(socaRaw !== '') {
-    socaNum = parseInt(socaRaw);
-    if(isNaN(socaNum) || socaNum < 1 || socaNum > 99) {
-      showAlert('Please enter a valid SOCA number between 1 and 99');
+    socaNum = parseSocaInput(socaRaw);
+    if(socaNum === null) {
+      showAlert('Please enter a valid SOCA (1-99 or A-Z)');
       return;
     }
   }
@@ -387,6 +416,47 @@ async function showCircuitNumberPrompt() {
 
     if(circNum === null) customCircuitAssignments.delete(key);
     else customCircuitAssignments.set(key, circNum);
+  });
+
+  selectedPanels.clear();
+  calculate();
+}
+
+async function showAssignSocaPrompt() {
+  const panelsToAssign = new Set(selectedPanels);
+  if(panelsToAssign.size === 0) return;
+
+  const result = await showSocaOnlyPrompt(panelsToAssign.size);
+  if(result === null || result === undefined) return;
+
+  const socaNum = parseSocaInput(result);
+  if(socaNum === null) {
+    showAlert('Please enter a valid SOCA (1-99 or A-Z)');
+    return;
+  }
+
+  const ppc = (typeof panelsPerCircuit === 'number' && panelsPerCircuit > 0) ? panelsPerCircuit : 6;
+  const circuitsNeeded = Math.ceil(panelsToAssign.size / ppc);
+  if(circuitsNeeded > 6) {
+    showAlert(
+      `Selection requires ${circuitsNeeded} circuits, but a SOCA holds only 6. ` +
+      `Reduce the selection or raise panels-per-circuit.`
+    );
+    return;
+  }
+
+  const sorted = [...panelsToAssign].map(k => {
+    const [c, r] = k.split(',').map(Number);
+    return { key: k, c, r };
+  }).sort((a, b) => (a.c - b.c) || (a.r - b.r));
+
+  const baseCircuit = (socaNum - 1) * 6 + 1;
+
+  saveState();
+  sorted.forEach((p, idx) => {
+    const circuit = baseCircuit + Math.floor(idx / ppc);
+    customSocaAssignments.set(p.key, socaNum);
+    customCircuitAssignments.set(p.key, circuit);
   });
 
   selectedPanels.clear();

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.12",
+  "version": "2.11.13",
   "updated": "2026-05-06",
-  "changelog": "Lighten power layout column/row markers: non-bold Arial at 11px on screen"
+  "changelog": "Add 'Assign SOCA #' context-menu action with auto-distributed circuits and accept letters or numbers in SOCA prompts"
 }

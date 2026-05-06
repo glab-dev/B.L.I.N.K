@@ -67,6 +67,27 @@ function showSocaCircuitPrompt(panelCount) {
   });
 }
 
+function showSocaOnlyPrompt(panelCount) {
+  return new Promise(resolve => {
+    _customAlertResolve = resolve;
+    _customAlertIsPrompt = true;
+    _customAlertIsDualField = false;
+    document.getElementById('customAlertTitle').textContent = 'Assign SOCA #';
+    document.getElementById('customAlertMessage').textContent =
+      `Enter SOCA # for ${panelCount} panel(s). Circuits will be assigned automatically within that SOCA.`;
+    const input1 = document.getElementById('customAlertInput');
+    const input2 = document.getElementById('customAlertInput2');
+    input1.placeholder = 'SOCA # (1-99 or A-Z)';
+    input1.style.display = '';
+    input1.value = '';
+    if (input2) input2.style.display = 'none';
+    document.getElementById('customAlertCancelBtn').style.display = '';
+    document.getElementById('customAlertOkBtn').textContent = 'OK';
+    document.getElementById('customAlertModal').classList.add('active');
+    setTimeout(() => { input1.focus(); input1.select(); }, 50);
+  });
+}
+
 function closeCustomAlert(result) {
   const input = document.getElementById('customAlertInput');
   const input2 = document.getElementById('customAlertInput2');

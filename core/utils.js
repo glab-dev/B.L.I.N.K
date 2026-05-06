@@ -183,6 +183,17 @@ function initSocaLabelStyleButtons() {
   setSocaLabelStyle(socaLabelStyle);
 }
 
+// Effective max panels per circuit: user override if set, else the auto-calculated
+// value that calculate.js writes into the input's placeholder. Falls back to 6.
+function getEffectivePanelsPerCircuit() {
+  const el = document.getElementById('maxPanelsPerCircuit');
+  if (!el) return 6;
+  const userVal = parseInt(el.value, 10);
+  if (userVal > 0) return userVal;
+  const placeholder = parseInt(el.placeholder, 10);
+  return (placeholder > 0) ? placeholder : 6;
+}
+
 // Inverse of formatSocaLabel — accepts "5" or "E" (case-insensitive) and
 // returns a 1-based SOCA number, or null if the input is invalid / out of range.
 function parseSocaInput(raw) {

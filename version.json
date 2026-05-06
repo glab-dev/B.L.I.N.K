@@ -1,5 +1,5 @@
 {
-  "version": "2.11.15",
+  "version": "2.11.16",
   "updated": "2026-05-06",
-  "changelog": "Warn when assigning a custom circuit to more panels than the panels-per-circuit limit"
+  "changelog": "Read effective panels-per-circuit from the actual power-options field so the warning matches the configured limit"
 }

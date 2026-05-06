@@ -409,7 +409,7 @@ async function showCircuitNumberPrompt() {
   }
 
   if(circNum !== null) {
-    const ppc = (typeof panelsPerCircuit === 'number' && panelsPerCircuit > 0) ? panelsPerCircuit : 6;
+    const ppc = getEffectivePanelsPerCircuit();
     if(panelsToAssign.size > ppc) {
       showAlert(
         `Selection has ${panelsToAssign.size} panels but the max per circuit is ${ppc}. ` +
@@ -446,7 +446,7 @@ async function showAssignSocaPrompt() {
     return;
   }
 
-  const ppc = (typeof panelsPerCircuit === 'number' && panelsPerCircuit > 0) ? panelsPerCircuit : 6;
+  const ppc = getEffectivePanelsPerCircuit();
 
   // Group selected panels by column — each column becomes one circuit within the SOCA
   const byCol = new Map();

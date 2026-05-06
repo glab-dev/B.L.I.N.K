@@ -1,5 +1,5 @@
 {
-  "version": "2.11.10",
-  "updated": "2026-05-05",
-  "changelog": "Show SOCA.Circuit inside power layout panels and add column/row number markers"
+  "version": "2.11.11",
+  "updated": "2026-05-06",
+  "changelog": "Show SOCA.Circuit labels inside combined power view panels and hide brackets when custom assignments present"
 }

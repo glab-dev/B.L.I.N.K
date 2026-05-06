@@ -1789,62 +1789,76 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
         ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
+
+        // Panel label: SOCA.Circuit (e.g. "A.1"). Same-circuit panels share a label.
+        const labelFont = Math.max(7, Math.round(panelSize * 0.32));
+        ctx.fillStyle = '#000000';
+        ctx.font = `${labelFont}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${formatSocaLabel(socaGroup)}.${circuitNum+1}`, px + drawPanelWidth/2, py + currentDrawHeight/2);
       }
     }
 
-    // Draw SOCA labels for this screen — iterate unique SOCA groups
-    const socaInfoMap = new Map();
-    for(let c=0; c<pw; c++){
-      for(let r=0; r<ph; r++){
-        const panelKey = `${c},${r}`;
-        const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
-        if(hasDeleted) continue;
-        const circuitNum = panelToCircuit.get(panelKey);
-        if(circuitNum === undefined) continue;
-        const socaIdx = panelToSoca.has(panelKey) ? panelToSoca.get(panelKey) : Math.floor(circuitNum / 6);
-        const x = screenX + c * drawPanelWidth;
-        let info = socaInfoMap.get(socaIdx);
-        if(!info) {
-          info = { minX: Infinity, maxX: -Infinity };
-          socaInfoMap.set(socaIdx, info);
+    // Hide SOCA brackets for this screen when any custom assignment is present —
+    // brackets can render incorrectly across non-contiguous SOCA spans.
+    const screenHasCustoms = screenCustomCircuits.size > 0 || screenCustomSocas.size > 0;
+
+    if (!screenHasCustoms) {
+      // Draw SOCA labels for this screen — iterate unique SOCA groups
+      const socaInfoMap = new Map();
+      for(let c=0; c<pw; c++){
+        for(let r=0; r<ph; r++){
+          const panelKey = `${c},${r}`;
+          const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
+          if(hasDeleted) continue;
+          const circuitNum = panelToCircuit.get(panelKey);
+          if(circuitNum === undefined) continue;
+          const socaIdx = panelToSoca.has(panelKey) ? panelToSoca.get(panelKey) : Math.floor(circuitNum / 6);
+          const x = screenX + c * drawPanelWidth;
+          let info = socaInfoMap.get(socaIdx);
+          if(!info) {
+            info = { minX: Infinity, maxX: -Infinity };
+            socaInfoMap.set(socaIdx, info);
+          }
+          if(x < info.minX) info.minX = x;
+          if(x > info.maxX) info.maxX = x;
         }
-        if(x < info.minX) info.minX = x;
-        if(x > info.maxX) info.maxX = x;
       }
+      const uniqueSocas = [...socaInfoMap.keys()].sort((a,b) => a - b);
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.font = 'bold 14px Arial';
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      uniqueSocas.forEach(socaIdx => {
+        const info = socaInfoMap.get(socaIdx);
+        const lineY = 35;
+        const startX = info.minX;
+        const endX = info.maxX + drawPanelWidth;
+        const midX = (startX + endX) / 2;
+
+        ctx.beginPath();
+        ctx.moveTo(startX, lineY);
+        ctx.lineTo(endX, lineY);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(startX, lineY - 8);
+        ctx.lineTo(startX, lineY + 8);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(endX, lineY - 8);
+        ctx.lineTo(endX, lineY + 8);
+        ctx.stroke();
+
+        ctx.fillText(`SOCA ${formatSocaLabel(socaIdx)}`, midX, lineY - 18);
+      });
     }
-    const uniqueSocas = [...socaInfoMap.keys()].sort((a,b) => a - b);
-
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 3;
-    ctx.font = 'bold 14px Arial';
-    ctx.fillStyle = '#000000';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    uniqueSocas.forEach(socaIdx => {
-      const info = socaInfoMap.get(socaIdx);
-      const lineY = 35;
-      const startX = info.minX;
-      const endX = info.maxX + drawPanelWidth;
-      const midX = (startX + endX) / 2;
-
-      ctx.beginPath();
-      ctx.moveTo(startX, lineY);
-      ctx.lineTo(endX, lineY);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(startX, lineY - 8);
-      ctx.lineTo(startX, lineY + 8);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(endX, lineY - 8);
-      ctx.lineTo(endX, lineY + 8);
-      ctx.stroke();
-
-      ctx.fillText(`SOCA ${formatSocaLabel(socaIdx)}`, midX, lineY - 18);
-    });
 
     // Draw screen label
     ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000' : '#fff';

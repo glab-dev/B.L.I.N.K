@@ -59,7 +59,14 @@ function getDefaultCanvasData() {
     canvasSize: '4K_UHD',
     customCanvasWidth: 3840,
     customCanvasHeight: 2160,
-    screenVisibility: {} // Per-canvas screen visibility: {screenId: true/false}
+    screenVisibility: {}, // Per-canvas screen visibility: {screenId: true/false}
+    zoom: 1.0,
+    panX: 0,
+    panY: 0,
+    exportFilename: '',
+    exportFormat: 'png',
+    snapMode: true,
+    arrowKeyIncrement: 10
   };
 }
 
@@ -163,6 +170,20 @@ function saveCurrentCanvasData() {
   Object.keys(screens).forEach(screenId => {
     canvas.data.screenVisibility[screenId] = screens[screenId].visible !== false;
   });
+
+  // Save per-canvas zoom + pan state
+  canvas.data.zoom = (typeof canvasZoomLevel === 'number') ? canvasZoomLevel : 1.0;
+  canvas.data.panX = (typeof canvasPanX === 'number') ? canvasPanX : 0;
+  canvas.data.panY = (typeof canvasPanY === 'number') ? canvasPanY : 0;
+
+  // Save per-canvas export + UI options
+  const filenameEl = document.getElementById('canvasExportFilename');
+  const formatEl = document.getElementById('canvasExportFormat');
+  const fineEl = document.getElementById('arrowKeyIncrement');
+  if(filenameEl) canvas.data.exportFilename = filenameEl.value || '';
+  if(formatEl) canvas.data.exportFormat = formatEl.value || 'png';
+  if(fineEl) canvas.data.arrowKeyIncrement = parseInt(fineEl.value) || 10;
+  if(typeof snapModeEnabled === 'boolean') canvas.data.snapMode = snapModeEnabled;
 }
 
 function loadCanvasData(canvasId) {
@@ -199,6 +220,30 @@ function loadCanvasData(canvasId) {
   // Also update raster screen table if available (for raster mode)
   if(typeof renderRasterScreenTable === 'function') renderRasterScreenTable();
   // Sync raster toolbar values (canvas size may differ per canvas)
+  if(typeof syncToolbarFromCanvasOptions === 'function') syncToolbarFromCanvasOptions();
+
+  // Restore per-canvas zoom + pan state, then apply transform via existing viewport updater
+  canvasZoomLevel = (typeof canvas.data.zoom === 'number') ? canvas.data.zoom : 1.0;
+  canvasPanX = (typeof canvas.data.panX === 'number') ? canvas.data.panX : 0;
+  canvasPanY = (typeof canvas.data.panY === 'number') ? canvas.data.panY : 0;
+  if(typeof updateCanvasViewport === 'function') updateCanvasViewport();
+
+  // Restore per-canvas export + UI options
+  const filenameEl = document.getElementById('canvasExportFilename');
+  const formatEl = document.getElementById('canvasExportFormat');
+  const fineEl = document.getElementById('arrowKeyIncrement');
+  if(filenameEl) filenameEl.value = canvas.data.exportFilename || '';
+  if(formatEl) formatEl.value = canvas.data.exportFormat || 'png';
+  if(fineEl) fineEl.value = (typeof canvas.data.arrowKeyIncrement === 'number') ? canvas.data.arrowKeyIncrement : 10;
+  // Snap mode: restore global flag and button visual states
+  if(typeof snapModeEnabled !== 'undefined') {
+    snapModeEnabled = canvas.data.snapMode !== false;
+    const snapBtn = document.getElementById('snapModeBtn');
+    if(snapBtn) snapBtn.classList.toggle('active', snapModeEnabled);
+    const rasterSnap = document.getElementById('rasterToolbarSnap');
+    if(rasterSnap) rasterSnap.classList.toggle('active', snapModeEnabled);
+  }
+  // Re-sync the raster toolbar so its mirrored values reflect the loaded canvas
   if(typeof syncToolbarFromCanvasOptions === 'function') syncToolbarFromCanvasOptions();
 }
 
@@ -249,6 +294,21 @@ function showCanvasView(){
     canvasResX = parseInt(document.getElementById('customCanvasWidth').value) || 1920;
     canvasResY = parseInt(document.getElementById('customCanvasHeight').value) || 1080;
     canvasName = `Custom (${canvasResX}x${canvasResY})`;
+  }
+
+  // Match wrapper aspect ratio to the canvas resolution for custom sizes only.
+  // Built-in sizes keep the CSS 16:9 wrapper (4K UHD/HD already match it).
+  const wrapperForRatio = document.getElementById('canvasViewWrapper');
+  if(wrapperForRatio) {
+    if(canvasSize === 'custom') {
+      wrapperForRatio.style.aspectRatio = `${canvasResX} / ${canvasResY}`;
+      wrapperForRatio.style.paddingBottom = '0';
+      wrapperForRatio.style.height = 'auto';
+    } else {
+      wrapperForRatio.style.aspectRatio = '';
+      wrapperForRatio.style.paddingBottom = '';
+      wrapperForRatio.style.height = '';
+    }
   }
 
   const canvas = document.getElementById('canvasView');

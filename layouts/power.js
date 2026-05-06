@@ -281,11 +281,11 @@ function renderPowerLayout(params) {
   }
 
   // Column number markers (always shown, positioned just above panel grid)
-  const markerFont = _pdfMode ? Math.round((_isMultiScreen ? 18 : 12) * canvasScale) : 12;
+  const markerFont = _pdfMode ? Math.round((_isMultiScreen ? 18 : 12) * canvasScale) : 11;
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `bold ${markerFont}px Arial`;
+  ctx.font = `${markerFont}px Arial`;
 
   for(let c = 0; c < pw; c++) {
     const cx = c * panelWidth + rowMarkerW + panelWidth / 2;

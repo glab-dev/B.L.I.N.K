@@ -1,5 +1,5 @@
 {
-  "version": "2.11.11",
+  "version": "2.11.12",
   "updated": "2026-05-06",
-  "changelog": "Show SOCA.Circuit labels inside combined power view panels and hide brackets when custom assignments present"
+  "changelog": "Lighten power layout column/row markers: non-bold Arial at 11px on screen"
 }

@@ -7,7 +7,8 @@ async function saveConfiguration() {
   
   // Save current screen data first
   saveCurrentScreenData();
-  
+  if(typeof saveCurrentCanvasData === 'function') saveCurrentCanvasData();
+
   // Prepare screens data for saving (convert Sets to Arrays)
   const screensData = {};
   Object.keys(screens).forEach(screenId => {
@@ -110,7 +111,34 @@ async function saveConfiguration() {
       calculatedData: screen.calculatedData || {}
     };
   });
-  
+
+  // Prepare canvases data (multi-canvas tabs)
+  const canvasesData = {};
+  if(typeof canvases !== 'undefined') {
+    Object.keys(canvases).forEach(canvasId => {
+      const c = canvases[canvasId];
+      if(!c || typeof c !== 'object') return;
+      const cd = (c.data && typeof c.data === 'object') ? c.data : {};
+      canvasesData[canvasId] = {
+        id: c.id,
+        name: c.name,
+        data: {
+          canvasSize: cd.canvasSize || '4K_UHD',
+          customCanvasWidth: cd.customCanvasWidth || 3840,
+          customCanvasHeight: cd.customCanvasHeight || 2160,
+          screenVisibility: cd.screenVisibility || {},
+          zoom: (typeof cd.zoom === 'number') ? cd.zoom : 1.0,
+          panX: (typeof cd.panX === 'number') ? cd.panX : 0,
+          panY: (typeof cd.panY === 'number') ? cd.panY : 0,
+          exportFilename: cd.exportFilename || '',
+          exportFormat: cd.exportFormat || 'png',
+          snapMode: cd.snapMode !== false,
+          arrowKeyIncrement: (typeof cd.arrowKeyIncrement === 'number') ? cd.arrowKeyIncrement : 10
+        }
+      };
+    });
+  }
+
   // Gather all configuration
   const config = {
     version: '2.0',
@@ -119,6 +147,10 @@ async function saveConfiguration() {
     currentScreenId: currentScreenId,
     screenIdCounter: screenIdCounter,
     screens: screensData,
+    // Multi-canvas tabs
+    canvases: canvasesData,
+    currentCanvasId: (typeof currentCanvasId !== 'undefined') ? currentCanvasId : null,
+    canvasIdCounter: (typeof canvasIdCounter !== 'undefined') ? canvasIdCounter : 1,
     // Global settings
     displayLengthUnit: displayLengthUnit,
     displayWeightUnit: displayWeightUnit,
@@ -321,6 +353,50 @@ function applyConfiguration(config) {
       ? config.currentScreenId
       : 'screen_1';
 
+    // Restore canvases (multi-canvas tabs)
+    let canvasesRestored = false;
+    if(config.canvases && typeof config.canvases === 'object' && !Array.isArray(config.canvases)) {
+      const safeCanvasIds = Object.keys(config.canvases).filter(id => /^canvas_\d+$/.test(id));
+      if(safeCanvasIds.length > 0) {
+        canvases = {};
+        safeCanvasIds.forEach(cid => {
+          const saved = config.canvases[cid];
+          if(!saved || typeof saved !== 'object') return;
+          const sd = (saved.data && typeof saved.data === 'object') ? saved.data : {};
+          canvases[cid] = {
+            id: cid,
+            name: (typeof saved.name === 'string') ? saved.name.substring(0, 50) : 'Canvas',
+            data: {
+              canvasSize: sd.canvasSize || '4K_UHD',
+              customCanvasWidth: parseInt(sd.customCanvasWidth) || 3840,
+              customCanvasHeight: parseInt(sd.customCanvasHeight) || 2160,
+              screenVisibility: (typeof sd.screenVisibility === 'object' && sd.screenVisibility) ? sd.screenVisibility : {},
+              zoom: (typeof sd.zoom === 'number') ? sd.zoom : 1.0,
+              panX: (typeof sd.panX === 'number') ? sd.panX : 0,
+              panY: (typeof sd.panY === 'number') ? sd.panY : 0,
+              exportFilename: sd.exportFilename || '',
+              exportFormat: sd.exportFormat || 'png',
+              snapMode: sd.snapMode !== false,
+              arrowKeyIncrement: (typeof sd.arrowKeyIncrement === 'number') ? sd.arrowKeyIncrement : 10
+            }
+          };
+        });
+        currentCanvasId = (typeof config.currentCanvasId === 'string' && canvases[config.currentCanvasId])
+          ? config.currentCanvasId : safeCanvasIds[0];
+        canvasIdCounter = (typeof config.canvasIdCounter === 'number' && config.canvasIdCounter > 0)
+          ? config.canvasIdCounter : safeCanvasIds.length;
+        canvasesRestored = true;
+      }
+    }
+
+    // Backwards-compat: legacy v2.0 file with no canvases — reset and reinit a single default
+    if(!canvasesRestored) {
+      canvases = {};
+      canvasIdCounter = 0;
+      currentCanvasId = null;
+      if(typeof initializeCanvases === 'function') initializeCanvases();
+    }
+
     // Restore global settings with validation
     displayLengthUnit = (config.displayLengthUnit === 'ft' || config.displayLengthUnit === 'm') ? config.displayLengthUnit : 'ft';
     displayWeightUnit = (config.displayWeightUnit === 'lbs' || config.displayWeightUnit === 'kg') ? config.displayWeightUnit : 'lbs';
@@ -342,6 +418,10 @@ function applyConfiguration(config) {
 
     // Rebuild screen tabs using the proper render function
     renderScreenTabs();
+
+    // Rebuild canvas tabs and apply the active canvas's saved state
+    if(typeof renderCanvasTabs === 'function') renderCanvasTabs();
+    if(typeof loadCanvasData === 'function' && currentCanvasId) loadCanvasData(currentCanvasId);
 
     // Load current screen data into form
     loadScreenData(currentScreenId);
@@ -394,7 +474,7 @@ function applyConfiguration(config) {
       }
     }, 100);
 
-    showAlert(`Configuration "${config.name}" loaded successfully! (${Object.keys(screens).length} screens)`);
+    showAlert(`Configuration "${config.name}" loaded successfully! (${Object.keys(screens).length} screens, ${Object.keys(canvases).length} canvases)`);
   } else {
     // Legacy v1.0 single-screen config - load into current screen
     document.getElementById('panelType').value = config.panelType || 'BP2_V2';

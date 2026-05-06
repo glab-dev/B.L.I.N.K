@@ -1,5 +1,5 @@
 {
-  "version": "2.11.16",
+  "version": "2.11.17",
   "updated": "2026-05-06",
-  "changelog": "Read effective panels-per-circuit from the actual power-options field so the warning matches the configured limit"
+  "changelog": "Persist canvas tabs in project save/load"
 }

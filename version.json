@@ -1,5 +1,5 @@
 {
-  "version": "2.11.14",
+  "version": "2.11.15",
   "updated": "2026-05-06",
-  "changelog": "Assign SOCA: one circuit per selected column, require 2x2+ selection, warn on >6 columns or column exceeding panels-per-circuit"
+  "changelog": "Warn when assigning a custom circuit to more panels than the panels-per-circuit limit"
 }

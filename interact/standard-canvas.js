@@ -408,6 +408,17 @@ async function showCircuitNumberPrompt() {
     }
   }
 
+  if(circNum !== null) {
+    const ppc = (typeof panelsPerCircuit === 'number' && panelsPerCircuit > 0) ? panelsPerCircuit : 6;
+    if(panelsToAssign.size > ppc) {
+      showAlert(
+        `Selection has ${panelsToAssign.size} panels but the max per circuit is ${ppc}. ` +
+        `Reduce the selection or raise panels-per-circuit.`
+      );
+      return;
+    }
+  }
+
   saveState();
 
   panelsToAssign.forEach(key => {

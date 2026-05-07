@@ -163,7 +163,8 @@ function generateStructureLayout(){
   ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const fontSize = Math.max(10, Math.floor(size * 0.22));
+  const _pdfFont = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  const fontSize = Math.max(10, Math.floor(size * (_pdfFont ? 0.25 : 0.22)));
   ctx.font = `${fontSize}px Arial`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

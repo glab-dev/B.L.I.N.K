@@ -1,5 +1,5 @@
 {
-  "version": "2.11.19",
-  "updated": "2026-05-06",
-  "changelog": "Switch power layout SOCA shading to monotonic dark-to-light 6-step ramp"
+  "version": "2.11.20",
+  "updated": "2026-05-07",
+  "changelog": "Shrink PDF power layout SOCA brackets and bump row/column markers to 7pt"
 }

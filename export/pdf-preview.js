@@ -425,6 +425,12 @@ function rebuildPreview() {
       ecoPrintMode = false;
       greyscalePrintMode = false;
 
+      // Restore live on-screen canvases so the app doesn't stay in eco/greyscale.
+      generateLayout('standard');
+      generateLayout('power');
+      generateLayout('data');
+      generateStructureLayout();
+
       ecoPrintMode = opts.ecoFriendly;
       greyscalePrintMode = opts.greyscale;
       const docDef = buildComplexPdf(opts, _ppCanvasCache);

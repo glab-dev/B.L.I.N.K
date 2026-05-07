@@ -19,11 +19,14 @@ function renderPowerLayout(params) {
   // Left band = row-marker column. Panel labels show SOCA.Circuit (e.g. "A.1").
   const colMarkerH  = _pdfMode ? Math.round((_isMultiScreen ? 28 : 18) * canvasScale) : 22;
   const rowMarkerW  = _pdfMode ? Math.round((_isMultiScreen ? 32 : 22) * canvasScale) : 28;
-  const bracketBarH = hasCustoms ? 0 : (_pdfMode ? Math.round((_isMultiScreen ? 95 : 50) * canvasScale) : 60);
+  const bracketBarH = hasCustoms ? 0 : (_pdfMode ? Math.round(26 * canvasScale) : 60);
   const topBandH    = bracketBarH + colMarkerH;
 
   canvas.height += topBandH;
   canvas.width  += rowMarkerW;
+  // Anchor PDF font sizes to actual PDF points regardless of width-fit vs height-cap.
+  const _expectedMaxHpt = (typeof window !== 'undefined' && window._pdfLayoutMaxHeightPt) || 230;
+  const _markerScale = _pdfMode ? Math.max(canvas.width / pdfContentPt, canvas.height / _expectedMaxHpt) : 1;
   if (_pdfMode) {
     try {
       window._pdfPowerSocaFraction = topBandH / canvas.height;
@@ -196,7 +199,7 @@ function renderPowerLayout(params) {
       ctx.fillStyle = '#000000';
 
       const _pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
-      ctx.font = (_pdf ? '13px Arial' : '11px Arial');
+      ctx.font = (_pdf ? `${Math.max(10, Math.floor(panelWidth * 0.25))}px Arial` : '11px Arial');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(`${formatSocaLabel(socaGroup)}.${circuitNum+1}`, x+panelWidth/2, y+currentPanelHeight/2);
@@ -236,8 +239,8 @@ function renderPowerLayout(params) {
       return `Circuits ${sorted.slice(0,3).join(', ')}…`;
     }
 
-    const socaFontLg = _pdfMode ? Math.round((_isMultiScreen ? 28 : 16) * canvasScale) : 16;
-    const socaFontSm = _pdfMode ? Math.round((_isMultiScreen ? 26 : 11) * canvasScale) : 12;
+    const socaFontLg = _pdfMode ? Math.round(11 * _markerScale) : 16;
+    const socaFontSm = _pdfMode ? Math.round(8 * _markerScale) : 12;
     const lineY = Math.round(bracketBarH * 0.50);
     const tickH = _pdfMode ? Math.round(8 * canvasScale) : Math.round(bracketBarH * 0.13);
 
@@ -280,8 +283,9 @@ function renderPowerLayout(params) {
     });
   }
 
-  // Column number markers (always shown, positioned just above panel grid)
-  const markerFont = _pdfMode ? Math.round((_isMultiScreen ? 18 : 12) * canvasScale) : 11;
+  // Column number markers (always shown, positioned just above panel grid).
+  // _markerScale is computed near the top so SOCA bracket fonts can also use it.
+  const markerFont = _pdfMode ? Math.round(7 * _markerScale) : 11;
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

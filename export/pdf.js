@@ -2401,6 +2401,20 @@ function pdfCaptureCanvases() {
   pdfLayoutCaptureMode = true;
   void (document.getElementById('standardContainer') || document.body).offsetWidth; // force reflow
 
+  // Stash expected max layout height (pt) so layouts can compute markerFont consistently.
+  // gridImage caps tall layouts at this height — without it, height-capped canvases would
+  // get scaled down by pdfmake, shrinking their markers relative to width-fit canvases.
+  try {
+    const _fmt = pdfPageFormat || 'a4';
+    const _orient = pdfPageOrientation || 'p';
+    const _dims = pdfGetPageDimensions(_fmt, _orient);
+    const _m = PDF_TOKENS.layout;
+    const _layoutOverhead = _m.headerBarH + _m.afterHeaderGap + 2 * _m.sectionLabelH + 2 * _m.afterLabelGap + 2 * 4 + 20;
+    window._pdfLayoutMaxHeightPt = Math.floor((_dims.usableHeight - _layoutOverhead) / 3);
+  } catch(e) {
+    window._pdfLayoutMaxHeightPt = 230;
+  }
+
   screenIds.forEach(screenId => {
     switchToScreen(screenId);
     generateLayout('standard');
@@ -2452,6 +2466,7 @@ function pdfCaptureCanvases() {
   // Restore layout container widths and capture mode flags
   pdfLayoutCaptureMode = false;
   pdfMultiScreenCapture = false;
+  try { delete window._pdfLayoutMaxHeightPt; } catch(e) { window._pdfLayoutMaxHeightPt = undefined; }
   layoutContainerIds.forEach(function(id) {
     const el = document.getElementById(id);
     if (el) el.style.width = savedLayoutWidths[id] !== undefined ? savedLayoutWidths[id] : '';

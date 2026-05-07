@@ -3210,8 +3210,8 @@
 <!-- Supabase Client (Cloud Sync & Auth) -->
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js" integrity="sha384-gmm4k/o3mzDSemzK5CComDrZ5QDvnpUGq3IXuE9luzw/ZoNhwzB2XiJzh2/JGrQV" crossorigin="anonymous"></script>
 
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/pdfmake.min.js" crossorigin="anonymous"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/vfs_fonts.js" crossorigin="anonymous"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/pdfmake.min.js" integrity="sha384-eyLvPQxuHMXQ4SOMqhJmXm7kNtGb8mhPg7L0ovADajh1Lxv1aoCLLB1lVhoKCQgh" crossorigin="anonymous"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/vfs_fonts.js" integrity="sha384-1y8s2U/Jjn4/oeCEBcfYH3M6XeQtcg4LRmluN92FS69UgtLzoyhn3swew8Ynj8Ai" crossorigin="anonymous"></script>
 
 <!-- Core Utilities -->
 <script defer src="core/modals.js"></script>
@@ -3285,8 +3285,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.17';
-const APP_CHANGELOG = 'Persist canvas tabs in project save/load';
+const APP_VERSION = '2.11.18';
+const APP_CHANGELOG = 'Add SRI hashes to pdfmake CDN and fix initMobileUI script-order race';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

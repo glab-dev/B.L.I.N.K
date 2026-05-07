@@ -433,10 +433,8 @@ function initMobileUI() {
   console.log('Mobile UI initialized');
 }
 
-// Run initialization when DOM is ready
-if(document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initMobileUI);
-} else {
-  // DOM already loaded, run now
-  initMobileUI();
-}
+// Run initialization when DOM is ready.
+// All deferred scripts finish executing before DOMContentLoaded fires, so
+// listening for it guarantees siblings like nav/welcome.js have defined
+// their globals (e.g., showWelcomePage) before initMobileUI runs.
+document.addEventListener('DOMContentLoaded', initMobileUI);

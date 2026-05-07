@@ -214,10 +214,10 @@ function parseSocaInput(raw) {
   return null;
 }
 
-// Bounded shade cycle for SOCA groups — keeps adjacent SOCAs visually distinct
-// without fading to white. Lighten-only so black panel text stays readable on
-// dark base hues (brown, green, blue). Repeats every 6 SOCAs.
-const SOCA_SHADE_CYCLE = [0, 0.50, 0.20, 0.65, 0.35, 0.10];
+// Monotonic dark-to-light ramp for SOCA groups. SOCA 1 = base color (darkest),
+// each subsequent SOCA is ~14% lighter, capped at 0.70 to avoid washing out
+// to white. 6 shades — repeats every 6 SOCAs.
+const SOCA_SHADE_CYCLE = [0, 0.14, 0.28, 0.42, 0.56, 0.70];
 function applySocaShade(baseColor, socaGroup) {
   const amount = SOCA_SHADE_CYCLE[socaGroup % SOCA_SHADE_CYCLE.length];
   return amount === 0 ? baseColor : lightenColor(baseColor, amount);

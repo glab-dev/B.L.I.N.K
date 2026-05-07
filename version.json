@@ -1,5 +1,5 @@
 {
-  "version": "2.11.18",
+  "version": "2.11.19",
   "updated": "2026-05-06",
-  "changelog": "Add SRI hashes to pdfmake CDN and fix initMobileUI script-order race"
+  "changelog": "Switch power layout SOCA shading to monotonic dark-to-light 6-step ramp"
 }

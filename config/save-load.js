@@ -258,12 +258,8 @@ function applyConfiguration(config) {
     }
 
     // Load multi-screen configuration
-
-    // Clear existing screens UI
-    const tabsContainer = document.getElementById('screenTabsContainer');
-    if(tabsContainer) {
-      tabsContainer.innerHTML = '';
-    }
+    // (renderScreenTabs() at line ~420 rebuilds the .screen-tabs wrapper —
+    // do NOT wipe the container or the static #screenAddBtn will be lost.)
 
     // Reset screens object
     screens = {};

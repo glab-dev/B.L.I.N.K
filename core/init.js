@@ -99,6 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Sync SOCA label style toggle buttons with persisted setting
     if(typeof initSocaLabelStyleButtons === 'function') initSocaLabelStyleButtons();
+    if(typeof initSocaToggleButtons === 'function') initSocaToggleButtons();
 
     // Update canvas view to ensure correct positioning
     if(typeof isWelcomePageVisible === 'undefined' || !isWelcomePageVisible) {

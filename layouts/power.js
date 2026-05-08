@@ -206,6 +206,119 @@ function renderPowerLayout(params) {
     }
   }
 
+  // SOCA outlines + diagonal labels — only when custom assignments are in play.
+  // Toggles are read from globals defined in core/utils.js (default true, persisted).
+  if (hasCustoms) {
+    const _outlinesOn = (typeof socaOutlinesEnabled !== 'undefined') ? socaOutlinesEnabled : true;
+    const _labelsOn   = (typeof socaDiagonalLabelEnabled !== 'undefined') ? socaDiagonalLabelEnabled : true;
+    if (_outlinesOn || _labelsOn) {
+      // Group active panels by SOCA index.
+      const socaPanels = new Map(); // socaIdx -> Set("c,r")
+      panelToSoca.forEach((socaIdx, panelKey) => {
+        if (deletedPanels.has(panelKey)) return;
+        if (!socaPanels.has(socaIdx)) socaPanels.set(socaIdx, new Set());
+        socaPanels.get(socaIdx).add(panelKey);
+      });
+
+      // Build SOCA-to-SOCA adjacency (4-neighbor) for graph coloring.
+      const socaAdj = new Map(); // socaIdx -> Set(neighborSocaIdx)
+      socaPanels.forEach((_, idx) => socaAdj.set(idx, new Set()));
+      panelToSoca.forEach((socaIdx, panelKey) => {
+        if (deletedPanels.has(panelKey)) return;
+        const [c, r] = panelKey.split(',').map(Number);
+        [[c,r-1],[c,r+1],[c-1,r],[c+1,r]].forEach(([nc, nr]) => {
+          const nKey = `${nc},${nr}`;
+          if (deletedPanels.has(nKey)) return;
+          const nSoca = panelToSoca.get(nKey);
+          if (nSoca === undefined || nSoca === socaIdx) return;
+          socaAdj.get(socaIdx).add(nSoca);
+        });
+      });
+
+      // Greedy 4-color: order SOCAs by descending degree, assign lowest free color.
+      const _socaOutlinePalette = ['#ff10f0', '#39ff14', '#00aaff'];
+      const socaColorIdx = new Map();
+      const orderedSocas = [...socaPanels.keys()].sort((a, b) => {
+        const da = socaAdj.get(b).size - socaAdj.get(a).size;
+        return da !== 0 ? da : a - b;
+      });
+      orderedSocas.forEach(idx => {
+        const used = new Set();
+        socaAdj.get(idx).forEach(n => {
+          if (socaColorIdx.has(n)) used.add(socaColorIdx.get(n));
+        });
+        let pick = 0;
+        while (used.has(pick)) pick++;
+        socaColorIdx.set(idx, pick % _socaOutlinePalette.length);
+      });
+
+      socaPanels.forEach((cellSet, socaIdx) => {
+        // Collect (c,r) and find bounding box for label placement.
+        let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
+        cellSet.forEach(k => {
+          const [cc, rr] = k.split(',').map(Number);
+          if (cc < minC) minC = cc; if (cc > maxC) maxC = cc;
+          if (rr < minR) minR = rr; if (rr > maxR) maxR = rr;
+        });
+
+        // ----- Outline: trace perimeter edges of the panel union (inset so adjacent SOCAs show side-by-side) -----
+        if (_outlinesOn) {
+          const inset = _pdfMode ? Math.max(2, Math.round(2 * _markerScale)) : 2;
+          const segments = []; // [x1,y1,x2,y2]
+          cellSet.forEach(k => {
+            const [c, r] = k.split(',').map(Number);
+            const isHalfRow = hasCB5HalfRow && r === originalPh;
+            const ph_ = isHalfRow ? halfPanelHeight : panelHeight;
+            const x = c * panelWidth + rowMarkerW;
+            const y = (isHalfRow ? (originalPh * panelHeight) : (r * panelHeight)) + topBandH;
+            const hasTop   = cellSet.has(`${c},${r-1}`);
+            const hasBot   = cellSet.has(`${c},${r+1}`);
+            const hasLeft  = cellSet.has(`${c-1},${r}`);
+            const hasRight = cellSet.has(`${c+1},${r}`);
+            if (!hasTop)   segments.push([x + (hasLeft?0:inset), y + inset,         x + panelWidth - (hasRight?0:inset), y + inset]);
+            if (!hasBot)   segments.push([x + (hasLeft?0:inset), y + ph_ - inset,   x + panelWidth - (hasRight?0:inset), y + ph_ - inset]);
+            if (!hasLeft)  segments.push([x + inset,             y + (hasTop?0:inset), x + inset,                          y + ph_ - (hasBot?0:inset)]);
+            if (!hasRight) segments.push([x + panelWidth - inset, y + (hasTop?0:inset), x + panelWidth - inset,            y + ph_ - (hasBot?0:inset)]);
+          });
+          ctx.save();
+          ctx.strokeStyle = _socaOutlinePalette[socaColorIdx.get(socaIdx) || 0];
+          ctx.lineWidth = _pdfMode ? Math.max(2, Math.round(2 * _markerScale)) : 2;
+          ctx.setLineDash([]);
+          ctx.lineCap = 'butt';
+          ctx.beginPath();
+          segments.forEach(s => { ctx.moveTo(s[0], s[1]); ctx.lineTo(s[2], s[3]); });
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // ----- Diagonal label centered over the SOCA's bounding box -----
+        if (_labelsOn) {
+          const bx = minC * panelWidth + rowMarkerW;
+          const by = minR * panelHeight + topBandH;
+          const bw = (maxC - minC + 1) * panelWidth;
+          const bh = (maxR - minR + 1) * panelHeight;
+          const cx = bx + bw / 2;
+          const cy = by + bh / 2;
+          const diag = Math.sqrt(bw * bw + bh * bh);
+          const labelText = `SOCA ${formatSocaLabel(socaIdx)}`;
+          ctx.save();
+          ctx.font = `bold 100px Arial`;
+          const measured = ctx.measureText(labelText).width;
+          const targetWidth = diag * 0.6;
+          let fontSize = Math.max(14, Math.min(120, Math.floor(100 * targetWidth / measured)));
+          ctx.font = `bold ${fontSize}px Arial`;
+          ctx.fillStyle = 'rgba(0,0,0,0.28)';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.translate(cx, cy);
+          ctx.rotate(-Math.PI / 4);
+          ctx.fillText(labelText, 0, 0);
+          ctx.restore();
+        }
+      });
+    }
+  }
+
   // SOCA brackets — drawn only when no custom assignments are in play.
   if (!hasCustoms) {
     const socaInfoMap = new Map();

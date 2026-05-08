@@ -1,5 +1,5 @@
 {
-  "version": "2.11.20",
+  "version": "2.11.21",
   "updated": "2026-05-07",
-  "changelog": "Shrink PDF power layout SOCA brackets and bump row/column markers to 7pt"
+  "changelog": "Add SOCA outlines and diagonal labels with toggles for custom power layouts"
 }

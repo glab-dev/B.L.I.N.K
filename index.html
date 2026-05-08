@@ -2499,6 +2499,14 @@
               <button type="button" class="slider-toggle-btn" id="socaLabelLetterBtn" onclick="setSocaLabelStyle('letters')">ABC</button>
             </div>
           </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">SOCA Outlines</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone active" id="socaOutlinesBtn" onclick="toggleSocaOutlines()">On</button>
+          </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">SOCA Label</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone active" id="socaDiagonalLabelBtn" onclick="toggleSocaDiagonalLabel()">On</button>
+          </div>
         </div>
         <canvas id="powerCanvas"></canvas>
       </div>
@@ -3271,6 +3279,7 @@
 <script defer src="export/pdf.js"></script>
 <script defer src="export/pdf-preview.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script defer src="export/export-all.js"></script>
 <!-- Config -->
 <script defer src="config/setup.js"></script>
@@ -3285,8 +3294,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.20';
-const APP_CHANGELOG = 'Shrink PDF power layout SOCA brackets and bump row/column markers to 7pt';
+const APP_VERSION = '2.11.21';
+const APP_CHANGELOG = 'Add SOCA outlines and diagonal labels with toggles for custom power layouts';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

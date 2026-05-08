@@ -183,6 +183,34 @@ function initSocaLabelStyleButtons() {
   setSocaLabelStyle(socaLabelStyle);
 }
 
+// SOCA outlines (dashed green perimeter around each custom-SOCA group) — on by default.
+let socaOutlinesEnabled = (typeof localStorage !== 'undefined' && localStorage.getItem('ledcalc_soca_outlines') === 'false') ? false : true;
+// SOCA diagonal label (rotated label overlay per group) — on by default.
+let socaDiagonalLabelEnabled = (typeof localStorage !== 'undefined' && localStorage.getItem('ledcalc_soca_diagonal_label') === 'false') ? false : true;
+
+function toggleSocaOutlines() {
+  socaOutlinesEnabled = !socaOutlinesEnabled;
+  try { localStorage.setItem('ledcalc_soca_outlines', String(socaOutlinesEnabled)); } catch(e) {}
+  const btn = document.getElementById('socaOutlinesBtn');
+  if (btn) { btn.classList.toggle('active', socaOutlinesEnabled); btn.textContent = socaOutlinesEnabled ? 'On' : 'Off'; }
+  if (typeof generateLayout === 'function') generateLayout('power');
+}
+
+function toggleSocaDiagonalLabel() {
+  socaDiagonalLabelEnabled = !socaDiagonalLabelEnabled;
+  try { localStorage.setItem('ledcalc_soca_diagonal_label', String(socaDiagonalLabelEnabled)); } catch(e) {}
+  const btn = document.getElementById('socaDiagonalLabelBtn');
+  if (btn) { btn.classList.toggle('active', socaDiagonalLabelEnabled); btn.textContent = socaDiagonalLabelEnabled ? 'On' : 'Off'; }
+  if (typeof generateLayout === 'function') generateLayout('power');
+}
+
+function initSocaToggleButtons() {
+  const ob = document.getElementById('socaOutlinesBtn');
+  if (ob) { ob.classList.toggle('active', socaOutlinesEnabled); ob.textContent = socaOutlinesEnabled ? 'On' : 'Off'; }
+  const lb = document.getElementById('socaDiagonalLabelBtn');
+  if (lb) { lb.classList.toggle('active', socaDiagonalLabelEnabled); lb.textContent = socaDiagonalLabelEnabled ? 'On' : 'Off'; }
+}
+
 // Effective max panels per circuit: user override if set, else the auto-calculated
 // value that calculate.js writes into the input's placeholder. Falls back to 6.
 function getEffectivePanelsPerCircuit() {

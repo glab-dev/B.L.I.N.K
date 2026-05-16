@@ -1,5 +1,6 @@
 // ==================== PDF PRINT PREVIEW ====================
-// Preview modal renders the actual pdfmake PDF in an iframe — guaranteed 1:1 match with export.
+// Preview modal renders the actual pdfmake PDF via PDF.js into our own scroll
+// container — same-origin DOM means we can preserve scroll position across rebuilds.
 
 // ==================== STATE ====================
 
@@ -15,9 +16,10 @@ let _ppCanvasCache = null;
 let _ppLastEco = false;
 let _ppLastGreyscale = false;
 
-// Double-buffer frames: 'A' = pdfPreviewFrame, 'B' = pdfPreviewFrameB
-// The active frame is visible; the standby frame loads silently then swaps
-let _ppActiveFrame = 'A';
+// Tracks the currently rendered PDF.js document so we can destroy() it before discarding
+let _ppCurrentPdf = null;
+// Monotonic token so an in-flight render can detect that a newer rebuild superseded it
+let _ppRenderToken = 0;
 
 // ==================== MODAL OPEN / CLOSE ====================
 
@@ -35,6 +37,12 @@ function openPrintPreview() {
   document.getElementById('ppCabling').checked = true;
   document.getElementById('ppEcoFriendly').checked = false;
   document.getElementById('ppGreyscale').checked = false;
+
+  // Sync SOCA toggles with current global state
+  const ppOutlines = document.getElementById('ppSocaOutlines');
+  const ppLabel = document.getElementById('ppSocaDiagonalLabel');
+  if (ppOutlines) ppOutlines.checked = (typeof socaOutlinesEnabled !== 'undefined') ? socaOutlinesEnabled : true;
+  if (ppLabel) ppLabel.checked = (typeof socaDiagonalLabelEnabled !== 'undefined') ? socaDiagonalLabelEnabled : true;
 
   // Reset page format/orientation
   setPdfPageSize('a4');
@@ -67,7 +75,16 @@ function openPrintPreview() {
   _ppCanvasCache = null;
   _ppLastEco = false;
   _ppLastGreyscale = false;
-  _ppActiveFrame = 'A';
+
+  // Clear any leftover pages from a previous open
+  const pages = document.getElementById('pdfPreviewPages');
+  if (pages) pages.innerHTML = '';
+  const scroll = document.getElementById('pdfPreviewScroll');
+  if (scroll) scroll.scrollTop = 0;
+  if (_ppCurrentPdf) {
+    try { _ppCurrentPdf.destroy(); } catch(e) {}
+    _ppCurrentPdf = null;
+  }
 
   // Show modal then render
   modal.classList.add('active');
@@ -82,16 +99,14 @@ function closePrintPreview() {
   ecoPrintMode = false;
   greyscalePrintMode = false;
 
-  // Revoke blob URLs and clear both frames
-  ['pdfPreviewFrame', 'pdfPreviewFrameB'].forEach(function(id) {
-    const f = document.getElementById(id);
-    if (f) {
-      f.onload = null;
-      if (f._blobUrl) { URL.revokeObjectURL(f._blobUrl); f._blobUrl = null; }
-      f.src = 'about:blank';
-      f.style.display = id === 'pdfPreviewFrame' ? '' : 'none';
-    }
-  });
+  // Invalidate any in-flight render and tear down the current PDF document
+  _ppRenderToken++;
+  if (_ppCurrentPdf) {
+    try { _ppCurrentPdf.destroy(); } catch(e) {}
+    _ppCurrentPdf = null;
+  }
+  const pages = document.getElementById('pdfPreviewPages');
+  if (pages) pages.innerHTML = '';
 
   reopenMenuIfNeeded();
 }
@@ -316,6 +331,102 @@ function onPreviewOptionChange() {
   rebuildPreview();
 }
 
+// SOCA preview toggles — keep in sync with the in-app power-layout toggles.
+// Partial-refresh only the power canvases in the cache so we can take the fast path
+// (no overlay flash) — same UX as a checkbox toggle that doesn't require recapture.
+function ppToggleSocaOutlines(checked) {
+  if (typeof socaOutlinesEnabled !== 'undefined' && socaOutlinesEnabled !== checked && typeof toggleSocaOutlines === 'function') {
+    toggleSocaOutlines();
+  }
+  _ppRefreshPowerCache();
+  rebuildPreview();
+}
+function ppToggleSocaDiagonalLabel(checked) {
+  if (typeof socaDiagonalLabelEnabled !== 'undefined' && socaDiagonalLabelEnabled !== checked && typeof toggleSocaDiagonalLabel === 'function') {
+    toggleSocaDiagonalLabel();
+  }
+  _ppRefreshPowerCache();
+  rebuildPreview();
+}
+
+// Partial cache refresh: re-capture only the power canvas for each screen at the same
+// resolution/mode that pdfCaptureCanvases used. Mirrors the relevant subset of that
+// function so we avoid the loading-overlay flash on SOCA toggles.
+function _ppRefreshPowerCache() {
+  if (!_ppCanvasCache) return;
+  const originalScreenId = currentScreenId;
+  const screenIds = Object.keys(screens).sort(function(a, b) {
+    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
+  });
+
+  const mainContainer = document.querySelector('.main-container');
+  const mainWasHidden = mainContainer && mainContainer.style.display === 'none';
+  if (mainContainer) mainContainer.style.display = 'block';
+
+  const powerContainer = document.getElementById('powerContainer');
+  const savedPowerWidth   = powerContainer ? powerContainer.style.width   : '';
+  const savedPowerDisplay = powerContainer ? powerContainer.style.display : '';
+  if (powerContainer) {
+    powerContainer.style.display = 'block';
+    powerContainer.style.width = '4000px';
+    void powerContainer.offsetWidth;
+  }
+
+  pdfMultiScreenCapture = screenIds.length > 1;
+  pdfLayoutCaptureMode = true;
+
+  try {
+    const _fmt = pdfPageFormat || 'a4';
+    const _orient = pdfPageOrientation || 'p';
+    const _dims = pdfGetPageDimensions(_fmt, _orient);
+    const _m = PDF_TOKENS.layout;
+    const _layoutOverhead = _m.headerBarH + _m.afterHeaderGap + 2 * _m.sectionLabelH + 2 * _m.afterLabelGap + 2 * 4 + 20;
+    window._pdfLayoutMaxHeightPt = Math.floor((_dims.usableHeight - _layoutOverhead) / 3);
+  } catch(e) {
+    window._pdfLayoutMaxHeightPt = 230;
+  }
+
+  // Match the eco/greyscale modes that the cached canvases were captured with.
+  ecoPrintMode = _ppLastEco;
+  greyscalePrintMode = _ppLastGreyscale;
+
+  screenIds.forEach(function(screenId) {
+    switchToScreen(screenId);
+    generateLayout('power');
+    const canvas = document.getElementById('powerCanvas');
+    if (canvas && canvas.width > 0 && canvas.height > 0) {
+      const scale = 2;
+      const hiRes = document.createElement('canvas');
+      hiRes.width  = canvas.width  * scale;
+      hiRes.height = canvas.height * scale;
+      hiRes.getContext('2d').drawImage(canvas, 0, 0, hiRes.width, hiRes.height);
+      const key = screenId + '_power';
+      if (_ppCanvasCache[key]) {
+        _ppCanvasCache[key].dataUrl = hiRes.toDataURL('image/jpeg', 0.92);
+        _ppCanvasCache[key].aspectRatio = canvas.height / canvas.width;
+        if (typeof _pdfPowerSocaFraction !== 'undefined') {
+          _ppCanvasCache[key].socaBarFraction = _pdfPowerSocaFraction;
+        }
+      }
+    }
+  });
+
+  ecoPrintMode = false;
+  greyscalePrintMode = false;
+  pdfLayoutCaptureMode = false;
+  pdfMultiScreenCapture = false;
+  try { delete window._pdfLayoutMaxHeightPt; } catch(e) {}
+
+  if (powerContainer) {
+    powerContainer.style.width   = savedPowerWidth;
+    powerContainer.style.display = savedPowerDisplay;
+  }
+
+  switchToScreen(originalScreenId);
+  generateLayout('power');
+  if (mainWasHidden && mainContainer) mainContainer.style.display = 'none';
+}
+
 // ==================== LOGO UPLOAD ====================
 
 function ppHandleLogoUpload(input) {
@@ -362,57 +473,21 @@ function ppRemoveLogo() {
 // ==================== REBUILD PREVIEW ====================
 
 function rebuildPreview() {
-  const frameA = document.getElementById('pdfPreviewFrame');
-  const frameB = document.getElementById('pdfPreviewFrameB');
-  if (!frameA || !frameB) return;
+  const scroll = document.getElementById('pdfPreviewScroll');
+  const pages  = document.getElementById('pdfPreviewPages');
+  if (!scroll || !pages) return;
 
   const opts = getPrintPreviewOptions();
   const needsCapture = !_ppCanvasCache ||
     opts.ecoFriendly !== _ppLastEco ||
     opts.greyscale !== _ppLastGreyscale;
 
-  function _getFrames() {
-    const active  = _ppActiveFrame === 'A' ? frameA : frameB;
-    const standby = _ppActiveFrame === 'A' ? frameB : frameA;
-    return { active: active, standby: standby };
-  }
-
-  function _swapIn(url) {
-    const frames = _getFrames();
-    // Cancel any pending standby load
-    frames.standby.onload = null;
-    if (frames.standby._blobUrl) {
-      URL.revokeObjectURL(frames.standby._blobUrl);
-      frames.standby._blobUrl = null;
-    }
-    frames.standby._blobUrl = url;
-    frames.standby.onload = function() {
-      frames.standby.onload = null;
-      frames.standby.style.display = '';
-      frames.active.style.display = 'none';
-      if (frames.active._blobUrl) {
-        URL.revokeObjectURL(frames.active._blobUrl);
-        frames.active._blobUrl = null;
-        frames.active.src = 'about:blank';
-      }
-      _ppActiveFrame = _ppActiveFrame === 'A' ? 'B' : 'A';
-    };
-    frames.standby.src = url;
-  }
+  // Capture pre-rebuild scroll position so we can restore it after the swap.
+  // Same-origin DOM, so this works reliably.
+  const savedScrollY = scroll.scrollTop;
 
   if (needsCapture) {
-    // Slow path: canvas recapture needed — show overlay, reset to frame A
-    const frames = _getFrames();
-    frames.standby.onload = null;
-    ['pdfPreviewFrame', 'pdfPreviewFrameB'].forEach(function(id) {
-      const f = document.getElementById(id);
-      if (f._blobUrl) { URL.revokeObjectURL(f._blobUrl); f._blobUrl = null; }
-      f.src = 'about:blank';
-    });
-    frameA.style.display = '';
-    frameB.style.display = 'none';
-    _ppActiveFrame = 'A';
-
+    // Slow path: canvas recapture needed — show overlay
     const loader = document.getElementById('pdfPreviewLoading');
     if (loader) loader.style.display = 'flex';
 
@@ -438,10 +513,9 @@ function rebuildPreview() {
       greyscalePrintMode = false;
 
       pdfMake.createPdf(docDef).getBlob(function(blob) {
-        const url = URL.createObjectURL(blob);
-        frameA._blobUrl = url;
-        frameA.src = url;
-        if (loader) loader.style.display = 'none';
+        _ppRenderPdfToContainer(blob, savedScrollY, function() {
+          if (loader) loader.style.display = 'none';
+        });
       });
     }, 0);
   } else {
@@ -453,9 +527,86 @@ function rebuildPreview() {
     greyscalePrintMode = false;
 
     pdfMake.createPdf(docDef).getBlob(function(blob) {
-      _swapIn(URL.createObjectURL(blob));
+      _ppRenderPdfToContainer(blob, savedScrollY);
     });
   }
+}
+
+// Renders the given PDF blob with PDF.js into an off-DOM wrapper, then atomically
+// swaps the wrapper's children into #pdfPreviewPages and restores savedScrollY.
+// This mirrors the old iframe double-buffer UX: old pages stay visible until the
+// new render is complete, so toggles don't flash.
+function _ppRenderPdfToContainer(blob, savedScrollY, onDone) {
+  const scroll = document.getElementById('pdfPreviewScroll');
+  const pages  = document.getElementById('pdfPreviewPages');
+  if (!scroll || !pages) { if (onDone) onDone(); return; }
+  if (typeof pdfjsLib === 'undefined' || !_ensurePdfJsWorker()) {
+    console.error('[pdf-preview] PDF.js not available');
+    if (onDone) onDone();
+    return;
+  }
+
+  const myToken = ++_ppRenderToken;
+  const cssWidth = Math.min(Math.max(scroll.clientWidth - 24, 200), 1000);
+  const devicePx = Math.min(window.devicePixelRatio || 1, 2);
+
+  blob.arrayBuffer().then(function(buf) {
+    return pdfjsLib.getDocument({ data: buf }).promise;
+  }).then(function(pdf) {
+    // Aborted by a newer rebuild
+    if (myToken !== _ppRenderToken) { try { pdf.destroy(); } catch(e) {} return; }
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:12px;';
+
+    const numPages = pdf.numPages;
+    const pageNums = [];
+    for (let i = 1; i <= numPages; i++) pageNums.push(i);
+
+    return pageNums.reduce(function(prev, pageNum) {
+      return prev.then(function() {
+        if (myToken !== _ppRenderToken) return null;
+        return pdf.getPage(pageNum).then(function(page) {
+          const unscaled = page.getViewport({ scale: 1 });
+          const cssScale = cssWidth / unscaled.width;
+          const renderScale = cssScale * devicePx;
+          const viewport = page.getViewport({ scale: renderScale });
+          const canvas = document.createElement('canvas');
+          canvas.width  = Math.ceil(viewport.width);
+          canvas.height = Math.ceil(viewport.height);
+          canvas.style.width  = cssWidth + 'px';
+          canvas.style.height = Math.round(unscaled.height * cssScale) + 'px';
+          canvas.style.boxShadow = '0 2px 8px rgba(0,0,0,0.4)';
+          canvas.style.background = '#fff';
+          const ctx = canvas.getContext('2d');
+          return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function() {
+            wrapper.appendChild(canvas);
+          });
+        });
+      });
+    }, Promise.resolve()).then(function() {
+      if (myToken !== _ppRenderToken) { try { pdf.destroy(); } catch(e) {} return; }
+
+      // Atomic swap: replace pages container's children, then restore scroll.
+      pages.replaceChildren.apply(pages, Array.from(wrapper.children));
+
+      // Destroy the previous PDF document to free worker memory
+      if (_ppCurrentPdf && _ppCurrentPdf !== pdf) {
+        try { _ppCurrentPdf.destroy(); } catch(e) {}
+      }
+      _ppCurrentPdf = pdf;
+
+      scroll.scrollTop = savedScrollY || 0;
+
+      const pageCountEl = document.getElementById('ppPageCount');
+      if (pageCountEl) pageCountEl.textContent = numPages + (numPages === 1 ? ' page' : ' pages');
+
+      if (onDone) onDone();
+    });
+  }).catch(function(e) {
+    console.error('[pdf-preview] render error:', e);
+    if (onDone) onDone();
+  });
 }
 
 function buildStructureInfoLines(screenId) {

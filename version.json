@@ -1,5 +1,5 @@
 {
-  "version": "2.11.21",
-  "updated": "2026-05-07",
-  "changelog": "Add SOCA outlines and diagonal labels with toggles for custom power layouts"
+  "version": "2.11.25",
+  "updated": "2026-05-10",
+  "changelog": "Render PDF preview with PDF.js so option toggles preserve scroll position"
 }

@@ -474,6 +474,422 @@ function getCanvasExportBlobs(callback) {
   } catch(e) { callback(null, null, ''); }
 }
 
+// ==================== EXPORT ALL — PER-SECTION SCREENSHOTS ====================
+// Helpers used by export/export-all.js to bundle hi-res PNG screenshots of
+// individual layouts and HTML sections into the ZIP. Mirrors the canvas-render
+// pattern in export/pdf.js pdfCaptureCanvases() but emits PNG blobs.
+
+// Draws a comic-book-style header bar onto an output canvas above the source
+// canvas image, matching the in-app .layout-title styling (Bangers font,
+// #10b981 on #1a1a1a with a black 4-corner outline, slight -2deg rotation).
+function _composeLayoutWithHeader(srcCanvas, titleText) {
+  var w = srcCanvas.width;
+  var h = srcCanvas.height;
+  var headerH = Math.max(48, Math.round(w * 0.018));
+  var fontSize = Math.round(headerH * 0.6);
+  var pad = Math.round(headerH * 0.3);
+
+  var out = document.createElement('canvas');
+  out.width = w;
+  out.height = h + headerH;
+  var ctx = out.getContext('2d');
+
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, out.width, headerH);
+
+  ctx.save();
+  ctx.translate(pad + headerH * 0.4, headerH * 0.5);
+  ctx.rotate(-2 * Math.PI / 180);
+
+  ctx.font = '700 ' + fontSize + "px 'Bangers', cursive";
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+
+  var outlineW = Math.max(2, Math.round(fontSize * 0.06));
+  ctx.lineWidth = outlineW * 2;
+  ctx.strokeStyle = '#000000';
+  ctx.lineJoin = 'round';
+  ctx.miterLimit = 2;
+  ctx.strokeText(titleText, 0, 0);
+
+  ctx.fillStyle = '#10b981';
+  ctx.fillText(titleText, 0, 0);
+  ctx.restore();
+
+  ctx.fillStyle = '#10b981';
+  ctx.fillRect(0, headerH - 2, out.width, 2);
+
+  ctx.drawImage(srcCanvas, 0, headerH);
+  return out;
+}
+
+function _layoutTitleText(layout, isCombined) {
+  var base = layout === 'power' ? 'Power Layout'
+           : layout === 'data' ? 'Data Layout'
+           : layout === 'structure' ? 'Structure Layout'
+           : layout;
+  return isCombined ? base + ' (Combined)' : base;
+}
+
+// Render power/data/structure layouts for every screen and emit hi-res PNG blobs.
+// callback(results) where results = [{ screenId, layout, blob }, ...]
+function captureLayoutScreenshotBlobs(callback) {
+  try {
+    if (typeof screens === 'undefined') { callback([]); return; }
+    var screenIds = Object.keys(screens).sort(function(a, b) {
+      return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
+    });
+    if (screenIds.length === 0) { callback([]); return; }
+
+    var originalScreenId = currentScreenId;
+    var mainContainer = document.querySelector('.main-container');
+    var mainWasHidden = mainContainer && mainContainer.style.display === 'none';
+    if (mainContainer) mainContainer.style.display = 'block';
+
+    var containerIds = ['standardContainer', 'powerContainer', 'dataContainer', 'structureContainer'];
+    var savedDisplay = {};
+    containerIds.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { savedDisplay[id] = el.style.display; el.style.display = 'block'; }
+    });
+    if (mainContainer) void mainContainer.offsetWidth;
+
+    var savedLayoutWidths = {};
+    containerIds.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { savedLayoutWidths[id] = el.style.width; el.style.width = '4000px'; }
+    });
+    if (typeof pdfMultiScreenCapture !== 'undefined') pdfMultiScreenCapture = screenIds.length > 1;
+    if (typeof pdfLayoutCaptureMode !== 'undefined') pdfLayoutCaptureMode = true;
+    void (document.getElementById('powerContainer') || document.body).offsetWidth;
+
+    var captures = [];
+    screenIds.forEach(function(screenId) {
+      if (typeof switchToScreen === 'function') switchToScreen(screenId);
+      try { if (typeof generateLayout === 'function') generateLayout('power'); } catch(e) {}
+      try { if (typeof generateLayout === 'function') generateLayout('data'); } catch(e) {}
+      try { if (typeof generateStructureLayout === 'function') generateStructureLayout(); } catch(e) {}
+
+      [
+        { id: 'powerCanvas',     layout: 'power' },
+        { id: 'dataCanvas',      layout: 'data' },
+        { id: 'structureCanvas', layout: 'structure' }
+      ].forEach(function(cap) {
+        var canvas = document.getElementById(cap.id);
+        if (canvas && canvas.width > 0 && canvas.height > 0) {
+          var composed = _composeLayoutWithHeader(canvas, _layoutTitleText(cap.layout, false));
+          captures.push({ screenId: screenId, layout: cap.layout, canvas: composed });
+        }
+      });
+    });
+
+    if (typeof pdfLayoutCaptureMode !== 'undefined') pdfLayoutCaptureMode = false;
+    if (typeof pdfMultiScreenCapture !== 'undefined') pdfMultiScreenCapture = false;
+    containerIds.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.width = savedLayoutWidths[id] !== undefined ? savedLayoutWidths[id] : '';
+    });
+    if (typeof switchToScreen === 'function') switchToScreen(originalScreenId);
+    containerIds.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && savedDisplay[id] !== undefined) el.style.display = savedDisplay[id];
+    });
+    if (mainWasHidden && mainContainer) mainContainer.style.display = 'none';
+
+    var blobPromises = captures.map(function(item) {
+      return new Promise(function(resolve) {
+        item.canvas.toBlob(function(blob) {
+          resolve({ screenId: item.screenId, layout: item.layout, blob: blob });
+        }, 'image/png');
+      });
+    });
+    Promise.all(blobPromises).then(callback).catch(function() { callback([]); });
+  } catch(e) {
+    console.error('captureLayoutScreenshotBlobs error:', e);
+    callback([]);
+  }
+}
+
+// Render combined power/data/structure views (multi-screen only) and emit blobs.
+// callback(results) where results = [{ layout, blob }, ...]
+function captureCombinedLayoutBlobs(callback) {
+  try {
+    if (typeof screens === 'undefined') { callback([]); return; }
+    var screenIds = Object.keys(screens);
+    if (screenIds.length < 2) { callback([]); return; }
+    if (typeof renderCombinedView !== 'function' || typeof combinedSelectedScreens === 'undefined') {
+      callback([]); return;
+    }
+
+    var savedSet = new Set(combinedSelectedScreens);
+    combinedSelectedScreens.clear();
+    screenIds.forEach(function(id) { combinedSelectedScreens.add(id); });
+
+    var combinedContainer = document.getElementById('combinedContainer');
+    var savedCombinedDisplay = combinedContainer ? combinedContainer.style.display : null;
+    if (combinedContainer) combinedContainer.style.display = 'block';
+
+    try { renderCombinedView(); } catch(e) { console.error('renderCombinedView failed:', e); }
+
+    var captures = [];
+    [
+      { id: 'combinedPowerCanvas',     layout: 'power' },
+      { id: 'combinedDataCanvas',      layout: 'data' },
+      { id: 'combinedStructureCanvas', layout: 'structure' }
+    ].forEach(function(cap) {
+      var canvas = document.getElementById(cap.id);
+      if (canvas && canvas.width > 100 && canvas.height > 100) {
+        var composed = _composeLayoutWithHeader(canvas, _layoutTitleText(cap.layout, true));
+        captures.push({ layout: cap.layout, canvas: composed });
+      }
+    });
+
+    combinedSelectedScreens.clear();
+    savedSet.forEach(function(id) { combinedSelectedScreens.add(id); });
+    if (combinedContainer && savedCombinedDisplay !== null) combinedContainer.style.display = savedCombinedDisplay;
+    if (combinedSelectedScreens.size > 0) {
+      try { renderCombinedView(); } catch(e) {}
+    }
+
+    var blobPromises = captures.map(function(item) {
+      return new Promise(function(resolve) {
+        item.canvas.toBlob(function(blob) {
+          resolve({ layout: item.layout, blob: blob });
+        }, 'image/png');
+      });
+    });
+    Promise.all(blobPromises).then(callback).catch(function() { callback([]); });
+  } catch(e) {
+    console.error('captureCombinedLayoutBlobs error:', e);
+    callback([]);
+  }
+}
+
+// Rasterize an HTML element to a PNG blob via html2canvas.
+// callback(blob | null). opts: { scale, backgroundColor }
+function captureHtmlElementBlob(elementId, callback, opts) {
+  opts = opts || {};
+  try {
+    if (typeof html2canvas === 'undefined') { callback(null); return; }
+    var el = document.getElementById(elementId);
+    if (!el) { callback(null); return; }
+
+    var mainContainer = document.querySelector('.main-container');
+    var mainWasHidden = mainContainer && mainContainer.style.display === 'none';
+    if (mainContainer) mainContainer.style.display = 'block';
+
+    var savedDisplay = el.style.display;
+    var wasHidden = window.getComputedStyle(el).display === 'none';
+    if (wasHidden) el.style.display = 'block';
+    void el.offsetHeight;
+
+    var captureOpts = {
+      scale: opts.scale || 2,
+      backgroundColor: opts.backgroundColor === undefined ? '#1a1a1a' : opts.backgroundColor,
+      logging: false,
+      useCORS: true,
+      allowTaint: false
+    };
+
+    var fontsReady = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+    fontsReady.then(function() {
+      return html2canvas(el, captureOpts);
+    }).then(function(canvas) {
+      if (wasHidden) el.style.display = savedDisplay;
+      if (mainWasHidden && mainContainer) mainContainer.style.display = 'none';
+      canvas.toBlob(function(blob) { callback(blob); }, 'image/png');
+    }).catch(function(e) {
+      console.error('html2canvas error for #' + elementId + ':', e);
+      if (wasHidden) el.style.display = savedDisplay;
+      if (mainWasHidden && mainContainer) mainContainer.style.display = 'none';
+      callback(null);
+    });
+  } catch(e) {
+    console.error('captureHtmlElementBlob error:', e);
+    callback(null);
+  }
+}
+
+// Iterate every canvas tab, render it, and emit PNG + JPEG blobs per tab.
+// callback(results) where results = [{ canvasId, name, sizeLabel, pngBlob, jpegBlob }, ...]
+function getAllCanvasesExportBlobs(callback) {
+  try {
+    if (typeof canvases === 'undefined' || !canvases) {
+      // Fall back to the single-canvas helper for older builds without tabs.
+      getCanvasExportBlobs(function(pngBlob, jpegBlob, sizeLabel) {
+        callback([{ canvasId: 'canvas_1', name: 'Canvas 1', sizeLabel: sizeLabel, pngBlob: pngBlob, jpegBlob: jpegBlob }]);
+      });
+      return;
+    }
+    var ids = Object.keys(canvases).sort(function(a, b) {
+      return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
+    });
+    if (ids.length === 0) { callback([]); return; }
+
+    var originalId = currentCanvasId;
+    var results = [];
+
+    function captureNext(i) {
+      if (i >= ids.length) {
+        // Restore original canvas
+        if (originalId && originalId !== currentCanvasId && typeof switchToCanvas === 'function') {
+          switchToCanvas(originalId);
+        }
+        callback(results);
+        return;
+      }
+      var id = ids[i];
+      try {
+        if (id !== currentCanvasId && typeof switchToCanvas === 'function') {
+          switchToCanvas(id);
+        } else if (typeof showCanvasView === 'function') {
+          showCanvasView();
+        }
+      } catch(e) {}
+
+      // Allow a frame for the canvas to fully render before reading pixels.
+      requestAnimationFrame(function() {
+        getCanvasExportBlobs(function(pngBlob, jpegBlob, sizeLabel) {
+          var name = (canvases[id] && canvases[id].name) ? canvases[id].name : ('Canvas ' + (i + 1));
+          results.push({
+            canvasId: id,
+            name: name,
+            sizeLabel: sizeLabel,
+            pngBlob: pngBlob,
+            jpegBlob: jpegBlob
+          });
+          captureNext(i + 1);
+        });
+      });
+    }
+    captureNext(0);
+  } catch(e) {
+    console.error('getAllCanvasesExportBlobs error:', e);
+    callback([]);
+  }
+}
+
+// ==================== EXPORT ALL — PDF PAGE PNG RENDERING ====================
+// Builds a tiny PDF containing only the requested sections (e.g. specs-only or
+// gear-only), then rasterizes every page to a PNG blob via pdf.js. This guarantees
+// pixel-perfect parity with the real PDF — no separate HTML capture path.
+
+function _ensurePdfJsWorker() {
+  if (typeof pdfjsLib === 'undefined') return false;
+  if (pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+  return true;
+}
+
+// Renders pages of `pdfBlob` to PNG blobs. opts: { scale, startPage, endPage }.
+// Defaults: scale=2 (~144 DPI), startPage=1, endPage=last. Backwards-compatible
+// with the older `renderPdfBlobToPngBlobs(blob, scale, callback)` 3-arg form.
+// callback(blobs) where blobs is an array of { pageNumber, blob } in page order.
+function renderPdfBlobToPngBlobs(pdfBlob, opts, callback) {
+  if (typeof opts === 'function') { callback = opts; opts = {}; }
+  if (typeof opts === 'number') { opts = { scale: opts }; }
+  opts = opts || {};
+  var scale = opts.scale || 2;
+  var startPage = opts.startPage || 1;
+  var endPage = opts.endPage;
+
+  try {
+    if (!pdfBlob) { callback([]); return; }
+    if (!_ensurePdfJsWorker()) { callback([]); return; }
+
+    pdfBlob.arrayBuffer().then(function(buf) {
+      return pdfjsLib.getDocument({ data: buf }).promise;
+    }).then(function(pdf) {
+      var numPages = pdf.numPages;
+      var lastPage = (endPage && endPage <= numPages) ? endPage : numPages;
+      var firstPage = Math.max(1, startPage);
+      var pageNums = [];
+      for (var i = firstPage; i <= lastPage; i++) pageNums.push(i);
+
+      var pageResults = [];
+      function renderNext(idx) {
+        if (idx >= pageNums.length) { callback(pageResults); return; }
+        var pageNum = pageNums[idx];
+        pdf.getPage(pageNum).then(function(page) {
+          var viewport = page.getViewport({ scale: scale });
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.ceil(viewport.width);
+          canvas.height = Math.ceil(viewport.height);
+          var ctx = canvas.getContext('2d');
+          return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function() {
+            return new Promise(function(resolve) {
+              canvas.toBlob(function(blob) {
+                pageResults.push({ pageNumber: pageNum, blob: blob });
+                resolve();
+              }, 'image/png');
+            });
+          });
+        }).then(function() { renderNext(idx + 1); }).catch(function(e) {
+          console.error('pdf.js page render error:', e);
+          renderNext(idx + 1);
+        });
+      }
+      renderNext(0);
+    }).catch(function(e) {
+      console.error('renderPdfBlobToPngBlobs error:', e);
+      callback([]);
+    });
+  } catch(e) {
+    console.error('renderPdfBlobToPngBlobs threw:', e);
+    callback([]);
+  }
+}
+
+// Build a section-only PDF blob using the existing pdfmake pipeline. Mirrors
+// getPdfBlobForExportAll() but applies the supplied opts mask.
+function _getSectionOnlyPdfBlob(opts, callback) {
+  try {
+    if (!window.pdfMake || typeof buildComplexPdf !== 'function') { callback(null); return; }
+    if (typeof saveCurrentScreenData === 'function') saveCurrentScreenData();
+    if (typeof ecoPrintMode !== 'undefined') ecoPrintMode = false;
+    if (typeof greyscalePrintMode !== 'undefined') greyscalePrintMode = false;
+
+    var canvasCache = (typeof pdfCaptureCanvases === 'function') ? pdfCaptureCanvases() : {};
+
+    if (typeof ecoPrintMode !== 'undefined') ecoPrintMode = false;
+    if (typeof greyscalePrintMode !== 'undefined') greyscalePrintMode = false;
+    try { if (typeof generateLayout === 'function') { generateLayout('standard'); generateLayout('power'); generateLayout('data'); } } catch(e) {}
+    try { if (typeof generateStructureLayout === 'function') generateStructureLayout(); } catch(e) {}
+    if (typeof switchMobileView === 'function' && typeof currentAppMode !== 'undefined') {
+      try { switchMobileView(currentAppMode); } catch(e) {}
+    }
+
+    var docDef = buildComplexPdf(opts, canvasCache);
+    pdfMake.createPdf(docDef).getBlob(function(blob) { callback(blob); });
+  } catch(e) {
+    console.error('_getSectionOnlyPdfBlob error:', e);
+    callback(null);
+  }
+}
+
+// Returns specs PDF page PNG blobs (one entry per page). The cover/summary
+// page (always page 1) is skipped — only the actual specs content is returned.
+// callback([{ pageNumber, blob }, ...])
+function getSpecsPdfPagePngBlobs(callback) {
+  var opts = { specs: true, gearList: false, standard: false, power: false, data: false, structure: false, cabling: false, combined: false, ecoFriendly: false, greyscale: false };
+  _getSectionOnlyPdfBlob(opts, function(blob) {
+    if (!blob) { callback([]); return; }
+    renderPdfBlobToPngBlobs(blob, { scale: 2, startPage: 2 }, callback);
+  });
+}
+
+// Returns gear list PDF page PNG blobs (one entry per page). Cover/summary
+// page is skipped — same rationale as getSpecsPdfPagePngBlobs.
+function getGearListPdfPagePngBlobs(callback) {
+  var opts = { specs: false, gearList: true, standard: false, power: false, data: false, structure: false, cabling: false, combined: false, ecoFriendly: false, greyscale: false };
+  _getSectionOnlyPdfBlob(opts, function(blob) {
+    if (!blob) { callback([]); return; }
+    renderPdfBlobToPngBlobs(blob, { scale: 2, startPage: 2 }, callback);
+  });
+}
+
 function _downloadCanvasBlob(canvas, filename, mimeType) {
   mimeType = mimeType || 'image/png';
   var quality = mimeType === 'image/jpeg' ? 0.92 : undefined;

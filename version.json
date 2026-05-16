@@ -1,5 +1,5 @@
 {
-  "version": "2.11.25",
-  "updated": "2026-05-10",
-  "changelog": "Render PDF preview with PDF.js so option toggles preserve scroll position"
+  "version": "2.11.26",
+  "updated": "2026-05-16",
+  "changelog": "Expand Export All with per-canvas PNGs, layout headers, and continuous SOCA outlines"
 }

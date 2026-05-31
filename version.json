@@ -1,5 +1,5 @@
 {
-  "version": "2.11.26",
-  "updated": "2026-05-16",
-  "changelog": "Expand Export All with per-canvas PNGs, layout headers, and continuous SOCA outlines"
+  "version": "2.11.27",
+  "updated": "2026-05-30",
+  "changelog": "Apply safe-area-inset padding to Test Pattern header for notched iPhones"
 }

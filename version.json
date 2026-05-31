@@ -1,5 +1,5 @@
 {
-  "version": "2.11.27",
+  "version": "2.11.28",
   "updated": "2026-05-30",
-  "changelog": "Apply safe-area-inset padding to Test Pattern header for notched iPhones"
+  "changelog": "Label Export All PDF and gear files with the typed export name, drop canvas JPEGs"
 }

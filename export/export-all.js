@@ -34,7 +34,6 @@ async function _captureAllScreenshotsToZip(zip, name) {
           var label = r.sizeLabel || '';
           var base = name + '_' + safeName + (label ? ('_' + label) : '');
           if(r.pngBlob)  zip.file('canvas/' + base + '.png', r.pngBlob);
-          if(r.jpegBlob) zip.file('canvas/' + base + '.jpg', r.jpegBlob);
         });
         resolve();
       });
@@ -117,8 +116,15 @@ async function exportAll() {
   var defaultName = ((document.getElementById('configName') || {}).value || '').trim() || 'BLINK_Export';
   var inputName = await showPrompt('Name your export files:', defaultName, 'Export All');
   if(inputName === null) return; // user cancelled
-  var name = (inputName.trim() || 'BLINK_Export').replace(/[<>:"/\\|?*]/g, '_');
+  var displayName = inputName.trim() || 'BLINK_Export';
+  var name = displayName.replace(/[<>:"/\\|?*]/g, '_');
   var dateStr = new Date().toISOString().slice(0, 10);
+
+  // Apply the typed name to the project-name field so it labels the PDF headers,
+  // specs/gear pages, and gear text. Restored in the finally block below.
+  var cfgEl = document.getElementById('configName');
+  var prevCfgName = cfgEl ? cfgEl.value : null;
+  if(cfgEl) cfgEl.value = displayName;
 
   var overlay = document.createElement('div');
   overlay.id = 'exportAllOverlay';
@@ -218,6 +224,7 @@ async function exportAll() {
     showAlert('Export failed: ' + err.message);
     console.error('Export All error:', err);
   } finally {
+    if(cfgEl) cfgEl.value = prevCfgName;
     var el = document.getElementById('exportAllOverlay');
     if(el) el.remove();
   }

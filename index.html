@@ -1646,8 +1646,8 @@
     <div class="print-preview-content">
       <!-- LEFT: Options Panel -->
       <div class="print-preview-options">
-        <p class="modal-hint">Sections</p>
-        <div class="checkbox-list">
+        <p class="modal-hint" id="ppSectionsHint">Sections</p>
+        <div class="checkbox-list" id="ppSectionsList">
           <label class="checkbox-label">
             <input type="checkbox" id="ppSpecs" checked onchange="onPreviewOptionChange()">
             <span>Specifications</span>
@@ -1687,7 +1687,7 @@
             </label>
           </div>
         </div>
-        <hr class="modal-divider">
+        <hr class="modal-divider" id="ppSectionsDivider">
         <p class="modal-hint">Print Options</p>
         <div class="checkbox-list">
           <label class="checkbox-label">
@@ -1698,11 +1698,11 @@
             <input type="checkbox" id="ppGreyscale" onchange="if(this.checked) document.getElementById('ppEcoFriendly').checked = false; onPreviewOptionChange();">
             <span>Greyscale</span>
           </label>
-          <label class="checkbox-label">
+          <label class="checkbox-label" id="ppSocaOutlinesRow">
             <input type="checkbox" id="ppSocaOutlines" onchange="ppToggleSocaOutlines(this.checked)">
             <span>SOCA Outlines</span>
           </label>
-          <label class="checkbox-label">
+          <label class="checkbox-label" id="ppSocaLabelRow">
             <input type="checkbox" id="ppSocaDiagonalLabel" onchange="ppToggleSocaDiagonalLabel(this.checked)">
             <span>SOCA Label</span>
           </label>
@@ -3304,8 +3304,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.28';
-const APP_CHANGELOG = 'Label Export All PDF and gear files with the typed export name, drop canvas JPEGs';
+const APP_VERSION = '2.11.29';
+const APP_CHANGELOG = 'Route simple mode Export PDF through print preview with simple-only options';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

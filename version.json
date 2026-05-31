@@ -1,5 +1,5 @@
 {
-  "version": "2.11.28",
+  "version": "2.11.29",
   "updated": "2026-05-30",
-  "changelog": "Label Export All PDF and gear files with the typed export name, drop canvas JPEGs"
+  "changelog": "Route simple mode Export PDF through print preview with simple-only options"
 }

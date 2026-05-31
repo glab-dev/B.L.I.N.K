@@ -98,16 +98,18 @@ document.addEventListener('DOMContentLoaded', function() {
       const isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
         (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
 
-      if(currentMobileView === 'complex' || currentMobileView === 'combined' || currentMobileView === 'gear') {
-        // Complex mode: desktop gets print preview; mobile exports directly (no preview UI on mobile)
-        if(isMobileDevice) {
-          exportComplexMobileDirect();
+      // Always open the print preview (it adapts to simple vs complex mode).
+      // Mobile has no preview UI, so it exports directly: the simple PDF in
+      // simple mode, the complex PDF otherwise.
+      const isSimpleMode = (typeof currentAppMode !== 'undefined' && currentAppMode === 'simple');
+      if(isMobileDevice) {
+        if(isSimpleMode) {
+          exportPDF();
         } else {
-          openPrintPreview();
+          exportComplexMobileDirect();
         }
       } else {
-        // Simple view — export directly (single-page redesigned layout)
-        exportPDF();
+        openPrintPreview();
       }
     });
 

@@ -27,6 +27,8 @@ function openPrintPreview() {
   const modal = document.getElementById('printPreviewModal');
   if (!modal) return;
 
+  const isSimple = (typeof currentAppMode !== 'undefined' && currentAppMode === 'simple');
+
   // Reset options to defaults
   document.getElementById('ppSpecs').checked = true;
   document.getElementById('ppGearList').checked = true;
@@ -52,7 +54,7 @@ function openPrintPreview() {
   const combinedSection = document.getElementById('ppCombinedSection');
   const multiScreenCount = Object.keys(screens).length;
   if (combinedSection) {
-    combinedSection.style.display = multiScreenCount > 1 ? 'block' : 'none';
+    combinedSection.style.display = (!isSimple && multiScreenCount > 1) ? 'block' : 'none';
   }
   const combinedCb = document.getElementById('ppCombined');
   if (combinedCb) combinedCb.checked = false;
@@ -86,9 +88,22 @@ function openPrintPreview() {
     _ppCurrentPdf = null;
   }
 
+  // Show/hide complex-only option groups based on mode
+  applyPreviewModeVisibility(isSimple);
+
   // Show modal then render
   modal.classList.add('active');
   requestAnimationFrame(() => rebuildPreview());
+}
+
+// Simple mode renders the fixed simple PDF (header + summary + standard grid), so
+// the complex section toggles, SOCA toggles, and combined section don't apply and
+// are hidden — leaving page size, orientation, eco/greyscale, and logo.
+function applyPreviewModeVisibility(isSimple) {
+  ['ppSectionsHint', 'ppSectionsList', 'ppSectionsDivider', 'ppSocaOutlinesRow', 'ppSocaLabelRow'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isSimple ? 'none' : '';
+  });
 }
 
 function closePrintPreview() {
@@ -478,6 +493,7 @@ function rebuildPreview() {
   if (!scroll || !pages) return;
 
   const opts = getPrintPreviewOptions();
+  const isSimple = (typeof currentAppMode !== 'undefined' && currentAppMode === 'simple');
   const needsCapture = !_ppCanvasCache ||
     opts.ecoFriendly !== _ppLastEco ||
     opts.greyscale !== _ppLastGreyscale;
@@ -508,7 +524,7 @@ function rebuildPreview() {
 
       ecoPrintMode = opts.ecoFriendly;
       greyscalePrintMode = opts.greyscale;
-      const docDef = buildComplexPdf(opts, _ppCanvasCache);
+      const docDef = isSimple ? buildSimplePdf(_ppCanvasCache) : buildComplexPdf(opts, _ppCanvasCache);
       ecoPrintMode = false;
       greyscalePrintMode = false;
 
@@ -522,7 +538,7 @@ function rebuildPreview() {
     // Fast path: cache valid — build PDF and swap in silently, no overlay, no flash
     ecoPrintMode = opts.ecoFriendly;
     greyscalePrintMode = opts.greyscale;
-    const docDef = buildComplexPdf(opts, _ppCanvasCache);
+    const docDef = isSimple ? buildSimplePdf(_ppCanvasCache) : buildComplexPdf(opts, _ppCanvasCache);
     ecoPrintMode = false;
     greyscalePrintMode = false;
 
@@ -789,6 +805,7 @@ function exportFromPreview() {
   }
 
   const opts = getPrintPreviewOptions();
+  const isSimple = (typeof currentAppMode !== 'undefined' && currentAppMode === 'simple');
 
   // Loading overlay
   const overlay = document.createElement('div');
@@ -831,7 +848,7 @@ function exportFromPreview() {
   ecoPrintMode = opts.ecoFriendly;
   greyscalePrintMode = opts.greyscale;
 
-  const docDef = buildComplexPdf(opts, canvasCache);
+  const docDef = isSimple ? buildSimplePdf(canvasCache) : buildComplexPdf(opts, canvasCache);
 
   ecoPrintMode = false;
   greyscalePrintMode = false;

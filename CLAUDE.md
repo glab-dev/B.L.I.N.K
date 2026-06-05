@@ -270,6 +270,14 @@ When fixing bugs or addressing issues:
 
 ---
 
+## Supabase — ALWAYS Follow When Adding Tables
+
+- **When creating ANY new Supabase `public` table, apply the grants + RLS pattern in `supabase/grants-reference.sql`** — don't just write the `supabase.from(...)` client code. Emit the `GRANT` to `anon`/`authenticated`/`service_role`, `enable row level security`, and the RLS policies alongside it.
+- **Why:** Supabase's Data API default changed — new `public` tables are no longer auto-exposed to supabase-js/PostgREST/GraphQL. Enforced on this project (ref `wdprtbmhekougwnkpcdu`) from **2026-10-30**. Without an explicit GRANT, reads/writes fail with PostgREST error `42501`.
+- The 6 existing tables are already granted — never re-run their reference blocks (`CREATE POLICY` errors on duplicate names).
+
+---
+
 ## Testing — ALWAYS Run After Changes
 
 **Mandatory:** Run `node tests/smoke-test.js` — it must pass with **0 failures**.

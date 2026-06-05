@@ -1,5 +1,5 @@
 {
-  "version": "2.11.29",
-  "updated": "2026-05-30",
-  "changelog": "Route simple mode Export PDF through print preview with simple-only options"
+  "version": "2.11.30",
+  "updated": "2026-06-05",
+  "changelog": "Add Supabase Data API grants reference SQL and new-table workflow rule"
 }

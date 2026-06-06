@@ -340,27 +340,61 @@ function renderPowerLayout(params) {
           ctx.restore();
         }
 
-        // ----- Diagonal label centered over the SOCA's bounding box -----
+        // ----- Diagonal label, fitted inside the SOCA's own footprint -----
         if (_labelsOn) {
-          const bx = minC * panelWidth + rowMarkerW;
-          const by = minR * panelHeight + topBandH;
-          const bw = (maxC - minC + 1) * panelWidth;
-          const bh = (maxR - minR + 1) * panelHeight;
-          const cx = bx + bw / 2;
-          const cy = by + bh / 2;
-          const diag = Math.sqrt(bw * bw + bh * bh);
+          // Largest solid rectangle of THIS SOCA's cells, so the label never
+          // paints over a hole or a neighbouring SOCA — and, because every panel
+          // belongs to one SOCA, multiple SOCA labels can never overlap.
+          const gW = maxC - minC + 1, gH = maxR - minR + 1;
+          const heights = new Array(gW).fill(0);
+          let best = { area: 0, r0: minR, c0: minC, r1: minR, c1: minC };
+          for (let r = 0; r < gH; r++) {
+            for (let c = 0; c < gW; c++) {
+              heights[c] = cellSet.has(`${minC + c},${minR + r}`) ? heights[c] + 1 : 0;
+            }
+            const stack = [];
+            for (let c = 0; c <= gW; c++) {
+              const h = c < gW ? heights[c] : 0;
+              while (stack.length && heights[stack[stack.length - 1]] >= h) {
+                const hh = heights[stack.pop()];
+                const left = stack.length ? stack[stack.length - 1] + 1 : 0;
+                const area = hh * (c - left);
+                if (area > best.area) {
+                  best = { area, r0: minR + r - hh + 1, c0: minC + left, r1: minR + r, c1: minC + c - 1 };
+                }
+              }
+              stack.push(c);
+            }
+          }
+
+          // Pixel bounds of the chosen rectangle (honour the CB5 half row).
+          const topIsHalf = hasCB5HalfRow && best.r0 === originalPh;
+          const botIsHalf = hasCB5HalfRow && best.r1 === originalPh;
+          const rx = best.c0 * panelWidth + rowMarkerW;
+          const ry = (topIsHalf ? originalPh * panelHeight : best.r0 * panelHeight) + topBandH;
+          const rw = (best.c1 - best.c0 + 1) * panelWidth;
+          const yBot = (botIsHalf ? originalPh * panelHeight + halfPanelHeight
+                                  : (best.r1 + 1) * panelHeight) + topBandH;
+          const rh = yBot - ry;
+
+          const cx = rx + rw / 2, cy = ry + rh / 2;
+          const diag = Math.sqrt(rw * rw + rh * rh);
+          const cos = rw / diag, sin = rh / diag;   // label follows this rectangle's diagonal
           const labelText = `SOCA ${formatSocaLabel(socaIdx)}`;
           ctx.save();
           ctx.font = `bold 100px Arial`;
-          const measured = ctx.measureText(labelText).width;
-          const targetWidth = diag * 0.6;
-          let fontSize = Math.max(14, Math.min(120, Math.floor(100 * targetWidth / measured)));
+          const w100 = ctx.measureText(labelText).width; // text width at 100px font
+          const margin = 0.9;
+          // Rotated footprint must fit rw x rh on both axes (H ≈ em = 100 at 100px).
+          const fX = (margin * rw) * 100 / (w100 * cos + 100 * sin);
+          const fY = (margin * rh) * 100 / (w100 * sin + 100 * cos);
+          const fontSize = Math.max(14, Math.min(120, Math.floor(Math.min(fX, fY))));
           ctx.font = `bold ${fontSize}px Arial`;
           ctx.fillStyle = 'rgba(0,0,0,0.28)';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.translate(cx, cy);
-          ctx.rotate(-Math.PI / 4);
+          ctx.rotate(-Math.atan2(rh, rw));
           ctx.fillText(labelText, 0, 0);
           ctx.restore();
         }

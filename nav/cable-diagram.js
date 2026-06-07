@@ -35,6 +35,7 @@ function renderCableDiagram(screenId) {
   const distBoxOnWall = screen.data.distBoxOnWall || false;
   const dropPos = screen.data.cableDropPosition || 'behind';
   const powerInPos = screen.data.powerInPosition || 'top';
+  const rearView = screen.data.cableRearView || false;
 
   // SOCA power cable data
   const calc = screen.calculatedData;
@@ -170,6 +171,12 @@ function renderCableDiagram(screenId) {
   ctx.textBaseline = 'middle';
   ctx.fillText('FLOOR', MARGIN.left - 10, floorY - 8);
 
+  // === Rear view: mirror the spatial diagram horizontally (visual only) ===
+  // Everything below is drawn in front-view coords; the flip mirrors all geometry.
+  // Text is counter-flipped at each draw site (via drawCableText / whole-unit flips)
+  // so labels stay readable. The flip is closed before the legend (kept upright).
+  if (rearView) { ctx.save(); ctx.translate(canvasW, 0); ctx.scale(-1, 1); }
+
   // === Draw LED wall as panel grid ===
   const pw = screen.data.panelsWide || 1;
   const ph = screen.data.panelsHigh || 1;
@@ -251,7 +258,7 @@ function renderCableDiagram(screenId) {
     ctx.font = 'bold 8px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('PICK', pickCenterX, pickCenterY);
+    drawCableText(ctx, 'PICK', pickCenterX, pickCenterY, rearView);
   }
 
   // === Draw cable routes ===
@@ -354,7 +361,7 @@ function renderCableDiagram(screenId) {
         ctx.font = (isPdf ? 'bold 16px' : 'bold 10px') + ' Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText('SOCA ' + formatSocaLabel(_s), _landingX, bracketY + 2);
+        drawCableText(ctx, 'SOCA ' + formatSocaLabel(_s), _landingX, bracketY + 2, rearView);
       } else {
         const bracketY = wallTopY - 18;
         ctx.beginPath();
@@ -367,7 +374,7 @@ function renderCableDiagram(screenId) {
         ctx.font = (isPdf ? 'bold 16px' : 'bold 10px') + ' Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.fillText('SOCA ' + formatSocaLabel(_s), _landingX, bracketY - 2);
+        drawCableText(ctx, 'SOCA ' + formatSocaLabel(_s), _landingX, bracketY - 2, rearView);
       }
     });
   }
@@ -383,10 +390,14 @@ function renderCableDiagram(screenId) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     const lw = ctx.measureText(labelText).width + 4;
+    // Rear view: counter-flip the whole label about its anchor so the bg + text
+    // render normally (readable, to the right of the mirrored dot).
+    if (rearView) { ctx.save(); ctx.translate(x, y); ctx.scale(-1, 1); ctx.translate(-x, -y); }
     ctx.fillStyle = bgColor;
     ctx.fillRect(x + 6, y - 7, lw, 14);
     ctx.fillStyle = isPrintMode ? fgColor : color;
     ctx.fillText(labelText, x + 7, y);
+    if (rearView) { ctx.restore(); }
   }
 
   // Helper: draw a dot marker
@@ -860,20 +871,23 @@ function renderCableDiagram(screenId) {
     ctx.textBaseline = 'middle';
     const srvTw = ctx.measureText(srvLabelText).width + 6;
     const srvTh = srvFontSize + 6;
+    // Rear view: counter-flip the whole label about its anchor so it stays readable.
+    if (rearView) { ctx.save(); ctx.translate(srvLabelX, srvLabelY); ctx.scale(-1, 1); ctx.translate(-srvLabelX, -srvLabelY); }
     ctx.fillStyle = bgColor;
     ctx.fillRect(srvLabelX, srvLabelY - srvTh / 2, srvTw, srvTh);
     ctx.fillStyle = isPrintMode ? fgColor : SERVER_COLOR;
     ctx.fillText(srvLabelText, srvLabelX + 2, srvLabelY);
+    if (rearView) { ctx.restore(); }
   }
 
   // === Draw deferred overlays (markers, brackets, labels) on top of all cable lines ===
   deferredOverlays.forEach(function(fn) { fn(); });
 
   // === Draw equipment boxes ===
-  drawCableEquipmentBox(ctx, distroX - BOX_W / 2, equipY, BOX_W, BOX_H, 'DISTRO', POWER_COLOR);
-  drawCableEquipmentBox(ctx, procX - BOX_W / 2, equipY, BOX_W, BOX_H, 'PROC', PROC_COLOR);
+  drawCableEquipmentBox(ctx, distroX - BOX_W / 2, equipY, BOX_W, BOX_H, 'DISTRO', POWER_COLOR, rearView);
+  drawCableEquipmentBox(ctx, procX - BOX_W / 2, equipY, BOX_W, BOX_H, 'PROC', PROC_COLOR, rearView);
   if (serverToProcessor > 0) {
-    drawCableEquipmentBox(ctx, serverBoxX, serverBoxY, BOX_W, BOX_H, 'SERVER', SERVER_COLOR);
+    drawCableEquipmentBox(ctx, serverBoxX, serverBoxY, BOX_W, BOX_H, 'SERVER', SERVER_COLOR, rearView);
   }
 
   // Dist box on wall (when toggle ON)
@@ -907,7 +921,7 @@ function renderCableDiagram(screenId) {
     ctx.font = (cableDiagramPdfMode ? 'bold 18px' : 'bold 10px') + ' Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(dbTwoBoxes ? 'MAIN' : 'DIST BOX', mainDbCenterX, mainDbY + BOX_H / 2);
+    drawCableText(ctx, dbTwoBoxes ? 'MAIN' : 'DIST BOX', mainDbCenterX, mainDbY + BOX_H / 2, rearView);
     ctx.restore();
 
     // Draw backup dist box when positions differ
@@ -925,7 +939,7 @@ function renderCableDiagram(screenId) {
       ctx.font = (cableDiagramPdfMode ? 'bold 18px' : 'bold 10px') + ' Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('BACKUP', backupDbCenterX, backupDbY + BOX_H / 2);
+      drawCableText(ctx, 'BACKUP', backupDbCenterX, backupDbY + BOX_H / 2, rearView);
       ctx.restore();
     }
   }
@@ -935,18 +949,18 @@ function renderCableDiagram(screenId) {
   // Wall height — right side of wall
   const dimOffsetRight = 18;
   drawCableDimensionLine(ctx, wallRightX + dimOffsetRight, wallTopY, wallRightX + dimOffsetRight, wallBottomY,
-    wallHeightFt + "'", fgColor, bgColor);
+    wallHeightFt + "'", fgColor, bgColor, rearView);
 
   // Wall width — above wall. When power enters from top (SOCA bracket also above wall),
   // push the dimension line high enough to clear the bracket + label text.
   const wallWidthDimY = wallTopY - (powerInPos !== 'bottom' ? (isPdf ? 65 : 22) : 12);
   drawCableDimensionLine(ctx, adjWallLeftX, wallWidthDimY, wallRightX, wallWidthDimY,
-    wallWidthFt + "'", fgColor, bgColor);
+    wallWidthFt + "'", fgColor, bgColor, rearView);
 
   // Wall to floor — right side, between wall bottom and floor
   if (wallToFloor > 0) {
     drawCableDimensionLine(ctx, wallRightX + dimOffsetRight + 20, wallBottomY, wallRightX + dimOffsetRight + 20, floorY,
-      wallToFloor + "'", fgColor, bgColor);
+      wallToFloor + "'", fgColor, bgColor, rearView);
   }
 
   // Cable pick — dimension from drop point to pick circle
@@ -955,27 +969,30 @@ function renderCableDiagram(screenId) {
       // Vertical: wall top up to pick circle
       const pickDimX = pickCenterX - 25;
       drawCableDimensionLine(ctx, pickDimX, pickCenterY - PICK_RADIUS, pickDimX, wallTopY,
-        cablePick + "'", fgColor, bgColor);
+        cablePick + "'", fgColor, bgColor, rearView);
     } else if (dropPos === 'sr') {
       // Horizontal: left wall edge to pick circle
       const pickDimY = pickCenterY - PICK_RADIUS - 14;
       drawCableDimensionLine(ctx, pickCenterX - PICK_RADIUS, pickDimY, adjWallLeftX, pickDimY,
-        cablePick + "'", fgColor, bgColor);
+        cablePick + "'", fgColor, bgColor, rearView);
     } else {
       // Horizontal: right wall edge to pick circle
       const pickDimY = pickCenterY - PICK_RADIUS - 14;
       drawCableDimensionLine(ctx, wallRightX, pickDimY, pickCenterX + PICK_RADIUS, pickDimY,
-        cablePick + "'", fgColor, bgColor);
+        cablePick + "'", fgColor, bgColor, rearView);
     }
   }
 
   // Distro to drop — below floor
   drawCableDimensionLine(ctx, distroX, floorY + 18, dropX, floorY + 18,
-    distroToWall + "'", fgColor, bgColor);
+    distroToWall + "'", fgColor, bgColor, rearView);
 
   // Processor to drop — below floor (further down to avoid overlap)
   drawCableDimensionLine(ctx, procX, floorY + 33, dropX, floorY + 33,
-    processorToWall + "'", fgColor, bgColor);
+    processorToWall + "'", fgColor, bgColor, rearView);
+
+  // End rear-view mirror — legend below is drawn un-flipped (upright, normal order)
+  if (rearView) { ctx.restore(); }
 
   // === Legend ===
   const legendSq = isPdf ? 20 : 10;
@@ -1054,7 +1071,22 @@ function renderCableDiagram(screenId) {
 
 // ---- Helpers ----
 
-function drawCableDimensionLine(ctx, x1, y1, x2, y2, label, fgColor, bgColor) {
+// Draw text un-mirrored when the diagram is in rear view (counter-flips the
+// active horizontal mirror so glyphs stay readable at the mirrored anchor).
+// Inherits the current font / fillStyle / textAlign / textBaseline.
+function drawCableText(ctx, text, x, y, rearView) {
+  if (rearView) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(-1, 1);
+    ctx.fillText(text, 0, 0);
+    ctx.restore();
+  } else {
+    ctx.fillText(text, x, y);
+  }
+}
+
+function drawCableDimensionLine(ctx, x1, y1, x2, y2, label, fgColor, bgColor, rearView) {
   const isVertical = Math.abs(x1 - x2) < 2;
   const tickLen = 5;
 
@@ -1094,12 +1126,12 @@ function drawCableDimensionLine(ctx, x1, y1, x2, y2, label, fgColor, bgColor) {
   ctx.fillStyle = fgColor;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(label, midX, midY);
+  drawCableText(ctx, label, midX, midY, rearView);
 
   ctx.restore();
 }
 
-function drawCableEquipmentBox(ctx, x, y, w, h, label, color) {
+function drawCableEquipmentBox(ctx, x, y, w, h, label, color, rearView) {
   ctx.save();
 
   // Filled box
@@ -1115,7 +1147,7 @@ function drawCableEquipmentBox(ctx, x, y, w, h, label, color) {
   ctx.font = 'bold ' + fontSize + 'px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(label, x + w / 2, y + h / 2);
+  drawCableText(ctx, label, x + w / 2, y + h / 2, rearView);
 
   ctx.restore();
 }

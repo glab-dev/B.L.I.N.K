@@ -5836,6 +5836,34 @@ canvas:focus {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
 }
+/* Cabling row: 3-column grid (General/Power/Data) on the left, View toggle pushed
+   to the far right. The grid keeps its own max-width so it stays compact and does
+   NOT change when Dist Box toggles; the View toggle is decoupled. */
+.cabling-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+/* Stable grid: fixed flex-basis + proportional columns so General/Power/Data never
+   move when Dist Box toggles (the controls just overflow into the gap on the right). */
+.cabling-row .cabling-grid {
+  flex: 0 1 800px;
+}
+.cabling-row .cabling-3col {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.cabling-view {
+  margin-left: auto;
+}
+@media (max-width: 768px) {
+  .cabling-row {
+    display: block;
+  }
+  .cabling-view {
+    margin-top: 8px;
+  }
+}
 .cabling-header {
   font-family: 'Roboto Condensed', sans-serif;
   font-size: 13px;

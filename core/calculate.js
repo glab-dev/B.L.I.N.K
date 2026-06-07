@@ -404,6 +404,7 @@ function resetCalculator() {
       cableDropPosition: 'behind',
       powerInPosition: 'top',
       distBoxOnWall: false,
+      cableRearView: false,
       distBoxMainHorizPosition: 'center',
       distBoxBackupHorizPosition: 'center',
       distBoxMainVertPosition: 'top',
@@ -474,6 +475,9 @@ function resetCalculator() {
   // Reset cabling fields
   distBoxOnWallEnabled = false;
   if (typeof updateDistBoxCheckUI === 'function') updateDistBoxCheckUI(false);
+  cableRearViewEnabled = false;
+  document.getElementById('cableFrontViewBtn')?.classList.add('active');
+  document.getElementById('cableRearViewBtn')?.classList.remove('active');
   cableDropPosition = 'behind';
   document.getElementById('cableDropBehindBtn')?.classList.add('active');
   document.getElementById('cableDropSRBtn')?.classList.remove('active');

@@ -534,6 +534,23 @@ function toggleDistBoxOnWall() {
   generateGearList();
 }
 
+// Cable diagram front/rear view toggle — VISUAL MIRROR ONLY (does not change cable routing/data)
+let cableRearViewEnabled = false;
+function setCableView(view) {
+  cableRearViewEnabled = (view === 'rear');
+  const fb = document.getElementById('cableFrontViewBtn');
+  const rb = document.getElementById('cableRearViewBtn');
+  if(fb) fb.classList.toggle('active', !cableRearViewEnabled);
+  if(rb) rb.classList.toggle('active', cableRearViewEnabled);
+  // Save to gear-active screen when in gear view, otherwise current screen
+  const targetId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+    ? gearActiveScreenId : currentScreenId;
+  if(screens[targetId]) {
+    screens[targetId].data.cableRearView = cableRearViewEnabled;
+  }
+  generateGearList();
+}
+
 // Update dist box checkbox visual state
 function updateDistBoxCheckUI(enabled) {
   const check = document.getElementById('distBoxOnWallCheck');

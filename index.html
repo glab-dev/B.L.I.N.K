@@ -2615,6 +2615,7 @@
   <div class="section-box mb-16" id="cablingSection">
     <div class="section-title">Cabling</div>
 
+    <div class="cabling-row">
     <div class="cabling-grid cabling-3col">
       <!-- Column 1: General -->
       <div>
@@ -2707,6 +2708,18 @@
           </div>
         </div>
       </div>
+
+    </div>
+    <!-- View toggle (pushed to the far right of the cabling row) -->
+    <div class="cabling-view">
+      <div class="cabling-header">View</div>
+      <div class="cabling-subsection">
+        <div class="slider-toggle">
+          <button type="button" class="slider-toggle-btn active" id="cableFrontViewBtn" onclick="setCableView('front')">Front View</button>
+          <button type="button" class="slider-toggle-btn" id="cableRearViewBtn" onclick="setCableView('rear')">Rear View</button>
+        </div>
+      </div>
+    </div>
     </div>
   </div>
 
@@ -3311,8 +3324,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.33';
-const APP_CHANGELOG = 'Add Front/Rear View toggle to the data layout that mirrors the view horizontally';
+const APP_VERSION = '2.11.34';
+const APP_CHANGELOG = 'Add Front/Rear View toggle to the cable layout view';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

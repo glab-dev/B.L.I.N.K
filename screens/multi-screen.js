@@ -85,7 +85,8 @@ function getDefaultScreenData() {
     cablePick: 0,
     cableDropPosition: 'behind',
     distBoxOnWall: false,
-    
+    cableRearView: false,
+
     // Canvas
     canvasX: 0,
     canvasY: 0,
@@ -263,6 +264,7 @@ function saveCurrentScreenData() {
   data.distBoxBackupHorizPosition = distBoxBackupHorizPosition;
   data.distBoxMainVertPosition = distBoxMainVertPosition;
   data.distBoxBackupVertPosition = distBoxBackupVertPosition;
+  data.cableRearView = cableRearViewEnabled;
 
   // Canvas
   console.log(`Saving screen data for ${currentScreenId}: canvasOffsetX=${canvasOffsetX}, canvasOffsetY=${canvasOffsetY}`);
@@ -471,6 +473,10 @@ function loadScreenData(screenId) {
 
   const posControls = document.getElementById('distBoxPositionControls');
   if (posControls) posControls.style.display = distBoxOnWallEnabled ? '' : 'none';
+
+  cableRearViewEnabled = data.cableRearView || false;
+  document.getElementById('cableFrontViewBtn')?.classList.toggle('active', !cableRearViewEnabled);
+  document.getElementById('cableRearViewBtn')?.classList.toggle('active', cableRearViewEnabled);
 
   // Canvas - FORCE to proper values
   const loadedX = (typeof data.canvasX === 'number') ? data.canvasX : 0;

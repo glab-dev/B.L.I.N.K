@@ -89,6 +89,7 @@ async function saveConfiguration() {
         cablePick: data.cablePick,
         cableDropPosition: data.cableDropPosition,
         distBoxOnWall: data.distBoxOnWall,
+        cableRearView: data.cableRearView,
         canvasX: data.canvasX,
         canvasY: data.canvasY,
         canvasSize: data.canvasSize,

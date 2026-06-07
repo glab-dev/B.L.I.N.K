@@ -715,6 +715,10 @@ function loadGearCablingInputs(screenId) {
 
   const posControls = document.getElementById('distBoxPositionControls');
   if (posControls) posControls.style.display = distBox ? '' : 'none';
+
+  cableRearViewEnabled = data.cableRearView || false;
+  document.getElementById('cableFrontViewBtn')?.classList.toggle('active', !cableRearViewEnabled);
+  document.getElementById('cableRearViewBtn')?.classList.toggle('active', cableRearViewEnabled);
 }
 
 function initGearView() {

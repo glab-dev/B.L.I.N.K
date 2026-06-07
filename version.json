@@ -1,5 +1,5 @@
 {
-  "version": "2.11.33",
-  "updated": "2026-06-06",
-  "changelog": "Add Front/Rear View toggle to the data layout that mirrors the view horizontally"
+  "version": "2.11.34",
+  "updated": "2026-06-07",
+  "changelog": "Add Front/Rear View toggle to the cable layout view"
 }

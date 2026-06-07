@@ -325,6 +325,15 @@
       </div>
 
       <div class="tp-control-group">
+        <div class="toggle-group tp-size-presets">
+          <button type="button" class="toggle-btn" data-size="4K_UHD" onclick="setTpDisplaySizePreset('4K_UHD')">UHD</button>
+          <button type="button" class="toggle-btn" data-size="4K_DCI" onclick="setTpDisplaySizePreset('4K_DCI')">DCI</button>
+          <button type="button" class="toggle-btn active" data-size="HD" onclick="setTpDisplaySizePreset('HD')">HD</button>
+          <button type="button" class="toggle-btn" data-size="custom" onclick="setTpDisplaySizePreset('custom')">Custom</button>
+        </div>
+      </div>
+
+      <div class="tp-control-group">
         <label class="tp-label">Display size [px]:</label>
         <div class="tp-row">
           <div class="number-input-with-arrows tp-arrows">
@@ -413,33 +422,6 @@
             <input type="checkbox" id="tpProcessorLinesToggle">
             <span class="cp-mini-toggle-slider"></span>
           </label>
-        </div>
-        <select id="tpProcessorCanvasSize" class="tp-select tp-select-narrow">
-          <option value="4K_UHD" selected>4K UHD</option>
-          <option value="4K_DCI">4K DCI</option>
-          <option value="HD">HD</option>
-          <option value="custom">Custom</option>
-        </select>
-      </div>
-
-      <div id="tpProcessorCustomSize" class="tp-control-group" style="display: none;">
-        <label class="tp-label">Canvas size [px]:</label>
-        <div class="tp-row">
-          <div class="number-input-with-arrows tp-arrows">
-            <input type="number" id="tpProcessorCustomW" value="3840" min="1">
-            <div class="number-input-arrows">
-              <button type="button" onclick="adjustNumberInput('tpProcessorCustomW', 1)"><span class="material-symbols-outlined icon-14">keyboard_arrow_up</span></button>
-              <button type="button" onclick="adjustNumberInput('tpProcessorCustomW', -1)"><span class="material-symbols-outlined icon-14">keyboard_arrow_down</span></button>
-            </div>
-          </div>
-          <span class="tp-x-label">x</span>
-          <div class="number-input-with-arrows tp-arrows">
-            <input type="number" id="tpProcessorCustomH" value="2160" min="1">
-            <div class="number-input-arrows">
-              <button type="button" onclick="adjustNumberInput('tpProcessorCustomH', 1)"><span class="material-symbols-outlined icon-14">keyboard_arrow_up</span></button>
-              <button type="button" onclick="adjustNumberInput('tpProcessorCustomH', -1)"><span class="material-symbols-outlined icon-14">keyboard_arrow_down</span></button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -2526,6 +2508,15 @@
         <span>Data Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('dataContainer')" id="dataCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="dataContent">
+        <div class="layout-toggle-row">
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">View</span>
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active" id="dataFrontViewBtn" onclick="setDataView('front')">Front View</button>
+              <button type="button" class="slider-toggle-btn" id="dataRearViewBtn" onclick="setDataView('rear')">Rear View</button>
+            </div>
+          </div>
+        </div>
         <canvas id="dataCanvas"></canvas>
       </div>
     </div>
@@ -3005,12 +2996,18 @@
         <!-- Row 1: Canvas Size -->
         <label class="mb-8">
           <span>Canvas Size</span>
-          <select id="canvasSize">
+          <select id="canvasSize" style="display: none;">
             <option value="4K_UHD" selected="">4K UHD (3840x2160)</option>
             <option value="4K_DCI">4K DCI (4096x2160)</option>
             <option value="HD">HD (1920x1080)</option>
             <option value="custom">Custom</option>
           </select>
+          <div class="toggle-group size-preset-group canvas-size-presets" data-target="canvasSize">
+            <button type="button" class="toggle-btn active" data-size="4K_UHD" onclick="setCanvasSizePreset('canvasSize','4K_UHD')">UHD</button>
+            <button type="button" class="toggle-btn" data-size="4K_DCI" onclick="setCanvasSizePreset('canvasSize','4K_DCI')">DCI</button>
+            <button type="button" class="toggle-btn" data-size="HD" onclick="setCanvasSizePreset('canvasSize','HD')">HD</button>
+            <button type="button" class="toggle-btn" data-size="custom" onclick="setCanvasSizePreset('canvasSize','custom')">Custom</button>
+          </div>
         </label>
 
         <div id="customCanvasInputs" class="mb-8" style="display: none;">
@@ -3109,15 +3106,23 @@
           <button type="button" class="config-btn" onclick="document.getElementById('loadRasterInput').click()">Load</button>
           <input type="file" id="loadRasterInput" accept=".blinkrast,.raster" style="display: none;" onchange="loadRasterFile(event)">
         </div>
+        <div class="toolbar-break toolbar-break-always"></div>
         <div class="canvas-toolbar-group toolbar-canvas-size">
           <span class="canvas-toolbar-label">Canvas Size</span>
-          <select id="rasterToolbarCanvasSize" class="min-w-140">
+          <select id="rasterToolbarCanvasSize" class="min-w-140" style="display: none;">
             <option value="4K_UHD" selected="">4K UHD (3840x2160)</option>
             <option value="4K_DCI">4K DCI (4096x2160)</option>
             <option value="HD">HD (1920x1080)</option>
             <option value="custom">Custom</option>
           </select>
+          <div class="toggle-group size-preset-group raster-size-presets" data-target="rasterToolbarCanvasSize">
+            <button type="button" class="toggle-btn active" data-size="4K_UHD" onclick="setCanvasSizePreset('rasterToolbarCanvasSize','4K_UHD')">UHD</button>
+            <button type="button" class="toggle-btn" data-size="4K_DCI" onclick="setCanvasSizePreset('rasterToolbarCanvasSize','4K_DCI')">DCI</button>
+            <button type="button" class="toggle-btn" data-size="HD" onclick="setCanvasSizePreset('rasterToolbarCanvasSize','HD')">HD</button>
+            <button type="button" class="toggle-btn" data-size="custom" onclick="setCanvasSizePreset('rasterToolbarCanvasSize','custom')">Custom</button>
+          </div>
         </div>
+        <div class="toolbar-break toolbar-break-custom"></div>
         <div class="canvas-toolbar-group toolbar-custom-w" id="rasterCustomW" style="display: none;">
           <span class="canvas-toolbar-label">W (px)</span>
           <input type="number" id="rasterToolbarCustomW" min="1" class="w-80">
@@ -3126,6 +3131,7 @@
           <span class="canvas-toolbar-label">H (px)</span>
           <input type="number" id="rasterToolbarCustomH" min="1" class="w-80">
         </div>
+        <div class="toolbar-break toolbar-break-always"></div>
         <div class="canvas-toolbar-group">
           <span class="canvas-toolbar-label">X Pos</span>
           <div class="number-input-with-arrows">
@@ -3160,6 +3166,7 @@
           <span class="canvas-toolbar-label">&nbsp;</span>
           <button type="button" class="toggle-btn active" id="rasterToolbarSnap" onclick="toggleSnapMode()">Snap</button>
         </div>
+        <div class="toolbar-break toolbar-break-always"></div>
         <div class="canvas-toolbar-group toolbar-format">
           <span class="canvas-toolbar-label">Format</span>
           <select id="rasterToolbarFormat">
@@ -3304,8 +3311,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.31';
-const APP_CHANGELOG = 'Fit SOCA power-layout diagonal label inside its own footprint along the wall diagonal';
+const APP_VERSION = '2.11.32';
+const APP_CHANGELOG = 'Add canvas-size preset buttons and raster canvas-resolution readout, fix empty-canvas updates';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

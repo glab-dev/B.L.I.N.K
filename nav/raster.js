@@ -24,11 +24,12 @@ function activateRasterView() {
     showCanvasView();
   }
 
-  // Hide elements redundant with the raster table
+  // Hide screen toggles (redundant with the raster table), but keep the canvas
+  // info readout (resolution / visible screens / total panels) under the canvas
   const canvasToggles = document.getElementById('canvasScreenToggles');
   if(canvasToggles) canvasToggles.style.display = 'none';
   const canvasInfo = document.getElementById('canvasInfo');
-  if(canvasInfo) canvasInfo.style.display = 'none';
+  if(canvasInfo) canvasInfo.style.display = '';
 
   // Sync toolbar values from canvas options and init listeners once
   syncToolbarFromCanvasOptions();
@@ -623,6 +624,7 @@ function syncToolbarFromCanvasOptions() {
       if(tbW && coW) tbW.value = coW.value;
       if(tbH && coH) tbH.value = coH.value;
     }
+    syncSizePresetButtons('rasterToolbarCanvasSize');
   }
   if(tb.x && co.x) tb.x.value = co.x.value;
   if(tb.y && co.y) tb.y.value = co.y.value;
@@ -666,6 +668,7 @@ function syncCanvasOptionsFromToolbar() {
       if(coW && tbW) coW.value = tbW.value;
       if(coH && tbH) coH.value = tbH.value;
     }
+    syncSizePresetButtons('canvasSize');
   }
   if(co.x && tb.x) co.x.value = tb.x.value;
   if(co.y && tb.y) co.y.value = tb.y.value;
@@ -695,6 +698,7 @@ function initRasterToolbarListeners() {
         co.dispatchEvent(new Event('change'));
       }
       toggleRasterCustomCanvasInputs(this.value === 'custom');
+      syncSizePresetButtons('rasterToolbarCanvasSize');
     });
   }
   // Custom canvas W/H inputs

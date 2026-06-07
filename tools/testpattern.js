@@ -52,9 +52,6 @@ var tpBgImage = null;
 var tpCheckerOpacity = 100;
 var tpBorderOpacity = 100;
 var tpProcessorLinesOn = false;
-var tpProcessorCanvasSize = '4K_UHD';
-var tpProcessorCanvasW = 3840;
-var tpProcessorCanvasH = 2160;
 var tpProcessorLineColor = '#ff0000';
 var tpCheckerOn = false;
 var tpCheckerSizePct = 50;
@@ -176,8 +173,7 @@ function _tpGetState() {
     tpCheckerColor1: tpCheckerColor1, tpCheckerColor2: tpCheckerColor2,
     tpCheckerOpacity: tpCheckerOpacity, tpBorderOpacity: tpBorderOpacity,
     tpBgImageOn: tpBgImageOn, tpBgImage: tpBgImage,
-    tpProcessorLinesOn: tpProcessorLinesOn, tpProcessorCanvasSize: tpProcessorCanvasSize,
-    tpProcessorCanvasW: tpProcessorCanvasW, tpProcessorCanvasH: tpProcessorCanvasH,
+    tpProcessorLinesOn: tpProcessorLinesOn,
     tpProcessorLineColor: tpProcessorLineColor,
     tpLayerOrder: tpLayerOrder.slice()
   };
@@ -205,8 +201,7 @@ function _tpApplyState(s) {
   tpCheckerColor1 = s.tpCheckerColor1; tpCheckerColor2 = s.tpCheckerColor2;
   tpCheckerOpacity = s.tpCheckerOpacity; tpBorderOpacity = s.tpBorderOpacity;
   tpBgImageOn = s.tpBgImageOn; tpBgImage = s.tpBgImage;
-  tpProcessorLinesOn = s.tpProcessorLinesOn; tpProcessorCanvasSize = s.tpProcessorCanvasSize;
-  tpProcessorCanvasW = s.tpProcessorCanvasW; tpProcessorCanvasH = s.tpProcessorCanvasH;
+  tpProcessorLinesOn = s.tpProcessorLinesOn;
   tpProcessorLineColor = s.tpProcessorLineColor;
   tpLayerOrder = s.tpLayerOrder ? s.tpLayerOrder.slice() : _tpDefaultLayerOrder.slice();
   _tpSyncDOM();
@@ -216,6 +211,7 @@ function _tpSyncDOM() {
   document.getElementById('tpImageName').value = tpImageName === 'Name your testpattern' ? '' : tpImageName;
   document.getElementById('tpDisplayW').value = tpDisplayW;
   document.getElementById('tpDisplayH').value = tpDisplayH;
+  syncTpDisplaySizeButtons();
   document.getElementById('tpDisplaysWide').value = tpDisplaysWide;
   document.getElementById('tpDisplaysHigh').value = tpDisplaysHigh;
   document.getElementById('tpGridSize').value = tpGridSizePct;
@@ -274,12 +270,7 @@ function _tpSyncDOM() {
   document.getElementById('tpBorderOpacityVal').textContent = tpBorderOpacity + '%';
   document.getElementById('tpBgImageToggle').checked = tpBgImageOn;
   document.getElementById('tpProcessorLinesToggle').checked = tpProcessorLinesOn;
-  document.getElementById('tpProcessorCanvasSize').value = tpProcessorCanvasSize;
-  document.getElementById('tpProcessorCustomW').value = tpProcessorCanvasW;
-  document.getElementById('tpProcessorCustomH').value = tpProcessorCanvasH;
   document.getElementById('tpProcessorLineColor').value = tpProcessorLineColor;
-  document.getElementById('tpProcessorCustomSize').style.display =
-    tpProcessorCanvasSize === 'custom' ? '' : 'none';
 
   updateTotalSize();
   _tpRestartAnimationIfNeeded();
@@ -711,8 +702,7 @@ function resetTestPattern() {
   tpColorBarsOpacity = 100; tpLogoOpacity = 100;
   tpCheckerOpacity = 100; tpBorderOpacity = 100;
   tpBgImageOn = false; tpBgImage = null;
-  tpProcessorLinesOn = false; tpProcessorCanvasSize = '4K_UHD';
-  tpProcessorCanvasW = 3840; tpProcessorCanvasH = 2160; tpProcessorLineColor = '#ff0000';
+  tpProcessorLinesOn = false; tpProcessorLineColor = '#ff0000';
   tpLayerOrder = _tpDefaultLayerOrder.slice();
   tpSweepOn = false; tpSweepColor = '#ffffff'; tpSweepColorV = '#ffffff';
   tpSweepDuration = 5; tpSweepWidthPct = 2;
@@ -785,11 +775,8 @@ function resetTestPattern() {
   document.getElementById('tpBgImageToggle').checked = false;
   document.getElementById('tpBgImageFile').value = '';
   document.getElementById('tpProcessorLinesToggle').checked = false;
-  document.getElementById('tpProcessorCanvasSize').value = '4K_UHD';
-  document.getElementById('tpProcessorCustomW').value = 3840;
-  document.getElementById('tpProcessorCustomH').value = 2160;
   document.getElementById('tpProcessorLineColor').value = '#ff0000';
-  document.getElementById('tpProcessorCustomSize').style.display = 'none';
+  syncTpDisplaySizeButtons();
 
   updateTotalSize();
   scheduleTestPatternRedraw();
@@ -953,12 +940,14 @@ function initTestPatternControls() {
   dispW.addEventListener('input', function() {
     tpDisplayW = Math.max(1, parseInt(this.value) || 1920);
     updateTotalSize();
+    syncTpDisplaySizeButtons();
     scheduleDimensionRedraw();
   });
 
   dispH.addEventListener('input', function() {
     tpDisplayH = Math.max(1, parseInt(this.value) || 1080);
     updateTotalSize();
+    syncTpDisplaySizeButtons();
     scheduleDimensionRedraw();
   });
 
@@ -1092,25 +1081,8 @@ function initTestPatternControls() {
     scheduleTestPatternRedraw();
   });
 
-  document.getElementById('tpProcessorCanvasSize').addEventListener('change', function() {
-    tpProcessorCanvasSize = this.value;
-    document.getElementById('tpProcessorCustomSize').style.display =
-      this.value === 'custom' ? '' : 'none';
-    scheduleTestPatternRedraw();
-  });
-
   document.getElementById('tpProcessorLineColor').addEventListener('input', function() {
     tpProcessorLineColor = this.value;
-    scheduleTestPatternRedraw();
-  });
-
-  document.getElementById('tpProcessorCustomW').addEventListener('input', function() {
-    tpProcessorCanvasW = parseInt(this.value) || 3840;
-    scheduleTestPatternRedraw();
-  });
-
-  document.getElementById('tpProcessorCustomH').addEventListener('input', function() {
-    tpProcessorCanvasH = parseInt(this.value) || 2160;
     scheduleTestPatternRedraw();
   });
 
@@ -1351,6 +1323,7 @@ function initTestPatternControls() {
     var val = Math.max(1, parseInt(this.value) || 1);
     tpDisplayW = Math.round(val / tpDisplaysWide);
     dispW.value = tpDisplayW;
+    syncTpDisplaySizeButtons();
     scheduleDimensionRedraw();
   });
 
@@ -1358,6 +1331,7 @@ function initTestPatternControls() {
     var val = Math.max(1, parseInt(this.value) || 1);
     tpDisplayH = Math.round(val / tpDisplaysHigh);
     dispH.value = tpDisplayH;
+    syncTpDisplaySizeButtons();
     scheduleDimensionRedraw();
   });
 
@@ -1404,8 +1378,7 @@ function initTestPatternControls() {
 
   // --- Save undo state before user interactions ---
   // Text/number inputs: save on focus (once when user clicks in)
-  var _tpTextInputIds = ['tpImageName', 'tpDisplayW', 'tpDisplayH', 'tpTotalW', 'tpTotalH',
-    'tpProcessorCustomW', 'tpProcessorCustomH'];
+  var _tpTextInputIds = ['tpImageName', 'tpDisplayW', 'tpDisplayH', 'tpTotalW', 'tpTotalH'];
   _tpTextInputIds.forEach(function(id) {
     var el = document.getElementById(id);
     if(el) el.addEventListener('focus', function() { tpSaveState(); });
@@ -1440,7 +1413,7 @@ function initTestPatternControls() {
   });
 
   var _tpSelectIds = ['tpColorBarsMode', 'tpCircleSpinMode', 'tpCircleRevMode',
-    'tpLogoMode', 'tpDisplaysWide', 'tpDisplaysHigh', 'tpSweepFps', 'tpProcessorCanvasSize'];
+    'tpLogoMode', 'tpDisplaysWide', 'tpDisplaysHigh', 'tpSweepFps'];
   _tpSelectIds.forEach(function(id) {
     var el = document.getElementById(id);
     if(el) el.addEventListener('focus', function() { tpSaveState(); });
@@ -1454,6 +1427,46 @@ function updateTotalSize() {
   var totalHEl = document.getElementById('tpTotalH');
   if(totalWEl) totalWEl.value = totalW;
   if(totalHEl) totalHEl.value = totalH;
+}
+
+// Display-size preset buttons (UHD/DCI/HD set the display size; Custom clears it)
+function setTpDisplaySizePreset(preset) {
+  var wEl = document.getElementById('tpDisplayW');
+  var hEl = document.getElementById('tpDisplayH');
+  if(!wEl || !hEl) return;
+  if(preset === 'custom') {
+    wEl.value = '';
+    hEl.value = '';
+    syncTpDisplaySizeButtons();
+    return;
+  }
+  if(preset === '4K_UHD') { tpDisplayW = 3840; tpDisplayH = 2160; }
+  else if(preset === '4K_DCI') { tpDisplayW = 4096; tpDisplayH = 2160; }
+  else if(preset === 'HD') { tpDisplayW = 1920; tpDisplayH = 1080; }
+  wEl.value = tpDisplayW;
+  hEl.value = tpDisplayH;
+  updateTotalSize();
+  syncTpDisplaySizeButtons();
+  scheduleDimensionRedraw();
+}
+
+function syncTpDisplaySizeButtons() {
+  var group = document.querySelector('.tp-size-presets');
+  if(!group) return;
+  var wEl = document.getElementById('tpDisplayW');
+  var match = 'custom';
+  if(wEl && wEl.value === '') {
+    match = 'custom';
+  } else if(tpDisplayW === 3840 && tpDisplayH === 2160) {
+    match = '4K_UHD';
+  } else if(tpDisplayW === 4096 && tpDisplayH === 2160) {
+    match = '4K_DCI';
+  } else if(tpDisplayW === 1920 && tpDisplayH === 1080) {
+    match = 'HD';
+  }
+  group.querySelectorAll('[data-size]').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.size === match);
+  });
 }
 
 // --- Logo Import ---
@@ -1694,12 +1707,9 @@ function drawTPDisplayBoundaries(ctx, w, h) {
 }
 
 function drawTPProcessorLines(ctx, w, h) {
-  // Resolve canvas dimensions from preset
-  var cw = tpProcessorCanvasW;
-  var ch = tpProcessorCanvasH;
-  if(tpProcessorCanvasSize === '4K_UHD') { cw = 3840; ch = 2160; }
-  else if(tpProcessorCanvasSize === '4K_DCI') { cw = 4096; ch = 2160; }
-  else if(tpProcessorCanvasSize === 'HD') { cw = 1920; ch = 1080; }
+  // Each processor drives one display, so processor boundaries fall on display edges
+  var cw = tpDisplayW;
+  var ch = tpDisplayH;
 
   // No lines needed if wall fits within one canvas
   if(cw >= w && ch >= h) return;

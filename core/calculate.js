@@ -440,6 +440,10 @@ function resetCalculator() {
   const dataFlipBtnReset = document.getElementById('dataFlipBtn');
   if(dataFlipBtnReset) { dataFlipBtnReset.classList.remove('active'); dataFlipBtnReset.style.display = ''; }
 
+  dataRearViewEnabled = false;
+  document.getElementById('dataFrontViewBtn')?.classList.add('active');
+  document.getElementById('dataRearViewBtn')?.classList.remove('active');
+
   snapModeEnabled = true;
   document.getElementById('snapModeBtn')?.classList.add('active');
   
@@ -687,6 +691,12 @@ function calculate(){
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
     });
+
+    // On the canvas/raster view, still refresh the canvas so size/resolution
+    // changes are reflected even when no screen has been configured yet.
+    if(typeof currentMobileView !== 'undefined' && (currentMobileView === 'canvas' || currentMobileView === 'raster')) {
+      showCanvasView();
+    }
     return;
   }
   

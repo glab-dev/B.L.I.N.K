@@ -3,6 +3,30 @@
 // cabling inputs, PDF/export buttons, and initialization calls.
 // Depends on globals and functions from all other modules.
 
+// ==================== CANVAS SIZE PRESET BUTTONS ====================
+// The canvas-size dropdowns (#canvasSize, #rasterToolbarCanvasSize,
+// #tpProcessorCanvasSize) are hidden and driven by UHD/DCI/HD/Custom
+// buttons. The <select> remains the source of truth so all existing
+// value-reading logic and the raster<->canvas sync work unchanged.
+function setCanvasSizePreset(targetId, value) {
+  var sel = document.getElementById(targetId);
+  if(!sel) return;
+  if(sel.value !== value) {
+    sel.value = value;
+    sel.dispatchEvent(new Event('change'));
+  }
+  syncSizePresetButtons(targetId);
+}
+
+function syncSizePresetButtons(targetId) {
+  var group = document.querySelector('.size-preset-group[data-target="' + targetId + '"]');
+  var sel = document.getElementById(targetId);
+  if(!group || !sel) return;
+  group.querySelectorAll('[data-size]').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.size === sel.value);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('DOMContentLoaded fired - v55.7 Multi-Screen');
 
@@ -166,6 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
         generateGearList();
         // Update export filename placeholder
         updateExportFilenamePlaceholder();
+        syncSizePresetButtons('canvasSize');
       });
     }
 
@@ -196,6 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initial placeholder update
     updateExportFilenamePlaceholder();
+    syncSizePresetButtons('canvasSize');
 
     // Show/hide CB5 half panel toggle based on panel type
     const panelTypeSelect = document.getElementById('panelType');

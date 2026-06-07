@@ -1119,6 +1119,29 @@ canvas {
   width: 260px;
 }
 
+/* Raster toolbar desktop: force logical rows via flex line-breaks.
+   Breaks are hidden on mobile (the grid layout below handles rows there). */
+.canvas-toolbar .toolbar-break { display: none; }
+@media (min-width: 769px) {
+  .canvas-toolbar .toolbar-break-always {
+    display: block;
+    flex-basis: 100%;
+    width: 100%;
+    height: 0;
+    margin: 0;
+    padding: 0;
+  }
+  /* Custom W/H row only breaks out when Custom is active (no empty row otherwise) */
+  .canvas-toolbar.toolbar-custom-active .toolbar-break-custom {
+    display: block;
+    flex-basis: 100%;
+    width: 100%;
+    height: 0;
+    margin: 0;
+    padding: 0;
+  }
+}
+
 /* Raster toolbar mobile */
 @media (max-width: 768px) {
   .canvas-toolbar {
@@ -1149,24 +1172,32 @@ canvas {
   .canvas-toolbar-group.toolbar-export .canvas-toolbar-label {
     display: none;
   }
-  /* Row 2: Canvas Size (span 2) + Custom W/H or Format/Export */
+  /* Row 2: Canvas Size buttons get a full-width row of their own */
   .canvas-toolbar-group.toolbar-canvas-size {
     grid-row: 2;
-    grid-column: 1 / 3;
+    grid-column: 1 / -1;
     min-width: 0;
   }
   #rasterToolbarCanvasSize {
     min-width: 0 !important;
     width: 100%;
   }
-  /* Custom W/H explicitly on row 2 cols 3-4 (hidden when not Custom) */
+  .raster-size-presets {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+  .raster-size-presets .toggle-btn {
+    flex: 1 1 0;
+    padding: 4px 2px;
+  }
+  /* Custom W/H drop to row 3 (full width, side by side) when Custom is active */
   .canvas-toolbar-group.toolbar-custom-w {
-    grid-row: 2;
-    grid-column: 3;
+    grid-row: 3;
+    grid-column: 1 / 3;
   }
   .canvas-toolbar-group.toolbar-custom-h {
-    grid-row: 2;
-    grid-column: 4;
+    grid-row: 3;
+    grid-column: 3 / 5;
   }
   /* Format/Export auto-flow — negative order so they land before X/Y/Fine/Snap */
   .canvas-toolbar-group.toolbar-format {
@@ -1664,6 +1695,35 @@ canvas:focus {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+/* Canvas-size preset buttons (UHD/DCI/HD/Custom) — replace the old size dropdowns */
+.size-preset-group {
+  flex-wrap: wrap;
+}
+/* Main Canvas Options: stretch buttons to fill the field width like the old dropdown */
+.canvas-size-presets .toggle-btn {
+  flex: 1 1 auto;
+}
+/* Raster toolbar: fill/shrink within the toolbar cell (inherits .canvas-toolbar .toggle-btn sizing) */
+.raster-size-presets {
+  gap: 4px;
+}
+.raster-size-presets .toggle-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Test Pattern: own full-width row, compact to match the narrow tp control panel */
+.tp-size-presets {
+  flex: 1 1 100%;
+  gap: 4px;
+}
+.tp-size-presets .toggle-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 6px 4px;
+  font-size: 12px;
+  min-height: 36px;
 }
 
 /* Toggle buttons */

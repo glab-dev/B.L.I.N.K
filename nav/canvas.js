@@ -198,6 +198,7 @@ function loadCanvasData(canvasId) {
     // from stale DOM form values, corrupting dimensions on canvas switches.
     const customInputs = document.getElementById('customCanvasInputs');
     if(customInputs) customInputs.style.display = canvasSizeSelect.value === 'custom' ? 'flex' : 'none';
+    syncSizePresetButtons('canvasSize');
   }
 
   const customWidthInput = document.getElementById('customCanvasWidth');

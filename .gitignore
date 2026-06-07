@@ -18,6 +18,11 @@ stitch.json
 # Legacy / redundant config
 _redirects
 
+# Local planning docs (not committed)
+BLINK_PDF_REDESIGN_PLAN.md
+PDF_LAYOUT_FIX.md
+STRUCTURE_TABLES_RESTYLE.md
+
 # OS files
 .DS_Store
 

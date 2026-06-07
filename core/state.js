@@ -331,6 +331,20 @@ function toggleDataFlip() {
   calculate();
 }
 
+// Data front/rear view toggle — VISUAL MIRROR ONLY (does not change data assignments)
+let dataRearViewEnabled = false;
+function setDataView(view) {
+  dataRearViewEnabled = (view === 'rear');
+  const fb = document.getElementById('dataFrontViewBtn');
+  const rb = document.getElementById('dataRearViewBtn');
+  if(fb) fb.classList.toggle('active', !dataRearViewEnabled);
+  if(rb) rb.classList.toggle('active', dataRearViewEnabled);
+  if(screens[currentScreenId]) {
+    screens[currentScreenId].data.dataRearView = dataRearViewEnabled;
+  }
+  calculate();
+}
+
 // Redundancy toggle
 let redundancyEnabled = true;
 function toggleRedundancy() {

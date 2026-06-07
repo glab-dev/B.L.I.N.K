@@ -74,6 +74,7 @@ async function saveConfiguration() {
         dataStartDir: data.dataStartDir,
         showArrows: data.showArrows,
         dataFlip: data.dataFlip,
+        dataRearView: data.dataRearView,
         redundancy: data.redundancy,
         processorRedundancy: data.processorRedundancy,
         structureType: data.structureType,
@@ -496,6 +497,9 @@ function applyConfiguration(config) {
     document.getElementById('dataStartDir').value = config.dataStartDir || 'top';
     showArrowsEnabled = config.showArrows !== undefined ? config.showArrows : true;
     dataFlipEnabled = config.dataFlip || false;
+    dataRearViewEnabled = config.dataRearView || false;
+    document.getElementById('dataFrontViewBtn')?.classList.toggle('active', !dataRearViewEnabled);
+    document.getElementById('dataRearViewBtn')?.classList.toggle('active', dataRearViewEnabled);
     document.getElementById('frameRate').value = config.frameRate || '60';
     document.getElementById('bitDepth').value = config.bitDepth || '8';
     redundancyEnabled = config.redundancy || false;

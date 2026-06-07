@@ -5,6 +5,12 @@
 function renderDataLayout(params) {
   const {pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, panelsPerDataLine, startDir, showArrows} = params;
 
+  // Rear view = mirror the draw x-coordinate horizontally (visual only; data
+  // assignments are unchanged). Labels stay upright and arrows mirror because
+  // their points inherit the mirrored x.
+  const _rearView = (typeof dataRearViewEnabled !== 'undefined') && dataRearViewEnabled;
+  const drawX = (c) => (_rearView ? (pw - 1 - c) : c) * panelWidth;
+
   // Build data path based on start direction (matching calculateActualDataLines logic)
   const serp = [];
 
@@ -292,7 +298,7 @@ function renderDataLayout(params) {
       // Determine if this row is the half panel row
       const isHalfPanelRow = hasCB5HalfRow && r === originalPh;
       const currentPanelHeight = isHalfPanelRow ? halfPanelHeight : panelHeight;
-      const x = c * panelWidth;
+      const x = drawX(c);
       const y = isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight);
 
       // Check if panel is deleted
@@ -320,7 +326,7 @@ function renderDataLayout(params) {
       // Determine if this row is the half panel row
       const isHalfPanelRow = hasCB5HalfRow && pnt.r === originalPh;
       const currentPanelHeight = isHalfPanelRow ? halfPanelHeight : panelHeight;
-      const x = pnt.c * panelWidth;
+      const x = drawX(pnt.c);
       const y = isHalfPanelRow ? (originalPh * panelHeight) : (pnt.r * panelHeight);
 
       ctx.fillStyle=colors.fill;

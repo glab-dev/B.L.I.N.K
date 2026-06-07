@@ -68,6 +68,7 @@ function getDefaultScreenData() {
     dataStartDir: 'top',
     showArrows: true,
     dataFlip: false,
+    dataRearView: false,
     redundancy: true,
     processorRedundancy: false,
     
@@ -227,6 +228,7 @@ function saveCurrentScreenData() {
   data.dataStartDir = document.getElementById('dataStartDir').value;
   data.showArrows = showArrowsEnabled;
   data.dataFlip = dataFlipEnabled;
+  data.dataRearView = dataRearViewEnabled;
   data.redundancy = redundancyEnabled;
   data.processorRedundancy = processorRedundancyEnabled;
   data.mx40ConnectionMode = mx40ConnectionMode;
@@ -355,6 +357,7 @@ function loadScreenData(screenId) {
   document.getElementById('dataStartDir').value = data.dataStartDir || 'top';
   showArrowsEnabled = data.showArrows !== false;
   dataFlipEnabled = data.dataFlip || false;
+  dataRearViewEnabled = data.dataRearView || false;
   redundancyEnabled = data.redundancy !== false; // Default to true if undefined
   processorRedundancyEnabled = data.processorRedundancy || false;
   
@@ -389,6 +392,10 @@ function loadScreenData(screenId) {
     dataFlipBtn.classList.toggle('active', dataFlipEnabled);
     dataFlipBtn.style.display = showArrowsEnabled ? '' : 'none';
   }
+  const dataFrontViewBtn = document.getElementById('dataFrontViewBtn');
+  const dataRearViewBtn = document.getElementById('dataRearViewBtn');
+  if(dataFrontViewBtn) dataFrontViewBtn.classList.toggle('active', !dataRearViewEnabled);
+  if(dataRearViewBtn) dataRearViewBtn.classList.toggle('active', dataRearViewEnabled);
 
   // Structure
   document.getElementById('structureType').value = data.structureType || 'hanging';

@@ -221,7 +221,9 @@ function renderPowerLayout(params) {
         });
       }
 
-      const _socaOutlinePalette = ['#ff10f0', '#39ff14', '#00aaff'];
+      const _socaOutlinePalette = ['#ff10f0', '#39ff14', '#00aaff'].map(function(h){
+        return greyscalePrintMode ? toGreyscale(h) : (ecoPrintMode ? toPastelColor(h) : h);
+      });
       const socaColorIdx = new Map();
       if (_drawOutlines) {
         // Reverse lookup: panelKey -> socaIdx

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.44",
+  "version": "2.11.45",
   "updated": "2026-06-08",
-  "changelog": "Fix data map cards cut off on mobile by shrinking to fit"
+  "changelog": "Apply eco/greyscale conversion to SOCA outlines and data labels in PDF"
 }

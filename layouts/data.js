@@ -313,8 +313,11 @@ function renderDataLayout(params) {
   // When the overlay toggle is on, map each start panel to its label ("N" main / "NB" backup).
   const showLineLabels = (typeof dataLineLabelsEnabled !== 'undefined') && dataLineLabelsEnabled;
   const _redundancy = !!(screens[currentScreenId] && screens[currentScreenId].data && screens[currentScreenId].data.redundancy);
-  const MAIN_LABEL_COLOR = '#10b981';   // app green (--primary)
-  const BACKUP_LABEL_COLOR = '#d27fc7'; // muted magenta (same tone family)
+  // Print modes (eco/greyscale PDF) convert label colors like the panel fills do.
+  const _printColor = (h) => (typeof greyscalePrintMode !== 'undefined' && greyscalePrintMode) ? toGreyscale(h)
+                   : ((typeof ecoPrintMode !== 'undefined' && ecoPrintMode) ? toPastelColor(h) : h);
+  const MAIN_LABEL_COLOR = _printColor('#10b981');   // app green (--primary)
+  const BACKUP_LABEL_COLOR = _printColor('#d27fc7'); // muted magenta (same tone family)
   const lineLabelMap = new Map();
   if (showLineLabels) {
     dataLineEndpoints.forEach(ep => {

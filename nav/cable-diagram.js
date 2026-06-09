@@ -105,12 +105,12 @@ function renderCableDiagram(screenId) {
   const gridColor = isPrintMode ? '#000000' : '#555555';
   const gridDeletedColor = isPrintMode ? '#dddddd' : '#333333';
   const POWER_COLOR = applyPrintColor('#FF6B35');
-  const DATA_COLOR = applyPrintColor('#00CED1');
+  const DATA_COLOR = applyPrintColor('#10b981');
   const PROC_COLOR = applyPrintColor('#4ECDC4');
   const DISTBOX_COLOR = applyPrintColor('#FFD700');
   const TRUNK_COLOR = isPrintMode ? '#333333' : '#FFFFFF';
   const PICK_COLOR = applyPrintColor('#7CFC00');
-  const BACKUP_COLOR = applyPrintColor('#FF69B4');
+  const BACKUP_COLOR = applyPrintColor('#d27fc7');
   const SERVER_COLOR = applyPrintColor('#AB47BC');
 
   // Background

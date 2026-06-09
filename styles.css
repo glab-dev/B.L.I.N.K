@@ -3715,9 +3715,9 @@ canvas:focus {
 .data-line-map .weight-row { justify-content: flex-start; gap: 22px; }
 .data-line-map .weight-label { min-width: 2em; }
 .structure-info-box.mains    { border-color: var(--primary); grid-column: 1; }
-.structure-info-box.backups  { border-color: #d946ef; grid-column: 2; }
+.structure-info-box.backups  { border-color: #d27fc7; grid-column: 2; }
 .structure-info-title.mains   { color: var(--primary); border: 1px solid var(--primary); }
-.structure-info-title.backups { color: #d946ef; border: 1px solid #d946ef; }
+.structure-info-title.backups { color: #d27fc7; border: 1px solid #d27fc7; }
 
 /* Desktop welcome page */
 @media (min-width: 768px) {

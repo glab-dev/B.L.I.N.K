@@ -314,7 +314,7 @@ function renderDataLayout(params) {
   const showLineLabels = (typeof dataLineLabelsEnabled !== 'undefined') && dataLineLabelsEnabled;
   const _redundancy = !!(screens[currentScreenId] && screens[currentScreenId].data && screens[currentScreenId].data.redundancy);
   const MAIN_LABEL_COLOR = '#10b981';   // app green (--primary)
-  const BACKUP_LABEL_COLOR = '#d946ef'; // magenta (same tone family)
+  const BACKUP_LABEL_COLOR = '#d27fc7'; // muted magenta (same tone family)
   const lineLabelMap = new Map();
   if (showLineLabels) {
     dataLineEndpoints.forEach(ep => {

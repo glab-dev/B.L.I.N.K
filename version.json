@@ -1,5 +1,5 @@
 {
-  "version": "2.11.39",
+  "version": "2.11.40",
   "updated": "2026-06-08",
-  "changelog": "Narrow data map cards, color labels green/magenta for mains/backups"
+  "changelog": "Soften backup magenta to a muted tone"
 }

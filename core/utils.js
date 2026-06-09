@@ -91,6 +91,10 @@ function toPastelColor(hex) {
   const max = Math.max(r, g, b), min = Math.min(r, g, b);
   let h, s, l = (max + min) / 2;
 
+  // Light neutrals (e.g. white) are already "pastel" — pass through unchanged
+  // so eco mode doesn't darken white to grey.
+  if (max === min && l >= 0.7) return hex;
+
   if (max === min) {
     h = s = 0;
   } else {

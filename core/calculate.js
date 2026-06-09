@@ -445,6 +445,9 @@ function resetCalculator() {
   document.getElementById('dataFrontViewBtn')?.classList.add('active');
   document.getElementById('dataRearViewBtn')?.classList.remove('active');
 
+  dataLineLabelsEnabled = false;
+  (function(){ const b = document.getElementById('dataLineLabelsBtn'); if(b){ b.classList.remove('active'); b.textContent = 'Off'; } })();
+
   snapModeEnabled = true;
   document.getElementById('snapModeBtn')?.classList.add('active');
   
@@ -1915,6 +1918,7 @@ function generateLayout(mode){
 
   if(mode==='data'){
     renderDataLayout({pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, panelsPerDataLine, startDir, showArrows});
+    if(typeof renderDataLineMap === 'function') renderDataLineMap();
     return;
   }
 }

@@ -1904,6 +1904,8 @@ function buildComplexPdf(opts, canvasCache) {
               content.push(sectionLabel('Data Layout'));
               var dImgLg = gridImage(screenId + '_data', pw, ph, layoutImgMaxH);
               if (dImgLg) content.push(dImgLg);
+              var dMapLg = buildDataLineMapTable(screenId);
+              if (dMapLg) content.push(dMapLg);
             }
           }
           if (opts.structure !== false || opts.cabling !== false) {
@@ -1979,6 +1981,8 @@ function buildComplexPdf(opts, canvasCache) {
         content.push(sectionLabel('Data Layout'));
         const img = gridImage(screenId + '_data', pw, ph, singlePageMaxH);
         if (img) content.push(img);
+        const dMap = buildDataLineMapTable(screenId);
+        if (dMap) content.push(dMap);
       }
 
       // Structure + Cabling (same page when collapsing, new page otherwise)
@@ -2367,6 +2371,51 @@ function pdfBuildGearTable(rows, colors) {
       paddingBottom: () => 2
     }
   };
+}
+
+// Builds the data line / backup start-panel mapping table for the PDF, mirroring
+// the in-app table. Reads the per-screen endpoints stashed by renderDataLayout().
+function buildDataLineMapTable(screenId) {
+  const screen = screens[screenId];
+  const endpoints = screen && screen.calculatedData && screen.calculatedData.dataLineEndpoints;
+  if (!endpoints || endpoints.length === 0) return null;
+  const redundancy = !!(screen.data && screen.data.redundancy);
+  const colors = getPdfColors();
+  const fmt = (p) => p ? (p.c + 1) + '.' + (p.r + 1) : '—';
+
+  function buildTable(title, rows) {
+    const body = [[
+      { text: title, colSpan: 2, bold: true, fillColor: colors.headerBg, color: colors.headerText, fontSize: 8, alignment: 'center' },
+      {}
+    ]];
+    rows.forEach((row, i) => {
+      const fill = (i % 2 === 0) ? colors.rowAlt : '#fff';
+      body.push([
+        { text: row.label, bold: true, fontSize: 8, color: colors.accent, alignment: 'right', fillColor: fill },
+        { text: row.panel, fontSize: 8, color: colors.text, fillColor: fill }
+      ]);
+    });
+    return {
+      width: 'auto',
+      table: { headerRows: 1, widths: ['auto', 'auto'], body: body },
+      layout: {
+        hLineWidth: () => 0.3,
+        vLineWidth: () => 0.3,
+        hLineColor: () => '#ccc',
+        vLineColor: () => '#ccc',
+        paddingLeft: () => 6,
+        paddingRight: () => 6,
+        paddingTop: () => 2,
+        paddingBottom: () => 2
+      }
+    };
+  }
+
+  const cols = [ buildTable('Data Lines', endpoints.map(ep => ({ label: String(ep.line), panel: fmt(ep.entry) }))) ];
+  if (redundancy) {
+    cols.push(buildTable('Backups', endpoints.map(ep => ({ label: ep.line + 'B', panel: fmt(ep.exit) }))));
+  }
+  return { columns: cols, columnGap: 16, margin: [0, 6, 0, 0] };
 }
 
 function pdfCaptureCanvases() {

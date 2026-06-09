@@ -3699,6 +3699,49 @@ canvas:focus {
   width: 120px;
 }
 
+/* Data line / backup start-panel mapping table (below the data layout) */
+.data-line-map {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  justify-content: center;
+  padding: 12px 12px 4px;
+}
+.data-line-map-col {
+  flex: 0 1 auto;
+  min-width: 130px;
+}
+.data-line-map-title {
+  font-family: 'Bangers', cursive;
+  letter-spacing: 1px;
+  font-size: 17px;
+  color: var(--primary);
+  -webkit-text-stroke: 0.6px #000;
+  text-align: center;
+  margin-bottom: 6px;
+}
+.data-line-map-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-line-map-table td {
+  padding: 4px 10px;
+  border: 1px solid #383838;
+  font-family: 'Roboto Condensed', sans-serif;
+  font-size: 13px;
+}
+.data-line-map-table .dlm-label {
+  font-weight: 700;
+  color: var(--primary);
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
+}
+.data-line-map-table .dlm-panel {
+  color: #e5e5e5;
+  white-space: nowrap;
+}
+
 /* Desktop welcome page */
 @media (min-width: 768px) {
   .welcome-content {

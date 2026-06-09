@@ -1,5 +1,5 @@
 {
-  "version": "2.11.34",
-  "updated": "2026-06-07",
-  "changelog": "Add Front/Rear View toggle to the cable layout view"
+  "version": "2.11.35",
+  "updated": "2026-06-08",
+  "changelog": "Add data-line start labels and mapping table to data layout; fix eco white"
 }

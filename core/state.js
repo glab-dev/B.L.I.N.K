@@ -345,6 +345,18 @@ function setDataView(view) {
   calculate();
 }
 
+// Data line start labels toggle — draws line/backup start numbers over the data layout
+let dataLineLabelsEnabled = false;
+function toggleDataLineLabels() {
+  dataLineLabelsEnabled = !dataLineLabelsEnabled;
+  const btn = document.getElementById('dataLineLabelsBtn');
+  if(btn) { btn.classList.toggle('active', dataLineLabelsEnabled); btn.textContent = dataLineLabelsEnabled ? 'On' : 'Off'; }
+  if(screens[currentScreenId]) {
+    screens[currentScreenId].data.dataLineLabels = dataLineLabelsEnabled;
+  }
+  calculate();
+}
+
 // Redundancy toggle
 let redundancyEnabled = true;
 function toggleRedundancy() {

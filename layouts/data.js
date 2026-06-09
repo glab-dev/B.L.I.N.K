@@ -290,6 +290,36 @@ function renderDataLayout(params) {
     groups.push(dataLineGroups.get(dataLine));
   });
 
+  // ---- Data line start endpoints ----
+  // Entry = first panel in flow order; exit = last panel (where the backup cable enters).
+  // Stash per-screen so the in-app table and PDF table use the exact same mapping as drawn.
+  const dataLineEndpoints = sortedDataLines.map((ln, gi) => ({
+    line: ln + 1,
+    entry: groups[gi][0],
+    exit: groups[gi][groups[gi].length - 1]
+  }));
+  if (typeof screens !== 'undefined' && screens[currentScreenId]) {
+    if (!screens[currentScreenId].calculatedData) screens[currentScreenId].calculatedData = {};
+    screens[currentScreenId].calculatedData.dataLineEndpoints = dataLineEndpoints;
+  }
+
+  // When the overlay toggle is on, map each start panel to its label ("N" main / "NB" backup).
+  const showLineLabels = (typeof dataLineLabelsEnabled !== 'undefined') && dataLineLabelsEnabled;
+  const _redundancy = !!(screens[currentScreenId] && screens[currentScreenId].data && screens[currentScreenId].data.redundancy);
+  const lineLabelMap = new Map();
+  if (showLineLabels) {
+    dataLineEndpoints.forEach(ep => {
+      const eKey = ep.entry ? `${ep.entry.c},${ep.entry.r}` : null;
+      const xKey = (_redundancy && ep.exit) ? `${ep.exit.c},${ep.exit.r}` : null;
+      if (eKey && xKey && eKey === xKey) {
+        lineLabelMap.set(eKey, `${ep.line}/${ep.line}B`); // single-panel line: main + backup share the panel
+      } else {
+        if (eKey) lineLabelMap.set(eKey, `${ep.line}`);
+        if (xKey) lineLabelMap.set(xKey, `${ep.line}B`);
+      }
+    });
+  }
+
   // Draw all panels first (including deleted)
   for(let c=0;c<pw;c++){
     for(let r=0;r<ph;r++){
@@ -335,11 +365,30 @@ function renderDataLayout(params) {
       ctx.lineWidth = 2;
       ctx.strokeRect(x,y,panelWidth,currentPanelHeight);
 
-      // Use white text only for data line 9 (black resistor color), black text for all others
-      ctx.fillStyle = (dataLineNum % 10 === 9) ? '#FFFFFF' : '#000000';
-
-      // Show panel number as column.row (matching standard layout)
-      ctx.fillText(`${pnt.c+1}.${pnt.r+1}`, x+panelWidth/2, y+currentPanelHeight/2);
+      const _bigLabel = lineLabelMap.get(`${pnt.c},${pnt.r}`);
+      if (_bigLabel) {
+        // Big bold start-label over the panel (comic style, outlined for legibility)
+        ctx.save();
+        let _fs = Math.floor(currentPanelHeight * 0.5);
+        ctx.font = `bold ${_fs}px Arial`;
+        while (_fs > 8 && ctx.measureText(_bigLabel).width > panelWidth * 0.85) {
+          _fs -= 1;
+          ctx.font = `bold ${_fs}px Arial`;
+        }
+        const _cx = x + panelWidth/2, _cy = y + currentPanelHeight/2;
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = Math.max(2, _fs * 0.14);
+        ctx.strokeStyle = '#000000';
+        ctx.strokeText(_bigLabel, _cx, _cy);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(_bigLabel, _cx, _cy);
+        ctx.restore();
+      } else {
+        // Use white text only for data line 9 (black resistor color), black text for all others
+        ctx.fillStyle = (dataLineNum % 10 === 9) ? '#FFFFFF' : '#000000';
+        // Show panel number as column.row (matching standard layout)
+        ctx.fillText(`${pnt.c+1}.${pnt.r+1}`, x+panelWidth/2, y+currentPanelHeight/2);
+      }
       groupPoints[gi].push({x:x+panelWidth/2, y:y+currentPanelHeight/2, color: colors.solid});
     }
   }
@@ -436,4 +485,55 @@ function drawArrowPath(ctx, points, colorHex){
   const angle = Math.atan2(end.y - prev.y, end.x - prev.x);
   drawVArrowhead(ctx, end.x, end.y, angle, colorHex);
   ctx.restore();
+}
+
+// ==================== DATA LINE MAPPING TABLE ====================
+// Renders the always-visible list of data line / backup start panels below the
+// data canvas, using the per-screen endpoints stashed by renderDataLayout().
+function renderDataLineMap() {
+  const host = document.getElementById('dataLineMap');
+  if(!host) return;
+  host.textContent = '';
+
+  const screen = screens[currentScreenId];
+  const endpoints = screen && screen.calculatedData && screen.calculatedData.dataLineEndpoints;
+  if(!endpoints || endpoints.length === 0) return;
+  const redundancy = !!(screen.data && screen.data.redundancy);
+
+  const fmt = (p) => p ? `${p.c+1}.${p.r+1}` : '—';
+
+  function buildColumn(title, rows) {
+    const col = document.createElement('div');
+    col.className = 'data-line-map-col';
+    const h = document.createElement('div');
+    h.className = 'data-line-map-title';
+    h.textContent = title;
+    col.appendChild(h);
+    const table = document.createElement('table');
+    table.className = 'data-line-map-table';
+    rows.forEach(function(row) {
+      const tr = document.createElement('tr');
+      const tdL = document.createElement('td');
+      tdL.className = 'dlm-label';
+      tdL.textContent = row.label;
+      const tdP = document.createElement('td');
+      tdP.className = 'dlm-panel';
+      tdP.textContent = row.panel;
+      tr.appendChild(tdL);
+      tr.appendChild(tdP);
+      table.appendChild(tr);
+    });
+    col.appendChild(table);
+    return col;
+  }
+
+  host.appendChild(buildColumn('Data Lines', endpoints.map(function(ep){
+    return { label: `${ep.line}`, panel: fmt(ep.entry) };
+  })));
+
+  if(redundancy) {
+    host.appendChild(buildColumn('Backups', endpoints.map(function(ep){
+      return { label: `${ep.line}B`, panel: fmt(ep.exit) };
+    })));
+  }
 }

@@ -2516,8 +2516,13 @@
               <button type="button" class="slider-toggle-btn" id="dataRearViewBtn" onclick="setDataView('rear')">Rear View</button>
             </div>
           </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Line Labels</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="dataLineLabelsBtn" onclick="toggleDataLineLabels()">Off</button>
+          </div>
         </div>
         <canvas id="dataCanvas"></canvas>
+        <div id="dataLineMap" class="data-line-map"></div>
       </div>
     </div>
 
@@ -3324,8 +3329,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.34';
-const APP_CHANGELOG = 'Add Front/Rear View toggle to the cable layout view';
+const APP_VERSION = '2.11.35';
+const APP_CHANGELOG = 'Add data-line start labels and mapping table to data layout; fix eco white';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -75,6 +75,7 @@ async function saveConfiguration() {
         showArrows: data.showArrows,
         dataFlip: data.dataFlip,
         dataRearView: data.dataRearView,
+        dataLineLabels: data.dataLineLabels,
         redundancy: data.redundancy,
         processorRedundancy: data.processorRedundancy,
         structureType: data.structureType,
@@ -501,6 +502,8 @@ function applyConfiguration(config) {
     dataRearViewEnabled = config.dataRearView || false;
     document.getElementById('dataFrontViewBtn')?.classList.toggle('active', !dataRearViewEnabled);
     document.getElementById('dataRearViewBtn')?.classList.toggle('active', dataRearViewEnabled);
+    dataLineLabelsEnabled = config.dataLineLabels || false;
+    (function(){ const b = document.getElementById('dataLineLabelsBtn'); if(b){ b.classList.toggle('active', dataLineLabelsEnabled); b.textContent = dataLineLabelsEnabled ? 'On' : 'Off'; } })();
     document.getElementById('frameRate').value = config.frameRate || '60';
     document.getElementById('bitDepth').value = config.bitDepth || '8';
     redundancyEnabled = config.redundancy || false;

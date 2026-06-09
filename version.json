@@ -1,5 +1,5 @@
 {
-  "version": "2.11.42",
+  "version": "2.11.43",
   "updated": "2026-06-08",
-  "changelog": "Match cable layout data/backup colors to data layout green/magenta"
+  "changelog": "Move Arrows/Flip toggles into the data layout toggle row"
 }

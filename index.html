@@ -2404,10 +2404,6 @@
 
           <!-- Row 4: Toggle buttons (complex mode only) -->
           <div id="dataTogglesRow" class="toggle-group toggle-group-6">
-            <div class="grouped-btn-shadow">
-              <button type="button" class="toggle-btn active toggle-btn-grouped-left" id="showArrowsBtn" onclick="toggleShowArrows()">Arrows</button>
-              <button type="button" class="toggle-btn toggle-btn-grouped-right" id="dataFlipBtn" onclick="toggleDataFlip()">Flip</button>
-            </div>
             <button type="button" class="toggle-btn active toggle-btn-standalone" id="redundancyBtn" onclick="toggleRedundancy()">Data Redun.</button>
             <button type="button" class="toggle-btn toggle-btn-standalone" id="processorRedundancyBtn" onclick="toggleProcessorRedundancy()">Proc Redun.</button>
           </div>
@@ -2514,6 +2510,13 @@
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="dataFrontViewBtn" onclick="setDataView('front')">Front View</button>
               <button type="button" class="slider-toggle-btn" id="dataRearViewBtn" onclick="setDataView('rear')">Rear View</button>
+            </div>
+          </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Arrows</span>
+            <div class="grouped-btn-shadow">
+              <button type="button" class="toggle-btn active toggle-btn-grouped-left" id="showArrowsBtn" onclick="toggleShowArrows()">Arrows</button>
+              <button type="button" class="toggle-btn toggle-btn-grouped-right" id="dataFlipBtn" onclick="toggleDataFlip()">Flip</button>
             </div>
           </div>
           <div class="flex-noshrink">
@@ -3329,8 +3332,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.42';
-const APP_CHANGELOG = 'Match cable layout data/backup colors to data layout green/magenta';
+const APP_VERSION = '2.11.43';
+const APP_CHANGELOG = 'Move Arrows/Flip toggles into the data layout toggle row';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

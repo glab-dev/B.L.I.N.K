@@ -1,5 +1,5 @@
 {
-  "version": "2.11.47",
+  "version": "2.11.48",
   "updated": "2026-06-09",
-  "changelog": "Add per-canvas Data Lines and Data Labels overlays to the canvas view"
+  "changelog": "Use resistor colors for canvas data overlay, layer labels over coords, shrink corner text"
 }

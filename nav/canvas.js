@@ -92,6 +92,16 @@ function toggleCanvasDataLabels() {
   if(typeof showCanvasView === 'function') showCanvasView();
 }
 
+// Lightens a hex colour toward white by amt (0..1) — used for muted backup labels.
+function lightenHexCanvas(hex, amt) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  r = Math.round(r + (255 - r) * amt);
+  g = Math.round(g + (255 - g) * amt);
+  b = Math.round(b + (255 - b) * amt);
+  return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
 // Draws the data-line arrows and start labels for one screen onto the canvas,
 // reusing the exact data-line ordering used by the data layout / cabling.
 function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelResY, ph, hasCB5HalfRow, opts) {
@@ -122,10 +132,14 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
 
   const flip = !!data.dataFlip;
 
+  // Canvas-only colour scheme: each data line uses its resistor-code colour
+  // (line 1 brown, 2 red, ...). The data layout keeps its own black/green/magenta.
+  const palette = (typeof resistorColors !== 'undefined' && resistorColors.length) ? resistorColors : ['#000000'];
+  const lineColorFor = (ln) => palette[ln % palette.length];
+
   // ---- Data lines (serpentine arrows; matches data layout segmentation) ----
   if(opts.showLines) {
     ctx.save();
-    ctx.strokeStyle = '#000000';
     ctx.lineWidth = Math.max(3, panelResX * 0.05);
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
@@ -133,6 +147,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
     sortedLines.forEach(ln => {
       const grp = ordering[ln];
       if(!grp || grp.length < 2) return;
+      ctx.strokeStyle = lineColorFor(ln);
       const segments = [];
       let seg = [grp[0]];
       for(let i = 1; i < grp.length; i++) {
@@ -167,7 +182,6 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
   // ---- Data labels (start badges: main green, backup magenta; flip swaps ends) ----
   if(opts.showLabels) {
     const redundancy = !!data.redundancy;
-    const MAIN = '#10b981', BACKUP = '#d27fc7';
     const badges = [];
     sortedLines.forEach(ln => {
       const grp = ordering[ln];
@@ -176,13 +190,15 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
       const mainP = flip ? last : first;
       const backupP = flip ? first : last;
       const lineNum = ln + 1;
+      const mainColor = lineColorFor(ln);                 // resistor colour
+      const backupColor = lightenHexCanvas(mainColor, 0.5); // muted/lighter shade
       const mKey = mainP.col + ',' + mainP.row;
       const bKey = redundancy ? (backupP.col + ',' + backupP.row) : null;
       if(bKey && bKey === mKey) {
-        badges.push({ c: mainP.col, r: mainP.row, text: lineNum + '/' + lineNum + 'B', color: MAIN });
+        badges.push({ c: mainP.col, r: mainP.row, text: lineNum + '/' + lineNum + 'B', color: mainColor });
       } else {
-        badges.push({ c: mainP.col, r: mainP.row, text: String(lineNum), color: MAIN });
-        if(bKey) badges.push({ c: backupP.col, r: backupP.row, text: lineNum + 'B', color: BACKUP });
+        badges.push({ c: mainP.col, r: mainP.row, text: String(lineNum), color: mainColor });
+        if(bKey) badges.push({ c: backupP.col, r: backupP.row, text: lineNum + 'B', color: backupColor });
       }
     });
     ctx.save();
@@ -650,11 +666,6 @@ function showCanvasView(){
       }
     }
 
-    // Data line/label overlay for this screen (front view; over the panels)
-    if(_dataOverlaysActive) {
-      drawScreenDataOverlay(ctx, screen, offsetX, offsetY, p.res_x, p.res_y, ph, hasCB5HalfRow, { showLines: _showDataLines, showLabels: _showDataLabels });
-    }
-
     // Draw X crosshair if enabled for this screen (default: on)
     if(screen.showCrosshair !== false) {
       ctx.strokeStyle = '#e0e0e0';
@@ -678,7 +689,7 @@ function showCanvasView(){
 
     // Add X/Y coordinates in top-left corner (if enabled for this screen)
     if(screen.showCoordinates !== false) {
-      const coordFontSize = Math.max(24, Math.min(p.res_x, p.res_y) / 4);
+      const coordFontSize = Math.max(20, Math.min(p.res_x, p.res_y) / 4.7);
       ctx.font = `bold ${coordFontSize}px Arial`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
@@ -726,7 +737,7 @@ function showCanvasView(){
 
     // Add screen resolution at bottom-left (if enabled for this screen) - simplified shadow
     if(screen.showPixelDimensions !== false) {
-      const resFontSize = Math.max(14, Math.min(wallResX, wallResY) * 0.06);
+      const resFontSize = Math.max(12, Math.min(wallResX, wallResY) * 0.051);
       ctx.font = `bold ${resFontSize}px Arial`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
@@ -745,7 +756,7 @@ function showCanvasView(){
     }
 
     // Add B.L.I.N.K. logo in bottom right corner
-    const logoFontSize = Math.max(12, Math.min(wallResX, wallResY) * 0.05);
+    const logoFontSize = Math.max(10, Math.min(wallResX, wallResY) * 0.043);
     ctx.font = `bold ${logoFontSize}px Arial`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
@@ -761,6 +772,12 @@ function showCanvasView(){
     // White text for logo
     ctx.fillStyle = '#ffffff';
     ctx.fillText(logoText, logoTextX, logoTextY);
+
+    // Data line/label overlay — drawn last so labels sit over the X/Y coordinate
+    // and other annotations (front view; canvas only).
+    if(_dataOverlaysActive) {
+      drawScreenDataOverlay(ctx, screen, offsetX, offsetY, p.res_x, p.res_y, ph, hasCB5HalfRow, { showLines: _showDataLines, showLabels: _showDataLabels });
+    }
   });
 
   // Cache the canvas state BEFORE drawing the border (for clean export)

@@ -3733,6 +3733,8 @@ canvas:focus {
     padding-right: 12px;
   }
   .data-line-map .weight-row { gap: 12px; }
+  /* Let the data layout toggles wrap so the Data Labels button isn't cut off */
+  #dataContent .layout-toggle-row { flex-wrap: wrap; row-gap: 10px; }
 }
 
 /* Desktop welcome page */

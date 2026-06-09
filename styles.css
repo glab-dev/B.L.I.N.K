@@ -3718,6 +3718,8 @@ canvas:focus {
 .structure-info-box.backups  { border-color: #d27fc7; grid-column: 2; }
 .structure-info-title.mains   { color: var(--primary); border: 1px solid var(--primary); }
 .structure-info-title.backups { color: #d27fc7; border: 1px solid #d27fc7; }
+.structure-info-box.mains   .weight-label { color: var(--primary); }
+.structure-info-box.backups .weight-label { color: #d27fc7; }
 
 /* Desktop welcome page */
 @media (min-width: 768px) {

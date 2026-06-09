@@ -1,5 +1,5 @@
 {
-  "version": "2.11.40",
+  "version": "2.11.41",
   "updated": "2026-06-08",
-  "changelog": "Soften backup magenta to a muted tone"
+  "changelog": "Color data map line numbers to match each card accent"
 }

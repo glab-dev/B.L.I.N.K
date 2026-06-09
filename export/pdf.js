@@ -2411,7 +2411,7 @@ function buildDataLineMapTable(screenId) {
     };
   }
 
-  const cols = [ buildTable('Data Lines', endpoints.map(ep => ({ label: String(ep.line), panel: fmt(ep.entry) }))) ];
+  const cols = [ buildTable('Mains', endpoints.map(ep => ({ label: String(ep.line), panel: fmt(ep.entry) }))) ];
   if (redundancy) {
     cols.push(buildTable('Backups', endpoints.map(ep => ({ label: ep.line + 'B', panel: fmt(ep.exit) }))));
   }

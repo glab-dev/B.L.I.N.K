@@ -3704,7 +3704,7 @@ canvas:focus {
   display: flex;
   flex-wrap: wrap;
   gap: 18px;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 12px 12px 4px;
 }
 .data-line-map-col {

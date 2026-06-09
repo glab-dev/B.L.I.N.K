@@ -1,5 +1,5 @@
 {
-  "version": "2.11.35",
+  "version": "2.11.36",
   "updated": "2026-06-08",
-  "changelog": "Add data-line start labels and mapping table to data layout; fix eco white"
+  "changelog": "Draw data-line labels above arrows, left-align map tables, rename Data Lines to Mains"
 }

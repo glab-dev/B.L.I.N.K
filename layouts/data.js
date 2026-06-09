@@ -346,6 +346,7 @@ function renderDataLayout(params) {
 
   // Draw active panels with data grouping
   const groupPoints = [];
+  const bigLabelDraws = []; // deferred so start-labels render ON TOP of the arrows
   for(let gi=0; gi<groups.length; gi++){
     const dataLineNum = sortedDataLines[gi]; // Use actual data line number for color
     const colors=colorForIndex(dataLineNum);
@@ -367,22 +368,8 @@ function renderDataLayout(params) {
 
       const _bigLabel = lineLabelMap.get(`${pnt.c},${pnt.r}`);
       if (_bigLabel) {
-        // Big bold start-label over the panel (comic style, outlined for legibility)
-        ctx.save();
-        let _fs = Math.floor(currentPanelHeight * 0.5);
-        ctx.font = `bold ${_fs}px Arial`;
-        while (_fs > 8 && ctx.measureText(_bigLabel).width > panelWidth * 0.85) {
-          _fs -= 1;
-          ctx.font = `bold ${_fs}px Arial`;
-        }
-        const _cx = x + panelWidth/2, _cy = y + currentPanelHeight/2;
-        ctx.lineJoin = 'round';
-        ctx.lineWidth = Math.max(2, _fs * 0.14);
-        ctx.strokeStyle = '#000000';
-        ctx.strokeText(_bigLabel, _cx, _cy);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillText(_bigLabel, _cx, _cy);
-        ctx.restore();
+        // Defer the big start-label so it draws ON TOP of the arrows (see pass below)
+        bigLabelDraws.push({ label: _bigLabel, cx: x + panelWidth/2, cy: y + currentPanelHeight/2, h: currentPanelHeight });
       } else {
         // Use white text only for data line 9 (black resistor color), black text for all others
         ctx.fillStyle = (dataLineNum % 10 === 9) ? '#FFFFFF' : '#000000';
@@ -465,6 +452,24 @@ function renderDataLayout(params) {
       }
     }
   }
+
+  // Draw deferred data-line start labels ON TOP of the arrows (comic style, outlined)
+  bigLabelDraws.forEach(function(bl){
+    ctx.save();
+    let _fs = Math.floor(bl.h * 0.5);
+    ctx.font = `bold ${_fs}px Arial`;
+    while (_fs > 8 && ctx.measureText(bl.label).width > panelWidth * 0.85) {
+      _fs -= 1;
+      ctx.font = `bold ${_fs}px Arial`;
+    }
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(2, _fs * 0.14);
+    ctx.strokeStyle = '#000000';
+    ctx.strokeText(bl.label, bl.cx, bl.cy);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(bl.label, bl.cx, bl.cy);
+    ctx.restore();
+  });
 }
 
 // ==================== ARROW DRAWING ====================
@@ -527,7 +532,7 @@ function renderDataLineMap() {
     return col;
   }
 
-  host.appendChild(buildColumn('Data Lines', endpoints.map(function(ep){
+  host.appendChild(buildColumn('Mains', endpoints.map(function(ep){
     return { label: `${ep.line}`, panel: fmt(ep.entry) };
   })));
 

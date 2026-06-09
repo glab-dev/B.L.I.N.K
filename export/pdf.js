@@ -2373,49 +2373,61 @@ function pdfBuildGearTable(rows, colors) {
   };
 }
 
-// Builds the data line / backup start-panel mapping table for the PDF, mirroring
-// the in-app table. Reads the per-screen endpoints stashed by renderDataLayout().
+// Builds the data line / backup start-panel mapping table for the PDF. Styled to
+// match the structure info cards (grey-filled boxed cards, underlined bold title,
+// item lines). Reads per-screen endpoints stashed by renderDataLayout().
 function buildDataLineMapTable(screenId) {
   const screen = screens[screenId];
   const endpoints = screen && screen.calculatedData && screen.calculatedData.dataLineEndpoints;
   if (!endpoints || endpoints.length === 0) return null;
   const redundancy = !!(screen.data && screen.data.redundancy);
-  const colors = getPdfColors();
+  const tc = PDF_TOKENS.colors;
   const fmt = (p) => p ? (p.c + 1) + '.' + (p.r + 1) : '—';
 
-  function buildTable(title, rows) {
-    const body = [[
-      { text: title, colSpan: 2, bold: true, fillColor: colors.headerBg, color: colors.headerText, fontSize: 8, alignment: 'center' },
-      {}
-    ]];
-    rows.forEach((row, i) => {
-      const fill = (i % 2 === 0) ? colors.rowAlt : '#fff';
-      body.push([
-        { text: row.label, bold: true, fontSize: 8, color: colors.accent, alignment: 'right', fillColor: fill },
-        { text: row.panel, fontSize: 8, color: colors.text, fillColor: fill }
-      ]);
-    });
-    return {
-      width: 'auto',
-      table: { headerRows: 1, widths: ['auto', 'auto'], body: body },
-      layout: {
-        hLineWidth: () => 0.3,
-        vLineWidth: () => 0.3,
-        hLineColor: () => '#ccc',
-        vLineColor: () => '#ccc',
-        paddingLeft: () => 6,
-        paddingRight: () => 6,
-        paddingTop: () => 2,
-        paddingBottom: () => 2
-      }
+  // One card = underlined title + a stack of "label  panel" item lines.
+  function buildCard(title, rows) {
+    const titleEl = {
+      text: title,
+      fontSize: 9, bold: true, color: '#000000',
+      decoration: 'underline', decorationColor: '#000000',
+      margin: [0, 0, 0, 4]
     };
+    const itemEls = rows.map(function(r) {
+      return {
+        text: [
+          { text: r.label, bold: true, color: '#000000' },
+          { text: '   ' + r.panel, color: tc.textSecondary }
+        ],
+        fontSize: 8, lineHeight: 1.3
+      };
+    });
+    return { stack: [titleEl].concat(itemEls), margin: [6, 6, 6, 6] };
   }
 
-  const cols = [ buildTable('Mains', endpoints.map(ep => ({ label: String(ep.line), panel: fmt(ep.entry) }))) ];
+  // Wrap cards in a 4-column summary-bar-style row (pad with blanks to match width)
+  const cards = [ buildCard('Mains', endpoints.map(ep => ({ label: String(ep.line), panel: fmt(ep.entry) }))) ];
   if (redundancy) {
-    cols.push(buildTable('Backups', endpoints.map(ep => ({ label: ep.line + 'B', panel: fmt(ep.exit) }))));
+    cards.push(buildCard('Backups', endpoints.map(ep => ({ label: ep.line + 'B', panel: fmt(ep.exit) }))));
   }
-  return { columns: cols, columnGap: 16, margin: [0, 6, 0, 0] };
+  while (cards.length < 4) cards.push(null);
+
+  const cells = cards.map(function(c) {
+    return {
+      stack: c ? [c] : [{ text: ' ', fontSize: 4 }],
+      fillColor: tc.summaryBg,
+      border: [true, true, true, true],
+      borderColor: [tc.sectionBorder, tc.sectionBorder, tc.sectionBorder, tc.sectionBorder]
+    };
+  });
+  return {
+    table: { widths: ['*', '*', '*', '*'], body: [cells] },
+    layout: {
+      hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+      hLineColor: () => tc.sectionBorder, vLineColor: () => tc.sectionBorder,
+      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0
+    },
+    margin: [0, 6, 0, 4]
+  };
 }
 
 function pdfCaptureCanvases() {

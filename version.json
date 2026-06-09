@@ -1,5 +1,5 @@
 {
-  "version": "2.11.36",
+  "version": "2.11.37",
   "updated": "2026-06-08",
-  "changelog": "Draw data-line labels above arrows, left-align map tables, rename Data Lines to Mains"
+  "changelog": "Style PDF data-line tables to match structure info cards"
 }

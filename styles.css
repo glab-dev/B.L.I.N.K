@@ -3700,19 +3700,24 @@ canvas:focus {
 }
 
 /* Data line / backup start-panel mapping cards (below the data layout) —
-   reuses the structure info card styling (.structure-info-box / -title / .weight-row) */
+   reuses the structure info card styling (.structure-info-box / -title / .weight-row).
+   Cards size to content (left-grouped) so the line numbers sit close together. */
 .data-line-map {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: max-content max-content;
   gap: 16px;
   align-items: start;
+  justify-content: start;
   padding: 20px 5px 5px;
 }
 .data-line-map:empty { padding: 0; }
-.structure-info-box.mains    { border-color: #6fc276; grid-column: 1; }
-.structure-info-box.backups  { border-color: #4a9eff; grid-column: 2; }
-.structure-info-title.mains   { color: #6fc276; border: 1px solid #6fc276; }
-.structure-info-title.backups { color: #4a9eff; border: 1px solid #4a9eff; }
+.data-line-map .structure-info-box { min-width: 150px; }
+.data-line-map .weight-row { justify-content: flex-start; gap: 22px; }
+.data-line-map .weight-label { min-width: 2em; }
+.structure-info-box.mains    { border-color: var(--primary); grid-column: 1; }
+.structure-info-box.backups  { border-color: #d946ef; grid-column: 2; }
+.structure-info-title.mains   { color: var(--primary); border: 1px solid var(--primary); }
+.structure-info-title.backups { color: #d946ef; border: 1px solid #d946ef; }
 
 /* Desktop welcome page */
 @media (min-width: 768px) {

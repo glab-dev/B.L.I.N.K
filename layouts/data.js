@@ -313,16 +313,18 @@ function renderDataLayout(params) {
   // When the overlay toggle is on, map each start panel to its label ("N" main / "NB" backup).
   const showLineLabels = (typeof dataLineLabelsEnabled !== 'undefined') && dataLineLabelsEnabled;
   const _redundancy = !!(screens[currentScreenId] && screens[currentScreenId].data && screens[currentScreenId].data.redundancy);
+  const MAIN_LABEL_COLOR = '#10b981';   // app green (--primary)
+  const BACKUP_LABEL_COLOR = '#d946ef'; // magenta (same tone family)
   const lineLabelMap = new Map();
   if (showLineLabels) {
     dataLineEndpoints.forEach(ep => {
       const mKey = ep.main ? `${ep.main.c},${ep.main.r}` : null;
       const bKey = (_redundancy && ep.backup) ? `${ep.backup.c},${ep.backup.r}` : null;
       if (mKey && bKey && mKey === bKey) {
-        lineLabelMap.set(mKey, `${ep.line}/${ep.line}B`); // single-panel line: main + backup share the panel
+        lineLabelMap.set(mKey, { text: `${ep.line}/${ep.line}B`, color: MAIN_LABEL_COLOR }); // single-panel line shares the panel
       } else {
-        if (mKey) lineLabelMap.set(mKey, `${ep.line}`);
-        if (bKey) lineLabelMap.set(bKey, `${ep.line}B`);
+        if (mKey) lineLabelMap.set(mKey, { text: `${ep.line}`, color: MAIN_LABEL_COLOR });
+        if (bKey) lineLabelMap.set(bKey, { text: `${ep.line}B`, color: BACKUP_LABEL_COLOR });
       }
     });
   }
@@ -376,7 +378,7 @@ function renderDataLayout(params) {
       const _bigLabel = lineLabelMap.get(`${pnt.c},${pnt.r}`);
       if (_bigLabel) {
         // Defer the big start-label so it draws ON TOP of the arrows (see pass below)
-        bigLabelDraws.push({ label: _bigLabel, cx: x + panelWidth/2, cy: y + currentPanelHeight/2, h: currentPanelHeight });
+        bigLabelDraws.push({ label: _bigLabel.text, color: _bigLabel.color, cx: x + panelWidth/2, cy: y + currentPanelHeight/2, h: currentPanelHeight });
       } else {
         // Use white text only for data line 9 (black resistor color), black text for all others
         ctx.fillStyle = (dataLineNum % 10 === 9) ? '#FFFFFF' : '#000000';
@@ -470,10 +472,10 @@ function renderDataLayout(params) {
       ctx.font = `bold ${_fs}px Arial`;
     }
     ctx.lineJoin = 'round';
-    ctx.lineWidth = Math.max(2, _fs * 0.14);
+    ctx.lineWidth = Math.max(2.5, _fs * 0.18);
     ctx.strokeStyle = '#000000';
     ctx.strokeText(bl.label, bl.cx, bl.cy);
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = bl.color;
     ctx.fillText(bl.label, bl.cx, bl.cy);
     ctx.restore();
   });

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.48",
+  "version": "2.11.49",
   "updated": "2026-06-09",
-  "changelog": "Use resistor colors for canvas data overlay, layer labels over coords, shrink corner text"
+  "changelog": "Shrink canvas screen-size, logo, and coordinate text slightly more"
 }

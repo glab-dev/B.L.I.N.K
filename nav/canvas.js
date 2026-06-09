@@ -689,7 +689,7 @@ function showCanvasView(){
 
     // Add X/Y coordinates in top-left corner (if enabled for this screen)
     if(screen.showCoordinates !== false) {
-      const coordFontSize = Math.max(20, Math.min(p.res_x, p.res_y) / 4.7);
+      const coordFontSize = Math.max(18, Math.min(p.res_x, p.res_y) / 5.1);
       ctx.font = `bold ${coordFontSize}px Arial`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
@@ -737,7 +737,7 @@ function showCanvasView(){
 
     // Add screen resolution at bottom-left (if enabled for this screen) - simplified shadow
     if(screen.showPixelDimensions !== false) {
-      const resFontSize = Math.max(12, Math.min(wallResX, wallResY) * 0.051);
+      const resFontSize = Math.max(11, Math.min(wallResX, wallResY) * 0.047);
       ctx.font = `bold ${resFontSize}px Arial`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
@@ -756,7 +756,7 @@ function showCanvasView(){
     }
 
     // Add B.L.I.N.K. logo in bottom right corner
-    const logoFontSize = Math.max(10, Math.min(wallResX, wallResY) * 0.043);
+    const logoFontSize = Math.max(9, Math.min(wallResX, wallResY) * 0.039);
     ctx.font = `bold ${logoFontSize}px Arial`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.43",
+  "version": "2.11.44",
   "updated": "2026-06-08",
-  "changelog": "Move Arrows/Flip toggles into the data layout toggle row"
+  "changelog": "Fix data map cards cut off on mobile by shrinking to fit"
 }

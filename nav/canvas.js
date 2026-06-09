@@ -66,8 +66,144 @@ function getDefaultCanvasData() {
     exportFilename: '',
     exportFormat: 'png',
     snapMode: true,
-    arrowKeyIncrement: 10
+    arrowKeyIncrement: 10,
+    showDataLines: false,
+    showDataLabels: false
   };
+}
+
+// Per-canvas data overlay toggles (independent per canvas tab). State lives in
+// the current canvas's data; the button reflects it and re-renders the canvas.
+function toggleCanvasDataLines() {
+  if(!currentCanvasId || !canvases[currentCanvasId]) return;
+  const d = canvases[currentCanvasId].data;
+  d.showDataLines = !d.showDataLines;
+  const btn = document.getElementById('canvasDataLinesBtn');
+  if(btn) btn.classList.toggle('active', d.showDataLines);
+  if(typeof showCanvasView === 'function') showCanvasView();
+}
+
+function toggleCanvasDataLabels() {
+  if(!currentCanvasId || !canvases[currentCanvasId]) return;
+  const d = canvases[currentCanvasId].data;
+  d.showDataLabels = !d.showDataLabels;
+  const btn = document.getElementById('canvasDataLabelsBtn');
+  if(btn) btn.classList.toggle('active', d.showDataLabels);
+  if(typeof showCanvasView === 'function') showCanvasView();
+}
+
+// Draws the data-line arrows and start labels for one screen onto the canvas,
+// reusing the exact data-line ordering used by the data layout / cabling.
+function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelResY, ph, hasCB5HalfRow, opts) {
+  if(typeof getDataLinePanelOrdering !== 'function') return;
+  const data = screen.data || {};
+  const pw = data.panelsWide || 0;
+  if(pw === 0 || ph === 0) return;
+
+  const effectivePh = hasCB5HalfRow ? ph + 1 : ph;
+  const panelsPerDataLine = (screen.calculatedData && screen.calculatedData.panelsPerDataLine) || 16;
+  const startDir = data.dataStartDir || 'top';
+
+  let deletedSet = data.deletedPanels;
+  if(deletedSet && !(deletedSet instanceof Set)) deletedSet = new Set(deletedSet);
+  if(!deletedSet) deletedSet = new Set();
+
+  const ordering = getDataLinePanelOrdering(pw, effectivePh, panelsPerDataLine, startDir, deletedSet, data.customDataLineAssignments);
+  const sortedLines = Object.keys(ordering).map(Number).sort((a, b) => a - b);
+  if(sortedLines.length === 0) return;
+
+  const allP = getAllPanels();
+  const halfPanel = allP['CB5_MKII_HALF'];
+  const halfResY = (hasCB5HalfRow && halfPanel) ? halfPanel.res_y : panelResY;
+  const cX = (c) => offsetX + c * panelResX + panelResX / 2;
+  const cY = (r) => (hasCB5HalfRow && r === ph)
+    ? offsetY + ph * panelResY + halfResY / 2
+    : offsetY + r * panelResY + panelResY / 2;
+
+  const flip = !!data.dataFlip;
+
+  // ---- Data lines (serpentine arrows; matches data layout segmentation) ----
+  if(opts.showLines) {
+    ctx.save();
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = Math.max(3, panelResX * 0.05);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    const headLen = Math.max(8, panelResX * 0.2);
+    sortedLines.forEach(ln => {
+      const grp = ordering[ln];
+      if(!grp || grp.length < 2) return;
+      const segments = [];
+      let seg = [grp[0]];
+      for(let i = 1; i < grp.length; i++) {
+        const prev = grp[i - 1], curr = grp[i];
+        const colDiff = Math.abs(curr.col - prev.col), rowDiff = Math.abs(curr.row - prev.row);
+        const isAdjacent = (colDiff === 0) ||
+          (colDiff === 1 && (prev.row === 0 || prev.row === effectivePh - 1 || curr.row === 0 || curr.row === effectivePh - 1));
+        if(isAdjacent) seg.push(curr);
+        else { if(seg.length >= 2) segments.push(seg); seg = [curr]; }
+      }
+      if(seg.length >= 2) segments.push(seg);
+      segments.forEach(s => {
+        const pts = flip ? s.slice().reverse() : s;
+        ctx.beginPath();
+        ctx.moveTo(cX(pts[0].col), cY(pts[0].row));
+        for(let i = 1; i < pts.length; i++) ctx.lineTo(cX(pts[i].col), cY(pts[i].row));
+        ctx.stroke();
+        // Arrowhead at the end
+        const end = pts[pts.length - 1], pen = pts[pts.length - 2];
+        const ex = cX(end.col), ey = cY(end.row);
+        const ang = Math.atan2(ey - cY(pen.row), ex - cX(pen.col));
+        ctx.beginPath();
+        ctx.moveTo(ex - headLen * Math.cos(ang - Math.PI / 6), ey - headLen * Math.sin(ang - Math.PI / 6));
+        ctx.lineTo(ex, ey);
+        ctx.lineTo(ex - headLen * Math.cos(ang + Math.PI / 6), ey - headLen * Math.sin(ang + Math.PI / 6));
+        ctx.stroke();
+      });
+    });
+    ctx.restore();
+  }
+
+  // ---- Data labels (start badges: main green, backup magenta; flip swaps ends) ----
+  if(opts.showLabels) {
+    const redundancy = !!data.redundancy;
+    const MAIN = '#10b981', BACKUP = '#d27fc7';
+    const badges = [];
+    sortedLines.forEach(ln => {
+      const grp = ordering[ln];
+      if(!grp || grp.length === 0) return;
+      const first = grp[0], last = grp[grp.length - 1];
+      const mainP = flip ? last : first;
+      const backupP = flip ? first : last;
+      const lineNum = ln + 1;
+      const mKey = mainP.col + ',' + mainP.row;
+      const bKey = redundancy ? (backupP.col + ',' + backupP.row) : null;
+      if(bKey && bKey === mKey) {
+        badges.push({ c: mainP.col, r: mainP.row, text: lineNum + '/' + lineNum + 'B', color: MAIN });
+      } else {
+        badges.push({ c: mainP.col, r: mainP.row, text: String(lineNum), color: MAIN });
+        if(bKey) badges.push({ c: backupP.col, r: backupP.row, text: lineNum + 'B', color: BACKUP });
+      }
+    });
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    badges.forEach(b => {
+      const isHalf = hasCB5HalfRow && b.r === ph;
+      const ph_ = isHalf ? halfResY : panelResY;
+      let fs = Math.floor(Math.min(panelResX, ph_) * 0.5);
+      ctx.font = `bold ${fs}px Arial`;
+      while(fs > 10 && ctx.measureText(b.text).width > panelResX * 0.85) { fs--; ctx.font = `bold ${fs}px Arial`; }
+      ctx.lineWidth = Math.max(3, fs * 0.18);
+      const x = cX(b.c), y = cY(b.r);
+      ctx.strokeStyle = '#000000';
+      ctx.strokeText(b.text, x, y);
+      ctx.fillStyle = b.color;
+      ctx.fillText(b.text, x, y);
+    });
+    ctx.restore();
+  }
 }
 
 function renderCanvasTabs() {
@@ -244,6 +380,11 @@ function loadCanvasData(canvasId) {
     const rasterSnap = document.getElementById('rasterToolbarSnap');
     if(rasterSnap) rasterSnap.classList.toggle('active', snapModeEnabled);
   }
+  // Sync per-canvas data overlay toggle buttons (independent per canvas tab)
+  const dlBtn = document.getElementById('canvasDataLinesBtn');
+  if(dlBtn) dlBtn.classList.toggle('active', !!canvas.data.showDataLines);
+  const dlabBtn = document.getElementById('canvasDataLabelsBtn');
+  if(dlabBtn) dlabBtn.classList.toggle('active', !!canvas.data.showDataLabels);
   // Re-sync the raster toolbar so its mirrored values reflect the loaded canvas
   if(typeof syncToolbarFromCanvasOptions === 'function') syncToolbarFromCanvasOptions();
 }
@@ -395,6 +536,12 @@ function showCanvasView(){
     return numA - numB;
   });
   
+  // Per-canvas data overlay toggles (independent per canvas tab)
+  const _canvasData = (currentCanvasId && canvases[currentCanvasId] && canvases[currentCanvasId].data) || {};
+  const _showDataLines = !!_canvasData.showDataLines;
+  const _showDataLabels = !!_canvasData.showDataLabels;
+  const _dataOverlaysActive = _showDataLines || _showDataLabels;
+
   // Draw each visible screen
   screenIds.forEach(screenId => {
     const screen = screens[screenId];
@@ -482,16 +629,32 @@ function showCanvasView(){
         ctx.lineWidth = 2;
         ctx.strokeRect(xBase, y, panelResX, panelResY);
         
-        // Draw panel label - always use white text for visibility
+        // Draw panel label - white text. When data overlays are active, move the
+        // coordinate to the top-right corner (smaller) so the data line/label can
+        // occupy the panel center.
         ctx.fillStyle = '#FFFFFF';
-        const fontSize = Math.max(12, Math.min(panelResX, panelResY) / 4);
-        ctx.font = `${fontSize}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${c+1}.${r+1}`, xBase + panelResX/2, y + panelResY/2);
+        if(_dataOverlaysActive) {
+          const cornerFont = Math.max(10, Math.min(panelResX, panelResY) / 6);
+          ctx.font = `${cornerFont}px Arial`;
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'top';
+          const pad = Math.max(3, panelResX * 0.05);
+          ctx.fillText(`${c+1}.${r+1}`, xBase + panelResX - pad, y + pad);
+        } else {
+          const fontSize = Math.max(12, Math.min(panelResX, panelResY) / 4);
+          ctx.font = `${fontSize}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`${c+1}.${r+1}`, xBase + panelResX/2, y + panelResY/2);
+        }
       }
     }
-    
+
+    // Data line/label overlay for this screen (front view; over the panels)
+    if(_dataOverlaysActive) {
+      drawScreenDataOverlay(ctx, screen, offsetX, offsetY, p.res_x, p.res_y, ph, hasCB5HalfRow, { showLines: _showDataLines, showLabels: _showDataLabels });
+    }
+
     // Draw X crosshair if enabled for this screen (default: on)
     if(screen.showCrosshair !== false) {
       ctx.strokeStyle = '#e0e0e0';

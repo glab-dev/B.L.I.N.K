@@ -1,5 +1,5 @@
 {
-  "version": "2.11.46",
-  "updated": "2026-06-08",
-  "changelog": "Wrap data layout toggles on mobile so Data Labels button isn't cut off"
+  "version": "2.11.47",
+  "updated": "2026-06-09",
+  "changelog": "Add per-canvas Data Lines and Data Labels overlays to the canvas view"
 }

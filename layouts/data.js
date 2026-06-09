@@ -291,13 +291,20 @@ function renderDataLayout(params) {
   });
 
   // ---- Data line start endpoints ----
-  // Entry = first panel in flow order; exit = last panel (where the backup cable enters).
+  // First = first panel in flow order; last = the other end. The main cable feeds
+  // the start of the flow and the backup the opposite end — so when Flip reverses
+  // the flow direction, main/backup swap ends too.
   // Stash per-screen so the in-app table and PDF table use the exact same mapping as drawn.
-  const dataLineEndpoints = sortedDataLines.map((ln, gi) => ({
-    line: ln + 1,
-    entry: groups[gi][0],
-    exit: groups[gi][groups[gi].length - 1]
-  }));
+  const _flip = (typeof dataFlipEnabled !== 'undefined') && dataFlipEnabled;
+  const dataLineEndpoints = sortedDataLines.map((ln, gi) => {
+    const first = groups[gi][0];
+    const last = groups[gi][groups[gi].length - 1];
+    return {
+      line: ln + 1,
+      main: _flip ? last : first,
+      backup: _flip ? first : last
+    };
+  });
   if (typeof screens !== 'undefined' && screens[currentScreenId]) {
     if (!screens[currentScreenId].calculatedData) screens[currentScreenId].calculatedData = {};
     screens[currentScreenId].calculatedData.dataLineEndpoints = dataLineEndpoints;
@@ -309,13 +316,13 @@ function renderDataLayout(params) {
   const lineLabelMap = new Map();
   if (showLineLabels) {
     dataLineEndpoints.forEach(ep => {
-      const eKey = ep.entry ? `${ep.entry.c},${ep.entry.r}` : null;
-      const xKey = (_redundancy && ep.exit) ? `${ep.exit.c},${ep.exit.r}` : null;
-      if (eKey && xKey && eKey === xKey) {
-        lineLabelMap.set(eKey, `${ep.line}/${ep.line}B`); // single-panel line: main + backup share the panel
+      const mKey = ep.main ? `${ep.main.c},${ep.main.r}` : null;
+      const bKey = (_redundancy && ep.backup) ? `${ep.backup.c},${ep.backup.r}` : null;
+      if (mKey && bKey && mKey === bKey) {
+        lineLabelMap.set(mKey, `${ep.line}/${ep.line}B`); // single-panel line: main + backup share the panel
       } else {
-        if (eKey) lineLabelMap.set(eKey, `${ep.line}`);
-        if (xKey) lineLabelMap.set(xKey, `${ep.line}B`);
+        if (mKey) lineLabelMap.set(mKey, `${ep.line}`);
+        if (bKey) lineLabelMap.set(bKey, `${ep.line}B`);
       }
     });
   }
@@ -507,38 +514,37 @@ function renderDataLineMap() {
 
   const fmt = (p) => p ? `${p.c+1}.${p.r+1}` : '—';
 
-  function buildColumn(title, rows) {
-    const col = document.createElement('div');
-    col.className = 'data-line-map-col';
+  // Build a comic-style card matching the structure info boxes
+  function buildBox(variant, title, rows) {
+    const box = document.createElement('div');
+    box.className = `structure-info-box ${variant}`;
     const h = document.createElement('div');
-    h.className = 'data-line-map-title';
+    h.className = `structure-info-title ${variant}`;
     h.textContent = title;
-    col.appendChild(h);
-    const table = document.createElement('table');
-    table.className = 'data-line-map-table';
+    box.appendChild(h);
     rows.forEach(function(row) {
-      const tr = document.createElement('tr');
-      const tdL = document.createElement('td');
-      tdL.className = 'dlm-label';
-      tdL.textContent = row.label;
-      const tdP = document.createElement('td');
-      tdP.className = 'dlm-panel';
-      tdP.textContent = row.panel;
-      tr.appendChild(tdL);
-      tr.appendChild(tdP);
-      table.appendChild(tr);
+      const r = document.createElement('div');
+      r.className = 'weight-row';
+      const lab = document.createElement('span');
+      lab.className = 'weight-label';
+      lab.textContent = row.label;
+      const val = document.createElement('span');
+      val.className = 'weight-value';
+      val.textContent = row.panel;
+      r.appendChild(lab);
+      r.appendChild(val);
+      box.appendChild(r);
     });
-    col.appendChild(table);
-    return col;
+    return box;
   }
 
-  host.appendChild(buildColumn('Mains', endpoints.map(function(ep){
-    return { label: `${ep.line}`, panel: fmt(ep.entry) };
+  host.appendChild(buildBox('mains', 'Mains', endpoints.map(function(ep){
+    return { label: `${ep.line}`, panel: fmt(ep.main) };
   })));
 
   if(redundancy) {
-    host.appendChild(buildColumn('Backups', endpoints.map(function(ep){
-      return { label: `${ep.line}B`, panel: fmt(ep.exit) };
+    host.appendChild(buildBox('backups', 'Backups', endpoints.map(function(ep){
+      return { label: `${ep.line}B`, panel: fmt(ep.backup) };
     })));
   }
 }

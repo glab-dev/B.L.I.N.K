@@ -2405,9 +2405,9 @@ function buildDataLineMapTable(screenId) {
   }
 
   // Wrap cards in a 4-column summary-bar-style row (pad with blanks to match width)
-  const cards = [ buildCard('Mains', endpoints.map(ep => ({ label: String(ep.line), panel: fmt(ep.entry) }))) ];
+  const cards = [ buildCard('Mains', endpoints.map(ep => ({ label: String(ep.line), panel: fmt(ep.main) }))) ];
   if (redundancy) {
-    cards.push(buildCard('Backups', endpoints.map(ep => ({ label: ep.line + 'B', panel: fmt(ep.exit) }))));
+    cards.push(buildCard('Backups', endpoints.map(ep => ({ label: ep.line + 'B', panel: fmt(ep.backup) }))));
   }
   while (cards.length < 4) cards.push(null);
 

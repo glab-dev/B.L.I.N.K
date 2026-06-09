@@ -1,5 +1,5 @@
 {
-  "version": "2.11.37",
+  "version": "2.11.38",
   "updated": "2026-06-08",
-  "changelog": "Style PDF data-line tables to match structure info cards"
+  "changelog": "Style in-app data tables like structure cards, flip swaps main/backup labels, rename to Data Labels"
 }

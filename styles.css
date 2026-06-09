@@ -3699,48 +3699,20 @@ canvas:focus {
   width: 120px;
 }
 
-/* Data line / backup start-panel mapping table (below the data layout) */
+/* Data line / backup start-panel mapping cards (below the data layout) —
+   reuses the structure info card styling (.structure-info-box / -title / .weight-row) */
 .data-line-map {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
-  justify-content: flex-start;
-  padding: 12px 12px 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+  padding: 20px 5px 5px;
 }
-.data-line-map-col {
-  flex: 0 1 auto;
-  min-width: 130px;
-}
-.data-line-map-title {
-  font-family: 'Bangers', cursive;
-  letter-spacing: 1px;
-  font-size: 17px;
-  color: var(--primary);
-  -webkit-text-stroke: 0.6px #000;
-  text-align: center;
-  margin-bottom: 6px;
-}
-.data-line-map-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.data-line-map-table td {
-  padding: 4px 10px;
-  border: 1px solid #383838;
-  font-family: 'Roboto Condensed', sans-serif;
-  font-size: 13px;
-}
-.data-line-map-table .dlm-label {
-  font-weight: 700;
-  color: var(--primary);
-  text-align: right;
-  white-space: nowrap;
-  width: 1%;
-}
-.data-line-map-table .dlm-panel {
-  color: #e5e5e5;
-  white-space: nowrap;
-}
+.data-line-map:empty { padding: 0; }
+.structure-info-box.mains    { border-color: #6fc276; grid-column: 1; }
+.structure-info-box.backups  { border-color: #4a9eff; grid-column: 2; }
+.structure-info-title.mains   { color: #6fc276; border: 1px solid #6fc276; }
+.structure-info-title.backups { color: #4a9eff; border: 1px solid #4a9eff; }
 
 /* Desktop welcome page */
 @media (min-width: 768px) {

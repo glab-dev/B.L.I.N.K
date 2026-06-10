@@ -712,7 +712,7 @@ function calculate(){
   const panelType = document.getElementById('panelType').value;
   const p=allPanels[panelType];
   const pr=allProcessors[document.getElementById('processor').value];
-  if(!p.width_m || !p.height_m || !p.res_x || !p.res_y || !p.power_max_w){
+  if(!p || !p.width_m || !p.height_m || !p.res_x || !p.res_y || !p.power_max_w){
     document.getElementById('results').innerText = "Please confirm specs for this model (dimensions, resolution, power, etc.) before running calculations.";
     return;
   }
@@ -861,10 +861,17 @@ function calculate(){
   // loads using the line-to-line (two-leg) model in core/phase-balance.js.
   // Only meaningful for 3-phase; null otherwise.
   let phaseBalance = null;
-  if(phase === 3 && typeof assignCircuits === 'function' && typeof computePhaseBalance === 'function') {
-    const { circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments);
-    const pbMode = (typeof phaseBalanceMode !== 'undefined') ? phaseBalanceMode : 'aswired';
-    phaseBalance = computePhaseBalance(circuitCounts, perPanelW, voltage, pbMode);
+  let socaBreakdown = null;
+  if(typeof assignCircuits === 'function') {
+    const { panelToCircuit, circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments);
+    if(typeof assignSocas === 'function' && typeof computeSocaBreakdown === 'function') {
+      const panelToSoca = assignSocas(panelToCircuit, customSocaAssignments);
+      socaBreakdown = computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, perPanelW, voltage);
+    }
+    if(phase === 3 && typeof computePhaseBalance === 'function') {
+      const pbMode = (typeof phaseBalanceMode !== 'undefined') ? phaseBalanceMode : 'aswired';
+      phaseBalance = computePhaseBalance(circuitCounts, perPanelW, voltage, pbMode);
+    }
   }
 
   const pixelsPerPanel = p.res_x*p.res_y;
@@ -1202,7 +1209,8 @@ function calculate(){
       circuitsNeeded: circuitsByColumns,
       socaCount: Math.ceil(circuitsByColumns / 6),
       columnsPerCircuit: columnsPerCircuit,
-      phaseBalance: phaseBalance
+      phaseBalance: phaseBalance,
+      socaBreakdown: socaBreakdown
     };
   }
   
@@ -1210,6 +1218,7 @@ function calculate(){
   generateStructureLayout();
   generateLayout('power');
   if(typeof renderPhaseBalanceLegend === 'function') renderPhaseBalanceLegend();
+  if(typeof renderSocaCircuitTable === 'function') renderSocaCircuitTable();
   generateLayout('data');
   showCanvasView();
   generateGearList();

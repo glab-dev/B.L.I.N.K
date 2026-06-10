@@ -69,6 +69,46 @@ function assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAs
   return { panelToCircuit, circuitCounts };
 }
 
+// Maps each active panel to its SOCA group index (0-based). Extracted from the
+// power-layout renderer (STEP 4): an explicit per-panel SOCA override wins,
+// otherwise the circuit's natural group (6 circuits per SOCA).
+function assignSocas(panelToCircuit, customSocaAssignments) {
+  const panelToSoca = new Map();
+  panelToCircuit.forEach((circuitNum, panelKey) => {
+    const explicit = customSocaAssignments.get(panelKey);
+    const socaIdx = (typeof explicit === 'number' && explicit >= 1) ? (explicit - 1) : Math.floor(circuitNum / 6);
+    panelToSoca.set(panelKey, socaIdx);
+  });
+  return panelToSoca;
+}
+
+// Groups circuits by SOCA and computes per-circuit amps (circuit watts / volts).
+// Returns a sorted array: [{ socaIdx, circuits: [{ circuit, amps }], totalAmps }].
+function computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, perPanelW, voltage) {
+  const Vll = voltage > 0 ? voltage : 208;
+  // Each circuit's SOCA = the SOCA of its panels.
+  const circuitToSoca = new Map();
+  panelToCircuit.forEach((circuitNum, panelKey) => {
+    if (!circuitToSoca.has(circuitNum)) {
+      const s = panelToSoca.get(panelKey);
+      circuitToSoca.set(circuitNum, (typeof s === 'number') ? s : Math.floor(circuitNum / 6));
+    }
+  });
+
+  const groups = new Map(); // socaIdx -> [{ circuit, amps }]
+  [...circuitCounts.keys()].sort((a, b) => a - b).forEach(circuit => {
+    const amps = (circuitCounts.get(circuit) * perPanelW) / Vll;
+    const soca = circuitToSoca.has(circuit) ? circuitToSoca.get(circuit) : Math.floor(circuit / 6);
+    if (!groups.has(soca)) groups.set(soca, []);
+    groups.get(soca).push({ circuit, amps });
+  });
+
+  return [...groups.keys()].sort((a, b) => a - b).map(socaIdx => {
+    const circuits = groups.get(socaIdx);
+    return { socaIdx, circuits, totalAmps: circuits.reduce((sum, c) => sum + c.amps, 0) };
+  });
+}
+
 // Per-leg line-current magnitudes from the watts on each leg-pair (delta load).
 // P = { XY, YZ, ZX } watts. Returns { X, Y, Z } amps.
 function legAmpsFromPairWatts(P, Vll) {

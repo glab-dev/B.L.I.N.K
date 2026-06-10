@@ -417,3 +417,27 @@ function renderPhaseBalanceLegend() {
     `</div>`;
   el.style.display = 'block';
 }
+
+// Renders one card per SOCA below the power canvas, listing each circuit's amps
+// and the SOCA total. Reads the SOCA breakdown computed in core/calculate.js.
+// Hidden when there is no data.
+function renderSocaCircuitTable() {
+  const el = document.getElementById('socaCircuitTable');
+  if (!el) return;
+  const cd = (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].calculatedData : null;
+  const sb = (cd && cd.socaBreakdown) ? cd.socaBreakdown : null;
+  if (!sb || !sb.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  el.innerHTML = sb.map(soca => {
+    const label = (typeof formatSocaLabel === 'function') ? formatSocaLabel(soca.socaIdx) : (soca.socaIdx + 1);
+    const rows = soca.circuits.map(c =>
+      `<div class="weight-row"><span class="weight-label">${label}.${c.circuit + 1}</span><span class="weight-value">${c.amps.toFixed(1)} A</span></div>`
+    ).join('');
+    return `<div class="structure-info-box soca-load">` +
+             `<div class="structure-info-title soca-load">SOCA ${label}</div>` +
+             rows +
+             `<div class="weight-row soca-total"><span class="weight-label">Total</span><span class="weight-value">${soca.totalAmps.toFixed(1)} A</span></div>` +
+           `</div>`;
+  }).join('');
+  el.style.display = 'flex';
+}

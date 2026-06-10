@@ -3722,6 +3722,13 @@ canvas:focus {
 .phase-load .weight-value.pbl-bad  { color: #ff6b6b; }
 .phase-load-rec { margin-top: 8px; font-size: 11px; line-height: 1.35; color: #aaa; }
 
+/* Per-SOCA circuit-amps cards — orange tone (unused by the other tables). */
+.soca-circuit-table { display: flex; flex-wrap: wrap; gap: 16px; padding-top: 10px; }
+.structure-info-box.soca-load { border-color: #ff9f43; min-width: 150px; }
+.structure-info-title.soca-load { color: #ff9f43; border: 1px solid #ff9f43; }
+.soca-load .weight-row.soca-total { border-top: 1px solid #5a4326; border-bottom: none; margin-top: 4px; padding-top: 6px; }
+.soca-load .weight-row.soca-total .weight-value { color: #ff9f43; }
+
 .data-line-map .structure-info-box { min-width: 150px; }
 .data-line-map .weight-row { justify-content: flex-start; gap: 22px; }
 .data-line-map .weight-label { min-width: 2em; }

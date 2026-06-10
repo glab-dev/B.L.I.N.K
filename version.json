@@ -1,5 +1,5 @@
 {
-  "version": "2.11.52",
+  "version": "2.11.53",
   "updated": "2026-06-10",
-  "changelog": "Restyle 3-phase load legend as a structure-info card"
+  "changelog": "Add per-SOCA circuit amps table to power layout"
 }

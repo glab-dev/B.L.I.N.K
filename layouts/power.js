@@ -87,62 +87,10 @@ function renderPowerLayout(params) {
     });
   });
 
-  // STEP 1: Build list of all panels in order (column by column, top to bottom)
-  const orderedPanels = [];
-  for(let c=0; c<pw; c++){
-    for(let r=0; r<ph; r++){
-      const panelKey = `${c},${r}`;
-      if(!deletedPanels.has(panelKey)) {
-        orderedPanels.push({
-          key: panelKey,
-          col: c,
-          row: r,
-          isCustom: customCircuitAssignments.has(panelKey),
-          customCircuit: customCircuitAssignments.has(panelKey) ? customCircuitAssignments.get(panelKey) - 1 : null
-        });
-      }
-    }
-  }
-
-  // STEP 2: Collect all custom circuit numbers that are in use
-  const usedCustomCircuits = new Set();
-  orderedPanels.forEach(p => {
-    if(p.isCustom) {
-      usedCustomCircuits.add(p.customCircuit);
-    }
-  });
-
-  // STEP 3: Assign circuit numbers
-  const panelToCircuit = new Map();
-  let autoCircuitCounter = 0;
-  let panelsInCurrentAutoCircuit = 0;
-
-  orderedPanels.forEach(panel => {
-    if(panel.isCustom) {
-      // Keep custom assignment
-      panelToCircuit.set(panel.key, panel.customCircuit);
-    } else {
-      // Find next available circuit number (skip over custom assignments)
-      while(usedCustomCircuits.has(autoCircuitCounter)) {
-        autoCircuitCounter++;
-      }
-
-      // Auto-assign to current circuit
-      panelToCircuit.set(panel.key, autoCircuitCounter);
-      panelsInCurrentAutoCircuit++;
-
-      // Move to next circuit when we reach the limit
-      if(panelsInCurrentAutoCircuit >= panelsPerCircuit) {
-        autoCircuitCounter++;
-        panelsInCurrentAutoCircuit = 0;
-
-        // Skip over any custom circuits
-        while(usedCustomCircuits.has(autoCircuitCounter)) {
-          autoCircuitCounter++;
-        }
-      }
-    }
-  });
+  // STEP 1-3: Assign circuit numbers (column-major, honouring custom overrides)
+  // via the shared helper so the canvas and the 3-phase load calc in
+  // core/phase-balance.js use identical circuit numbering.
+  const { panelToCircuit } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments);
 
   // STEP 4: Compute SOCA group per panel — explicit assignment (1-based) wins over derived
   const panelToSoca = new Map();
@@ -151,6 +99,19 @@ function renderPowerLayout(params) {
     const socaIdx = (typeof explicit === 'number' && explicit >= 1) ? (explicit - 1) : Math.floor(circuitNum / 6);
     panelToSoca.set(panelKey, socaIdx);
   });
+
+  // 3-phase leg-pair colouring (optional "Color by Leg" view). Reads the
+  // per-circuit leg-pair computed in core/calculate.js (calculatedData) so the
+  // canvas colours match the load legend exactly.
+  const _legColorOn = (typeof colorByLegEnabled !== 'undefined') && colorByLegEnabled;
+  const _cd = (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].calculatedData : null;
+  const _pb = (_cd && _cd.phaseBalance) ? _cd.phaseBalance : null;
+  const circuitToPair = new Map();
+  if (_pb && _pb.perCircuit) _pb.perCircuit.forEach(e => circuitToPair.set(e.circuit, e.pair));
+  const _legPairColor = (pair) => {
+    const base = { XY: '#ff5277', YZ: '#36c5f0', ZX: '#ffd23f' }[pair] || '#cccccc';
+    return greyscalePrintMode ? toGreyscale(base) : (ecoPrintMode ? toPastelColor(base) : base);
+  };
 
   // Draw all panels
   for(let c=0; c<pw; c++){
@@ -184,7 +145,9 @@ function renderPowerLayout(params) {
       const colorIndex = circuitNum % 6;
       const colors = colorForIndex(colorIndex);
 
-      const fillColor = applySocaShade(colors.solid, socaGroup);
+      const legPair = circuitToPair.get(circuitNum);
+      const fillColor = (_legColorOn && legPair) ? _legPairColor(legPair)
+                                                 : applySocaShade(colors.solid, socaGroup);
 
       ctx.fillStyle = fillColor;
       ctx.fillRect(x, y, panelWidth, currentPanelHeight);
@@ -199,7 +162,8 @@ function renderPowerLayout(params) {
       ctx.font = (_pdf ? `${Math.max(10, Math.floor(panelWidth * 0.25))}px Arial` : '11px Arial');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`${formatSocaLabel(socaGroup)}.${circuitNum+1}`, x+panelWidth/2, y+currentPanelHeight/2);
+      const _panelLabel = `${formatSocaLabel(socaGroup)}.${circuitNum+1}`;
+      ctx.fillText((_legColorOn && legPair) ? `${_panelLabel}·${legPair}` : _panelLabel, x+panelWidth/2, y+currentPanelHeight/2);
     }
   }
 
@@ -424,4 +388,37 @@ function renderPowerLayout(params) {
     const rowY = (isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight)) + topBandH;
     ctx.fillText(`${r+1}`, rowMarkerW / 2, rowY + rowH / 2);
   }
+}
+
+// Renders the 3-phase load-balancing legend below the power canvas. Reads the
+// per-leg amps / imbalance / re-patch recommendation computed in
+// core/calculate.js. Hidden when not 3-phase (phaseBalance is null).
+function renderPhaseBalanceLegend() {
+  const el = document.getElementById('phaseBalanceLegend');
+  if (!el) return;
+  const cd = (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].calculatedData : null;
+  const pb = (cd && cd.phaseBalance) ? cd.phaseBalance : null;
+  if (!pb) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  const la = pb.legAmps;
+  const legHtml = ['X', 'Y', 'Z'].map(k => {
+    const isPeak = Math.abs(la[k] - pb.peakLeg) < 0.05;
+    return `<div class="pbl-leg${isPeak ? ' pbl-leg-peak' : ''}"><span class="pbl-leg-name">${k}</span><span class="pbl-leg-amps">${la[k].toFixed(1)} A</span></div>`;
+  }).join('');
+
+  const imb = pb.imbalancePct;
+  const imbClass = imb < 10 ? 'pbl-ok' : (imb < 20 ? 'pbl-warn' : 'pbl-bad');
+
+  let recHtml = '';
+  if (pb.recommendation && pb.recommendation.length) {
+    const moves = pb.recommendation.map(r => `C${r.circuit + 1} ${r.fromPair}→${r.toPair}`).join(', ');
+    recHtml = `<div class="pbl-rec">⚖ Rebalance: ${moves} <span class="pbl-rec-target">→ ${pb.balancedImbalancePct.toFixed(0)}% imbalance</span></div>`;
+  }
+
+  el.innerHTML =
+    `<div class="pbl-head">3-Phase Load <span class="pbl-mode">${pb.mode === 'balanced' ? 'BALANCED' : 'AS-WIRED'}</span></div>` +
+    `<div class="pbl-legs">${legHtml}</div>` +
+    `<div class="pbl-imb ${imbClass}">Imbalance: ${imb.toFixed(0)}%</div>` +
+    recHtml;
+  el.style.display = 'block';
 }

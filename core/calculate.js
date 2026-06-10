@@ -857,6 +857,16 @@ function calculate(){
   const totalAmps = totalPowerW / voltage;
   const ampsPerPhase = phase===3 ? (totalAmps / 3) : ampsSingle;
 
+  // 3-phase load balancing — actual per-leg (X/Y/Z) amps from the real circuit
+  // loads using the line-to-line (two-leg) model in core/phase-balance.js.
+  // Only meaningful for 3-phase; null otherwise.
+  let phaseBalance = null;
+  if(phase === 3 && typeof assignCircuits === 'function' && typeof computePhaseBalance === 'function') {
+    const { circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments);
+    const pbMode = (typeof phaseBalanceMode !== 'undefined') ? phaseBalanceMode : 'aswired';
+    phaseBalance = computePhaseBalance(circuitCounts, perPanelW, voltage, pbMode);
+  }
+
   const pixelsPerPanel = p.res_x*p.res_y;
   const frameRate = parseInt(document.getElementById('frameRate').value) || 60;
   const bitDepth = parseInt(document.getElementById('bitDepth').value) || 8;
@@ -1027,7 +1037,15 @@ function calculate(){
     html += `<div class="result-section-title">POWER (${powerType.toUpperCase()})</div>`;
     html += `<div class="result-row"><strong>Total watts:</strong> ${totalPowerW.toLocaleString()} W</div>`;
     html += `<div class="result-row"><strong>Total amps:</strong> ${ampsSingle.toFixed(2)} A @ ${voltage} V</div>`;
-    if(phase === 3) html += `<div class="result-row"><strong>Amps per phase:</strong> ${ampsPerPhase.toFixed(2)} A</div>`;
+    if(phase === 3) {
+      if(phaseBalance) {
+        const la = phaseBalance.legAmps;
+        html += `<div class="result-row"><strong>Amps per leg (X/Y/Z):</strong> ${la.X.toFixed(1)} / ${la.Y.toFixed(1)} / ${la.Z.toFixed(1)} A</div>`;
+        html += `<div class="result-row"><strong>Phase imbalance:</strong> ${phaseBalance.imbalancePct.toFixed(0)}%</div>`;
+      } else {
+        html += `<div class="result-row"><strong>Amps per phase:</strong> ${ampsPerPhase.toFixed(2)} A</div>`;
+      }
+    }
     html += `<div class="result-row"><strong>Max panels per circuit:</strong> ${calculatedPanelsPerCircuit}</div>`;
 
     // Data specs
@@ -1116,7 +1134,15 @@ function calculate(){
     html += `<div class="result-section-title">POWER (${powerType.toUpperCase()})</div>`;
     html += `<div class="result-row"><strong>Total wall power:</strong> ${totalPowerW.toLocaleString()} W</div>`;
     html += `<div class="result-row"><strong>Total amps:</strong> ${ampsSingle.toFixed(2)} A @ ${voltage} V</div>`;
-    if(phase === 3) html += `<div class="result-row"><strong>Total amps per phase:</strong> ${ampsPerPhase.toFixed(2)} A @ ${voltage} V</div>`;
+    if(phase === 3) {
+      if(phaseBalance) {
+        const la = phaseBalance.legAmps;
+        html += `<div class="result-row"><strong>Amps per leg (X/Y/Z):</strong> ${la.X.toFixed(1)} / ${la.Y.toFixed(1)} / ${la.Z.toFixed(1)} A @ ${voltage} V</div>`;
+        html += `<div class="result-row"><strong>Phase imbalance:</strong> ${phaseBalance.imbalancePct.toFixed(0)}%${phaseBalance.recommendation.length ? ` (balanced: ${phaseBalance.balancedImbalancePct.toFixed(0)}%)` : ''}</div>`;
+      } else {
+        html += `<div class="result-row"><strong>Total amps per phase:</strong> ${ampsPerPhase.toFixed(2)} A @ ${voltage} V</div>`;
+      }
+    }
     html += `<div class="result-row"><strong>Max panels per circuit:</strong> ${calculatedPanelsPerCircuit}</div>`;
     html += `<div class="result-row"><strong>Estimated circuits:</strong> ${circuitsByColumns}</div>`;
 
@@ -1175,13 +1201,15 @@ function calculate(){
       // Power
       circuitsNeeded: circuitsByColumns,
       socaCount: Math.ceil(circuitsByColumns / 6),
-      columnsPerCircuit: columnsPerCircuit
+      columnsPerCircuit: columnsPerCircuit,
+      phaseBalance: phaseBalance
     };
   }
   
   generateLayout('standard');
   generateStructureLayout();
   generateLayout('power');
+  if(typeof renderPhaseBalanceLegend === 'function') renderPhaseBalanceLegend();
   generateLayout('data');
   showCanvasView();
   generateGearList();

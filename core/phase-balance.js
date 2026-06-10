@@ -1,0 +1,156 @@
+// ==================== 3-PHASE LOAD BALANCING ====================
+// Computes the actual per-leg (X / Y / Z) amperage for a line-to-line
+// (two-leg) circuit distribution, plus a greedy auto-balance recommendation.
+//
+// Wiring model: each circuit is a 208 V line-to-line load that bridges TWO of
+// the three legs. A 6-circuit SOCA rotates its circuits across the three
+// leg-pairs (XY / YZ / ZX). Because each leg touches two pairs, per-leg current
+// is the PHASOR sum of the branch currents on those pairs — not a plain sum.
+//
+// Shared by core/calculate.js (totals + PDF data) and layouts/power.js (canvas
+// colouring + legend) so the two paths can never drift.
+
+// --- Editable distro wiring constant --------------------------------------
+// Maps a circuit's position within its 6-circuit SOCA (0-5) to the leg-pair it
+// bridges. Default = standard 3-pair rotation, 2 circuits per pair per SOCA.
+// CHANGE HERE if your distro/SOCA is wired with a different rotation.
+const SOCA_LEG_PAIRS = ['XY', 'YZ', 'ZX', 'XY', 'YZ', 'ZX'];
+
+// Branch-voltage angles (degrees) for a balanced 3-phase system, resistive PF.
+// Branch current is taken in phase with its line-to-line voltage.
+const PHASE_LEG_PAIR_ANGLES = { XY: 30, YZ: -90, ZX: 150 };
+
+// Assigns every active panel to a circuit number (0-based), column by column,
+// honouring custom per-panel circuit overrides. Extracted verbatim from the
+// power-layout renderer (STEP 1-3) so the canvas and the load calc agree.
+// Returns { panelToCircuit: Map<"c,r", circuitNum>, circuitCounts: Map<circuitNum, panelCount> }.
+function assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments) {
+  const orderedPanels = [];
+  for (let c = 0; c < pw; c++) {
+    for (let r = 0; r < ph; r++) {
+      const panelKey = `${c},${r}`;
+      if (!deletedPanels.has(panelKey)) {
+        orderedPanels.push({
+          key: panelKey,
+          isCustom: customCircuitAssignments.has(panelKey),
+          customCircuit: customCircuitAssignments.has(panelKey) ? customCircuitAssignments.get(panelKey) - 1 : null
+        });
+      }
+    }
+  }
+
+  const usedCustomCircuits = new Set();
+  orderedPanels.forEach(p => { if (p.isCustom) usedCustomCircuits.add(p.customCircuit); });
+
+  const panelToCircuit = new Map();
+  let autoCircuitCounter = 0;
+  let panelsInCurrentAutoCircuit = 0;
+
+  orderedPanels.forEach(panel => {
+    if (panel.isCustom) {
+      panelToCircuit.set(panel.key, panel.customCircuit);
+    } else {
+      while (usedCustomCircuits.has(autoCircuitCounter)) autoCircuitCounter++;
+      panelToCircuit.set(panel.key, autoCircuitCounter);
+      panelsInCurrentAutoCircuit++;
+      if (panelsInCurrentAutoCircuit >= panelsPerCircuit) {
+        autoCircuitCounter++;
+        panelsInCurrentAutoCircuit = 0;
+        while (usedCustomCircuits.has(autoCircuitCounter)) autoCircuitCounter++;
+      }
+    }
+  });
+
+  const circuitCounts = new Map();
+  panelToCircuit.forEach(circuitNum => {
+    circuitCounts.set(circuitNum, (circuitCounts.get(circuitNum) || 0) + 1);
+  });
+
+  return { panelToCircuit, circuitCounts };
+}
+
+// Per-leg line-current magnitudes from the watts on each leg-pair (delta load).
+// P = { XY, YZ, ZX } watts. Returns { X, Y, Z } amps.
+function legAmpsFromPairWatts(P, Vll) {
+  const toRad = d => d * Math.PI / 180;
+  const branch = {};
+  ['XY', 'YZ', 'ZX'].forEach(k => {
+    const mag = (P[k] || 0) / Vll;            // branch current magnitude
+    const a = toRad(PHASE_LEG_PAIR_ANGLES[k]);
+    branch[k] = { re: mag * Math.cos(a), im: mag * Math.sin(a) };
+  });
+  const sub = (a, b) => ({ re: a.re - b.re, im: a.im - b.im });
+  const mag = z => Math.sqrt(z.re * z.re + z.im * z.im);
+  // Kirchhoff at each delta node.
+  return {
+    X: mag(sub(branch.XY, branch.ZX)),
+    Y: mag(sub(branch.YZ, branch.XY)),
+    Z: mag(sub(branch.ZX, branch.YZ))
+  };
+}
+
+// Main entry. circuitCounts: Map<circuitNum, panelCount>; perPanelW: watts per
+// panel; voltage: line-to-line volts; mode: 'aswired' | 'balanced'.
+// Returns per-leg amps, imbalance %, per-circuit leg-pair, and a re-patch
+// recommendation (how to reach the greedy-balanced wiring from as-wired).
+function computePhaseBalance(circuitCounts, perPanelW, voltage, mode) {
+  const Vll = voltage > 0 ? voltage : 208;
+  const circuits = [...circuitCounts.keys()].sort((a, b) => a - b)
+    .map(num => ({ num, watts: circuitCounts.get(num) * perPanelW }));
+
+  // As-wired: leg-pair follows the SOCA rotation by circuit position.
+  const aswired = new Map();
+  circuits.forEach(c => { aswired.set(c.num, SOCA_LEG_PAIRS[c.num % SOCA_LEG_PAIRS.length]); });
+
+  // Balanced: greedy — heaviest circuit first onto the lightest leg-pair.
+  const balanced = new Map();
+  const greedyWatts = { XY: 0, YZ: 0, ZX: 0 };
+  [...circuits].sort((a, b) => b.watts - a.watts).forEach(c => {
+    let lightest = 'XY';
+    if (greedyWatts.YZ < greedyWatts[lightest]) lightest = 'YZ';
+    if (greedyWatts.ZX < greedyWatts[lightest]) lightest = 'ZX';
+    balanced.set(c.num, lightest);
+    greedyWatts[lightest] += c.watts;
+  });
+
+  const normMode = (mode === 'balanced') ? 'balanced' : 'aswired';
+  const active = (normMode === 'balanced') ? balanced : aswired;
+
+  const imbalanceOf = (assignment) => {
+    const w = { XY: 0, YZ: 0, ZX: 0 };
+    circuits.forEach(c => { w[assignment.get(c.num)] += c.watts; });
+    const legs = legAmpsFromPairWatts(w, Vll);
+    const arr = [legs.X, legs.Y, legs.Z];
+    const peak = Math.max(...arr), min = Math.min(...arr);
+    return { legAmps: legs, peakLeg: peak, imbalancePct: peak > 0 ? ((peak - min) / peak) * 100 : 0 };
+  };
+
+  const activeStats = imbalanceOf(active);
+  const balancedStats = imbalanceOf(balanced);
+
+  // Recommendation: circuits whose leg-pair would change going as-wired -> balanced.
+  const recommendation = [];
+  if (normMode !== 'balanced') {
+    circuits.forEach(c => {
+      const from = aswired.get(c.num), to = balanced.get(c.num);
+      if (from !== to) recommendation.push({ circuit: c.num, fromPair: from, toPair: to });
+    });
+  }
+
+  const perCircuit = circuits.map(c => ({
+    circuit: c.num,
+    pair: active.get(c.num),
+    amps: c.watts / Vll
+  }));
+
+  return {
+    mode: normMode,
+    voltage: Vll,
+    legAmps: activeStats.legAmps,
+    peakLeg: activeStats.peakLeg,
+    imbalancePct: activeStats.imbalancePct,
+    balancedImbalancePct: balancedStats.imbalancePct,
+    perCircuit,
+    recommendation
+  };
+}

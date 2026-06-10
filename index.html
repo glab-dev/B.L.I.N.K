@@ -2494,8 +2494,20 @@
             <span class="toggle-label toggle-label-block">SOCA Label</span>
             <button type="button" class="toggle-btn toggle-btn-standalone active" id="socaDiagonalLabelBtn" onclick="toggleSocaDiagonalLabel()">On</button>
           </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Phase Balance</span>
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active" id="phaseBalAsWiredBtn" onclick="setPhaseBalanceMode('aswired')">As-Wired</button>
+              <button type="button" class="slider-toggle-btn" id="phaseBalBalancedBtn" onclick="setPhaseBalanceMode('balanced')">Balanced</button>
+            </div>
+          </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Color by Leg</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="colorByLegBtn" onclick="toggleColorByLeg()">Off</button>
+          </div>
         </div>
         <canvas id="powerCanvas"></canvas>
+        <div id="phaseBalanceLegend" class="phase-balance-legend" style="display:none;"></div>
       </div>
     </div>
 
@@ -3270,6 +3282,7 @@
 <!-- Core Utilities -->
 <script defer src="core/modals.js"></script>
 <script defer src="core/utils.js"></script>
+<script defer src="core/phase-balance.js"></script>
 <script defer src="core/update.js"></script>
 <script defer src="core/supabase.js"></script>
 <script defer src="core/auth-ui.js"></script>
@@ -3341,8 +3354,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.49';
-const APP_CHANGELOG = 'Shrink canvas screen-size, logo, and coordinate text slightly more';
+const APP_VERSION = '2.11.50';
+const APP_CHANGELOG = 'Add 3-phase load balancing with per-leg amps and auto-balance on power canvas';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

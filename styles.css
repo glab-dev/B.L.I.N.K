@@ -3711,6 +3711,55 @@ canvas:focus {
   padding: 20px 5px 5px;
 }
 .data-line-map:empty { padding: 0; }
+
+/* 3-phase load-balancing legend (below the power canvas) */
+.phase-balance-legend {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 2px solid #000;
+  border-radius: 6px;
+  background: #2a2a2a;
+  box-shadow: 2px 2px 0 0 rgba(0,0,0,1);
+  font-family: 'Roboto Condensed', sans-serif;
+  color: #fff;
+}
+.pbl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.pbl-mode {
+  font-size: 0.72rem;
+  padding: 1px 7px;
+  border: 1px solid #000;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+.pbl-legs { display: flex; gap: 8px; flex-wrap: wrap; }
+.pbl-leg {
+  flex: 1 1 60px;
+  min-width: 60px;
+  text-align: center;
+  padding: 6px 4px;
+  border: 2px solid #000;
+  border-radius: 5px;
+  background: #1d1d1d;
+}
+.pbl-leg-name { display: block; font-weight: 700; font-size: 0.8rem; opacity: 0.8; }
+.pbl-leg-amps { display: block; font-weight: 700; font-size: 1.05rem; }
+.pbl-leg-peak { background: #3a2a00; border-color: #ffd23f; }
+.pbl-imb { margin-top: 8px; font-weight: 700; }
+.pbl-ok { color: #5cdb6f; }
+.pbl-warn { color: #ffd23f; }
+.pbl-bad { color: #ff6b6b; }
+.pbl-rec { margin-top: 6px; font-size: 0.85rem; line-height: 1.35; color: #ffd9e2; }
+.pbl-rec-target { opacity: 0.85; font-style: italic; }
+
 .data-line-map .structure-info-box { min-width: 150px; }
 .data-line-map .weight-row { justify-content: flex-start; gap: 22px; }
 .data-line-map .weight-label { min-width: 2em; }
@@ -3735,6 +3784,8 @@ canvas:focus {
   .data-line-map .weight-row { gap: 12px; }
   /* Let the data layout toggles wrap so the Data Labels button isn't cut off */
   #dataContent .layout-toggle-row { flex-wrap: wrap; row-gap: 10px; }
+  /* Power toggles grew (SOCA + Phase Balance + Color by Leg) — wrap on mobile */
+  #powerContent .layout-toggle-row { flex-wrap: wrap; row-gap: 10px; }
 }
 
 /* Desktop welcome page */

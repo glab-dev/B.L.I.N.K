@@ -215,6 +215,41 @@ function initSocaToggleButtons() {
   if (lb) { lb.classList.toggle('active', socaDiagonalLabelEnabled); lb.textContent = socaDiagonalLabelEnabled ? 'On' : 'Off'; }
 }
 
+// 3-phase load balancing — power-canvas view toggles (persisted, like the SOCA
+// toggles above). 'aswired' (default) shows the leg-pair rotation as physically
+// wired; 'balanced' shows the greedy-optimised assignment. The per-leg amps in
+// calculatedData depend on the mode, so the mode toggle re-runs calculate().
+let phaseBalanceMode = (typeof localStorage !== 'undefined' && localStorage.getItem('ledcalc_phase_balance_mode') === 'balanced') ? 'balanced' : 'aswired';
+// Color-by-leg recolours power-canvas panels by leg-pair (visual only).
+let colorByLegEnabled = (typeof localStorage !== 'undefined' && localStorage.getItem('ledcalc_color_by_leg') === 'true');
+
+function setPhaseBalanceMode(mode) {
+  phaseBalanceMode = (mode === 'balanced') ? 'balanced' : 'aswired';
+  try { localStorage.setItem('ledcalc_phase_balance_mode', phaseBalanceMode); } catch(e) {}
+  const aw = document.getElementById('phaseBalAsWiredBtn');
+  const bl = document.getElementById('phaseBalBalancedBtn');
+  if (aw) aw.classList.toggle('active', phaseBalanceMode === 'aswired');
+  if (bl) bl.classList.toggle('active', phaseBalanceMode === 'balanced');
+  if (typeof calculate === 'function') calculate();
+}
+
+function toggleColorByLeg() {
+  colorByLegEnabled = !colorByLegEnabled;
+  try { localStorage.setItem('ledcalc_color_by_leg', String(colorByLegEnabled)); } catch(e) {}
+  const btn = document.getElementById('colorByLegBtn');
+  if (btn) { btn.classList.toggle('active', colorByLegEnabled); btn.textContent = colorByLegEnabled ? 'On' : 'Off'; }
+  if (typeof generateLayout === 'function') generateLayout('power');
+}
+
+function initPhaseBalanceButtons() {
+  const aw = document.getElementById('phaseBalAsWiredBtn');
+  const bl = document.getElementById('phaseBalBalancedBtn');
+  if (aw) aw.classList.toggle('active', phaseBalanceMode === 'aswired');
+  if (bl) bl.classList.toggle('active', phaseBalanceMode === 'balanced');
+  const btn = document.getElementById('colorByLegBtn');
+  if (btn) { btn.classList.toggle('active', colorByLegEnabled); btn.textContent = colorByLegEnabled ? 'On' : 'Off'; }
+}
+
 // Effective max panels per circuit: user override if set, else the auto-calculated
 // value that calculate.js writes into the input's placeholder. Falls back to 6.
 function getEffectivePanelsPerCircuit() {

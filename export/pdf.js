@@ -828,7 +828,10 @@ function buildSimpleSummaryBar(screenData, calcData, panelSpec) {
   const breaker       = parseInt(data.breaker) || 20;
   const phase         = parseInt(data.phase) || 3;
   const ampsTotal     = voltage > 0 ? totalPowerW / voltage : 0;
-  const ampsPhase     = phase === 3 ? ampsTotal / 1.732 : ampsTotal;
+  // 3-phase per-leg amps from the actual circuit distribution (core/phase-balance.js).
+  // Falls back to the balanced √3 estimate when no phase-balance data is present.
+  const phaseBal      = cd.phaseBalance || null;
+  const ampsPhase     = phaseBal ? phaseBal.peakLeg : (phase === 3 ? ampsTotal / 1.732 : ampsTotal);
   const circuits      = cd.circuitsNeeded || 0;
   const maxPpc        = powerPerPanel > 0 ? Math.floor((voltage * breaker) / powerPerPanel) : 0;
 
@@ -869,7 +872,10 @@ function buildSimpleSummaryBar(screenData, calcData, panelSpec) {
   const colPower = buildSummaryColumn('POWER (MAX)', [
     ['Total Power',   totalPowerW > 0 ? `${totalPowerW.toLocaleString()} W` : null],
     ['Total Amps',    ampsTotal > 0   ? `${ampsTotal.toFixed(1)} A @ ${voltage}V` : null],
-    ['Amps/Phase',    ampsPhase > 0   ? `${ampsPhase.toFixed(1)} A @ ${voltage}V` : null],
+    phaseBal
+      ? ['Amps/Leg X/Y/Z', `${phaseBal.legAmps.X.toFixed(1)}/${phaseBal.legAmps.Y.toFixed(1)}/${phaseBal.legAmps.Z.toFixed(1)} A`]
+      : ['Amps/Phase',    ampsPhase > 0   ? `${ampsPhase.toFixed(1)} A @ ${voltage}V` : null],
+    phaseBal ? ['Imbalance', `${phaseBal.imbalancePct.toFixed(0)}%`] : ['', null],
     ['Circuits',      circuits > 0    ? circuits : null],
     ['Max/Circuit',   maxPpc > 0      ? `${maxPpc} panels` : null],
   ]);
@@ -1013,7 +1019,10 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
   const breaker       = parseInt(data.breaker) || 20;
   const phase         = parseInt(data.phase) || 3;
   const ampsTotal     = voltage > 0 ? totalPowerW / voltage : 0;
-  const ampsPhase     = phase === 3 ? ampsTotal / 1.732 : ampsTotal;
+  // 3-phase per-leg amps from the actual circuit distribution (core/phase-balance.js).
+  // Falls back to the balanced √3 estimate when no phase-balance data is present.
+  const phaseBal      = cd.phaseBalance || null;
+  const ampsPhase     = phaseBal ? phaseBal.peakLeg : (phase === 3 ? ampsTotal / 1.732 : ampsTotal);
   const circuits      = cd.circuitsNeeded || 0;
   const maxPpc        = powerPerPanel > 0 ? Math.floor((voltage * breaker) / powerPerPanel) : 0;
 
@@ -1055,7 +1064,10 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
   const colPower = buildSummaryColumn('POWER (MAX)', [
     ['Total Power',   totalPowerW > 0 ? `${totalPowerW.toLocaleString()} W` : null],
     ['Total Amps',    ampsTotal > 0   ? `${ampsTotal.toFixed(1)} A @ ${voltage}V` : null],
-    ['Amps/Phase',    ampsPhase > 0   ? `${ampsPhase.toFixed(1)} A @ ${voltage}V` : null],
+    phaseBal
+      ? ['Amps/Leg X/Y/Z', `${phaseBal.legAmps.X.toFixed(1)}/${phaseBal.legAmps.Y.toFixed(1)}/${phaseBal.legAmps.Z.toFixed(1)} A`]
+      : ['Amps/Phase',    ampsPhase > 0   ? `${ampsPhase.toFixed(1)} A @ ${voltage}V` : null],
+    phaseBal ? ['Imbalance', `${phaseBal.imbalancePct.toFixed(0)}%`] : ['', null],
     ['Circuits',      circuits > 0    ? circuits : null],
     ['Max/Circuit',   maxPpc > 0      ? `${maxPpc} panels` : null],
   ]);
@@ -2749,11 +2761,15 @@ function buildPdfDocDefinition(opts, canvasCache) {
       const voltage = parseInt(data.voltage) || 208;
       const breaker = parseInt(data.breaker) || 20;
       const phase = parseInt(data.phase) || 3;
-      const ampsPerPhase = phase === 3 ? (totalPowerW / voltage) / 1.732 : totalPowerW / voltage;
+      const phaseBal = calcData.phaseBalance || null;
+      const ampsPerPhase = phaseBal ? phaseBal.peakLeg : (phase === 3 ? (totalPowerW / voltage) / 1.732 : totalPowerW / voltage);
       const maxPanelsPerCircuit = powerPerPanel > 0 ? Math.floor((voltage * breaker) / powerPerPanel) : 0;
       const powerRows = [
         specRow('Total Power:', `${(totalPowerW / 1000).toFixed(2)} kW`),
-        specRow('Amps/Phase:', `${ampsPerPhase.toFixed(1)} A (${phase}\u03C6)`),
+        phaseBal
+          ? specRow('Amps/Leg:', `${phaseBal.legAmps.X.toFixed(1)}/${phaseBal.legAmps.Y.toFixed(1)}/${phaseBal.legAmps.Z.toFixed(1)} A (${phase}\u03C6)`)
+          : specRow('Amps/Phase:', `${ampsPerPhase.toFixed(1)} A (${phase}\u03C6)`),
+        phaseBal ? specRow('Imbalance:', `${phaseBal.imbalancePct.toFixed(0)}%`) : null,
         specRow('Max/Circuit:', `${maxPanelsPerCircuit} panels`),
       ].filter(Boolean);
       if (powerRows.length > 0) {

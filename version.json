@@ -1,5 +1,5 @@
 {
-  "version": "2.11.50",
+  "version": "2.11.51",
   "updated": "2026-06-10",
-  "changelog": "Add 3-phase load balancing with per-leg amps and auto-balance on power canvas"
+  "changelog": "Shrink canvas coordinate, resolution, and logo overlay text further"
 }

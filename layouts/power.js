@@ -92,13 +92,9 @@ function renderPowerLayout(params) {
   // core/phase-balance.js use identical circuit numbering.
   const { panelToCircuit } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments);
 
-  // STEP 4: Compute SOCA group per panel — explicit assignment (1-based) wins over derived
-  const panelToSoca = new Map();
-  panelToCircuit.forEach((circuitNum, panelKey) => {
-    const explicit = customSocaAssignments.get(panelKey);
-    const socaIdx = (typeof explicit === 'number' && explicit >= 1) ? (explicit - 1) : Math.floor(circuitNum / 6);
-    panelToSoca.set(panelKey, socaIdx);
-  });
+  // STEP 4: Compute SOCA group per panel via the shared helper (explicit
+  // per-panel assignment wins, else the circuit's natural 6-per-SOCA group).
+  const panelToSoca = assignSocas(panelToCircuit, customSocaAssignments);
 
   // 3-phase leg-pair colouring (optional "Color by Leg" view). Reads the
   // per-circuit leg-pair computed in core/calculate.js (calculatedData) so the
@@ -401,24 +397,23 @@ function renderPhaseBalanceLegend() {
   if (!pb) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
   const la = pb.legAmps;
-  const legHtml = ['X', 'Y', 'Z'].map(k => {
-    const isPeak = Math.abs(la[k] - pb.peakLeg) < 0.05;
-    return `<div class="pbl-leg${isPeak ? ' pbl-leg-peak' : ''}"><span class="pbl-leg-name">${k}</span><span class="pbl-leg-amps">${la[k].toFixed(1)} A</span></div>`;
-  }).join('');
-
   const imb = pb.imbalancePct;
   const imbClass = imb < 10 ? 'pbl-ok' : (imb < 20 ? 'pbl-warn' : 'pbl-bad');
 
   let recHtml = '';
   if (pb.recommendation && pb.recommendation.length) {
     const moves = pb.recommendation.map(r => `C${r.circuit + 1} ${r.fromPair}→${r.toPair}`).join(', ');
-    recHtml = `<div class="pbl-rec">⚖ Rebalance: ${moves} <span class="pbl-rec-target">→ ${pb.balancedImbalancePct.toFixed(0)}% imbalance</span></div>`;
+    recHtml = `<div class="phase-load-rec">⚖ Rebalance: ${moves} → ${pb.balancedImbalancePct.toFixed(0)}% imbalance</div>`;
   }
 
   el.innerHTML =
-    `<div class="pbl-head">3-Phase Load <span class="pbl-mode">${pb.mode === 'balanced' ? 'BALANCED' : 'AS-WIRED'}</span></div>` +
-    `<div class="pbl-legs">${legHtml}</div>` +
-    `<div class="pbl-imb ${imbClass}">Imbalance: ${imb.toFixed(0)}%</div>` +
-    recHtml;
+    `<div class="structure-info-box phase-load">` +
+      `<div class="structure-info-title phase-load">3-Phase Load</div>` +
+      `<div class="weight-row"><span class="weight-label">Leg X</span><span class="weight-value">${la.X.toFixed(1)} A</span></div>` +
+      `<div class="weight-row"><span class="weight-label">Leg Y</span><span class="weight-value">${la.Y.toFixed(1)} A</span></div>` +
+      `<div class="weight-row"><span class="weight-label">Leg Z</span><span class="weight-value">${la.Z.toFixed(1)} A</span></div>` +
+      `<div class="weight-row"><span class="weight-label">Imbalance</span><span class="weight-value ${imbClass}">${imb.toFixed(0)}%</span></div>` +
+      recHtml +
+    `</div>`;
   el.style.display = 'block';
 }

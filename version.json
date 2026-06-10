@@ -1,5 +1,5 @@
 {
-  "version": "2.11.51",
+  "version": "2.11.52",
   "updated": "2026-06-10",
-  "changelog": "Shrink canvas coordinate, resolution, and logo overlay text further"
+  "changelog": "Restyle 3-phase load legend as a structure-info card"
 }

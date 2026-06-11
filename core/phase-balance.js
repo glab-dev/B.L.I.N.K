@@ -84,27 +84,28 @@ function assignSocas(panelToCircuit, customSocaAssignments) {
 
 // Groups circuits by SOCA and computes per-circuit amps (circuit watts / volts).
 // Returns a sorted array: [{ socaIdx, circuits: [{ circuit, amps }], totalAmps }].
+// Counts panels per (SOCA, circuit) directly from the per-panel maps: circuit
+// numbers can repeat across SOCAs (manual assignment numbers circuits within each
+// SOCA), so keying on circuit alone would merge those SOCAs and inflate the counts.
+// (circuitCounts is accepted for call-site symmetry but intentionally not used.)
 function computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, perPanelW, voltage) {
   const Vll = voltage > 0 ? voltage : 208;
-  // Each circuit's SOCA = the SOCA of its panels.
-  const circuitToSoca = new Map();
+
+  const socaCircuits = new Map(); // socaIdx -> Map(circuit -> panelCount)
   panelToCircuit.forEach((circuitNum, panelKey) => {
-    if (!circuitToSoca.has(circuitNum)) {
-      const s = panelToSoca.get(panelKey);
-      circuitToSoca.set(circuitNum, (typeof s === 'number') ? s : Math.floor(circuitNum / 6));
-    }
+    const s = panelToSoca.get(panelKey);
+    const socaIdx = (typeof s === 'number') ? s : Math.floor(circuitNum / 6);
+    if (!socaCircuits.has(socaIdx)) socaCircuits.set(socaIdx, new Map());
+    const cm = socaCircuits.get(socaIdx);
+    cm.set(circuitNum, (cm.get(circuitNum) || 0) + 1);
   });
 
-  const groups = new Map(); // socaIdx -> [{ circuit, amps }]
-  [...circuitCounts.keys()].sort((a, b) => a - b).forEach(circuit => {
-    const amps = (circuitCounts.get(circuit) * perPanelW) / Vll;
-    const soca = circuitToSoca.has(circuit) ? circuitToSoca.get(circuit) : Math.floor(circuit / 6);
-    if (!groups.has(soca)) groups.set(soca, []);
-    groups.get(soca).push({ circuit, amps });
-  });
-
-  return [...groups.keys()].sort((a, b) => a - b).map(socaIdx => {
-    const circuits = groups.get(socaIdx);
+  return [...socaCircuits.keys()].sort((a, b) => a - b).map(socaIdx => {
+    const cm = socaCircuits.get(socaIdx);
+    const circuits = [...cm.keys()].sort((a, b) => a - b).map(circuit => ({
+      circuit,
+      amps: (cm.get(circuit) * perPanelW) / Vll
+    }));
     return { socaIdx, circuits, totalAmps: circuits.reduce((sum, c) => sum + c.amps, 0) };
   });
 }

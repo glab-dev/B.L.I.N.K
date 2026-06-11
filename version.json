@@ -1,5 +1,5 @@
 {
-  "version": "2.11.56",
+  "version": "2.11.57",
   "updated": "2026-06-11",
-  "changelog": "Keep per-SOCA table in sync with canvas, condense 3-phase rebalance, preserve unresolved keys"
+  "changelog": "Fix per-SOCA amps table collapsing when circuit numbers repeat across SOCAs"
 }

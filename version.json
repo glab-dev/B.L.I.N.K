@@ -1,5 +1,5 @@
 {
-  "version": "2.11.54",
-  "updated": "2026-06-10",
-  "changelog": "Embed custom panel/processor specs in projects and warn on missing specs at load"
+  "version": "2.11.55",
+  "updated": "2026-06-11",
+  "changelog": "Add Distro Wiring modal to set SOCA leg mapping; per-leg math switches by voltage"
 }

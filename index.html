@@ -1939,6 +1939,37 @@
   </div>
 </div>
 
+<!-- Distro Wiring Modal -->
+<div id="distroWiringModal" class="modal-overlay">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h2 class="modal-title">Distro Wiring</h2>
+      <button class="modal-close" onclick="closeDistroWiringModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="distro-wiring-hint">Type the leg(s) each SOCA circuit is wired to (use <strong>X / Y / Z</strong>). The app uses the column matching your Voltage setting — <strong>120&nbsp;V</strong> circuits sit on one leg (e.g. <code>X</code>), <strong>208&nbsp;V</strong> circuits bridge two (e.g. <code>XY</code>). Blank cells use the standard rotation.</p>
+      <table class="distro-wiring-table">
+        <thead>
+          <tr><th></th><th>SOCA 120V</th><th>SOCA 208V</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Circuit 1</td><td><input type="text" id="distroW120_0" maxlength="4" placeholder="X"></td><td><input type="text" id="distroW208_0" maxlength="4" placeholder="XY"></td></tr>
+          <tr><td>Circuit 2</td><td><input type="text" id="distroW120_1" maxlength="4" placeholder="Y"></td><td><input type="text" id="distroW208_1" maxlength="4" placeholder="YZ"></td></tr>
+          <tr><td>Circuit 3</td><td><input type="text" id="distroW120_2" maxlength="4" placeholder="Z"></td><td><input type="text" id="distroW208_2" maxlength="4" placeholder="ZX"></td></tr>
+          <tr><td>Circuit 4</td><td><input type="text" id="distroW120_3" maxlength="4" placeholder="X"></td><td><input type="text" id="distroW208_3" maxlength="4" placeholder="XY"></td></tr>
+          <tr><td>Circuit 5</td><td><input type="text" id="distroW120_4" maxlength="4" placeholder="Y"></td><td><input type="text" id="distroW208_4" maxlength="4" placeholder="YZ"></td></tr>
+          <tr><td>Circuit 6</td><td><input type="text" id="distroW120_5" maxlength="4" placeholder="Z"></td><td><input type="text" id="distroW208_5" maxlength="4" placeholder="ZX"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-footer modal-footer-gap">
+      <button class="btn-secondary" onclick="resetDistroWiring()">Reset</button>
+      <button class="btn-secondary" onclick="closeDistroWiringModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveDistroWiring()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- Gear Code Mapping Modal -->
 <div id="gearCodeModal" class="modal-overlay">
   <div class="modal-dialog">
@@ -2057,6 +2088,10 @@
       <div class="mobile-menu-section" id="mobileMenuInventorySection">
         <div class="mobile-menu-label">Inventory</div>
         <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openGearCodeModal(); closeMobileMenu();">Gear Code Mapping</button>
+      </div>
+      <div class="mobile-menu-section">
+        <div class="mobile-menu-label">Power</div>
+        <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; openDistroWiringModal(); closeMobileMenu();">Distro Wiring</button>
       </div>
       <div class="mobile-menu-section">
         <div class="mobile-menu-label mobile-menu-label-accent">App Info</div>
@@ -3346,6 +3381,7 @@
 <script defer src="config/setup.js"></script>
 <script defer src="config/save-load.js"></script>
 <script defer src="config/gear-codes.js"></script>
+<script defer src="config/distro-wiring.js"></script>
 <script defer src="config/dom-setup.js"></script>
 <script defer src="core/init.js"></script>
 
@@ -3355,8 +3391,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.54';
-const APP_CHANGELOG = 'Embed custom panel/processor specs in projects and warn on missing specs at load';
+const APP_VERSION = '2.11.55';
+const APP_CHANGELOG = 'Add Distro Wiring modal to set SOCA leg mapping; per-leg math switches by voltage';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

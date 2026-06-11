@@ -105,7 +105,7 @@ function renderPowerLayout(params) {
   const circuitToPair = new Map();
   if (_pb && _pb.perCircuit) _pb.perCircuit.forEach(e => circuitToPair.set(e.circuit, e.pair));
   const _legPairColor = (pair) => {
-    const base = { XY: '#ff5277', YZ: '#36c5f0', ZX: '#ffd23f' }[pair] || '#cccccc';
+    const base = { XY: '#ff5277', YZ: '#36c5f0', ZX: '#ffd23f', X: '#ff5277', Y: '#36c5f0', Z: '#ffd23f' }[pair] || '#cccccc';
     return greyscalePrintMode ? toGreyscale(base) : (ecoPrintMode ? toPastelColor(base) : base);
   };
 

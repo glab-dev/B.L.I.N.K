@@ -858,8 +858,8 @@ function calculate(){
   const ampsPerPhase = phase===3 ? (totalAmps / 3) : ampsSingle;
 
   // 3-phase load balancing — actual per-leg (X/Y/Z) amps from the real circuit
-  // loads using the line-to-line (two-leg) model in core/phase-balance.js.
-  // Only meaningful for 3-phase; null otherwise.
+  // loads. The distro wiring (single-leg 120 V vs two-leg 208 V) is resolved
+  // from the Voltage setting via config/distro-wiring.js. Only 3-phase.
   let phaseBalance = null;
   let socaBreakdown = null;
   if(typeof assignCircuits === 'function') {
@@ -870,7 +870,8 @@ function calculate(){
     }
     if(phase === 3 && typeof computePhaseBalance === 'function') {
       const pbMode = (typeof phaseBalanceMode !== 'undefined') ? phaseBalanceMode : 'aswired';
-      phaseBalance = computePhaseBalance(circuitCounts, perPanelW, voltage, pbMode);
+      const wiring = (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(voltage) : null;
+      phaseBalance = computePhaseBalance(circuitCounts, perPanelW, voltage, pbMode, wiring);
     }
   }
 

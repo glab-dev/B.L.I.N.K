@@ -130,25 +130,34 @@ function legAmpsFromPairWatts(P, Vll) {
 }
 
 // Main entry. circuitCounts: Map<circuitNum, panelCount>; perPanelW: watts per
-// panel; voltage: line-to-line volts; mode: 'aswired' | 'balanced'.
-// Returns per-leg amps, imbalance %, per-circuit leg-pair, and a re-patch
+// panel; voltage: circuit volts; mode: 'aswired' | 'balanced'; wiring:
+// { type:'single'|'pair', slots:[6 tokens] } (defaults to the two-leg SOCA
+// rotation). 'single' = 120 V line-to-neutral (each circuit on one leg, per-leg
+// amps are a plain sum); 'pair' = 208 V line-to-line (two legs, phasor sum).
+// Returns per-leg amps, imbalance %, per-circuit token, and a re-patch
 // recommendation (how to reach the greedy-balanced wiring from as-wired).
-function computePhaseBalance(circuitCounts, perPanelW, voltage, mode) {
+function computePhaseBalance(circuitCounts, perPanelW, voltage, mode, wiring) {
   const Vll = voltage > 0 ? voltage : 208;
+  const w = (wiring && Array.isArray(wiring.slots) && wiring.slots.length)
+    ? wiring : { type: 'pair', slots: SOCA_LEG_PAIRS };
+  const isSingle = w.type === 'single';
+  const groups = isSingle ? ['X', 'Y', 'Z'] : ['XY', 'YZ', 'ZX'];
+  const slots = w.slots;
+
   const circuits = [...circuitCounts.keys()].sort((a, b) => a - b)
     .map(num => ({ num, watts: circuitCounts.get(num) * perPanelW }));
 
-  // As-wired: leg-pair follows the SOCA rotation by circuit position.
+  // As-wired: token follows the distro rotation by circuit position.
   const aswired = new Map();
-  circuits.forEach(c => { aswired.set(c.num, SOCA_LEG_PAIRS[c.num % SOCA_LEG_PAIRS.length]); });
+  circuits.forEach(c => { aswired.set(c.num, slots[c.num % slots.length]); });
 
-  // Balanced: greedy — heaviest circuit first onto the lightest leg-pair.
+  // Balanced: greedy — heaviest circuit first onto the lightest group.
   const balanced = new Map();
-  const greedyWatts = { XY: 0, YZ: 0, ZX: 0 };
+  const greedyWatts = {};
+  groups.forEach(g => { greedyWatts[g] = 0; });
   [...circuits].sort((a, b) => b.watts - a.watts).forEach(c => {
-    let lightest = 'XY';
-    if (greedyWatts.YZ < greedyWatts[lightest]) lightest = 'YZ';
-    if (greedyWatts.ZX < greedyWatts[lightest]) lightest = 'ZX';
+    let lightest = groups[0];
+    groups.forEach(g => { if (greedyWatts[g] < greedyWatts[lightest]) lightest = g; });
     balanced.set(c.num, lightest);
     greedyWatts[lightest] += c.watts;
   });
@@ -157,9 +166,18 @@ function computePhaseBalance(circuitCounts, perPanelW, voltage, mode) {
   const active = (normMode === 'balanced') ? balanced : aswired;
 
   const imbalanceOf = (assignment) => {
-    const w = { XY: 0, YZ: 0, ZX: 0 };
-    circuits.forEach(c => { w[assignment.get(c.num)] += c.watts; });
-    const legs = legAmpsFromPairWatts(w, Vll);
+    let legs;
+    if (isSingle) {
+      // Line-to-neutral: each circuit's full load sits on its one leg.
+      const lw = { X: 0, Y: 0, Z: 0 };
+      circuits.forEach(c => { const g = assignment.get(c.num); if (lw[g] !== undefined) lw[g] += c.watts; });
+      legs = { X: lw.X / Vll, Y: lw.Y / Vll, Z: lw.Z / Vll };
+    } else {
+      // Line-to-line: phasor sum of the branch currents on each leg.
+      const pw = { XY: 0, YZ: 0, ZX: 0 };
+      circuits.forEach(c => { const g = assignment.get(c.num); if (pw[g] !== undefined) pw[g] += c.watts; });
+      legs = legAmpsFromPairWatts(pw, Vll);
+    }
     const arr = [legs.X, legs.Y, legs.Z];
     const peak = Math.max(...arr), min = Math.min(...arr);
     return { legAmps: legs, peakLeg: peak, imbalancePct: peak > 0 ? ((peak - min) / peak) * 100 : 0 };
@@ -186,6 +204,7 @@ function computePhaseBalance(circuitCounts, perPanelW, voltage, mode) {
   return {
     mode: normMode,
     voltage: Vll,
+    wiringType: w.type,
     legAmps: activeStats.legAmps,
     peakLeg: activeStats.peakLeg,
     imbalancePct: activeStats.imbalancePct,

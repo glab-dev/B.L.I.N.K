@@ -3729,6 +3729,41 @@ canvas:focus {
 .soca-load .weight-row.soca-total { border-top: 1px solid #5a4326; border-bottom: none; margin-top: 4px; padding-top: 6px; }
 .soca-load .weight-row.soca-total .weight-value { color: #ff9f43; }
 
+/* Distro Wiring modal table */
+.distro-wiring-hint { font-size: 12px; line-height: 1.4; color: #bdbdbd; margin: 0 0 12px; }
+.distro-wiring-hint code { background: #2a2a2a; border: 1px solid #000; padding: 0 4px; font-family: 'Roboto Condensed', sans-serif; }
+.distro-wiring-table { width: 100%; border-collapse: collapse; }
+.distro-wiring-table th {
+  font-size: 11px;
+  font-weight: 700;
+  color: #e0e0e0;
+  text-align: center;
+  padding: 4px 6px 8px;
+}
+.distro-wiring-table td { padding: 3px 6px; }
+.distro-wiring-table td:first-child { color: #bdbdbd; font-size: 13px; white-space: nowrap; }
+.distro-wiring-table input[type="text"] {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 14px;
+  font-family: 'Roboto Condensed', sans-serif;
+  text-align: center;
+  text-transform: uppercase;
+  background: #2a2a2a;
+  color: #fff;
+  border: 2px solid #000;
+  border-radius: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 36px;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+}
+.distro-wiring-table input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3), 2px 2px 0px 0px rgba(0,0,0,1);
+}
+
 .data-line-map .structure-info-box { min-width: 150px; }
 .data-line-map .weight-row { justify-content: flex-start; gap: 22px; }
 .data-line-map .weight-label { min-width: 2em; }

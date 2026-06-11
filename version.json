@@ -1,5 +1,5 @@
 {
-  "version": "2.11.57",
+  "version": "2.11.58",
   "updated": "2026-06-11",
-  "changelog": "Fix per-SOCA amps table collapsing when circuit numbers repeat across SOCAs"
+  "changelog": "Add Balanced mode that re-circuits the partial SOCA onto lighter legs to reduce 3-phase imbalance"
 }

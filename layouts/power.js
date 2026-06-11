@@ -89,12 +89,25 @@ function renderPowerLayout(params) {
 
   // STEP 1-3: Assign circuit numbers (column-major, honouring custom overrides)
   // via the shared helper so the canvas and the 3-phase load calc in
-  // core/phase-balance.js use identical circuit numbering.
-  const { panelToCircuit, circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments);
+  // core/phase-balance.js use identical circuit numbering. In "Balanced" mode the
+  // panels are re-circuited onto the lighter legs (view only — panels keep their
+  // grid position, only their circuit/colour changes).
+  const _balancedView = (typeof phaseBalanceMode !== 'undefined') && phaseBalanceMode === 'balanced' && typeof balanceCircuitsByLeg === 'function';
+  let panelToCircuit, circuitCounts;
+  if (_balancedView) {
+    const _vEl = document.getElementById('voltage');
+    const _slots = (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(parseFloat(_vEl && _vEl.value) || 208).slots : null;
+    panelToCircuit = balanceCircuitsByLeg(pw, ph, panelsPerCircuit, deletedPanels, _slots);
+    circuitCounts = new Map();
+    panelToCircuit.forEach(ci => circuitCounts.set(ci, (circuitCounts.get(ci) || 0) + 1));
+  } else {
+    ({ panelToCircuit, circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments));
+  }
 
   // STEP 4: Compute SOCA group per panel via the shared helper (explicit
   // per-panel assignment wins, else the circuit's natural 6-per-SOCA group).
-  const panelToSoca = assignSocas(panelToCircuit, customSocaAssignments);
+  // In balanced mode the re-circuiting defines its own SOCAs, so ignore custom ones.
+  const panelToSoca = _balancedView ? new Map() : assignSocas(panelToCircuit, customSocaAssignments);
 
   // Keep the per-SOCA amps table in sync with this canvas by recomputing the
   // breakdown from the same live assignments the canvas just used — so the table
@@ -155,8 +168,11 @@ function renderPowerLayout(params) {
       const colors = colorForIndex(colorIndex);
 
       const legPair = circuitToPair.get(circuitNum);
-      const fillColor = (_legColorOn && legPair) ? _legPairColor(legPair)
-                                                 : applySocaShade(colors.solid, socaGroup);
+      // Balanced view: pure resistor colour of the circuit's distro slot (the leg),
+      // no SOCA shade — so the re-circuiting reads cleanly.
+      const fillColor = _balancedView ? colors.solid
+                      : (_legColorOn && legPair) ? _legPairColor(legPair)
+                      : applySocaShade(colors.solid, socaGroup);
 
       ctx.fillStyle = fillColor;
       ctx.fillRect(x, y, panelWidth, currentPanelHeight);
@@ -171,8 +187,10 @@ function renderPowerLayout(params) {
       ctx.font = (_pdf ? `${Math.max(10, Math.floor(panelWidth * 0.25))}px Arial` : '11px Arial');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const _panelLabel = `${formatSocaLabel(socaGroup)}.${circuitNum+1}`;
-      ctx.fillText((_legColorOn && legPair) ? `${_panelLabel}·${legPair}` : _panelLabel, x+panelWidth/2, y+currentPanelHeight/2);
+      // Balanced view: label by the circuit's slot/breaker number (1-6, matches its
+      // colour); otherwise the usual SOCA.circuit label.
+      const _panelLabel = _balancedView ? `${(circuitNum % 6) + 1}` : `${formatSocaLabel(socaGroup)}.${circuitNum+1}`;
+      ctx.fillText((!_balancedView && _legColorOn && legPair) ? `${_panelLabel}·${legPair}` : _panelLabel, x+panelWidth/2, y+currentPanelHeight/2);
     }
   }
 

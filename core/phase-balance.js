@@ -110,6 +110,80 @@ function computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, perPan
   });
 }
 
+// "Balanced" re-circuiting (power-layout view only). Panels keep their grid
+// position and circuits stay whole (no splitting). It keeps the full SOCAs exactly
+// as wired (6 circuits = 2 per leg = already balanced) and only re-assigns the
+// circuits in a NON-full SOCA to whichever leg is lightest — i.e. "cut a circuit on
+// the heavy leg, use a circuit on the light leg instead." Circuits are numbered
+// soca*6 + slot via the distro slot->leg map, so the renderer colours by slot and
+// groups by soca. Returns a Map(panelKey -> circuitNumber). `slots` is
+// resolveDistroWiring(voltage).slots.
+function balanceCircuitsByLeg(pw, ph, maxPerCircuit, deletedPanels, slots) {
+  const max = maxPerCircuit > 0 ? maxPerCircuit : 6;
+  const out = new Map();
+  const wiring = (slots && slots.length === 6) ? slots : ['XY', 'YZ', 'ZX', 'XY', 'YZ', 'ZX'];
+
+  // Base circuits (clean column-major), then group their panels in order.
+  const base = (typeof assignCircuits === 'function')
+    ? assignCircuits(pw, ph, max, deletedPanels, new Map())
+    : { panelToCircuit: new Map() };
+  const circuitPanels = new Map(); // circuit -> [panelKey] (column-major order)
+  for (let c = 0; c < pw; c++) {
+    for (let r = 0; r < ph; r++) {
+      const k = `${c},${r}`;
+      if (deletedPanels.has(k)) continue;
+      const ci = base.panelToCircuit.get(k);
+      if (ci === undefined) continue;
+      if (!circuitPanels.has(ci)) circuitPanels.set(ci, []);
+      circuitPanels.get(ci).push(k);
+    }
+  }
+  const circuits = [...circuitPanels.keys()].sort((a, b) => a - b)
+    .map(ci => ({ panels: circuitPanels.get(ci), count: circuitPanels.get(ci).length }));
+
+  // leg token -> its slot indices (e.g. grouped: XY->[0,1]); distinct tokens in order.
+  const legSlots = {}; const tokens = [];
+  wiring.forEach((t, i) => { if (!legSlots[t]) { legSlots[t] = []; tokens.push(t); } legSlots[t].push(i); });
+  const load = {}; tokens.forEach(t => load[t] = 0);
+
+  // Walk SOCAs of 6 circuits. Full SOCA -> slots 0..5 untouched. Partial SOCA ->
+  // assign its circuits (biggest first) to the lightest leg that still has an open
+  // slot in this SOCA, so the leftover load spreads across the legs.
+  for (let s = 0; s * 6 < circuits.length; s++) {
+    const socaCircuits = circuits.slice(s * 6, s * 6 + 6);
+    if (socaCircuits.length === 6) {
+      socaCircuits.forEach((circ, slot) => {
+        circ.panels.forEach(k => out.set(k, s * 6 + slot));
+        load[wiring[slot]] += circ.count;
+      });
+    } else {
+      // First decide WHICH slots to use to spread the load (greedy: heaviest circuit
+      // onto the lightest leg with an open slot)...
+      const usedPerLeg = {}; tokens.forEach(t => usedPerLeg[t] = 0);
+      const tmpLoad = {}; tokens.forEach(t => tmpLoad[t] = load[t]);
+      const chosenSlots = [];
+      [...socaCircuits].sort((a, b) => b.count - a.count).forEach(circ => {
+        let L = null;
+        tokens.forEach(t => {
+          if (usedPerLeg[t] < legSlots[t].length && (L === null || tmpLoad[t] < tmpLoad[L])) L = t;
+        });
+        if (L === null) L = tokens[0];
+        chosenSlots.push(legSlots[L][usedPerLeg[L]++]);
+        tmpLoad[L] += circ.count;
+      });
+      // ...then lay those slots out in ascending order across the columns so the
+      // resistor colours still go up left-to-right.
+      chosenSlots.sort((a, b) => a - b);
+      socaCircuits.forEach((circ, i) => {
+        const slot = chosenSlots[i];
+        circ.panels.forEach(k => out.set(k, s * 6 + slot));
+        load[wiring[slot]] += circ.count;
+      });
+    }
+  }
+  return out;
+}
+
 // Per-leg line-current magnitudes from the watts on each leg-pair (delta load).
 // P = { XY, YZ, ZX } watts. Returns { X, Y, Z } amps.
 function legAmpsFromPairWatts(P, Vll) {

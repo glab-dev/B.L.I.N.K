@@ -483,14 +483,27 @@ function applyConfiguration(config) {
     // would miss it and the user would get wrong results for the wrong panel with no warning.
     const missingPanelKeys = new Set();
     const missingProcessorKeys = new Set();
+    // Original unresolved keys per screen, captured here (pre-coercion) so they can be
+    // restored after the calc loop — loadScreenData/saveCurrentScreenData coerce an
+    // unknown <select> value to a default, which would otherwise overwrite the saved
+    // custom key and permanently lose it on the next save.
+    const unresolvedKeysByScreen = {};
     if(typeof getAllPanels === 'function' && typeof getAllProcessors === 'function') {
       const resolvedPanels = getAllPanels();
       const resolvedProcessors = getAllProcessors();
       Object.keys(screens).forEach(sid => {
         const d = screens[sid] && screens[sid].data;
         if(!d) return;
-        if(d.panelType && !resolvedPanels[d.panelType]) missingPanelKeys.add(d.panelType);
-        if(d.processor && !resolvedProcessors[d.processor]) missingProcessorKeys.add(d.processor);
+        if(d.panelType && !resolvedPanels[d.panelType]) {
+          missingPanelKeys.add(d.panelType);
+          if(!unresolvedKeysByScreen[sid]) unresolvedKeysByScreen[sid] = {};
+          unresolvedKeysByScreen[sid].panelType = d.panelType;
+        }
+        if(d.processor && !resolvedProcessors[d.processor]) {
+          missingProcessorKeys.add(d.processor);
+          if(!unresolvedKeysByScreen[sid]) unresolvedKeysByScreen[sid] = {};
+          unresolvedKeysByScreen[sid].processor = d.processor;
+        }
       });
     }
 
@@ -535,6 +548,15 @@ function applyConfiguration(config) {
     currentScreenId = originalScreenId;
     loadScreenData(originalScreenId);
     calculate();
+
+    // Restore the original (unresolved) custom panel/processor keys that the calc
+    // loop coerced to defaults, so re-saving the project preserves the reference.
+    Object.keys(unresolvedKeysByScreen).forEach(sid => {
+      if(!screens[sid] || !screens[sid].data) return;
+      const orig = unresolvedKeysByScreen[sid];
+      if(orig.panelType !== undefined) screens[sid].data.panelType = orig.panelType;
+      if(orig.processor !== undefined) screens[sid].data.processor = orig.processor;
+    });
 
     // Ensure visible screens toggles are updated after all screens are loaded
     setTimeout(function() {
@@ -613,6 +635,7 @@ function applyConfiguration(config) {
     // Restore deleted panels and custom assignments
     deletedPanels = new Set(config.deletedPanels || []);
     customCircuitAssignments = new Map(config.customCircuitAssignments || []);
+    customSocaAssignments = new Map(config.customSocaAssignments || []);
     customDataLineAssignments = new Map(config.customDataLineAssignments || []);
 
     // Restore bumper state

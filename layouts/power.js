@@ -90,11 +90,24 @@ function renderPowerLayout(params) {
   // STEP 1-3: Assign circuit numbers (column-major, honouring custom overrides)
   // via the shared helper so the canvas and the 3-phase load calc in
   // core/phase-balance.js use identical circuit numbering.
-  const { panelToCircuit } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments);
+  const { panelToCircuit, circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments);
 
   // STEP 4: Compute SOCA group per panel via the shared helper (explicit
   // per-panel assignment wins, else the circuit's natural 6-per-SOCA group).
   const panelToSoca = assignSocas(panelToCircuit, customSocaAssignments);
+
+  // Keep the per-SOCA amps table in sync with this canvas by recomputing the
+  // breakdown from the same live assignments the canvas just used — so the table
+  // can never show a stale per-screen breakdown. Skipped during off-screen PDF capture.
+  if (!_pdfMode && typeof computeSocaBreakdown === 'function' && typeof renderSocaCircuitTable === 'function') {
+    const _panel = (typeof getCurrentPanel === 'function') ? getCurrentPanel() : null;
+    const _powerTypeEl = document.getElementById('powerType');
+    const _powerType = _powerTypeEl ? _powerTypeEl.value : 'max';
+    const _perPanelW = _panel ? (_powerType === 'max' ? (_panel.power_max_w || 0) : (_panel.power_avg_w || 0)) : 0;
+    const _voltageEl = document.getElementById('voltage');
+    const _voltage = parseFloat(_voltageEl && _voltageEl.value) || 208;
+    renderSocaCircuitTable(computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, _perPanelW, _voltage));
+  }
 
   // 3-phase leg-pair colouring (optional "Color by Leg" view). Reads the
   // per-circuit leg-pair computed in core/calculate.js (calculatedData) so the
@@ -400,10 +413,11 @@ function renderPhaseBalanceLegend() {
   const imb = pb.imbalancePct;
   const imbClass = imb < 10 ? 'pbl-ok' : (imb < 20 ? 'pbl-warn' : 'pbl-bad');
 
+  // Summary only — show the achievable balanced imbalance as a single percentage
+  // row (no per-circuit re-patch dump). Only shown when rebalancing would improve it.
   let recHtml = '';
-  if (pb.recommendation && pb.recommendation.length) {
-    const moves = pb.recommendation.map(r => `C${r.circuit + 1} ${r.fromPair}→${r.toPair}`).join(', ');
-    recHtml = `<div class="phase-load-rec">⚖ Rebalance: ${moves} → ${pb.balancedImbalancePct.toFixed(0)}% imbalance</div>`;
+  if (typeof pb.balancedImbalancePct === 'number' && pb.balancedImbalancePct < imb) {
+    recHtml = `<div class="weight-row"><span class="weight-label">Optimized</span><span class="weight-value pbl-ok">${pb.balancedImbalancePct.toFixed(0)}%</span></div>`;
   }
 
   el.innerHTML =
@@ -419,13 +433,17 @@ function renderPhaseBalanceLegend() {
 }
 
 // Renders one card per SOCA below the power canvas, listing each circuit's amps
-// and the SOCA total. Reads the SOCA breakdown computed in core/calculate.js.
-// Hidden when there is no data.
-function renderSocaCircuitTable() {
+// and the SOCA total. Accepts a freshly-computed breakdown (passed by the power
+// renderer so the table always matches the canvas); falls back to the breakdown
+// stored in core/calculate.js. Hidden when there is no data.
+function renderSocaCircuitTable(breakdown) {
   const el = document.getElementById('socaCircuitTable');
   if (!el) return;
-  const cd = (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].calculatedData : null;
-  const sb = (cd && cd.socaBreakdown) ? cd.socaBreakdown : null;
+  let sb = Array.isArray(breakdown) ? breakdown : null;
+  if (!sb) {
+    const cd = (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].calculatedData : null;
+    sb = (cd && cd.socaBreakdown) ? cd.socaBreakdown : null;
+  }
   if (!sb || !sb.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
   el.innerHTML = sb.map(soca => {

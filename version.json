@@ -1,5 +1,5 @@
 {
-  "version": "2.11.55",
+  "version": "2.11.56",
   "updated": "2026-06-11",
-  "changelog": "Add Distro Wiring modal to set SOCA leg mapping; per-leg math switches by voltage"
+  "changelog": "Keep per-SOCA table in sync with canvas, condense 3-phase rebalance, preserve unresolved keys"
 }

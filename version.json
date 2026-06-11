@@ -1,5 +1,5 @@
 {
-  "version": "2.11.53",
+  "version": "2.11.54",
   "updated": "2026-06-10",
-  "changelog": "Add per-SOCA circuit amps table to power layout"
+  "changelog": "Embed custom panel/processor specs in projects and warn on missing specs at load"
 }

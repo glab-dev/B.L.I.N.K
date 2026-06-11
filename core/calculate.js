@@ -712,7 +712,7 @@ function calculate(){
   const panelType = document.getElementById('panelType').value;
   const p=allPanels[panelType];
   const pr=allProcessors[document.getElementById('processor').value];
-  if(!p || !p.width_m || !p.height_m || !p.res_x || !p.res_y || !p.power_max_w){
+  if(!p || !pr || !p.width_m || !p.height_m || !p.res_x || !p.res_y || !p.power_max_w){
     document.getElementById('results').innerText = "Please confirm specs for this model (dimensions, resolution, power, etc.) before running calculations.";
     return;
   }

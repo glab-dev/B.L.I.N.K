@@ -142,6 +142,30 @@ async function saveConfiguration() {
     });
   }
 
+  // Embed any custom panel specs the project uses so the file is self-contained.
+  // Custom panels otherwise live only in localStorage and won't resolve when the
+  // file is opened on another device/browser, crashing the load.
+  const usedCustomPanels = {};
+  if(typeof customPanels !== 'undefined') {
+    Object.keys(screens).forEach(screenId => {
+      const pt = (screens[screenId] && screens[screenId].data) ? screens[screenId].data.panelType : null;
+      if(pt && customPanels[pt]) {
+        usedCustomPanels[pt] = customPanels[pt];
+      }
+    });
+  }
+
+  // Same for custom processors — they also live only in localStorage.
+  const usedCustomProcessors = {};
+  if(typeof customProcessors !== 'undefined') {
+    Object.keys(screens).forEach(screenId => {
+      const pr = (screens[screenId] && screens[screenId].data) ? screens[screenId].data.processor : null;
+      if(pr && customProcessors[pr]) {
+        usedCustomProcessors[pr] = customProcessors[pr];
+      }
+    });
+  }
+
   // Gather all configuration
   const config = {
     version: '2.0',
@@ -157,6 +181,9 @@ async function saveConfiguration() {
     // Global settings
     displayLengthUnit: displayLengthUnit,
     displayWeightUnit: displayWeightUnit,
+    // Custom panel/processor specs used by this project (so it loads on any device)
+    customPanels: usedCustomPanels,
+    customProcessors: usedCustomProcessors,
     // Per-project gear code overrides (if any)
     gearCodeOverrides: (typeof getGearCodeOverridesForSave === 'function') ? getGearCodeOverridesForSave() : undefined,
     // Project logo (base64 data URL) — null if no logo uploaded
@@ -410,6 +437,63 @@ function applyConfiguration(config) {
       projectLogo = config.logo || null;
     }
 
+    // Restore custom panel specs embedded in the file so projects that use a
+    // custom panel survive a save/load on a device that doesn't have it locally.
+    // Only fill in panels not already present — never clobber the user's local edits.
+    if(config.customPanels && typeof customPanels !== 'undefined') {
+      const importedPanels = (typeof validateCustomData === 'function')
+        ? validateCustomData(config.customPanels)
+        : config.customPanels;
+      let addedPanel = false;
+      Object.keys(importedPanels).forEach(key => {
+        if(!customPanels[key]) {
+          customPanels[key] = importedPanels[key];
+          addedPanel = true;
+        }
+      });
+      if(addedPanel) {
+        if(typeof saveCustomPanels === 'function') saveCustomPanels();
+        if(typeof updatePanelDropdowns === 'function') updatePanelDropdowns();
+      }
+    }
+
+    // Same for custom processors embedded in the file.
+    if(config.customProcessors && typeof customProcessors !== 'undefined') {
+      const importedProcessors = (typeof validateCustomData === 'function')
+        ? validateCustomData(config.customProcessors)
+        : config.customProcessors;
+      let addedProcessor = false;
+      Object.keys(importedProcessors).forEach(key => {
+        if(!customProcessors[key]) {
+          customProcessors[key] = importedProcessors[key];
+          addedProcessor = true;
+        }
+      });
+      if(addedProcessor) {
+        if(typeof saveCustomProcessors === 'function') saveCustomProcessors();
+        if(typeof updateProcessorDropdowns === 'function') updateProcessorDropdowns();
+      }
+    }
+
+    // Detect screens whose panel/processor key can't be resolved after restoring
+    // embedded specs (e.g. a file saved before specs were embedded, opened where the
+    // custom item isn't available). Compute this BEFORE loadScreenData/calculate run —
+    // the browser silently coerces an unknown <select> value to a valid default, and
+    // saveCurrentScreenData would then overwrite the original key, so detecting later
+    // would miss it and the user would get wrong results for the wrong panel with no warning.
+    const missingPanelKeys = new Set();
+    const missingProcessorKeys = new Set();
+    if(typeof getAllPanels === 'function' && typeof getAllProcessors === 'function') {
+      const resolvedPanels = getAllPanels();
+      const resolvedProcessors = getAllProcessors();
+      Object.keys(screens).forEach(sid => {
+        const d = screens[sid] && screens[sid].data;
+        if(!d) return;
+        if(d.panelType && !resolvedPanels[d.panelType]) missingPanelKeys.add(d.panelType);
+        if(d.processor && !resolvedProcessors[d.processor]) missingProcessorKeys.add(d.processor);
+      });
+    }
+
     // Update unit buttons
     const isImperial = displayLengthUnit === 'ft';
     document.getElementById('unitImperial')?.classList.toggle('active', isImperial);
@@ -473,7 +557,16 @@ function applyConfiguration(config) {
       }
     }, 100);
 
-    showAlert(`Configuration "${config.name}" loaded successfully! (${Object.keys(screens).length} screens, ${Object.keys(canvases).length} canvases)`);
+    const loadSummary = `Configuration "${config.name}" loaded successfully! (${Object.keys(screens).length} screens, ${Object.keys(canvases).length} canvases)`;
+    if(missingPanelKeys.size > 0 || missingProcessorKeys.size > 0) {
+      let warn = loadSummary + '\n\nWarning: some specs in this project could not be loaded and were replaced with defaults:';
+      if(missingPanelKeys.size > 0) warn += '\n• Custom panel(s): ' + Array.from(missingPanelKeys).join(', ');
+      if(missingProcessorKeys.size > 0) warn += '\n• Custom processor(s): ' + Array.from(missingProcessorKeys).join(', ');
+      warn += '\n\nThese specs were not saved in the file and are not on this device. Re-add the custom item(s) before relying on the results.';
+      showAlert(warn, 'Loaded — Missing Specs');
+    } else {
+      showAlert(loadSummary);
+    }
   } else {
     // Legacy v1.0 single-screen config - load into current screen
     document.getElementById('panelType').value = config.panelType || 'BP2_V2';

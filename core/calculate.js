@@ -875,7 +875,7 @@ function calculate(){
         // "Balanced" re-circuits panels onto the lighter legs; the resulting circuit
         // numbers already encode the distro slot (leg), so feed those counts through
         // the as-wired path to get the balanced per-leg amps. Power-tab view only.
-        const balMap = balanceCircuitsByLeg(pw, ph, panelsPerCircuit, deletedPanels, wiring ? wiring.slots : null);
+        const balMap = balanceCircuitsByLeg(pw, ph, panelsPerCircuit, deletedPanels, wiring ? wiring.slots : null, customCircuitAssignments, customSocaAssignments);
         const balCounts = new Map();
         balMap.forEach(ci => balCounts.set(ci, (balCounts.get(ci) || 0) + 1));
         phaseBalance = computePhaseBalance(balCounts, perPanelW, voltage, 'aswired', wiring);

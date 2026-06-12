@@ -97,7 +97,7 @@ function renderPowerLayout(params) {
   if (_balancedView) {
     const _vEl = document.getElementById('voltage');
     const _slots = (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(parseFloat(_vEl && _vEl.value) || 208).slots : null;
-    panelToCircuit = balanceCircuitsByLeg(pw, ph, panelsPerCircuit, deletedPanels, _slots);
+    panelToCircuit = balanceCircuitsByLeg(pw, ph, panelsPerCircuit, deletedPanels, _slots, customCircuitAssignments, customSocaAssignments);
     circuitCounts = new Map();
     panelToCircuit.forEach(ci => circuitCounts.set(ci, (circuitCounts.get(ci) || 0) + 1));
   } else {
@@ -168,10 +168,9 @@ function renderPowerLayout(params) {
       const colors = colorForIndex(colorIndex);
 
       const legPair = circuitToPair.get(circuitNum);
-      // Balanced view: pure resistor colour of the circuit's distro slot (the leg),
-      // no SOCA shade — so the re-circuiting reads cleanly.
-      const fillColor = _balancedView ? colors.solid
-                      : (_legColorOn && legPair) ? _legPairColor(legPair)
+      // Colour by Leg (if on) wins in any mode; otherwise the SOCA-shaded resistor
+      // colour — the shade alternates per SOCA in both as-wired and balanced.
+      const fillColor = (_legColorOn && legPair) ? _legPairColor(legPair)
                       : applySocaShade(colors.solid, socaGroup);
 
       ctx.fillStyle = fillColor;
@@ -183,14 +182,19 @@ function renderPowerLayout(params) {
       // Always use black text (no black panels in power layout)
       ctx.fillStyle = '#000000';
 
+      // SOCA.circuit label (balanced uses the per-SOCA slot number 1-6); append the
+      // leg pair when Colour by Leg is on. Shrink the font so the label stays centred
+      // and fits inside the panel.
       const _pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
-      ctx.font = (_pdf ? `${Math.max(10, Math.floor(panelWidth * 0.25))}px Arial` : '11px Arial');
+      const _circLabel = `${formatSocaLabel(socaGroup)}.${_balancedView ? (circuitNum % 6) + 1 : circuitNum + 1}`;
+      // Colour by Leg shows just the leg (XY/YZ/ZX); otherwise the SOCA.circuit label.
+      const _displayLabel = (_legColorOn && legPair) ? legPair : _circLabel;
+      let _fs = _pdf ? Math.max(10, Math.floor(panelWidth * 0.25)) : 11;
+      ctx.font = `${_fs}px Arial`;
+      while (_fs > 6 && ctx.measureText(_displayLabel).width > panelWidth - 4) { _fs--; ctx.font = `${_fs}px Arial`; }
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      // Balanced view: label by the circuit's slot/breaker number (1-6, matches its
-      // colour); otherwise the usual SOCA.circuit label.
-      const _panelLabel = _balancedView ? `${(circuitNum % 6) + 1}` : `${formatSocaLabel(socaGroup)}.${circuitNum+1}`;
-      ctx.fillText((!_balancedView && _legColorOn && legPair) ? `${_panelLabel}·${legPair}` : _panelLabel, x+panelWidth/2, y+currentPanelHeight/2);
+      ctx.fillText(_displayLabel, x + panelWidth/2, y + currentPanelHeight/2);
     }
   }
 

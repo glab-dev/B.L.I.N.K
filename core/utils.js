@@ -226,11 +226,14 @@ let colorByLegEnabled = (typeof localStorage !== 'undefined' && localStorage.get
 function setPhaseBalanceMode(mode) {
   phaseBalanceMode = (mode === 'balanced') ? 'balanced' : 'aswired';
   try { localStorage.setItem('ledcalc_phase_balance_mode', phaseBalanceMode); } catch(e) {}
-  const aw = document.getElementById('phaseBalAsWiredBtn');
-  const bl = document.getElementById('phaseBalBalancedBtn');
-  if (aw) aw.classList.toggle('active', phaseBalanceMode === 'aswired');
-  if (bl) bl.classList.toggle('active', phaseBalanceMode === 'balanced');
+  const btn = document.getElementById('phaseBalanceBtn');
+  if (btn) { btn.classList.toggle('active', phaseBalanceMode === 'balanced'); btn.textContent = phaseBalanceMode === 'balanced' ? 'On' : 'Off'; }
   if (typeof calculate === 'function') calculate();
+}
+
+// Single On/Off toggle: Off = as-wired, On = balanced.
+function togglePhaseBalance() {
+  setPhaseBalanceMode(phaseBalanceMode === 'balanced' ? 'aswired' : 'balanced');
 }
 
 function toggleColorByLeg() {
@@ -242,10 +245,8 @@ function toggleColorByLeg() {
 }
 
 function initPhaseBalanceButtons() {
-  const aw = document.getElementById('phaseBalAsWiredBtn');
-  const bl = document.getElementById('phaseBalBalancedBtn');
-  if (aw) aw.classList.toggle('active', phaseBalanceMode === 'aswired');
-  if (bl) bl.classList.toggle('active', phaseBalanceMode === 'balanced');
+  const pb = document.getElementById('phaseBalanceBtn');
+  if (pb) { pb.classList.toggle('active', phaseBalanceMode === 'balanced'); pb.textContent = phaseBalanceMode === 'balanced' ? 'On' : 'Off'; }
   const btn = document.getElementById('colorByLegBtn');
   if (btn) { btn.classList.toggle('active', colorByLegEnabled); btn.textContent = colorByLegEnabled ? 'On' : 'Off'; }
 }

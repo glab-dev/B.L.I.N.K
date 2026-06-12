@@ -2531,10 +2531,7 @@
           </div>
           <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">Phase Balance</span>
-            <div class="slider-toggle">
-              <button type="button" class="slider-toggle-btn active" id="phaseBalAsWiredBtn" onclick="setPhaseBalanceMode('aswired')">As-Wired</button>
-              <button type="button" class="slider-toggle-btn" id="phaseBalBalancedBtn" onclick="setPhaseBalanceMode('balanced')">Balanced</button>
-            </div>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="phaseBalanceBtn" onclick="togglePhaseBalance()">Off</button>
           </div>
           <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">Color by Leg</span>
@@ -3391,8 +3388,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.58';
-const APP_CHANGELOG = 'Add Balanced mode that re-circuits the partial SOCA onto lighter legs to reduce 3-phase imbalance';
+const APP_VERSION = '2.11.59';
+const APP_CHANGELOG = 'Make Phase Balance a single toggle and fix balanced view to preserve manual SOCAs, labels, leg colors, and SOCA shading';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

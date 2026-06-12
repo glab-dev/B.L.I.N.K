@@ -1,5 +1,5 @@
 {
-  "version": "2.11.58",
+  "version": "2.11.59",
   "updated": "2026-06-11",
-  "changelog": "Add Balanced mode that re-circuits the partial SOCA onto lighter legs to reduce 3-phase imbalance"
+  "changelog": "Make Phase Balance a single toggle and fix balanced view to preserve manual SOCAs, labels, leg colors, and SOCA shading"
 }

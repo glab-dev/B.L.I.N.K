@@ -2310,6 +2310,14 @@
                 <option value="3" selected>3-phase</option>
               </select>
             </div>
+            <div class="flex-noshrink">
+              <span class="toggle-label toggle-label-block">Derate</span>
+              <button type="button" class="toggle-btn toggle-btn-standalone" id="derateBtn" onclick="toggleDerate()">80%</button>
+              <select id="derate" style="display: none;">
+                <option value="off" selected>Off</option>
+                <option value="on">80%</option>
+              </select>
+            </div>
           </div>
 
           <!-- Row 2: Voltage, Breaker, Max/Circuit -->
@@ -3388,8 +3396,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.60';
-const APP_CHANGELOG = 'Lay out Amps per leg as a header with indented X/Y/Z lines and drop the balanced text in app and PDF specs';
+const APP_VERSION = '2.11.61';
+const APP_CHANGELOG = 'Add Derate (80%) toggle to power options for NEC continuous-load circuit sizing';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

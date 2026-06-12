@@ -219,6 +219,7 @@ function saveCurrentScreenData() {
   data.voltage = parseInt(document.getElementById('voltage').value) || 208;
   data.breaker = parseInt(document.getElementById('breaker').value) || 20;
   data.phase = document.getElementById('phase').value;
+  data.derate = document.getElementById('derate').value === 'on';
   data.powerType = document.getElementById('powerType').value;
   data.maxPanelsPerCircuit = document.getElementById('maxPanelsPerCircuit').value;
   
@@ -350,6 +351,9 @@ function loadScreenData(screenId) {
   document.getElementById('voltage').value = data.voltage || 208;
   document.getElementById('breaker').value = data.breaker || 20;
   document.getElementById('phase').value = data.phase || '3';
+  const derateOn = data.derate === true || data.derate === 'on';
+  document.getElementById('derate').value = derateOn ? 'on' : 'off';
+  document.getElementById('derateBtn')?.classList.toggle('active', derateOn);
   document.getElementById('powerType').value = data.powerType || 'max';
   document.getElementById('maxPanelsPerCircuit').value = data.maxPanelsPerCircuit || '';
   

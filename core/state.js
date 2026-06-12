@@ -244,6 +244,15 @@ function setPhase(phase) {
   calculate();
 }
 
+// Derate toggle (off by default; on = NEC 80% continuous-load derate)
+function toggleDerate() {
+  const sel = document.getElementById('derate');
+  const on = sel.value !== 'on';
+  sel.value = on ? 'on' : 'off';
+  document.getElementById('derateBtn').classList.toggle('active', on);
+  calculate();
+}
+
 // Power type toggle (Max/Avg)
 function setPowerType(type) {
   document.getElementById('powerType').value = type;

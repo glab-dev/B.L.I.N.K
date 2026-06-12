@@ -1,5 +1,5 @@
 {
-  "version": "2.11.60",
+  "version": "2.11.61",
   "updated": "2026-06-11",
-  "changelog": "Lay out Amps per leg as a header with indented X/Y/Z lines and drop the balanced text in app and PDF specs"
+  "changelog": "Add Derate (80%) toggle to power options for NEC continuous-load circuit sizing"
 }

@@ -65,6 +65,7 @@ async function saveConfiguration() {
         voltage: data.voltage,
         breaker: data.breaker,
         phase: data.phase,
+        derate: data.derate,
         powerType: data.powerType,
         maxPanelsPerCircuit: data.maxPanelsPerCircuit,
         processor: data.processor,
@@ -609,6 +610,9 @@ function applyConfiguration(config) {
     document.getElementById('voltage').value = config.voltage || '208';
     document.getElementById('breaker').value = config.breaker || '20';
     document.getElementById('phase').value = config.phase || '3';
+    const cfgDerateOn = config.derate === true || config.derate === 'on';
+    document.getElementById('derate').value = cfgDerateOn ? 'on' : 'off';
+    document.getElementById('derateBtn')?.classList.toggle('active', cfgDerateOn);
     document.getElementById('maxPanelsPerCircuit').value = config.maxPanelsPerCircuit || '';
     document.getElementById('maxPanelsPerData').value = config.maxPanelsPerData || '';
     document.getElementById('dataStartDir').value = config.dataStartDir || 'top';

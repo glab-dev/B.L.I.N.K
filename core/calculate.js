@@ -260,7 +260,8 @@ function recalculateScreenData(screenId) {
   var voltage = data.voltage || 208;
   var breaker = data.breaker || 20;
   var perPanelW = powerType === 'avg' ? (p.power_avg_w || p.power_max_w * 0.5) : p.power_max_w;
-  var circuitCapacityW = voltage * breaker;
+  var derate = data.derate ? 0.8 : 1.0; // NEC 80% continuous-load derate (off = full rating)
+  var circuitCapacityW = voltage * breaker * derate;
   var calculatedPanelsPerCircuit = Math.max(1, Math.floor(circuitCapacityW / perPanelW));
   var userMaxCircuit = parseInt(data.maxPanelsPerCircuit) || 0;
   var panelsPerCircuit = userMaxCircuit > 0 ? userMaxCircuit : calculatedPanelsPerCircuit;

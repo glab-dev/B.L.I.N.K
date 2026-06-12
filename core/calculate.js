@@ -725,8 +725,8 @@ function calculate(){
   const voltage = parseFloat(document.getElementById('voltage').value)||220;
   const breaker = parseFloat(document.getElementById('breaker').value)||20;
   const phase = parseInt(document.getElementById('phase').value)||3;
-  // Derate removed - default to no derating
-  const derate = 1.0; // Derating disabled
+  // NEC 80% continuous-load derate (toggle in power options); off = full rating.
+  const derate = (document.getElementById('derate') && document.getElementById('derate').value === 'on') ? 0.8 : 1.0;
   const {pw, ph, entered, snapped} = getEffectivePanelCounts();
   const units = displayLengthUnit; // Use global unit setting
 
@@ -1058,7 +1058,10 @@ function calculate(){
     if(phase === 3) {
       if(phaseBalance) {
         const la = phaseBalance.legAmps;
-        html += `<div class="result-row"><strong>Amps per leg (X/Y/Z):</strong> ${la.X.toFixed(1)} / ${la.Y.toFixed(1)} / ${la.Z.toFixed(1)} A</div>`;
+        html += `<div class="result-row"><strong>Amps per leg (@ ${voltage} V):</strong></div>`;
+        html += `<div class="result-row" style="margin-left:14px;"><strong>X:</strong> ${la.X.toFixed(1)} A</div>`;
+        html += `<div class="result-row" style="margin-left:14px;"><strong>Y:</strong> ${la.Y.toFixed(1)} A</div>`;
+        html += `<div class="result-row" style="margin-left:14px;"><strong>Z:</strong> ${la.Z.toFixed(1)} A</div>`;
         html += `<div class="result-row"><strong>Phase imbalance:</strong> ${phaseBalance.imbalancePct.toFixed(0)}%</div>`;
       } else {
         html += `<div class="result-row"><strong>Amps per phase:</strong> ${ampsPerPhase.toFixed(2)} A</div>`;
@@ -1155,8 +1158,11 @@ function calculate(){
     if(phase === 3) {
       if(phaseBalance) {
         const la = phaseBalance.legAmps;
-        html += `<div class="result-row"><strong>Amps per leg (X/Y/Z):</strong> ${la.X.toFixed(1)} / ${la.Y.toFixed(1)} / ${la.Z.toFixed(1)} A @ ${voltage} V</div>`;
-        html += `<div class="result-row"><strong>Phase imbalance:</strong> ${phaseBalance.imbalancePct.toFixed(0)}%${phaseBalance.recommendation.length ? ` (balanced: ${phaseBalance.balancedImbalancePct.toFixed(0)}%)` : ''}</div>`;
+        html += `<div class="result-row"><strong>Amps per leg (@ ${voltage} V):</strong></div>`;
+        html += `<div class="result-row" style="margin-left:14px;"><strong>X:</strong> ${la.X.toFixed(1)} A</div>`;
+        html += `<div class="result-row" style="margin-left:14px;"><strong>Y:</strong> ${la.Y.toFixed(1)} A</div>`;
+        html += `<div class="result-row" style="margin-left:14px;"><strong>Z:</strong> ${la.Z.toFixed(1)} A</div>`;
+        html += `<div class="result-row"><strong>Phase imbalance:</strong> ${phaseBalance.imbalancePct.toFixed(0)}%</div>`;
       } else {
         html += `<div class="result-row"><strong>Total amps per phase:</strong> ${ampsPerPhase.toFixed(2)} A @ ${voltage} V</div>`;
       }
@@ -1460,8 +1466,8 @@ function createOutlineOnlyPowerCanvas() {
   const powerType = document.getElementById('powerType').value;
   const voltage = parseInt(document.getElementById('voltage').value) || 208;
   const breaker = parseInt(document.getElementById('breaker').value) || 20;
-  // Derate removed - default to no derating
-  const derate = 1.0; // Derating disabled
+  // NEC 80% continuous-load derate (toggle in power options); off = full rating.
+  const derate = (document.getElementById('derate') && document.getElementById('derate').value === 'on') ? 0.8 : 1.0;
   const activePanelsCount = (pw * ph) - deletedPanels.size;
   const perPanelW = powerType === 'max' ? p.power_max_w : (p.power_avg_w || p.power_max_w * 0.5);
   const circuitCapacityW = voltage * breaker * derate;
@@ -1840,8 +1846,8 @@ function generateLayout(mode){
   const breaker=parseFloat(document.getElementById('breaker').value)||20;
   const powerType=document.getElementById('powerType').value;
   const perPanelW = powerType==='max' ? (p.power_max_w||0) : (p.power_avg_w||0);
-  // Derate removed - default to no derating
-  const derate = 1.0; // Derating disabled
+  // NEC 80% continuous-load derate (toggle in power options); off = full rating.
+  const derate = (document.getElementById('derate') && document.getElementById('derate').value === 'on') ? 0.8 : 1.0;
   const circuitW=voltage*breaker*derate;
   const calculatedPanelsPerCircuit=Math.max(1, Math.floor(circuitW/Math.max(1,perPanelW)||1));
   

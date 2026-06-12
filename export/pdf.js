@@ -872,10 +872,16 @@ function buildSimpleSummaryBar(screenData, calcData, panelSpec) {
   const colPower = buildSummaryColumn('POWER (MAX)', [
     ['Total Power',   totalPowerW > 0 ? `${totalPowerW.toLocaleString()} W` : null],
     ['Total Amps',    ampsTotal > 0   ? `${ampsTotal.toFixed(1)} A @ ${voltage}V` : null],
-    phaseBal
-      ? ['Amps/Leg X/Y/Z', `${phaseBal.legAmps.X.toFixed(1)}/${phaseBal.legAmps.Y.toFixed(1)}/${phaseBal.legAmps.Z.toFixed(1)} A`]
-      : ['Amps/Phase',    ampsPhase > 0   ? `${ampsPhase.toFixed(1)} A @ ${voltage}V` : null],
-    phaseBal ? ['Imbalance', `${phaseBal.imbalancePct.toFixed(0)}%`] : ['', null],
+    ...(phaseBal
+      ? [
+          ['Leg X', `${phaseBal.legAmps.X.toFixed(1)} A`],
+          ['Leg Y', `${phaseBal.legAmps.Y.toFixed(1)} A`],
+          ['Leg Z', `${phaseBal.legAmps.Z.toFixed(1)} A`],
+          ['Imbalance', `${phaseBal.imbalancePct.toFixed(0)}%`]
+        ]
+      : [
+          ['Amps/Phase', ampsPhase > 0 ? `${ampsPhase.toFixed(1)} A @ ${voltage}V` : null]
+        ]),
     ['Circuits',      circuits > 0    ? circuits : null],
     ['Max/Circuit',   maxPpc > 0      ? `${maxPpc} panels` : null],
   ]);
@@ -1064,10 +1070,16 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
   const colPower = buildSummaryColumn('POWER (MAX)', [
     ['Total Power',   totalPowerW > 0 ? `${totalPowerW.toLocaleString()} W` : null],
     ['Total Amps',    ampsTotal > 0   ? `${ampsTotal.toFixed(1)} A @ ${voltage}V` : null],
-    phaseBal
-      ? ['Amps/Leg X/Y/Z', `${phaseBal.legAmps.X.toFixed(1)}/${phaseBal.legAmps.Y.toFixed(1)}/${phaseBal.legAmps.Z.toFixed(1)} A`]
-      : ['Amps/Phase',    ampsPhase > 0   ? `${ampsPhase.toFixed(1)} A @ ${voltage}V` : null],
-    phaseBal ? ['Imbalance', `${phaseBal.imbalancePct.toFixed(0)}%`] : ['', null],
+    ...(phaseBal
+      ? [
+          ['Leg X', `${phaseBal.legAmps.X.toFixed(1)} A`],
+          ['Leg Y', `${phaseBal.legAmps.Y.toFixed(1)} A`],
+          ['Leg Z', `${phaseBal.legAmps.Z.toFixed(1)} A`],
+          ['Imbalance', `${phaseBal.imbalancePct.toFixed(0)}%`]
+        ]
+      : [
+          ['Amps/Phase', ampsPhase > 0 ? `${ampsPhase.toFixed(1)} A @ ${voltage}V` : null]
+        ]),
     ['Circuits',      circuits > 0    ? circuits : null],
     ['Max/Circuit',   maxPpc > 0      ? `${maxPpc} panels` : null],
   ]);
@@ -2766,10 +2778,16 @@ function buildPdfDocDefinition(opts, canvasCache) {
       const maxPanelsPerCircuit = powerPerPanel > 0 ? Math.floor((voltage * breaker) / powerPerPanel) : 0;
       const powerRows = [
         specRow('Total Power:', `${(totalPowerW / 1000).toFixed(2)} kW`),
-        phaseBal
-          ? specRow('Amps/Leg:', `${phaseBal.legAmps.X.toFixed(1)}/${phaseBal.legAmps.Y.toFixed(1)}/${phaseBal.legAmps.Z.toFixed(1)} A (${phase}\u03C6)`)
-          : specRow('Amps/Phase:', `${ampsPerPhase.toFixed(1)} A (${phase}\u03C6)`),
-        phaseBal ? specRow('Imbalance:', `${phaseBal.imbalancePct.toFixed(0)}%`) : null,
+        ...(phaseBal
+          ? [
+              specRow('Leg X:', `${phaseBal.legAmps.X.toFixed(1)} A`),
+              specRow('Leg Y:', `${phaseBal.legAmps.Y.toFixed(1)} A`),
+              specRow('Leg Z:', `${phaseBal.legAmps.Z.toFixed(1)} A`),
+              specRow('Imbalance:', `${phaseBal.imbalancePct.toFixed(0)}%`)
+            ]
+          : [
+              specRow('Amps/Phase:', `${ampsPerPhase.toFixed(1)} A (${phase}\u03C6)`)
+            ]),
         specRow('Max/Circuit:', `${maxPanelsPerCircuit} panels`),
       ].filter(Boolean);
       if (powerRows.length > 0) {

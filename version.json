@@ -1,5 +1,5 @@
 {
-  "version": "2.11.59",
+  "version": "2.11.60",
   "updated": "2026-06-11",
-  "changelog": "Make Phase Balance a single toggle and fix balanced view to preserve manual SOCAs, labels, leg colors, and SOCA shading"
+  "changelog": "Lay out Amps per leg as a header with indented X/Y/Z lines and drop the balanced text in app and PDF specs"
 }

@@ -88,7 +88,7 @@ function toggleSelectMode() {
   }
   if(hint) {
     hint.textContent = selectMode
-      ? 'Drag to select panels • Tap to toggle • Long-press for options'
+      ? 'Drag to select • Tap to add • Tap selected for options'
       : 'Tap to select • Tap again for options • Drag to multi-select';
   }
 
@@ -279,14 +279,16 @@ function setupStandardCanvasInteractivity() {
           touchStartPanel = null;
           return;
         }
-        // Select Mode: toggle the tapped panel in/out, keeping the rest of the selection
+        // Select Mode: tap an unselected panel to add it (keeping the rest of the
+        // selection); tap an already-selected panel to reveal the options menu.
         if(selectedPanels.has(touchStartPanel.key)) {
-          selectedPanels.delete(touchStartPanel.key);
+          vibrate(30);
+          showContextMenu(touchEndX, touchEndY);
         } else {
           selectedPanels.add(touchStartPanel.key);
+          vibrate(10);
+          generateLayout('standard');
         }
-        vibrate(10);
-        generateLayout('standard');
       } else {
         const wasAlreadySelected = selectedPanels.has(touchStartPanel.key);
 

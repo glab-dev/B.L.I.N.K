@@ -1,5 +1,5 @@
 {
-  "version": "2.11.65",
+  "version": "2.11.66",
   "updated": "2026-06-15",
-  "changelog": "Add per-screen native-resolution PNG export to canvas options and Export All"
+  "changelog": "Add whole-show 3-phase load and imbalance to the Combined power layout"
 }

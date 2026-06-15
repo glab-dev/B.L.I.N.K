@@ -31,6 +31,7 @@ function setCombinedPowerType(type) {
   document.getElementById('combinedPowerMaxBtn').classList.toggle('active', type === 'max');
   document.getElementById('combinedPowerAvgBtn').classList.toggle('active', type === 'avg');
   renderCombinedSpecs(Array.from(combinedSelectedScreens));
+  renderCombinedPhaseBalance(Array.from(combinedSelectedScreens));
 }
 
 function setCombinedPhase(phase) {
@@ -1284,6 +1285,7 @@ function renderCombinedView() {
   // Render combined specs and gear list
   renderCombinedSpecs(selectedScreenIds);
   renderCombinedGearList(selectedScreenIds);
+  renderCombinedPhaseBalance(selectedScreenIds);
 }
 
 // Render combined standard layout
@@ -2228,6 +2230,90 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     }
     ctx.fillText(screen.name, screenX + (pw * drawPanelWidth) / 2, labelY);
   });
+}
+
+// Whole-show 3-phase load: phasor-aggregate every selected 3-phase screen's per-leg-pair
+// currents into one combined Leg X/Y/Z + imbalance, shown below the combined power canvas.
+// Computed fresh from each screen's data (the combined view doesn't refresh per-screen
+// calculatedData), reusing the shared phase-balance helpers so the math matches the
+// per-screen legend. As-wired (actual draw), like the combined power canvas itself.
+function renderCombinedPhaseBalance(selectedScreenIds) {
+  const el = document.getElementById('combinedPhaseBalanceLegend');
+  if(!el) return;
+
+  if(typeof assignCircuits !== 'function' || typeof computePhaseBalance !== 'function') {
+    el.style.display = 'none'; el.innerHTML = ''; return;
+  }
+
+  const allPanelsData = getAllPanels();
+  const totalPair = { XY: 0, YZ: 0, ZX: 0 };   // line-to-line branch currents
+  const totalSingle = { X: 0, Y: 0, Z: 0 };    // line-to-neutral leg currents
+  let any3phase = false;
+
+  (selectedScreenIds || []).forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+    const data = screen.data;
+    const pw = data.panelsWide || 0;
+    const ph = data.panelsHigh || 0;
+    if(pw <= 0 || ph <= 0) return;
+    if((parseInt(data.phase) || 1) !== 3) return; // 3-phase screens only
+
+    // deletedPanels / customCircuitAssignments may be a Set/Map or an array (from JSON).
+    const deletedPanels = new Set();
+    if(data.deletedPanels instanceof Set) data.deletedPanels.forEach(k => deletedPanels.add(k));
+    else if(Array.isArray(data.deletedPanels)) data.deletedPanels.forEach(k => deletedPanels.add(k));
+    else if(data.deletedPanels && typeof data.deletedPanels[Symbol.iterator] === 'function') { for(const k of data.deletedPanels) deletedPanels.add(k); }
+
+    const customCircuits = new Map();
+    if(data.customCircuitAssignments instanceof Map) data.customCircuitAssignments.forEach((v, k) => customCircuits.set(k, v));
+    else if(Array.isArray(data.customCircuitAssignments)) data.customCircuitAssignments.forEach(([k, v]) => customCircuits.set(k, v));
+    else if(data.customCircuitAssignments && typeof data.customCircuitAssignments.entries === 'function') { for(const [k, v] of data.customCircuitAssignments.entries()) customCircuits.set(k, v); }
+
+    // perPanelW (combined Max/Avg toggle), voltage, panelsPerCircuit — mirror the combined canvas.
+    const panelInfo = allPanelsData[data.panelType || 'CB5_MKII'];
+    const perPanelW = combinedPowerType === 'max' ? (panelInfo?.power_max_w || 500) : (panelInfo?.power_avg_w || 250);
+    const voltage = parseInt(data.voltage) || 208;
+    const breaker = parseInt(data.breaker) || 20;
+    const calculatedPanelsPerCircuit = Math.max(1, Math.floor((voltage * breaker) / perPanelW));
+    const userMax = parseInt(data.maxPanelsPerCircuit);
+    const panelsPerCircuit = userMax > 0 ? userMax : calculatedPanelsPerCircuit;
+
+    const wiring = (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(voltage) : null;
+    const { circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuits);
+    const pb = computePhaseBalance(circuitCounts, perPanelW, voltage, 'aswired', wiring);
+
+    any3phase = true;
+    (pb.perCircuit || []).forEach(c => {
+      if(totalPair[c.pair] !== undefined) totalPair[c.pair] += c.amps;
+      else if(totalSingle[c.pair] !== undefined) totalSingle[c.pair] += c.amps;
+    });
+  });
+
+  if(!any3phase) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  // Leg amps: phasor-combine the summed per-pair branch currents (Vll=1 so the helper treats
+  // the inputs as currents), then add any single-leg currents directly onto their leg.
+  const phasorLegs = (typeof legAmpsFromPairWatts === 'function') ? legAmpsFromPairWatts(totalPair, 1) : { X: 0, Y: 0, Z: 0 };
+  const la = {
+    X: phasorLegs.X + totalSingle.X,
+    Y: phasorLegs.Y + totalSingle.Y,
+    Z: phasorLegs.Z + totalSingle.Z
+  };
+  const arr = [la.X, la.Y, la.Z];
+  const peak = Math.max(...arr), min = Math.min(...arr);
+  const imb = peak > 0 ? ((peak - min) / peak) * 100 : 0;
+  const imbClass = imb < 10 ? 'pbl-ok' : (imb < 20 ? 'pbl-warn' : 'pbl-bad');
+
+  el.innerHTML =
+    `<div class="structure-info-box phase-load">` +
+      `<div class="structure-info-title phase-load">3-Phase Load (Combined)</div>` +
+      `<div class="weight-row"><span class="weight-label">Leg X</span><span class="weight-value">${la.X.toFixed(1)} A</span></div>` +
+      `<div class="weight-row"><span class="weight-label">Leg Y</span><span class="weight-value">${la.Y.toFixed(1)} A</span></div>` +
+      `<div class="weight-row"><span class="weight-label">Leg Z</span><span class="weight-value">${la.Z.toFixed(1)} A</span></div>` +
+      `<div class="weight-row"><span class="weight-label">Imbalance</span><span class="weight-value ${imbClass}">${imb.toFixed(0)}%</span></div>` +
+    `</div>`;
+  el.style.display = 'block';
 }
 
 // Render combined specifications

@@ -74,6 +74,12 @@ function exportCanvas(){
       return;
     }
 
+    // Handle per-screen native-resolution PNG export
+    if(format === 'screens') {
+      exportScreensNativeRes();
+      return;
+    }
+
     // Export the clean canvas using blob for better mobile compatibility
     const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
     const extension = format === 'jpeg' ? '.jpg' : '.png';
@@ -152,6 +158,130 @@ function _getScreenResolution(screenId) {
     if(half) wallH += half.res_y;
   }
   return { w: wallW, h: wallH };
+}
+
+// ==================== PER-SCREEN NATIVE-RESOLUTION PNG EXPORT ====================
+// Renders each screen exactly as drawn in the canvas view, but onto its own
+// offscreen canvas sized to the screen's native pixel resolution. Single screen
+// downloads directly; multiple screens are bundled into one ZIP.
+
+// Render one screen at native resolution using the shared canvas-view renderer.
+// Returns { canvas, w, h } or null if the screen has no valid dimensions.
+function _renderScreenNativeCanvas(screenId) {
+  var screen = screens[screenId];
+  if(!screen || !screen.data) return null;
+  var res = _getScreenResolution(screenId);
+  if(!res.w || !res.h) return null;
+
+  var c = document.createElement('canvas');
+  c.width = res.w;
+  c.height = res.h;
+  var ctx = c.getContext('2d');
+
+  // Black background behind the screen (matches the canvas view; knocked-out
+  // panels show through as black).
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, res.w, res.h);
+
+  // Mirror the current canvas tab's data-overlay toggle state ("as is in the canvas view").
+  var cd = (typeof currentCanvasId !== 'undefined' && currentCanvasId &&
+            typeof canvases !== 'undefined' && canvases[currentCanvasId] &&
+            canvases[currentCanvasId].data) || {};
+  var showLines = !!cd.showDataLines;
+  var showLabels = !!cd.showDataLabels;
+
+  drawScreenToContext(ctx, screen, getAllPanels(), 0, 0, res.w, res.h,
+    { active: showLines || showLabels, showLines: showLines, showLabels: showLabels });
+
+  return { canvas: c, w: res.w, h: res.h };
+}
+
+// For Export All: callback([{ screenId, name, w, h, blob }, ...]) for visible screens.
+function getScreenNativeResBlobs(callback) {
+  var screenIds = Object.keys(screens).sort(function(a, b) {
+    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
+  });
+  var jobs = [];
+  screenIds.forEach(function(id) {
+    var s = screens[id];
+    if(!s || !s.visible) return;
+    var rendered = _renderScreenNativeCanvas(id);
+    if(!rendered) return;
+    jobs.push({ id: id, name: (s.name || id), rendered: rendered });
+  });
+
+  var results = [];
+  if(jobs.length === 0) { callback(results); return; }
+
+  var pending = jobs.length;
+  jobs.forEach(function(job) {
+    job.rendered.canvas.toBlob(function(blob) {
+      if(blob) results.push({ screenId: job.id, name: job.name, w: job.rendered.w, h: job.rendered.h, blob: blob });
+      pending--;
+      if(pending === 0) callback(results);
+    }, 'image/png');
+  });
+}
+
+// Dropdown handler: export each visible screen at native resolution.
+// File naming: "{ScreenName}_{w}x{h}.png". 1 screen → direct PNG; >1 → ZIP.
+function exportScreensNativeRes() {
+  try {
+    var screenIds = Object.keys(screens).sort(function(a, b) {
+      return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
+    });
+    var items = [];
+    screenIds.forEach(function(id) {
+      var s = screens[id];
+      if(!s || !s.visible) return;
+      var rendered = _renderScreenNativeCanvas(id);
+      if(!rendered) return;
+      var name = (s.name || id).replace(/[<>:"/\\|?*]/g, '_');
+      items.push({ name: name, w: rendered.w, h: rendered.h, canvas: rendered.canvas });
+    });
+
+    if(items.length === 0) {
+      showAlert('No screens with valid dimensions to export. Generate a screen first.');
+      return;
+    }
+
+    if(items.length === 1) {
+      var it = items[0];
+      _downloadCanvasBlob(it.canvas, it.name + '_' + it.w + 'x' + it.h + '.png', 'image/png');
+      return;
+    }
+
+    // Multiple screens → bundle into a single ZIP.
+    if(typeof JSZip === 'undefined') {
+      showAlert('ZIP library not available. Please reload and try again.');
+      return;
+    }
+    var zip = new JSZip();
+    var pending = items.length;
+    items.forEach(function(it) {
+      it.canvas.toBlob(function(blob) {
+        if(blob) zip.file(it.name + '_' + it.w + 'x' + it.h + '.png', blob);
+        pending--;
+        if(pending === 0) {
+          var filenameInput = document.getElementById('canvasExportFilename') || document.getElementById('rasterToolbarFilename');
+          var base = filenameInput ? filenameInput.value.trim() : '';
+          base = (base || 'Screens').replace(/[<>:"/\\|?*]/g, '_');
+          zip.generateAsync({ type: 'blob' }).then(function(content) {
+            var url = URL.createObjectURL(content);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = base + '_Native_Res.zip';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+          });
+        }
+      }, 'image/png');
+    });
+  } catch(err) {
+    showAlert('Error exporting screens: ' + err.message);
+    console.error('Screen native-res export error:', err);
+  }
 }
 
 function showOutlineExportModal() {

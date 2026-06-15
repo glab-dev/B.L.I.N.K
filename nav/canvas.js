@@ -405,6 +405,220 @@ function loadCanvasData(canvasId) {
   if(typeof syncToolbarFromCanvasOptions === 'function') syncToolbarFromCanvasOptions();
 }
 
+// Draw a single screen onto a 2D context at the given offset. Extracted from
+// showCanvasView so the same renderer can produce per-screen native-resolution
+// exports. cullW/cullH bound the off-screen culling check; dataOverlay carries
+// the canvas tab's data-line/label toggle state ({ active, showLines, showLabels }).
+function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cullH, dataOverlay) {
+    const screenData = screen.data;
+    const panelType = screenData.panelType || 'CB5_MKII';
+    const p = allPanels[panelType];
+
+    if(!p || !p.res_x || !p.res_y) return;
+
+    // Get panel dimensions for this screen
+    const pw = screenData.panelsWide || 0;
+    const ph = screenData.panelsHigh || 0;
+
+    if(pw === 0 || ph === 0) return;
+
+    // Check if CB5 half panel row is enabled for this screen
+    const hasCB5HalfRow = screenData.addCB5HalfRow && panelType === 'CB5_MKII';
+
+    // Calculate wall resolution accounting for CB5 half panels
+    let wallResX, wallResY;
+    if(hasCB5HalfRow) {
+      const halfPanel = allPanels['CB5_MKII_HALF'];
+      wallResX = pw * p.res_x;
+      wallResY = ph * p.res_y + halfPanel.res_y;
+    } else {
+      wallResX = pw * p.res_x;
+      wallResY = ph * p.res_y;
+    }
+
+    const totalRows = hasCB5HalfRow ? ph + 1 : ph;
+    // Ensure deletedPanels is a Set (might be array from JSON load)
+    let deletedPanelsForScreen = screenData.deletedPanels;
+    if(deletedPanelsForScreen && !(deletedPanelsForScreen instanceof Set)) {
+      deletedPanelsForScreen = new Set(deletedPanelsForScreen);
+    }
+    if(!deletedPanelsForScreen) {
+      deletedPanelsForScreen = new Set();
+    }
+
+    // Pre-calculate colors and halfPanel outside loop
+    const primaryColor = screen.color || '#808080';
+    const secondaryColor = screen.color2 || darkenColor(primaryColor, 30);
+    const halfPanel = allPanels['CB5_MKII_HALF'];
+
+    // Draw panels for this screen - optimized loop
+    for(let c = 0; c < pw; c++){
+      const xBase = offsetX + (c * p.res_x);
+
+      for(let r = 0; r < totalRows; r++){
+        const panelKey = `${c},${r}`;
+
+        // Skip deleted panels
+        if(deletedPanelsForScreen.has(panelKey)) continue;
+
+        // Determine if this is the half panel row
+        const isHalfPanelRow = hasCB5HalfRow && (r === ph);
+
+        // Calculate panel pixel dimensions
+        const panelResX = isHalfPanelRow ? halfPanel.res_x : p.res_x;
+        const panelResY = isHalfPanelRow ? halfPanel.res_y : p.res_y;
+
+        // Calculate Y position
+        const y = offsetY + (r * p.res_y);
+
+        // Skip if out of view
+        if(xBase >= cullW || y >= cullH || xBase + panelResX <= 0 || y + panelResY <= 0) continue;
+
+        // Use alternating colors for checkerboard pattern
+        const fillColor = ((c + r) % 2 === 0) ? primaryColor : secondaryColor;
+        ctx.fillStyle = fillColor;
+        ctx.fillRect(xBase, y, panelResX, panelResY);
+
+        // Off-white outline for visibility
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(xBase, y, panelResX, panelResY);
+
+        // Draw panel label - white text. When data overlays are active, move the
+        // coordinate to the top-right corner (smaller) so the data line/label can
+        // occupy the panel center.
+        ctx.fillStyle = '#FFFFFF';
+        if(dataOverlay && dataOverlay.active) {
+          const cornerFont = Math.max(10, Math.min(panelResX, panelResY) / 6);
+          ctx.font = `${cornerFont}px Arial`;
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'top';
+          const pad = Math.max(3, panelResX * 0.05);
+          ctx.fillText(`${c+1}.${r+1}`, xBase + panelResX - pad, y + pad);
+        } else {
+          const fontSize = Math.max(12, Math.min(panelResX, panelResY) / 4);
+          ctx.font = `${fontSize}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`${c+1}.${r+1}`, xBase + panelResX/2, y + panelResY/2);
+        }
+      }
+    }
+
+    // Draw X crosshair if enabled for this screen (default: on)
+    if(screen.showCrosshair !== false) {
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([]);
+
+      // Line from top-left to bottom-right
+      ctx.beginPath();
+      ctx.moveTo(offsetX, offsetY);
+      ctx.lineTo(offsetX + wallResX, offsetY + wallResY);
+      ctx.stroke();
+
+      // Line from top-right to bottom-left
+      ctx.beginPath();
+      ctx.moveTo(offsetX + wallResX, offsetY);
+      ctx.lineTo(offsetX, offsetY + wallResY);
+      ctx.stroke();
+
+      ctx.setLineDash([]); // Reset to solid line
+    }
+
+    // Add X/Y coordinates in top-left corner (if enabled for this screen)
+    if(screen.showCoordinates !== false) {
+      const coordFontSize = Math.max(16, Math.min(p.res_x, p.res_y) / 5.9);
+      ctx.font = `bold ${coordFontSize}px Arial`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+
+      const coordPadding = 12;
+      const textX = offsetX + coordPadding;
+      const textY = offsetY + coordPadding;
+      const lineHeight = coordFontSize + 6;
+
+      // Measure text width for dynamic background sizing
+      const xText = `X: ${screenData.canvasX || 0}`;
+      const yText = `Y: ${screenData.canvasY || 0}`;
+      const maxTextWidth = Math.max(ctx.measureText(xText).width, ctx.measureText(yText).width);
+
+      // Semi-transparent dark background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(textX - 6, textY - 6, maxTextWidth + 16, lineHeight * 2 + 8);
+
+      // Draw coordinates
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillText(xText, textX, textY);
+      ctx.fillText(yText, textX, textY + lineHeight);
+    }
+
+    // Add screen name overlay - simplified shadow
+    const screenName = screen.name;
+    if(screenName) {
+      const wallCenterX = offsetX + (wallResX / 2);
+      const wallCenterY = offsetY + (wallResY / 2);
+      const baseFontSize = Math.min(wallResX, wallResY) * 0.15;
+
+      ctx.font = `bold ${baseFontSize}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Simple shadow (reduced from 13 to 4 draws)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillText(screenName, wallCenterX + 3, wallCenterY + 3);
+      ctx.fillText(screenName, wallCenterX - 2, wallCenterY + 2);
+
+      // Yellow text on top
+      ctx.fillStyle = '#FFFF00';
+      ctx.fillText(screenName, wallCenterX, wallCenterY);
+    }
+
+    // Add screen resolution at bottom-left (if enabled for this screen) - simplified shadow
+    if(screen.showPixelDimensions !== false) {
+      const resFontSize = Math.max(10, Math.min(wallResX, wallResY) * 0.041);
+      ctx.font = `bold ${resFontSize}px Arial`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+
+      const resTextX = offsetX + 10;
+      const resTextY = offsetY + wallResY - 10;
+      const resText = `${wallResX} × ${wallResY}`;
+
+      // Simple shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillText(resText, resTextX + 2, resTextY + 2);
+
+      // Yellow text
+      ctx.fillStyle = '#FFFF00';
+      ctx.fillText(resText, resTextX, resTextY);
+    }
+
+    // Add B.L.I.N.K. logo in bottom right corner
+    const logoFontSize = Math.max(8, Math.min(wallResX, wallResY) * 0.034);
+    ctx.font = `bold ${logoFontSize}px Arial`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+
+    const logoTextX = offsetX + wallResX - 10;
+    const logoTextY = offsetY + wallResY - 10;
+    const logoText = 'B.L.I.N.K.';
+
+    // Simple shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillText(logoText, logoTextX + 2, logoTextY + 2);
+
+    // White text for logo
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(logoText, logoTextX, logoTextY);
+
+    // Data line/label overlay — drawn last so labels sit over the X/Y coordinate
+    // and other annotations (front view; canvas only).
+    if(dataOverlay && dataOverlay.active) {
+      drawScreenDataOverlay(ctx, screen, offsetX, offsetY, p.res_x, p.res_y, ph, hasCB5HalfRow, { showLines: dataOverlay.showLines, showLabels: dataOverlay.showLabels });
+    }
+}
+
 function showCanvasView(){
   // Get all panels (built-in + custom) for use throughout this function
   const allPanels = getAllPanels();
@@ -561,223 +775,19 @@ function showCanvasView(){
   // Draw each visible screen
   screenIds.forEach(screenId => {
     const screen = screens[screenId];
-    
+
     // Skip invisible screens
     if(!screen.visible) return;
-    
+
     const screenData = screen.data;
-    const panelType = screenData.panelType || 'CB5_MKII';
-    const p = allPanels[panelType];
 
-    if(!p || !p.res_x || !p.res_y) return;
-
-    // Get panel dimensions for this screen
-    const pw = screenData.panelsWide || 0;
-    const ph = screenData.panelsHigh || 0;
-
-    if(pw === 0 || ph === 0) return;
-
-    // Check if CB5 half panel row is enabled for this screen
-    const hasCB5HalfRow = screenData.addCB5HalfRow && panelType === 'CB5_MKII';
-
-    // Calculate wall resolution accounting for CB5 half panels
-    let wallResX, wallResY;
-    if(hasCB5HalfRow) {
-      const halfPanel = allPanels['CB5_MKII_HALF'];
-      wallResX = pw * p.res_x;
-      wallResY = ph * p.res_y + halfPanel.res_y;
-    } else {
-      wallResX = pw * p.res_x;
-      wallResY = ph * p.res_y;
-    }
-    
     // Ensure canvas position is a valid number, default to 0
     const offsetX = (typeof screenData.canvasX === 'number' && !isNaN(screenData.canvasX)) ? screenData.canvasX : 0;
     const offsetY = (typeof screenData.canvasY === 'number' && !isNaN(screenData.canvasY)) ? screenData.canvasY : 0;
-    
+
     console.log(`showCanvasView rendering ${screenId}: offsetX=${offsetX}, offsetY=${offsetY}, screenData.canvasX=${screenData.canvasX}, screenData.canvasY=${screenData.canvasY}`);
-    
-    const totalRows = hasCB5HalfRow ? ph + 1 : ph;
-    // Ensure deletedPanels is a Set (might be array from JSON load)
-    let deletedPanelsForScreen = screenData.deletedPanels;
-    if(deletedPanelsForScreen && !(deletedPanelsForScreen instanceof Set)) {
-      deletedPanelsForScreen = new Set(deletedPanelsForScreen);
-    }
-    if(!deletedPanelsForScreen) {
-      deletedPanelsForScreen = new Set();
-    }
-    
-    // Pre-calculate colors and halfPanel outside loop
-    const primaryColor = screen.color || '#808080';
-    const secondaryColor = screen.color2 || darkenColor(primaryColor, 30);
-    const halfPanel = allPanels['CB5_MKII_HALF'];
-    
-    // Draw panels for this screen - optimized loop
-    for(let c = 0; c < pw; c++){
-      const xBase = offsetX + (c * p.res_x);
-      
-      for(let r = 0; r < totalRows; r++){
-        const panelKey = `${c},${r}`;
-        
-        // Skip deleted panels
-        if(deletedPanelsForScreen.has(panelKey)) continue;
-        
-        // Determine if this is the half panel row
-        const isHalfPanelRow = hasCB5HalfRow && (r === ph);
-        
-        // Calculate panel pixel dimensions
-        const panelResX = isHalfPanelRow ? halfPanel.res_x : p.res_x;
-        const panelResY = isHalfPanelRow ? halfPanel.res_y : p.res_y;
-        
-        // Calculate Y position
-        const y = offsetY + (r * p.res_y);
-        
-        // Skip if out of view
-        if(xBase >= canvasResX || y >= canvasResY || xBase + panelResX <= 0 || y + panelResY <= 0) continue;
-        
-        // Use alternating colors for checkerboard pattern
-        const fillColor = ((c + r) % 2 === 0) ? primaryColor : secondaryColor;
-        ctx.fillStyle = fillColor;
-        ctx.fillRect(xBase, y, panelResX, panelResY);
-        
-        // Off-white outline for visibility
-        ctx.strokeStyle = '#e0e0e0';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(xBase, y, panelResX, panelResY);
-        
-        // Draw panel label - white text. When data overlays are active, move the
-        // coordinate to the top-right corner (smaller) so the data line/label can
-        // occupy the panel center.
-        ctx.fillStyle = '#FFFFFF';
-        if(_dataOverlaysActive) {
-          const cornerFont = Math.max(10, Math.min(panelResX, panelResY) / 6);
-          ctx.font = `${cornerFont}px Arial`;
-          ctx.textAlign = 'right';
-          ctx.textBaseline = 'top';
-          const pad = Math.max(3, panelResX * 0.05);
-          ctx.fillText(`${c+1}.${r+1}`, xBase + panelResX - pad, y + pad);
-        } else {
-          const fontSize = Math.max(12, Math.min(panelResX, panelResY) / 4);
-          ctx.font = `${fontSize}px Arial`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(`${c+1}.${r+1}`, xBase + panelResX/2, y + panelResY/2);
-        }
-      }
-    }
 
-    // Draw X crosshair if enabled for this screen (default: on)
-    if(screen.showCrosshair !== false) {
-      ctx.strokeStyle = '#e0e0e0';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([]);
-
-      // Line from top-left to bottom-right
-      ctx.beginPath();
-      ctx.moveTo(offsetX, offsetY);
-      ctx.lineTo(offsetX + wallResX, offsetY + wallResY);
-      ctx.stroke();
-
-      // Line from top-right to bottom-left
-      ctx.beginPath();
-      ctx.moveTo(offsetX + wallResX, offsetY);
-      ctx.lineTo(offsetX, offsetY + wallResY);
-      ctx.stroke();
-
-      ctx.setLineDash([]); // Reset to solid line
-    }
-
-    // Add X/Y coordinates in top-left corner (if enabled for this screen)
-    if(screen.showCoordinates !== false) {
-      const coordFontSize = Math.max(16, Math.min(p.res_x, p.res_y) / 5.9);
-      ctx.font = `bold ${coordFontSize}px Arial`;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-
-      const coordPadding = 12;
-      const textX = offsetX + coordPadding;
-      const textY = offsetY + coordPadding;
-      const lineHeight = coordFontSize + 6;
-
-      // Measure text width for dynamic background sizing
-      const xText = `X: ${screenData.canvasX || 0}`;
-      const yText = `Y: ${screenData.canvasY || 0}`;
-      const maxTextWidth = Math.max(ctx.measureText(xText).width, ctx.measureText(yText).width);
-
-      // Semi-transparent dark background
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(textX - 6, textY - 6, maxTextWidth + 16, lineHeight * 2 + 8);
-
-      // Draw coordinates
-      ctx.fillStyle = '#f0f0f0';
-      ctx.fillText(xText, textX, textY);
-      ctx.fillText(yText, textX, textY + lineHeight);
-    }
-
-    // Add screen name overlay - simplified shadow
-    const screenName = screen.name;
-    if(screenName) {
-      const wallCenterX = offsetX + (wallResX / 2);
-      const wallCenterY = offsetY + (wallResY / 2);
-      const baseFontSize = Math.min(wallResX, wallResY) * 0.15;
-
-      ctx.font = `bold ${baseFontSize}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      // Simple shadow (reduced from 13 to 4 draws)
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.fillText(screenName, wallCenterX + 3, wallCenterY + 3);
-      ctx.fillText(screenName, wallCenterX - 2, wallCenterY + 2);
-
-      // Yellow text on top
-      ctx.fillStyle = '#FFFF00';
-      ctx.fillText(screenName, wallCenterX, wallCenterY);
-    }
-
-    // Add screen resolution at bottom-left (if enabled for this screen) - simplified shadow
-    if(screen.showPixelDimensions !== false) {
-      const resFontSize = Math.max(10, Math.min(wallResX, wallResY) * 0.041);
-      ctx.font = `bold ${resFontSize}px Arial`;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'bottom';
-
-      const resTextX = offsetX + 10;
-      const resTextY = offsetY + wallResY - 10;
-      const resText = `${wallResX} × ${wallResY}`;
-
-      // Simple shadow
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.fillText(resText, resTextX + 2, resTextY + 2);
-
-      // Yellow text
-      ctx.fillStyle = '#FFFF00';
-      ctx.fillText(resText, resTextX, resTextY);
-    }
-
-    // Add B.L.I.N.K. logo in bottom right corner
-    const logoFontSize = Math.max(8, Math.min(wallResX, wallResY) * 0.034);
-    ctx.font = `bold ${logoFontSize}px Arial`;
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'bottom';
-
-    const logoTextX = offsetX + wallResX - 10;
-    const logoTextY = offsetY + wallResY - 10;
-    const logoText = 'B.L.I.N.K.';
-
-    // Simple shadow
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillText(logoText, logoTextX + 2, logoTextY + 2);
-
-    // White text for logo
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(logoText, logoTextX, logoTextY);
-
-    // Data line/label overlay — drawn last so labels sit over the X/Y coordinate
-    // and other annotations (front view; canvas only).
-    if(_dataOverlaysActive) {
-      drawScreenDataOverlay(ctx, screen, offsetX, offsetY, p.res_x, p.res_y, ph, hasCB5HalfRow, { showLines: _showDataLines, showLabels: _showDataLabels });
-    }
+    drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, canvasResX, canvasResY, { active: _dataOverlaysActive, showLines: _showDataLines, showLabels: _showDataLabels });
   });
 
   // Cache the canvas state BEFORE drawing the border (for clean export)

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.64",
+  "version": "2.11.65",
   "updated": "2026-06-15",
-  "changelog": "Restore tap-selected-panel to open options menu while in mobile Select Mode"
+  "changelog": "Add per-screen native-resolution PNG export to canvas options and Export All"
 }

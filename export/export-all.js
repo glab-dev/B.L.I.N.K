@@ -40,6 +40,20 @@ async function _captureAllScreenshotsToZip(zip, name) {
     } catch(e) { resolve(); }
   });
 
+  // 0b. Per-screen native-resolution PNGs → screens/ (each screen as drawn in the canvas view, at its exact pixel resolution)
+  await new Promise(function(resolve) {
+    try {
+      getScreenNativeResBlobs(function(results) {
+        (results || []).forEach(function(r) {
+          if(!r || !r.blob) return;
+          var safeName = (r.name || r.screenId || 'screen').replace(/[<>:"/\\|?*]/g, '_');
+          zip.file('screens/' + safeName + '_' + r.w + 'x' + r.h + '.png', r.blob);
+        });
+        resolve();
+      });
+    } catch(e) { resolve(); }
+  });
+
   // 1. Per-screen layout PNGs [power/data/structure] — single render pass internally
   await new Promise(function(resolve) {
     try {

@@ -2511,6 +2511,12 @@
         </div>
       </div>
       <div class="layout-content" id="standardContent">
+        <div class="layout-toggle-row" id="standardSelectModeRow" style="display:none;">
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Select Mode</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="selectModeBtn" onclick="toggleSelectMode()">Off</button>
+          </div>
+        </div>
         <div class="mobile-hint" id="standardLayoutHint">Tap to select • Tap again for options • Drag to multi-select</div>
         <canvas id="standardCanvas"></canvas>
       </div>
@@ -3396,8 +3402,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.62';
-const APP_CHANGELOG = 'Keep full SOCAs in column order, label circuits SOCA-locally, and stop Phase Balance raising imbalance';
+const APP_VERSION = '2.11.63';
+const APP_CHANGELOG = 'Add mobile Select Mode toggle to drag-select Standard Layout panels without page scroll';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -3414,6 +3420,7 @@ let customCircuitAssignments = new Map(); // stores "col,row" -> circuit number
 let customSocaAssignments = new Map(); // stores "col,row" -> 1-based SOCA number
 let customDataLineAssignments = new Map(); // stores "col,row" -> data line number
 let isDragging = false;
+let selectMode = false; // mobile: drag-select panels without scrolling the page
 let dragStartX = 0;
 let modalOpenedFromMenu = false; // Track if current modal came from hamburger menu
 let modalReturnTo = null; // Callback to invoke when current modal closes (modal-to-modal return)

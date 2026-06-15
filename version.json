@@ -1,5 +1,5 @@
 {
-  "version": "2.11.62",
+  "version": "2.11.63",
   "updated": "2026-06-15",
-  "changelog": "Keep full SOCAs in column order, label circuits SOCA-locally, and stop Phase Balance raising imbalance"
+  "changelog": "Add mobile Select Mode toggle to drag-select Standard Layout panels without page scroll"
 }

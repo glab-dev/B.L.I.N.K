@@ -72,6 +72,35 @@ function deleteSelectedPanels() {
   }
 }
 
+// Toggle mobile Select Mode: blocks page scroll on the canvas so dragging
+// paints panel selection instead of scrolling. Tap toggles a single panel.
+function toggleSelectMode() {
+  selectMode = !selectMode;
+
+  const canvas = document.getElementById('standardCanvas');
+  const btn = document.getElementById('selectModeBtn');
+  const hint = document.getElementById('standardLayoutHint');
+
+  if(canvas) canvas.classList.toggle('select-mode-active', selectMode);
+  if(btn) {
+    btn.textContent = selectMode ? 'On' : 'Off';
+    btn.classList.toggle('active', selectMode);
+  }
+  if(hint) {
+    hint.textContent = selectMode
+      ? 'Drag to select panels • Tap to toggle • Long-press for options'
+      : 'Tap to select • Tap again for options • Drag to multi-select';
+  }
+
+  // Leaving Select Mode clears the working selection
+  if(!selectMode) {
+    selectedPanels.clear();
+    generateLayout('standard');
+  }
+
+  vibrate(10);
+}
+
 let canvasListenersSetup = false;
 
 function setupStandardCanvasInteractivity() {
@@ -86,7 +115,15 @@ function setupStandardCanvasInteractivity() {
   
   canvasListenersSetup = true;
   currentCanvas = canvas;
-  
+
+  // Show the Select Mode toggle on touch devices only — desktop drag-select already
+  // works with the mouse via mousedown/mousemove rect selection.
+  const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  if(isTouchDevice) {
+    const selectModeRow = document.getElementById('standardSelectModeRow');
+    if(selectModeRow) selectModeRow.style.display = 'flex';
+  }
+
   // Mouse down - start selection
   canvas.addEventListener('mousedown', function(e) {
     if(e.button !== 0) return; // Only left click
@@ -198,8 +235,9 @@ function setupStandardCanvasInteractivity() {
     const dx = Math.abs(touch.clientX - touchSelectStart.x);
     const dy = Math.abs(touch.clientY - touchSelectStart.y);
 
-    // Start drag selection after moving enough
-    if(dx > 10 || dy > 10) {
+    // Start drag selection after moving enough. Only paint-select in Select Mode —
+    // otherwise let the move fall through so the page scrolls normally.
+    if(selectMode && (dx > 10 || dy > 10)) {
       if(!isTouchSelecting) {
         // First move - clear selection and start fresh
         isTouchSelecting = true;
@@ -233,17 +271,35 @@ function setupStandardCanvasInteractivity() {
 
     // Single tap behavior
     if(touchStartPanel) {
-      const wasAlreadySelected = selectedPanels.has(touchStartPanel.key);
-
-      if(wasAlreadySelected) {
-        // Panel was already selected - show context menu
-        vibrate(30);
-        showContextMenu(touchEndX, touchEndY);
-      } else {
-        // Panel not selected - select it (clear others first)
-        selectedPanels.clear();
-        selectedPanels.add(touchStartPanel.key);
+      if(selectMode) {
+        // A long-press already handled this touch (opened the context menu) — don't toggle.
+        if(longPressTriggered) {
+          touchSelectStart = null;
+          isTouchSelecting = false;
+          touchStartPanel = null;
+          return;
+        }
+        // Select Mode: toggle the tapped panel in/out, keeping the rest of the selection
+        if(selectedPanels.has(touchStartPanel.key)) {
+          selectedPanels.delete(touchStartPanel.key);
+        } else {
+          selectedPanels.add(touchStartPanel.key);
+        }
+        vibrate(10);
         generateLayout('standard');
+      } else {
+        const wasAlreadySelected = selectedPanels.has(touchStartPanel.key);
+
+        if(wasAlreadySelected) {
+          // Panel was already selected - show context menu
+          vibrate(30);
+          showContextMenu(touchEndX, touchEndY);
+        } else {
+          // Panel not selected - select it (clear others first)
+          selectedPanels.clear();
+          selectedPanels.add(touchStartPanel.key);
+          generateLayout('standard');
+        }
       }
     }
 

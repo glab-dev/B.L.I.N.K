@@ -962,6 +962,11 @@ canvas {
   height: auto;
 }
 
+/* Select Mode: block native scroll so drag-select works on touch devices */
+#standardCanvas.select-mode-active {
+  touch-action: none;
+}
+
 /* Canvas view can be responsive */
 #canvasView {
   max-width: 100%;

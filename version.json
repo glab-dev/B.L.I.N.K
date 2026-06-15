@@ -1,5 +1,5 @@
 {
-  "version": "2.11.61",
-  "updated": "2026-06-11",
-  "changelog": "Add Derate (80%) toggle to power options for NEC continuous-load circuit sizing"
+  "version": "2.11.62",
+  "updated": "2026-06-15",
+  "changelog": "Keep full SOCAs in column order, label circuits SOCA-locally, and stop Phase Balance raising imbalance"
 }

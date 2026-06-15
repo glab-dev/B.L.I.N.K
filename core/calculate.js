@@ -872,14 +872,11 @@ function calculate(){
     if(phase === 3 && typeof computePhaseBalance === 'function') {
       const pbMode = (typeof phaseBalanceMode !== 'undefined') ? phaseBalanceMode : 'aswired';
       const wiring = (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(voltage) : null;
-      if(pbMode === 'balanced' && typeof balanceCircuitsByLeg === 'function') {
-        // "Balanced" re-circuits panels onto the lighter legs; the resulting circuit
-        // numbers already encode the distro slot (leg), so feed those counts through
-        // the as-wired path to get the balanced per-leg amps. Power-tab view only.
-        const balMap = balanceCircuitsByLeg(pw, ph, panelsPerCircuit, deletedPanels, wiring ? wiring.slots : null, customCircuitAssignments, customSocaAssignments);
-        const balCounts = new Map();
-        balMap.forEach(ci => balCounts.set(ci, (balCounts.get(ci) || 0) + 1));
-        phaseBalance = computePhaseBalance(balCounts, perPanelW, voltage, 'aswired', wiring);
+      if(pbMode === 'balanced' && typeof resolveBalancedCircuits === 'function') {
+        // "Balanced" re-circuits panels onto the lighter legs, but only when that
+        // actually lowers the imbalance — resolveBalancedCircuits falls back to as-wired
+        // otherwise, so the toggle can never raise it. Power-tab view only.
+        phaseBalance = resolveBalancedCircuits(pw, ph, panelsPerCircuit, deletedPanels, wiring, customCircuitAssignments, customSocaAssignments, perPanelW, voltage).phaseBalance;
       } else {
         phaseBalance = computePhaseBalance(circuitCounts, perPanelW, voltage, pbMode, wiring);
       }

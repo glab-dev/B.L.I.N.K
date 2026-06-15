@@ -92,22 +92,29 @@ function renderPowerLayout(params) {
   // core/phase-balance.js use identical circuit numbering. In "Balanced" mode the
   // panels are re-circuited onto the lighter legs (view only — panels keep their
   // grid position, only their circuit/colour changes).
-  const _balancedView = (typeof phaseBalanceMode !== 'undefined') && phaseBalanceMode === 'balanced' && typeof balanceCircuitsByLeg === 'function';
-  let panelToCircuit, circuitCounts;
+  const _balancedView = (typeof phaseBalanceMode !== 'undefined') && phaseBalanceMode === 'balanced' && typeof resolveBalancedCircuits === 'function';
+  let panelToCircuit, circuitCounts, _usedBalanced = false;
   if (_balancedView) {
     const _vEl = document.getElementById('voltage');
-    const _slots = (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(parseFloat(_vEl && _vEl.value) || 208).slots : null;
-    panelToCircuit = balanceCircuitsByLeg(pw, ph, panelsPerCircuit, deletedPanels, _slots, customCircuitAssignments, customSocaAssignments);
-    circuitCounts = new Map();
-    panelToCircuit.forEach(ci => circuitCounts.set(ci, (circuitCounts.get(ci) || 0) + 1));
+    const _voltage = parseFloat(_vEl && _vEl.value) || 208;
+    const _wiring = (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(_voltage) : null;
+    const _panel = (typeof getCurrentPanel === 'function') ? getCurrentPanel() : null;
+    const _ptEl = document.getElementById('powerType');
+    const _pt = _ptEl ? _ptEl.value : 'max';
+    const _ppw = _panel ? (_pt === 'max' ? (_panel.power_max_w || 0) : (_panel.power_avg_w || 0)) : 0;
+    const _res = resolveBalancedCircuits(pw, ph, panelsPerCircuit, deletedPanels, _wiring, customCircuitAssignments, customSocaAssignments, _ppw, _voltage);
+    panelToCircuit = _res.panelToCircuit;
+    circuitCounts = _res.circuitCounts;
+    _usedBalanced = _res.useBalanced;
   } else {
     ({ panelToCircuit, circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments));
   }
 
   // STEP 4: Compute SOCA group per panel via the shared helper (explicit
   // per-panel assignment wins, else the circuit's natural 6-per-SOCA group).
-  // In balanced mode the re-circuiting defines its own SOCAs, so ignore custom ones.
-  const panelToSoca = _balancedView ? new Map() : assignSocas(panelToCircuit, customSocaAssignments);
+  // When the balanced layout is actually adopted the re-circuiting defines its own
+  // SOCAs, so ignore custom ones; if it fell back to as-wired, honour custom SOCAs.
+  const panelToSoca = _usedBalanced ? new Map() : assignSocas(panelToCircuit, customSocaAssignments);
 
   // Keep the per-SOCA amps table in sync with this canvas by recomputing the
   // breakdown from the same live assignments the canvas just used — so the table
@@ -134,6 +141,24 @@ function renderPowerLayout(params) {
     const base = { XY: '#ff5277', YZ: '#36c5f0', ZX: '#ffd23f', X: '#ff5277', Y: '#36c5f0', Z: '#ffd23f' }[pair] || '#cccccc';
     return greyscalePrintMode ? toGreyscale(base) : (ecoPrintMode ? toPastelColor(base) : base);
   };
+
+  // As-wired circuit labels read SOCA-local (e.g. B.1-B.6), not the running global
+  // circuit number (B.7-B.12): rank the distinct circuits within each SOCA. Balanced
+  // mode already numbers its slots 1-6 per SOCA, so this is only built for the as-wired
+  // view. Mirrors computeSocaBreakdown's grouping so the table and canvas agree.
+  const _socaCircuitPos = new Map(); // circuitNum -> 1-based position within its SOCA
+  if (!_usedBalanced) {
+    const _bySoca = new Map(); // socaIdx -> Set(circuitNum)
+    panelToCircuit.forEach((cn, k) => {
+      if (deletedPanels.has(k)) return;
+      const s = panelToSoca.has(k) ? panelToSoca.get(k) : Math.floor(cn / 6);
+      if (!_bySoca.has(s)) _bySoca.set(s, new Set());
+      _bySoca.get(s).add(cn);
+    });
+    _bySoca.forEach(set => {
+      [...set].sort((a, b) => a - b).forEach((cn, i) => _socaCircuitPos.set(cn, i + 1));
+    });
+  }
 
   // Draw all panels
   for(let c=0; c<pw; c++){
@@ -186,7 +211,7 @@ function renderPowerLayout(params) {
       // leg pair when Colour by Leg is on. Shrink the font so the label stays centred
       // and fits inside the panel.
       const _pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
-      const _circLabel = `${formatSocaLabel(socaGroup)}.${_balancedView ? (circuitNum % 6) + 1 : circuitNum + 1}`;
+      const _circLabel = `${formatSocaLabel(socaGroup)}.${_usedBalanced ? (circuitNum % 6) + 1 : (_socaCircuitPos.get(circuitNum) || 1)}`;
       // Colour by Leg shows just the leg (XY/YZ/ZX); otherwise the SOCA.circuit label.
       const _displayLabel = (_legColorOn && legPair) ? legPair : _circLabel;
       let _fs = _pdf ? Math.max(10, Math.floor(panelWidth * 0.25)) : 11;
@@ -435,13 +460,6 @@ function renderPhaseBalanceLegend() {
   const imb = pb.imbalancePct;
   const imbClass = imb < 10 ? 'pbl-ok' : (imb < 20 ? 'pbl-warn' : 'pbl-bad');
 
-  // Summary only — show the achievable balanced imbalance as a single percentage
-  // row (no per-circuit re-patch dump). Only shown when rebalancing would improve it.
-  let recHtml = '';
-  if (typeof pb.balancedImbalancePct === 'number' && pb.balancedImbalancePct < imb) {
-    recHtml = `<div class="weight-row"><span class="weight-label">Optimized</span><span class="weight-value pbl-ok">${pb.balancedImbalancePct.toFixed(0)}%</span></div>`;
-  }
-
   el.innerHTML =
     `<div class="structure-info-box phase-load">` +
       `<div class="structure-info-title phase-load">3-Phase Load</div>` +
@@ -449,7 +467,6 @@ function renderPhaseBalanceLegend() {
       `<div class="weight-row"><span class="weight-label">Leg Y</span><span class="weight-value">${la.Y.toFixed(1)} A</span></div>` +
       `<div class="weight-row"><span class="weight-label">Leg Z</span><span class="weight-value">${la.Z.toFixed(1)} A</span></div>` +
       `<div class="weight-row"><span class="weight-label">Imbalance</span><span class="weight-value ${imbClass}">${imb.toFixed(0)}%</span></div>` +
-      recHtml +
     `</div>`;
   el.style.display = 'block';
 }
@@ -470,8 +487,8 @@ function renderSocaCircuitTable(breakdown) {
 
   el.innerHTML = sb.map(soca => {
     const label = (typeof formatSocaLabel === 'function') ? formatSocaLabel(soca.socaIdx) : (soca.socaIdx + 1);
-    const rows = soca.circuits.map(c =>
-      `<div class="weight-row"><span class="weight-label">${label}.${c.circuit + 1}</span><span class="weight-value">${c.amps.toFixed(1)} A</span></div>`
+    const rows = soca.circuits.map((c, i) =>
+      `<div class="weight-row"><span class="weight-label">${label}.${i + 1}</span><span class="weight-value">${c.amps.toFixed(1)} A</span></div>`
     ).join('');
     return `<div class="structure-info-box soca-load">` +
              `<div class="structure-info-title soca-load">SOCA ${label}</div>` +

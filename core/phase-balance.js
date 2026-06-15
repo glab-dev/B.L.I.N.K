@@ -166,6 +166,10 @@ function balanceCircuitsByLeg(pw, ph, maxPerCircuit, deletedPanels, slots, custo
     const circuits = [...sm.keys()].sort((a, b) => a - b)
       .map(slot => ({ panels: sm.get(slot), count: sm.get(slot).length }));
     if (circuits.length >= 6) {
+      // Full SOCA: keep each circuit on its as-wired slot so the resistor colours stay
+      // in column order (1-6). A full SOCA already uses all three leg-pairs (2 each), so
+      // re-circuiting it would scramble the colours for little/no balance gain — only
+      // partial SOCAs are re-circuited below.
       circuits.forEach((circ, slot) => {
         circ.panels.forEach(k => out.set(k, soca * 6 + slot));
         load[wiring[slot]] += circ.count;
@@ -192,6 +196,33 @@ function balanceCircuitsByLeg(pw, ph, maxPerCircuit, deletedPanels, slots, custo
     }
   });
   return out;
+}
+
+// Resolves which circuit layout the "Balanced" toggle should actually use. Computes
+// both the as-wired layout and the greedy re-circuited (balanced) layout, and keeps
+// the balanced one only if its imbalance is strictly LOWER — so toggling Phase Balance
+// can never RAISE the imbalance (it falls back to as-wired otherwise). Both the load
+// legend (core/calculate.js) and the power canvas (layouts/power.js) call this so they
+// always agree on the choice. `wiring` is resolveDistroWiring(voltage) ({ type, slots }).
+// Returns { useBalanced, panelToCircuit, circuitCounts, phaseBalance }.
+function resolveBalancedCircuits(pw, ph, panelsPerCircuit, deletedPanels, wiring, customCircuit, customSoca, perPanelW, voltage) {
+  const slots = (wiring && Array.isArray(wiring.slots)) ? wiring.slots : null;
+
+  // As-wired layout + its imbalance.
+  const aswired = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuit);
+  const aswiredPb = computePhaseBalance(aswired.circuitCounts, perPanelW, voltage, 'aswired', wiring);
+
+  // Balanced layout (greedy re-circuiting onto lighter legs); its circuit numbers
+  // already encode the distro slot/leg, so feed the counts through the as-wired path.
+  const balMap = balanceCircuitsByLeg(pw, ph, panelsPerCircuit, deletedPanels, slots, customCircuit, customSoca);
+  const balCounts = new Map();
+  balMap.forEach(ci => balCounts.set(ci, (balCounts.get(ci) || 0) + 1));
+  const balancedPb = computePhaseBalance(balCounts, perPanelW, voltage, 'aswired', wiring);
+
+  const useBalanced = balancedPb.imbalancePct < aswiredPb.imbalancePct;
+  return useBalanced
+    ? { useBalanced: true, panelToCircuit: balMap, circuitCounts: balCounts, phaseBalance: balancedPb }
+    : { useBalanced: false, panelToCircuit: aswired.panelToCircuit, circuitCounts: aswired.circuitCounts, phaseBalance: aswiredPb };
 }
 
 // Per-leg line-current magnitudes from the watts on each leg-pair (delta load).

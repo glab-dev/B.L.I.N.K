@@ -341,3 +341,30 @@ function approxAspectRatio(w,h){
   return {label:`${best.num}:${best.den}`, value:ratio};
 }
 
+// ==================== DATA LINE FLOW ====================
+// Order one data line's panels into physical cable-flow order, honoring the data
+// start-direction. 'top'/'bottom' snake (toggle direction each column); 'all_top'/
+// 'all_bottom' feed every column from the same end (no toggle). Used as the single
+// source of truth so the data layout, cable canvas, gear list, and cable diagram all
+// describe the same run. Reads {c,r} or {col,row} and returns the original objects.
+function orderDataLineFlow(panels, startDir) {
+  if(!panels || panels.length < 2) return panels ? panels.slice() : [];
+  const byCol = new Map();
+  panels.forEach(p => {
+    const c = (p.c !== undefined) ? p.c : p.col;
+    const r = (p.r !== undefined) ? p.r : p.row;
+    if(!byCol.has(c)) byCol.set(c, []);
+    byCol.get(c).push({ r, orig: p });
+  });
+  const cols = Array.from(byCol.keys()).sort((a, b) => a - b);
+  const serpentine = (startDir === 'top' || startDir === 'bottom');
+  let goingDown = (startDir === 'top' || startDir === 'all_top');
+  const out = [];
+  cols.forEach(c => {
+    const rows = byCol.get(c).sort((a, b) => a.r - b.r);
+    (goingDown ? rows : rows.slice().reverse()).forEach(o => out.push(o.orig));
+    if(serpentine) goingDown = !goingDown;
+  });
+  return out;
+}
+

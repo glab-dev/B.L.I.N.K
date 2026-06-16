@@ -290,6 +290,16 @@ function renderDataLayout(params) {
     groups.push(dataLineGroups.get(dataLine));
   });
 
+  // Re-order CUSTOM circuits into a clean serpentine that obeys the data start
+  // direction (auto lines keep their serp-derived order untouched). This makes
+  // irregular custom shapes (e.g. goal-post strips) start at the correct end and
+  // flow continuously instead of entering at the bottom or fragmenting.
+  for(let gi=0; gi<groups.length; gi++){
+    if(usedCustomDataLines.has(sortedDataLines[gi])) {
+      groups[gi] = orderDataLineFlow(groups[gi], startDir);
+    }
+  }
+
   // ---- Data line start endpoints ----
   // First = first panel in flow order; last = the other end. The main cable feeds
   // the start of the flow and the backup the opposite end — so when Flip reverses
@@ -436,9 +446,12 @@ function renderDataLayout(params) {
           const colDiff = Math.abs(curr.c - prev.c);
           const rowDiff = Math.abs(curr.r - prev.r);
 
-          // Adjacent means: same column (any row), or adjacent columns at top/bottom boundary
+          // Adjacent means: same column (any row), or adjacent columns at a serpentine
+          // turn. A turn is a same-row horizontal step (rowDiff===0) — this catches turns
+          // at a column's effective bottom (e.g. a 2-row strip turning at row 1, where the
+          // rows below are deleted), not just the full-grid top/bottom boundary.
           const isAdjacent = (colDiff === 0) || // same column
-                             (colDiff === 1 && (prev.r === 0 || prev.r === ph-1 || curr.r === 0 || curr.r === ph-1)); // adjacent column at boundary
+                             (colDiff === 1 && (rowDiff === 0 || prev.r === 0 || prev.r === ph-1 || curr.r === 0 || curr.r === ph-1)); // adjacent column at turn
 
           if(isAdjacent) {
             currentSegment.push(pts[i]);

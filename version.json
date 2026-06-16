@@ -1,5 +1,5 @@
 {
-  "version": "2.11.66",
-  "updated": "2026-06-15",
-  "changelog": "Add whole-show 3-phase load and imbalance to the Combined power layout"
+  "version": "2.11.67",
+  "updated": "2026-06-16",
+  "changelog": "Fix custom data-line serpentine flow and joins on goal-post deleted-panel screens"
 }

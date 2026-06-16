@@ -154,7 +154,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
         const prev = grp[i - 1], curr = grp[i];
         const colDiff = Math.abs(curr.col - prev.col), rowDiff = Math.abs(curr.row - prev.row);
         const isAdjacent = (colDiff === 0) ||
-          (colDiff === 1 && (prev.row === 0 || prev.row === effectivePh - 1 || curr.row === 0 || curr.row === effectivePh - 1));
+          (colDiff === 1 && (rowDiff === 0 || prev.row === 0 || prev.row === effectivePh - 1 || curr.row === 0 || curr.row === effectivePh - 1));
         if(isAdjacent) seg.push(curr);
         else { if(seg.length >= 2) segments.push(seg); seg = [curr]; }
       }

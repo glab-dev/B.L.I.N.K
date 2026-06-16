@@ -31,100 +31,15 @@ function roundUpToStandard(lengthFt) {
 
 // Returns array mapping data line index to its entry panel {col, row}
 function getDataLineEntryPoints(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap) {
+  // Entry point = first panel in each line's canonical flow order, derived from
+  // getDataLinePanelOrdering so the two never diverge. Auto lines are unchanged
+  // (ordering preserves walk order); custom lines use the re-ordered serpentine.
+  const ordering = getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap);
   const entryPoints = {};
-  const usedCustomDataLines = new Set();
-
-  for(let c = 0; c < pw; c++) {
-    for(let r = 0; r < ph; r++) {
-      const panelKey = `${c},${r}`;
-      if(!deletedPanelsSet.has(panelKey) && customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey)) {
-        usedCustomDataLines.add(customDataLineAssignmentsMap.get(panelKey) - 1);
-      }
-    }
-  }
-
-  if(startDir === 'all_top') {
-    let autoDataLineCounter = 0;
-    for(let c = 0; c < pw; c++) {
-      while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
-      for(let r = 0; r < ph; r++) {
-        const panelKey = `${c},${r}`;
-        if(!deletedPanelsSet.has(panelKey)) {
-          const dl = (customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey))
-            ? customDataLineAssignmentsMap.get(panelKey) - 1
-            : autoDataLineCounter;
-          if(!(dl in entryPoints)) entryPoints[dl] = {col: c, row: r};
-          break;
-        }
-      }
-      autoDataLineCounter++;
-    }
-  } else if(startDir === 'all_bottom') {
-    let autoDataLineCounter = 0;
-    for(let c = 0; c < pw; c++) {
-      while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
-      for(let r = ph - 1; r >= 0; r--) {
-        const panelKey = `${c},${r}`;
-        if(!deletedPanelsSet.has(panelKey)) {
-          const dl = (customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey))
-            ? customDataLineAssignmentsMap.get(panelKey) - 1
-            : autoDataLineCounter;
-          if(!(dl in entryPoints)) entryPoints[dl] = {col: c, row: r};
-          break;
-        }
-      }
-      autoDataLineCounter++;
-    }
-  } else {
-    // Serpentine: top or bottom
-    const startFromTop = (startDir === 'top');
-    let autoDataLineCounter = 0;
-    let panelsInCurrentAutoDataLine = 0;
-
-    while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
-
-    let currentColumn = 0;
-    let serpentineGoingDown = startFromTop;
-
-    while(currentColumn < pw) {
-      const rows = serpentineGoingDown
-        ? Array.from({length: ph}, (_, i) => i)
-        : Array.from({length: ph}, (_, i) => ph - 1 - i);
-
-      for(const r of rows) {
-        const panelKey = `${currentColumn},${r}`;
-        if(deletedPanelsSet.has(panelKey)) continue;
-
-        let dataLine;
-        if(customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey)) {
-          dataLine = customDataLineAssignmentsMap.get(panelKey) - 1;
-        } else {
-          while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
-          dataLine = autoDataLineCounter;
-          panelsInCurrentAutoDataLine++;
-          if(panelsInCurrentAutoDataLine >= panelsPerDataLine) {
-            autoDataLineCounter++;
-            panelsInCurrentAutoDataLine = 0;
-            while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
-          }
-        }
-
-        if(!(dataLine in entryPoints)) {
-          entryPoints[dataLine] = {col: currentColumn, row: r};
-        }
-      }
-
-      currentColumn++;
-      // Reset direction at data line boundaries (single-column lines);
-      // continue serpentine only within multi-column data lines
-      if (panelsInCurrentAutoDataLine === 0) {
-        serpentineGoingDown = startFromTop;
-      } else {
-        serpentineGoingDown = !serpentineGoingDown;
-      }
-    }
-  }
-
+  Object.keys(ordering).forEach(dl => {
+    const first = ordering[dl] && ordering[dl][0];
+    if(first) entryPoints[Number(dl)] = {col: first.col, row: first.row};
+  });
   return entryPoints;
 }
 
@@ -220,6 +135,15 @@ function getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPa
       }
     }
   }
+
+  // Re-order CUSTOM lines into a clean serpentine obeying the start direction, so
+  // cable lengths / entry points match the data layout for irregular custom shapes.
+  // Auto lines keep their walk-order untouched.
+  Object.keys(dataLinePanels).forEach(dl => {
+    if(usedCustomDataLines.has(Number(dl))) {
+      dataLinePanels[dl] = orderDataLineFlow(dataLinePanels[dl], startDir);
+    }
+  });
 
   return dataLinePanels;
 }

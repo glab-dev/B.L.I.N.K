@@ -368,7 +368,7 @@ function renderDataLayout(params) {
 
   // Draw active panels with data grouping
   const groupPoints = [];
-  const bigLabelDraws = []; // deferred so start-labels render ON TOP of the arrows
+  const bigLabelDraws = []; // deferred so all labels share one uniform font size and render UNDER the arrows
   for(let gi=0; gi<groups.length; gi++){
     const dataLineNum = sortedDataLines[gi]; // Use actual data line number for color
     const colors=colorForIndex(dataLineNum);
@@ -390,7 +390,8 @@ function renderDataLayout(params) {
 
       const _bigLabel = lineLabelMap.get(`${pnt.c},${pnt.r}`);
       if (_bigLabel) {
-        // Defer the big start-label so it draws ON TOP of the arrows (see pass below)
+        // Defer the big start-label so all labels can share one uniform font size,
+        // drawn below (under the arrows, so the lines/arrows stay visible)
         bigLabelDraws.push({ label: _bigLabel.text, color: _bigLabel.color, cx: x + panelWidth/2, cy: y + currentPanelHeight/2, h: currentPanelHeight });
       } else {
         // Use white text only for data line 9 (black resistor color), black text for all others
@@ -401,6 +402,35 @@ function renderDataLayout(params) {
       groupPoints[gi].push({x:x+panelWidth/2, y:y+currentPanelHeight/2, color: colors.solid});
     }
   }
+
+  // Draw the deferred data-line start labels BEFORE the arrows so the lines/arrows
+  // remain visible on top of the labels. All labels share one uniform font size:
+  // base it on the smallest labelled panel (so none overflow vertically), shrink to
+  // fit the widest label horizontally, then apply that single size to every label.
+  if (bigLabelDraws.length) {
+    ctx.save();
+    const _minLabelH = Math.min.apply(null, bigLabelDraws.map(function(b){ return b.h; }));
+    let _fs = Math.floor(_minLabelH * 0.5);
+    ctx.font = `bold ${_fs}px Arial`;
+    let _widest = bigLabelDraws[0].label;
+    bigLabelDraws.forEach(function(b){
+      if (ctx.measureText(b.label).width > ctx.measureText(_widest).width) _widest = b.label;
+    });
+    while (_fs > 8 && ctx.measureText(_widest).width > panelWidth * 0.85) {
+      _fs -= 1;
+      ctx.font = `bold ${_fs}px Arial`;
+    }
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(2.5, _fs * 0.18);
+    bigLabelDraws.forEach(function(bl){
+      ctx.strokeStyle = '#000000';
+      ctx.strokeText(bl.label, bl.cx, bl.cy);
+      ctx.fillStyle = bl.color;
+      ctx.fillText(bl.label, bl.cx, bl.cy);
+    });
+    ctx.restore();
+  }
+
   if(showArrows){
     if(startDir === 'all_top' || startDir === 'all_bottom') {
       // For all_top and all_bottom, draw one arrow per column
@@ -477,24 +507,6 @@ function renderDataLayout(params) {
       }
     }
   }
-
-  // Draw deferred data-line start labels ON TOP of the arrows (comic style, outlined)
-  bigLabelDraws.forEach(function(bl){
-    ctx.save();
-    let _fs = Math.floor(bl.h * 0.5);
-    ctx.font = `bold ${_fs}px Arial`;
-    while (_fs > 8 && ctx.measureText(bl.label).width > panelWidth * 0.85) {
-      _fs -= 1;
-      ctx.font = `bold ${_fs}px Arial`;
-    }
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = Math.max(2.5, _fs * 0.18);
-    ctx.strokeStyle = '#000000';
-    ctx.strokeText(bl.label, bl.cx, bl.cy);
-    ctx.fillStyle = bl.color;
-    ctx.fillText(bl.label, bl.cx, bl.cy);
-    ctx.restore();
-  });
 }
 
 // ==================== ARROW DRAWING ====================

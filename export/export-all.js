@@ -69,7 +69,7 @@ async function _captureAllScreenshotsToZip(zip, name) {
       captureLayoutScreenshotBlobs(function(results) {
         (results || []).forEach(function(r) {
           if(!r || !r.blob) return;
-          zip.file(r.layout + '/' + name + '_' + _exportAllScreenLabel(r.screenId) + '_' + r.layout + '.png', r.blob);
+          zip.file((r.folder || r.layout) + '/' + name + '_' + _exportAllScreenLabel(r.screenId) + '_' + r.layout + '.png', r.blob);
         });
         resolve();
       });
@@ -77,14 +77,36 @@ async function _captureAllScreenshotsToZip(zip, name) {
   });
   await _yieldToBrowser();
 
-  // 2. Per-screen structure-tables PNG [html2canvas] — sequential
+  // 2. Per-screen info tables PNG [html2canvas] — structure / power (SOCA) / data
+  // (line map). Force the layout containers visible so the normally-hidden tables
+  // have layout for html2canvas, then restore. Empty tables are skipped.
+  var _tableCaps = [
+    { id: 'structureInfoPanel', folder: 'structure', suffix: 'structure_tables' },
+    { id: 'socaCircuitTable',   folder: 'power',     suffix: 'power_tables' },
+    { id: 'dataLineMap',        folder: 'data',      suffix: 'data_tables' }
+  ];
+  var _tableContainerIds = ['powerContainer', 'dataContainer', 'structureContainer'];
+  var _savedTableDisplay = {};
+  _tableContainerIds.forEach(function(cid) {
+    var c = document.getElementById(cid);
+    if(c) { _savedTableDisplay[cid] = c.style.display; c.style.display = 'block'; }
+  });
   for(var i = 0; i < allScreenIds.length; i++) {
     var sid = allScreenIds[i];
     if(typeof switchToScreen === 'function') switchToScreen(sid);
-    var stBlob = await _captureHtmlElementBlobAsync('structureInfoPanel', { backgroundColor: null });
-    if(stBlob) zip.file('structure/' + name + '_' + _exportAllScreenLabel(sid) + '_structure_tables.png', stBlob);
+    for(var t = 0; t < _tableCaps.length; t++) {
+      var cap = _tableCaps[t];
+      var el = document.getElementById(cap.id);
+      if(!el || el.children.length === 0) continue; // skip empty tables
+      var tblBlob = await _captureHtmlElementBlobAsync(cap.id, { backgroundColor: null });
+      if(tblBlob) zip.file(cap.folder + '/' + name + '_' + _exportAllScreenLabel(sid) + '_' + cap.suffix + '.png', tblBlob);
+    }
     await _yieldToBrowser();
   }
+  _tableContainerIds.forEach(function(cid) {
+    var c = document.getElementById(cid);
+    if(c && _savedTableDisplay[cid] !== undefined) c.style.display = _savedTableDisplay[cid];
+  });
   if(typeof switchToScreen === 'function') switchToScreen(originalScreenId);
 
   // 3. Specs PNG [project-wide] — rasterized from the real PDF for pixel parity

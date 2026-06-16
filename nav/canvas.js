@@ -137,6 +137,55 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
   const palette = (typeof resistorColors !== 'undefined' && resistorColors.length) ? resistorColors : ['#000000'];
   const lineColorFor = (ln) => palette[ln % palette.length];
 
+  // ---- Data labels (start badges: main green, backup magenta; flip swaps ends) ----
+  // Drawn BEFORE the data lines so the lines/arrows stay visible on top of the labels.
+  if(opts.showLabels) {
+    const redundancy = !!data.redundancy;
+    const badges = [];
+    sortedLines.forEach(ln => {
+      const grp = ordering[ln];
+      if(!grp || grp.length === 0) return;
+      const first = grp[0], last = grp[grp.length - 1];
+      const mainP = flip ? last : first;
+      const backupP = flip ? first : last;
+      const lineNum = ln + 1;
+      const mainColor = lineColorFor(ln);                 // resistor colour
+      const backupColor = lightenHexCanvas(mainColor, 0.5); // muted/lighter shade
+      const mKey = mainP.col + ',' + mainP.row;
+      const bKey = redundancy ? (backupP.col + ',' + backupP.row) : null;
+      if(bKey && bKey === mKey) {
+        badges.push({ c: mainP.col, r: mainP.row, text: lineNum + '/' + lineNum + 'B', color: mainColor });
+      } else {
+        badges.push({ c: mainP.col, r: mainP.row, text: String(lineNum), color: mainColor });
+        if(bKey) badges.push({ c: backupP.col, r: backupP.row, text: lineNum + 'B', color: backupColor });
+      }
+    });
+    if(badges.length) {
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      // One uniform font size for every badge: base on the smallest badge panel (so
+      // none overflow vertically), then shrink to fit the widest label, and apply that
+      // single size to all badges.
+      const minBadgeH = badges.some(b => hasCB5HalfRow && b.r === ph) ? halfResY : panelResY;
+      let fs = Math.floor(Math.min(panelResX, minBadgeH) * 0.5);
+      ctx.font = `bold ${fs}px Arial`;
+      let widest = badges[0].text;
+      badges.forEach(b => { if(ctx.measureText(b.text).width > ctx.measureText(widest).width) widest = b.text; });
+      while(fs > 10 && ctx.measureText(widest).width > panelResX * 0.85) { fs--; ctx.font = `bold ${fs}px Arial`; }
+      ctx.lineWidth = Math.max(3, fs * 0.18);
+      badges.forEach(b => {
+        const x = cX(b.c), y = cY(b.r);
+        ctx.strokeStyle = '#000000';
+        ctx.strokeText(b.text, x, y);
+        ctx.fillStyle = b.color;
+        ctx.fillText(b.text, x, y);
+      });
+      ctx.restore();
+    }
+  }
+
   // ---- Data lines (serpentine arrows; matches data layout segmentation) ----
   if(opts.showLines) {
     ctx.save();
@@ -179,47 +228,6 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
     ctx.restore();
   }
 
-  // ---- Data labels (start badges: main green, backup magenta; flip swaps ends) ----
-  if(opts.showLabels) {
-    const redundancy = !!data.redundancy;
-    const badges = [];
-    sortedLines.forEach(ln => {
-      const grp = ordering[ln];
-      if(!grp || grp.length === 0) return;
-      const first = grp[0], last = grp[grp.length - 1];
-      const mainP = flip ? last : first;
-      const backupP = flip ? first : last;
-      const lineNum = ln + 1;
-      const mainColor = lineColorFor(ln);                 // resistor colour
-      const backupColor = lightenHexCanvas(mainColor, 0.5); // muted/lighter shade
-      const mKey = mainP.col + ',' + mainP.row;
-      const bKey = redundancy ? (backupP.col + ',' + backupP.row) : null;
-      if(bKey && bKey === mKey) {
-        badges.push({ c: mainP.col, r: mainP.row, text: lineNum + '/' + lineNum + 'B', color: mainColor });
-      } else {
-        badges.push({ c: mainP.col, r: mainP.row, text: String(lineNum), color: mainColor });
-        if(bKey) badges.push({ c: backupP.col, r: backupP.row, text: lineNum + 'B', color: backupColor });
-      }
-    });
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineJoin = 'round';
-    badges.forEach(b => {
-      const isHalf = hasCB5HalfRow && b.r === ph;
-      const ph_ = isHalf ? halfResY : panelResY;
-      let fs = Math.floor(Math.min(panelResX, ph_) * 0.5);
-      ctx.font = `bold ${fs}px Arial`;
-      while(fs > 10 && ctx.measureText(b.text).width > panelResX * 0.85) { fs--; ctx.font = `bold ${fs}px Arial`; }
-      ctx.lineWidth = Math.max(3, fs * 0.18);
-      const x = cX(b.c), y = cY(b.r);
-      ctx.strokeStyle = '#000000';
-      ctx.strokeText(b.text, x, y);
-      ctx.fillStyle = b.color;
-      ctx.fillText(b.text, x, y);
-    });
-    ctx.restore();
-  }
 }
 
 function renderCanvasTabs() {

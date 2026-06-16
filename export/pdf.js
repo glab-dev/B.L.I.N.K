@@ -1923,6 +1923,8 @@ function buildComplexPdf(opts, canvasCache) {
               var powerMaxHLg = socaFracLg > 0 ? Math.round(layoutImgMaxH / (1 - socaFracLg)) : layoutImgMaxH;
               var pImgLg = gridImage(screenId + '_power', pw, ph, powerMaxHLg);
               if (pImgLg) content.push(pImgLg);
+              var sMapLg = buildSocaCircuitTable(screenId);
+              if (sMapLg) content.push(sMapLg);
             }
             if (opts.data !== false) {
               content.push(sectionLabel('Data Layout'));
@@ -1994,6 +1996,8 @@ function buildComplexPdf(opts, canvasCache) {
         const powerMaxH = socaFrac > 0 ? Math.round(singlePageMaxH / (1 - socaFrac)) : singlePageMaxH;
         const img = gridImage(screenId + '_power', pw, ph, powerMaxH);
         if (img) content.push(img);
+        const sMap = buildSocaCircuitTable(screenId);
+        if (sMap) content.push(sMap);
       }
 
       if (opts.data !== false) {
@@ -2454,8 +2458,83 @@ function buildDataLineMapTable(screenId) {
   };
 }
 
+// Builds the SOCA circuit-load table for the PDF power layout. Styled to match
+// buildDataLineMapTable / the structure info cards: one grey boxed card per SOCA
+// listing each circuit's amps and the SOCA total, packed 4 cards per row. Reads
+// the per-screen breakdown stashed in calculatedData by calculate().
+function buildSocaCircuitTable(screenId) {
+  const screen = screens[screenId];
+  const cd = screen && screen.calculatedData;
+  const sb = cd && cd.socaBreakdown;
+  if (!sb || !sb.length) return null;
+  const tc = PDF_TOKENS.colors;
+
+  // Share Distro: continuous SOCA numbering across the group (calculatedData.socaLabelMap).
+  const labelMap = (cd && Array.isArray(cd.socaLabelMap)) ? new Map(cd.socaLabelMap) : null;
+  const socaLabelIdx = idx => (labelMap && labelMap.has(idx)) ? labelMap.get(idx) : idx;
+  const fmtLabel = idx => (typeof formatSocaLabel === 'function') ? formatSocaLabel(idx) : (idx + 1);
+
+  // One card = underlined "SOCA N" title + circuit "N.x  amps" lines + a bold total.
+  function buildCard(soca) {
+    const label = fmtLabel(socaLabelIdx(soca.socaIdx));
+    const titleEl = {
+      text: 'SOCA ' + label,
+      fontSize: 9, bold: true, color: '#000000',
+      decoration: 'underline', decorationColor: '#000000',
+      margin: [0, 0, 0, 4]
+    };
+    const circuitEls = soca.circuits.map(function(c, i) {
+      return {
+        text: [
+          { text: label + '.' + (i + 1), bold: true, color: '#000000' },
+          { text: '   ' + c.amps.toFixed(1) + ' A', color: tc.textSecondary }
+        ],
+        fontSize: 8, lineHeight: 1.3
+      };
+    });
+    const totalEl = {
+      text: [
+        { text: 'Total', bold: true, color: '#000000' },
+        { text: '   ' + soca.totalAmps.toFixed(1) + ' A', bold: true, color: '#000000' }
+      ],
+      fontSize: 8, lineHeight: 1.3, margin: [0, 2, 0, 0]
+    };
+    return { stack: [titleEl].concat(circuitEls).concat([totalEl]), margin: [6, 6, 6, 6] };
+  }
+
+  // Pack 4 cards per row; pad the last row with blanks to keep equal widths.
+  const body = [];
+  for (let r = 0; r < sb.length; r += 4) {
+    const row = [];
+    for (let k = 0; k < 4; k++) {
+      const soca = sb[r + k];
+      row.push({
+        stack: soca ? [buildCard(soca)] : [{ text: ' ', fontSize: 4 }],
+        fillColor: tc.summaryBg,
+        border: [true, true, true, true],
+        borderColor: [tc.sectionBorder, tc.sectionBorder, tc.sectionBorder, tc.sectionBorder]
+      });
+    }
+    body.push(row);
+  }
+
+  return {
+    table: { widths: ['*', '*', '*', '*'], body: body },
+    layout: {
+      hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+      hLineColor: () => tc.sectionBorder, vLineColor: () => tc.sectionBorder,
+      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0
+    },
+    margin: [0, 6, 0, 4]
+  };
+}
+
 function pdfCaptureCanvases() {
   const cache = {};
+  // On phones/tablets, capture layout images at 1x instead of 2x to keep peak
+  // memory low enough for Export All to survive (see the per-canvas branch below).
+  const _pdfCaptureIsMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
+    (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
   const originalScreenId = currentScreenId;
   const screenIds = Object.keys(screens).sort((a, b) =>
     parseInt(a.split('_')[1]) - parseInt(b.split('_')[1])
@@ -2529,20 +2608,30 @@ function pdfCaptureCanvases() {
       if (canvas && canvas.width > 0 && canvas.height > 0) {
         const isPng = cap.id === 'cableDiagramCanvas';
         const useAspect = canvas.height / canvas.width;
-        // Render at 2x resolution to prevent blurry text in PDF
-        const scale = 2;
-        const hiRes = document.createElement('canvas');
-        hiRes.width  = canvas.width  * scale;
-        hiRes.height = canvas.height * scale;
-        const ctx = hiRes.getContext('2d');
-        ctx.drawImage(canvas, 0, 0, hiRes.width, hiRes.height);
-        cache[cap.key] = {
-          dataUrl: isPng ? hiRes.toDataURL('image/png') : hiRes.toDataURL('image/jpeg', 0.92),
-          aspectRatio: useAspect
-        };
-        // Release the temporary 2x canvas immediately — on mobile these are large
-        // and otherwise linger until GC, compounding peak memory during export.
-        hiRes.width = hiRes.height = 0;
+        if (_pdfCaptureIsMobile) {
+          // Mobile: export the source canvas at 1x. The 2x upscale below creates
+          // very large canvases that exhaust memory during Export All (5 per
+          // screen × all screens). Images are slightly softer but every section
+          // and screen is still present. Desktop keeps 2x for crisp text.
+          cache[cap.key] = {
+            dataUrl: isPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.92),
+            aspectRatio: useAspect
+          };
+        } else {
+          // Render at 2x resolution to prevent blurry text in PDF
+          const scale = 2;
+          const hiRes = document.createElement('canvas');
+          hiRes.width  = canvas.width  * scale;
+          hiRes.height = canvas.height * scale;
+          const ctx = hiRes.getContext('2d');
+          ctx.drawImage(canvas, 0, 0, hiRes.width, hiRes.height);
+          cache[cap.key] = {
+            dataUrl: isPng ? hiRes.toDataURL('image/png') : hiRes.toDataURL('image/jpeg', 0.92),
+            aspectRatio: useAspect
+          };
+          // Release the temporary 2x canvas immediately so it doesn't linger until GC.
+          hiRes.width = hiRes.height = 0;
+        }
       }
     });
     // Store SOCA bar fraction for power image so pdf.js can equalize grid height with data

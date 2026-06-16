@@ -1,5 +1,5 @@
 {
-  "version": "2.11.71",
+  "version": "2.11.72",
   "updated": "2026-06-16",
-  "changelog": "Reduce Export All peak memory with sequential layout capture and GC yields"
+  "changelog": "Add power/data tables to Export All and PDF, fix data-line label arrows"
 }

@@ -736,10 +736,23 @@ function captureLayoutScreenshotBlobs(callback) {
     // Render → encode → free one composed canvas at a time so peak memory stays
     // at a single layout canvas instead of all 3 × N composed 4000px canvases.
     var results = [];
+    var _savedDataLabels;
     var layoutCaps = [
       { id: 'powerCanvas',     layout: 'power' },
       { id: 'dataCanvas',      layout: 'data' },
-      { id: 'structureCanvas', layout: 'structure' }
+      { id: 'structureCanvas', layout: 'structure' },
+      // Extra data capture with the data-line labels forced on (filed under data/).
+      { id: 'dataCanvas', layout: 'data_labeled', folder: 'data', title: 'Data Layout (Labels)',
+        prep: function() {
+          _savedDataLabels = (typeof dataLineLabelsEnabled !== 'undefined') ? dataLineLabelsEnabled : false;
+          if (typeof dataLineLabelsEnabled !== 'undefined') dataLineLabelsEnabled = true;
+          try { if (typeof generateLayout === 'function') generateLayout('data'); } catch(e) {}
+        },
+        cleanup: function() {
+          if (typeof dataLineLabelsEnabled !== 'undefined') dataLineLabelsEnabled = _savedDataLabels;
+          try { if (typeof generateLayout === 'function') generateLayout('data'); } catch(e) {}
+        }
+      }
     ];
 
     function nextScreen(si) {
@@ -753,12 +766,17 @@ function captureLayoutScreenshotBlobs(callback) {
       function nextCap(ci) {
         if (ci >= layoutCaps.length) { nextScreen(si + 1); return; }
         var cap = layoutCaps[ci];
+        if (cap.prep) { try { cap.prep(); } catch(e) {} }
         var canvas = document.getElementById(cap.id);
-        if (!(canvas && canvas.width > 0 && canvas.height > 0)) { nextCap(ci + 1); return; }
-        var composed = _composeLayoutWithHeader(canvas, _layoutTitleText(cap.layout, false));
+        if (!(canvas && canvas.width > 0 && canvas.height > 0)) {
+          if (cap.cleanup) { try { cap.cleanup(); } catch(e) {} }
+          nextCap(ci + 1); return;
+        }
+        var composed = _composeLayoutWithHeader(canvas, cap.title || _layoutTitleText(cap.layout, false));
         composed.toBlob(function(blob) {
-          if (blob) results.push({ screenId: screenId, layout: cap.layout, blob: blob });
+          if (blob) results.push({ screenId: screenId, layout: cap.layout, folder: cap.folder || cap.layout, blob: blob });
           composed.width = composed.height = 0; // free before the next one
+          if (cap.cleanup) { try { cap.cleanup(); } catch(e) {} }
           nextCap(ci + 1);
         }, 'image/png');
       }
@@ -1017,7 +1035,11 @@ function _getSectionOnlyPdfBlob(opts, callback) {
     if (typeof ecoPrintMode !== 'undefined') ecoPrintMode = false;
     if (typeof greyscalePrintMode !== 'undefined') greyscalePrintMode = false;
 
-    var canvasCache = (typeof pdfCaptureCanvases === 'function') ? pdfCaptureCanvases() : {};
+    // Only capture the (expensive) layout/cabling images when the requested
+    // sections actually render them. Specs-only and gear-only PDFs don't, so
+    // skip the heavy capture entirely — big memory win, zero output change.
+    var needsLayoutImages = !!(opts && (opts.standard || opts.power || opts.data || opts.structure || opts.cabling));
+    var canvasCache = (needsLayoutImages && typeof pdfCaptureCanvases === 'function') ? pdfCaptureCanvases() : {};
 
     if (typeof ecoPrintMode !== 'undefined') ecoPrintMode = false;
     if (typeof greyscalePrintMode !== 'undefined') greyscalePrintMode = false;

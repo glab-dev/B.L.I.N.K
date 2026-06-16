@@ -110,6 +110,71 @@ function computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, perPan
   });
 }
 
+// Per-circuit contributions for one screen, used for cross-screen SOCA sharing. Returns
+// { wiringType, perCircuit: [{ customSoca, pair, amps }] } where customSoca is the explicit
+// per-panel SOCA number (1-based) shared by the circuit's panels — or null when the circuit
+// is auto-numbered (auto SOCAs never share) — pair is the as-wired leg / leg-pair token for
+// the circuit's distro slot, and amps is the circuit's current. Reuses assignCircuits so the
+// numbering matches the canvas and the per-screen load calc.
+function screenCircuitContributions(pw, ph, panelsPerCircuit, deletedPanels, customCircuit, customSoca, perPanelW, voltage, wiring) {
+  const Vll = voltage > 0 ? voltage : 208;
+  const slots = (wiring && Array.isArray(wiring.slots) && wiring.slots.length) ? wiring.slots : SOCA_LEG_PAIRS;
+  const wiringType = (wiring && wiring.type) ? wiring.type : 'pair';
+  const cs = customSoca || new Map();
+
+  const base = (typeof assignCircuits === 'function')
+    ? assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuit || new Map())
+    : { panelToCircuit: new Map() };
+  const panelToCircuit = base.panelToCircuit;
+
+  const counts = new Map();      // circuit -> panel count
+  const circuitSoca = new Map(); // circuit -> explicit custom SOCA number (1-based)
+  panelToCircuit.forEach((circuit, panelKey) => {
+    counts.set(circuit, (counts.get(circuit) || 0) + 1);
+    if (!circuitSoca.has(circuit)) {
+      const explicit = cs.get(panelKey);
+      if (typeof explicit === 'number' && explicit >= 1) circuitSoca.set(circuit, explicit);
+    }
+  });
+
+  const perCircuit = [...counts.keys()].sort((a, b) => a - b).map(circuit => ({
+    customSoca: circuitSoca.has(circuit) ? circuitSoca.get(circuit) : null,
+    pair: slots[((circuit % slots.length) + slots.length) % slots.length],
+    amps: (counts.get(circuit) * perPanelW) / Vll
+  }));
+
+  return { wiringType, perCircuit };
+}
+
+// Resolves one screen's power inputs from its saved `data`, centralizing the per-screen
+// derivation (Set/Map coercion, panel-spec -> perPanelW, breaker -> panelsPerCircuit, wiring)
+// so the cross-screen Share-Distro passes don't each re-derive it. perPanelW honours the
+// screen's own powerType. Returns null when the screen has no usable grid/panel.
+function resolveScreenPowerInputs(data) {
+  if (!data) return null;
+  const pw = data.panelsWide || 0, ph = data.panelsHigh || 0;
+  if (pw <= 0 || ph <= 0) return null;
+  const panels = (typeof getAllPanels === 'function') ? getAllPanels() : {};
+  const panel = panels[data.panelType || 'CB5_MKII'];
+  if (!panel) return null;
+  const perPanelW = (data.powerType || 'max') === 'max' ? (panel.power_max_w || 0) : (panel.power_avg_w || panel.power_max_w * 0.5 || 0);
+  const voltage = parseInt(data.voltage) || 208;
+  const breaker = parseInt(data.breaker) || 20;
+  const userMax = parseInt(data.maxPanelsPerCircuit);
+  const panelsPerCircuit = userMax > 0 ? userMax : Math.max(1, Math.floor((voltage * breaker) / (perPanelW || 1)));
+  const toSet = v => v instanceof Set ? v : new Set(Array.isArray(v) ? v : (v && v[Symbol.iterator] ? [...v] : []));
+  const toMap = v => v instanceof Map ? v : new Map(Array.isArray(v) ? v : (v && v.entries ? [...v.entries()] : []));
+  return {
+    pw, ph, panelsPerCircuit,
+    deletedPanels: toSet(data.deletedPanels),
+    customCircuit: toMap(data.customCircuitAssignments),
+    customSoca: toMap(data.customSocaAssignments),
+    perPanelW, voltage,
+    wiring: (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(voltage) : null,
+    phase: parseInt(data.phase) || 1
+  };
+}
+
 // "Balanced" re-circuiting (power-layout view only). Panels keep their grid position
 // AND their circuit membership (no splitting, no recounting) — so a wall that was
 // manually circuited into N SOCAs keeps those exact circuits. It starts from the

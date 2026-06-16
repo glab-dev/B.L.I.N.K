@@ -359,6 +359,46 @@ function recalculateScreenData(screenId) {
 }
 
 
+// ---- Share Distro helpers (cross-screen SOCA grouping + continuous numbering) ----
+// Screen IDs (in Object.keys order) whose data.sharedDistro is on.
+function sharedDistroGroupIds() {
+  if (typeof screens === 'undefined') return [];
+  return Object.keys(screens).filter(id => screens[id] && screens[id].data && screens[id].data.sharedDistro);
+}
+
+// Sorted distinct SOCA indices for a screen's data (from its as-wired grouping).
+function sharedDistroDistinctSocas(data) {
+  if (typeof resolveScreenPowerInputs !== 'function' || typeof assignCircuits !== 'function' || typeof assignSocas !== 'function') return [];
+  const inp = resolveScreenPowerInputs(data);
+  if (!inp) return [];
+  const { panelToCircuit } = assignCircuits(inp.pw, inp.ph, inp.panelsPerCircuit, inp.deletedPanels, inp.customCircuit);
+  const panelToSoca = assignSocas(panelToCircuit, inp.customSoca);
+  const set = new Set();
+  panelToSoca.forEach(idx => set.add(idx));
+  return [...set].sort((a, b) => a - b);
+}
+
+// Continuous SOCA label map for a screen in the shared-distro group: Map<localSocaIdx,
+// globalLabelIdx>, numbering each group screen's SOCAs after the prior screens' (screen
+// order). Returns null when the screen is not in the group. Computed from saved data —
+// the per-screen power view uses calculatedData.socaLabelMap (live) instead; this is for
+// the combined view, where every screen's saved data is already fresh.
+function sharedDistroSocaLabelMap(screenId) {
+  const groupIds = sharedDistroGroupIds();
+  if (!groupIds.includes(screenId)) return null;
+  let running = 0;
+  for (const id of groupIds) {
+    const socas = sharedDistroDistinctSocas(screens[id].data);
+    if (id === screenId) {
+      const m = new Map();
+      socas.forEach((idx, i) => m.set(idx, running + i));
+      return m;
+    }
+    running += socas.length;
+  }
+  return null;
+}
+
 function resetCalculator() {
   // Clear the current screen's stored data so it doesn't get restored
   if(typeof screens !== 'undefined' && typeof currentScreenId !== 'undefined' && screens[currentScreenId]) {
@@ -863,10 +903,11 @@ function calculate(){
   // from the Voltage setting via config/distro-wiring.js. Only 3-phase.
   let phaseBalance = null;
   let socaBreakdown = null;
+  let socaLabelMap = null; // [localSocaIdx, globalLabelIdx] entries when Share Distro renumbers this screen
   if(typeof assignCircuits === 'function') {
     const { panelToCircuit, circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments);
-    if(typeof assignSocas === 'function' && typeof computeSocaBreakdown === 'function') {
-      const panelToSoca = assignSocas(panelToCircuit, customSocaAssignments);
+    const panelToSoca = (typeof assignSocas === 'function') ? assignSocas(panelToCircuit, customSocaAssignments) : null;
+    if(panelToSoca && typeof computeSocaBreakdown === 'function') {
       socaBreakdown = computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, perPanelW, voltage);
     }
     if(phase === 3 && typeof computePhaseBalance === 'function') {
@@ -879,6 +920,50 @@ function calculate(){
         phaseBalance = resolveBalancedCircuits(pw, ph, panelsPerCircuit, deletedPanels, wiring, customCircuitAssignments, customSocaAssignments, perPanelW, voltage).phaseBalance;
       } else {
         phaseBalance = computePhaseBalance(circuitCounts, perPanelW, voltage, pbMode, wiring);
+      }
+
+      // Share Distro: when this screen shares one physical 3-phase distro with other screens
+      // (every screen with sharedDistro on), replace its per-leg load with the COMBINED load of
+      // the whole group, so a fragment screen shows the distro's true imbalance, not a false
+      // ~100%. As-wired currents (the physical distro), independent of balanced mode.
+      const _thisShared = !!(typeof screens !== 'undefined' && screens[currentScreenId] && screens[currentScreenId].data && screens[currentScreenId].data.sharedDistro);
+      if(phaseBalance && _thisShared && typeof screenCircuitContributions === 'function'
+         && typeof resolveScreenPowerInputs === 'function' && typeof legAmpsFromPairWatts === 'function') {
+        const pairW = { XY: 0, YZ: 0, ZX: 0 };
+        const singleW = { X: 0, Y: 0, Z: 0 };
+        const addCircuit = c => { if(pairW[c.pair] !== undefined) pairW[c.pair] += c.amps; else if(singleW[c.pair] !== undefined) singleW[c.pair] += c.amps; };
+        Object.keys(screens).forEach(sid => {
+          const sd = screens[sid] && screens[sid].data;
+          if(!sd || !sd.sharedDistro) return; // only shared-distro group members
+          if(sid === currentScreenId) {
+            // current screen: live values (its saved data can lag the DOM)
+            screenCircuitContributions(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments, customSocaAssignments, perPanelW, voltage, wiring).perCircuit.forEach(addCircuit);
+          } else {
+            const inp = resolveScreenPowerInputs(sd);
+            if(!inp || inp.phase !== 3) return;
+            screenCircuitContributions(inp.pw, inp.ph, inp.panelsPerCircuit, inp.deletedPanels, inp.customCircuit, inp.customSoca, inp.perPanelW, inp.voltage, inp.wiring).perCircuit.forEach(addCircuit);
+          }
+        });
+        const phasor = legAmpsFromPairWatts(pairW, 1);
+        const la = { X: phasor.X + singleW.X, Y: phasor.Y + singleW.Y, Z: phasor.Z + singleW.Z };
+        const arr = [la.X, la.Y, la.Z];
+        const peak = Math.max(...arr), min = Math.min(...arr);
+        phaseBalance.legAmps = la;
+        phaseBalance.peakLeg = peak;
+        phaseBalance.imbalancePct = peak > 0 ? ((peak - min) / peak) * 100 : 0;
+        phaseBalance.sharedDistro = true;
+
+        // Continuous SOCA numbering: this screen's SOCAs labelled after the prior group
+        // screens' SOCAs (display-only). Built from the current screen's LIVE grouping.
+        if(panelToSoca && typeof sharedDistroDistinctSocas === 'function' && typeof sharedDistroGroupIds === 'function') {
+          let offset = 0;
+          for(const id of sharedDistroGroupIds()) {
+            if(id === currentScreenId) break;
+            offset += sharedDistroDistinctSocas(screens[id].data).length;
+          }
+          const liveDistinct = [...new Set([...panelToSoca.values()])].sort((a, b) => a - b);
+          socaLabelMap = liveDistinct.map((idx, i) => [idx, offset + i]);
+        }
       }
     }
   }
@@ -1225,7 +1310,8 @@ function calculate(){
       socaCount: Math.ceil(circuitsByColumns / 6),
       columnsPerCircuit: columnsPerCircuit,
       phaseBalance: phaseBalance,
-      socaBreakdown: socaBreakdown
+      socaBreakdown: socaBreakdown,
+      socaLabelMap: socaLabelMap
     };
   }
   

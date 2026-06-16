@@ -208,11 +208,30 @@ function toggleSocaDiagonalLabel() {
   if (typeof generateLayout === 'function') generateLayout('power');
 }
 
+// Share Distro (per-screen) — when on, this screen shares one physical 3-phase distro with
+// the other screens that also have it on: their loads combine into a single imbalance and
+// SOCA numbers run continuously across them. Mirrors the current screen's data.sharedDistro
+// (saved/loaded by multi-screen.js), like cb5HalfRowEnabled. Default off.
+let shareDistroEnabled = false;
+
+function toggleShareDistro() {
+  shareDistroEnabled = !shareDistroEnabled;
+  const btn = document.getElementById('shareDistroBtn');
+  if (btn) { btn.classList.toggle('active', shareDistroEnabled); btn.textContent = shareDistroEnabled ? 'On' : 'Off'; }
+  if (typeof screens !== 'undefined' && screens[currentScreenId] && screens[currentScreenId].data) {
+    screens[currentScreenId].data.sharedDistro = shareDistroEnabled; // keep live so the group calc sees it
+  }
+  if (typeof calculate === 'function') calculate();
+  if (typeof renderCombinedView === 'function') renderCombinedView();
+}
+
 function initSocaToggleButtons() {
   const ob = document.getElementById('socaOutlinesBtn');
   if (ob) { ob.classList.toggle('active', socaOutlinesEnabled); ob.textContent = socaOutlinesEnabled ? 'On' : 'Off'; }
   const lb = document.getElementById('socaDiagonalLabelBtn');
   if (lb) { lb.classList.toggle('active', socaDiagonalLabelEnabled); lb.textContent = socaDiagonalLabelEnabled ? 'On' : 'Off'; }
+  const sb = document.getElementById('shareDistroBtn');
+  if (sb) { sb.classList.toggle('active', shareDistroEnabled); sb.textContent = shareDistroEnabled ? 'On' : 'Off'; }
 }
 
 // 3-phase load balancing — power-canvas view toggles (persisted, like the SOCA

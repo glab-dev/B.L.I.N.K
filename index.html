@@ -2551,6 +2551,10 @@
             <span class="toggle-label toggle-label-block">Color by Leg</span>
             <button type="button" class="toggle-btn toggle-btn-standalone" id="colorByLegBtn" onclick="toggleColorByLeg()">Off</button>
           </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Share Distro</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="shareDistroBtn" onclick="toggleShareDistro()">Off</button>
+          </div>
         </div>
         <canvas id="powerCanvas"></canvas>
         <div id="phaseBalanceLegend" class="phase-balance-legend" style="display:none;"></div>
@@ -3405,8 +3409,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.67';
-const APP_CHANGELOG = 'Fix custom data-line serpentine flow and joins on goal-post deleted-panel screens';
+const APP_VERSION = '2.11.68';
+const APP_CHANGELOG = 'Add per-screen Share Distro toggle: combined imbalance and continuous SOCA numbering across screens';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

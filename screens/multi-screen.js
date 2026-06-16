@@ -59,6 +59,7 @@ function getDefaultScreenData() {
     derate: false,
     powerType: 'max',
     maxPanelsPerCircuit: '',
+    sharedDistro: false, // this screen shares one 3-phase distro with other sharedDistro screens
     
     // Data
     processor: 'Brompton_SX40',
@@ -244,7 +245,10 @@ function saveCurrentScreenData() {
   
   // CB5-specific options - use the global toggle state
   data.addCB5HalfRow = cb5HalfRowEnabled;
-  
+
+  // Share Distro toggle (per-screen) - mirror the global into this screen's data
+  if(typeof shareDistroEnabled !== 'undefined') data.sharedDistro = shareDistroEnabled;
+
   const connectionMethod = document.querySelector('input[name="connectionMethod"]:checked');
   if(connectionMethod) data.connectionMethod = connectionMethod.value;
   
@@ -583,7 +587,14 @@ function loadScreenData(screenId) {
   if(addCB5HalfRow) {
     addCB5HalfRow.checked = data.addCB5HalfRow || false;
   }
-  
+
+  // Restore per-screen Share Distro toggle
+  if(typeof shareDistroEnabled !== 'undefined') {
+    shareDistroEnabled = !!data.sharedDistro;
+    const shareDistroBtn = document.getElementById('shareDistroBtn');
+    if(shareDistroBtn) { shareDistroBtn.classList.toggle('active', shareDistroEnabled); shareDistroBtn.textContent = shareDistroEnabled ? 'On' : 'Off'; }
+  }
+
   // Restore connection method if saved
   if(data.connectionMethod) {
     const connectionRadio = document.querySelector(`input[name="connectionMethod"][value="${data.connectionMethod}"]`);

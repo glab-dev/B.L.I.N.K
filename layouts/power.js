@@ -160,6 +160,13 @@ function renderPowerLayout(params) {
     });
   }
 
+  // Continuous SOCA numbering across a shared distro (Share Distro): remap this screen's
+  // local SOCA index to its global label index (computed live in core/calculate.js). As-wired
+  // only — balanced mode redefines SOCAs. Falls back to the local index when not shared.
+  const _cdShare = (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].calculatedData : null;
+  const _socaLabelMap = (!_usedBalanced && _cdShare && Array.isArray(_cdShare.socaLabelMap)) ? new Map(_cdShare.socaLabelMap) : null;
+  const _socaLabelIdx = idx => (_socaLabelMap && _socaLabelMap.has(idx)) ? _socaLabelMap.get(idx) : idx;
+
   // Draw all panels
   for(let c=0; c<pw; c++){
     for(let r=0; r<ph; r++){
@@ -211,7 +218,7 @@ function renderPowerLayout(params) {
       // leg pair when Colour by Leg is on. Shrink the font so the label stays centred
       // and fits inside the panel.
       const _pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
-      const _circLabel = `${formatSocaLabel(socaGroup)}.${_usedBalanced ? (circuitNum % 6) + 1 : (_socaCircuitPos.get(circuitNum) || 1)}`;
+      const _circLabel = `${formatSocaLabel(_socaLabelIdx(socaGroup))}.${_usedBalanced ? (circuitNum % 6) + 1 : (_socaCircuitPos.get(circuitNum) || 1)}`;
       // Colour by Leg shows just the leg (XY/YZ/ZX); otherwise the SOCA.circuit label.
       const _displayLabel = (_legColorOn && legPair) ? legPair : _circLabel;
       let _fs = _pdf ? Math.max(10, Math.floor(panelWidth * 0.25)) : 11;
@@ -402,7 +409,7 @@ function renderPowerLayout(params) {
           const cx = rx + rw / 2, cy = ry + rh / 2;
           const diag = Math.sqrt(rw * rw + rh * rh);
           const cos = rw / diag, sin = rh / diag;   // label follows this rectangle's diagonal
-          const labelText = `SOCA ${formatSocaLabel(socaIdx)}`;
+          const labelText = `SOCA ${formatSocaLabel(_socaLabelIdx(socaIdx))}`;
           ctx.save();
           ctx.font = `bold 100px Arial`;
           const w100 = ctx.measureText(labelText).width; // text width at 100px font
@@ -460,9 +467,10 @@ function renderPhaseBalanceLegend() {
   const imb = pb.imbalancePct;
   const imbClass = imb < 10 ? 'pbl-ok' : (imb < 20 ? 'pbl-warn' : 'pbl-bad');
 
+  const _title = pb.sharedDistro ? '3-Phase Load (shared distro)' : '3-Phase Load';
   el.innerHTML =
     `<div class="structure-info-box phase-load">` +
-      `<div class="structure-info-title phase-load">3-Phase Load</div>` +
+      `<div class="structure-info-title phase-load">${_title}</div>` +
       `<div class="weight-row"><span class="weight-label">Leg X</span><span class="weight-value">${la.X.toFixed(1)} A</span></div>` +
       `<div class="weight-row"><span class="weight-label">Leg Y</span><span class="weight-value">${la.Y.toFixed(1)} A</span></div>` +
       `<div class="weight-row"><span class="weight-label">Leg Z</span><span class="weight-value">${la.Z.toFixed(1)} A</span></div>` +
@@ -485,8 +493,13 @@ function renderSocaCircuitTable(breakdown) {
   }
   if (!sb || !sb.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
+  // Share Distro: continuous SOCA numbering across the group (calculatedData.socaLabelMap).
+  const _cd = (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].calculatedData : null;
+  const _labelMap = (_cd && Array.isArray(_cd.socaLabelMap)) ? new Map(_cd.socaLabelMap) : null;
+  const _socaLabelIdx = idx => (_labelMap && _labelMap.has(idx)) ? _labelMap.get(idx) : idx;
+
   el.innerHTML = sb.map(soca => {
-    const label = (typeof formatSocaLabel === 'function') ? formatSocaLabel(soca.socaIdx) : (soca.socaIdx + 1);
+    const label = (typeof formatSocaLabel === 'function') ? formatSocaLabel(_socaLabelIdx(soca.socaIdx)) : (_socaLabelIdx(soca.socaIdx) + 1);
     const rows = soca.circuits.map((c, i) =>
       `<div class="weight-row"><span class="weight-label">${label}.${i + 1}</span><span class="weight-value">${c.amps.toFixed(1)} A</span></div>`
     ).join('');

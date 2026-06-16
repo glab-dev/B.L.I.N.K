@@ -1743,6 +1743,10 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       panelToSoca.set(panelKey, socaIdx);
     });
 
+    // Share Distro: continuous SOCA numbering across the shared-distro group (if this screen is in it).
+    const _socaLabelMap = (typeof sharedDistroSocaLabelMap === 'function') ? sharedDistroSocaLabelMap(screenId) : null;
+    const _socaLabelIdx = idx => (_socaLabelMap && _socaLabelMap.has(idx)) ? _socaLabelMap.get(idx) : idx;
+
     // Calculate panel dimensions for CB5_MKII (rectangular) vs other panels (square)
     const screenHeightRatio = getPanelHeightRatio(panelType);
     const drawPanelWidth = panelSize;
@@ -1798,7 +1802,7 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
         ctx.font = `${labelFont}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${formatSocaLabel(socaGroup)}.${circuitNum+1}`, px + drawPanelWidth/2, py + currentDrawHeight/2);
+        ctx.fillText(`${formatSocaLabel(_socaLabelIdx(socaGroup))}.${circuitNum+1}`, px + drawPanelWidth/2, py + currentDrawHeight/2);
       }
     }
 
@@ -1858,7 +1862,7 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
         ctx.lineTo(endX, lineY + 8);
         ctx.stroke();
 
-        ctx.fillText(`SOCA ${formatSocaLabel(socaIdx)}`, midX, lineY - 18);
+        ctx.fillText(`SOCA ${formatSocaLabel(_socaLabelIdx(socaIdx))}`, midX, lineY - 18);
       });
     }
 

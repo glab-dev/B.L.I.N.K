@@ -68,6 +68,7 @@ async function saveConfiguration() {
         derate: data.derate,
         powerType: data.powerType,
         maxPanelsPerCircuit: data.maxPanelsPerCircuit,
+        sharedDistro: data.sharedDistro || false,
         processor: data.processor,
         frameRate: data.frameRate,
         bitDepth: data.bitDepth,

@@ -232,20 +232,31 @@ function setupBumperTouchDrag() {
       // Check if bumper was already selected BEFORE we potentially select it
       wasAlreadySelected = selectedBumpers.has(bumper.id);
 
-      // Start hold timer - after 300ms, enable dragging
-      holdTimer = setTimeout(() => {
-        isDragEnabled = true;
-        vibrate(30); // Haptic feedback to indicate drag mode enabled
-
-        // Prepare for drag
+      if(bumperSelectMode) {
+        // Select Mode: prepare the drag immediately (no hold delay). The move
+        // handler enables the actual drag; a tap without movement still selects
+        // the bumper / opens its menu.
         touchDragBumper = bumper;
         touchDragStartCol = bumper.startCol;
-
-        // Calculate drag offset
         const rect = canvas.getBoundingClientRect();
         const touchX = (touchStartX - rect.left) * (canvas.width / rect.width);
         touchDragOffsetX = touchX - (bumper.startCol * panelSize);
-      }, 300);
+      } else {
+        // Start hold timer - after 300ms, enable dragging
+        holdTimer = setTimeout(() => {
+          isDragEnabled = true;
+          vibrate(30); // Haptic feedback to indicate drag mode enabled
+
+          // Prepare for drag
+          touchDragBumper = bumper;
+          touchDragStartCol = bumper.startCol;
+
+          // Calculate drag offset
+          const rect = canvas.getBoundingClientRect();
+          const touchX = (touchStartX - rect.left) * (canvas.width / rect.width);
+          touchDragOffsetX = touchX - (bumper.startCol * panelSize);
+        }, 300);
+      }
     }
   }, {passive: true});
 
@@ -257,18 +268,25 @@ function setupBumperTouchDrag() {
     const dx = Math.abs(touch.clientX - touchStartX);
     const dy = Math.abs(touch.clientY - touchStartY);
 
-    // If moved before hold timer, cancel the hold (this was a scroll/swipe)
+    // In Select Mode, a move on a bumper starts the drag immediately (no hold
+    // delay); the canvas has touch-action:none so the page won't scroll.
+    // Otherwise an early move means a scroll/swipe → cancel the hold and bail.
     if(!isDragEnabled && (dx > 10 || dy > 10)) {
-      if(holdTimer) {
-        clearTimeout(holdTimer);
-        holdTimer = null;
+      if(bumperSelectMode && touchDragBumper) {
+        isDragEnabled = true;
+        vibrate(30); // Haptic feedback to indicate drag started
+      } else {
+        if(holdTimer) {
+          clearTimeout(holdTimer);
+          holdTimer = null;
+        }
+        // Cancel long press timer too
+        if(longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+        return;
       }
-      // Cancel long press timer too
-      if(longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-      return;
     }
 
     // Only drag if hold delay passed and we have a bumper

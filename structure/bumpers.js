@@ -397,13 +397,20 @@ function toggleManualBumperMode() {
   const selectionInfo = document.getElementById('structureSelectionInfo');
   const undoRedoDiv = document.getElementById('structureUndoRedo');
   
+  const selectModeRow = document.getElementById('structureSelectModeRow');
+
   if(manualBumperMode) {
     toggleBtn.classList.add('active');
     toggleBtn.textContent = '✓ Manual Mode Active';
     hintSpan.textContent = 'Click bumpers to select';
     selectionInfo.classList.add('visible');
     undoRedoDiv.style.display = 'flex';
-    
+
+    // Show the bumper Select Mode toggle on touch devices only — desktop drags
+    // bumpers with the mouse and never scrolls the page.
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if(selectModeRow && isTouchDevice) selectModeRow.style.display = 'flex';
+
     // Save initial state when entering manual mode
     saveStructureState();
     updateStructureUndoRedoButtons();
@@ -413,14 +420,54 @@ function toggleManualBumperMode() {
     hintSpan.textContent = 'Auto-distribution active';
     selectionInfo.classList.remove('visible');
     undoRedoDiv.style.display = 'none';
-    
+
+    // Hide and reset the bumper Select Mode toggle when leaving manual mode
+    if(selectModeRow) selectModeRow.style.display = 'none';
+    if(bumperSelectMode) {
+      bumperSelectMode = false;
+      const selCanvas = document.getElementById('structureCanvas');
+      if(selCanvas) selCanvas.classList.remove('bumper-select-mode-active');
+      const selBtn = document.getElementById('structureBumperSelectModeBtn');
+      if(selBtn) { selBtn.textContent = 'Off'; selBtn.classList.remove('active'); }
+    }
+
     // Clear selections when exiting manual mode
     selectedBumpers.clear();
     selectedBumper = null;
   }
-  
+
   // Redraw to show/hide selection highlights
   generateStructureLayout();
+}
+
+// Toggle mobile bumper Select Mode: blocks page scroll on the structure canvas
+// so dragging moves a bumper immediately (no hold delay) instead of scrolling.
+// Mirrors the Standard layout's Select Mode; only meaningful in manual mode.
+function toggleBumperSelectMode() {
+  bumperSelectMode = !bumperSelectMode;
+
+  const canvas = document.getElementById('structureCanvas');
+  const btn = document.getElementById('structureBumperSelectModeBtn');
+  const hint = document.getElementById('structureHintText');
+
+  if(canvas) canvas.classList.toggle('bumper-select-mode-active', bumperSelectMode);
+  if(btn) {
+    btn.textContent = bumperSelectMode ? 'On' : 'Off';
+    btn.classList.toggle('active', bumperSelectMode);
+  }
+  if(hint) {
+    hint.textContent = bumperSelectMode
+      ? 'Drag to move • Tap to select • Tap selected for options'
+      : 'Tap to select • Tap again for options • Hold to drag';
+  }
+
+  // Leaving Select Mode clears the working selection
+  if(!bumperSelectMode) {
+    selectedBumpers.clear();
+    generateStructureLayout();
+  }
+
+  vibrate(10);
 }
 
 // Get panel at mouse position in structure canvas

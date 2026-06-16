@@ -2608,7 +2608,15 @@
         </div>
         <span class="structure-mode-hint" id="structureModeHint">Auto-distribution active</span>
       </div>
-      
+
+      <!-- Bumper Select Mode toggle (touch devices, shown only in manual mode) -->
+      <div class="layout-toggle-row" id="structureSelectModeRow" style="display:none;">
+        <div class="flex-noshrink">
+          <span class="toggle-label toggle-label-block">Select Mode</span>
+          <button type="button" class="toggle-btn toggle-btn-standalone" id="structureBumperSelectModeBtn" onclick="toggleBumperSelectMode()">Off</button>
+        </div>
+      </div>
+
       <!-- Selection Info (shown in manual mode) -->
       <div class="structure-selection-info" id="structureSelectionInfo">
         <strong>Manual Mode:</strong> <span id="structureHintText">Tap to select • Tap again for options • Hold to drag</span>
@@ -3409,8 +3417,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.69';
-const APP_CHANGELOG = 'Add panel reset-to-original options to Standard Layout right-click menu';
+const APP_VERSION = '2.11.70';
+const APP_CHANGELOG = 'Fix mobile Export All crash and screen duplication; add structure bumper Select Mode';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -3484,6 +3492,7 @@ let showTopBumper = false;
 let showBottomBumper = false;
 let useBumpers = true; // Toggle for enabling/disabling bumpers entirely
 let manualBumperMode = false; // Toggle for manual bumper distribution mode
+let bumperSelectMode = false; // mobile: drag bumpers without scrolling the page (manual mode only)
 let selectedBumpers = new Set(); // Selected bumpers (by id) in structure view
 let structureIsDragging = false;
 let structureDragStartX = 0;

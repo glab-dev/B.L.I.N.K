@@ -967,6 +967,11 @@ canvas {
   touch-action: none;
 }
 
+/* Bumper Select Mode: block native scroll so dragging bumpers works on touch devices */
+#structureCanvas.bumper-select-mode-active {
+  touch-action: none;
+}
+
 /* Canvas view can be responsive */
 #canvasView {
   max-width: 100%;

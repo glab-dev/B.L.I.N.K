@@ -197,30 +197,35 @@ function _renderScreenNativeCanvas(screenId) {
 }
 
 // For Export All: callback([{ screenId, name, w, h, blob }, ...]) for visible screens.
+// Renders and PNG-encodes one screen at a time, freeing each canvas before the
+// next, so peak memory stays at a single screen's canvas (avoids the mobile
+// out-of-memory tab kill that happened when all screens were held at once).
 function getScreenNativeResBlobs(callback) {
   var screenIds = Object.keys(screens).sort(function(a, b) {
     return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-  });
-  var jobs = [];
-  screenIds.forEach(function(id) {
+  }).filter(function(id) {
     var s = screens[id];
-    if(!s || !s.visible) return;
-    var rendered = _renderScreenNativeCanvas(id);
-    if(!rendered) return;
-    jobs.push({ id: id, name: (s.name || id), rendered: rendered });
+    return s && s.visible;
   });
 
   var results = [];
-  if(jobs.length === 0) { callback(results); return; }
 
-  var pending = jobs.length;
-  jobs.forEach(function(job) {
-    job.rendered.canvas.toBlob(function(blob) {
-      if(blob) results.push({ screenId: job.id, name: job.name, w: job.rendered.w, h: job.rendered.h, blob: blob });
-      pending--;
-      if(pending === 0) callback(results);
+  function next(i) {
+    if(i >= screenIds.length) { callback(results); return; }
+    var id = screenIds[i];
+    var s = screens[id];
+    var rendered = _renderScreenNativeCanvas(id);
+    if(!rendered) { next(i + 1); return; }
+    rendered.canvas.toBlob(function(blob) {
+      if(blob) results.push({ screenId: id, name: (s.name || id), w: rendered.w, h: rendered.h, blob: blob });
+      // Free this screen's canvas before rendering the next one.
+      rendered.canvas.width = rendered.canvas.height = 0;
+      rendered.canvas = null;
+      next(i + 1);
     }, 'image/png');
-  });
+  }
+
+  next(0);
 }
 
 // Dropdown handler: export each visible screen at native resolution.
@@ -230,54 +235,70 @@ function exportScreensNativeRes() {
     var screenIds = Object.keys(screens).sort(function(a, b) {
       return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
     });
-    var items = [];
+    // Determine valid screens up front via cheap resolution math (no canvas
+    // allocation), so we can render/encode/free one screen at a time below
+    // instead of holding every screen's full-res canvas in memory at once.
+    var valid = [];
     screenIds.forEach(function(id) {
       var s = screens[id];
       if(!s || !s.visible) return;
-      var rendered = _renderScreenNativeCanvas(id);
-      if(!rendered) return;
-      var name = (s.name || id).replace(/[<>:"/\\|?*]/g, '_');
-      items.push({ name: name, w: rendered.w, h: rendered.h, canvas: rendered.canvas });
+      var res = _getScreenResolution(id);
+      if(!res.w || !res.h) return;
+      valid.push({ id: id, name: (s.name || id).replace(/[<>:"/\\|?*]/g, '_') });
     });
 
-    if(items.length === 0) {
+    if(valid.length === 0) {
       showAlert('No screens with valid dimensions to export. Generate a screen first.');
       return;
     }
 
-    if(items.length === 1) {
-      var it = items[0];
-      _downloadCanvasBlob(it.canvas, it.name + '_' + it.w + 'x' + it.h + '.png', 'image/png');
+    if(valid.length === 1) {
+      var rendered = _renderScreenNativeCanvas(valid[0].id);
+      if(!rendered) {
+        showAlert('No screens with valid dimensions to export. Generate a screen first.');
+        return;
+      }
+      _downloadCanvasBlob(rendered.canvas, valid[0].name + '_' + rendered.w + 'x' + rendered.h + '.png', 'image/png');
       return;
     }
 
-    // Multiple screens → bundle into a single ZIP.
+    // Multiple screens → bundle into a single ZIP, rendering/encoding/freeing
+    // one screen at a time to cap peak memory.
     if(typeof JSZip === 'undefined') {
       showAlert('ZIP library not available. Please reload and try again.');
       return;
     }
     var zip = new JSZip();
-    var pending = items.length;
-    items.forEach(function(it) {
-      it.canvas.toBlob(function(blob) {
-        if(blob) zip.file(it.name + '_' + it.w + 'x' + it.h + '.png', blob);
-        pending--;
-        if(pending === 0) {
-          var filenameInput = document.getElementById('canvasExportFilename') || document.getElementById('rasterToolbarFilename');
-          var base = filenameInput ? filenameInput.value.trim() : '';
-          base = (base || 'Screens').replace(/[<>:"/\\|?*]/g, '_');
-          zip.generateAsync({ type: 'blob' }).then(function(content) {
-            var url = URL.createObjectURL(content);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = base + '_Native_Res.zip';
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-          });
-        }
+
+    function next(i) {
+      if(i >= valid.length) {
+        var filenameInput = document.getElementById('canvasExportFilename') || document.getElementById('rasterToolbarFilename');
+        var base = filenameInput ? filenameInput.value.trim() : '';
+        base = (base || 'Screens').replace(/[<>:"/\\|?*]/g, '_');
+        zip.generateAsync({ type: 'blob' }).then(function(content) {
+          var url = URL.createObjectURL(content);
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = base + '_Native_Res.zip';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+        });
+        return;
+      }
+      var v = valid[i];
+      var rendered = _renderScreenNativeCanvas(v.id);
+      if(!rendered) { next(i + 1); return; }
+      rendered.canvas.toBlob(function(blob) {
+        if(blob) zip.file(v.name + '_' + rendered.w + 'x' + rendered.h + '.png', blob);
+        // Free this screen's canvas before rendering the next one.
+        rendered.canvas.width = rendered.canvas.height = 0;
+        rendered.canvas = null;
+        next(i + 1);
       }, 'image/png');
-    });
+    }
+
+    next(0);
   } catch(err) {
     showAlert('Error exporting screens: ' + err.message);
     console.error('Screen native-res export error:', err);

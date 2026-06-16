@@ -807,6 +807,10 @@ function duplicateScreen() {
     return;
   }
 
+  // Capture the current screen's live state into its data first, so duplicating
+  // the active screen reflects unsaved edits.
+  saveCurrentScreenData();
+
   const sourceScreen = screens[screenToRename];
 
   // Generate new screen ID
@@ -814,7 +818,28 @@ function duplicateScreen() {
   const newScreenId = `screen_${screenIdCounter}`;
   const screenNumber = Object.keys(screens).length + 1;
 
-  // Deep clone the screen data
+  // Deep clone the screen data, preserving Sets/Maps. JSON.parse(JSON.stringify())
+  // would turn deletedPanels/selectedPanels (Sets) and the custom*Assignments
+  // (Maps) into {}, and loadScreenData would then throw on new Set({}) / new Map({}).
+  const srcData = sourceScreen.data;
+  const clonedData = {};
+  Object.keys(srcData).forEach(key => {
+    const val = srcData[key];
+    if(val instanceof Set) {
+      clonedData[key] = new Set(val);
+    } else if(val instanceof Map) {
+      clonedData[key] = new Map(val);
+    } else if(val && typeof val === 'object') {
+      clonedData[key] = JSON.parse(JSON.stringify(val));
+    } else {
+      clonedData[key] = val;
+    }
+  });
+  // Start the duplicate with a fresh undo/redo stack (those arrays hold nested
+  // Sets/Maps that don't survive a plain JSON clone).
+  clonedData.undoHistory = [];
+  clonedData.redoHistory = [];
+
   const _baseName = sourceScreen.name.replace(/ \(\d+\)$/, '');
   const _existingNames = Object.values(screens).map(s => s.name);
   let _dupNum = 2;
@@ -825,7 +850,7 @@ function duplicateScreen() {
     color: sourceScreen.color,
     color2: sourceScreen.color2,
     visible: true,
-    data: JSON.parse(JSON.stringify(sourceScreen.data))
+    data: clonedData
   };
 
   screens[newScreenId] = newScreen;

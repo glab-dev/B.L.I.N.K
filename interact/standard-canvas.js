@@ -72,6 +72,64 @@ function deleteSelectedPanels() {
   }
 }
 
+function resetSelectedPanels() {
+  if(selectedPanels.size === 0) return;
+
+  saveState(); // Save state before making changes
+
+  // Drop every override on the selected panels so they revert to auto values
+  selectedPanels.forEach(key => {
+    deletedPanels.delete(key);
+    customCircuitAssignments.delete(key);
+    customSocaAssignments.delete(key);
+    customDataLineAssignments.delete(key);
+  });
+  selectedPanels.clear();
+
+  // Save to current screen data so canvas view can see restored panels
+  if(screens[currentScreenId]) {
+    screens[currentScreenId].data.deletedPanels = new Set(deletedPanels);
+  }
+
+  calculate();
+  showCanvasView();
+  if(selectedCanvasScreenId) {
+    drawSelectionHighlight();
+  }
+}
+
+async function resetAllModifiedPanels() {
+  const hasMods = deletedPanels.size || customCircuitAssignments.size
+    || customSocaAssignments.size || customDataLineAssignments.size;
+  if(!hasMods) return;
+
+  const ok = await showConfirm(
+    'Reset every modified panel on this screen back to its original state? ' +
+    'This clears all custom circuits, SOCAs, data lines, and restores deleted panels.',
+    'Reset all panels'
+  );
+  if(!ok) return;
+
+  saveState(); // Save state before making changes
+
+  deletedPanels.clear();
+  customCircuitAssignments.clear();
+  customSocaAssignments.clear();
+  customDataLineAssignments.clear();
+  selectedPanels.clear();
+
+  // Save to current screen data so canvas view can see restored panels
+  if(screens[currentScreenId]) {
+    screens[currentScreenId].data.deletedPanels = new Set();
+  }
+
+  calculate();
+  showCanvasView();
+  if(selectedCanvasScreenId) {
+    drawSelectionHighlight();
+  }
+}
+
 // Toggle mobile Select Mode: blocks page scroll on the canvas so dragging
 // paints panel selection instead of scrolling. Tap toggles a single panel.
 function toggleSelectMode() {
@@ -401,7 +459,56 @@ function showContextMenu(x, y) {
     menu.remove();
     showDataLineNumberPrompt();
   });
-  
+
+  // Reset selected option — only when at least one selected panel is modified
+  const _anySelModified = [...selectedPanels].some(k =>
+    deletedPanels.has(k) || customCircuitAssignments.has(k)
+    || customSocaAssignments.has(k) || customDataLineAssignments.has(k));
+  let resetSelectedOption = null;
+  if (_anySelModified) {
+    resetSelectedOption = document.createElement('div');
+    resetSelectedOption.textContent = `Reset ${selectedPanels.size} panel(s) to original`;
+    resetSelectedOption.style.padding = '8px 12px';
+    resetSelectedOption.style.cursor = 'pointer';
+    resetSelectedOption.style.color = '#e0e0e0';
+    resetSelectedOption.style.fontSize = '13px';
+    resetSelectedOption.style.borderBottom = '1px solid #383838';
+    resetSelectedOption.addEventListener('mouseover', function() {
+      resetSelectedOption.style.background = '#0a66c2';
+    });
+    resetSelectedOption.addEventListener('mouseout', function() {
+      resetSelectedOption.style.background = 'transparent';
+    });
+    resetSelectedOption.addEventListener('click', function() {
+      menu.remove();
+      resetSelectedPanels();
+    });
+  }
+
+  // Reset all option — only when any override exists on the screen
+  const _anyScreenModified = deletedPanels.size || customCircuitAssignments.size
+    || customSocaAssignments.size || customDataLineAssignments.size;
+  let resetAllOption = null;
+  if (_anyScreenModified) {
+    resetAllOption = document.createElement('div');
+    resetAllOption.textContent = 'Reset all modified panels';
+    resetAllOption.style.padding = '8px 12px';
+    resetAllOption.style.cursor = 'pointer';
+    resetAllOption.style.color = '#e0e0e0';
+    resetAllOption.style.fontSize = '13px';
+    resetAllOption.style.borderBottom = '1px solid #383838';
+    resetAllOption.addEventListener('mouseover', function() {
+      resetAllOption.style.background = '#0a66c2';
+    });
+    resetAllOption.addEventListener('mouseout', function() {
+      resetAllOption.style.background = 'transparent';
+    });
+    resetAllOption.addEventListener('click', function() {
+      menu.remove();
+      resetAllModifiedPanels();
+    });
+  }
+
   // Delete option
   const deleteOption = document.createElement('div');
   deleteOption.textContent = `Delete ${selectedPanels.size} panel(s)`;
@@ -423,6 +530,8 @@ function showContextMenu(x, y) {
   menu.appendChild(assignCircuitOption);
   if (assignSocaOption) menu.appendChild(assignSocaOption);
   menu.appendChild(assignDataLineOption);
+  if (resetSelectedOption) menu.appendChild(resetSelectedOption);
+  if (resetAllOption) menu.appendChild(resetAllOption);
   menu.appendChild(deleteOption);
   document.body.appendChild(menu);
   

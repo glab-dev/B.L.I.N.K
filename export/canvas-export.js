@@ -714,47 +714,57 @@ function captureLayoutScreenshotBlobs(callback) {
     if (typeof pdfLayoutCaptureMode !== 'undefined') pdfLayoutCaptureMode = true;
     void (document.getElementById('powerContainer') || document.body).offsetWidth;
 
-    var captures = [];
-    screenIds.forEach(function(screenId) {
+    // Restore DOM state and capture flags, then deliver results. Teardown happens
+    // after all blobs are produced (the composed canvases are independent copies,
+    // so they don't need the 4000px container widths anymore).
+    function finish(results) {
+      if (typeof pdfLayoutCaptureMode !== 'undefined') pdfLayoutCaptureMode = false;
+      if (typeof pdfMultiScreenCapture !== 'undefined') pdfMultiScreenCapture = false;
+      containerIds.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.width = savedLayoutWidths[id] !== undefined ? savedLayoutWidths[id] : '';
+      });
+      if (typeof switchToScreen === 'function') switchToScreen(originalScreenId);
+      containerIds.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && savedDisplay[id] !== undefined) el.style.display = savedDisplay[id];
+      });
+      if (mainWasHidden && mainContainer) mainContainer.style.display = 'none';
+      callback(results);
+    }
+
+    // Render → encode → free one composed canvas at a time so peak memory stays
+    // at a single layout canvas instead of all 3 × N composed 4000px canvases.
+    var results = [];
+    var layoutCaps = [
+      { id: 'powerCanvas',     layout: 'power' },
+      { id: 'dataCanvas',      layout: 'data' },
+      { id: 'structureCanvas', layout: 'structure' }
+    ];
+
+    function nextScreen(si) {
+      if (si >= screenIds.length) { finish(results); return; }
+      var screenId = screenIds[si];
       if (typeof switchToScreen === 'function') switchToScreen(screenId);
       try { if (typeof generateLayout === 'function') generateLayout('power'); } catch(e) {}
       try { if (typeof generateLayout === 'function') generateLayout('data'); } catch(e) {}
       try { if (typeof generateStructureLayout === 'function') generateStructureLayout(); } catch(e) {}
 
-      [
-        { id: 'powerCanvas',     layout: 'power' },
-        { id: 'dataCanvas',      layout: 'data' },
-        { id: 'structureCanvas', layout: 'structure' }
-      ].forEach(function(cap) {
+      function nextCap(ci) {
+        if (ci >= layoutCaps.length) { nextScreen(si + 1); return; }
+        var cap = layoutCaps[ci];
         var canvas = document.getElementById(cap.id);
-        if (canvas && canvas.width > 0 && canvas.height > 0) {
-          var composed = _composeLayoutWithHeader(canvas, _layoutTitleText(cap.layout, false));
-          captures.push({ screenId: screenId, layout: cap.layout, canvas: composed });
-        }
-      });
-    });
-
-    if (typeof pdfLayoutCaptureMode !== 'undefined') pdfLayoutCaptureMode = false;
-    if (typeof pdfMultiScreenCapture !== 'undefined') pdfMultiScreenCapture = false;
-    containerIds.forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.style.width = savedLayoutWidths[id] !== undefined ? savedLayoutWidths[id] : '';
-    });
-    if (typeof switchToScreen === 'function') switchToScreen(originalScreenId);
-    containerIds.forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el && savedDisplay[id] !== undefined) el.style.display = savedDisplay[id];
-    });
-    if (mainWasHidden && mainContainer) mainContainer.style.display = 'none';
-
-    var blobPromises = captures.map(function(item) {
-      return new Promise(function(resolve) {
-        item.canvas.toBlob(function(blob) {
-          resolve({ screenId: item.screenId, layout: item.layout, blob: blob });
+        if (!(canvas && canvas.width > 0 && canvas.height > 0)) { nextCap(ci + 1); return; }
+        var composed = _composeLayoutWithHeader(canvas, _layoutTitleText(cap.layout, false));
+        composed.toBlob(function(blob) {
+          if (blob) results.push({ screenId: screenId, layout: cap.layout, blob: blob });
+          composed.width = composed.height = 0; // free before the next one
+          nextCap(ci + 1);
         }, 'image/png');
-      });
-    });
-    Promise.all(blobPromises).then(callback).catch(function() { callback([]); });
+      }
+      nextCap(0);
+    }
+    nextScreen(0);
   } catch(e) {
     console.error('captureLayoutScreenshotBlobs error:', e);
     callback([]);
@@ -782,34 +792,39 @@ function captureCombinedLayoutBlobs(callback) {
 
     try { renderCombinedView(); } catch(e) { console.error('renderCombinedView failed:', e); }
 
-    var captures = [];
-    [
+    // Restore the user's combined-view selection and redraw, then deliver results.
+    function finish(results) {
+      combinedSelectedScreens.clear();
+      savedSet.forEach(function(id) { combinedSelectedScreens.add(id); });
+      if (combinedContainer && savedCombinedDisplay !== null) combinedContainer.style.display = savedCombinedDisplay;
+      if (combinedSelectedScreens.size > 0) {
+        try { renderCombinedView(); } catch(e) {}
+      }
+      callback(results);
+    }
+
+    // Compose → encode → free one canvas at a time (must finish before the
+    // restore-redraw above overwrites the combined source canvases).
+    var results = [];
+    var caps = [
       { id: 'combinedPowerCanvas',     layout: 'power' },
       { id: 'combinedDataCanvas',      layout: 'data' },
       { id: 'combinedStructureCanvas', layout: 'structure' }
-    ].forEach(function(cap) {
+    ];
+
+    function nextCap(i) {
+      if (i >= caps.length) { finish(results); return; }
+      var cap = caps[i];
       var canvas = document.getElementById(cap.id);
-      if (canvas && canvas.width > 100 && canvas.height > 100) {
-        var composed = _composeLayoutWithHeader(canvas, _layoutTitleText(cap.layout, true));
-        captures.push({ layout: cap.layout, canvas: composed });
-      }
-    });
-
-    combinedSelectedScreens.clear();
-    savedSet.forEach(function(id) { combinedSelectedScreens.add(id); });
-    if (combinedContainer && savedCombinedDisplay !== null) combinedContainer.style.display = savedCombinedDisplay;
-    if (combinedSelectedScreens.size > 0) {
-      try { renderCombinedView(); } catch(e) {}
+      if (!(canvas && canvas.width > 100 && canvas.height > 100)) { nextCap(i + 1); return; }
+      var composed = _composeLayoutWithHeader(canvas, _layoutTitleText(cap.layout, true));
+      composed.toBlob(function(blob) {
+        if (blob) results.push({ layout: cap.layout, blob: blob });
+        composed.width = composed.height = 0; // free before the next one
+        nextCap(i + 1);
+      }, 'image/png');
     }
-
-    var blobPromises = captures.map(function(item) {
-      return new Promise(function(resolve) {
-        item.canvas.toBlob(function(blob) {
-          resolve({ layout: item.layout, blob: blob });
-        }, 'image/png');
-      });
-    });
-    Promise.all(blobPromises).then(callback).catch(function() { callback([]); });
+    nextCap(0);
   } catch(e) {
     console.error('captureCombinedLayoutBlobs error:', e);
     callback([]);

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.70",
+  "version": "2.11.71",
   "updated": "2026-06-16",
-  "changelog": "Fix mobile Export All crash and screen duplication; add structure bumper Select Mode"
+  "changelog": "Reduce Export All peak memory with sequential layout capture and GC yields"
 }

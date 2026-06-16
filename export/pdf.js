@@ -2540,6 +2540,9 @@ function pdfCaptureCanvases() {
           dataUrl: isPng ? hiRes.toDataURL('image/png') : hiRes.toDataURL('image/jpeg', 0.92),
           aspectRatio: useAspect
         };
+        // Release the temporary 2x canvas immediately — on mobile these are large
+        // and otherwise linger until GC, compounding peak memory during export.
+        hiRes.width = hiRes.height = 0;
       }
     });
     // Store SOCA bar fraction for power image so pdf.js can equalize grid height with data

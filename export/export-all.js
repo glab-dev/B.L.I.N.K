@@ -16,6 +16,13 @@ function _captureHtmlElementBlobAsync(elementId, opts) {
   });
 }
 
+// Yields a macrotask between heavy capture phases so the browser can run GC and
+// reclaim the canvases/blobs from the previous step before the next allocates —
+// reduces peak memory and helps Export All survive on mobile.
+function _yieldToBrowser(ms) {
+  return new Promise(function(resolve) { setTimeout(resolve, ms || 60); });
+}
+
 // Sequentially captures all per-section screenshots and adds them to the zip.
 // Runs as one task (not parallel) so screen-switching state is consistent.
 async function _captureAllScreenshotsToZip(zip, name) {
@@ -39,6 +46,7 @@ async function _captureAllScreenshotsToZip(zip, name) {
       });
     } catch(e) { resolve(); }
   });
+  await _yieldToBrowser();
 
   // 0b. Per-screen native-resolution PNGs → screens/ (each screen as drawn in the canvas view, at its exact pixel resolution)
   await new Promise(function(resolve) {
@@ -53,6 +61,7 @@ async function _captureAllScreenshotsToZip(zip, name) {
       });
     } catch(e) { resolve(); }
   });
+  await _yieldToBrowser();
 
   // 1. Per-screen layout PNGs [power/data/structure] — single render pass internally
   await new Promise(function(resolve) {
@@ -66,6 +75,7 @@ async function _captureAllScreenshotsToZip(zip, name) {
       });
     } catch(e) { resolve(); }
   });
+  await _yieldToBrowser();
 
   // 2. Per-screen structure-tables PNG [html2canvas] — sequential
   for(var i = 0; i < allScreenIds.length; i++) {
@@ -73,6 +83,7 @@ async function _captureAllScreenshotsToZip(zip, name) {
     if(typeof switchToScreen === 'function') switchToScreen(sid);
     var stBlob = await _captureHtmlElementBlobAsync('structureInfoPanel', { backgroundColor: null });
     if(stBlob) zip.file('structure/' + name + '_' + _exportAllScreenLabel(sid) + '_structure_tables.png', stBlob);
+    await _yieldToBrowser();
   }
   if(typeof switchToScreen === 'function') switchToScreen(originalScreenId);
 
@@ -89,6 +100,7 @@ async function _captureAllScreenshotsToZip(zip, name) {
       });
     } catch(e) { resolve(); }
   });
+  await _yieldToBrowser();
 
   // 4. Gear list PNG [project-wide] — rasterized from the real PDF for pixel parity
   await new Promise(function(resolve) {
@@ -103,6 +115,7 @@ async function _captureAllScreenshotsToZip(zip, name) {
       });
     } catch(e) { resolve(); }
   });
+  await _yieldToBrowser();
 
   // 5. Combined power/data/structure PNGs [multi-screen only]
   if(allScreenIds.length > 1) {

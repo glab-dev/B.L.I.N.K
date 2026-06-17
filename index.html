@@ -2017,6 +2017,9 @@
     <button class="mobile-header-btn" onclick="document.getElementById('loadConfigInput').click()" title="Load Config">
       <span class="material-symbols-outlined">folder</span>
     </button>
+    <button class="mobile-header-btn" onclick="quickSaveToApp()" title="Quick Save">
+      <span class="material-symbols-outlined">cloud_upload</span>
+    </button>
     <button class="mobile-header-btn" onclick="saveConfiguration()" title="Save Config">
       <span class="material-symbols-outlined">save</span>
     </button>
@@ -2060,6 +2063,9 @@
       <div class="mobile-menu-section">
         <div class="mobile-menu-label">Configuration</div>
         <input type="text" id="configName" placeholder="Config name..." class="mb-12">
+        <div class="mobile-menu-btn-row">
+          <button class="mobile-menu-btn accent" onclick="quickSaveToApp(); closeMobileMenu();">☁️ Quick Save</button>
+        </div>
         <div class="mobile-menu-btn-row">
           <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save</button>
           <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load</button>
@@ -2110,6 +2116,7 @@
   </div>
   <div class="header-buttons-row">
     <div class="config-buttons">
+      <button class="config-btn save" onclick="quickSaveToApp()">☁️ Quick Save</button>
       <button class="config-btn save" onclick="saveConfiguration()">💾 Save</button>
       <button class="config-btn load" onclick="document.getElementById('loadConfigInput').click()">📂 Load</button>
     </div>
@@ -3417,8 +3424,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.72';
-const APP_CHANGELOG = 'Add power/data tables to Export All and PDF, fix data-line label arrows';
+const APP_VERSION = '2.11.74';
+const APP_CHANGELOG = 'Add Quick Save to app/cloud button and raise recents limit to 8';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.73",
+  "version": "2.11.74",
   "updated": "2026-06-16",
-  "changelog": "Split large-wall PDF layouts onto their own pages so tables fit without bleed"
+  "changelog": "Add Quick Save to app/cloud button and raise recents limit to 8"
 }

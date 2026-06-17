@@ -1,10 +1,11 @@
 // ==================== CONFIGURATION SAVE/LOAD ====================
 // Save and load .blinkled files, MX40 mode toggle visibility.
 
-// Save/Load configuration functions
-async function saveConfiguration() {
+// Build the full project config object from current app state.
+// Shared by saveConfiguration() (file export) and quickSaveToApp() (save to app/cloud).
+function buildCurrentConfig() {
   const configName = document.getElementById('configName').value.trim() || 'LED_Wall_Config';
-  
+
   // Save current screen data first
   saveCurrentScreenData();
   if(typeof saveCurrentCanvasData === 'function') saveCurrentCanvasData();
@@ -191,7 +192,15 @@ async function saveConfiguration() {
     // Project logo (base64 data URL) — null if no logo uploaded
     logo: (typeof projectLogo !== 'undefined') ? projectLogo : null
   };
-  
+
+  return config;
+}
+
+// Save/Load configuration functions
+async function saveConfiguration() {
+  const config = buildCurrentConfig();
+  const configName = config.name;
+
   // Add to recent projects
   addToRecentProjects(config);
 
@@ -243,6 +252,33 @@ async function saveConfiguration() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     showAlert(`Configuration "${configName}" saved successfully!`);
+  }
+}
+
+// Quick Save: save the project into the app (localStorage + cloud when signed in)
+// and make it recallable from Recent — without exporting a file to the device.
+async function quickSaveToApp() {
+  // Ensure the project has a name so it's identifiable in Recent
+  const nameInput = document.getElementById('configName');
+  let name = nameInput.value.trim();
+  if(!name) {
+    const entered = await showPrompt('Name this project to save it:', '', 'Quick Save');
+    name = (entered || '').trim();
+    if(!name) return; // cancelled or left blank
+    nameInput.value = name;
+  }
+
+  // Build the config and save to recents (handles localStorage + Supabase upsert when signed in)
+  const config = buildCurrentConfig();
+  addToRecentProjects(config);
+
+  // Confirmation, branched on auth state
+  const signedIn = (typeof isAuthenticated === 'function' && isAuthenticated());
+  if(signedIn) {
+    showAlert(`"${name}" saved to your account — available on all your devices. Open it from Recent.`, 'Saved');
+  } else {
+    const wantsSignIn = await showConfirm(`"${name}" was saved on this device only. Sign in to sync it across all your devices?`, 'Saved Locally');
+    if(wantsSignIn && typeof openAuthModal === 'function') openAuthModal('signin');
   }
 }
 
@@ -707,7 +743,7 @@ function updateMX40ModeToggleVisibility() {
 // ==================== RECENT PROJECTS ====================
 
 const STORAGE_KEY_RECENT_PROJECTS = 'ledcalc_recent_projects';
-const MAX_RECENT_PROJECTS = 5;
+const MAX_RECENT_PROJECTS = 8;
 
 function generateLocalId() {
   return 'proj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);

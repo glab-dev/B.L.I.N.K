@@ -1,5 +1,5 @@
 {
-  "version": "2.11.72",
+  "version": "2.11.73",
   "updated": "2026-06-16",
-  "changelog": "Add power/data tables to Export All and PDF, fix data-line label arrows"
+  "changelog": "Split large-wall PDF layouts onto their own pages so tables fit without bleed"
 }

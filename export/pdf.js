@@ -1971,29 +1971,48 @@ function buildComplexPdf(opts, canvasCache) {
     // ===== PAGES 2 (& 3): POWER / DATA / STRUCTURE / CABLING =====
     const hasLayouts = opts.power !== false || opts.data !== false || opts.structure !== false || opts.cabling !== false;
     if (hasLayouts && pw * ph > 1) {
+      // Per-layout table heights + page geometry, used to decide paging.
+      const hdrH = m.headerBarH + m.afterHeaderGap;
+      const lblH = m.sectionLabelH + m.afterLabelGap;
+      const estSocaH    = estSocaTableHeight(screenId);
+      const estDataMapH = estDataMapHeight(screenId);
+      const estStructH  = 160; // matches the structure-section estimate used below
+      // Image height when fit to the page width (the real height for wide/short walls).
+      const fitH = calculateGridScale(pw, ph, cw, uh).renderHeight;
+
+      // Large walls (or tall tables): give Power / Data / Structure each its own page so the
+      // layout and its table stay together (no bleed) and the image can fill the page. Small
+      // walls keep the compact collapsed layout, but only when the WHOLE stack (every enabled
+      // layout + its table + cabling) genuinely fits on one page — otherwise it would bleed.
+      const cabData = canvasCache && canvasCache[screenId + '_cabling'];
+      const cabAspect = (cabData && cabData.aspectRatio) || 0.5;
+      const cablingEstH = lblH + Math.min(440, cw * cabAspect);
+      const fullStackH = hdrH
+        + (opts.power     !== false ? lblH + fitH + estSocaH    : 0)
+        + (opts.data      !== false ? lblH + fitH + estDataMapH : 0)
+        + (opts.structure !== false ? lblH + fitH + estStructH  : 0)
+        + (opts.cabling   !== false ? cablingEstH               : 0);
+      const oneLayoutPerPage = !collapseLayouts || (fullStackH > uh);
+      const useCollapse = collapseLayouts && !oneLayoutPerPage;
+
       // Page 3: Power + Data layouts (always new page; collapse controls whether page 4 exists)
       content.push({ text: '', pageBreak: 'before' });
       content.push(buildPdfHeader(configName, dateStr, logoData));
 
       // Overhead per page: header + 2 labels + 2 after-label gaps + 2 image margins + safety buffer
       const layoutOverhead = m.headerBarH + m.afterHeaderGap + 2 * m.sectionLabelH + 2 * m.afterLabelGap + 2 * 4 + 20;
-      const singlePageMaxH = collapseLayouts
+      const singlePageMaxH = useCollapse
         ? Math.floor((uh - m.headerBarH - 80) / 4)
         : Math.floor((uh - layoutOverhead) / 3);
-
-      // Determine if power+data actually fit together (considering actual rendered heights)
-      let powerFitsWithData = true;
-      if (!collapseLayouts && opts.power !== false && opts.data !== false && pw > 0 && ph > 0) {
-        const { renderHeight: powerH } = calculateGridScale(pw, ph, cw, singlePageMaxH);
-        const { renderHeight: dataH  } = calculateGridScale(pw, ph, cw, singlePageMaxH);
-        powerFitsWithData = (powerH + dataH + layoutOverhead) <= uh;
-      }
+      // One-per-page image cap: fill the page minus the section label and the layout's own table.
+      const fillImgH = (tableH) => Math.max(140, uh - hdrH - lblH - (tableH || 0) - 12);
 
       if (opts.power !== false) {
         content.push(sectionLabel('Power Layout'));
         const powerImgData = canvasCache && canvasCache[screenId + '_power'];
         const socaFrac = (powerImgData && powerImgData.socaBarFraction) || 0;
-        const powerMaxH = socaFrac > 0 ? Math.round(singlePageMaxH / (1 - socaFrac)) : singlePageMaxH;
+        const powerBaseH = oneLayoutPerPage ? fillImgH(estSocaH) : singlePageMaxH;
+        const powerMaxH = socaFrac > 0 ? Math.round(powerBaseH / (1 - socaFrac)) : powerBaseH;
         const img = gridImage(screenId + '_power', pw, ph, powerMaxH);
         if (img) content.push(img);
         const sMap = buildSocaCircuitTable(screenId);
@@ -2001,13 +2020,14 @@ function buildComplexPdf(opts, canvasCache) {
       }
 
       if (opts.data !== false) {
-        // If power and data don't both fit on the same page, start a new page with its own header
-        if (!powerFitsWithData) {
+        // One-per-page: data always starts its own page. (When collapsed, it stays on this page.)
+        if (oneLayoutPerPage) {
           content.push({ text: '', pageBreak: 'before' });
           content.push(buildPdfHeader(configName, dateStr, logoData));
         }
         content.push(sectionLabel('Data Layout'));
-        const img = gridImage(screenId + '_data', pw, ph, singlePageMaxH);
+        const dataBaseH = oneLayoutPerPage ? fillImgH(estDataMapH) : singlePageMaxH;
+        const img = gridImage(screenId + '_data', pw, ph, dataBaseH);
         if (img) content.push(img);
         const dMap = buildDataLineMapTable(screenId);
         if (dMap) content.push(dMap);
@@ -2015,14 +2035,15 @@ function buildComplexPdf(opts, canvasCache) {
 
       // Structure + Cabling (same page when collapsing, new page otherwise)
       if (opts.structure !== false || opts.cabling !== false) {
-        if (!collapseLayouts) {
+        if (!useCollapse) {
           content.push({ text: '', pageBreak: 'before' });
           content.push(buildPdfHeader(configName, dateStr, logoData));
         }
 
         if (opts.structure !== false) {
           content.push(sectionLabel('Structure Layout'));
-          const img = gridImage(screenId + '_structure', pw, ph, singlePageMaxH);
+          const structBaseH = oneLayoutPerPage ? fillImgH(estStructH) : singlePageMaxH;
+          const img = gridImage(screenId + '_structure', pw, ph, structBaseH);
           if (img) content.push(img);
           const structInfo = buildStructureInfoPdf(screenId, cw);
           if (structInfo) content.push(structInfo);
@@ -2030,9 +2051,10 @@ function buildComplexPdf(opts, canvasCache) {
 
         if (opts.cabling !== false) {
           // If structure is also on this page, check if cabling section fits too.
-          // If not, start a fresh page with its own header (same pattern as powerFitsWithData).
-          if (!collapseLayouts && opts.structure !== false) {
-            const { renderHeight: structImgH } = calculateGridScale(pw, ph, cw, singlePageMaxH);
+          // If not, start a fresh page with its own header.
+          if (!useCollapse && opts.structure !== false) {
+            const structCapH = oneLayoutPerPage ? fillImgH(estStructH) : singlePageMaxH;
+            const { renderHeight: structImgH } = calculateGridScale(pw, ph, cw, structCapH);
             const structInfoEstH = 160; // conservative estimate for pickup-weight / structure tables
             const structSectionH = m.sectionLabelH + m.afterLabelGap + 4 + structImgH + structInfoEstH;
             const cabFitHCheck = screenIds.length > 1 ? 380 : 440;
@@ -2527,6 +2549,26 @@ function buildSocaCircuitTable(screenId) {
     },
     margin: [0, 6, 0, 4]
   };
+}
+
+// Rough height (pt) of the SOCA circuit table — used to decide PDF page layout.
+function estSocaTableHeight(screenId) {
+  const cd = screens[screenId] && screens[screenId].calculatedData;
+  const sb = cd && cd.socaBreakdown;
+  if (!sb || !sb.length) return 0;
+  const rows = Math.ceil(sb.length / 4);
+  const maxCircuits = sb.reduce((mx, s) => Math.max(mx, (s.circuits || []).length), 0);
+  const cardH = 9 * 1.3 + maxCircuits * 8 * 1.3 + 8 * 1.3 + 14; // title + circuits + total + padding
+  return Math.ceil(rows * cardH) + 10;
+}
+
+// Rough height (pt) of the data-line map table — used to decide PDF page layout.
+function estDataMapHeight(screenId) {
+  const cd = screens[screenId] && screens[screenId].calculatedData;
+  const eps = cd && cd.dataLineEndpoints;
+  if (!eps || !eps.length) return 0;
+  const cardH = 9 * 1.3 + eps.length * 8 * 1.3 + 14; // title + line rows + padding
+  return Math.ceil(cardH) + 10;
 }
 
 function pdfCaptureCanvases() {

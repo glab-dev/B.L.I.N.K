@@ -1,5 +1,5 @@
 {
-  "version": "2.11.74",
+  "version": "2.11.75",
   "updated": "2026-06-16",
-  "changelog": "Add Quick Save to app/cloud button and raise recents limit to 8"
+  "changelog": "Draw data-line labels over the lines and hide end arrows in Data and Canvas views"
 }

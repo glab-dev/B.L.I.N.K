@@ -368,7 +368,7 @@ function renderDataLayout(params) {
 
   // Draw active panels with data grouping
   const groupPoints = [];
-  const bigLabelDraws = []; // deferred so all labels share one uniform font size and render UNDER the arrows
+  const bigLabelDraws = []; // deferred so all labels share one uniform font size and render ON TOP OF the arrows
   for(let gi=0; gi<groups.length; gi++){
     const dataLineNum = sortedDataLines[gi]; // Use actual data line number for color
     const colors=colorForIndex(dataLineNum);
@@ -401,34 +401,6 @@ function renderDataLayout(params) {
       }
       groupPoints[gi].push({x:x+panelWidth/2, y:y+currentPanelHeight/2, color: colors.solid});
     }
-  }
-
-  // Draw the deferred data-line start labels BEFORE the arrows so the lines/arrows
-  // remain visible on top of the labels. All labels share one uniform font size:
-  // base it on the smallest labelled panel (so none overflow vertically), shrink to
-  // fit the widest label horizontally, then apply that single size to every label.
-  if (bigLabelDraws.length) {
-    ctx.save();
-    const _minLabelH = Math.min.apply(null, bigLabelDraws.map(function(b){ return b.h; }));
-    let _fs = Math.floor(_minLabelH * 0.5);
-    ctx.font = `bold ${_fs}px Arial`;
-    let _widest = bigLabelDraws[0].label;
-    bigLabelDraws.forEach(function(b){
-      if (ctx.measureText(b.label).width > ctx.measureText(_widest).width) _widest = b.label;
-    });
-    while (_fs > 8 && ctx.measureText(_widest).width > panelWidth * 0.85) {
-      _fs -= 1;
-      ctx.font = `bold ${_fs}px Arial`;
-    }
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = Math.max(2.5, _fs * 0.18);
-    bigLabelDraws.forEach(function(bl){
-      ctx.strokeStyle = '#000000';
-      ctx.strokeText(bl.label, bl.cx, bl.cy);
-      ctx.fillStyle = bl.color;
-      ctx.fillText(bl.label, bl.cx, bl.cy);
-    });
-    ctx.restore();
   }
 
   if(showArrows){
@@ -507,6 +479,35 @@ function renderDataLayout(params) {
       }
     }
   }
+
+  // Draw the deferred data-line start labels ON TOP of the lines so they stay
+  // readable (the end arrowheads are hidden while labels are on — see
+  // drawArrowPath). All labels share one uniform font size: base it on the
+  // smallest labelled panel (so none overflow vertically), shrink to fit the
+  // widest label horizontally, then apply that single size to every label.
+  if (bigLabelDraws.length) {
+    ctx.save();
+    const _minLabelH = Math.min.apply(null, bigLabelDraws.map(function(b){ return b.h; }));
+    let _fs = Math.floor(_minLabelH * 0.5);
+    ctx.font = `bold ${_fs}px Arial`;
+    let _widest = bigLabelDraws[0].label;
+    bigLabelDraws.forEach(function(b){
+      if (ctx.measureText(b.label).width > ctx.measureText(_widest).width) _widest = b.label;
+    });
+    while (_fs > 8 && ctx.measureText(_widest).width > panelWidth * 0.85) {
+      _fs -= 1;
+      ctx.font = `bold ${_fs}px Arial`;
+    }
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(2.5, _fs * 0.18);
+    bigLabelDraws.forEach(function(bl){
+      ctx.strokeStyle = '#000000';
+      ctx.strokeText(bl.label, bl.cx, bl.cy);
+      ctx.fillStyle = bl.color;
+      ctx.fillText(bl.label, bl.cx, bl.cy);
+    });
+    ctx.restore();
+  }
 }
 
 // ==================== ARROW DRAWING ====================
@@ -522,10 +523,15 @@ function drawArrowPath(ctx, points, colorHex){
   }
   ctx.stroke();
 
-  const end = points[points.length-1];
-  const prev = points[points.length-2];
-  const angle = Math.atan2(end.y - prev.y, end.x - prev.x);
-  drawVArrowhead(ctx, end.x, end.y, angle, colorHex);
+  // Hide the end arrowhead when data labels are on — it overlaps the big start/B
+  // labels and clutters the look. The connecting line still shows the flow.
+  const _hideHead = (typeof dataLineLabelsEnabled !== 'undefined') && dataLineLabelsEnabled;
+  if(!_hideHead){
+    const end = points[points.length-1];
+    const prev = points[points.length-2];
+    const angle = Math.atan2(end.y - prev.y, end.x - prev.x);
+    drawVArrowhead(ctx, end.x, end.y, angle, colorHex);
+  }
   ctx.restore();
 }
 

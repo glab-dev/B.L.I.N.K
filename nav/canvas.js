@@ -137,8 +137,54 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
   const palette = (typeof resistorColors !== 'undefined' && resistorColors.length) ? resistorColors : ['#000000'];
   const lineColorFor = (ln) => palette[ln % palette.length];
 
-  // ---- Data labels (start badges: main green, backup magenta; flip swaps ends) ----
-  // Drawn BEFORE the data lines so the lines/arrows stay visible on top of the labels.
+  // ---- Data lines (serpentine arrows; matches data layout segmentation) ----
+  if(opts.showLines) {
+    ctx.save();
+    ctx.lineWidth = Math.max(3, panelResX * 0.05);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    const headLen = Math.max(8, panelResX * 0.2);
+    sortedLines.forEach(ln => {
+      const grp = ordering[ln];
+      if(!grp || grp.length < 2) return;
+      ctx.strokeStyle = lineColorFor(ln);
+      const segments = [];
+      let seg = [grp[0]];
+      for(let i = 1; i < grp.length; i++) {
+        const prev = grp[i - 1], curr = grp[i];
+        const colDiff = Math.abs(curr.col - prev.col), rowDiff = Math.abs(curr.row - prev.row);
+        const isAdjacent = (colDiff === 0) ||
+          (colDiff === 1 && (rowDiff === 0 || prev.row === 0 || prev.row === effectivePh - 1 || curr.row === 0 || curr.row === effectivePh - 1));
+        if(isAdjacent) seg.push(curr);
+        else { if(seg.length >= 2) segments.push(seg); seg = [curr]; }
+      }
+      if(seg.length >= 2) segments.push(seg);
+      segments.forEach(s => {
+        const pts = flip ? s.slice().reverse() : s;
+        ctx.beginPath();
+        ctx.moveTo(cX(pts[0].col), cY(pts[0].row));
+        for(let i = 1; i < pts.length; i++) ctx.lineTo(cX(pts[i].col), cY(pts[i].row));
+        ctx.stroke();
+        // Arrowhead at the end — hidden when labels are on (it overlaps the
+        // start/B badges and clutters the look; the line still shows the flow).
+        if(!opts.showLabels){
+          const end = pts[pts.length - 1], pen = pts[pts.length - 2];
+          const ex = cX(end.col), ey = cY(end.row);
+          const ang = Math.atan2(ey - cY(pen.row), ex - cX(pen.col));
+          ctx.beginPath();
+          ctx.moveTo(ex - headLen * Math.cos(ang - Math.PI / 6), ey - headLen * Math.sin(ang - Math.PI / 6));
+          ctx.lineTo(ex, ey);
+          ctx.lineTo(ex - headLen * Math.cos(ang + Math.PI / 6), ey - headLen * Math.sin(ang + Math.PI / 6));
+          ctx.stroke();
+        }
+      });
+    });
+    ctx.restore();
+  }
+
+  // ---- Data labels (start badges) ----
+  // Drawn ON TOP of the data lines so they stay readable (the end arrowheads are
+  // hidden while labels are on — see the lines block above).
   if(opts.showLabels) {
     const redundancy = !!data.redundancy;
     const badges = [];
@@ -184,48 +230,6 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
       });
       ctx.restore();
     }
-  }
-
-  // ---- Data lines (serpentine arrows; matches data layout segmentation) ----
-  if(opts.showLines) {
-    ctx.save();
-    ctx.lineWidth = Math.max(3, panelResX * 0.05);
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    const headLen = Math.max(8, panelResX * 0.2);
-    sortedLines.forEach(ln => {
-      const grp = ordering[ln];
-      if(!grp || grp.length < 2) return;
-      ctx.strokeStyle = lineColorFor(ln);
-      const segments = [];
-      let seg = [grp[0]];
-      for(let i = 1; i < grp.length; i++) {
-        const prev = grp[i - 1], curr = grp[i];
-        const colDiff = Math.abs(curr.col - prev.col), rowDiff = Math.abs(curr.row - prev.row);
-        const isAdjacent = (colDiff === 0) ||
-          (colDiff === 1 && (rowDiff === 0 || prev.row === 0 || prev.row === effectivePh - 1 || curr.row === 0 || curr.row === effectivePh - 1));
-        if(isAdjacent) seg.push(curr);
-        else { if(seg.length >= 2) segments.push(seg); seg = [curr]; }
-      }
-      if(seg.length >= 2) segments.push(seg);
-      segments.forEach(s => {
-        const pts = flip ? s.slice().reverse() : s;
-        ctx.beginPath();
-        ctx.moveTo(cX(pts[0].col), cY(pts[0].row));
-        for(let i = 1; i < pts.length; i++) ctx.lineTo(cX(pts[i].col), cY(pts[i].row));
-        ctx.stroke();
-        // Arrowhead at the end
-        const end = pts[pts.length - 1], pen = pts[pts.length - 2];
-        const ex = cX(end.col), ey = cY(end.row);
-        const ang = Math.atan2(ey - cY(pen.row), ex - cX(pen.col));
-        ctx.beginPath();
-        ctx.moveTo(ex - headLen * Math.cos(ang - Math.PI / 6), ey - headLen * Math.sin(ang - Math.PI / 6));
-        ctx.lineTo(ex, ey);
-        ctx.lineTo(ex - headLen * Math.cos(ang + Math.PI / 6), ey - headLen * Math.sin(ang + Math.PI / 6));
-        ctx.stroke();
-      });
-    });
-    ctx.restore();
   }
 
 }

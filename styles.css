@@ -5640,6 +5640,13 @@ canvas:focus {
   min-width: 0;
 }
 
+/* Logo Options: Static + Bounce as two equal side-by-side toggle buttons */
+.tp-logo-toggles .tp-toggle-row {
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+}
+
 
 /* Sweep column — stacked labels for narrow column */
 .tp-sweep-col .tp-slider-row {

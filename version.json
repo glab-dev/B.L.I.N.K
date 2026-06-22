@@ -1,5 +1,5 @@
 {
-  "version": "2.11.79",
+  "version": "2.11.80",
   "updated": "2026-06-22",
-  "changelog": "Make bounce a Logo-layer behavior; Logo button shows the logo, remove separate DVD Logo layer"
+  "changelog": "Move Static toggle under Position and place Bounce beside it in Logo Options"
 }

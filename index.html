@@ -751,10 +751,19 @@
             <option value="corners">Corner circles</option>
             <option value="all">All circles</option>
           </select>
+        </div>
+        <div class="tp-toggles-row tp-logo-toggles">
           <div class="tp-toggle-row">
             <span class="tp-label">Static</span>
             <label class="cp-mini-toggle">
               <input type="checkbox" id="tpLogoStatic">
+              <span class="cp-mini-toggle-slider"></span>
+            </label>
+          </div>
+          <div class="tp-toggle-row">
+            <span class="tp-label">Bounce</span>
+            <label class="cp-mini-toggle">
+              <input type="checkbox" id="tpBounceToggle">
               <span class="cp-mini-toggle-slider"></span>
             </label>
           </div>
@@ -766,13 +775,6 @@
         <div class="tp-slider-row">
           <label class="tp-label">Logo opacity: <span id="tpLogoOpacityVal">100%</span></label>
           <input type="range" id="tpLogoOpacity" class="tp-range" min="0" max="100" value="100">
-        </div>
-        <div class="tp-toggle-row">
-          <span class="tp-label">Bounce</span>
-          <label class="cp-mini-toggle">
-            <input type="checkbox" id="tpBounceToggle">
-            <span class="cp-mini-toggle-slider"></span>
-          </label>
         </div>
         <div class="tp-slider-row">
           <label class="tp-label">Bounce speed: <span id="tpBounceSpeedVal">50%</span></label>
@@ -3553,8 +3555,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.79';
-const APP_CHANGELOG = 'Make bounce a Logo-layer behavior; Logo button shows the logo, remove separate DVD Logo layer';
+const APP_VERSION = '2.11.80';
+const APP_CHANGELOG = 'Move Static toggle under Position and place Bounce beside it in Logo Options';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

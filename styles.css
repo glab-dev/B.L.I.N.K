@@ -1735,6 +1735,19 @@ canvas:focus {
   font-size: 12px;
   min-height: 36px;
 }
+/* Test Pattern: Quick Patterns preset row — 6 buttons wrap within the narrow column */
+.tp-preset-group {
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.tp-preset-group .toggle-btn {
+  flex: 1 1 28%;
+  min-width: 0;
+  padding: 6px 4px;
+  font-size: 12px;
+  min-height: 36px;
+}
 
 /* Toggle buttons */
 .toggle-btn, .unit-toggle-btn {

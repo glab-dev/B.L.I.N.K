@@ -71,10 +71,44 @@ var _tpUndoStack = [];
 var _tpRedoStack = [];
 var _tpMaxHistory = 30;
 
+// Solid color layer
+var tpSolidOn = false;
+var tpSolidColor = '#808080';
+// Gradient layer
+var tpGradientOn = false;
+var tpGradientColor1 = '#000000';
+var tpGradientColor2 = '#ffffff';
+var tpGradientDir = 'horizontal'; // 'horizontal' | 'vertical' | 'diagonal'
+// Strobe layer (animated)
+var tpStrobeOn = false;
+var tpStrobeColor1 = '#ffffff';
+var tpStrobeColor2 = '#000000';
+var tpStrobeSpeed = 50;      // 1-100 -> flash frequency
+var tpStrobeIntensity = 50;  // 1-100 -> duty cycle of color1
+var _tpStrobePhase = 0;      // runtime: 0 or 1 (which color is showing)
+// Diagonal whole-pattern scroll (wrapper, not a layer)
+var tpScrollOn = false;
+var tpScrollSpeed = 50;       // 1-100
+var _tpScrollOffsetX = 0;     // runtime px offset
+var _tpScrollOffsetY = 0;
+var _tpScrollBuffer = null;   // offscreen canvas, lazily created
+// DVD-style bouncing logo (animated)
+var tpBounceOn = false;
+var tpBounceLogoImage = null; // user-imported logo; null -> use default icon
+var _tpBounceDefaultImg = null; // lazily-loaded icons/icon-512.png
+var tpBounceSizePct = 50;
+var tpBounceSpeed = 50;
+var _tpBounceX = 0;           // runtime top-left position
+var _tpBounceY = 0;
+var _tpBounceVX = 1;          // runtime velocity sign
+var _tpBounceVY = 1;
+var _tpBounceInit = false;    // seeded position for current total size
+
 // --- Layer Order ---
 var _tpDefaultLayerOrder = [
-  'checker', 'bgImage', 'checkerBorder', 'grid', 'displayBoundaries', 'processorLines',
-  'circles', 'crosshair', 'colorBars', 'logo', 'outerBorder', 'sweep'
+  'solid', 'gradient', 'checker', 'bgImage', 'checkerBorder', 'grid', 'displayBoundaries',
+  'processorLines', 'circles', 'crosshair', 'colorBars', 'logo', 'bounceLogo',
+  'outerBorder', 'strobe', 'sweep'
 ];
 var tpLayerOrder = _tpDefaultLayerOrder.slice();
 
@@ -145,6 +179,31 @@ var _tpLayerRegistry = {
     if(!tpSweepOn) return;
     drawTPSweep(ctx, w, h, _tpSweepProgress);
     drawTPSweepVertical(ctx, w, h, _tpSweepProgress);
+  }},
+  solid: { name: 'Solid', draw: function(ctx, w, h) {
+    if(!tpSolidOn) return;
+    ctx.fillStyle = tpSolidColor;
+    ctx.fillRect(0, 0, w, h);
+  }},
+  gradient: { name: 'Gradient', draw: function(ctx, w, h) {
+    if(!tpGradientOn) return;
+    var x1 = w, y1 = 0;
+    if(tpGradientDir === 'vertical') { x1 = 0; y1 = h; }
+    else if(tpGradientDir === 'diagonal') { x1 = w; y1 = h; }
+    var g = ctx.createLinearGradient(0, 0, x1, y1);
+    g.addColorStop(0, tpGradientColor1);
+    g.addColorStop(1, tpGradientColor2);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  }},
+  strobe: { name: 'Strobe', draw: function(ctx, w, h) {
+    if(!tpStrobeOn) return;
+    ctx.fillStyle = _tpStrobePhase === 1 ? tpStrobeColor1 : tpStrobeColor2;
+    ctx.fillRect(0, 0, w, h);
+  }},
+  bounceLogo: { name: 'DVD Logo', draw: function(ctx, w, h) {
+    if(!tpBounceOn) return;
+    drawTPBounceLogo(ctx, w, h);
   }}
 };
 
@@ -175,6 +234,11 @@ function _tpGetState() {
     tpBgImageOn: tpBgImageOn, tpBgImage: tpBgImage,
     tpProcessorLinesOn: tpProcessorLinesOn,
     tpProcessorLineColor: tpProcessorLineColor,
+    tpSolidOn: tpSolidOn, tpSolidColor: tpSolidColor,
+    tpGradientOn: tpGradientOn, tpGradientColor1: tpGradientColor1, tpGradientColor2: tpGradientColor2, tpGradientDir: tpGradientDir,
+    tpStrobeOn: tpStrobeOn, tpStrobeColor1: tpStrobeColor1, tpStrobeColor2: tpStrobeColor2, tpStrobeSpeed: tpStrobeSpeed, tpStrobeIntensity: tpStrobeIntensity,
+    tpScrollOn: tpScrollOn, tpScrollSpeed: tpScrollSpeed,
+    tpBounceOn: tpBounceOn, tpBounceLogoImage: tpBounceLogoImage, tpBounceSizePct: tpBounceSizePct, tpBounceSpeed: tpBounceSpeed,
     tpLayerOrder: tpLayerOrder.slice()
   };
 }
@@ -203,6 +267,12 @@ function _tpApplyState(s) {
   tpBgImageOn = s.tpBgImageOn; tpBgImage = s.tpBgImage;
   tpProcessorLinesOn = s.tpProcessorLinesOn;
   tpProcessorLineColor = s.tpProcessorLineColor;
+  tpSolidOn = s.tpSolidOn; tpSolidColor = s.tpSolidColor;
+  tpGradientOn = s.tpGradientOn; tpGradientColor1 = s.tpGradientColor1; tpGradientColor2 = s.tpGradientColor2; tpGradientDir = s.tpGradientDir;
+  tpStrobeOn = s.tpStrobeOn; tpStrobeColor1 = s.tpStrobeColor1; tpStrobeColor2 = s.tpStrobeColor2; tpStrobeSpeed = s.tpStrobeSpeed; tpStrobeIntensity = s.tpStrobeIntensity;
+  tpScrollOn = s.tpScrollOn; tpScrollSpeed = s.tpScrollSpeed;
+  tpBounceOn = s.tpBounceOn; tpBounceLogoImage = s.tpBounceLogoImage; tpBounceSizePct = s.tpBounceSizePct; tpBounceSpeed = s.tpBounceSpeed;
+  _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpBounceInit = false;
   tpLayerOrder = s.tpLayerOrder ? s.tpLayerOrder.slice() : _tpDefaultLayerOrder.slice();
   _tpSyncDOM();
 }
@@ -271,6 +341,27 @@ function _tpSyncDOM() {
   document.getElementById('tpBgImageToggle').checked = tpBgImageOn;
   document.getElementById('tpProcessorLinesToggle').checked = tpProcessorLinesOn;
   document.getElementById('tpProcessorLineColor').value = tpProcessorLineColor;
+  document.getElementById('tpSolidToggle').checked = tpSolidOn;
+  document.getElementById('tpSolidColor').value = tpSolidColor;
+  document.getElementById('tpGradientToggle').checked = tpGradientOn;
+  document.getElementById('tpGradientColor1').value = tpGradientColor1;
+  document.getElementById('tpGradientColor2').value = tpGradientColor2;
+  document.getElementById('tpGradientDir').value = tpGradientDir;
+  document.getElementById('tpStrobeToggle').checked = tpStrobeOn;
+  document.getElementById('tpStrobeColor1').value = tpStrobeColor1;
+  document.getElementById('tpStrobeColor2').value = tpStrobeColor2;
+  document.getElementById('tpStrobeSpeed').value = tpStrobeSpeed;
+  document.getElementById('tpStrobeSpeedVal').textContent = tpStrobeSpeed + '%';
+  document.getElementById('tpStrobeIntensity').value = tpStrobeIntensity;
+  document.getElementById('tpStrobeIntensityVal').textContent = tpStrobeIntensity + '%';
+  document.getElementById('tpScrollToggle').checked = tpScrollOn;
+  document.getElementById('tpScrollSpeed').value = tpScrollSpeed;
+  document.getElementById('tpScrollSpeedVal').textContent = tpScrollSpeed + '%';
+  document.getElementById('tpBounceToggle').checked = tpBounceOn;
+  document.getElementById('tpBounceSize').value = tpBounceSizePct;
+  document.getElementById('tpBounceSizeVal').textContent = tpBounceSizePct + '%';
+  document.getElementById('tpBounceSpeed').value = tpBounceSpeed;
+  document.getElementById('tpBounceSpeedVal').textContent = tpBounceSpeed + '%';
 
   updateTotalSize();
   _tpRestartAnimationIfNeeded();
@@ -325,6 +416,7 @@ function _tpGetSerializableState() {
   var s = _tpGetState();
   s.tpLogoImage = _tpImageToDataURL(s.tpLogoImage);
   s.tpBgImage = _tpImageToDataURL(s.tpBgImage);
+  s.tpBounceLogoImage = _tpImageToDataURL(s.tpBounceLogoImage);
   return s;
 }
 
@@ -353,6 +445,14 @@ function _tpLoadSerializedState(data, callback) {
     bgImg.onload = function() { data.tpBgImage = bgImg; checkDone(); };
     bgImg.onerror = function() { data.tpBgImage = null; checkDone(); };
     bgImg.src = data.tpBgImage;
+  }
+
+  if(data.tpBounceLogoImage && typeof data.tpBounceLogoImage === 'string') {
+    pending++;
+    var bounceImg = new Image();
+    bounceImg.onload = function() { data.tpBounceLogoImage = bounceImg; checkDone(); };
+    bounceImg.onerror = function() { data.tpBounceLogoImage = null; checkDone(); };
+    bounceImg.src = data.tpBounceLogoImage;
   }
 
   if(pending === 0) {
@@ -707,10 +807,18 @@ function resetTestPattern() {
   tpSweepOn = false; tpSweepColor = '#ffffff'; tpSweepColorV = '#ffffff';
   tpSweepDuration = 5; tpSweepWidthPct = 2;
   tpSweepFps = 60;
+  tpSolidOn = false; tpSolidColor = '#808080';
+  tpGradientOn = false; tpGradientColor1 = '#000000'; tpGradientColor2 = '#ffffff'; tpGradientDir = 'horizontal';
+  tpStrobeOn = false; tpStrobeColor1 = '#ffffff'; tpStrobeColor2 = '#000000'; tpStrobeSpeed = 50; tpStrobeIntensity = 50;
+  tpScrollOn = false; tpScrollSpeed = 50;
+  tpBounceOn = false; tpBounceLogoImage = null; tpBounceSizePct = 50; tpBounceSpeed = 50;
 
   // Stop animations if running
   _tpStopAnimation();
   _tpCircleAngle = 0;
+  _tpStrobePhase = 0;
+  _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpScrollBuffer = null;
+  _tpBounceInit = false; _tpBounceVX = 1; _tpBounceVY = 1;
 
   // Sync DOM inputs
   document.getElementById('tpImageName').value = '';
@@ -776,10 +884,58 @@ function resetTestPattern() {
   document.getElementById('tpBgImageFile').value = '';
   document.getElementById('tpProcessorLinesToggle').checked = false;
   document.getElementById('tpProcessorLineColor').value = '#ff0000';
+  document.getElementById('tpSolidToggle').checked = false;
+  document.getElementById('tpSolidColor').value = '#808080';
+  document.getElementById('tpGradientToggle').checked = false;
+  document.getElementById('tpGradientColor1').value = '#000000';
+  document.getElementById('tpGradientColor2').value = '#ffffff';
+  document.getElementById('tpGradientDir').value = 'horizontal';
+  document.getElementById('tpStrobeToggle').checked = false;
+  document.getElementById('tpStrobeColor1').value = '#ffffff';
+  document.getElementById('tpStrobeColor2').value = '#000000';
+  document.getElementById('tpStrobeSpeed').value = 50;
+  document.getElementById('tpStrobeSpeedVal').textContent = '50%';
+  document.getElementById('tpStrobeIntensity').value = 50;
+  document.getElementById('tpStrobeIntensityVal').textContent = '50%';
+  document.getElementById('tpScrollToggle').checked = false;
+  document.getElementById('tpScrollSpeed').value = 50;
+  document.getElementById('tpScrollSpeedVal').textContent = '50%';
+  document.getElementById('tpBounceToggle').checked = false;
+  document.getElementById('tpBounceSize').value = 50;
+  document.getElementById('tpBounceSizeVal').textContent = '50%';
+  document.getElementById('tpBounceSpeed').value = 50;
+  document.getElementById('tpBounceSpeedVal').textContent = '50%';
+  document.getElementById('tpBounceFile').value = '';
   syncTpDisplaySizeButtons();
 
   updateTotalSize();
   scheduleTestPatternRedraw();
+  _tpUpdateUndoRedoBtns();
+}
+
+// --- Quick Patterns ---
+// One-tap exclusive full-screen pattern: clears the primary content layers and
+// enables just the chosen one. Modifiers (sweep/scroll/bounce/logo/etc.) are left as-is.
+// Wrapped in tpSaveState() so a single Undo restores the prior configuration.
+function applyTpPreset(name) {
+  tpSaveState();
+  tpColorBarsOn = false;
+  tpCheckerOn = false;
+  tpGridSizePct = 0;
+  tpCirclesOn = false;
+  tpSolidOn = false;
+  tpGradientOn = false;
+  tpStrobeOn = false;
+  switch(name) {
+    case 'smpte': tpColorBarsOn = true; tpColorBarsMode = 'default'; break;
+    case 'grid': tpGridSizePct = 50; break;
+    case 'checker': tpCheckerOn = true; break;
+    case 'gradient': tpGradientOn = true; break;
+    case 'strobe': tpStrobeOn = true; _tpStrobePhase = 0; break;
+    case 'solid': tpSolidOn = true; break;
+  }
+  _tpSyncDOM();
+  _tpRestartAnimationIfNeeded();
   _tpUpdateUndoRedoBtns();
 }
 
@@ -1222,6 +1378,93 @@ function initTestPatternControls() {
     scheduleTestPatternRedraw();
   });
 
+  // Gradient
+  document.getElementById('tpGradientToggle').addEventListener('change', function() {
+    tpGradientOn = this.checked;
+    scheduleTestPatternRedraw();
+  });
+  document.getElementById('tpGradientColor1').addEventListener('input', function() {
+    tpGradientColor1 = this.value;
+    scheduleTestPatternRedraw();
+  });
+  document.getElementById('tpGradientColor2').addEventListener('input', function() {
+    tpGradientColor2 = this.value;
+    scheduleTestPatternRedraw();
+  });
+  document.getElementById('tpGradientDir').addEventListener('change', function() {
+    tpGradientDir = this.value;
+    scheduleTestPatternRedraw();
+  });
+
+  // Solid color
+  document.getElementById('tpSolidToggle').addEventListener('change', function() {
+    tpSolidOn = this.checked;
+    scheduleTestPatternRedraw();
+  });
+  document.getElementById('tpSolidColor').addEventListener('input', function() {
+    tpSolidColor = this.value;
+    scheduleTestPatternRedraw();
+  });
+
+  // Strobe (animated)
+  document.getElementById('tpStrobeToggle').addEventListener('change', function() {
+    tpStrobeOn = this.checked;
+    if(this.checked) _tpStrobePhase = 0;
+    _tpRestartAnimationIfNeeded();
+  });
+  document.getElementById('tpStrobeColor1').addEventListener('input', function() {
+    tpStrobeColor1 = this.value;
+    scheduleTestPatternRedraw();
+  });
+  document.getElementById('tpStrobeColor2').addEventListener('input', function() {
+    tpStrobeColor2 = this.value;
+    scheduleTestPatternRedraw();
+  });
+  document.getElementById('tpStrobeSpeed').addEventListener('input', function() {
+    tpStrobeSpeed = parseInt(this.value);
+    document.getElementById('tpStrobeSpeedVal').textContent = this.value + '%';
+  });
+  document.getElementById('tpStrobeIntensity').addEventListener('input', function() {
+    tpStrobeIntensity = parseInt(this.value);
+    document.getElementById('tpStrobeIntensityVal').textContent = this.value + '%';
+  });
+
+  // Diagonal scroll (animated)
+  document.getElementById('tpScrollToggle').addEventListener('change', function() {
+    tpScrollOn = this.checked;
+    _tpScrollOffsetX = 0;
+    _tpScrollOffsetY = 0;
+    if(!this.checked) _tpScrollBuffer = null;
+    _tpRestartAnimationIfNeeded();
+  });
+  document.getElementById('tpScrollSpeed').addEventListener('input', function() {
+    tpScrollSpeed = parseInt(this.value);
+    document.getElementById('tpScrollSpeedVal').textContent = this.value + '%';
+  });
+
+  // DVD bounce logo (animated)
+  document.getElementById('tpBounceToggle').addEventListener('change', function() {
+    tpBounceOn = this.checked;
+    if(this.checked) {
+      _tpBounceInit = false;
+      _tpEnsureBounceDefault(function() { _tpRestartAnimationIfNeeded(); });
+    } else {
+      _tpRestartAnimationIfNeeded();
+    }
+  });
+  document.getElementById('tpBounceFile').addEventListener('change', function(e) {
+    handleBounceLogoImport(e);
+  });
+  document.getElementById('tpBounceSize').addEventListener('input', function() {
+    tpBounceSizePct = parseInt(this.value);
+    document.getElementById('tpBounceSizeVal').textContent = this.value + '%';
+    if(!tpBounceOn) scheduleTestPatternRedraw();
+  });
+  document.getElementById('tpBounceSpeed').addEventListener('input', function() {
+    tpBounceSpeed = parseInt(this.value);
+    document.getElementById('tpBounceSpeedVal').textContent = this.value + '%';
+  });
+
   // Hamburger menu
   var hamburgerBtn = document.getElementById('tpHamburgerBtn');
   var hamburgerMenu = document.getElementById('tpHamburgerMenu');
@@ -1502,6 +1745,67 @@ function handleLogoImport(event) {
   reader.readAsDataURL(file);
 }
 
+// --- DVD Bounce Logo ---
+
+function _tpBounceImg() {
+  return tpBounceLogoImage || _tpBounceDefaultImg;
+}
+
+function _tpBounceDims(img, totalW, totalH) {
+  var minDim = Math.min(totalW, totalH);
+  var logoH = minDim * (0.05 + (tpBounceSizePct / 100) * 0.30);
+  var logoW = logoH * (img.width / img.height);
+  return { w: logoW, h: logoH };
+}
+
+function drawTPBounceLogo(ctx, w, h) {
+  var img = _tpBounceImg();
+  if(!img || !img.width) return;
+  var d = _tpBounceDims(img, w, h);
+  ctx.drawImage(img, _tpBounceX, _tpBounceY, d.w, d.h);
+}
+
+// Lazy-load the bundled BLINK icon as the default bounce logo (same-origin).
+function _tpEnsureBounceDefault(cb) {
+  if(_tpBounceDefaultImg || tpBounceLogoImage) { if(cb) cb(); return; }
+  var img = new Image();
+  img.onload = function() { _tpBounceDefaultImg = img; if(cb) cb(); };
+  img.onerror = function() { if(cb) cb(); };
+  img.src = 'icons/icon-512.png';
+}
+
+function handleBounceLogoImport(event) {
+  var file = event.target.files[0];
+  if(!file) return;
+
+  if(!file.type.startsWith('image/')) {
+    showAlert('Please select an image file (PNG, JPG, etc.).');
+    event.target.value = '';
+    return;
+  }
+
+  if(file.size > 10 * 1024 * 1024) {
+    showAlert('Logo file is too large (max 10MB).');
+    event.target.value = '';
+    return;
+  }
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      tpBounceLogoImage = img;
+      _tpBounceInit = false;
+      _tpRestartAnimationIfNeeded();
+    };
+    img.onerror = function() {
+      showAlert('Failed to load logo image.');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 function handleBgImageImport(event) {
   var file = event.target.files[0];
   if(!file) return;
@@ -1578,6 +1882,34 @@ function renderTestPattern(forExport, targetCanvas) {
     ctx.scale(previewScale, previewScale);
   }
 
+  if(!tpScrollOn) {
+    _tpComposeFrame(ctx, totalW, totalH);
+    return;
+  }
+
+  // Diagonal scroll: compose once to a full-res offscreen buffer, then tile-blit it
+  // across a 2x2 neighborhood at the animated offset so the wrap seam is always covered.
+  if(!_tpScrollBuffer) _tpScrollBuffer = document.createElement('canvas');
+  if(_tpScrollBuffer.width !== totalW || _tpScrollBuffer.height !== totalH) {
+    _tpScrollBuffer.width = totalW;
+    _tpScrollBuffer.height = totalH;
+  }
+  var bctx = _tpScrollBuffer.getContext('2d');
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  _tpComposeFrame(bctx, totalW, totalH);
+
+  var ox = ((_tpScrollOffsetX % totalW) + totalW) % totalW;
+  var oy = ((_tpScrollOffsetY % totalH) + totalH) % totalH;
+  for(var dx = -1; dx <= 0; dx++) {
+    for(var dy = -1; dy <= 0; dy++) {
+      ctx.drawImage(_tpScrollBuffer, ox + dx * totalW, oy + dy * totalH);
+    }
+  }
+}
+
+// Composite the full pattern (background + all layers + fixed top layers) into ctx
+// at full pattern dimensions. Caller applies any preview scaling to ctx beforehand.
+function _tpComposeFrame(ctx, totalW, totalH) {
   // 1. Background (fixed — always first)
   drawTPBackground(ctx, totalW, totalH);
 
@@ -2241,7 +2573,57 @@ function drawTPLogo(ctx, w, h) {
 // --- Export Button State ---
 
 function _tpNeedsAnimation() {
-  return tpCircleSpinMode !== 'static' || tpCircleRevMode !== 'none';
+  return tpCircleSpinMode !== 'static' || tpCircleRevMode !== 'none'
+      || tpStrobeOn || tpScrollOn || tpBounceOn;
+}
+
+// Strobe phase (0/1) at elapsed time t — shared by the live loop and MP4 export.
+function _tpStrobePhaseAt(t) {
+  var hz = 1 + (tpStrobeSpeed / 100) * 19; // 1..20 Hz
+  var period = 1 / hz;
+  var phasePos = (t % period) / period; // 0..1
+  var duty = Math.max(0.02, Math.min(0.98, tpStrobeIntensity / 100));
+  return phasePos < duty ? 1 : 0;
+}
+
+function _tpScrollPxPerSec() {
+  var totalW = tpDisplayW * tpDisplaysWide;
+  var totalH = tpDisplayH * tpDisplaysHigh;
+  return (tpScrollSpeed / 100) * Math.min(totalW, totalH) * 0.5;
+}
+
+// Advance the bouncing logo by dt seconds, reflecting off the four edges.
+function _tpStepBounce(dt) {
+  var totalW = tpDisplayW * tpDisplaysWide;
+  var totalH = tpDisplayH * tpDisplaysHigh;
+  var img = _tpBounceImg();
+  if(!img || !img.width) return;
+  var d = _tpBounceDims(img, totalW, totalH);
+  if(!_tpBounceInit) {
+    _tpBounceX = (totalW - d.w) / 2;
+    _tpBounceY = (totalH - d.h) / 2;
+    if(_tpBounceVX === 0) _tpBounceVX = 1;
+    if(_tpBounceVY === 0) _tpBounceVY = 1;
+    _tpBounceInit = true;
+  }
+  var spd = (tpBounceSpeed / 100) * Math.min(totalW, totalH) * 0.4; // px/sec
+  _tpBounceX += dt * spd * _tpBounceVX;
+  _tpBounceY += dt * spd * _tpBounceVY;
+  if(_tpBounceX <= 0) { _tpBounceX = 0; _tpBounceVX = 1; }
+  else if(_tpBounceX + d.w >= totalW) { _tpBounceX = totalW - d.w; _tpBounceVX = -1; }
+  if(_tpBounceY <= 0) { _tpBounceY = 0; _tpBounceVY = 1; }
+  else if(_tpBounceY + d.h >= totalH) { _tpBounceY = totalH - d.h; _tpBounceVY = -1; }
+}
+
+// Advance strobe/scroll/bounce deterministically for an MP4 export frame.
+function _tpAdvanceExportExtras(frameTime, fps) {
+  if(tpStrobeOn) _tpStrobePhase = _tpStrobePhaseAt(frameTime);
+  if(tpScrollOn) {
+    var sp = _tpScrollPxPerSec();
+    _tpScrollOffsetX = frameTime * sp;
+    _tpScrollOffsetY = frameTime * sp;
+  }
+  if(tpBounceOn) _tpStepBounce(1 / fps);
 }
 
 function _tpNeedsVideoExport() {
@@ -2429,9 +2811,23 @@ function _tpStartAnimation() {
       _tpSweepProgress = (elapsed % tpSweepDuration) / tpSweepDuration;
     }
 
-    if(_tpNeedsAnimation()) {
+    if(tpCircleSpinMode !== 'static' || tpCircleRevMode !== 'none') {
       // Accumulate angle positively; direction applied per-circle at draw time
       _tpCircleAngle += dt * (2 * Math.PI / 5) * (tpCircleSpinSpeed / 100);
+    }
+
+    if(tpStrobeOn) {
+      _tpStrobePhase = _tpStrobePhaseAt(elapsed);
+    }
+
+    if(tpScrollOn) {
+      var scrollSp = _tpScrollPxPerSec();
+      _tpScrollOffsetX += dt * scrollSp;
+      _tpScrollOffsetY += dt * scrollSp;
+    }
+
+    if(tpBounceOn) {
+      _tpStepBounce(dt);
     }
 
     renderTestPattern(false);
@@ -2508,6 +2904,12 @@ async function exportTestPatternVideo() {
   // Save current animation state
   var savedSweepProgress = _tpSweepProgress;
   var savedCircleAngle = _tpCircleAngle;
+  var savedStrobePhase = _tpStrobePhase;
+  var savedScrollX = _tpScrollOffsetX, savedScrollY = _tpScrollOffsetY;
+  var savedBounceX = _tpBounceX, savedBounceY = _tpBounceY;
+  var savedBounceVX = _tpBounceVX, savedBounceVY = _tpBounceVY, savedBounceInit = _tpBounceInit;
+  // Start animated extras from a clean state for a reproducible export loop
+  _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpBounceInit = false;
 
   try {
     var ctx = canvas.getContext('2d');
@@ -2653,6 +3055,7 @@ async function exportTestPatternVideo() {
         if(tpSweepOn) {
           _tpSweepProgress = t;
         }
+        _tpAdvanceExportExtras(frameTime, fps);
         renderTestPattern(true);
       } else {
         // Static bg + sweep overlay only
@@ -2697,6 +3100,10 @@ async function exportTestPatternVideo() {
   // Restore state
   _tpSweepProgress = savedSweepProgress;
   _tpCircleAngle = savedCircleAngle;
+  _tpStrobePhase = savedStrobePhase;
+  _tpScrollOffsetX = savedScrollX; _tpScrollOffsetY = savedScrollY;
+  _tpBounceX = savedBounceX; _tpBounceY = savedBounceY;
+  _tpBounceVX = savedBounceVX; _tpBounceVY = savedBounceVY; _tpBounceInit = savedBounceInit;
   _tpIsRecording = false;
   mp4Label.textContent = 'Export MP4';
   mp4Btn.disabled = false;
@@ -2737,6 +3144,11 @@ async function getTestPatternMp4Blob(callback) {
 
   var savedSweepProgress = _tpSweepProgress;
   var savedCircleAngle = _tpCircleAngle;
+  var savedStrobePhase = _tpStrobePhase;
+  var savedScrollX = _tpScrollOffsetX, savedScrollY = _tpScrollOffsetY;
+  var savedBounceX = _tpBounceX, savedBounceY = _tpBounceY;
+  var savedBounceVX = _tpBounceVX, savedBounceVY = _tpBounceVY, savedBounceInit = _tpBounceInit;
+  _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpBounceInit = false;
 
   try {
     var ctx = canvas.getContext('2d');
@@ -2820,6 +3232,7 @@ async function getTestPatternMp4Blob(callback) {
       if(hasSpinning) {
         _tpCircleAngle = frameTime * (2 * Math.PI / 5) * (tpCircleSpinSpeed / 100);
         if(tpSweepOn) _tpSweepProgress = t;
+        _tpAdvanceExportExtras(frameTime, fps);
         renderTestPattern(true);
       } else {
         ctx.putImageData(bgImageData, 0, 0);
@@ -2846,6 +3259,10 @@ async function getTestPatternMp4Blob(callback) {
 
   _tpSweepProgress = savedSweepProgress;
   _tpCircleAngle = savedCircleAngle;
+  _tpStrobePhase = savedStrobePhase;
+  _tpScrollOffsetX = savedScrollX; _tpScrollOffsetY = savedScrollY;
+  _tpBounceX = savedBounceX; _tpBounceY = savedBounceY;
+  _tpBounceVX = savedBounceVX; _tpBounceVY = savedBounceVY; _tpBounceInit = savedBounceInit;
   _tpIsRecording = false;
   renderTestPattern(false);
   _tpRestartAnimationIfNeeded();

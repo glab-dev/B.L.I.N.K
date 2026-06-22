@@ -317,6 +317,20 @@
     <!-- Column 1: Setup -->
     <div class="tp-controls-col">
       <div class="tp-section-header">
+        <span class="tp-section-title">Quick Patterns</span>
+      </div>
+      <div class="tp-control-group">
+        <div class="toggle-group tp-preset-group">
+          <button type="button" class="toggle-btn" onclick="applyTpPreset('smpte')">SMPTE</button>
+          <button type="button" class="toggle-btn" onclick="applyTpPreset('grid')">Grid</button>
+          <button type="button" class="toggle-btn" onclick="applyTpPreset('checker')">Checker</button>
+          <button type="button" class="toggle-btn" onclick="applyTpPreset('gradient')">Gradient</button>
+          <button type="button" class="toggle-btn" onclick="applyTpPreset('strobe')">Strobe</button>
+          <button type="button" class="toggle-btn" onclick="applyTpPreset('solid')">Solid</button>
+        </div>
+      </div>
+
+      <div class="tp-section-header">
         <span class="tp-section-title">Screen Options</span>
       </div>
       <div class="tp-control-group">
@@ -621,6 +635,55 @@
           <input type="range" id="tpBorderOpacity" class="tp-range" min="0" max="100" value="100">
         </div>
       </div>
+
+      <div class="tp-section-header">
+        <span class="tp-section-title">Gradient</span>
+      </div>
+
+      <div class="tp-sweep-header">
+        <div class="tp-toggle-row">
+          <span class="tp-label">Gradient</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpGradientToggle">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="tp-inline-color-group">
+          <span class="tp-inline-label">Color 1</span>
+          <input type="color" id="tpGradientColor1" class="tp-color-input" value="#000000">
+        </div>
+        <div class="tp-inline-color-group">
+          <span class="tp-inline-label">Color 2</span>
+          <input type="color" id="tpGradientColor2" class="tp-color-input" value="#ffffff">
+        </div>
+      </div>
+
+      <div class="tp-sweep-header">
+        <span class="tp-label">Direction</span>
+        <select id="tpGradientDir" class="tp-select tp-select-narrow">
+          <option value="horizontal" selected>Horizontal</option>
+          <option value="vertical">Vertical</option>
+          <option value="diagonal">Diagonal</option>
+        </select>
+      </div>
+
+      <div class="tp-section-header">
+        <span class="tp-section-title">Solid Color</span>
+      </div>
+
+      <div class="tp-sweep-header">
+        <div class="tp-toggle-row">
+          <span class="tp-label">Solid</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpSolidToggle">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="tp-inline-color-group">
+          <span class="tp-inline-label">Color</span>
+          <input type="color" id="tpSolidColor" class="tp-color-input" value="#808080">
+        </div>
+      </div>
     </div>
 
     <!-- Column 4: Sweep Options -->
@@ -710,6 +773,78 @@
         </div>
         <button class="tp-choose-file-btn" onclick="document.getElementById('tpBgImageFile').click()">Choose File</button>
         <input type="file" id="tpBgImageFile" class="tp-file-input-hidden" accept="image/*">
+      </div>
+
+      <div class="tp-section-header">
+        <span class="tp-section-title">Strobe</span>
+      </div>
+
+      <div class="tp-sweep-header">
+        <div class="tp-toggle-row">
+          <span class="tp-label">Strobe</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpStrobeToggle">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <input type="color" id="tpStrobeColor1" class="tp-color-input" value="#ffffff" title="Color 1">
+        <input type="color" id="tpStrobeColor2" class="tp-color-input" value="#000000" title="Color 2">
+      </div>
+
+      <div class="tp-slider-row">
+        <label class="tp-label">Speed: <span id="tpStrobeSpeedVal">50%</span></label>
+        <input type="range" id="tpStrobeSpeed" class="tp-range" min="1" max="100" value="50">
+      </div>
+
+      <div class="tp-slider-row">
+        <label class="tp-label">Intensity: <span id="tpStrobeIntensityVal">50%</span></label>
+        <input type="range" id="tpStrobeIntensity" class="tp-range" min="1" max="100" value="50">
+      </div>
+
+      <div class="tp-section-header">
+        <span class="tp-section-title">Scroll</span>
+      </div>
+
+      <div class="tp-sweep-header">
+        <div class="tp-toggle-row">
+          <span class="tp-label">Diagonal scroll</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpScrollToggle">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="tp-slider-row">
+        <label class="tp-label">Scroll speed: <span id="tpScrollSpeedVal">50%</span></label>
+        <input type="range" id="tpScrollSpeed" class="tp-range" min="1" max="100" value="50">
+      </div>
+
+      <div class="tp-section-header">
+        <span class="tp-section-title">DVD Logo</span>
+      </div>
+
+      <div class="tp-logo-header">
+        <div class="tp-toggle-row">
+          <span class="tp-label">Bounce</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpBounceToggle">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <button class="tp-choose-file-btn" onclick="document.getElementById('tpBounceFile').click()">Choose File</button>
+        <input type="file" id="tpBounceFile" class="tp-file-input-hidden" accept="image/*">
+      </div>
+
+      <div class="tp-logo-controls">
+        <div class="tp-slider-row">
+          <label class="tp-label">Logo size: <span id="tpBounceSizeVal">50%</span></label>
+          <input type="range" id="tpBounceSize" class="tp-range" min="0" max="100" value="50">
+        </div>
+        <div class="tp-slider-row">
+          <label class="tp-label">Bounce speed: <span id="tpBounceSpeedVal">50%</span></label>
+          <input type="range" id="tpBounceSpeed" class="tp-range" min="1" max="100" value="50">
+        </div>
       </div>
     </div>
   </div>
@@ -3424,8 +3559,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.76';
-const APP_CHANGELOG = 'Overlay canvas screen labels over live panels with per-screen toggle';
+const APP_VERSION = '2.11.77';
+const APP_CHANGELOG = 'Add test pattern gradient, solid, strobe, diagonal scroll, DVD-bounce logo, and quick presets';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

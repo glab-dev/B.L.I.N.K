@@ -1,5 +1,5 @@
 {
-  "version": "2.11.75",
-  "updated": "2026-06-16",
-  "changelog": "Draw data-line labels over the lines and hide end arrows in Data and Canvas views"
+  "version": "2.11.76",
+  "updated": "2026-06-22",
+  "changelog": "Overlay canvas screen labels over live panels with per-screen toggle"
 }

@@ -54,6 +54,10 @@ function buildCurrentConfig() {
       color: screen.color,
       color2: screen.color2,
       visible: screen.visible,
+      showName: screen.showName !== false,
+      showCoordinates: screen.showCoordinates !== false,
+      showPixelDimensions: screen.showPixelDimensions !== false,
+      showCrosshair: screen.showCrosshair !== false,
       data: {
         panelsWide: data.panelsWide,
         panelsHigh: data.panelsHigh,
@@ -398,6 +402,10 @@ function applyConfiguration(config) {
         color: screenColor,
         color2: screenColor2,
         visible: savedScreen.visible !== false,
+        showName: savedScreen.showName !== false,
+        showCoordinates: savedScreen.showCoordinates !== false,
+        showPixelDimensions: savedScreen.showPixelDimensions !== false,
+        showCrosshair: savedScreen.showCrosshair !== false,
         data: {
           ...safeData,
           deletedPanels: deletedPanelsSet,

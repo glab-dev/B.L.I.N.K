@@ -72,6 +72,7 @@ function renderRasterScreenTable() {
     var rows = data.panelsHigh || 0;
 
     var safeId = escapeJsString(screenId);
+    var showName = screen.showName !== false;
     var showCoords = screen.showCoordinates !== false;
     var showPixels = screen.showPixelDimensions !== false;
     var showCross = screen.showCrosshair !== false;
@@ -119,8 +120,11 @@ function renderRasterScreenTable() {
     html += '<td data-label="Offset Y"><input type="number" class="raster-input raster-num" ' + (oy ? 'value="' + oy + '"' : '') + ' placeholder="0" ' +
             'oninput="updateRasterScreenPos(\'' + safeId + '\', \'canvasY\', this.value)"></td>';
 
-    // Overlay toggles (X/Y, Pixels, Crosshair)
+    // Overlay toggles (Name, X/Y, Pixels, Crosshair)
     html += '<td data-label="Overlays"><div class="raster-overlays">' +
+            '<button type="button" class="raster-toggle-btn ' + (showName ? 'active' : '') + '" ' +
+            'style="' + (showName ? textOutline : '') + '" ' +
+            'onclick="toggleRasterOverlay(\'' + safeId + '\', \'showName\')">Nm</button>' +
             '<button type="button" class="raster-toggle-btn ' + (showCoords ? 'active' : '') + '" ' +
             'style="' + (showCoords ? textOutline : '') + '" ' +
             'onclick="toggleRasterOverlay(\'' + safeId + '\', \'showCoordinates\')">X/Y</button>' +
@@ -824,6 +828,7 @@ async function saveRasterFile() {
       color: screen.color || '#808080',
       color2: screen.color2 || '#606060',
       visible: screen.visible !== false,
+      showName: screen.showName !== false,
       showCoordinates: screen.showCoordinates !== false,
       showPixelDimensions: screen.showPixelDimensions !== false,
       showCrosshair: screen.showCrosshair !== false,
@@ -997,6 +1002,7 @@ function applyRasterFile(config) {
       color: screenColor,
       color2: screenColor2,
       visible: saved.visible !== false,
+      showName: saved.showName !== false,
       showCoordinates: saved.showCoordinates !== false,
       showPixelDimensions: saved.showPixelDimensions !== false,
       showCrosshair: saved.showCrosshair !== false,

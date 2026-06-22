@@ -565,27 +565,6 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
       ctx.fillText(yText, textX, textY + lineHeight);
     }
 
-    // Add screen name overlay - simplified shadow
-    const screenName = screen.name;
-    if(screenName) {
-      const wallCenterX = offsetX + (wallResX / 2);
-      const wallCenterY = offsetY + (wallResY / 2);
-      const baseFontSize = Math.min(wallResX, wallResY) * 0.15;
-
-      ctx.font = `bold ${baseFontSize}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      // Simple shadow (reduced from 13 to 4 draws)
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.fillText(screenName, wallCenterX + 3, wallCenterY + 3);
-      ctx.fillText(screenName, wallCenterX - 2, wallCenterY + 2);
-
-      // Yellow text on top
-      ctx.fillStyle = '#FFFF00';
-      ctx.fillText(screenName, wallCenterX, wallCenterY);
-    }
-
     // Add screen resolution at bottom-left (if enabled for this screen) - simplified shadow
     if(screen.showPixelDimensions !== false) {
       const resFontSize = Math.max(10, Math.min(wallResX, wallResY) * 0.041);
@@ -628,6 +607,64 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     // and other annotations (front view; canvas only).
     if(dataOverlay && dataOverlay.active) {
       drawScreenDataOverlay(ctx, screen, offsetX, offsetY, p.res_x, p.res_y, ph, hasCB5HalfRow, { showLines: dataOverlay.showLines, showLabels: dataOverlay.showLabels });
+    }
+
+    // Screen name overlay — drawn last so it sits on top of everything (incl.
+    // data lines/labels). Positioned over live panels (centroid of non-deleted
+    // panels) so it doesn't land on knocked-out panels; snaps to the nearest
+    // live panel center if the centroid itself falls on a deleted panel.
+    const screenName = screen.name;
+    if(screen.showName !== false && screenName) {
+      let sumX = 0, sumY = 0, liveCount = 0;
+      for(let c = 0; c < pw; c++) {
+        for(let r = 0; r < totalRows; r++) {
+          if(deletedPanelsForScreen.has(`${c},${r}`)) continue;
+          const isHalfPanelRow = hasCB5HalfRow && (r === ph);
+          const panelResY = isHalfPanelRow ? halfPanel.res_y : p.res_y;
+          sumX += offsetX + c * p.res_x + p.res_x / 2;
+          sumY += offsetY + r * p.res_y + panelResY / 2;
+          liveCount++;
+        }
+      }
+
+      if(liveCount > 0) {
+        let labelX = sumX / liveCount;
+        let labelY = sumY / liveCount;
+
+        // Donut/ring layouts: if the centroid lands on a deleted panel, snap to
+        // the nearest live panel center.
+        const centroidCol = Math.floor((labelX - offsetX) / p.res_x);
+        const centroidRow = Math.floor((labelY - offsetY) / p.res_y);
+        if(deletedPanelsForScreen.has(`${centroidCol},${centroidRow}`)) {
+          const cx = labelX, cy = labelY;
+          let bestDist = Infinity;
+          for(let c = 0; c < pw; c++) {
+            for(let r = 0; r < totalRows; r++) {
+              if(deletedPanelsForScreen.has(`${c},${r}`)) continue;
+              const isHalfPanelRow = hasCB5HalfRow && (r === ph);
+              const panelResY = isHalfPanelRow ? halfPanel.res_y : p.res_y;
+              const pcx = offsetX + c * p.res_x + p.res_x / 2;
+              const pcy = offsetY + r * p.res_y + panelResY / 2;
+              const d = (pcx - cx) * (pcx - cx) + (pcy - cy) * (pcy - cy);
+              if(d < bestDist) { bestDist = d; labelX = pcx; labelY = pcy; }
+            }
+          }
+        }
+
+        const baseFontSize = Math.min(wallResX, wallResY) * 0.15;
+        ctx.font = `bold ${baseFontSize}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Simple shadow (reduced from 13 to 4 draws)
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillText(screenName, labelX + 3, labelY + 3);
+        ctx.fillText(screenName, labelX - 2, labelY + 2);
+
+        // Yellow text on top
+        ctx.fillStyle = '#FFFF00';
+        ctx.fillText(screenName, labelX, labelY);
+      }
     }
 }
 
@@ -2570,6 +2607,7 @@ function updateCanvasScreenToggles() {
   });
   screenIds.forEach(screenId => {
     const screen = screens[screenId];
+    const showName = screen.showName !== false;
     const showCoords = screen.showCoordinates !== false;
     const showPixels = screen.showPixelDimensions !== false;
     const showCrosshair = screen.showCrosshair !== false;
@@ -2586,6 +2624,9 @@ function updateCanvasScreenToggles() {
           ${escapeHtml(screen.name)}
         </button>
         <div style="display: flex; gap: 4px;">
+          <button type="button" class="toggle-btn ${showName ? 'active' : ''}"
+                  style="padding: 6px 8px; font-size: 12px; min-width: 44px; min-height: 32px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showName ? textOutline : ''}"
+                  onclick="toggleScreenName('${safeScreenId}')" title="Show screen name">Name</button>
           <button type="button" class="toggle-btn ${showCoords ? 'active' : ''}"
                   style="padding: 6px 8px; font-size: 12px; min-width: 32px; min-height: 32px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showCoords ? textOutline : ''}"
                   onclick="toggleScreenCoordinates('${safeScreenId}')">X/Y</button>
@@ -2653,6 +2694,15 @@ function toggleScreenCrosshair(screenId) {
   if(screens[screenId]) {
     // Toggle - default is true (shown), so undefined or true becomes false, false becomes true
     screens[screenId].showCrosshair = screens[screenId].showCrosshair === false ? true : false;
+    updateCanvasScreenToggles();
+    showCanvasView();
+  }
+}
+
+function toggleScreenName(screenId) {
+  if(screens[screenId]) {
+    // Toggle - default is true (shown), so undefined or true becomes false, false becomes true
+    screens[screenId].showName = screens[screenId].showName === false ? true : false;
     updateCanvasScreenToggles();
     showCanvasView();
   }

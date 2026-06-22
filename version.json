@@ -1,5 +1,5 @@
 {
-  "version": "2.11.78",
+  "version": "2.11.79",
   "updated": "2026-06-22",
-  "changelog": "Refine test patterns: toggleable presets, full-screen SMPTE, cross toggle, merged bounce, strobe overlay"
+  "changelog": "Make bounce a Logo-layer behavior; Logo button shows the logo, remove separate DVD Logo layer"
 }

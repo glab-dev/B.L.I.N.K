@@ -111,7 +111,7 @@ var _tpActiveBasePreset = null;
 // --- Layer Order ---
 var _tpDefaultLayerOrder = [
   'solid', 'gradient', 'smpte', 'checker', 'bgImage', 'checkerBorder', 'grid', 'displayBoundaries',
-  'processorLines', 'circles', 'crosshair', 'colorBars', 'logo', 'bounceLogo',
+  'processorLines', 'circles', 'crosshair', 'colorBars', 'logo',
   'outerBorder', 'strobe', 'sweep'
 ];
 var tpLayerOrder = _tpDefaultLayerOrder.slice();
@@ -170,9 +170,12 @@ var _tpLayerRegistry = {
     ctx.globalAlpha = 1;
   }},
   logo: { name: 'Logo', draw: function(ctx, w, h) {
-    if(!tpLogoOn || !tpLogoImage) return;
+    if(!tpLogoOn) return;
+    var img = tpLogoImage || _tpBounceDefaultImg;
+    if(!img || !img.width) return;
     if(tpLogoOpacity < 100) ctx.globalAlpha = tpLogoOpacity / 100;
-    drawTPLogo(ctx, w, h);
+    if(tpBounceOn) drawTPBounceLogo(ctx, w, h);
+    else drawTPLogo(ctx, w, h);
     ctx.globalAlpha = 1;
   }},
   outerBorder: { name: 'Outer Border', draw: function(ctx, w, h) {
@@ -212,10 +215,6 @@ var _tpLayerRegistry = {
     ctx.fillStyle = _tpStrobePhase === 1 ? tpStrobeColor1 : tpStrobeColor2;
     ctx.fillRect(0, 0, w, h);
     ctx.globalAlpha = 1;
-  }},
-  bounceLogo: { name: 'DVD Logo', draw: function(ctx, w, h) {
-    if(!tpBounceOn) return;
-    drawTPBounceLogo(ctx, w, h);
   }}
 };
 
@@ -287,7 +286,8 @@ function _tpApplyState(s) {
   tpScrollOn = s.tpScrollOn; tpScrollSpeed = s.tpScrollSpeed;
   tpBounceOn = s.tpBounceOn; tpBounceSpeed = s.tpBounceSpeed;
   _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpBounceInit = false;
-  tpLayerOrder = s.tpLayerOrder ? s.tpLayerOrder.slice() : _tpDefaultLayerOrder.slice();
+  tpLayerOrder = (s.tpLayerOrder ? s.tpLayerOrder.slice() : _tpDefaultLayerOrder.slice())
+    .filter(function(k) { return _tpLayerRegistry[k]; });
   _tpSyncDOM();
 }
 
@@ -1370,7 +1370,11 @@ function initTestPatternControls() {
 
   logoToggle.addEventListener('change', function() {
     tpLogoOn = this.checked;
-    scheduleTestPatternRedraw();
+    if(this.checked) {
+      _tpEnsureBounceDefault(function() { _tpRestartAnimationIfNeeded(); });
+    } else {
+      _tpRestartAnimationIfNeeded();
+    }
   });
 
   document.getElementById('tpShowName').addEventListener('change', function() {
@@ -1815,9 +1819,7 @@ function drawTPBounceLogo(ctx, w, h) {
   var img = _tpBounceImg();
   if(!img || !img.width) return;
   var d = _tpBounceDims(img, w, h);
-  if(tpLogoOpacity < 100) ctx.globalAlpha = tpLogoOpacity / 100;
   ctx.drawImage(img, _tpBounceX, _tpBounceY, d.w, d.h);
-  ctx.globalAlpha = 1;
 }
 
 // Lazy-load the bundled BLINK icon as the default bounce logo (same-origin).
@@ -2558,7 +2560,8 @@ function drawTPColorBars(ctx, w, h) {
 }
 
 function drawTPLogoInCircle(ctx, cx, cy, radius, angle) {
-  if(!tpLogoImage) return;
+  var logoImg = tpLogoImage || _tpBounceDefaultImg;
+  if(!logoImg) return;
   ctx.save();
   if(angle) {
     ctx.translate(cx, cy);
@@ -2572,33 +2575,34 @@ function drawTPLogoInCircle(ctx, cx, cy, radius, angle) {
   var d = radius * 2;
   var scale = 0.1 + (tpLogoSizePct / 100) * 0.8; // 10% to 90% of diameter
   var logoH = d * scale;
-  var logoW = logoH * (tpLogoImage.width / tpLogoImage.height);
+  var logoW = logoH * (logoImg.width / logoImg.height);
   // If wider than diameter, fit by width instead
   if(logoW > d * scale) {
     logoW = d * scale;
-    logoH = logoW * (tpLogoImage.height / tpLogoImage.width);
+    logoH = logoW * (logoImg.height / logoImg.width);
   }
   var lx = cx - logoW / 2;
   var ly = cy - logoH / 2;
-  ctx.drawImage(tpLogoImage, lx, ly, logoW, logoH);
+  ctx.drawImage(logoImg, lx, ly, logoW, logoH);
   ctx.restore();
 }
 
 function drawTPLogo(ctx, w, h) {
-  if(!tpLogoImage) return;
+  var logoImg = tpLogoImage || _tpBounceDefaultImg;
+  if(!logoImg) return;
 
   if(tpLogoMode === 'default') {
     var minDim = Math.min(w, h);
     var scale = 0.05 + (tpLogoSizePct / 100) * 0.45; // 5% to 50% of smaller dimension
     var logoH = minDim * scale;
-    var logoW = logoH * (tpLogoImage.width / tpLogoImage.height);
+    var logoW = logoH * (logoImg.width / logoImg.height);
 
     // Bottom-right corner with padding
     var pad = Math.round(Math.min(w, h) * 0.03);
     var lx = w - logoW - pad;
     var ly = h - logoH - pad;
 
-    ctx.drawImage(tpLogoImage, lx, ly, logoW, logoH);
+    ctx.drawImage(logoImg, lx, ly, logoW, logoH);
   } else {
     // Circle positions must match drawTPCircles exactly
     var centerX = w / 2;
@@ -2639,7 +2643,7 @@ function drawTPLogo(ctx, w, h) {
 
 function _tpNeedsAnimation() {
   return tpCircleSpinMode !== 'static' || tpCircleRevMode !== 'none'
-      || tpStrobeOn || tpScrollOn || tpBounceOn;
+      || tpStrobeOn || tpScrollOn || (tpBounceOn && tpLogoOn);
 }
 
 // Strobe phase (0/1) at elapsed time t — shared by the live loop and MP4 export.

@@ -74,17 +74,19 @@ var _tpMaxHistory = 30;
 // Solid color layer
 var tpSolidOn = false;
 var tpSolidColor = '#808080';
+// SMPTE full-screen bars layer
+var tpSmpteOn = false;
 // Gradient layer
 var tpGradientOn = false;
 var tpGradientColor1 = '#000000';
 var tpGradientColor2 = '#ffffff';
 var tpGradientDir = 'horizontal'; // 'horizontal' | 'vertical' | 'diagonal'
-// Strobe layer (animated)
+// Strobe layer (animated overlay)
 var tpStrobeOn = false;
 var tpStrobeColor1 = '#ffffff';
 var tpStrobeColor2 = '#000000';
 var tpStrobeSpeed = 50;      // 1-100 -> flash frequency
-var tpStrobeIntensity = 50;  // 1-100 -> duty cycle of color1
+var tpStrobeIntensity = 50;  // 1-100 -> overlay opacity of the flash
 var _tpStrobePhase = 0;      // runtime: 0 or 1 (which color is showing)
 // Diagonal whole-pattern scroll (wrapper, not a layer)
 var tpScrollOn = false;
@@ -92,21 +94,23 @@ var tpScrollSpeed = 50;       // 1-100
 var _tpScrollOffsetX = 0;     // runtime px offset
 var _tpScrollOffsetY = 0;
 var _tpScrollBuffer = null;   // offscreen canvas, lazily created
-// DVD-style bouncing logo (animated)
+// DVD-style bouncing logo (animated) — shares the Logo Options image + size
 var tpBounceOn = false;
-var tpBounceLogoImage = null; // user-imported logo; null -> use default icon
-var _tpBounceDefaultImg = null; // lazily-loaded icons/icon-512.png
-var tpBounceSizePct = 50;
+var _tpBounceDefaultImg = null; // lazily-loaded icons/icon-512.png (fallback when no logo uploaded)
 var tpBounceSpeed = 50;
 var _tpBounceX = 0;           // runtime top-left position
 var _tpBounceY = 0;
 var _tpBounceVX = 1;          // runtime velocity sign
 var _tpBounceVY = 1;
 var _tpBounceInit = false;    // seeded position for current total size
+// Green cross outline (crosshair + outer border) toggle
+var tpCrossOn = true;
+// Quick Patterns: currently-active exclusive base preset (or null)
+var _tpActiveBasePreset = null;
 
 // --- Layer Order ---
 var _tpDefaultLayerOrder = [
-  'solid', 'gradient', 'checker', 'bgImage', 'checkerBorder', 'grid', 'displayBoundaries',
+  'solid', 'gradient', 'smpte', 'checker', 'bgImage', 'checkerBorder', 'grid', 'displayBoundaries',
   'processorLines', 'circles', 'crosshair', 'colorBars', 'logo', 'bounceLogo',
   'outerBorder', 'strobe', 'sweep'
 ];
@@ -156,6 +160,7 @@ var _tpLayerRegistry = {
     if(tpCirclesOn) drawTPCircles(ctx, w, h);
   }},
   crosshair: { name: 'Crosshair', draw: function(ctx, w, h) {
+    if(!tpCrossOn) return;
     drawTPCrosshair(ctx, w, h);
   }},
   colorBars: { name: 'Color Bars', draw: function(ctx, w, h) {
@@ -171,6 +176,7 @@ var _tpLayerRegistry = {
     ctx.globalAlpha = 1;
   }},
   outerBorder: { name: 'Outer Border', draw: function(ctx, w, h) {
+    if(!tpCrossOn) return;
     ctx.strokeStyle = tpCrossColor;
     ctx.lineWidth = Math.max(2, Math.round(w / 500));
     ctx.strokeRect(0, 0, w, h);
@@ -196,10 +202,16 @@ var _tpLayerRegistry = {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
   }},
+  smpte: { name: 'SMPTE', draw: function(ctx, w, h) {
+    if(!tpSmpteOn) return;
+    drawTPSmpteFullscreen(ctx, w, h);
+  }},
   strobe: { name: 'Strobe', draw: function(ctx, w, h) {
     if(!tpStrobeOn) return;
+    ctx.globalAlpha = Math.max(0.02, tpStrobeIntensity / 100);
     ctx.fillStyle = _tpStrobePhase === 1 ? tpStrobeColor1 : tpStrobeColor2;
     ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = 1;
   }},
   bounceLogo: { name: 'DVD Logo', draw: function(ctx, w, h) {
     if(!tpBounceOn) return;
@@ -235,10 +247,11 @@ function _tpGetState() {
     tpProcessorLinesOn: tpProcessorLinesOn,
     tpProcessorLineColor: tpProcessorLineColor,
     tpSolidOn: tpSolidOn, tpSolidColor: tpSolidColor,
+    tpSmpteOn: tpSmpteOn, tpCrossOn: tpCrossOn, _tpActiveBasePreset: _tpActiveBasePreset,
     tpGradientOn: tpGradientOn, tpGradientColor1: tpGradientColor1, tpGradientColor2: tpGradientColor2, tpGradientDir: tpGradientDir,
     tpStrobeOn: tpStrobeOn, tpStrobeColor1: tpStrobeColor1, tpStrobeColor2: tpStrobeColor2, tpStrobeSpeed: tpStrobeSpeed, tpStrobeIntensity: tpStrobeIntensity,
     tpScrollOn: tpScrollOn, tpScrollSpeed: tpScrollSpeed,
-    tpBounceOn: tpBounceOn, tpBounceLogoImage: tpBounceLogoImage, tpBounceSizePct: tpBounceSizePct, tpBounceSpeed: tpBounceSpeed,
+    tpBounceOn: tpBounceOn, tpBounceSpeed: tpBounceSpeed,
     tpLayerOrder: tpLayerOrder.slice()
   };
 }
@@ -268,10 +281,11 @@ function _tpApplyState(s) {
   tpProcessorLinesOn = s.tpProcessorLinesOn;
   tpProcessorLineColor = s.tpProcessorLineColor;
   tpSolidOn = s.tpSolidOn; tpSolidColor = s.tpSolidColor;
+  tpSmpteOn = !!s.tpSmpteOn; tpCrossOn = (s.tpCrossOn !== false); _tpActiveBasePreset = s._tpActiveBasePreset || null;
   tpGradientOn = s.tpGradientOn; tpGradientColor1 = s.tpGradientColor1; tpGradientColor2 = s.tpGradientColor2; tpGradientDir = s.tpGradientDir;
   tpStrobeOn = s.tpStrobeOn; tpStrobeColor1 = s.tpStrobeColor1; tpStrobeColor2 = s.tpStrobeColor2; tpStrobeSpeed = s.tpStrobeSpeed; tpStrobeIntensity = s.tpStrobeIntensity;
   tpScrollOn = s.tpScrollOn; tpScrollSpeed = s.tpScrollSpeed;
-  tpBounceOn = s.tpBounceOn; tpBounceLogoImage = s.tpBounceLogoImage; tpBounceSizePct = s.tpBounceSizePct; tpBounceSpeed = s.tpBounceSpeed;
+  tpBounceOn = s.tpBounceOn; tpBounceSpeed = s.tpBounceSpeed;
   _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpBounceInit = false;
   tpLayerOrder = s.tpLayerOrder ? s.tpLayerOrder.slice() : _tpDefaultLayerOrder.slice();
   _tpSyncDOM();
@@ -343,6 +357,7 @@ function _tpSyncDOM() {
   document.getElementById('tpProcessorLineColor').value = tpProcessorLineColor;
   document.getElementById('tpSolidToggle').checked = tpSolidOn;
   document.getElementById('tpSolidColor').value = tpSolidColor;
+  document.getElementById('tpCrossToggle').checked = tpCrossOn;
   document.getElementById('tpGradientToggle').checked = tpGradientOn;
   document.getElementById('tpGradientColor1').value = tpGradientColor1;
   document.getElementById('tpGradientColor2').value = tpGradientColor2;
@@ -358,10 +373,9 @@ function _tpSyncDOM() {
   document.getElementById('tpScrollSpeed').value = tpScrollSpeed;
   document.getElementById('tpScrollSpeedVal').textContent = tpScrollSpeed + '%';
   document.getElementById('tpBounceToggle').checked = tpBounceOn;
-  document.getElementById('tpBounceSize').value = tpBounceSizePct;
-  document.getElementById('tpBounceSizeVal').textContent = tpBounceSizePct + '%';
   document.getElementById('tpBounceSpeed').value = tpBounceSpeed;
   document.getElementById('tpBounceSpeedVal').textContent = tpBounceSpeed + '%';
+  _tpSyncPresetButtons();
 
   updateTotalSize();
   _tpRestartAnimationIfNeeded();
@@ -416,7 +430,6 @@ function _tpGetSerializableState() {
   var s = _tpGetState();
   s.tpLogoImage = _tpImageToDataURL(s.tpLogoImage);
   s.tpBgImage = _tpImageToDataURL(s.tpBgImage);
-  s.tpBounceLogoImage = _tpImageToDataURL(s.tpBounceLogoImage);
   return s;
 }
 
@@ -445,14 +458,6 @@ function _tpLoadSerializedState(data, callback) {
     bgImg.onload = function() { data.tpBgImage = bgImg; checkDone(); };
     bgImg.onerror = function() { data.tpBgImage = null; checkDone(); };
     bgImg.src = data.tpBgImage;
-  }
-
-  if(data.tpBounceLogoImage && typeof data.tpBounceLogoImage === 'string') {
-    pending++;
-    var bounceImg = new Image();
-    bounceImg.onload = function() { data.tpBounceLogoImage = bounceImg; checkDone(); };
-    bounceImg.onerror = function() { data.tpBounceLogoImage = null; checkDone(); };
-    bounceImg.src = data.tpBounceLogoImage;
   }
 
   if(pending === 0) {
@@ -811,7 +816,8 @@ function resetTestPattern() {
   tpGradientOn = false; tpGradientColor1 = '#000000'; tpGradientColor2 = '#ffffff'; tpGradientDir = 'horizontal';
   tpStrobeOn = false; tpStrobeColor1 = '#ffffff'; tpStrobeColor2 = '#000000'; tpStrobeSpeed = 50; tpStrobeIntensity = 50;
   tpScrollOn = false; tpScrollSpeed = 50;
-  tpBounceOn = false; tpBounceLogoImage = null; tpBounceSizePct = 50; tpBounceSpeed = 50;
+  tpBounceOn = false; tpBounceSpeed = 50;
+  tpSmpteOn = false; tpCrossOn = true; _tpActiveBasePreset = null;
 
   // Stop animations if running
   _tpStopAnimation();
@@ -901,11 +907,10 @@ function resetTestPattern() {
   document.getElementById('tpScrollSpeed').value = 50;
   document.getElementById('tpScrollSpeedVal').textContent = '50%';
   document.getElementById('tpBounceToggle').checked = false;
-  document.getElementById('tpBounceSize').value = 50;
-  document.getElementById('tpBounceSizeVal').textContent = '50%';
   document.getElementById('tpBounceSpeed').value = 50;
   document.getElementById('tpBounceSpeedVal').textContent = '50%';
-  document.getElementById('tpBounceFile').value = '';
+  document.getElementById('tpCrossToggle').checked = true;
+  _tpSyncPresetButtons();
   syncTpDisplaySizeButtons();
 
   updateTotalSize();
@@ -914,29 +919,71 @@ function resetTestPattern() {
 }
 
 // --- Quick Patterns ---
-// One-tap exclusive full-screen pattern: clears the primary content layers and
-// enables just the chosen one. Modifiers (sweep/scroll/bounce/logo/etc.) are left as-is.
-// Wrapped in tpSaveState() so a single Undo restores the prior configuration.
-function applyTpPreset(name) {
-  tpSaveState();
-  tpColorBarsOn = false;
+// The 5 base presets (smpte/grid/checker/gradient/solid) are mutually exclusive;
+// tapping the active one again reverts to the default test-pattern look. Strobe is
+// an independent overlay toggle. Wrapped in tpSaveState() so a single Undo restores.
+function _tpApplyDefaultContent() {
+  tpColorBarsOn = true;
+  tpColorBarsMode = 'default';
+  tpCirclesOn = true;
+  tpGridSizePct = 50;
   tpCheckerOn = false;
-  tpGridSizePct = 0;
-  tpCirclesOn = false;
   tpSolidOn = false;
   tpGradientOn = false;
-  tpStrobeOn = false;
-  switch(name) {
-    case 'smpte': tpColorBarsOn = true; tpColorBarsMode = 'default'; break;
-    case 'grid': tpGridSizePct = 50; break;
-    case 'checker': tpCheckerOn = true; break;
-    case 'gradient': tpGradientOn = true; break;
-    case 'strobe': tpStrobeOn = true; _tpStrobePhase = 0; break;
-    case 'solid': tpSolidOn = true; break;
+  tpSmpteOn = false;
+}
+
+function applyTpPreset(name) {
+  tpSaveState();
+  if(name === 'strobe') {
+    // Independent overlay toggle — leaves the base pattern underneath as-is
+    tpStrobeOn = !tpStrobeOn;
+    if(tpStrobeOn) _tpStrobePhase = 1;
+  } else {
+    var turningOff = (_tpActiveBasePreset === name);
+    // Clear all base content layers first
+    tpColorBarsOn = false;
+    tpCirclesOn = false;
+    tpGridSizePct = 0;
+    tpCheckerOn = false;
+    tpSolidOn = false;
+    tpGradientOn = false;
+    tpSmpteOn = false;
+    if(turningOff) {
+      _tpActiveBasePreset = null;
+      _tpApplyDefaultContent();
+    } else {
+      _tpActiveBasePreset = name;
+      switch(name) {
+        case 'smpte': tpSmpteOn = true; break;
+        case 'grid': tpGridSizePct = 50; break;
+        case 'checker': tpCheckerOn = true; break;
+        case 'gradient': tpGradientOn = true; break;
+        case 'solid': tpSolidOn = true; break;
+      }
+    }
   }
   _tpSyncDOM();
   _tpRestartAnimationIfNeeded();
   _tpUpdateUndoRedoBtns();
+}
+
+// Highlight the active preset buttons (.active) from current state.
+function _tpSyncPresetButtons() {
+  var btns = document.querySelectorAll('.tp-preset-group .toggle-btn');
+  for(var i = 0; i < btns.length; i++) {
+    var p = btns[i].getAttribute('data-preset');
+    var active = (p === 'strobe') ? tpStrobeOn : (_tpActiveBasePreset === p);
+    btns[i].classList.toggle('active', active);
+  }
+}
+
+// Drop the active-base-preset highlight when the user changes a base layer manually.
+function _tpClearBasePreset() {
+  if(_tpActiveBasePreset !== null) {
+    _tpActiveBasePreset = null;
+    _tpSyncPresetButtons();
+  }
 }
 
 // --- Layer Panel ---
@@ -1122,6 +1169,7 @@ function initTestPatternControls() {
   gridSize.addEventListener('input', function() {
     tpGridSizePct = parseInt(this.value);
     document.getElementById('tpGridSizeVal').textContent = this.value + '%';
+    _tpClearBasePreset();
     scheduleTestPatternRedraw();
   });
 
@@ -1173,6 +1221,7 @@ function initTestPatternControls() {
   var checkerToggle = document.getElementById('tpChecker');
   checkerToggle.addEventListener('change', function() {
     tpCheckerOn = this.checked;
+    _tpClearBasePreset();
     scheduleTestPatternRedraw();
   });
 
@@ -1244,6 +1293,7 @@ function initTestPatternControls() {
 
   circlesToggle.addEventListener('change', function() {
     tpCirclesOn = this.checked;
+    _tpClearBasePreset();
     if(!this.checked) {
       if(tpColorBarsMode !== 'default') {
         tpColorBarsMode = 'default';
@@ -1267,6 +1317,7 @@ function initTestPatternControls() {
 
   colorBarsToggle.addEventListener('change', function() {
     tpColorBarsOn = this.checked;
+    _tpClearBasePreset();
     scheduleTestPatternRedraw();
   });
 
@@ -1381,6 +1432,7 @@ function initTestPatternControls() {
   // Gradient
   document.getElementById('tpGradientToggle').addEventListener('change', function() {
     tpGradientOn = this.checked;
+    _tpClearBasePreset();
     scheduleTestPatternRedraw();
   });
   document.getElementById('tpGradientColor1').addEventListener('input', function() {
@@ -1399,6 +1451,7 @@ function initTestPatternControls() {
   // Solid color
   document.getElementById('tpSolidToggle').addEventListener('change', function() {
     tpSolidOn = this.checked;
+    _tpClearBasePreset();
     scheduleTestPatternRedraw();
   });
   document.getElementById('tpSolidColor').addEventListener('input', function() {
@@ -1406,10 +1459,11 @@ function initTestPatternControls() {
     scheduleTestPatternRedraw();
   });
 
-  // Strobe (animated)
+  // Strobe (animated overlay)
   document.getElementById('tpStrobeToggle').addEventListener('change', function() {
     tpStrobeOn = this.checked;
-    if(this.checked) _tpStrobePhase = 0;
+    if(this.checked) _tpStrobePhase = 1;
+    _tpSyncPresetButtons();
     _tpRestartAnimationIfNeeded();
   });
   document.getElementById('tpStrobeColor1').addEventListener('input', function() {
@@ -1442,7 +1496,7 @@ function initTestPatternControls() {
     document.getElementById('tpScrollSpeedVal').textContent = this.value + '%';
   });
 
-  // DVD bounce logo (animated)
+  // Bounce (animated) — bounces the Logo Options image (or default icon)
   document.getElementById('tpBounceToggle').addEventListener('change', function() {
     tpBounceOn = this.checked;
     if(this.checked) {
@@ -1452,17 +1506,15 @@ function initTestPatternControls() {
       _tpRestartAnimationIfNeeded();
     }
   });
-  document.getElementById('tpBounceFile').addEventListener('change', function(e) {
-    handleBounceLogoImport(e);
-  });
-  document.getElementById('tpBounceSize').addEventListener('input', function() {
-    tpBounceSizePct = parseInt(this.value);
-    document.getElementById('tpBounceSizeVal').textContent = this.value + '%';
-    if(!tpBounceOn) scheduleTestPatternRedraw();
-  });
   document.getElementById('tpBounceSpeed').addEventListener('input', function() {
     tpBounceSpeed = parseInt(this.value);
     document.getElementById('tpBounceSpeedVal').textContent = this.value + '%';
+  });
+
+  // Green cross outline (crosshair + outer border)
+  document.getElementById('tpCrossToggle').addEventListener('change', function() {
+    tpCrossOn = this.checked;
+    scheduleTestPatternRedraw();
   });
 
   // Hamburger menu
@@ -1735,6 +1787,7 @@ function handleLogoImport(event) {
     var img = new Image();
     img.onload = function() {
       tpLogoImage = img;
+      _tpBounceInit = false; // re-seed the bounce with the new logo's aspect ratio
       scheduleTestPatternRedraw();
     };
     img.onerror = function() {
@@ -1745,15 +1798,15 @@ function handleLogoImport(event) {
   reader.readAsDataURL(file);
 }
 
-// --- DVD Bounce Logo ---
+// --- DVD Bounce Logo --- (shares the Logo Options image + size)
 
 function _tpBounceImg() {
-  return tpBounceLogoImage || _tpBounceDefaultImg;
+  return tpLogoImage || _tpBounceDefaultImg;
 }
 
 function _tpBounceDims(img, totalW, totalH) {
   var minDim = Math.min(totalW, totalH);
-  var logoH = minDim * (0.05 + (tpBounceSizePct / 100) * 0.30);
+  var logoH = minDim * (0.05 + (tpLogoSizePct / 100) * 0.30);
   var logoW = logoH * (img.width / img.height);
   return { w: logoW, h: logoH };
 }
@@ -1762,48 +1815,18 @@ function drawTPBounceLogo(ctx, w, h) {
   var img = _tpBounceImg();
   if(!img || !img.width) return;
   var d = _tpBounceDims(img, w, h);
+  if(tpLogoOpacity < 100) ctx.globalAlpha = tpLogoOpacity / 100;
   ctx.drawImage(img, _tpBounceX, _tpBounceY, d.w, d.h);
+  ctx.globalAlpha = 1;
 }
 
 // Lazy-load the bundled BLINK icon as the default bounce logo (same-origin).
 function _tpEnsureBounceDefault(cb) {
-  if(_tpBounceDefaultImg || tpBounceLogoImage) { if(cb) cb(); return; }
+  if(_tpBounceDefaultImg || tpLogoImage) { if(cb) cb(); return; }
   var img = new Image();
   img.onload = function() { _tpBounceDefaultImg = img; if(cb) cb(); };
   img.onerror = function() { if(cb) cb(); };
   img.src = 'icons/icon-512.png';
-}
-
-function handleBounceLogoImport(event) {
-  var file = event.target.files[0];
-  if(!file) return;
-
-  if(!file.type.startsWith('image/')) {
-    showAlert('Please select an image file (PNG, JPG, etc.).');
-    event.target.value = '';
-    return;
-  }
-
-  if(file.size > 10 * 1024 * 1024) {
-    showAlert('Logo file is too large (max 10MB).');
-    event.target.value = '';
-    return;
-  }
-
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var img = new Image();
-    img.onload = function() {
-      tpBounceLogoImage = img;
-      _tpBounceInit = false;
-      _tpRestartAnimationIfNeeded();
-    };
-    img.onerror = function() {
-      showAlert('Failed to load logo image.');
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
 }
 
 function handleBgImageImport(event) {
@@ -2289,6 +2312,48 @@ function drawTPCenterText(ctx, w, h, spacing) {
   ctx.textBaseline = 'alphabetic';
 }
 
+// Full-screen SMPTE test pattern: 7 color bars, castellation strip, then a
+// grayscale staircase (left) + rainbow gradient (right) along the bottom.
+function drawTPSmpteFullscreen(ctx, w, h) {
+  var barW = w / 7;
+
+  // Top: main color bars (~65% height)
+  var row1H = h * 0.65;
+  var row1Colors = ['#BFBFBF', '#BFBF00', '#00BFBF', '#00BF00', '#BF00BF', '#BF0000', '#0000BF'];
+  for(var i = 0; i < 7; i++) {
+    ctx.fillStyle = row1Colors[i];
+    ctx.fillRect(Math.floor(i * barW), 0, Math.ceil(barW), Math.ceil(row1H));
+  }
+
+  // Castellation strip (~12%)
+  var row2Y = row1H;
+  var row2H = h * 0.12;
+  var row2Colors = ['#0000BF', '#131313', '#BF00BF', '#131313', '#00BFBF', '#131313', '#BFBFBF'];
+  for(var i = 0; i < 7; i++) {
+    ctx.fillStyle = row2Colors[i];
+    ctx.fillRect(Math.floor(i * barW), Math.floor(row2Y), Math.ceil(barW), Math.ceil(row2H));
+  }
+
+  // Bottom (~23%): grayscale staircase (left) + rainbow gradient (right)
+  var row3Y = row2Y + row2H;
+  var row3H = h - row3Y;
+  var leftW = w * 0.55;
+  var steps = 8;
+  var stepW = leftW / steps;
+  for(var i = 0; i < steps; i++) {
+    var v = Math.round((i / (steps - 1)) * 255);
+    ctx.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
+    ctx.fillRect(Math.floor(i * stepW), Math.floor(row3Y), Math.ceil(stepW), Math.ceil(row3H));
+  }
+  var rainbow = ctx.createLinearGradient(leftW, 0, w, 0);
+  var stops = ['#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#8b00ff'];
+  for(var i = 0; i < stops.length; i++) {
+    rainbow.addColorStop(i / (stops.length - 1), stops[i]);
+  }
+  ctx.fillStyle = rainbow;
+  ctx.fillRect(Math.floor(leftW), Math.floor(row3Y), Math.ceil(w - leftW), Math.ceil(row3H));
+}
+
 // Draw SMPTE color bars into a given rectangle
 function drawTPColorBarsAt(ctx, barsX, barsTop, totalBarsW, totalBarsH) {
   var barW = totalBarsW / 7;
@@ -2578,12 +2643,12 @@ function _tpNeedsAnimation() {
 }
 
 // Strobe phase (0/1) at elapsed time t — shared by the live loop and MP4 export.
+// Fixed 50% duty; intensity drives the overlay opacity in the strobe layer instead.
 function _tpStrobePhaseAt(t) {
   var hz = 1 + (tpStrobeSpeed / 100) * 19; // 1..20 Hz
   var period = 1 / hz;
   var phasePos = (t % period) / period; // 0..1
-  var duty = Math.max(0.02, Math.min(0.98, tpStrobeIntensity / 100));
-  return phasePos < duty ? 1 : 0;
+  return phasePos < 0.5 ? 1 : 0;
 }
 
 function _tpScrollPxPerSec() {

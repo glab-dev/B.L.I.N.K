@@ -317,20 +317,6 @@
     <!-- Column 1: Setup -->
     <div class="tp-controls-col">
       <div class="tp-section-header">
-        <span class="tp-section-title">Quick Patterns</span>
-      </div>
-      <div class="tp-control-group">
-        <div class="toggle-group tp-preset-group">
-          <button type="button" class="toggle-btn" onclick="applyTpPreset('smpte')">SMPTE</button>
-          <button type="button" class="toggle-btn" onclick="applyTpPreset('grid')">Grid</button>
-          <button type="button" class="toggle-btn" onclick="applyTpPreset('checker')">Checker</button>
-          <button type="button" class="toggle-btn" onclick="applyTpPreset('gradient')">Gradient</button>
-          <button type="button" class="toggle-btn" onclick="applyTpPreset('strobe')">Strobe</button>
-          <button type="button" class="toggle-btn" onclick="applyTpPreset('solid')">Solid</button>
-        </div>
-      </div>
-
-      <div class="tp-section-header">
         <span class="tp-section-title">Screen Options</span>
       </div>
       <div class="tp-control-group">
@@ -443,6 +429,20 @@
 
     <!-- Column 2: Text Options -->
     <div class="tp-controls-col">
+      <div class="tp-section-header">
+        <span class="tp-section-title">Quick Patterns</span>
+      </div>
+      <div class="tp-control-group">
+        <div class="toggle-group tp-preset-group">
+          <button type="button" class="toggle-btn" data-preset="smpte" onclick="applyTpPreset('smpte')">SMPTE</button>
+          <button type="button" class="toggle-btn" data-preset="grid" onclick="applyTpPreset('grid')">Grid</button>
+          <button type="button" class="toggle-btn" data-preset="checker" onclick="applyTpPreset('checker')">Checker</button>
+          <button type="button" class="toggle-btn" data-preset="gradient" onclick="applyTpPreset('gradient')">Gradient</button>
+          <button type="button" class="toggle-btn" data-preset="strobe" onclick="applyTpPreset('strobe')">Strobe</button>
+          <button type="button" class="toggle-btn" data-preset="solid" onclick="applyTpPreset('solid')">Solid</button>
+        </div>
+      </div>
+
       <div class="tp-section-header">
         <span class="tp-section-title">Text Options</span>
         <input type="color" id="tpTextColor" class="tp-color-input" value="#ffffff">
@@ -561,6 +561,16 @@
         <div class="tp-control-group">
           <label class="tp-label">BG</label>
           <input type="color" id="tpBgColor" class="tp-color-input" value="#000000">
+        </div>
+      </div>
+
+      <div class="tp-sweep-header">
+        <div class="tp-toggle-row">
+          <span class="tp-label">Cross outline</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpCrossToggle" checked>
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
         </div>
       </div>
 
@@ -757,6 +767,17 @@
           <label class="tp-label">Logo opacity: <span id="tpLogoOpacityVal">100%</span></label>
           <input type="range" id="tpLogoOpacity" class="tp-range" min="0" max="100" value="100">
         </div>
+        <div class="tp-toggle-row">
+          <span class="tp-label">Bounce</span>
+          <label class="cp-mini-toggle">
+            <input type="checkbox" id="tpBounceToggle">
+            <span class="cp-mini-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="tp-slider-row">
+          <label class="tp-label">Bounce speed: <span id="tpBounceSpeedVal">50%</span></label>
+          <input type="range" id="tpBounceSpeed" class="tp-range" min="1" max="100" value="50">
+        </div>
       </div>
 
       <div class="tp-section-header">
@@ -818,33 +839,6 @@
       <div class="tp-slider-row">
         <label class="tp-label">Scroll speed: <span id="tpScrollSpeedVal">50%</span></label>
         <input type="range" id="tpScrollSpeed" class="tp-range" min="1" max="100" value="50">
-      </div>
-
-      <div class="tp-section-header">
-        <span class="tp-section-title">DVD Logo</span>
-      </div>
-
-      <div class="tp-logo-header">
-        <div class="tp-toggle-row">
-          <span class="tp-label">Bounce</span>
-          <label class="cp-mini-toggle">
-            <input type="checkbox" id="tpBounceToggle">
-            <span class="cp-mini-toggle-slider"></span>
-          </label>
-        </div>
-        <button class="tp-choose-file-btn" onclick="document.getElementById('tpBounceFile').click()">Choose File</button>
-        <input type="file" id="tpBounceFile" class="tp-file-input-hidden" accept="image/*">
-      </div>
-
-      <div class="tp-logo-controls">
-        <div class="tp-slider-row">
-          <label class="tp-label">Logo size: <span id="tpBounceSizeVal">50%</span></label>
-          <input type="range" id="tpBounceSize" class="tp-range" min="0" max="100" value="50">
-        </div>
-        <div class="tp-slider-row">
-          <label class="tp-label">Bounce speed: <span id="tpBounceSpeedVal">50%</span></label>
-          <input type="range" id="tpBounceSpeed" class="tp-range" min="1" max="100" value="50">
-        </div>
       </div>
     </div>
   </div>
@@ -3559,8 +3553,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.77';
-const APP_CHANGELOG = 'Add test pattern gradient, solid, strobe, diagonal scroll, DVD-bounce logo, and quick presets';
+const APP_VERSION = '2.11.78';
+const APP_CHANGELOG = 'Refine test patterns: toggleable presets, full-screen SMPTE, cross toggle, merged bounce, strobe overlay';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

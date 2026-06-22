@@ -1,5 +1,5 @@
 {
-  "version": "2.11.77",
+  "version": "2.11.78",
   "updated": "2026-06-22",
-  "changelog": "Add test pattern gradient, solid, strobe, diagonal scroll, DVD-bounce logo, and quick presets"
+  "changelog": "Refine test patterns: toggleable presets, full-screen SMPTE, cross toggle, merged bounce, strobe overlay"
 }

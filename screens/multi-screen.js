@@ -582,10 +582,11 @@ function loadScreenData(screenId) {
   // Update connecting plates visibility
   updateConnectingPlatesVisibility(panelType);
   
-  // Restore addCB5HalfRow checkbox state if saved
-  const addCB5HalfRow = document.getElementById('addCB5HalfRow');
-  if(addCB5HalfRow) {
-    addCB5HalfRow.checked = data.addCB5HalfRow || false;
+  // Restore per-screen CB5 half row toggle state
+  cb5HalfRowEnabled = data.addCB5HalfRow || false;
+  const addCB5HalfRowBtn = document.getElementById('addCB5HalfRowBtn');
+  if(addCB5HalfRowBtn) {
+    addCB5HalfRowBtn.classList.toggle('active', cb5HalfRowEnabled);
   }
 
   // Restore per-screen Share Distro toggle

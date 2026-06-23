@@ -1,5 +1,5 @@
 {
-  "version": "2.11.80",
-  "updated": "2026-06-22",
-  "changelog": "Move Static toggle under Position and place Bounce beside it in Logo Options"
+  "version": "2.11.81",
+  "updated": "2026-06-23",
+  "changelog": "Fix CB5 half panel toggle to track state independently per screen"
 }

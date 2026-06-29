@@ -48,6 +48,23 @@ async function _captureAllScreenshotsToZip(zip, name) {
   });
   await _yieldToBrowser();
 
+  // 0a. Per-canvas-tab header/footer band composite → title block/ (only tabs with the band enabled)
+  if(typeof getTitleBlockBlobsForCanvases === 'function') {
+    await new Promise(function(resolve) {
+      try {
+        getTitleBlockBlobsForCanvases(function(results) {
+          (results || []).forEach(function(r) {
+            if(!r || !r.blob) return;
+            var safeName = (r.name || r.canvasId || 'canvas').replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
+            zip.file('title block/' + name + '_' + safeName + '_titleblock.png', r.blob);
+          });
+          resolve();
+        });
+      } catch(e) { resolve(); }
+    });
+    await _yieldToBrowser();
+  }
+
   // 0b. Per-screen native-resolution PNGs → screens/ (each screen as drawn in the canvas view, at its exact pixel resolution)
   await new Promise(function(resolve) {
     try {

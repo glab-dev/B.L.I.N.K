@@ -22,6 +22,8 @@ function activateCanvasView() {
   if(canvasToggles) canvasToggles.style.display = '';
   const canvasInfo = document.getElementById('canvasInfo');
   if(canvasInfo) canvasInfo.style.display = '';
+  // Populate the inline Header/Footer controls for the active canvas tab
+  if(typeof renderHeaderFooterControls === 'function') renderHeaderFooterControls();
   // Explicitly call showCanvasView to draw the canvas
   if(typeof showCanvasView === 'function') {
     showCanvasView();
@@ -68,7 +70,8 @@ function getDefaultCanvasData() {
     snapMode: true,
     arrowKeyIncrement: 10,
     showDataLines: false,
-    showDataLabels: false
+    showDataLabels: false,
+    titleBlock: (typeof tbDefaultState === 'function') ? tbDefaultState() : null
   };
 }
 
@@ -415,6 +418,8 @@ function loadCanvasData(canvasId) {
   if(dlabBtn) dlabBtn.classList.toggle('active', !!canvas.data.showDataLabels);
   // Re-sync the raster toolbar so its mirrored values reflect the loaded canvas
   if(typeof syncToolbarFromCanvasOptions === 'function') syncToolbarFromCanvasOptions();
+  // Rebuild the inline Header/Footer controls for this canvas tab (independent per tab)
+  if(typeof renderHeaderFooterControls === 'function') renderHeaderFooterControls();
 }
 
 // Draw a single screen onto a 2D context at the given offset. Extracted from
@@ -764,9 +769,10 @@ function showCanvasView(){
     // Update info display
     updateCanvasInfoDisplay();
     setupCanvasViewInteractivity();
+    if(typeof renderCanvasBand === 'function') renderCanvasBand();
     return;
   }
-  
+
   // Calculate the base display size to fit in wrapper (use actual wrapper size for mobile compatibility)
   const wrapperEl = document.getElementById('canvasViewWrapper');
   const wrapperRect = wrapperEl.getBoundingClientRect();
@@ -865,9 +871,13 @@ function showCanvasView(){
 
   // Cache the canvas state WITH border for quick selection highlighting
   cachedCanvasImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  
+
   // Setup canvas view interactivity
   setupCanvasViewInteractivity();
+
+  // Render the live header/footer band (separate sibling canvas; canvasView stays
+  // clean so the normal export and its cache are band-free)
+  if(typeof renderCanvasBand === 'function') renderCanvasBand();
   
   // Save focus state before repaint hacks (they can cause browsers to lose focus)
   var _savedActiveEl = document.activeElement;

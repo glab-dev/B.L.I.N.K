@@ -37,6 +37,9 @@ function activateRasterView() {
     initRasterToolbarListeners();
     rasterToolbarInitialized = true;
   }
+
+  // Populate the inline Header/Footer controls for the active canvas tab
+  if(typeof renderHeaderFooterControls === 'function') renderHeaderFooterControls();
 }
 
 // ==================== SCREEN TABLE RENDERING ====================
@@ -856,7 +859,8 @@ async function saveRasterFile() {
           canvasSize: c.data.canvasSize || '4K_UHD',
           customCanvasWidth: c.data.customCanvasWidth || 3840,
           customCanvasHeight: c.data.customCanvasHeight || 2160,
-          screenVisibility: c.data.screenVisibility || {}
+          screenVisibility: c.data.screenVisibility || {},
+          titleBlock: (typeof tbCloneState === 'function') ? tbCloneState(c.data.titleBlock) : undefined
         }
       };
     });
@@ -1057,7 +1061,8 @@ function applyRasterFile(config) {
             canvasSize: (saved.data && saved.data.canvasSize) || '4K_UHD',
             customCanvasWidth: (saved.data && parseInt(saved.data.customCanvasWidth)) || 3840,
             customCanvasHeight: (saved.data && parseInt(saved.data.customCanvasHeight)) || 2160,
-            screenVisibility: (saved.data && typeof saved.data.screenVisibility === 'object') ? saved.data.screenVisibility : {}
+            screenVisibility: (saved.data && typeof saved.data.screenVisibility === 'object') ? saved.data.screenVisibility : {},
+            titleBlock: (typeof tbSanitizeState === 'function') ? tbSanitizeState(saved.data && saved.data.titleBlock) : undefined
           }
         };
       });

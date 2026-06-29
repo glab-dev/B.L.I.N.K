@@ -143,7 +143,8 @@ function buildCurrentConfig() {
           exportFilename: cd.exportFilename || '',
           exportFormat: cd.exportFormat || 'png',
           snapMode: cd.snapMode !== false,
-          arrowKeyIncrement: (typeof cd.arrowKeyIncrement === 'number') ? cd.arrowKeyIncrement : 10
+          arrowKeyIncrement: (typeof cd.arrowKeyIncrement === 'number') ? cd.arrowKeyIncrement : 10,
+          titleBlock: (typeof tbCloneState === 'function') ? tbCloneState(cd.titleBlock) : undefined
         }
       };
     });
@@ -449,7 +450,8 @@ function applyConfiguration(config) {
               exportFilename: sd.exportFilename || '',
               exportFormat: sd.exportFormat || 'png',
               snapMode: sd.snapMode !== false,
-              arrowKeyIncrement: (typeof sd.arrowKeyIncrement === 'number') ? sd.arrowKeyIncrement : 10
+              arrowKeyIncrement: (typeof sd.arrowKeyIncrement === 'number') ? sd.arrowKeyIncrement : 10,
+              titleBlock: (typeof tbSanitizeState === 'function') ? tbSanitizeState(sd.titleBlock) : undefined
             }
           };
         });

@@ -80,6 +80,12 @@ function exportCanvas(){
       return;
     }
 
+    // Handle canvas + header/footer title block composite
+    if(format === 'titleblock') {
+      exportCanvasWithTitleBlock(filename);
+      return;
+    }
+
     // Export the clean canvas using blob for better mobile compatibility
     const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
     const extension = format === 'jpeg' ? '.jpg' : '.png';

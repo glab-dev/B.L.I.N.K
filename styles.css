@@ -5612,6 +5612,97 @@ canvas:focus {
   box-shadow: 0 0 0 0 rgba(0,0,0,1);
 }
 
+/* ==================== HEADER / FOOTER BAND ==================== */
+/* Live band canvas — sibling of #canvasView inside the zoom/pan viewport */
+#canvasBand {
+  display: block;
+  width: 100%;
+}
+/* The Header/Footer section's content uses .section-content (so initMobileUI's
+   auto-wrap skips it); override the canvasContainer rule that hides .section-content */
+#canvasContainer #headerFooterSection .section-content {
+  display: block;
+}
+.hf-section-content {
+  font-family: 'Roboto Condensed', sans-serif;
+}
+.hf-enable-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+.hf-enable-label input[type="checkbox"] {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+}
+.hf-controls-row {
+  margin-bottom: 12px;
+}
+.hf-cell-editor {
+  border: 2px solid #000;
+  background: #222;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.hf-cell-head {
+  font-family: 'Roboto Condensed', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--primary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.hf-cell-type {
+  width: 100%;
+  margin-bottom: 8px;
+}
+.hf-title-input {
+  width: 100%;
+  margin-top: 8px;
+}
+.hf-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tb-logo-thumb {
+  height: 40px;
+  max-width: 90px;
+  object-fit: contain;
+  border: 2px solid #000;
+  background: #000;
+}
+.tb-remove-logo-btn {
+  padding: 6px 12px;
+  background: #b91c1c;
+  color: #fff;
+  border: 2px solid #000;
+  border-radius: 0;
+  font-family: 'Roboto Condensed', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  min-height: 40px;
+  width: auto;
+  margin: 0;
+  margin-bottom: 0;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  letter-spacing: normal;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.tb-remove-logo-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 0 rgba(0,0,0,1);
+}
+
 /* Logo header — toggle + choose file inline */
 .tp-logo-header {
   display: flex;

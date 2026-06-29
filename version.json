@@ -1,5 +1,5 @@
 {
-  "version": "2.11.81",
-  "updated": "2026-06-23",
-  "changelog": "Fix CB5 half panel toggle to track state independently per screen"
+  "version": "2.11.83",
+  "updated": "2026-06-29",
+  "changelog": "Header/Footer band: inline controls, live on-canvas rendering, independent per canvas tab"
 }

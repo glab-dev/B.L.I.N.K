@@ -3214,6 +3214,7 @@
       <div id="canvasViewWrapper">
         <div id="canvasViewport">
           <canvas id="canvasView"></canvas>
+          <canvas id="canvasBand" style="display:none;"></canvas>
         </div>
       </div>
       <div class="canvas-hint-text">Pinch to zoom • Drag to pan when zoomed • Drag screens to reposition</div>
@@ -3317,6 +3318,7 @@
             <option value="resolume">Resolume</option>
             <option value="outline">Outline</option>
             <option value="screens">Screens (Native Res)</option>
+            <option value="titleblock">Canvas + Title Block</option>
           </select>
           <button id="btnExportCanvas" class="config-btn">Export</button>
         </div>
@@ -3416,6 +3418,7 @@
             <option value="resolume">Resolume</option>
             <option value="outline">Outline</option>
             <option value="screens">Screens (Native Res)</option>
+            <option value="titleblock">Canvas + Title Block</option>
           </select>
         </div>
         <div class="canvas-toolbar-group toolbar-export">
@@ -3426,6 +3429,43 @@
 
       <!-- Screen Visibility Toggles (hidden in raster mode) -->
       <div id="canvasScreenToggles"></div>
+    </div>
+
+    <!-- Header/Footer Band Options -->
+    <div class="section-box mb-0" id="headerFooterSection">
+      <div class="section-title">Header/Footer</div>
+      <div class="section-content hf-section-content">
+        <label class="hf-enable-label">
+          <input type="checkbox" id="hfEnableToggle" onchange="tbToggleEnabled(this.checked)">
+          <span>Enable header/footer band</span>
+        </label>
+
+        <div class="canvas-controls-row hf-controls-row">
+          <div class="flex-1">
+            <span class="toggle-label toggle-label-block">Position</span>
+            <div class="toggle-group">
+              <button type="button" class="toggle-btn active" id="hfPosFooterBtn" onclick="tbSetPosition('footer')">Footer</button>
+              <button type="button" class="toggle-btn" id="hfPosHeaderBtn" onclick="tbSetPosition('header')">Header</button>
+            </div>
+          </div>
+          <div class="flex-1">
+            <span class="toggle-label toggle-label-block">Band Height (px)</span>
+            <div class="number-input-with-arrows">
+              <input type="number" id="hfHeightInput" min="40" max="1080" value="240" oninput="tbSetHeight(this.value)">
+              <div class="number-input-arrows">
+                <button type="button" onclick="adjustNumberInput('hfHeightInput', 1); tbSetHeight(document.getElementById('hfHeightInput').value)">
+                  <span class="material-symbols-outlined icon-14">keyboard_arrow_up</span>
+                </button>
+                <button type="button" onclick="adjustNumberInput('hfHeightInput', -1); tbSetHeight(document.getElementById('hfHeightInput').value)">
+                  <span class="material-symbols-outlined icon-14">keyboard_arrow_down</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="hfCellsContainer"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -3533,6 +3573,7 @@
 
 <!-- Export Functions -->
 <script defer src="export/canvas-export.js"></script>
+<script defer src="export/title-block.js"></script>
 <script defer src="export/resolume.js"></script>
 <script defer src="export/pdfLayoutEngine.js"></script>
 <script defer src="export/pdf.js"></script>
@@ -3555,8 +3596,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.81';
-const APP_CHANGELOG = 'Fix CB5 half panel toggle to track state independently per screen';
+const APP_VERSION = '2.11.83';
+const APP_CHANGELOG = 'Header/Footer band: inline controls, live on-canvas rendering, independent per canvas tab';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

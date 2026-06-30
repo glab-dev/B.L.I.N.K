@@ -310,7 +310,7 @@ function buildTitleBlockCanvas() {
 // ==================== EXPORT ENTRY POINTS ====================
 
 // Single export — triggered by the "Canvas + Title Block" format option.
-function exportCanvasWithTitleBlock(filename) {
+function exportCanvasWithTitleBlock(filename, format) {
   var tb = getCurrentTitleBlock();
   if(!tb || !tb.enabled) {
     showAlert('Enable the Header/Footer band first (Header/Footer section).');
@@ -321,9 +321,12 @@ function exportCanvasWithTitleBlock(filename) {
     showAlert('Please generate a canvas view first by clicking "Calculate".');
     return;
   }
+  var isJpeg = (format === 'jpeg');
+  var ext = isJpeg ? '.jpg' : '.png';
+  var mime = isJpeg ? 'image/jpeg' : 'image/png';
   tbEnsureImagesLoaded(tb, function() {
     var out = buildTitleBlockCanvas();
-    _downloadCanvasBlob(out, (filename || 'LED_Wall_Canvas') + '_titleblock.png', 'image/png');
+    _downloadCanvasBlob(out, (filename || 'LED_Wall_Canvas') + '_titleblock' + ext, mime);
   });
 }
 

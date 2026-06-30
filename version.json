@@ -1,5 +1,5 @@
 {
-  "version": "2.11.86",
+  "version": "2.11.87",
   "updated": "2026-06-30",
-  "changelog": "Header/Footer: fit Enable toggle, Position and Band Height into one row"
+  "changelog": "Add consolidated Export modal with hub navigation, scope/format options, and readiness redirects"
 }

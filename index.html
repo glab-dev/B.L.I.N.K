@@ -1694,6 +1694,100 @@
   </div>
 </div>
 
+<!-- Consolidated Export Modal -->
+<div id="exportModal" class="modal-overlay">
+  <div class="modal-dialog modal-400">
+    <div class="modal-header">
+      <button class="modal-back" id="exportBackBtn" onclick="exportShowHub()" style="display:none;" aria-label="Back"><span class="material-symbols-outlined">arrow_back</span></button>
+      <h2 class="modal-title" id="exportModalTitle">Export</h2>
+      <button class="modal-close" onclick="dismissExportModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Hub -->
+      <div class="exp-page" id="exportHub">
+        <button class="exp-nav-btn" onclick="exportModalPdfReport()">
+          <span class="exp-nav-text"><span class="exp-nav-title">PDF Report</span><span class="exp-nav-sub">Opens print preview</span></span>
+          <span class="material-symbols-outlined exp-nav-chev">chevron_right</span>
+        </button>
+        <button class="exp-nav-btn" onclick="exportShowPage('canvas', 'Canvas')">
+          <span class="exp-nav-text"><span class="exp-nav-title">Canvas</span><span class="exp-nav-sub">PNG &middot; native &middot; outline &middot; title block &middot; Resolume</span></span>
+          <span class="material-symbols-outlined exp-nav-chev">chevron_right</span>
+        </button>
+        <button class="exp-nav-btn" onclick="exportShowPage('tp', 'Test Pattern')">
+          <span class="exp-nav-text"><span class="exp-nav-title">Test Pattern</span><span class="exp-nav-sub">PNG image or MP4 video</span></span>
+          <span class="material-symbols-outlined exp-nav-chev">chevron_right</span>
+        </button>
+        <button class="exp-nav-btn" onclick="exportShowPage('gear', 'Gear List')">
+          <span class="exp-nav-text"><span class="exp-nav-title">Gear List</span><span class="exp-nav-sub">Text file or Send to Jared</span></span>
+          <span class="material-symbols-outlined exp-nav-chev">chevron_right</span>
+        </button>
+        <button class="btn-primary exp-export-all" onclick="exportModalEverything()">Export All</button>
+      </div>
+
+      <!-- Canvas sub-page -->
+      <div class="exp-page" id="exportPageCanvas" style="display:none;">
+        <div class="exp-canvas-cols">
+          <div class="exp-col">
+            <p class="exp-sublabel">Scope</p>
+            <div class="exp-col-btns">
+              <button type="button" class="toggle-btn active" onclick="setExportScope('full', this)">Canvas</button>
+              <button type="button" class="toggle-btn" onclick="setExportScope('screens', this)">Screens (Native Resolution)</button>
+              <button type="button" class="toggle-btn" onclick="setExportScope('titleblock', this)">Canvas + Title Block</button>
+            </div>
+          </div>
+          <div class="exp-col">
+            <p class="exp-sublabel">Format</p>
+            <div class="exp-col-btns">
+              <button type="button" class="toggle-btn active" onclick="setExportFormat('png', this)">PNG</button>
+              <button type="button" class="toggle-btn" onclick="setExportFormat('jpeg', this)">JPEG</button>
+            </div>
+          </div>
+        </div>
+        <button class="btn-primary exp-full exp-mt-8" onclick="runExportCanvasImage()">Export</button>
+        <hr class="modal-divider">
+        <div class="exp-row">
+          <button class="btn-secondary" onclick="runExportOutline()">Screen outline</button>
+          <button class="btn-secondary" onclick="runExportResolume()">Resolume</button>
+        </div>
+      </div>
+
+      <!-- Test Pattern sub-page -->
+      <div class="exp-page" id="exportPageTp" style="display:none;">
+        <div class="exp-tp-cols">
+          <div class="exp-col">
+            <button class="btn-secondary exp-full" onclick="runExportTpPng()">PNG image</button>
+          </div>
+          <div class="exp-col">
+            <button class="btn-secondary exp-full" onclick="runExportTpMp4()">MP4 video</button>
+            <p class="exp-sublabel">Framerate (MP4)</p>
+            <select id="exportTpFps" class="exp-full">
+              <option value="23.976">23.98</option>
+              <option value="24">24</option>
+              <option value="25">25</option>
+              <option value="29.97">29.97</option>
+              <option value="30">30</option>
+              <option value="50">50</option>
+              <option value="59.94">59.94</option>
+              <option value="60" selected>60</option>
+              <option value="120">120</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gear List sub-page -->
+      <div class="exp-page" id="exportPageGear" style="display:none;">
+        <div class="exp-row">
+          <button class="btn-secondary" onclick="runExportGearTxt()">Gear list (.txt)</button>
+          <button class="btn-secondary" onclick="runExportSendToJared()">Send to Jared</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <!-- PDF Export Options Modal -->
 <div id="pdfExportModal" class="modal-overlay">
   <div class="modal-dialog modal-360">
@@ -2202,6 +2296,9 @@
           <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load</button>
           <input type="file" id="loadConfigInput" accept=".blinkled,.led,.ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
           <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; showRecentProjects()">Recent</button>
+        </div>
+        <div class="mobile-menu-btn-row">
+          <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openExportModal(); closeMobileMenu();"><span class="material-symbols-outlined icon-16-mr">ios_share</span>Export</button>
         </div>
         <div class="mobile-menu-btn-row">
           <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; closeMobileMenu();">Export PDF</button>
@@ -3318,7 +3415,7 @@
             <option value="png" selected="">PNG</option>
             <option value="jpeg">JPEG</option>
             <option value="resolume">Resolume</option>
-            <option value="outline">Outline</option>
+            <option value="outline">Screen outline</option>
             <option value="screens">Screens (Native Res)</option>
             <option value="titleblock">Canvas + Title Block</option>
           </select>
@@ -3418,7 +3515,7 @@
             <option value="png" selected="">PNG</option>
             <option value="jpeg">JPEG</option>
             <option value="resolume">Resolume</option>
-            <option value="outline">Outline</option>
+            <option value="outline">Screen outline</option>
             <option value="screens">Screens (Native Res)</option>
             <option value="titleblock">Canvas + Title Block</option>
           </select>
@@ -3584,6 +3681,7 @@
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script defer src="export/export-all.js"></script>
+<script defer src="export/export-modal.js"></script>
 <!-- Config -->
 <script defer src="config/setup.js"></script>
 <script defer src="config/save-load.js"></script>
@@ -3598,8 +3696,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.86';
-const APP_CHANGELOG = 'Header/Footer: fit Enable toggle, Position and Band Height into one row';
+const APP_VERSION = '2.11.87';
+const APP_CHANGELOG = 'Add consolidated Export modal with hub navigation, scope/format options, and readiness redirects';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

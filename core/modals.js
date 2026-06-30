@@ -17,13 +17,13 @@ function showAlert(message, title) {
   });
 }
 
-function showConfirm(message, title) {
+function showConfirm(message, title, okLabel) {
   return new Promise(resolve => {
     _customAlertResolve = resolve;
     document.getElementById('customAlertTitle').textContent = title || 'Confirm';
     document.getElementById('customAlertMessage').textContent = message;
     document.getElementById('customAlertCancelBtn').style.display = '';
-    document.getElementById('customAlertOkBtn').textContent = 'OK';
+    document.getElementById('customAlertOkBtn').textContent = okLabel || 'OK';
     document.getElementById('customAlertModal').classList.add('active');
   });
 }

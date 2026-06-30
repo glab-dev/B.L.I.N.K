@@ -5999,6 +5999,105 @@ canvas:focus {
 .modal-500 { max-width: 500px; }
 .modal-560 { max-width: 560px; }
 
+/* ===== Consolidated Export Modal ===== */
+.exp-section { margin-bottom: 18px; }
+.exp-section:last-child { margin-bottom: 0; }
+.exp-label {
+  font-family: 'Bangers', cursive;
+  letter-spacing: 1px;
+  font-size: 16px;
+  color: var(--primary);
+  text-shadow: 1px 1px 0 #000;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+.exp-sublabel {
+  font-family: 'Roboto Condensed', sans-serif;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #aaa;
+  margin: 10px 0 5px;
+}
+.exp-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.exp-row > button { flex: 1 1 0; width: auto; margin-bottom: 0; min-width: 0; }
+.exp-canvas-cols { display: flex; gap: 12px; align-items: flex-start; }
+.exp-col { display: flex; flex-direction: column; min-width: 0; }
+.exp-col:first-child { flex: 1.6 1 0; }
+.exp-col:last-child { flex: 1 1 0; }
+.exp-col-btns { display: flex; flex-direction: column; gap: 8px; }
+.exp-col-btns .toggle-btn { width: 100%; }
+.exp-full { width: 100%; }
+.exp-mb-8 { margin-bottom: 8px; }
+.exp-tp-cols { display: flex; gap: 12px; align-items: flex-start; }
+.exp-tp-cols .exp-col { flex: 1 1 0; }
+.exp-mt-8 { margin-top: 8px; }
+.exp-export-all { width: 100%; margin-top: 6px; }
+
+/* Export hub navigation rows (full override of the global button rule) */
+.exp-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: #2a2a2a;
+  color: #e0e0e0;
+  border: 2px solid #000;
+  border-radius: 0;
+  padding: 12px 14px;
+  min-height: 0;
+  margin-bottom: 10px;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  text-shadow: none;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  font-family: 'Roboto Condensed', sans-serif;
+  cursor: pointer;
+  transition: all 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.exp-nav-btn:hover { background: #383838; }
+.exp-nav-btn:active { box-shadow: none; transform: translate(2px, 2px); }
+.exp-nav-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.exp-nav-title {
+  color: var(--primary);
+  font-size: 15px;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+.exp-nav-sub { color: #999; font-size: 12px; font-weight: 400; }
+.exp-nav-chev { color: #777; font-size: 22px; flex-shrink: 0; }
+
+/* Export modal header back button (full override of the global button rule) */
+.modal-back {
+  background: none;
+  color: var(--primary);
+  border: 2px solid #000;
+  border-radius: 2px;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  text-shadow: none;
+  font-weight: 400;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition: all 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.modal-back .material-symbols-outlined { font-size: 20px; }
+.modal-back:hover { background: #383838; }
+.modal-back:active { box-shadow: none; transform: translate(2px, 2px); }
+
 /* Modal with constrained height (85vh instead of default 90vh) */
 .modal-scrollable {
   max-height: 85vh;

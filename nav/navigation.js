@@ -14,6 +14,14 @@ function closeMobileMenu() {
 }
 
 function reopenMenuIfNeeded() {
+  // Modal-to-modal return: if a parent modal is waiting, fall back to it
+  // (X / Back / Cancel on a child returns to the modal it was opened from).
+  if (modalReturnTo) {
+    const returnFn = modalReturnTo;
+    modalReturnTo = null;
+    returnFn();
+    return;
+  }
   if (modalOpenedFromMenu) {
     modalOpenedFromMenu = false;
     const overlay = document.getElementById('mobileMenuOverlay');

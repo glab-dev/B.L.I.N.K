@@ -1,10 +1,13 @@
 // ==================== CANVAS EXPORT (PNG/JPEG) ====================
 // Exports the canvas view as PNG or JPEG image.
 
-function exportCanvas(){
+function exportCanvas(imgFormat){
   try {
     const canvas = document.getElementById('canvasView');
-    if(canvas.width === 0 || document.getElementById('canvasContainer').style.display === 'none'){
+    // The full-resolution canvas + clean-export cache are produced by
+    // showCanvasView() on every calculate(), independent of the visible view —
+    // so we only need rendered content here, not the container to be on-screen.
+    if(canvas.width === 0){
       showAlert('Please generate a canvas view first by clicking "Calculate".');
       return;
     }
@@ -74,15 +77,15 @@ function exportCanvas(){
       return;
     }
 
-    // Handle per-screen native-resolution PNG export
+    // Handle per-screen native-resolution export (PNG or JPEG)
     if(format === 'screens') {
-      exportScreensNativeRes();
+      exportScreensNativeRes(imgFormat);
       return;
     }
 
-    // Handle canvas + header/footer title block composite
+    // Handle canvas + header/footer title block composite (PNG or JPEG)
     if(format === 'titleblock') {
-      exportCanvasWithTitleBlock(filename);
+      exportCanvasWithTitleBlock(filename, imgFormat);
       return;
     }
 
@@ -236,8 +239,12 @@ function getScreenNativeResBlobs(callback) {
 
 // Dropdown handler: export each visible screen at native resolution.
 // File naming: "{ScreenName}_{w}x{h}.png". 1 screen → direct PNG; >1 → ZIP.
-function exportScreensNativeRes() {
+function exportScreensNativeRes(format) {
   try {
+    var isJpeg = (format === 'jpeg');
+    var ext = isJpeg ? '.jpg' : '.png';
+    var mime = isJpeg ? 'image/jpeg' : 'image/png';
+    var quality = isJpeg ? 0.92 : undefined;
     var screenIds = Object.keys(screens).sort(function(a, b) {
       return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
     });
@@ -264,7 +271,7 @@ function exportScreensNativeRes() {
         showAlert('No screens with valid dimensions to export. Generate a screen first.');
         return;
       }
-      _downloadCanvasBlob(rendered.canvas, valid[0].name + '_' + rendered.w + 'x' + rendered.h + '.png', 'image/png');
+      _downloadCanvasBlob(rendered.canvas, valid[0].name + '_' + rendered.w + 'x' + rendered.h + ext, mime);
       return;
     }
 
@@ -296,12 +303,12 @@ function exportScreensNativeRes() {
       var rendered = _renderScreenNativeCanvas(v.id);
       if(!rendered) { next(i + 1); return; }
       rendered.canvas.toBlob(function(blob) {
-        if(blob) zip.file(v.name + '_' + rendered.w + 'x' + rendered.h + '.png', blob);
+        if(blob) zip.file(v.name + '_' + rendered.w + 'x' + rendered.h + ext, blob);
         // Free this screen's canvas before rendering the next one.
         rendered.canvas.width = rendered.canvas.height = 0;
         rendered.canvas = null;
         next(i + 1);
-      }, 'image/png');
+      }, mime, quality);
     }
 
     next(0);
@@ -348,6 +355,9 @@ function showOutlineExportModal() {
 
 function closeOutlineExportModal() {
   document.getElementById('outlineExportModal').classList.remove('active');
+  // Return to the modal this was opened from (e.g. the Export modal), or fall
+  // back to the menu/app. Harmless when opened from the canvas toolbar.
+  if(typeof reopenMenuIfNeeded === 'function') reopenMenuIfNeeded();
 }
 
 function setOutlineMode(mode) {

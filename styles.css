@@ -5613,10 +5613,33 @@ canvas:focus {
 }
 
 /* ==================== HEADER / FOOTER BAND ==================== */
-/* Live band canvas — sibling of #canvasView inside the zoom/pan viewport */
+/* Canvas Options + Header/Footer sit side by side on desktop, stacked on mobile */
+.canvas-options-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.canvas-options-row > .section-box {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+}
+@media (max-width: 768px) {
+  .canvas-options-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  .canvas-options-row > .section-box {
+    margin-bottom: 16px;
+  }
+}
+/* Live band canvas — sibling of #canvasView inside the zoom/pan viewport.
+   margin:0 overrides the global `canvas { margin-top: 12px }` so the band sits
+   flush against the canvas (no gap to the green boundary line). */
 #canvasBand {
   display: block;
   width: 100%;
+  margin: 0;
 }
 /* The Header/Footer section's content uses .section-content (so initMobileUI's
    auto-wrap skips it); override the canvasContainer rule that hides .section-content */
@@ -5626,17 +5649,8 @@ canvas:focus {
 .hf-section-content {
   font-family: 'Roboto Condensed', sans-serif;
 }
-.hf-enable-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  margin-bottom: 12px;
-}
-.hf-enable-label input[type="checkbox"] {
-  width: auto;
-  min-height: 0;
-  margin: 0;
+.hf-enable-btn {
+  width: 100%;
 }
 .hf-controls-row {
   margin-bottom: 12px;

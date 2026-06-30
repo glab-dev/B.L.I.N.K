@@ -105,18 +105,24 @@ function drawTitleBlockBand(ctx, tb, bx, by, bw, bh, canvasResX, canvasResY) {
     ctx.strokeRect(cx + lw / 2, by + lw / 2, cellW - lw, bh - lw);
     ctx.restore();
 
+    // Clip every cell's content to its own box so nothing extrudes into a neighbour
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(cx, by, cellW, bh);
+    ctx.clip();
     if(cell.type === 'title') {
       _tbDrawTitleCell(ctx, cx, by, cellW, bh, cell, canvasResX, canvasResY);
     } else if(cell.type === 'company' || cell.type === 'show') {
       _tbDrawLogoCell(ctx, cx, by, cellW, bh, cell);
     }
+    ctx.restore();
   }
 }
 
 function _tbDrawLogoCell(ctx, cx, cy, cw, ch, cell) {
   var img = cell._img;
   if(!img || !img.complete || !img.naturalWidth) return;
-  var pad = Math.min(cw, ch) * 0.12;
+  var pad = Math.min(cw, ch) * 0.08;
   var availW = cw - pad * 2;
   var availH = ch - pad * 2;
   var scale = Math.min(availW / img.naturalWidth, availH / img.naturalHeight);
@@ -125,46 +131,88 @@ function _tbDrawLogoCell(ctx, cx, cy, cw, ch, cell) {
   ctx.drawImage(img, cx + (cw - dw) / 2, cy + (ch - dh) / 2, dw, dh);
 }
 
+// Shrinks a font size until the text fits maxW (never below 6px).
+function _tbFitFont(ctx, text, maxW, startSize, fam, weight) {
+  var size = startSize;
+  ctx.font = (weight || '') + size + "px " + fam;
+  while(size > 6 && ctx.measureText(text).width > maxW) {
+    size -= 1;
+    ctx.font = (weight || '') + size + "px " + fam;
+  }
+  return size;
+}
+
 function _tbDrawTitleCell(ctx, cx, cy, cw, ch, cell, canvasResX, canvasResY) {
   var info = _tbGetAutoInfo(canvasResX, canvasResY);
-  var hasInfo = !!(info.panelLine || info.canvasLine);
-  var pad = ch * 0.12;
-  var leftX = cx + pad;
-
-  ctx.save();
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-
-  function drawOutlined(text, x, y, size, font) {
-    ctx.font = font;
-    var ow = Math.max(2, size * 0.07);
-    ctx.lineWidth = ow * 2;
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#000';
-    ctx.strokeText(text, x, y);
-    ctx.fillStyle = '#fff';
-    ctx.fillText(text, x, y);
-  }
+  var infoLines = [];
+  if(info.panelLine) infoLines.push(['Panel Type:', info.panelLine]);
+  if(info.canvasLine) infoLines.push(['Canvas Size:', info.canvasLine]);
+  var hasInfo = infoLines.length > 0;
 
   var title = (cell.title || '').trim();
   var subtitle = (cell.subtitle || '').trim();
-  var titleSize = ch * 0.30;
-  var subSize = ch * 0.20;
-  if(title) drawOutlined(title, leftX, cy + ch * 0.45, titleSize, "700 " + titleSize + "px 'Bangers', cursive");
-  if(subtitle) drawOutlined(subtitle, leftX, cy + ch * 0.72, subSize, "700 " + subSize + "px 'Bangers', cursive");
+  var hasTitle = !!title, hasSub = !!subtitle;
 
-  if(hasInfo) {
-    var infoSize = ch * 0.13;
-    var lineH = infoSize * 1.35;
-    var infoX = cx + cw * 0.52;
-    var iy = cy + pad + infoSize;
-    ctx.font = infoSize + "px 'Roboto Condensed', sans-serif";
-    function infoPair(label, value) {
-      ctx.fillStyle = '#bbbbbb'; ctx.fillText(label, infoX, iy); iy += lineH;
-      ctx.fillStyle = '#ffffff'; ctx.fillText(value, infoX, iy); iy += lineH * 1.1;
+  var padX = cw * 0.045;
+  var padY = ch * 0.10;
+  var innerW = cw - padX * 2;
+  var innerH = ch - padY * 2;
+
+  // Two non-overlapping zones: left = user title/subtitle, right = auto info.
+  var zoneGap = hasInfo && (hasTitle || hasSub) ? cw * 0.04 : 0;
+  var leftW = (hasInfo && (hasTitle || hasSub)) ? innerW * 0.52 : innerW;
+  var rightW = hasInfo ? (innerW - leftW - zoneGap) : 0;
+  var leftX = cx + padX;
+  var rightX = (hasTitle || hasSub) ? (leftX + leftW + zoneGap) : leftX;
+  if(!hasTitle && !hasSub) rightW = innerW; // info-only cell uses full width
+
+  var ROBOTO = "'Roboto Condensed', sans-serif";
+
+  ctx.save();
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+
+  // Title/subtitle use the same Roboto Condensed family as the info text beside them
+  function drawTitleLine(text, x, yMid, size) {
+    ctx.font = "700 " + size + "px " + ROBOTO;
+    ctx.fillStyle = '#fff';
+    ctx.fillText(text, x, yMid);
+  }
+
+  // ---- LEFT: title + subtitle, fit to width then to total height ----
+  if(hasTitle || hasSub) {
+    var tSize = hasTitle ? Math.min(innerH * (hasSub ? 0.56 : 0.92), ch * 0.46) : 0;
+    var sSize = hasSub ? Math.min(innerH * (hasTitle ? 0.34 : 0.62), ch * 0.30) : 0;
+    if(hasTitle) tSize = _tbFitFont(ctx, title, leftW, tSize, ROBOTO, "700 ");
+    if(hasSub) sSize = _tbFitFont(ctx, subtitle, leftW, sSize, ROBOTO, "700 ");
+    var tLineH = tSize * 1.08;
+    var sLineH = sSize * 1.18;
+    var blockH = (hasTitle ? tLineH : 0) + (hasSub ? sLineH : 0);
+    if(blockH > innerH && blockH > 0) {
+      var k = innerH / blockH;
+      tSize *= k; sSize *= k; tLineH *= k; sLineH *= k; blockH = innerH;
     }
-    if(info.panelLine) infoPair('Panel Type:', info.panelLine);
-    if(info.canvasLine) infoPair('Canvas Size:', info.canvasLine);
+    var yCursor = cy + (ch - blockH) / 2;
+    if(hasTitle) { drawTitleLine(title, leftX, yCursor + tLineH / 2, tSize); yCursor += tLineH; }
+    if(hasSub) { drawTitleLine(subtitle, leftX, yCursor + sLineH / 2, sSize); }
+  }
+
+  // ---- RIGHT: auto info (label + value pairs), fit to width and height ----
+  if(hasInfo) {
+    var nLines = infoLines.length * 2;
+    var infoSize = Math.min(innerH / (nLines * 1.32), ch * 0.17);
+    infoLines.forEach(function(pair) {
+      infoSize = Math.min(infoSize, _tbFitFont(ctx, pair[0], rightW, infoSize, ROBOTO, ''));
+      infoSize = Math.min(infoSize, _tbFitFont(ctx, pair[1], rightW, infoSize, ROBOTO, ''));
+    });
+    var infoLineH = infoSize * 1.32;
+    var infoTotalH = nLines * infoLineH;
+    var iy = cy + (ch - infoTotalH) / 2 + infoLineH / 2;
+    ctx.font = infoSize + "px " + ROBOTO;
+    infoLines.forEach(function(pair) {
+      ctx.fillStyle = '#bbbbbb'; ctx.fillText(pair[0], rightX, iy); iy += infoLineH;
+      ctx.fillStyle = '#ffffff'; ctx.fillText(pair[1], rightX, iy); iy += infoLineH;
+    });
   }
   ctx.restore();
 }
@@ -346,8 +394,7 @@ function renderHeaderFooterControls() {
   if(!section) return;
   if(!tb) tb = tbDefaultState();
 
-  var en = document.getElementById('hfEnableToggle');
-  if(en) en.checked = !!tb.enabled;
+  _tbUpdateEnableBtn(tb.enabled);
   var pf = document.getElementById('hfPosFooterBtn');
   var ph = document.getElementById('hfPosHeaderBtn');
   if(pf) pf.classList.toggle('active', tb.position !== 'header');
@@ -391,10 +438,18 @@ function _tbRerenderBand() {
   if(typeof showCanvasView === 'function') showCanvasView();
 }
 
-function tbToggleEnabled(checked) {
+function _tbUpdateEnableBtn(on) {
+  var btn = document.getElementById('hfEnableToggle');
+  if(!btn) return;
+  btn.classList.toggle('active', !!on);
+  btn.textContent = on ? 'Enabled' : 'Disabled';
+}
+
+function tbToggleEnabled() {
   var tb = getCurrentTitleBlock();
   if(!tb) return;
-  tb.enabled = !!checked;
+  tb.enabled = !tb.enabled;
+  _tbUpdateEnableBtn(tb.enabled);
   _tbRerenderBand();
 }
 

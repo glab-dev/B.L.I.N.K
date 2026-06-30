@@ -3221,6 +3221,8 @@
       <div class="canvas-info-text" id="canvasInfo"></div>
     </div>
 
+    <!-- Canvas Options + Header/Footer: side by side on desktop, stacked on mobile -->
+    <div class="canvas-options-row">
     <!-- Canvas Options -->
     <div class="section-box mb-0">
       <div class="section-title">Canvas Options</div>
@@ -3435,12 +3437,11 @@
     <div class="section-box mb-0" id="headerFooterSection">
       <div class="section-title">Header/Footer</div>
       <div class="section-content hf-section-content">
-        <label class="hf-enable-label">
-          <input type="checkbox" id="hfEnableToggle" onchange="tbToggleEnabled(this.checked)">
-          <span>Enable header/footer band</span>
-        </label>
-
         <div class="canvas-controls-row hf-controls-row">
+          <div class="flex-1">
+            <span class="toggle-label toggle-label-block">Enable</span>
+            <button type="button" class="toggle-btn hf-enable-btn" id="hfEnableToggle" onclick="tbToggleEnabled()">Disabled</button>
+          </div>
           <div class="flex-1">
             <span class="toggle-label toggle-label-block">Position</span>
             <div class="toggle-group">
@@ -3466,6 +3467,7 @@
 
         <div id="hfCellsContainer"></div>
       </div>
+    </div>
     </div>
   </div>
 </div>
@@ -3596,8 +3598,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.83';
-const APP_CHANGELOG = 'Header/Footer band: inline controls, live on-canvas rendering, independent per canvas tab';
+const APP_VERSION = '2.11.86';
+const APP_CHANGELOG = 'Header/Footer: fit Enable toggle, Position and Band Height into one row';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

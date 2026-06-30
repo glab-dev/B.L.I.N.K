@@ -1,5 +1,5 @@
 {
-  "version": "2.11.83",
-  "updated": "2026-06-29",
-  "changelog": "Header/Footer band: inline controls, live on-canvas rendering, independent per canvas tab"
+  "version": "2.11.86",
+  "updated": "2026-06-30",
+  "changelog": "Header/Footer: fit Enable toggle, Position and Band Height into one row"
 }

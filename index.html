@@ -2298,9 +2298,9 @@
           <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; showRecentProjects()">Recent</button>
         </div>
         <div class="mobile-menu-btn-row">
-          <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openExportModal(); closeMobileMenu();"><span class="material-symbols-outlined icon-16-mr">ios_share</span>Export</button>
+          <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openExportModal(); closeMobileMenu();">Export</button>
         </div>
-        <div class="mobile-menu-btn-row">
+        <div class="mobile-menu-btn-row" style="display:none;">
           <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; closeMobileMenu();">Export PDF</button>
           <button class="mobile-menu-btn accent" onclick="closeMobileMenu(); exportAll();">Export All</button>
         </div>
@@ -3404,13 +3404,13 @@
           </div>
         </div>
 
-        <!-- Row 3: Filename -->
-        <div class="mb-8">
+        <!-- Row 3: Filename (hidden — export is handled by the Export modal) -->
+        <div class="mb-8" style="display:none;">
           <input type="text" id="canvasExportFilename" placeholder="Filename...">
         </div>
 
-        <!-- Row 4: PNG dropdown, Export button -->
-        <div class="canvas-export-row">
+        <!-- Row 4: PNG dropdown, Export button (hidden — kept in DOM for the Export modal) -->
+        <div class="canvas-export-row" style="display:none;">
           <select id="canvasExportFormat">
             <option value="png" selected="">PNG</option>
             <option value="jpeg">JPEG</option>
@@ -3509,7 +3509,7 @@
           <button type="button" class="toggle-btn" id="canvasDataLabelsBtn" onclick="toggleCanvasDataLabels()">Data Labels</button>
         </div>
         <div class="toolbar-break toolbar-break-always"></div>
-        <div class="canvas-toolbar-group toolbar-format">
+        <div class="canvas-toolbar-group toolbar-format" style="display:none;">
           <span class="canvas-toolbar-label">Format</span>
           <select id="rasterToolbarFormat">
             <option value="png" selected="">PNG</option>
@@ -3520,7 +3520,7 @@
             <option value="titleblock">Canvas + Title Block</option>
           </select>
         </div>
-        <div class="canvas-toolbar-group toolbar-export">
+        <div class="canvas-toolbar-group toolbar-export" style="display:none;">
           <span class="canvas-toolbar-label">&nbsp;</span>
           <button type="button" class="config-btn" id="rasterToolbarExport" onclick="exportCanvas()">Export</button>
         </div>
@@ -3696,8 +3696,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.87';
-const APP_CHANGELOG = 'Add consolidated Export modal with hub navigation, scope/format options, and readiness redirects';
+const APP_VERSION = '2.11.88';
+const APP_CHANGELOG = 'Hide redundant menu and canvas export controls, drop Export button icon';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

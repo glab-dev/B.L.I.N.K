@@ -1,5 +1,5 @@
 {
-  "version": "2.11.87",
+  "version": "2.11.88",
   "updated": "2026-06-30",
-  "changelog": "Add consolidated Export modal with hub navigation, scope/format options, and readiness redirects"
+  "changelog": "Hide redundant menu and canvas export controls, drop Export button icon"
 }

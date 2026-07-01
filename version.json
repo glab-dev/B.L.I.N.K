@@ -1,5 +1,5 @@
 {
-  "version": "2.11.88",
-  "updated": "2026-06-30",
-  "changelog": "Hide redundant menu and canvas export controls, drop Export button icon"
+  "version": "2.11.89",
+  "updated": "2026-07-01",
+  "changelog": "Fix Send to Jared email choice modal hidden behind Export modal"
 }

@@ -1968,6 +1968,13 @@ canvas:focus {
   z-index: 10001;
 }
 
+/* The Mail/Gmail choice modal opens after the Send to Jared flow reopens its
+   parent (the Export modal). Both are base z-index 10000 and the Export modal
+   is later in the DOM, so lift the email modal above it to keep it on top. */
+#emailSendModal {
+  z-index: 10001;
+}
+
 #customAlertModal {
   z-index: 10002;
 }
@@ -5654,6 +5661,13 @@ canvas:focus {
 }
 .hf-controls-row {
   margin-bottom: 12px;
+}
+.hf-controls-row .flex-1 {
+  display: flex;
+  flex-direction: column;
+}
+.hf-controls-row .flex-1 > :last-child {
+  margin-top: auto;
 }
 .hf-cell-editor {
   border: 2px solid #000;

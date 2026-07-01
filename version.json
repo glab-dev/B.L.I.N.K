@@ -1,5 +1,5 @@
 {
-  "version": "2.11.89",
+  "version": "2.11.90",
   "updated": "2026-07-01",
-  "changelog": "Fix Send to Jared email choice modal hidden behind Export modal"
+  "changelog": "Align Band Height control with Header/Footer toggles on mobile"
 }

@@ -105,20 +105,20 @@ function exportModalEverything() {
 let _exportScope = 'full';   // full | screens | outline | titleblock
 let _exportFormat = 'png';   // png | jpeg
 
-function _expSelectInGroup(btn) {
-  const btns = btn.parentNode.querySelectorAll('.toggle-btn');
-  for(let i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+// Scope and format buttons share a grid parent, so select within each group by class.
+function _expSelectInGroup(btn, selector) {
+  document.querySelectorAll(selector).forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
 }
 
 function setExportScope(scope, btn) {
   _exportScope = scope;
-  _expSelectInGroup(btn);
+  _expSelectInGroup(btn, '#exportPageCanvas .exp-scope-btn');
 }
 
 function setExportFormat(fmt, btn) {
   _exportFormat = fmt;
-  _expSelectInGroup(btn);
+  _expSelectInGroup(btn, '#exportPageCanvas .exp-fmt-btn');
 }
 
 async function runExportCanvasImage() {

@@ -6035,18 +6035,19 @@ canvas:focus {
 }
 .exp-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .exp-row > button { flex: 1 1 0; width: auto; margin-bottom: 0; min-width: 0; }
-.exp-canvas-cols { display: flex; gap: 12px; align-items: flex-start; }
 .exp-col { display: flex; flex-direction: column; min-width: 0; }
-.exp-col:first-child { flex: 1.6 1 0; }
-.exp-col:last-child { flex: 1 1 0; }
-.exp-col-btns { display: flex; flex-direction: column; gap: 8px; }
-.exp-col-btns .toggle-btn { width: 100%; }
 .exp-full { width: 100%; }
-.exp-mb-8 { margin-bottom: 8px; }
 .exp-tp-cols { display: flex; gap: 12px; align-items: flex-start; }
 .exp-tp-cols .exp-col { flex: 1 1 0; }
-.exp-mt-8 { margin-top: 8px; }
 .exp-export-all { width: 100%; margin-top: 6px; }
+/* Canvas export grid: Scope (wide) | Format (narrow). Actions row reuses the
+   same columns so Screen outline / Resolume align with them. Export sits in its
+   own 4th row at the bottom of the Format column. */
+.exp-canvas-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 8px 12px; }
+.exp-canvas-grid .exp-sublabel { margin: 0; }
+.exp-canvas-grid .toggle-btn,
+.exp-canvas-grid .btn-secondary { width: 100%; }
+.exp-export-btn { grid-column: 2; grid-row: 5; }
 
 /* Export hub navigation rows (full override of the global button rule) */
 .exp-nav-btn {

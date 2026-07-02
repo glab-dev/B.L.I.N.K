@@ -1727,26 +1727,18 @@
 
       <!-- Canvas sub-page -->
       <div class="exp-page" id="exportPageCanvas" style="display:none;">
-        <div class="exp-canvas-cols">
-          <div class="exp-col">
-            <p class="exp-sublabel">Scope</p>
-            <div class="exp-col-btns">
-              <button type="button" class="toggle-btn active" onclick="setExportScope('full', this)">Canvas</button>
-              <button type="button" class="toggle-btn" onclick="setExportScope('screens', this)">Screens (Native Resolution)</button>
-              <button type="button" class="toggle-btn" onclick="setExportScope('titleblock', this)">Canvas + Title Block</button>
-            </div>
-          </div>
-          <div class="exp-col">
-            <p class="exp-sublabel">Format</p>
-            <div class="exp-col-btns">
-              <button type="button" class="toggle-btn active" onclick="setExportFormat('png', this)">PNG</button>
-              <button type="button" class="toggle-btn" onclick="setExportFormat('jpeg', this)">JPEG</button>
-            </div>
-          </div>
+        <div class="exp-canvas-grid">
+          <p class="exp-sublabel">Scope</p>
+          <p class="exp-sublabel">Format</p>
+          <button type="button" class="toggle-btn exp-scope-btn active" onclick="setExportScope('full', this)">Canvas</button>
+          <button type="button" class="toggle-btn exp-fmt-btn active" onclick="setExportFormat('png', this)">PNG</button>
+          <button type="button" class="toggle-btn exp-scope-btn" onclick="setExportScope('screens', this)">Screens (Native Resolution)</button>
+          <button type="button" class="toggle-btn exp-fmt-btn" onclick="setExportFormat('jpeg', this)">JPEG</button>
+          <button type="button" class="toggle-btn exp-scope-btn" onclick="setExportScope('titleblock', this)">Canvas + Title Block</button>
+          <button class="btn-secondary exp-export-btn" onclick="runExportCanvasImage()">Export</button>
         </div>
-        <button class="btn-primary exp-full exp-mt-8" onclick="runExportCanvasImage()">Export</button>
         <hr class="modal-divider">
-        <div class="exp-row">
+        <div class="exp-canvas-grid">
           <button class="btn-secondary" onclick="runExportOutline()">Screen outline</button>
           <button class="btn-secondary" onclick="runExportResolume()">Resolume</button>
         </div>
@@ -3696,8 +3688,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.90';
-const APP_CHANGELOG = 'Align Band Height control with Header/Footer toggles on mobile';
+const APP_VERSION = '2.11.91';
+const APP_CHANGELOG = 'Rework Canvas export options into aligned grid with Export in its own row';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

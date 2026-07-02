@@ -1,5 +1,5 @@
 {
-  "version": "2.11.90",
-  "updated": "2026-07-01",
-  "changelog": "Align Band Height control with Header/Footer toggles on mobile"
+  "version": "2.11.91",
+  "updated": "2026-07-02",
+  "changelog": "Rework Canvas export options into aligned grid with Export in its own row"
 }

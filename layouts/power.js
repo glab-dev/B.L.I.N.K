@@ -296,7 +296,8 @@ function renderPowerLayout(params) {
 
         // ----- Outline: trace perimeter edges of the panel union (inset so adjacent SOCAs show side-by-side) -----
         if (_drawOutlines) {
-          const inset = _pdfMode ? Math.max(2, Math.round(2 * _markerScale)) : 2;
+          const outlineLineWidth = _pdfMode ? Math.max(1.5, 1.5 * _markerScale) : 1.5;
+          const inset = outlineLineWidth / 2;
           const segments = []; // [x1,y1,x2,y2]
           cellSet.forEach(k => {
             const [c, r] = k.split(',').map(Number);
@@ -355,7 +356,7 @@ function renderPowerLayout(params) {
 
           ctx.save();
           ctx.strokeStyle = _socaOutlinePalette[socaColorIdx.get(socaIdx) || 0];
-          ctx.lineWidth = _pdfMode ? Math.max(2, Math.round(2 * _markerScale)) : 2;
+          ctx.lineWidth = outlineLineWidth;
           ctx.setLineDash([]);
           ctx.lineCap = 'square';
           ctx.lineJoin = 'miter';

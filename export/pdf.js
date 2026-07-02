@@ -1449,7 +1449,8 @@ function buildComplexPdf(opts, canvasCache) {
     const imgData = canvasCache && canvasCache[key];
     if (!imgData || !imgData.dataUrl) return null;
     const aspect = imgData.aspectRatio || (ph / pw);
-    let renderWidth = cw;
+    const pointsPerPanel = cw / 10; // walls ~10+ panels wide fill the width; smaller walls scale down proportionally
+    let renderWidth = Math.min(cw, pw * pointsPerPanel);
     let renderHeight = Math.round(renderWidth * aspect);
     if (renderHeight > maxH) {
       renderHeight = maxH;

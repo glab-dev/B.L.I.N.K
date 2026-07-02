@@ -1,5 +1,5 @@
 {
-  "version": "2.11.91",
+  "version": "2.11.92",
   "updated": "2026-07-02",
-  "changelog": "Rework Canvas export options into aligned grid with Export in its own row"
+  "changelog": "Make SOCA outline flush with panel edges and scale down small-wall PDF layouts"
 }

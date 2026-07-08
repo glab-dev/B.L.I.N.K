@@ -621,8 +621,8 @@ function applyConfiguration(config) {
       if(typeof initGearView === 'function') {
         initGearView();
       }
-      // Refresh raster screen table if currently in raster mode
-      if (currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
+      // Refresh the screen table in raster mode and on the canvas view
+      if ((currentAppMode === 'raster' || currentMobileView === 'canvas') && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();
       }
     }, 100);

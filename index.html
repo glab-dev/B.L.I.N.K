@@ -3418,18 +3418,9 @@
 
       <!-- Unified Canvas Toolbar (replaces old section-content) -->
       <div class="canvas-toolbar" id="rasterCanvasToolbar">
-        <div class="canvas-toolbar-group toolbar-filename">
+        <div class="canvas-toolbar-group toolbar-filename" style="display:none;">
           <span class="canvas-toolbar-label">Filename</span>
           <input type="text" id="rasterToolbarFilename" placeholder="LED_Wall_Canvas_4K_UHD_3840x2160">
-        </div>
-        <div class="canvas-toolbar-group toolbar-save">
-          <span class="canvas-toolbar-label">&nbsp;</span>
-          <button type="button" class="config-btn" onclick="saveRasterFile()">Save</button>
-        </div>
-        <div class="canvas-toolbar-group toolbar-load">
-          <span class="canvas-toolbar-label">&nbsp;</span>
-          <button type="button" class="config-btn" onclick="document.getElementById('loadRasterInput').click()">Load</button>
-          <input type="file" id="loadRasterInput" accept=".blinkrast,.raster" style="display: none;" onchange="loadRasterFile(event)">
         </div>
         <div class="toolbar-break toolbar-break-always"></div>
         <div class="canvas-toolbar-group toolbar-canvas-size">
@@ -3688,8 +3679,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.92';
-const APP_CHANGELOG = 'Make SOCA outline flush with panel edges and scale down small-wall PDF layouts';
+const APP_VERSION = '2.11.93';
+const APP_CHANGELOG = 'Show full Screens table on Canvas page in simple and complex modes';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

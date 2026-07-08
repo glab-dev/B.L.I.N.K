@@ -10,6 +10,10 @@ function activateCanvasView() {
   if(canvasTabsEl) canvasTabsEl.style.display = 'flex';
   if(canvasContainer) canvasContainer.style.display = 'block';
   if(canvasContainer) canvasContainer.classList.remove('raster-mode');  // Hides Save/Load buttons
+  // Show the full screen table (same as raster mode) and populate it
+  const rasterTable = document.getElementById('rasterScreenTableContainer');
+  if(rasterTable) rasterTable.style.display = 'block';
+  if(typeof renderRasterScreenTable === 'function') renderRasterScreenTable();
   // Sync toolbar values from canvas options (hidden section-box)
   if(typeof syncToolbarFromCanvasOptions === 'function') syncToolbarFromCanvasOptions();
   // Init toolbar listeners once (shared with raster mode)
@@ -17,9 +21,9 @@ function activateCanvasView() {
     initRasterToolbarListeners();
     rasterToolbarInitialized = true;
   }
-  // Restore elements hidden in raster mode
+  // Hide the old compact visible-screens list (replaced by the screen table above)
   const canvasToggles = document.getElementById('canvasScreenToggles');
-  if(canvasToggles) canvasToggles.style.display = '';
+  if(canvasToggles) canvasToggles.style.display = 'none';
   const canvasInfo = document.getElementById('canvasInfo');
   if(canvasInfo) canvasInfo.style.display = '';
   // Populate the inline Header/Footer controls for the active canvas tab
@@ -1167,8 +1171,8 @@ function setupCanvasViewInteractivity() {
           if(selectedCanvasScreenId) {
             drawSelectionHighlight();
           }
-          // Sync raster screen table if in raster mode
-          if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
+          // Sync the screen table in raster mode and on the canvas view
+          if((currentAppMode === 'raster' || currentMobileView === 'canvas') && typeof renderRasterScreenTable === 'function') {
             renderRasterScreenTable();
           }
           // Sync toolbar position in all canvas modes
@@ -1852,8 +1856,8 @@ function setupCanvasViewInteractivity() {
       // Save state after drag completes
       saveCanvasMoveState();
 
-      // Sync raster screen table if in raster mode
-      if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
+      // Sync the screen table in raster mode and on the canvas view
+      if((currentAppMode === 'raster' || currentMobileView === 'canvas') && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();
       }
       // Sync toolbar position in all canvas modes
@@ -1883,8 +1887,8 @@ function setupCanvasViewInteractivity() {
         drawSelectionHighlight();
       }
 
-      // Sync raster screen table if in raster mode
-      if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
+      // Sync the screen table in raster mode and on the canvas view
+      if((currentAppMode === 'raster' || currentMobileView === 'canvas') && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();
       }
       // Sync toolbar position in all canvas modes
@@ -2181,8 +2185,8 @@ function setupCanvasViewInteractivity() {
       }
       saveCanvasMoveState();
 
-      // Sync raster screen table if in raster mode
-      if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
+      // Sync the screen table in raster mode and on the canvas view
+      if((currentAppMode === 'raster' || currentMobileView === 'canvas') && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();
       }
       // Sync toolbar position in all canvas modes
@@ -2203,8 +2207,8 @@ function setupCanvasViewInteractivity() {
       }
       saveCanvasMoveState();
 
-      // Sync raster screen table if in raster mode
-      if(currentAppMode === 'raster' && typeof renderRasterScreenTable === 'function') {
+      // Sync the screen table in raster mode and on the canvas view
+      if((currentAppMode === 'raster' || currentMobileView === 'canvas') && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();
       }
       // Sync toolbar position in all canvas modes

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.92",
-  "updated": "2026-07-02",
-  "changelog": "Make SOCA outline flush with panel edges and scale down small-wall PDF layouts"
+  "version": "2.11.93",
+  "updated": "2026-07-08",
+  "changelog": "Show full Screens table on Canvas page in simple and complex modes"
 }

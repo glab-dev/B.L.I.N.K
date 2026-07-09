@@ -96,10 +96,23 @@ function renderRasterScreenTable() {
     html += '<td data-label="Color 2"><input type="color" class="raster-color-input" value="' + color2 + '" ' +
             'oninput="updateRasterScreenColor(\'' + safeId + '\', \'color2\', this.value)"></td>';
 
-    // Panel dropdown
-    html += '<td data-label="Panel"><select class="raster-select" onchange="updateRasterScreenPanel(\'' + safeId + '\', this.value)">' +
-            buildRasterPanelOptions(panelType) +
-            '</select></td>';
+    // Panel dropdown (+ CB5 half-panel-row chip for CB5 MKII rows)
+    if(panelType === 'CB5_MKII') {
+      var halfActive = !!data.addCB5HalfRow;
+      html += '<td data-label="Panel"><div class="raster-panel-cell">' +
+              '<select class="raster-select" onchange="updateRasterScreenPanel(\'' + safeId + '\', this.value)">' +
+              buildRasterPanelOptions(panelType) +
+              '</select>' +
+              '<button type="button" class="raster-toggle-btn raster-half-btn ' + (halfActive ? 'active' : '') + '" ' +
+              'style="' + (halfActive ? textOutline : '') + '" ' +
+              'title="Add half-panel row (CB5)" ' +
+              'onclick="toggleRasterHalfRow(\'' + safeId + '\')">+½</button>' +
+              '</div></td>';
+    } else {
+      html += '<td data-label="Panel"><select class="raster-select" onchange="updateRasterScreenPanel(\'' + safeId + '\', this.value)">' +
+              buildRasterPanelOptions(panelType) +
+              '</select></td>';
+    }
 
     // Tile X / Tile Y (read-only input fields)
     html += '<td data-label="Tile X"><input type="number" class="raster-input raster-num" value="' + tileX + '" readonly></td>';
@@ -281,6 +294,16 @@ function updateRasterScreenPanel(screenId, panelType) {
   if(screenId === currentScreenId) {
     var panelTypeEl = document.getElementById('panelType');
     if(panelTypeEl) panelTypeEl.value = panelType;
+    // A programmatic .value set does NOT fire the change listener that drives the
+    // Dimensions UI, so mirror the dependent state loadScreenData() keeps in sync:
+    // CB5 half-panel toggle visibility + button state, and connecting-plates visibility.
+    var cb5Toggle = document.getElementById('cb5HalfPanelToggle');
+    if(cb5Toggle) cb5Toggle.style.display = (panelType === 'CB5_MKII') ? 'block' : 'none';
+    if(typeof updateConnectingPlatesVisibility === 'function') updateConnectingPlatesVisibility(panelType);
+    var halfOn = !!screens[screenId].data.addCB5HalfRow;
+    if(typeof cb5HalfRowEnabled !== 'undefined') cb5HalfRowEnabled = halfOn;
+    var mainHalfBtn = document.getElementById('addCB5HalfRowBtn');
+    if(mainHalfBtn) mainHalfBtn.classList.toggle('active', halfOn);
   }
 
   renderRasterScreenTable();
@@ -326,6 +349,29 @@ function toggleRasterOverlay(screenId, property) {
   renderRasterScreenTable();
   showCanvasView();
   if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
+}
+
+// Toggle the CB5 half-panel row for a single screen (mirrors toggleCB5HalfRow,
+// but per-screen). Only meaningful for CB5_MKII panels.
+function toggleRasterHalfRow(screenId) {
+  var screen = screens[screenId];
+  if(!screen || !screen.data) return;
+  var newVal = !screen.data.addCB5HalfRow;
+  screen.data.addCB5HalfRow = newVal;
+
+  // If this is the active screen, keep the main Dimensions toggle + global flag
+  // + dependent calcs in sync (same side effects as toggleCB5HalfRow)
+  if(screenId === currentScreenId) {
+    if(typeof cb5HalfRowEnabled !== 'undefined') cb5HalfRowEnabled = newVal;
+    var mainBtn = document.getElementById('addCB5HalfRowBtn');
+    if(mainBtn) mainBtn.classList.toggle('active', newVal);
+    if(typeof updateSuggestedDataLimit === 'function') updateSuggestedDataLimit();
+    if(typeof calculate === 'function') calculate();
+    if(typeof updateWeightDisplay === 'function') updateWeightDisplay();
+  }
+
+  showCanvasView();
+  renderRasterScreenTable();
 }
 
 function toggleRasterScreenVisible(screenId) {

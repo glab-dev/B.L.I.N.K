@@ -189,27 +189,36 @@ body::after {
 
 .mobile-header-actions {
   display: flex;
-  gap: 12px;
+  gap: 4px;
 }
 
 .mobile-header-btn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: none;
   background: transparent;
   color: var(--primary);
   font-size: 22px;
+  font-weight: normal;
+  letter-spacing: normal;
   border-radius: 4px;
+  padding: 0;
+  min-height: auto;
+  margin: 0;
+  margin-bottom: 0;
+  box-shadow: none;
+  text-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   transition: color 0.2s;
 }
 
 .mobile-header-btn .material-symbols-outlined {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: bold;
   text-shadow: 2px 2px 0 rgba(0,0,0,1);
 }
@@ -4372,6 +4381,16 @@ canvas:focus {
   font-weight: 700;
 }
 
+/* Panel cell wrapper — lets the CB5 "+½" half-row chip sit right of the dropdown */
+.raster-panel-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.raster-half-btn {
+  white-space: nowrap;
+}
+
 /* Raster action buttons (duplicate/delete) — FULL override of global button rule */
 .raster-action-btn {
   background: #333;
@@ -4487,6 +4506,18 @@ canvas:focus {
   .raster-table td[data-label="Panel"] .raster-select {
     width: 100%;
     min-width: 0;
+  }
+  /* CB5 rows: shrink the select so the "+½" chip fits beside it */
+  .raster-table td[data-label="Panel"] .raster-panel-cell {
+    width: 100%;
+  }
+  .raster-table td[data-label="Panel"] .raster-panel-cell .raster-select {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+  .raster-table td[data-label="Panel"] .raster-panel-cell .raster-half-btn {
+    flex: 0 0 auto;
   }
   .raster-table td[data-label="Tile X"],
   .raster-table td[data-label="Tile Y"] {
@@ -4818,8 +4849,8 @@ canvas:focus {
 }
 
 .tp-home-btn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4843,7 +4874,7 @@ canvas:focus {
 }
 
 .tp-home-btn .material-symbols-outlined {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: bold;
   text-shadow: 2px 2px 0 rgba(0,0,0,1);
 }
@@ -4865,8 +4896,8 @@ canvas:focus {
 .tp-layers-wrap { position: relative; }
 
 .tp-layers-btn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4887,7 +4918,7 @@ canvas:focus {
   -webkit-tap-highlight-color: transparent;
 }
 .tp-layers-btn .material-symbols-outlined {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: bold;
   text-shadow: 2px 2px 0 rgba(0,0,0,1);
 }
@@ -5135,8 +5166,8 @@ canvas:focus {
 }
 
 .tp-hamburger-btn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5160,7 +5191,7 @@ canvas:focus {
 }
 
 .tp-hamburger-btn .material-symbols-outlined {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: bold;
   text-shadow: 2px 2px 0 rgba(0,0,0,1);
 }

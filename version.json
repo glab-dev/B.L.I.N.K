@@ -1,5 +1,5 @@
 {
-  "version": "2.11.96",
+  "version": "2.11.97",
   "updated": "2026-07-09",
-  "changelog": "Shorten panel display names by dropping brand-line words across dropdowns, gear, and PDF"
+  "changelog": "Reorganize hamburger menu Configuration into Save/Save As/Load, Recent/Export, and Send to Jared rows"
 }

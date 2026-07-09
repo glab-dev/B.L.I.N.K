@@ -1,5 +1,5 @@
 {
-  "version": "2.11.98",
+  "version": "2.11.99",
   "updated": "2026-07-09",
-  "changelog": "Use newest-wins cloud sync so a stale device can't overwrite a fresher copy of projects, panels, or processors"
+  "changelog": "Ignore deleted panels in SOCA/circuit assignment; add green SOCA label outline, refine coordinate labels"
 }

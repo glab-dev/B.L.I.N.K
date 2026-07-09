@@ -577,9 +577,10 @@ async function showCircuitNumberPrompt() {
 
   if(circNum !== null) {
     const ppc = getEffectivePanelsPerCircuit();
-    if(panelsToAssign.size > ppc) {
+    const liveCount = [...panelsToAssign].filter(k => !deletedPanels.has(k)).length;
+    if(liveCount > ppc) {
       showAlert(
-        `Selection has ${panelsToAssign.size} panels but the max per circuit is ${ppc}. ` +
+        `Selection has ${liveCount} panels but the max per circuit is ${ppc}. ` +
         `Reduce the selection or raise panels-per-circuit.`
       );
       return;
@@ -618,6 +619,7 @@ async function showAssignSocaPrompt() {
   // Group selected panels by column — each column becomes one circuit within the SOCA
   const byCol = new Map();
   panelsToAssign.forEach(k => {
+    if(deletedPanels.has(k)) return;
     const [c, r] = k.split(',').map(Number);
     if(!byCol.has(c)) byCol.set(c, []);
     byCol.get(c).push(k);

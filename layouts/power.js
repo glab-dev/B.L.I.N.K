@@ -248,6 +248,11 @@ function renderPowerLayout(params) {
         });
       }
 
+      // Map every occupied cell -> its SOCA, so a SOCA's diagonal label can span
+      // across deleted/empty columns yet never paint over another SOCA's panels.
+      const _cellOwner = new Map();
+      socaPanels.forEach((cellSet, idx) => cellSet.forEach(k => _cellOwner.set(k, idx)));
+
       const _socaOutlinePalette = ['#ff10f0', '#39ff14', '#00aaff'].map(function(h){
         return greyscalePrintMode ? toGreyscale(h) : (ecoPrintMode ? toPastelColor(h) : h);
       });
@@ -380,7 +385,11 @@ function renderPowerLayout(params) {
           let best = { area: 0, r0: minR, c0: minC, r1: minR, c1: minC };
           for (let r = 0; r < gH; r++) {
             for (let c = 0; c < gW; c++) {
-              heights[c] = cellSet.has(`${minC + c},${minR + r}`) ? heights[c] + 1 : 0;
+              const _hk = `${minC + c},${minR + r}`;
+              // Usable = this SOCA's cell, or an empty/deleted hole (owned by no
+              // SOCA) so the label spans across deleted columns; another SOCA blocks.
+              const _avail = cellSet.has(_hk) || !_cellOwner.has(_hk);
+              heights[c] = _avail ? heights[c] + 1 : 0;
             }
             const stack = [];
             for (let c = 0; c <= gW; c++) {
@@ -420,12 +429,16 @@ function renderPowerLayout(params) {
           const fY = (margin * rh) * 100 / (w100 * sin + 100 * cos);
           const fontSize = Math.max(14, Math.min(120, Math.floor(Math.min(fX, fY))));
           ctx.font = `bold ${fontSize}px Arial`;
-          ctx.fillStyle = 'rgba(0,0,0,0.28)';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.translate(cx, cy);
           ctx.rotate(-Math.atan2(rh, rw));
+          ctx.fillStyle = 'rgba(0,0,0,0.28)';
           ctx.fillText(labelText, 0, 0);
+          ctx.lineJoin = 'round';
+          ctx.lineWidth = Math.max(1.5, fontSize * 0.015);
+          ctx.strokeStyle = '#10b981';
+          ctx.strokeText(labelText, 0, 0);
           ctx.restore();
         }
       });

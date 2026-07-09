@@ -549,15 +549,15 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
 
     // Add X/Y coordinates in top-left corner (if enabled for this screen)
     if(screen.showCoordinates !== false) {
-      const coordFontSize = Math.max(16, Math.min(p.res_x, p.res_y) / 5.9);
+      const coordFontSize = Math.max(11, Math.min(Math.min(wallResX, wallResY) * 0.03, Math.min(p.res_x, p.res_y) / 6));
       ctx.font = `bold ${coordFontSize}px Arial`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
 
-      const coordPadding = 12;
+      const coordPadding = 6;
       const textX = offsetX + coordPadding;
       const textY = offsetY + coordPadding;
-      const lineHeight = coordFontSize + 6;
+      const lineHeight = coordFontSize + 2;
 
       // Measure text width for dynamic background sizing
       const xText = `X: ${screenData.canvasX || 0}`;
@@ -566,7 +566,7 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
 
       // Semi-transparent dark background
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(textX - 6, textY - 6, maxTextWidth + 16, lineHeight * 2 + 8);
+      ctx.fillRect(textX - 4, textY - 4, maxTextWidth + 8, lineHeight * 2 + 6);
 
       // Draw coordinates
       ctx.fillStyle = '#f0f0f0';

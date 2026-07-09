@@ -2350,7 +2350,10 @@
     <div class="modal-dialog modal-400">
       <div class="modal-header">
         <h2 class="modal-title">Edit Screen</h2>
-        <button class="modal-close" onclick="closeScreenRenameModal()">&times;</button>
+        <div class="modal-header-btns">
+          <button class="modal-reset" onclick="resetSelectedScreen()" title="Reset screen">&#x21bb;</button>
+          <button class="modal-close" onclick="closeScreenRenameModal()">&times;</button>
+        </div>
       </div>
       <div class="modal-body">
         <div class="modal-input-group">
@@ -3677,8 +3680,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.100';
-const APP_CHANGELOG = 'Replace header Load and Save icons with Recents and Export';
+const APP_VERSION = '2.11.101';
+const APP_CHANGELOG = 'Recalculate on panel-type change and add reset button to screen edit modal';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

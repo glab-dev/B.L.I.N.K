@@ -778,6 +778,27 @@ function closeScreenRenameModal() {
   screenToRename = null;
 }
 
+function resetSelectedScreen() {
+  const targetId = screenToRename;
+  if(!targetId || !screens[targetId]) {
+    showAlert('No screen selected to reset');
+    return;
+  }
+  showConfirm('Reset "' + screens[targetId].name + '" to a blank configuration? This cannot be undone.', 'Reset Screen')
+    .then(function(confirmed) {
+      if(!confirmed) return;
+      // Make the edited screen active so inputs + canvases reflect it, then reset it.
+      if(targetId !== currentScreenId) switchToScreen(targetId);
+      // Clears data + inputs + canvases; keeps panelType, canvas position, and the screen's name/colors.
+      resetCalculator();
+      renderScreenTabs();
+      if((currentAppMode === 'raster' || currentMobileView === 'canvas') && typeof renderRasterScreenTable === 'function') {
+        renderRasterScreenTable();
+      }
+      closeScreenRenameModal();
+    });
+}
+
 function saveScreenRename() {
   const newName = document.getElementById('screenRenameInput').value.trim().substring(0, 50);
   if(!newName) {

@@ -272,16 +272,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
 
-      // Reset everything when panel type changes (but not during screen loading)
-      panelTypeSelect.addEventListener('change', function() {
-        console.log('Panel type change triggered, isLoadingScreenData:', isLoadingScreenData);
-        if (!isLoadingScreenData && this.value !== '__ADD_CUSTOM__') {
-          console.log('Calling resetCalculator...');
-          resetCalculator();
-          console.log('resetCalculator completed');
-        }
-      });
-
       panelTypeSelect.addEventListener('change', updateCB5HalfPanelVisibility);
       updateCB5HalfPanelVisibility(); // Initial check
 
@@ -337,6 +327,14 @@ document.addEventListener('DOMContentLoaded', function() {
             structureSelect.dispatchEvent(new Event('change'));
           }
         }
+      });
+
+      // Recalculate (keeping dimensions) when panel type changes, once the panel-dependent
+      // defaults above (circuit/data limits, bumpers, plates, structure) have been applied.
+      panelTypeSelect.addEventListener('change', function() {
+        if(isLoadingScreenData || this.value === '__ADD_CUSTOM__') return;
+        saveCurrentScreenData();
+        calculate();
       });
 
       // Initial update for connecting plates

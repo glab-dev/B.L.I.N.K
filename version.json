@@ -1,5 +1,5 @@
 {
-  "version": "2.11.100",
+  "version": "2.11.101",
   "updated": "2026-07-09",
-  "changelog": "Replace header Load and Save icons with Recents and Export"
+  "changelog": "Recalculate on panel-type change and add reset button to screen edit modal"
 }

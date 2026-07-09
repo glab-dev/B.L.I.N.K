@@ -1,5 +1,5 @@
 {
-  "version": "2.11.95",
+  "version": "2.11.96",
   "updated": "2026-07-09",
-  "changelog": "Enlarge the CB5 +½ chip text and widen it for readability"
+  "changelog": "Shorten panel display names by dropping brand-line words across dropdowns, gear, and PDF"
 }

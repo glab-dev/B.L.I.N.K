@@ -157,7 +157,7 @@ function buildGearListData(screenIds) {
       activeHalfPanels: activeHalfPanels,
       panelBrand: p.brand || '',
       panelName: p.name || '',
-      halfPanelName: halfPanelObj ? halfPanelObj.name : 'CB5 MKII Half Panel'
+      halfPanelName: halfPanelObj ? halfPanelObj.name : 'CB5 MKII Half'
     };
 
     // --- RIGGING ---

@@ -2450,7 +2450,6 @@ function renderCombinedSpecs(selectedScreenIds) {
     short = short.replace('Black Onyx ', '');
     short = short.replace('Black Marble ', '');
     short = short.replace('Carbon ', '');
-    short = short.replace(' (Matte)', '');
     short = short.replace(' Half Panel', ' Half');
     return short;
   }

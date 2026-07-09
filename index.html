@@ -2281,15 +2281,13 @@
         <div class="mobile-menu-label">Configuration</div>
         <input type="text" id="configName" placeholder="Config name..." class="mb-12">
         <div class="mobile-menu-btn-row">
-          <button class="mobile-menu-btn accent" onclick="quickSaveToApp(); closeMobileMenu();">Quick Save</button>
-        </div>
-        <div class="mobile-menu-btn-row">
-          <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save</button>
+          <button class="mobile-menu-btn accent" onclick="quickSaveToApp(); closeMobileMenu();">Save</button>
+          <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save As</button>
           <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load</button>
           <input type="file" id="loadConfigInput" accept=".blinkled,.led,.ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
-          <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; showRecentProjects()">Recent</button>
         </div>
         <div class="mobile-menu-btn-row">
+          <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; showRecentProjects()">Recent</button>
           <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openExportModal(); closeMobileMenu();">Export</button>
         </div>
         <div class="mobile-menu-btn-row" style="display:none;">
@@ -2394,12 +2392,12 @@
           <div class="section-title">Panel Type</div>
           <label class="mb-0">
             <select id="panelType" class="select-fw-14">
-              <option value="BP2_V2">ROE Black Pearl BP2 V2</option>
-              <option value="CB5_MKII">ROE Carbon CB5 MKII</option>
-              <option value="CB5_MKII_HALF">ROE Carbon CB5 MKII Half</option>
+              <option value="BP2_V2">BP2 V2</option>
+              <option value="CB5_MKII">CB5 MKII</option>
+              <option value="CB5_MKII_HALF">CB5 MKII Half</option>
               <option value="MC7H">ROE MC7H</option>
-              <option value="BO3">ROE Black Onyx BO3</option>
-              <option value="BM4_MATTE">ROE Black Marble BM4</option>
+              <option value="BO3">BO3</option>
+              <option value="BM4_MATTE">BM4 (Matte)</option>
               <option value="DM2_6">ROE DM2.6</option>
               <option value="INFILED_AMT8_3">INFiLED AMT 8.3</option>
             </select>
@@ -3679,8 +3677,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.95';
-const APP_CHANGELOG = 'Enlarge the CB5 +½ chip text and widen it for readability';
+const APP_VERSION = '2.11.96';
+const APP_CHANGELOG = 'Shorten panel display names by dropping brand-line words across dropdowns, gear, and PDF';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

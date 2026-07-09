@@ -2231,14 +2231,14 @@
     <button class="mobile-header-btn" onclick="showWelcomePage()" title="Home">
       <span class="material-symbols-outlined">home</span>
     </button>
-    <button class="mobile-header-btn" onclick="document.getElementById('loadConfigInput').click()" title="Load Config">
-      <span class="material-symbols-outlined">folder</span>
+    <button class="mobile-header-btn" onclick="showRecentProjects()" title="Recents">
+      <span class="material-symbols-outlined">history</span>
     </button>
     <button class="mobile-header-btn" onclick="quickSaveToApp()" title="Quick Save">
       <span class="material-symbols-outlined">cloud_upload</span>
     </button>
-    <button class="mobile-header-btn" onclick="saveConfiguration()" title="Save Config">
-      <span class="material-symbols-outlined">save</span>
+    <button class="mobile-header-btn" onclick="openExportModal()" title="Export">
+      <span class="material-symbols-outlined">ios_share</span>
     </button>
     <button class="mobile-header-btn" onclick="toggleMobileMenu()" title="Menu">
       <span class="material-symbols-outlined">menu</span>
@@ -3677,8 +3677,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.99';
-const APP_CHANGELOG = 'Ignore deleted panels in SOCA/circuit assignment; add green SOCA label outline, refine coordinate labels';
+const APP_VERSION = '2.11.100';
+const APP_CHANGELOG = 'Replace header Load and Save icons with Recents and Export';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

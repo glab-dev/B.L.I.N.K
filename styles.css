@@ -4389,6 +4389,9 @@ canvas:focus {
 }
 .raster-half-btn {
   white-space: nowrap;
+  font-size: 14px;
+  min-width: 42px;
+  padding: 0 10px;
 }
 
 /* Raster action buttons (duplicate/delete) — FULL override of global button rule */
@@ -4518,6 +4521,9 @@ canvas:focus {
   }
   .raster-table td[data-label="Panel"] .raster-panel-cell .raster-half-btn {
     flex: 0 0 auto;
+    font-size: 14px !important;
+    min-width: 44px;
+    padding: 0 10px !important;
   }
   .raster-table td[data-label="Tile X"],
   .raster-table td[data-label="Tile Y"] {

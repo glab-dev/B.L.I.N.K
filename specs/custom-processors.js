@@ -266,6 +266,8 @@ function saveCustomProcessor() {
     processorObj.is_shared = true;
   }
 
+  // Stamp the edit time so cloud sync can resolve conflicts by newest-wins
+  processorObj.updated_at = new Date().toISOString();
   customProcessors[key] = processorObj;
   saveCustomProcessors();
   updateProcessorDropdowns();

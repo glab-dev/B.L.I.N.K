@@ -587,6 +587,8 @@ function saveCustomPanel() {
     panel.is_shared = true;
   }
 
+  // Stamp the edit time so cloud sync can resolve conflicts by newest-wins
+  panel.updated_at = new Date().toISOString();
   customPanels[key] = panel;
   saveCustomPanels();
   updatePanelDropdowns();

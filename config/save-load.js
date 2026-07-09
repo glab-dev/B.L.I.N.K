@@ -850,11 +850,18 @@ async function getRecentProjects() {
 async function upsertProjectToCloud(entry) {
   if(!supabaseClient || !currentUser) return false;
 
+  // Use the project's own save time so cloud updated_at reflects when the content
+  // was actually saved. This makes newest-wins comparisons meaningful across devices:
+  // a device holding a stale copy has an older timestamp and won't clobber a fresher one.
+  const entryTime = entry.timestamp
+    || (entry.configData && entry.configData.timestamp)
+    || new Date().toISOString();
+
   try {
-    // Check if a record with this user+name already exists
+    // Check if a record with this user+name already exists (and how fresh it is)
     const { data: existing, error: selectError } = await supabaseClient
       .from('user_projects')
-      .select('id')
+      .select('id, updated_at')
       .eq('user_id', currentUser.id)
       .eq('name', entry.name)
       .maybeSingle();
@@ -866,13 +873,19 @@ async function upsertProjectToCloud(entry) {
 
     let error;
     if(existing) {
+      // Newest-wins: never overwrite a cloud copy that is newer than this one.
+      // Without this, any device pushing its localStorage copy on app load
+      // (syncRecentProjects) would clobber a fresher save made elsewhere.
+      if(existing.updated_at && new Date(existing.updated_at) > new Date(entryTime)) {
+        return true; // cloud already has a newer version — nothing to do
+      }
       // Update existing record
       ({ error } = await supabaseClient
         .from('user_projects')
         .update({
           config_data: entry.configData,
           version: entry.configData.version || '2.0',
-          updated_at: new Date().toISOString(),
+          updated_at: entryTime,
           is_deleted: false,
           local_id: entry.localId
         })
@@ -887,7 +900,7 @@ async function upsertProjectToCloud(entry) {
           name: entry.name,
           config_data: entry.configData,
           version: entry.configData.version || '2.0',
-          updated_at: new Date().toISOString(),
+          updated_at: entryTime,
           is_deleted: false,
           local_id: entry.localId
         }));

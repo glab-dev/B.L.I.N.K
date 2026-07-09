@@ -254,18 +254,28 @@ async function syncCustomPanels() {
   // Get local panels
   const localPanels = typeof customPanels !== 'undefined' ? customPanels : {};
 
-  // Merge: cloud wins for conflicts (could add timestamp comparison later)
+  // Merge with newest-wins: keep whichever copy (local or cloud) was edited most
+  // recently, so an offline local edit isn't clobbered by an older cloud copy.
   const merged = { ...localPanels };
   const toUpload = [];
 
-  // Add cloud panels to local (overwrite if exists)
   cloudPanels.forEach(cp => {
     if(!isSafeKey(cp.panel_key)) return;
-    if(!cp.is_deleted) {
-      merged[cp.panel_key] = cp.panel_data;
-    } else {
-      // Remove deleted panels
+    if(cp.is_deleted) {
+      // Remove deleted panels (cloud deletions win)
       delete merged[cp.panel_key];
+      return;
+    }
+    // Legacy local panels without a timestamp yield to the cloud (prior behavior).
+    const local = localPanels[cp.panel_key];
+    const localTime = (local && local.updated_at) ? new Date(local.updated_at).getTime() : 0;
+    const cloudTime = cp.updated_at ? new Date(cp.updated_at).getTime() : 0;
+    if(local && localTime > cloudTime) {
+      // Local edit is newer — keep it and push it back up to the cloud
+      merged[cp.panel_key] = local;
+      toUpload.push({ key: cp.panel_key, data: local });
+    } else {
+      merged[cp.panel_key] = cp.panel_data;
     }
   });
 
@@ -322,7 +332,7 @@ async function upsertCustomPanel(panelKey, panelData) {
       user_id: currentUser.id,
       panel_key: panelKey,
       panel_data: panelData,
-      updated_at: new Date().toISOString(),
+      updated_at: (panelData && panelData.updated_at) || new Date().toISOString(),
       is_deleted: false
     }, {
       onConflict: 'user_id,panel_key'
@@ -359,17 +369,27 @@ async function syncCustomProcessors() {
   // Get local processors
   const localProcessors = typeof customProcessors !== 'undefined' ? customProcessors : {};
 
-  // Merge: cloud wins for conflicts
+  // Merge with newest-wins: keep whichever copy (local or cloud) was edited most
+  // recently, so an offline local edit isn't clobbered by an older cloud copy.
   const merged = { ...localProcessors };
   const toUpload = [];
 
-  // Add cloud processors to local
   cloudProcessors.forEach(cp => {
     if(!isSafeKey(cp.processor_key)) return;
-    if(!cp.is_deleted) {
-      merged[cp.processor_key] = cp.processor_data;
-    } else {
+    if(cp.is_deleted) {
       delete merged[cp.processor_key];
+      return;
+    }
+    // Legacy local processors without a timestamp yield to the cloud (prior behavior).
+    const local = localProcessors[cp.processor_key];
+    const localTime = (local && local.updated_at) ? new Date(local.updated_at).getTime() : 0;
+    const cloudTime = cp.updated_at ? new Date(cp.updated_at).getTime() : 0;
+    if(local && localTime > cloudTime) {
+      // Local edit is newer — keep it and push it back up to the cloud
+      merged[cp.processor_key] = local;
+      toUpload.push({ key: cp.processor_key, data: local });
+    } else {
+      merged[cp.processor_key] = cp.processor_data;
     }
   });
 
@@ -426,7 +446,7 @@ async function upsertCustomProcessor(processorKey, processorData) {
       user_id: currentUser.id,
       processor_key: processorKey,
       processor_data: processorData,
-      updated_at: new Date().toISOString(),
+      updated_at: (processorData && processorData.updated_at) || new Date().toISOString(),
       is_deleted: false
     }, {
       onConflict: 'user_id,processor_key'

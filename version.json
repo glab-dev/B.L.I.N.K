@@ -1,5 +1,5 @@
 {
-  "version": "2.11.97",
+  "version": "2.11.98",
   "updated": "2026-07-09",
-  "changelog": "Reorganize hamburger menu Configuration into Save/Save As/Load, Recent/Export, and Send to Jared rows"
+  "changelog": "Use newest-wins cloud sync so a stale device can't overwrite a fresher copy of projects, panels, or processors"
 }

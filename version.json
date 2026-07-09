@@ -1,5 +1,5 @@
 {
-  "version": "2.11.101",
+  "version": "2.11.102",
   "updated": "2026-07-09",
-  "changelog": "Recalculate on panel-type change and add reset button to screen edit modal"
+  "changelog": "Reset the screen name to default when resetting a screen"
 }

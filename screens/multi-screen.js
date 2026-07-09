@@ -789,8 +789,10 @@ function resetSelectedScreen() {
       if(!confirmed) return;
       // Make the edited screen active so inputs + canvases reflect it, then reset it.
       if(targetId !== currentScreenId) switchToScreen(targetId);
-      // Clears data + inputs + canvases; keeps panelType, canvas position, and the screen's name/colors.
+      // Clears data + inputs + canvases; keeps panelType, canvas position, and the screen's colors.
       resetCalculator();
+      // Reset the screen name back to the default "Screen N" (N = its position).
+      screens[targetId].name = 'Screen ' + (Object.keys(screens).indexOf(targetId) + 1);
       renderScreenTabs();
       if((currentAppMode === 'raster' || currentMobileView === 'canvas') && typeof renderRasterScreenTable === 'function') {
         renderRasterScreenTable();

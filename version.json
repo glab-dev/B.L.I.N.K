@@ -1,5 +1,5 @@
 {
-  "version": "2.11.102",
-  "updated": "2026-07-09",
-  "changelog": "Reset the screen name to default when resetting a screen"
+  "version": "2.11.103",
+  "updated": "2026-07-13",
+  "changelog": "Add phase-balance feedback, SOCA-local circuit labels, LED/SOCA numbering fixes, preview sizing"
 }

@@ -3793,6 +3793,7 @@ canvas:focus {
 .phase-load .weight-value.pbl-warn { color: #ffd23f; }
 .phase-load .weight-value.pbl-bad  { color: #ff6b6b; }
 .phase-load-rec { margin-top: 8px; font-size: 11px; line-height: 1.35; color: #aaa; }
+.phase-load .weight-row.phase-balance-status { font-size: 12px; }
 
 /* Per-SOCA circuit-amps cards — orange tone (unused by the other tables). */
 .soca-circuit-table { display: flex; flex-wrap: wrap; gap: 16px; padding-top: 10px; }

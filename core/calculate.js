@@ -917,7 +917,11 @@ function calculate(){
         // "Balanced" re-circuits panels onto the lighter legs, but only when that
         // actually lowers the imbalance — resolveBalancedCircuits falls back to as-wired
         // otherwise, so the toggle can never raise it. Power-tab view only.
-        phaseBalance = resolveBalancedCircuits(pw, ph, panelsPerCircuit, deletedPanels, wiring, customCircuitAssignments, customSocaAssignments, perPanelW, voltage).phaseBalance;
+        const _bal = resolveBalancedCircuits(pw, ph, panelsPerCircuit, deletedPanels, wiring, customCircuitAssignments, customSocaAssignments, perPanelW, voltage);
+        phaseBalance = _bal.phaseBalance;
+        phaseBalance.balanceMode = true;
+        phaseBalance.balanceApplied = _bal.useBalanced;
+        phaseBalance.aswiredImbalancePct = _bal.aswiredImbalancePct;
       } else {
         phaseBalance = computePhaseBalance(circuitCounts, perPanelW, voltage, pbMode, wiring);
       }
@@ -2014,11 +2018,19 @@ function generateLayout(mode){
   const minSize = 30; // Minimum panel size
   const maxSize = 80; // Maximum panel size
   const calculatedSize = Math.floor(maxCanvasWidth / pw);
-  const size = Math.max(minSize, Math.min(maxSize, calculatedSize));
 
   // Get panel type and calculate height ratio for CB5_MKII full panels
   const panelType = document.getElementById('panelType').value;
   const heightRatio = getPanelHeightRatio(panelType);
+
+  // Cap cell width for tall panels so cell height (width*ratio) never exceeds maxSize,
+  // preventing huge/scroll-off previews on narrow walls. Skip during PDF capture.
+  const isPdfCapture = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  const effectiveMaxSize = (!isPdfCapture && heightRatio > 1)
+    ? Math.floor(maxSize / heightRatio)
+    : maxSize;
+  const size = Math.max(minSize, Math.min(effectiveMaxSize, calculatedSize));
+
   const panelWidth = size;
   const panelHeight = size * heightRatio;
 

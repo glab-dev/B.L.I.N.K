@@ -286,8 +286,8 @@ function resolveBalancedCircuits(pw, ph, panelsPerCircuit, deletedPanels, wiring
 
   const useBalanced = balancedPb.imbalancePct < aswiredPb.imbalancePct;
   return useBalanced
-    ? { useBalanced: true, panelToCircuit: balMap, circuitCounts: balCounts, phaseBalance: balancedPb }
-    : { useBalanced: false, panelToCircuit: aswired.panelToCircuit, circuitCounts: aswired.circuitCounts, phaseBalance: aswiredPb };
+    ? { useBalanced: true, panelToCircuit: balMap, circuitCounts: balCounts, phaseBalance: balancedPb, aswiredImbalancePct: aswiredPb.imbalancePct }
+    : { useBalanced: false, panelToCircuit: aswired.panelToCircuit, circuitCounts: aswired.circuitCounts, phaseBalance: aswiredPb, aswiredImbalancePct: aswiredPb.imbalancePct };
 }
 
 // Per-leg line-current magnitudes from the watts on each leg-pair (delta load).

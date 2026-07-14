@@ -2506,10 +2506,10 @@ function buildSocaCircuitTable(screenId) {
       decoration: 'underline', decorationColor: '#000000',
       margin: [0, 0, 0, 4]
     };
-    const circuitEls = soca.circuits.map(function(c, i) {
+    const circuitEls = soca.circuits.map(function(c) {
       return {
         text: [
-          { text: label + '.' + (i + 1), bold: true, color: '#000000' },
+          { text: label + '.' + ((c.circuit % 6) + 1), bold: true, color: '#000000' },
           { text: '   ' + c.amps.toFixed(1) + ' A', color: tc.textSecondary }
         ],
         fontSize: 8, lineHeight: 1.3

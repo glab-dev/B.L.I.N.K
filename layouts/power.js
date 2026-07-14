@@ -142,24 +142,6 @@ function renderPowerLayout(params) {
     return greyscalePrintMode ? toGreyscale(base) : (ecoPrintMode ? toPastelColor(base) : base);
   };
 
-  // As-wired circuit labels read SOCA-local (e.g. B.1-B.6), not the running global
-  // circuit number (B.7-B.12): rank the distinct circuits within each SOCA. Balanced
-  // mode already numbers its slots 1-6 per SOCA, so this is only built for the as-wired
-  // view. Mirrors computeSocaBreakdown's grouping so the table and canvas agree.
-  const _socaCircuitPos = new Map(); // circuitNum -> 1-based position within its SOCA
-  if (!_usedBalanced) {
-    const _bySoca = new Map(); // socaIdx -> Set(circuitNum)
-    panelToCircuit.forEach((cn, k) => {
-      if (deletedPanels.has(k)) return;
-      const s = panelToSoca.has(k) ? panelToSoca.get(k) : Math.floor(cn / 6);
-      if (!_bySoca.has(s)) _bySoca.set(s, new Set());
-      _bySoca.get(s).add(cn);
-    });
-    _bySoca.forEach(set => {
-      [...set].sort((a, b) => a - b).forEach((cn, i) => _socaCircuitPos.set(cn, i + 1));
-    });
-  }
-
   // Continuous SOCA numbering across a shared distro (Share Distro): remap this screen's
   // local SOCA index to its global label index (computed live in core/calculate.js). As-wired
   // only — balanced mode redefines SOCAs. Falls back to the local index when not shared.
@@ -214,11 +196,11 @@ function renderPowerLayout(params) {
       // Always use black text (no black panels in power layout)
       ctx.fillStyle = '#000000';
 
-      // SOCA.circuit label (balanced uses the per-SOCA slot number 1-6); append the
-      // leg pair when Colour by Leg is on. Shrink the font so the label stays centred
-      // and fits inside the panel.
+      // SOCA-local circuit label (1-6 per SOCA, matching the panel colour which also
+      // keys on circuitNum % 6); append the leg pair when Colour by Leg is on. Shrink
+      // the font so the label stays centred and fits inside the panel.
       const _pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
-      const _circLabel = `${formatSocaLabel(_socaLabelIdx(socaGroup))}.${_usedBalanced ? (circuitNum % 6) + 1 : (_socaCircuitPos.get(circuitNum) || 1)}`;
+      const _circLabel = `${formatSocaLabel(_socaLabelIdx(socaGroup))}.${(circuitNum % 6) + 1}`;
       // Colour by Leg shows just the leg (XY/YZ/ZX); otherwise the SOCA.circuit label.
       const _displayLabel = (_legColorOn && legPair) ? legPair : _circLabel;
       let _fs = _pdf ? Math.max(10, Math.floor(panelWidth * 0.25)) : 11;
@@ -481,6 +463,20 @@ function renderPhaseBalanceLegend() {
   const imb = pb.imbalancePct;
   const imbClass = imb < 10 ? 'pbl-ok' : (imb < 20 ? 'pbl-warn' : 'pbl-bad');
 
+  // Phase Balance status: when the toggle is On, tell the user whether re-circuiting
+  // actually lowered the imbalance or the wall was already optimal — otherwise the
+  // toggle looks dead on walls it can't improve. Hidden in shared-distro mode (that
+  // legend always shows the physical as-wired distro regardless of the toggle).
+  let statusRow = '';
+  if (pb.balanceMode && !pb.sharedDistro) {
+    if (pb.balanceApplied) {
+      const was = (typeof pb.aswiredImbalancePct === 'number') ? ` · was ${pb.aswiredImbalancePct.toFixed(0)}%` : '';
+      statusRow = `<div class="weight-row phase-balance-status"><span class="weight-label">Phase Balance</span><span class="weight-value pbl-ok">Re-circuited ✓${was}</span></div>`;
+    } else {
+      statusRow = `<div class="weight-row phase-balance-status"><span class="weight-label">Phase Balance</span><span class="weight-value">Already optimal</span></div>`;
+    }
+  }
+
   const _title = pb.sharedDistro ? '3-Phase Load (shared distro)' : '3-Phase Load';
   el.innerHTML =
     `<div class="structure-info-box phase-load">` +
@@ -489,6 +485,7 @@ function renderPhaseBalanceLegend() {
       `<div class="weight-row"><span class="weight-label">Leg Y</span><span class="weight-value">${la.Y.toFixed(1)} A</span></div>` +
       `<div class="weight-row"><span class="weight-label">Leg Z</span><span class="weight-value">${la.Z.toFixed(1)} A</span></div>` +
       `<div class="weight-row"><span class="weight-label">Imbalance</span><span class="weight-value ${imbClass}">${imb.toFixed(0)}%</span></div>` +
+      statusRow +
     `</div>`;
   el.style.display = 'block';
 }
@@ -514,8 +511,8 @@ function renderSocaCircuitTable(breakdown) {
 
   el.innerHTML = sb.map(soca => {
     const label = (typeof formatSocaLabel === 'function') ? formatSocaLabel(_socaLabelIdx(soca.socaIdx)) : (_socaLabelIdx(soca.socaIdx) + 1);
-    const rows = soca.circuits.map((c, i) =>
-      `<div class="weight-row"><span class="weight-label">${label}.${i + 1}</span><span class="weight-value">${c.amps.toFixed(1)} A</span></div>`
+    const rows = soca.circuits.map(c =>
+      `<div class="weight-row"><span class="weight-label">${label}.${(c.circuit % 6) + 1}</span><span class="weight-value">${c.amps.toFixed(1)} A</span></div>`
     ).join('');
     return `<div class="structure-info-box soca-load">` +
              `<div class="structure-info-title soca-load">SOCA ${label}</div>` +

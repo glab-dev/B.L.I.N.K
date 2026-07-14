@@ -1796,13 +1796,14 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
         ctx.lineWidth = 2;
         ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
 
-        // Panel label: SOCA.Circuit (e.g. "A.1"). Same-circuit panels share a label.
+        // Panel label: SOCA-local circuit (1-6 per SOCA, matching the panel colour and
+        // the COMPLEX view). Same-circuit panels share a label.
         const labelFont = Math.max(7, Math.round(panelSize * 0.32));
         ctx.fillStyle = '#000000';
         ctx.font = `${labelFont}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${formatSocaLabel(_socaLabelIdx(socaGroup))}.${circuitNum+1}`, px + drawPanelWidth/2, py + currentDrawHeight/2);
+        ctx.fillText(`${formatSocaLabel(_socaLabelIdx(socaGroup))}.${(circuitNum % 6) + 1}`, px + drawPanelWidth/2, py + currentDrawHeight/2);
       }
     }
 

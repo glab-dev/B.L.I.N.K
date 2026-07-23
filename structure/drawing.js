@@ -184,6 +184,23 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
       ctx.fillText(weightText, x + width/2, y + height/2 + labelOffset);
     }
   });
+
+  // Center-of-wall mark: thin red vertical line over the bumper band(s)
+  const centerX = Math.round((pw * panelWidth) / 2);
+  ctx.strokeStyle = '#FF0000';
+  ctx.lineWidth = 2;
+  if(showTopBumper) {
+    ctx.beginPath();
+    ctx.moveTo(centerX, 0);
+    ctx.lineTo(centerX, panelYOffset);
+    ctx.stroke();
+  }
+  if(showBottomBumper) {
+    ctx.beginPath();
+    ctx.moveTo(centerX, panelYOffset + (ph * panelHeight));
+    ctx.lineTo(centerX, ctx.canvas.height);
+    ctx.stroke();
+  }
 }
 
 // Calculate the weight at the center pickup point of a bumper

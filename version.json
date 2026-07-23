@@ -1,5 +1,5 @@
 {
-  "version": "2.11.104",
+  "version": "2.11.105",
   "updated": "2026-07-23",
-  "changelog": "Show + half row suffix in Simple mode wall dimensions specs"
+  "changelog": "Add red center-of-wall mark on bumpers in structure view"
 }

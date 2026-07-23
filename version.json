@@ -1,5 +1,5 @@
 {
-  "version": "2.11.103",
-  "updated": "2026-07-13",
-  "changelog": "Add phase-balance feedback, SOCA-local circuit labels, LED/SOCA numbering fixes, preview sizing"
+  "version": "2.11.104",
+  "updated": "2026-07-23",
+  "changelog": "Show + half row suffix in Simple mode wall dimensions specs"
 }

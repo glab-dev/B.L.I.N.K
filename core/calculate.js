@@ -1130,7 +1130,7 @@ function calculate(){
     // Wall specs
     html += `<br>`;
     html += `<div class="result-section-title">WALL</div>`;
-    html += `<div class="result-row"><strong>Dimensions:</strong> ${wallWidthDisplay} ${lenUnit} × ${wallHeightDisplay} ${lenUnit} (${pw} × ${ph} panels)</div>`;
+    html += `<div class="result-row"><strong>Dimensions:</strong> ${wallWidthDisplay} ${lenUnit} × ${wallHeightDisplay} ${lenUnit} (${pw} × ${ph} panels${hasCB5HalfRow ? ' + half row' : ''})</div>`;
     html += `<div class="result-row"><strong>Panel count:</strong> ${totalPanels}</div>`;
     html += `<div class="result-row"><strong>Aspect ratio:</strong> ${ar.label}</div>`;
     html += `<div class="result-row"><strong>Wall weight:</strong> ${panelOnlyWeightDisplay} ${wtUnit}</div>`;

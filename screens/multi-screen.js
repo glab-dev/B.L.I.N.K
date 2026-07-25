@@ -47,7 +47,7 @@ function getDefaultScreenData() {
     // Panel Type
     panelType: 'BP2_V2',
     addCB5HalfRow: false,
-    connectionMethod: 'airframes', // 'airframes' or 'plates'
+    connectionMethod: 'airframe', // 'airframe' or 'plates'
     
     // Optional display name (separate from tab name)
     screenDisplayName: '',
@@ -249,8 +249,8 @@ function saveCurrentScreenData() {
   // Share Distro toggle (per-screen) - mirror the global into this screen's data
   if(typeof shareDistroEnabled !== 'undefined') data.sharedDistro = shareDistroEnabled;
 
-  const connectionMethod = document.querySelector('input[name="connectionMethod"]:checked');
-  if(connectionMethod) data.connectionMethod = connectionMethod.value;
+  // Connection method (Air Frame / Plates) is a global toggle - mirror it into this screen's data
+  data.connectionMethod = connectionMethod;
   
   // Cabling - use value if present, otherwise fall back to placeholder default
   const wallToFloorEl = document.getElementById('wallToFloor');
@@ -596,11 +596,11 @@ function loadScreenData(screenId) {
     if(shareDistroBtn) { shareDistroBtn.classList.toggle('active', shareDistroEnabled); shareDistroBtn.textContent = shareDistroEnabled ? 'On' : 'Off'; }
   }
 
-  // Restore connection method if saved
-  if(data.connectionMethod) {
-    const connectionRadio = document.querySelector(`input[name="connectionMethod"][value="${data.connectionMethod}"]`);
-    if(connectionRadio) connectionRadio.checked = true;
-  }
+  // Restore connection method (global + button highlight). Set directly rather than calling
+  // setConnectionMethod() - that fires calculate() mid-load; loadScreenData ends with its own.
+  connectionMethod = data.connectionMethod || 'airframe';
+  document.getElementById('connectionAirframeBtn')?.classList.toggle('active', connectionMethod === 'airframe');
+  document.getElementById('connectionPlatesBtn')?.classList.toggle('active', connectionMethod === 'plates');
   
   // Reset bumper globals based on structure type - this ensures structure view shows correct bumpers
   const structureType = data.structureType || 'hanging';

@@ -360,6 +360,23 @@ function approxAspectRatio(w,h){
   return {label:`${best.num}:${best.den}`, value:ratio};
 }
 
+// Standard electrician service sizes (amps). "Service needed" picks the smallest that
+// covers the wall's per-leg demand, divided by `factor` (0.8 when the NEC "Derate" 80%
+// toggle is on = continuous-load headroom, 1.0 when off). Infinity = exceeds 800 A.
+const STANDARD_SERVICE_SIZES = [100, 200, 400, 600, 800];
+function serviceAmpsNeeded(amps, factor) {
+  if (!(amps > 0)) return 0;
+  const required = amps / (factor > 0 ? factor : 1);
+  return STANDARD_SERVICE_SIZES.find(s => s >= required) || Infinity;
+}
+
+// Formats serviceAmpsNeeded() output for display (0 -> null so the row can be hidden).
+function serviceNeededLabel(amps, factor) {
+  const svc = serviceAmpsNeeded(amps, factor);
+  if (!svc) return null;
+  return svc === Infinity ? '> 800 A (multiple services)' : `${svc} A`;
+}
+
 // ==================== DATA LINE FLOW ====================
 // Order one data line's panels into physical cable-flow order, honoring the data
 // start-direction. 'top'/'bottom' snake (toggle direction each column); 'all_top'/

@@ -2242,12 +2242,14 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 // Computed fresh from each screen's data (the combined view doesn't refresh per-screen
 // calculatedData), reusing the shared phase-balance helpers so the math matches the
 // per-screen legend. As-wired (actual draw), like the combined power canvas itself.
-function renderCombinedPhaseBalance(selectedScreenIds) {
-  const el = document.getElementById('combinedPhaseBalanceLegend');
-  if(!el) return;
-
+// Combined 3-phase per-leg amps across the selected screens, using the phasor circuit
+// model (same as each screen's power view): assign each screen's circuits to their
+// leg-pairs, sum the branch currents, then phasor-combine. Returns { any3phase, legAmps,
+// peakLeg, imbalancePct }. Shared by the combined legend and the combined specs so the
+// two can't drift.
+function computeCombinedLegAmps(selectedScreenIds) {
   if(typeof assignCircuits !== 'function' || typeof computePhaseBalance !== 'function') {
-    el.style.display = 'none'; el.innerHTML = ''; return;
+    return { any3phase: false, legAmps: { X: 0, Y: 0, Z: 0 }, peakLeg: 0, imbalancePct: 0 };
   }
 
   const allPanelsData = getAllPanels();
@@ -2295,8 +2297,6 @@ function renderCombinedPhaseBalance(selectedScreenIds) {
     });
   });
 
-  if(!any3phase) { el.style.display = 'none'; el.innerHTML = ''; return; }
-
   // Leg amps: phasor-combine the summed per-pair branch currents (Vll=1 so the helper treats
   // the inputs as currents), then add any single-leg currents directly onto their leg.
   const phasorLegs = (typeof legAmpsFromPairWatts === 'function') ? legAmpsFromPairWatts(totalPair, 1) : { X: 0, Y: 0, Z: 0 };
@@ -2308,6 +2308,18 @@ function renderCombinedPhaseBalance(selectedScreenIds) {
   const arr = [la.X, la.Y, la.Z];
   const peak = Math.max(...arr), min = Math.min(...arr);
   const imb = peak > 0 ? ((peak - min) / peak) * 100 : 0;
+  return { any3phase, legAmps: la, peakLeg: peak, imbalancePct: imb };
+}
+
+function renderCombinedPhaseBalance(selectedScreenIds) {
+  const el = document.getElementById('combinedPhaseBalanceLegend');
+  if(!el) return;
+
+  const cb = computeCombinedLegAmps(selectedScreenIds);
+  if(!cb.any3phase) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  const la = cb.legAmps;
+  const imb = cb.imbalancePct;
   const imbClass = imb < 10 ? 'pbl-ok' : (imb < 20 ? 'pbl-warn' : 'pbl-bad');
 
   el.innerHTML =
@@ -2334,7 +2346,6 @@ function renderCombinedSpecs(selectedScreenIds) {
   let totalWidth = 0;
   let maxHeight = 0;
   let totalDataLines = 0;
-  let totalAmps = 0;
   let totalAmpsPerPhase = 0;
 
   // Track panels by type
@@ -2397,8 +2408,7 @@ function renderCombinedSpecs(selectedScreenIds) {
     // Amps - use per-screen voltage with combined phase toggle
     const voltage = parseInt(data.voltage) || 208;
     const screenAmps = voltage > 0 ? screenPowerW / voltage : 0;
-    totalAmps += screenAmps;
-    totalAmpsPerPhase += combinedPhase === 3 ? screenAmps / 1.732 : screenAmps;
+    totalAmpsPerPhase += combinedPhase === 3 ? screenAmps / Math.sqrt(3) : screenAmps;
 
     // Weight - use stored calculated data (panels + structure)
     if('panelWeightOnlyKg' in calcData) {
@@ -2478,14 +2488,19 @@ function renderCombinedSpecs(selectedScreenIds) {
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Total Weight</div><div style="color: #fff; font-size: 13px;">${weightDisplay}</div></div>`;
   html += '</div>';
 
-  // Right column: Dimensions, Power, Amps, Amps/Phase, Data Lines
+  // Right column: Dimensions, Power, Total Amps, Service needed, Data Lines
   html += '<div style="display: flex; flex-direction: column; gap: 12px;">';
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Dimensions</div><div style="color: #fff; font-size: 13px;">${widthDisplay} × ${heightDisplay}</div></div>`;
   const powerLabel = combinedPowerType === 'max' ? 'Power (Max)' : 'Power (Avg)';
-  const phaseLabel = combinedPhase === 3 ? 'Amps/Phase (3Ø)' : 'Total Amps (1Ø)';
+  // 3-phase Total Amps = combined phasor PEAK leg (matches the combined legend + each
+  // screen's shared-distro view); 1-phase = summed P/V. Service sizes off the same figure.
+  const cbLegs = (combinedPhase === 3) ? computeCombinedLegAmps(selectedScreenIds) : null;
+  const displayAmps = (cbLegs && cbLegs.any3phase) ? cbLegs.peakLeg : totalAmpsPerPhase;
+  const derateFactor = (document.getElementById('derate') && document.getElementById('derate').value === 'on') ? 0.8 : 1.0;
+  const svcLabel = serviceNeededLabel(displayAmps, derateFactor) || '—';
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">${powerLabel}</div><div style="color: #fff; font-size: 13px;">${totalPowerW.toLocaleString()} W</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Total Amps</div><div style="color: #fff; font-size: 13px;">${totalAmps.toFixed(1)} A</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">${phaseLabel}</div><div style="color: #fff; font-size: 13px;">${totalAmpsPerPhase.toFixed(1)} A</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Total Amps</div><div style="color: #fff; font-size: 13px;">${displayAmps.toFixed(1)} A</div></div>`;
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Service needed</div><div style="color: #fff; font-size: 13px;">${svcLabel}</div></div>`;
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Data Lines</div><div style="color: #fff; font-size: 13px;">${totalDataLines}</div></div>`;
   html += '</div>';
 

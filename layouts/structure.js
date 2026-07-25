@@ -281,259 +281,56 @@ function generateStructureLayout(){
     const plateLength = 12; // Length of 2-way plate indicator
     const plate4WaySize = 8; // Size of 4-way plate square
 
-    // Determine if hanging (top bumpers) or ground stacking (bottom bumpers)
-    const isHanging = showTopBumper;
-    const isGroundStacking = showBottomBumper;
+    // Enumerate every plate from the shared source of truth (gap/bumper aware) and map each
+    // grid mark to pixels using the original inset formulas so the visual style is unchanged.
+    const { marks } = enumerateConnectingPlates(pw, ph);
 
-    // Draw 2-way plates (yellow) at perimeter intersections only
-
-    // LEFT EDGE - vertical 2-way plates at panel joints
-    for(let r = 0; r < ph - 1; r++) {
-      const panelKey = `0,${r}`;
-      const belowKey = `0,${r+1}`;
-      if(!deletedPanels.has(panelKey) && !deletedPanels.has(belowKey)) {
-        const x = 2; // Left edge
-        const y = panelYOffset + (r + 1) * panelHeight - plateLength/2; // At the joint between panels
-
-        ctx.fillStyle = '#FFD700'; // Gold/yellow for 2-way
-        ctx.fillRect(x, y, plateThickness, plateLength);
+    for(const m of marks) {
+      if(m.kind === '4way') {
+        // Every 4-way sits centered on its grid vertex (vc, vr).
+        const x = m.vc * panelWidth - plate4WaySize/2;
+        const y = panelYOffset + m.vr * panelHeight - plate4WaySize/2;
+        ctx.fillStyle = '#FF4444'; // Red for 4-way
+        ctx.fillRect(x, y, plate4WaySize, plate4WaySize);
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, plateThickness, plateLength);
+        ctx.strokeRect(x, y, plate4WaySize, plate4WaySize);
+        continue;
       }
-    }
 
-    // RIGHT EDGE - vertical 2-way plates at panel joints
-    for(let r = 0; r < ph - 1; r++) {
-      const panelKey = `${pw-1},${r}`;
-      const belowKey = `${pw-1},${r+1}`;
-      if(!deletedPanels.has(panelKey) && !deletedPanels.has(belowKey)) {
-        const x = pw * panelWidth - plateThickness - 2; // Right edge
-        const y = panelYOffset + (r + 1) * panelHeight - plateLength/2; // At the joint between panels
-
-        ctx.fillStyle = '#FFD700'; // Gold/yellow for 2-way
-        ctx.fillRect(x, y, plateThickness, plateLength);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, plateThickness, plateLength);
+      // 2-way plate (gold). Resolve pixel position + orientation from the mark's placement.
+      let x, y, w, h;
+      if(m.place === 'vLeft') {
+        x = m.vc * panelWidth + 2;
+        y = panelYOffset + m.vr * panelHeight - plateLength/2;
+        w = plateThickness; h = plateLength;
+      } else if(m.place === 'vRight') {
+        x = m.vc * panelWidth - plateThickness - 2;
+        y = panelYOffset + m.vr * panelHeight - plateLength/2;
+        w = plateThickness; h = plateLength;
+      } else if(m.place === 'hTop') {
+        x = m.vc * panelWidth - plateLength/2;
+        y = panelYOffset + m.vr * panelHeight + 2;
+        w = plateLength; h = plateThickness;
+      } else if(m.place === 'hBottom') {
+        x = m.vc * panelWidth - plateLength/2;
+        y = panelYOffset + m.vr * panelHeight - plateThickness - 2;
+        w = plateLength; h = plateThickness;
+      } else {
+        // Bumper-end plate: a single straight VERTICAL 2-way at the outer corner of the edge
+        // panel, straddling the panel/bumper interface so its visible half shows below (top
+        // bumper) or above (bottom bumper) the bumper - same trick the 4-ways use.
+        const yBase = panelYOffset + m.vr * panelHeight; // the interface line at this vertex
+        const onLeft = (m.place === 'endTopLeft' || m.place === 'endBottomLeft');
+        x = onLeft ? m.vc * panelWidth + 2 : m.vc * panelWidth - plateThickness - 2;
+        y = yBase - plateLength/2;
+        w = plateThickness; h = plateLength;
       }
-    }
-
-    // TOP EDGE (if ground stacking) - horizontal 2-way plates at panel joints
-    if(isGroundStacking) {
-      for(let c = 0; c < pw - 1; c++) {
-        const panelKey = `${c},0`;
-        const rightKey = `${c+1},0`;
-        if(!deletedPanels.has(panelKey) && !deletedPanels.has(rightKey)) {
-          const x = (c + 1) * panelWidth - plateLength/2; // At the joint between panels
-          const y = panelYOffset + 2; // Top edge of panels
-
-          ctx.fillStyle = '#FFD700'; // Gold/yellow for 2-way
-          ctx.fillRect(x, y, plateLength, plateThickness);
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x, y, plateLength, plateThickness);
-        }
-      }
-    }
-
-    // BOTTOM EDGE (if hanging) - horizontal 2-way plates at panel joints
-    if(isHanging) {
-      for(let c = 0; c < pw - 1; c++) {
-        const panelKey = `${c},${ph-1}`;
-        const rightKey = `${c+1},${ph-1}`;
-        if(!deletedPanels.has(panelKey) && !deletedPanels.has(rightKey)) {
-          const x = (c + 1) * panelWidth - plateLength/2; // At the joint between panels
-          const y = panelYOffset + ph * panelHeight - plateThickness - 2; // Bottom edge of panels
-
-          ctx.fillStyle = '#FFD700'; // Gold/yellow for 2-way
-          ctx.fillRect(x, y, plateLength, plateThickness);
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x, y, plateLength, plateThickness);
-        }
-      }
-    }
-
-    // CORNER 2-way plates connecting to bumpers
-    // TOP-LEFT CORNER (if hanging)
-    if(isHanging) {
-      const topLeftKey = `0,0`;
-      if(!deletedPanels.has(topLeftKey)) {
-        // Horizontal plate at top-left
-        const x = 2;
-        const y = panelYOffset - plateThickness - 2;
-        ctx.fillStyle = '#FFD700';
-        ctx.fillRect(x, y, plateLength, plateThickness);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, plateLength, plateThickness);
-      }
-    }
-
-    // TOP-RIGHT CORNER (if hanging)
-    if(isHanging) {
-      const topRightKey = `${pw-1},0`;
-      if(!deletedPanels.has(topRightKey)) {
-        // Horizontal plate at top-right
-        const x = pw * panelWidth - plateLength - 2;
-        const y = panelYOffset - plateThickness - 2;
-        ctx.fillStyle = '#FFD700';
-        ctx.fillRect(x, y, plateLength, plateThickness);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, plateLength, plateThickness);
-      }
-    }
-
-    // BOTTOM-LEFT CORNER (if ground stacking)
-    if(isGroundStacking) {
-      const bottomLeftKey = `0,${ph-1}`;
-      if(!deletedPanels.has(bottomLeftKey)) {
-        // Horizontal plate at bottom-left
-        const x = 2;
-        const y = panelYOffset + ph * panelHeight + 2;
-        ctx.fillStyle = '#FFD700';
-        ctx.fillRect(x, y, plateLength, plateThickness);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, plateLength, plateThickness);
-      }
-    }
-
-    // BOTTOM-RIGHT CORNER (if ground stacking)
-    if(isGroundStacking) {
-      const bottomRightKey = `${pw-1},${ph-1}`;
-      if(!deletedPanels.has(bottomRightKey)) {
-        // Horizontal plate at bottom-right
-        const x = pw * panelWidth - plateLength - 2;
-        const y = panelYOffset + ph * panelHeight + 2;
-        ctx.fillStyle = '#FFD700';
-        ctx.fillRect(x, y, plateLength, plateThickness);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, plateLength, plateThickness);
-      }
-    }
-
-    // VERTICAL PLATES at edges where panels meet bumpers
-    // TOP-LEFT vertical (if hanging)
-    if(isHanging) {
-      const topLeftKey = `0,0`;
-      if(!deletedPanels.has(topLeftKey)) {
-        const x = 2;
-        const y = panelYOffset - plateLength/2 - 2;
-        ctx.fillStyle = '#FFD700';
-        ctx.fillRect(x, y, plateThickness, plateLength);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, plateThickness, plateLength);
-      }
-    }
-
-    // TOP-RIGHT vertical (if hanging)
-    if(isHanging) {
-      const topRightKey = `${pw-1},0`;
-      if(!deletedPanels.has(topRightKey)) {
-        const x = pw * panelWidth - plateThickness - 2;
-        const y = panelYOffset - plateLength/2 - 2;
-        ctx.fillStyle = '#FFD700';
-        ctx.fillRect(x, y, plateThickness, plateLength);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, plateThickness, plateLength);
-      }
-    }
-
-    // BOTTOM-LEFT vertical (if ground stacking)
-    if(isGroundStacking) {
-      const bottomLeftKey = `0,${ph-1}`;
-      if(!deletedPanels.has(bottomLeftKey)) {
-        const x = 2;
-        const y = panelYOffset + ph * panelHeight - plateLength/2 + 2;
-        ctx.fillStyle = '#FFD700';
-        ctx.fillRect(x, y, plateThickness, plateLength);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, plateThickness, plateLength);
-      }
-    }
-
-    // BOTTOM-RIGHT vertical (if ground stacking)
-    if(isGroundStacking) {
-      const bottomRightKey = `${pw-1},${ph-1}`;
-      if(!deletedPanels.has(bottomRightKey)) {
-        const x = pw * panelWidth - plateThickness - 2;
-        const y = panelYOffset + ph * panelHeight - plateLength/2 + 2;
-        ctx.fillStyle = '#FFD700';
-        ctx.fillRect(x, y, plateThickness, plateLength);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, plateThickness, plateLength);
-      }
-    }
-
-    // Draw 4-way plates (red) at interior panel intersections
-    for(let c = 0; c < pw - 1; c++) {
-      for(let r = 0; r < ph - 1; r++) {
-        const topLeft = `${c},${r}`;
-        const topRight = `${c+1},${r}`;
-        const bottomLeft = `${c},${r+1}`;
-        const bottomRight = `${c+1},${r+1}`;
-
-        // Only draw if all 4 panels exist (not deleted)
-        if(!deletedPanels.has(topLeft) && !deletedPanels.has(topRight) &&
-           !deletedPanels.has(bottomLeft) && !deletedPanels.has(bottomRight)) {
-          const x = (c + 1) * panelWidth - plate4WaySize/2;
-          const y = panelYOffset + (r + 1) * panelHeight - plate4WaySize/2;
-
-          ctx.fillStyle = '#FF4444'; // Red for 4-way
-          ctx.fillRect(x, y, plate4WaySize, plate4WaySize);
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x, y, plate4WaySize, plate4WaySize);
-        }
-      }
-    }
-
-    // Draw 4-way plates (red) connecting panels to TOP BUMPERS (if hanging)
-    // Align with interior panel intersections (columns between panels)
-    // Show for any panel type that has bumpers (CB5 with 4-way, or DM2.6, etc.)
-    if(isHanging && (showTopBumper)) {
-      for(let c = 0; c < pw - 1; c++) {
-        const topLeftKey = `${c},0`;
-        const topRightKey = `${c+1},0`;
-        if(!deletedPanels.has(topLeftKey) && !deletedPanels.has(topRightKey)) {
-          const x = (c + 1) * panelWidth - plate4WaySize/2; // Align with interior intersections
-          const y = panelYOffset - plate4WaySize/2; // Between bumper and panel
-
-          ctx.fillStyle = '#FF4444'; // Red for 4-way
-          ctx.fillRect(x, y, plate4WaySize, plate4WaySize);
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x, y, plate4WaySize, plate4WaySize);
-        }
-      }
-    }
-
-    // Draw 4-way plates (red) connecting panels to BOTTOM BUMPERS (if ground stacking)
-    // Align with interior panel intersections (columns between panels)
-    // Show for any panel type that has bumpers (CB5 with 4-way, or DM2.6, etc.)
-    if(isGroundStacking && (showBottomBumper)) {
-      for(let c = 0; c < pw - 1; c++) {
-        const bottomLeftKey = `${c},${ph-1}`;
-        const bottomRightKey = `${c+1},${ph-1}`;
-        if(!deletedPanels.has(bottomLeftKey) && !deletedPanels.has(bottomRightKey)) {
-          const x = (c + 1) * panelWidth - plate4WaySize/2; // Align with interior intersections
-          const y = panelYOffset + ph * panelHeight - plate4WaySize/2; // Between panel and bumper
-
-          ctx.fillStyle = '#FF4444'; // Red for 4-way
-          ctx.fillRect(x, y, plate4WaySize, plate4WaySize);
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x, y, plate4WaySize, plate4WaySize);
-        }
-      }
+      ctx.fillStyle = '#FFD700'; // Gold/yellow for 2-way
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, w, h);
     }
   }
 

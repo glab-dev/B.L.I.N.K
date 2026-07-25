@@ -894,9 +894,9 @@ function calculate(){
   const circuitsByColumns = Math.ceil(pw / columnsPerCircuit);
 
   const ampsSingle = totalPowerW / voltage;
-  // For 3-phase: Total Watts / Voltage = Total Amps, then Total Amps / 3 = Amps per phase
+  // For 3-phase the per-leg line current = Total Watts / (√3 × Voltage); 1-phase = Total Watts / Voltage.
   const totalAmps = totalPowerW / voltage;
-  const ampsPerPhase = phase===3 ? (totalAmps / 3) : ampsSingle;
+  const ampsPerPhase = phase===3 ? (totalAmps / Math.sqrt(3)) : ampsSingle;
 
   // 3-phase load balancing — actual per-leg (X/Y/Z) amps from the real circuit
   // loads. The distro wiring (single-leg 120 V vs two-leg 208 V) is resolved
@@ -904,6 +904,7 @@ function calculate(){
   let phaseBalance = null;
   let socaBreakdown = null;
   let socaLabelMap = null; // [localSocaIdx, globalLabelIdx] entries when Share Distro renumbers this screen
+  let sharedDistroTotal = null; // combined load of the whole shared-distro group (own phaseBalance stays intact)
   if(typeof assignCircuits === 'function') {
     const { panelToCircuit, circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments);
     const panelToSoca = (typeof assignSocas === 'function') ? assignSocas(panelToCircuit, customSocaAssignments) : null;
@@ -927,14 +928,16 @@ function calculate(){
       }
 
       // Share Distro: when this screen shares one physical 3-phase distro with other screens
-      // (every screen with sharedDistro on), replace its per-leg load with the COMBINED load of
-      // the whole group, so a fragment screen shows the distro's true imbalance, not a false
-      // ~100%. As-wired currents (the physical distro), independent of balanced mode.
+      // (every screen with sharedDistro on), compute the COMBINED load of the whole group into
+      // a SEPARATE sharedDistroTotal object. phaseBalance stays this screen's OWN load — the
+      // specs show own (main) + a "Shared Distro Total" section. As-wired currents (the
+      // physical distro), independent of balanced mode.
       const _thisShared = !!(typeof screens !== 'undefined' && screens[currentScreenId] && screens[currentScreenId].data && screens[currentScreenId].data.sharedDistro);
       if(phaseBalance && _thisShared && typeof screenCircuitContributions === 'function'
          && typeof resolveScreenPowerInputs === 'function' && typeof legAmpsFromPairWatts === 'function') {
         const pairW = { XY: 0, YZ: 0, ZX: 0 };
         const singleW = { X: 0, Y: 0, Z: 0 };
+        let comboWatts = 0, comboScreens = 0;
         const addCircuit = c => { if(pairW[c.pair] !== undefined) pairW[c.pair] += c.amps; else if(singleW[c.pair] !== undefined) singleW[c.pair] += c.amps; };
         Object.keys(screens).forEach(sid => {
           const sd = screens[sid] && screens[sid].data;
@@ -942,20 +945,27 @@ function calculate(){
           if(sid === currentScreenId) {
             // current screen: live values (its saved data can lag the DOM)
             screenCircuitContributions(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments, customSocaAssignments, perPanelW, voltage, wiring).perCircuit.forEach(addCircuit);
+            comboWatts += totalPowerW; comboScreens++;
           } else {
             const inp = resolveScreenPowerInputs(sd);
             if(!inp || inp.phase !== 3) return;
             screenCircuitContributions(inp.pw, inp.ph, inp.panelsPerCircuit, inp.deletedPanels, inp.customCircuit, inp.customSoca, inp.perPanelW, inp.voltage, inp.wiring).perCircuit.forEach(addCircuit);
+            comboWatts += Math.max(0, inp.pw * inp.ph - inp.deletedPanels.size) * inp.perPanelW; comboScreens++;
           }
         });
         const phasor = legAmpsFromPairWatts(pairW, 1);
         const la = { X: phasor.X + singleW.X, Y: phasor.Y + singleW.Y, Z: phasor.Z + singleW.Z };
         const arr = [la.X, la.Y, la.Z];
         const peak = Math.max(...arr), min = Math.min(...arr);
-        phaseBalance.legAmps = la;
-        phaseBalance.peakLeg = peak;
-        phaseBalance.imbalancePct = peak > 0 ? ((peak - min) / peak) * 100 : 0;
-        phaseBalance.sharedDistro = true;
+        // Combined distro totals live in their OWN object; phaseBalance stays this screen's own.
+        sharedDistroTotal = {
+          screenCount: comboScreens,
+          power: comboWatts,
+          legAmps: la,
+          peakLeg: peak,
+          imbalancePct: peak > 0 ? ((peak - min) / peak) * 100 : 0,
+          sharedDistro: true
+        };
 
         // Continuous SOCA numbering: this screen's SOCAs labelled after the prior group
         // screens' SOCAs (display-only). Built from the current screen's LIVE grouping.
@@ -1141,7 +1151,9 @@ function calculate(){
     html += `<br>`;
     html += `<div class="result-section-title">POWER (${powerType.toUpperCase()})</div>`;
     html += `<div class="result-row"><strong>Total watts:</strong> ${totalPowerW.toLocaleString()} W</div>`;
-    html += `<div class="result-row"><strong>Total amps:</strong> ${ampsSingle.toFixed(2)} A @ ${voltage} V</div>`;
+    html += `<div class="result-row"><strong>Total amps:</strong> ${ampsPerPhase.toFixed(2)} A @ ${voltage} V</div>`;
+    const svcSimple = serviceNeededLabel(ampsPerPhase, derate);
+    if(svcSimple) html += `<div class="result-row"><strong>Service needed:</strong> ${svcSimple}</div>`;
     if(phase === 3) {
       if(phaseBalance) {
         const la = phaseBalance.legAmps;
@@ -1155,6 +1167,20 @@ function calculate(){
       }
     }
     html += `<div class="result-row"><strong>Max panels per circuit:</strong> ${calculatedPanelsPerCircuit}</div>`;
+    if(sharedDistroTotal) {
+      const _sdt = sharedDistroTotal;
+      html += `<br>`;
+      html += `<div class="result-section-title">SHARED DISTRO TOTAL (${_sdt.screenCount} screens)</div>`;
+      html += `<div class="result-row"><strong>Total power:</strong> ${Math.round(_sdt.power).toLocaleString()} W</div>`;
+      html += `<div class="result-row"><strong>Total amps:</strong> ${_sdt.peakLeg.toFixed(2)} A @ ${voltage} V</div>`;
+      html += `<div class="result-row"><strong>Amps per leg (@ ${voltage} V):</strong></div>`;
+      html += `<div class="result-row" style="margin-left:14px;"><strong>X:</strong> ${_sdt.legAmps.X.toFixed(1)} A</div>`;
+      html += `<div class="result-row" style="margin-left:14px;"><strong>Y:</strong> ${_sdt.legAmps.Y.toFixed(1)} A</div>`;
+      html += `<div class="result-row" style="margin-left:14px;"><strong>Z:</strong> ${_sdt.legAmps.Z.toFixed(1)} A</div>`;
+      html += `<div class="result-row"><strong>Phase imbalance:</strong> ${_sdt.imbalancePct.toFixed(0)}%</div>`;
+      const _sdtSvc = serviceNeededLabel(_sdt.peakLeg, derate);
+      if(_sdtSvc) html += `<div class="result-row"><strong>Service needed:</strong> ${_sdtSvc}</div>`;
+    }
 
     // Data specs
     html += `<br>`;
@@ -1241,7 +1267,9 @@ function calculate(){
     html += `<br>`;
     html += `<div class="result-section-title">POWER (${powerType.toUpperCase()})</div>`;
     html += `<div class="result-row"><strong>Total wall power:</strong> ${totalPowerW.toLocaleString()} W</div>`;
-    html += `<div class="result-row"><strong>Total amps:</strong> ${ampsSingle.toFixed(2)} A @ ${voltage} V</div>`;
+    html += `<div class="result-row"><strong>Total amps:</strong> ${ampsPerPhase.toFixed(2)} A @ ${voltage} V</div>`;
+    const svcComplex = serviceNeededLabel(ampsPerPhase, derate);
+    if(svcComplex) html += `<div class="result-row"><strong>Service needed:</strong> ${svcComplex}</div>`;
     if(phase === 3) {
       if(phaseBalance) {
         const la = phaseBalance.legAmps;
@@ -1256,6 +1284,20 @@ function calculate(){
     }
     html += `<div class="result-row"><strong>Max panels per circuit:</strong> ${calculatedPanelsPerCircuit}</div>`;
     html += `<div class="result-row"><strong>Estimated circuits:</strong> ${circuitsByColumns}</div>`;
+    if(sharedDistroTotal) {
+      const _sdt = sharedDistroTotal;
+      html += `<br>`;
+      html += `<div class="result-section-title">SHARED DISTRO TOTAL (${_sdt.screenCount} screens)</div>`;
+      html += `<div class="result-row"><strong>Total power:</strong> ${Math.round(_sdt.power).toLocaleString()} W</div>`;
+      html += `<div class="result-row"><strong>Total amps:</strong> ${_sdt.peakLeg.toFixed(2)} A @ ${voltage} V</div>`;
+      html += `<div class="result-row"><strong>Amps per leg (@ ${voltage} V):</strong></div>`;
+      html += `<div class="result-row" style="margin-left:14px;"><strong>X:</strong> ${_sdt.legAmps.X.toFixed(1)} A</div>`;
+      html += `<div class="result-row" style="margin-left:14px;"><strong>Y:</strong> ${_sdt.legAmps.Y.toFixed(1)} A</div>`;
+      html += `<div class="result-row" style="margin-left:14px;"><strong>Z:</strong> ${_sdt.legAmps.Z.toFixed(1)} A</div>`;
+      html += `<div class="result-row"><strong>Phase imbalance:</strong> ${_sdt.imbalancePct.toFixed(0)}%</div>`;
+      const _sdtSvc = serviceNeededLabel(_sdt.peakLeg, derate);
+      if(_sdtSvc) html += `<div class="result-row"><strong>Service needed:</strong> ${_sdtSvc}</div>`;
+    }
 
     // DATA Section
     html += `<br>`;
@@ -1314,6 +1356,7 @@ function calculate(){
       socaCount: Math.ceil(circuitsByColumns / 6),
       columnsPerCircuit: columnsPerCircuit,
       phaseBalance: phaseBalance,
+      sharedDistroTotal: sharedDistroTotal,
       socaBreakdown: socaBreakdown,
       socaLabelMap: socaLabelMap
     };

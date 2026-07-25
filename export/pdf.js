@@ -832,6 +832,11 @@ function buildSimpleSummaryBar(screenData, calcData, panelSpec) {
   // Falls back to the balanced √3 estimate when no phase-balance data is present.
   const phaseBal      = cd.phaseBalance || null;
   const ampsPhase     = phaseBal ? phaseBal.peakLeg : (phase === 3 ? ampsTotal / 1.732 : ampsTotal);
+  // 3-phase "Total Amps" = per-leg line current P/(√3·V); 1-phase = P/V. Service needed
+  // rounds that up to the next standard service, ÷0.8 when the NEC Derate toggle is on.
+  const ampsService   = phase === 3 ? (voltage > 0 ? totalPowerW / (Math.sqrt(3) * voltage) : 0) : ampsTotal;
+  const derateFactor  = data.derate ? 0.8 : 1.0;
+  const sdt           = cd.sharedDistroTotal || null;
   const circuits      = cd.circuitsNeeded || 0;
   const maxPpc        = powerPerPanel > 0 ? Math.floor((voltage * breaker) / powerPerPanel) : 0;
 
@@ -871,7 +876,8 @@ function buildSimpleSummaryBar(screenData, calcData, panelSpec) {
   ]);
   const colPower = buildSummaryColumn('POWER (MAX)', [
     ['Total Power',   totalPowerW > 0 ? `${totalPowerW.toLocaleString()} W` : null],
-    ['Total Amps',    ampsTotal > 0   ? `${ampsTotal.toFixed(1)} A @ ${voltage}V` : null],
+    ['Total Amps',    ampsService > 0 ? `${ampsService.toFixed(1)} A @ ${voltage}V` : null],
+    ['Service needed', serviceNeededLabel(ampsService, derateFactor)],
     ...(phaseBal
       ? [
           ['Leg X', `${phaseBal.legAmps.X.toFixed(1)} A`],
@@ -884,6 +890,11 @@ function buildSimpleSummaryBar(screenData, calcData, panelSpec) {
         ]),
     ['Circuits',      circuits > 0    ? circuits : null],
     ['Max/Circuit',   maxPpc > 0      ? `${maxPpc} panels` : null],
+    ...(sdt ? [
+      [`Distro Total (${sdt.screenCount})`, `${Math.round(sdt.power).toLocaleString()} W`],
+      ['Distro Amps', `${sdt.peakLeg.toFixed(1)} A @ ${voltage}V`],
+      ['Distro Service', serviceNeededLabel(sdt.peakLeg, derateFactor)]
+    ] : []),
   ]);
   const panelsPerDL  = cd.panelsPerDataLine || 0;
   const procSpec     = (getAllProcessors && data.processor) ? (getAllProcessors()[data.processor] || {}) : {};
@@ -1029,6 +1040,11 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
   // Falls back to the balanced √3 estimate when no phase-balance data is present.
   const phaseBal      = cd.phaseBalance || null;
   const ampsPhase     = phaseBal ? phaseBal.peakLeg : (phase === 3 ? ampsTotal / 1.732 : ampsTotal);
+  // 3-phase "Total Amps" = per-leg line current P/(√3·V); 1-phase = P/V. Service needed
+  // rounds that up to the next standard service, ÷0.8 when the NEC Derate toggle is on.
+  const ampsService   = phase === 3 ? (voltage > 0 ? totalPowerW / (Math.sqrt(3) * voltage) : 0) : ampsTotal;
+  const derateFactor  = data.derate ? 0.8 : 1.0;
+  const sdt           = cd.sharedDistroTotal || null;
   const circuits      = cd.circuitsNeeded || 0;
   const maxPpc        = powerPerPanel > 0 ? Math.floor((voltage * breaker) / powerPerPanel) : 0;
 
@@ -1069,7 +1085,8 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
 
   const colPower = buildSummaryColumn('POWER (MAX)', [
     ['Total Power',   totalPowerW > 0 ? `${totalPowerW.toLocaleString()} W` : null],
-    ['Total Amps',    ampsTotal > 0   ? `${ampsTotal.toFixed(1)} A @ ${voltage}V` : null],
+    ['Total Amps',    ampsService > 0 ? `${ampsService.toFixed(1)} A @ ${voltage}V` : null],
+    ['Service needed', serviceNeededLabel(ampsService, derateFactor)],
     ...(phaseBal
       ? [
           ['Leg X', `${phaseBal.legAmps.X.toFixed(1)} A`],
@@ -1082,6 +1099,11 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
         ]),
     ['Circuits',      circuits > 0    ? circuits : null],
     ['Max/Circuit',   maxPpc > 0      ? `${maxPpc} panels` : null],
+    ...(sdt ? [
+      [`Distro Total (${sdt.screenCount})`, `${Math.round(sdt.power).toLocaleString()} W`],
+      ['Distro Amps', `${sdt.peakLeg.toFixed(1)} A @ ${voltage}V`],
+      ['Distro Service', serviceNeededLabel(sdt.peakLeg, derateFactor)]
+    ] : []),
   ]);
 
   const procSpec    = (getAllProcessors && data.processor) ? (getAllProcessors()[data.processor] || {}) : {};
@@ -2910,6 +2932,9 @@ function buildPdfDocDefinition(opts, canvasCache) {
       const phase = parseInt(data.phase) || 3;
       const phaseBal = calcData.phaseBalance || null;
       const ampsPerPhase = phaseBal ? phaseBal.peakLeg : (phase === 3 ? (totalPowerW / voltage) / 1.732 : totalPowerW / voltage);
+      const ampsService = phase === 3 ? (voltage > 0 ? totalPowerW / (Math.sqrt(3) * voltage) : 0) : (voltage > 0 ? totalPowerW / voltage : 0);
+      const svcLabel = serviceNeededLabel(ampsService, data.derate ? 0.8 : 1.0);
+      const sdt = calcData.sharedDistroTotal || null;
       const maxPanelsPerCircuit = powerPerPanel > 0 ? Math.floor((voltage * breaker) / powerPerPanel) : 0;
       const powerRows = [
         specRow('Total Power:', `${(totalPowerW / 1000).toFixed(2)} kW`),
@@ -2923,7 +2948,15 @@ function buildPdfDocDefinition(opts, canvasCache) {
           : [
               specRow('Amps/Phase:', `${ampsPerPhase.toFixed(1)} A (${phase}\u03C6)`)
             ]),
+        ...(svcLabel ? [specRow('Service needed:', svcLabel)] : []),
         specRow('Max/Circuit:', `${maxPanelsPerCircuit} panels`),
+        ...(sdt ? [
+          specRow(`Distro Total (${sdt.screenCount}):`, `${Math.round(sdt.power).toLocaleString()} W`),
+          specRow('Distro Amps:', `${sdt.peakLeg.toFixed(1)} A`),
+          specRow('Distro Legs:', `${sdt.legAmps.X.toFixed(0)}/${sdt.legAmps.Y.toFixed(0)}/${sdt.legAmps.Z.toFixed(0)} A`),
+          specRow('Distro Imbalance:', `${sdt.imbalancePct.toFixed(0)}%`),
+          specRow('Distro Service:', serviceNeededLabel(sdt.peakLeg, data.derate ? 0.8 : 1.0) || '—')
+        ] : []),
       ].filter(Boolean);
       if (powerRows.length > 0) {
         specsStack.push(pdfSectionBar('Power', colors));

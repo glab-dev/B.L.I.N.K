@@ -1,5 +1,5 @@
 {
-  "version": "2.11.105",
-  "updated": "2026-07-23",
-  "changelog": "Add red center-of-wall mark on bumpers in structure view"
+  "version": "2.11.106",
+  "updated": "2026-07-25",
+  "changelog": "Rework connecting plates for gaps and bumpers, keep bumper config, add shared-distro phase balance"
 }

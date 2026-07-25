@@ -456,7 +456,9 @@ function renderPhaseBalanceLegend() {
   const el = document.getElementById('phaseBalanceLegend');
   if (!el) return;
   const cd = (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].calculatedData : null;
-  const pb = (cd && cd.phaseBalance) ? cd.phaseBalance : null;
+  // On a shared distro, show the combined load (matches the "Shared Distro Total" specs
+  // section); otherwise show this screen's own phase balance.
+  const pb = (cd && cd.sharedDistroTotal) ? cd.sharedDistroTotal : ((cd && cd.phaseBalance) ? cd.phaseBalance : null);
   if (!pb) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
   const la = pb.legAmps;

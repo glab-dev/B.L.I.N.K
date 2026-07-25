@@ -352,7 +352,11 @@ function updatePickupWeightSummary() {
   }
 
   if(bumpers.length === 0) {
-    infoPanel.style.display = 'none';
+    // Bumpers off: hide only the bumper Pickup Weights box, but keep the rest of the info
+    // panel (Connecting Plates, Ground Support, Floor Frames, Total) rendering.
+    weightsBox.style.display = 'none';
+    infoPanel.style.display = 'grid';
+    updateStructurePlatesDisplay();
     return;
   }
 

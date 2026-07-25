@@ -428,14 +428,29 @@ function toggleUseBumpers() {
     if(fourWayOption && isCB5) {
       fourWayOption.style.display = 'block';
     }
-    
-    // Re-initialize bumpers when turned on
-    initializeBumpers();
+
+    // Restore the bumper configuration saved when bumpers were toggled off; only fall back to
+    // auto-distribution if there is nothing saved for this screen.
+    const savedBumpers = screens[currentScreenId] && screens[currentScreenId].data
+      ? screens[currentScreenId].data.savedBumpers : null;
+    if(savedBumpers && savedBumpers.length > 0) {
+      bumpers = JSON.parse(JSON.stringify(savedBumpers));
+      if(typeof screens[currentScreenId].data.savedNextBumperId === 'number') {
+        nextBumperId = screens[currentScreenId].data.savedNextBumperId;
+      }
+      screens[currentScreenId].data.bumpersInitialized = true;
+    } else {
+      initializeBumpers();
+    }
   } else {
     if(bumperControls) bumperControls.style.display = 'none';
     if(fourWayOption) fourWayOption.style.display = 'none';
     if(weightDisplay) weightDisplay.style.display = 'none';
-    // Clear bumpers when turned off
+    // Preserve the current bumper configuration so toggling back on restores it
+    if(screens[currentScreenId] && screens[currentScreenId].data) {
+      screens[currentScreenId].data.savedBumpers = JSON.parse(JSON.stringify(bumpers));
+      screens[currentScreenId].data.savedNextBumperId = nextBumperId;
+    }
     bumpers = [];
     showTopBumper = false;
     showBottomBumper = false;

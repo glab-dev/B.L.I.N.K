@@ -101,6 +101,8 @@ Version strings in all three files must match. `APP_CHANGELOG` and `version.json
 
 Use the `/commit` command to handle this automatically.
 
+**Public release — one-time version reset:** For the public launch, reset the version to `1.0.0` across all three files (`version.json`, `APP_VERSION` in `index.html`, `SW_VERSION` in `sw.js`) in a single manual pass — do NOT use `/commit` for the reset itself (it auto-bumps the patch and would produce the wrong number). This is safe even though it lowers the number: the update check (`core/update.js`) compares versions by *inequality* (`!==`), not order, so existing users still get the update banner. After the reset, `/commit` resumes normally from `1.0.1`. Tag the release commit `git tag v1.0.0` (no tags exist yet).
+
 ---
 
 ## Commit Conventions — ALWAYS Follow

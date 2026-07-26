@@ -3752,6 +3752,48 @@ canvas:focus {
   margin: 0 0 8px 0;
 }
 
+/* Release Notes entries */
+.release-note-entry {
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.2);
+}
+
+.release-note-entry:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.release-note-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.release-note-version {
+  color: var(--primary);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-shadow:
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+    1px 1px 0 #000;
+}
+
+.release-note-date {
+  color: var(--muted-color);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.release-note-text {
+  margin: 0;
+}
+
 .help-table {
   width: 100%;
   border-collapse: collapse;

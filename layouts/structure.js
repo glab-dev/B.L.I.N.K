@@ -117,11 +117,18 @@ function generateStructureLayout(){
   const _pdfCapture = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
   const maxStructSize = _pdfCapture ? 200 : 80; // Higher cap in PDF mode for sharp text
   const calculatedStructSize = Math.floor(maxStructCanvasWidth / pw);
-  const size = Math.max(minStructSize, Math.min(maxStructSize, calculatedStructSize));
 
   // Get panel type and calculate height ratio for CB5_MKII full panels
   const panelType = document.getElementById('panelType').value;
   const heightRatio = getPanelHeightRatio(panelType);
+
+  // Cap cell width for tall panels so cell height (width*ratio) never exceeds maxStructSize,
+  // matching the standard/power/data views (core/calculate.js). Skip during PDF capture.
+  const effectiveMaxStructSize = (!_pdfCapture && heightRatio > 1)
+    ? Math.floor(maxStructSize / heightRatio)
+    : maxStructSize;
+  const size = Math.max(minStructSize, Math.min(effectiveMaxStructSize, calculatedStructSize));
+
   const panelWidth = size;
   const panelHeight = size * heightRatio;
 

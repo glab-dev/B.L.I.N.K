@@ -46,6 +46,15 @@ function renderDataLayout(params) {
     let lastDataLineEndedAtBoundary = true; // First data line starts fresh
 
     while(currentColumn < pw) {
+      // A fully-deleted column has no panels to traverse. Advance past it WITHOUT
+      // toggling serpentine direction — toggling on a gap flips the next column's
+      // arrows the wrong way (the down/up snake skips a beat across the deletion).
+      let columnHasPanels = false;
+      for(let r=0; r<ph; r++) {
+        if(!deletedPanels.has(`${currentColumn},${r}`)) { columnHasPanels = true; break; }
+      }
+      if(!columnHasPanels) { currentColumn++; continue; }
+
       // Count non-deleted, non-custom panels in this column
       let panelsInColumn = 0;
       for(let r=0; r<ph; r++) {

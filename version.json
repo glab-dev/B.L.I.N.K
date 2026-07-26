@@ -1,5 +1,5 @@
 {
-  "version": "2.11.107",
+  "version": "2.11.108",
   "updated": "2026-07-26",
-  "changelog": "Keep red centre-of-wall mark in structure view when bumpers are off"
+  "changelog": "Blank combined dead panels with overlay labels, add release-notes popup, fix data-line gaps and tall-panel structure sizing"
 }

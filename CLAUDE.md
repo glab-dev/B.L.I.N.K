@@ -96,8 +96,9 @@ PWA: offline-capable after first load, installable on mobile via manifest (base6
 1. `version.json` → `"version"` field + `"updated"` date (YYYY-MM-DD) + `"changelog"` (commit description)
 2. `index.html` → `const APP_VERSION = 'X.X.X';` + `const APP_CHANGELOG = '...';` (next line)
 3. `sw.js` → `const SW_VERSION = 'X.X.X';` (line 5)
+4. `core/release-notes.js` → prepend a new `{ version, date, notes }` entry to the top of the `RELEASE_NOTES` array (newest first). `notes` = the commit description (same string as the changelog).
 
-Version strings in all three files must match. `APP_CHANGELOG` and `version.json` `changelog` must match. Default: increment patch (e.g., 2.5.25 → 2.5.26).
+Version strings in `version.json`, `index.html`, and `sw.js` must match. `APP_CHANGELOG`, `version.json` `changelog`, and the new `RELEASE_NOTES` `notes` must match. Default: increment patch (e.g., 2.5.25 → 2.5.26).
 
 Use the `/commit` command to handle this automatically.
 

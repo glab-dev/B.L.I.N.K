@@ -207,6 +207,7 @@
       <div class="welcome-footer-links">
         <button class="welcome-footer-link" onclick="openHelpModal()">Help</button>
         <button class="welcome-footer-link" onclick="openTermsModal()">Terms of Use</button>
+        <button class="welcome-footer-link" onclick="openReleaseNotesModal()">Release Notes</button>
         <button class="welcome-footer-link" onclick="openEmailSendModal({to:'info@blink-led.com',subject:'',body:'',title:'Contact Us'})">Contact</button>
       </div>
       <div class="welcome-footer-meta">
@@ -1271,6 +1272,19 @@
         <h3 class="help-section-title">Contact</h3>
         <p class="help-text"><a href="mailto:info@blink-led.com" class="link-inherit">info@blink-led.com</a></p>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Release Notes Modal -->
+<div id="releaseNotesModal" class="modal-overlay">
+  <div class="modal-dialog modal-560 modal-scrollable">
+    <div class="modal-header">
+      <h2 class="modal-title">What's New</h2>
+      <button class="modal-close" onclick="closeReleaseNotesModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="releaseNotesList" class="help-content"></div>
     </div>
   </div>
 </div>
@@ -3607,6 +3621,7 @@
 <script defer src="core/utils.js"></script>
 <script defer src="core/phase-balance.js"></script>
 <script defer src="core/update.js"></script>
+<script defer src="core/release-notes.js"></script>
 <script defer src="core/supabase.js"></script>
 <script defer src="core/auth-ui.js"></script>
 
@@ -3680,8 +3695,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.107';
-const APP_CHANGELOG = 'Keep red centre-of-wall mark in structure view when bumpers are off';
+const APP_VERSION = '2.11.108';
+const APP_CHANGELOG = 'Blank combined dead panels with overlay labels, add release-notes popup, fix data-line gaps and tall-panel structure sizing';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

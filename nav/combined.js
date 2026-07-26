@@ -103,21 +103,63 @@ function getCombinedScreenAtPosition(canvas, clientX, clientY) {
   const canvasX = (clientX - rect.left) * scaleX;
   const canvasY = (clientY - rect.top) * scaleY;
 
-  // Check each screen - include label area above panels for easier dragging
-  const zoomFactor = combinedZoomLevel / 100;
-  for(const dim of combinedScreenDimensions) {
-    // Scale both base position and custom offset by zoom factor
-    const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
-    const screenX = combinedLeftPadding + (dim.x + customPos.x) * zoomFactor;
-    const screenY = combinedTopPadding + customPos.y * zoomFactor;
-    const screenWidth = dim.pw * combinedPanelSize;
-    const screenHeight = dim.ph * combinedPanelSize;
-    const labelHeight = 25; // Height above panels for label
+  // Check each screen top-most first (screens are painted in array order,
+  // so the last one is drawn on top) - include label area above panels for
+  // easier dragging.
+  const allPanels = getAllPanels();
+  const labelHeight = 25; // Height above panels for label
+  for(let i = combinedScreenDimensions.length - 1; i >= 0; i--) {
+    const dim = combinedScreenDimensions[i];
 
-    // Check if click is within this screen's bounds (including label area)
-    if(canvasX >= screenX && canvasX < screenX + screenWidth &&
-       canvasY >= screenY - labelHeight && canvasY < screenY + screenHeight) {
+    let screenX, screenY, drawPanelSize;
+    if(combinedMirrorCanvas) {
+      const dataCanvasX = dim.data.canvasX || 0;
+      const dataCanvasY = dim.data.canvasY || 0;
+      const panelType = dim.data.panelType || 'CB5_MKII';
+      const panelInfo = allPanels[panelType];
+      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+      screenX = combinedLeftPadding + (dataCanvasX / pixelWidth) * combinedPanelSize;
+      screenY = combinedTopPadding + (dataCanvasY / pixelWidth) * combinedPanelSize;
+      drawPanelSize = combinedPanelSize;
+    } else {
+      const zoomFactor = combinedZoomLevel / 100;
+      const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
+      screenX = combinedLeftPadding + (dim.x + customPos.x) * zoomFactor;
+      screenY = combinedTopPadding + customPos.y * zoomFactor;
+      drawPanelSize = combinedPanelSize;
+    }
+
+    const screenHeightRatio = getPanelHeightRatio(dim.data.panelType || 'CB5_MKII');
+    const actualPanelWidth = drawPanelSize;
+    const actualPanelHeight = drawPanelSize * screenHeightRatio;
+    const screenWidth = dim.pw * actualPanelWidth;
+    const screenHeight = dim.ph * actualPanelHeight;
+
+    const withinX = canvasX >= screenX && canvasX < screenX + screenWidth;
+
+    // Label strip above panels is always a valid grab handle
+    if(withinX && canvasY >= screenY - labelHeight && canvasY < screenY) {
       return dim;
+    }
+
+    // Inside the panel grid: only grab if over a LIVE (non-deleted) panel,
+    // so clicks over blank/dead cells fall through to the screen behind.
+    if(withinX && canvasY >= screenY && canvasY < screenY + screenHeight) {
+      const col = Math.floor((canvasX - screenX) / actualPanelWidth);
+      const row = Math.floor((canvasY - screenY) / actualPanelHeight);
+
+      // Normalize deletedPanels (may be array from JSON or Set) to a Set
+      const deleted = new Set();
+      const rawDeleted = dim.data.deletedPanels;
+      if(rawDeleted instanceof Set || Array.isArray(rawDeleted)) {
+        rawDeleted.forEach(key => deleted.add(key));
+      } else if(rawDeleted && typeof rawDeleted[Symbol.iterator] === 'function') {
+        for(const key of rawDeleted) { deleted.add(key); }
+      }
+
+      if(!deleted.has(`${col},${row}`)) {
+        return dim;
+      }
     }
   }
   return null;
@@ -1451,13 +1493,6 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
 
         const hasDeleted = screenDeletedPanels.has(panelKey);
         if(hasDeleted) {
-          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#1a1a1a';
-          ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#cccccc' : '#333333';
-          ctx.lineWidth = 1;
-          ctx.setLineDash([3, 3]);
-          ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.setLineDash([]);
           continue;
         }
 
@@ -1487,12 +1522,60 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     // Calculate total screen height for label positioning
     const screenTotalHeight = screenHasCB5HalfRow ? (screenOriginalPh * drawPanelHeight + halfPanelDrawHeight) : (ph * drawPanelHeight);
 
-    // Draw screen label (scale font with panel size)
-    ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000' : '#fff';
-    const labelFontSize = Math.max(8, Math.min(14, drawPanelSize * 0.35));
-    ctx.font = `bold ${labelFontSize}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.fillText(screen.name, screenX + (pw * drawPanelWidth) / 2, screenY - Math.max(6, drawPanelSize * 0.25));
+    // Draw screen label centered over the screen's live panels (overlay style,
+    // like the Canvas view) so it stays with the screen when screens overlap.
+    if(screen.name) {
+      let sumX = 0, sumY = 0, liveCount = 0;
+      for(let c = 0; c < pw; c++) {
+        for(let r = 0; r < ph; r++) {
+          if(screenDeletedPanels.has(`${c},${r}`)) continue;
+          const isHalfRow = screenHasCB5HalfRow && r === screenOriginalPh;
+          const cellH = isHalfRow ? halfPanelDrawHeight : drawPanelHeight;
+          const cellY = screenY + (isHalfRow ? (screenOriginalPh * drawPanelHeight) : (r * drawPanelHeight));
+          sumX += screenX + c * drawPanelWidth + drawPanelWidth / 2;
+          sumY += cellY + cellH / 2;
+          liveCount++;
+        }
+      }
+      if(liveCount > 0) {
+        let labelX = sumX / liveCount;
+        let labelY = sumY / liveCount;
+
+        // If the centroid lands on a deleted (blank) cell, snap to the nearest
+        // live panel center so the label never floats in an empty gap.
+        const cCol = Math.floor((labelX - screenX) / drawPanelWidth);
+        const cRow = Math.floor((labelY - screenY) / drawPanelHeight);
+        if(screenDeletedPanels.has(`${cCol},${cRow}`)) {
+          let bestDist = Infinity;
+          for(let c = 0; c < pw; c++) {
+            for(let r = 0; r < ph; r++) {
+              if(screenDeletedPanels.has(`${c},${r}`)) continue;
+              const isHalfRow = screenHasCB5HalfRow && r === screenOriginalPh;
+              const cellH = isHalfRow ? halfPanelDrawHeight : drawPanelHeight;
+              const cellY = screenY + (isHalfRow ? (screenOriginalPh * drawPanelHeight) : (r * drawPanelHeight));
+              const pcx = screenX + c * drawPanelWidth + drawPanelWidth / 2;
+              const pcy = cellY + cellH / 2;
+              const d = (pcx - labelX) * (pcx - labelX) + (pcy - labelY) * (pcy - labelY);
+              if(d < bestDist) { bestDist = d; labelX = pcx; labelY = pcy; }
+            }
+          }
+        }
+
+        const labelFontSize = Math.max(8, Math.min(14, drawPanelSize * 0.35));
+        ctx.font = `bold ${labelFontSize}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const printMode = ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode;
+        // Shadow for legibility over the panels
+        ctx.fillStyle = printMode ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)';
+        ctx.fillText(screen.name, labelX + 2, labelY + 2);
+        ctx.fillText(screen.name, labelX - 1, labelY + 1);
+        // Label text on top
+        ctx.fillStyle = printMode ? '#000' : '#FFFF00';
+        ctx.fillText(screen.name, labelX, labelY);
+      }
+    }
   });
 
   // Draw selection highlight on top of everything (after all panels drawn)

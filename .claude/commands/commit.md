@@ -18,6 +18,7 @@ Commit the current changes with an automatic version bump.
    - `version.json`: update the `"version"` field to the new version, `"updated"` field to today's date (YYYY-MM-DD format), and `"changelog"` field to the commit description (short, no version number).
    - `index.html`: find the line `const APP_VERSION = '...';` and update the version string. Also find the line `const APP_CHANGELOG = '...';` (the next line) and update it to the commit description.
    - `sw.js`: find the line `const SW_VERSION = '...';` (line 5) and update the version string.
+   - `core/release-notes.js`: prepend a new entry to the top of the `RELEASE_NOTES` array (right after the `[`): `{ version: 'X.X.X', date: 'YYYY-MM-DD', notes: '<same string as the commit description>' },`. Newest first.
 
 5. **Generate the commit description**:
    - If a description was provided in $ARGUMENTS, use it.

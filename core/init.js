@@ -71,15 +71,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if(typeof isWelcomePageVisible !== 'undefined' && isWelcomePageVisible) {
       var versionLine = document.getElementById('welcomeVersionLine');
       if(versionLine && typeof APP_VERSION !== 'undefined') {
-        var lastSeen = localStorage.getItem('lastSeenWelcomeVersion');
-        if(lastSeen !== APP_VERSION) {
-          var changeText = (typeof APP_CHANGELOG !== 'undefined' && APP_CHANGELOG) ? ' \u2014 ' + APP_CHANGELOG : '';
-          versionLine.innerHTML = '<span style="color: var(--primary); font-weight: 700; letter-spacing: 1px;">NEW</span>&nbsp;&nbsp;v' + APP_VERSION + changeText;
-        } else {
-          versionLine.textContent = 'v' + APP_VERSION;
-        }
+        versionLine.textContent = 'v' + APP_VERSION;
       }
       if(typeof updateAuthUI === 'function') updateAuthUI();
+      if(typeof maybeAutoShowReleaseNotes === 'function') maybeAutoShowReleaseNotes();
     }
 
     // Defer calculation and canvas if welcome page is visible

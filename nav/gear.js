@@ -99,6 +99,15 @@ function getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPa
     let serpentineGoingDown = startFromTop;
 
     while(currentColumn < pw) {
+      // A fully-deleted column has no panels to traverse. Advance past it WITHOUT
+      // toggling serpentine direction — toggling on a gap flips the next column's
+      // arrows the wrong way (the down/up snake skips a beat across the deletion).
+      let columnHasPanels = false;
+      for(let r=0; r<ph; r++) {
+        if(!deletedPanelsSet.has(`${currentColumn},${r}`)) { columnHasPanels = true; break; }
+      }
+      if(!columnHasPanels) { currentColumn++; continue; }
+
       const rows = serpentineGoingDown
         ? Array.from({length: ph}, (_, i) => i)
         : Array.from({length: ph}, (_, i) => ph - 1 - i);

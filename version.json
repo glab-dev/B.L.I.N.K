@@ -1,5 +1,5 @@
 {
-  "version": "2.11.106",
-  "updated": "2026-07-25",
-  "changelog": "Rework connecting plates for gaps and bumpers, keep bumper config, add shared-distro phase balance"
+  "version": "2.11.107",
+  "updated": "2026-07-26",
+  "changelog": "Keep red centre-of-wall mark in structure view when bumpers are off"
 }

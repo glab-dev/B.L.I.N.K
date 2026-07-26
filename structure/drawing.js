@@ -201,6 +201,13 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
     ctx.lineTo(centerX, ctx.canvas.height);
     ctx.stroke();
   }
+  if(!showTopBumper && !showBottomBumper) {
+    // Bumpers off (or floor structure): short red tick at the top of the centre panel
+    ctx.beginPath();
+    ctx.moveTo(centerX, panelYOffset);
+    ctx.lineTo(centerX, panelYOffset + Math.min(bumperHeight, ph * panelHeight));
+    ctx.stroke();
+  }
 }
 
 // Calculate the weight at the center pickup point of a bumper

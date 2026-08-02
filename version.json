@@ -1,5 +1,5 @@
 {
-  "version": "2.11.108",
-  "updated": "2026-07-26",
-  "changelog": "Blank combined dead panels with overlay labels, add release-notes popup, fix data-line gaps and tall-panel structure sizing"
+  "version": "2.11.109",
+  "updated": "2026-08-02",
+  "changelog": "Open loaded project files under their saved file name"
 }

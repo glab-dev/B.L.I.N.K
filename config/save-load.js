@@ -297,11 +297,14 @@ function loadConfiguration(event) {
     return;
   }
 
+  // Use the loaded file's name (extension stripped) as the project name
+  const fileBaseName = file.name.replace(/\.(blinkled|led|ledconfig)$/i, '');
+
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
       const config = JSON.parse(e.target.result);
-      applyConfiguration(config);
+      applyConfiguration(config, fileBaseName);
     } catch(err) {
       showAlert('Error loading configuration: ' + err.message);
       console.error('Load error:', err);
@@ -312,15 +315,19 @@ function loadConfiguration(event) {
   reader.readAsText(file);
 }
 
-function applyConfiguration(config) {
+function applyConfiguration(config, fileNameOverride) {
   // Verify version
   if(!config.version) {
     throw new Error('Invalid configuration file');
   }
 
-  // Restore config name into input field
-  if(typeof config.name === 'string') {
-    document.getElementById('configName').value = config.name.substring(0, 100);
+  // Restore config name into input field. When opening a file, the file's
+  // name wins; otherwise (e.g. Recent projects) use the stored config name.
+  const displayName = (typeof fileNameOverride === 'string' && fileNameOverride.trim())
+    ? fileNameOverride.substring(0, 100)
+    : (typeof config.name === 'string' ? config.name.substring(0, 100) : config.name);
+  if(typeof displayName === 'string') {
+    document.getElementById('configName').value = displayName;
   }
 
   // Check if this is a v2.0 multi-screen config
@@ -627,7 +634,7 @@ function applyConfiguration(config) {
       }
     }, 100);
 
-    const loadSummary = `Configuration "${config.name}" loaded successfully! (${Object.keys(screens).length} screens, ${Object.keys(canvases).length} canvases)`;
+    const loadSummary = `Configuration "${displayName}" loaded successfully! (${Object.keys(screens).length} screens, ${Object.keys(canvases).length} canvases)`;
     if(missingPanelKeys.size > 0 || missingProcessorKeys.size > 0) {
       let warn = loadSummary + '\n\nWarning: some specs in this project could not be loaded and were replaced with defaults:';
       if(missingPanelKeys.size > 0) warn += '\n• Custom panel(s): ' + Array.from(missingPanelKeys).join(', ');
@@ -724,7 +731,7 @@ function applyConfiguration(config) {
     updateSuggestedDataLimit();
     calculate();
 
-    showAlert(`Configuration "${config.name}" loaded successfully! (Legacy format)`);
+    showAlert(`Configuration "${displayName}" loaded successfully! (Legacy format)`);
   }
 
   // Add to recent projects

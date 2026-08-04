@@ -1,5 +1,5 @@
 {
-  "version": "2.11.110",
+  "version": "2.11.111",
   "updated": "2026-08-04",
-  "changelog": "Add Pixels dimension mode and fix dimension mode persistence across screens"
+  "changelog": "Route behind-drop cables through live panels and snap SOCA feed points off dead panels"
 }

@@ -899,6 +899,28 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
       var lastCol = Math.min((lastCircuit + 1) * calc.columnsPerCircuit - 1, calc.pw - 1);
       var landingCenterX = screenLeft + ((firstCol + lastCol + 1) / 2) * pxW;
 
+      // Snap the feed point off any deleted panel it lands on, staying within
+      // this SOCA's own column span (mirrors the data-cable edge-row search)
+      var dp = calc.deletedPanelsSet || new Set();
+      var edgeRow = (powerInPos === 'bottom') ? (calc.effectivePh - 1) : 0;
+      var colUnder = Math.min(lastCol, Math.floor((firstCol + lastCol + 1) / 2));
+      if (colUnder < firstCol) colUnder = firstCol;
+      if (dp.size > 0 && dp.has(colUnder + ',' + edgeRow)) {
+        var foundInSpan = false;
+        for (var pdist = 1; pdist <= lastCol - firstCol; pdist++) {
+          if (colUnder - pdist >= firstCol && !dp.has((colUnder - pdist) + ',' + edgeRow)) {
+            landingCenterX = screenLeft + (colUnder - pdist + 0.5) * pxW; foundInSpan = true; break;
+          }
+          if (colUnder + pdist <= lastCol && !dp.has((colUnder + pdist) + ',' + edgeRow)) {
+            landingCenterX = screenLeft + (colUnder + pdist + 0.5) * pxW; foundInSpan = true; break;
+          }
+        }
+        if (!foundInSpan && typeof findNearestNonDeleted === 'function') {
+          var nn = findNearestNonDeleted(colUnder, edgeRow, calc.pw, calc.effectivePh, dp);
+          landingCenterX = screenLeft + (nn.col + 0.5) * pxW;
+        }
+      }
+
       ctx.strokeStyle = CC_POWER_COLOR;
       ctx.lineWidth = 2;
       ctx.globalAlpha = 0.7;

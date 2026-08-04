@@ -299,6 +299,50 @@ function renderCableDiagram(screenId) {
   // Deferred overlays — markers, brackets, labels drawn AFTER all cable lines
   const deferredOverlays = [];
 
+  // 'Behind' drop with dead panels: cables run behind LIVE panels only, so each one
+  // routes from its target through the live-panel grid to a "muster" cell where the
+  // bundle leaves the wall for the floor — never floating across a dead region.
+  // When nothing is deleted this is inactive and the original straight routing runs.
+  const dropCol = Math.max(0, Math.min(pw - 1, Math.floor((dropX - adjWallLeftX) / panelPixelW)));
+  let muster = null;
+  if (dropPos === 'behind' && screenDeletedPanels.size > 0 && !distBoxOnWall) {
+    const bottomRow = totalRows - 1;
+    if (!screenDeletedPanels.has(dropCol + ',' + bottomRow)) {
+      muster = { col: dropCol, row: bottomRow };
+    } else {
+      for (let dist = 1; dist < pw && !muster; dist++) {
+        if (dropCol - dist >= 0 && !screenDeletedPanels.has((dropCol - dist) + ',' + bottomRow)) muster = { col: dropCol - dist, row: bottomRow };
+        else if (dropCol + dist < pw && !screenDeletedPanels.has((dropCol + dist) + ',' + bottomRow)) muster = { col: dropCol + dist, row: bottomRow };
+      }
+      if (!muster && typeof findNearestNonDeleted === 'function') muster = findNearestNonDeleted(dropCol, bottomRow, pw, totalRows, screenDeletedPanels);
+    }
+  }
+  const liveRouteActive = !!muster;
+  // Route one cable from (startCol,startRow) through live panels to the muster cell,
+  // then down to the floor equipment. Draws clean right angles (the router is
+  // 4-directional). Returns false without side effects when routing can't apply so
+  // the caller falls back to the original drawing.
+  // Diagonal per-cable offset (dx AND dy) so the three cable colours run side-by-side
+  // and stay separated on BOTH vertical and horizontal segments (not just verticals).
+  function drawLivePanelRoute(startCol, startRow, offX, offY, color, width, floorY, targetX, boxTopY) {
+    if (!liveRouteActive || typeof findCableGridPath !== 'function') return false;
+    const path = findCableGridPath(startCol, startRow, muster.col, muster.row, pw, totalRows, screenDeletedPanels);
+    if (!path || path.length === 0) return false;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW + offX, wallTopY + (path[0].row + 0.5) * fullPanelPixelH + offY);
+    for (let i = 1; i < path.length; i++) {
+      ctx.lineTo(adjWallLeftX + (path[i].col + 0.5) * panelPixelW + offX, wallTopY + (path[i].row + 0.5) * fullPanelPixelH + offY);
+    }
+    const mx = adjWallLeftX + (muster.col + 0.5) * panelPixelW + offX;
+    ctx.lineTo(mx, floorY);
+    ctx.lineTo(targetX, floorY);
+    ctx.lineTo(targetX, boxTopY);
+    ctx.stroke();
+    return true;
+  }
+
   // Power cables — one per SOCA
   for (let s = 0; s < socaCount; s++) {
     const firstCircuit = s * 6;
@@ -307,43 +351,74 @@ function renderCableDiagram(screenId) {
     const lastCol = Math.min((lastCircuit + 1) * columnsPerCircuit - 1, pw - 1);
 
     // Landing X = center of the columns this SOCA covers
-    const landingX = adjWallLeftX + ((firstCol + lastCol + 1) / 2) * panelPixelW;
+    let landingX = adjWallLeftX + ((firstCol + lastCol + 1) / 2) * panelPixelW;
 
-    // Draw cable based on power in position
+    // Snap the feed point off any deleted panel it lands on, staying within
+    // this SOCA's own column span (mirrors the data-cable edge-row search)
+    const edgeRow = powerInPos === 'bottom' ? totalRows - 1 : 0;
+    let colUnder = Math.min(lastCol, Math.floor((firstCol + lastCol + 1) / 2));
+    if (colUnder < firstCol) colUnder = firstCol;
+    let landingCol = colUnder;
+    if (screenDeletedPanels.size > 0 && screenDeletedPanels.has(colUnder + ',' + edgeRow)) {
+      let foundInSpan = false;
+      for (let dist = 1; dist <= lastCol - firstCol; dist++) {
+        if (colUnder - dist >= firstCol && !screenDeletedPanels.has((colUnder - dist) + ',' + edgeRow)) {
+          landingCol = colUnder - dist; landingX = adjWallLeftX + (landingCol + 0.5) * panelPixelW; foundInSpan = true; break;
+        }
+        if (colUnder + dist <= lastCol && !screenDeletedPanels.has((colUnder + dist) + ',' + edgeRow)) {
+          landingCol = colUnder + dist; landingX = adjWallLeftX + (landingCol + 0.5) * panelPixelW; foundInSpan = true; break;
+        }
+      }
+      if (!foundInSpan && typeof findNearestNonDeleted === 'function') {
+        const nn = findNearestNonDeleted(colUnder, edgeRow, pw, totalRows, screenDeletedPanels);
+        landingCol = nn.col; landingX = adjWallLeftX + (landingCol + 0.5) * panelPixelW;
+      }
+    }
+
+    // Draw cable based on power in position. With dead panels ('behind'), route the
+    // feed through live panels to the muster cell instead of floating to the drop.
     ctx.strokeStyle = POWER_COLOR;
     ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    if (powerInPos === 'bottom') {
-      // Bottom routing: landing at bottom → along bottom → drop → floor → distro
-      ctx.moveTo(landingX - 3, POWER_WALL_BOTTOM_Y);
-      ctx.lineTo(dropX - 3, POWER_WALL_BOTTOM_Y);
-      ctx.lineTo(dropX - 3, POWER_FLOOR_Y);
-      ctx.lineTo(distroX, POWER_FLOOR_Y);
-      ctx.lineTo(distroX, equipY + BOX_H);
-    } else {
-      // Top routing (default): landing → along top → drop → pick → floor → distro
-      ctx.moveTo(landingX - 3, POWER_WALL_TOP_Y);
-      ctx.lineTo(dropX - 3, POWER_WALL_TOP_Y);
-      if (cablePick > 0) {
-        ctx.lineTo(pickCenterX - 3, pickCenterY);
-        ctx.lineTo(pickCenterX - 3, POWER_FLOOR_Y);
-      } else {
+    if (!(liveRouteActive && drawLivePanelRoute(landingCol, edgeRow, -8, -8, POWER_COLOR, 2.5, POWER_FLOOR_Y, distroX, equipY + BOX_H))) {
+      ctx.beginPath();
+      if (powerInPos === 'bottom') {
+        // Bottom routing: landing at bottom → along bottom → drop → floor → distro
+        ctx.moveTo(landingX - 3, POWER_WALL_BOTTOM_Y);
+        ctx.lineTo(dropX - 3, POWER_WALL_BOTTOM_Y);
         ctx.lineTo(dropX - 3, POWER_FLOOR_Y);
+        ctx.lineTo(distroX, POWER_FLOOR_Y);
+        ctx.lineTo(distroX, equipY + BOX_H);
+      } else {
+        // Top routing (default): landing → along top → drop → pick → floor → distro
+        ctx.moveTo(landingX - 3, POWER_WALL_TOP_Y);
+        ctx.lineTo(dropX - 3, POWER_WALL_TOP_Y);
+        if (cablePick > 0) {
+          ctx.lineTo(pickCenterX - 3, pickCenterY);
+          ctx.lineTo(pickCenterX - 3, POWER_FLOOR_Y);
+        } else {
+          ctx.lineTo(dropX - 3, POWER_FLOOR_Y);
+        }
+        ctx.lineTo(distroX, POWER_FLOOR_Y);
+        ctx.lineTo(distroX, equipY + BOX_H);
       }
-      ctx.lineTo(distroX, POWER_FLOOR_Y);
-      ctx.lineTo(distroX, equipY + BOX_H);
+      ctx.stroke();
     }
-    ctx.stroke();
 
-    // Defer SOCA marker, bracket, and label to draw on top of all cables
+    // Defer SOCA marker, bracket, and label to draw on top of all cables.
+    // When live-routed, the dot sits at the panel centre where the cable starts
+    // (matching the power cable's diagonal offset) so it connects to the line.
     const _landingX = landingX, _s = s;
+    const _socaDotX = liveRouteActive ? (landingX - 8) : landingX;
+    const _socaDotY = liveRouteActive
+      ? (wallTopY + (edgeRow + 0.5) * fullPanelPixelH - 8)
+      : (powerInPos === 'bottom' ? wallBottomY : wallTopY);
     const _bracketStartX = adjWallLeftX + firstCol * panelPixelW;
     const _bracketEndX = adjWallLeftX + (lastCol + 1) * panelPixelW;
     deferredOverlays.push(function() {
       // SOCA landing marker on wall
       ctx.fillStyle = POWER_COLOR;
       ctx.beginPath();
-      ctx.arc(_landingX, powerInPos === 'bottom' ? wallBottomY : wallTopY, 5, 0, Math.PI * 2);
+      ctx.arc(_socaDotX, _socaDotY, 5, 0, Math.PI * 2);
       ctx.fill();
 
       // SOCA bracket and label
@@ -636,7 +711,7 @@ function renderCableDiagram(screenId) {
     // Primary bundle cable (cyan): drop → pick → floor → processor
     ctx.strokeStyle = DATA_COLOR;
     ctx.lineWidth = 3;
-    if (hasTopEntry) {
+    if (!liveRouteActive && hasTopEntry) {
       ctx.beginPath();
       ctx.moveTo(dropX + DATA_OFFSET, DATA_WALL_TOP_Y);
       if (cablePick > 0) {
@@ -649,7 +724,7 @@ function renderCableDiagram(screenId) {
       ctx.lineTo(procX, equipY + BOX_H);
       ctx.stroke();
     }
-    if (hasBottomEntry) {
+    if (!liveRouteActive && hasBottomEntry) {
       // Bottom bundle merges into the top bundle's vertical drop
       const dataDropX = cablePick > 0 ? pickCenterX + DATA_OFFSET : dropX + DATA_OFFSET;
       ctx.beginPath();
@@ -668,7 +743,7 @@ function renderCableDiagram(screenId) {
     if (dataRedundancy) {
       ctx.strokeStyle = BACKUP_COLOR;
       ctx.lineWidth = 3;
-      if (hasTopExit) {
+      if (!liveRouteActive && hasTopExit) {
         ctx.beginPath();
         ctx.moveTo(dropX + BACKUP_OFFSET, DATA_WALL_TOP_Y);
         if (cablePick > 0) {
@@ -681,7 +756,7 @@ function renderCableDiagram(screenId) {
         ctx.lineTo(procX + 8, equipY + BOX_H);
         ctx.stroke();
       }
-      if (hasBottomExit) {
+      if (!liveRouteActive && hasBottomExit) {
         // Bottom backup merges into the top backup's vertical drop
         const backupDropX = cablePick > 0 ? pickCenterX + BACKUP_OFFSET : dropX + BACKUP_OFFSET;
         ctx.beginPath();
@@ -708,6 +783,9 @@ function renderCableDiagram(screenId) {
 
       ctx.strokeStyle = DATA_COLOR;
       ctx.lineWidth = dataFanWidth;
+      if (liveRouteActive && drawLivePanelRoute(entry.col, entry.row, 0, 0, DATA_COLOR, dataFanWidth, DATA_FLOOR_Y, procX, equipY + BOX_H)) {
+        // routed through live panels to the muster cell above
+      } else {
       ctx.beginPath();
 
       if (screenDeletedPanels.size > 0 && typeof findCableGridPath === 'function') {
@@ -765,10 +843,12 @@ function renderCableDiagram(screenId) {
         }
       }
       ctx.stroke();
+      }
 
+      const _dDotY = liveRouteActive ? (wallTopY + (entry.row + 0.5) * fullPanelPixelH) : panelTargetY;
       deferredOverlays.push(function() {
-        drawMarker(landingX, panelTargetY, 4, DATA_COLOR);
-        drawCableLabel('D' + (dl + 1), landingX, panelTargetY, DATA_COLOR);
+        drawMarker(landingX, _dDotY, 4, DATA_COLOR);
+        drawCableLabel('D' + (dl + 1), landingX, _dDotY, DATA_COLOR);
       });
     }
 
@@ -784,6 +864,9 @@ function renderCableDiagram(screenId) {
 
         ctx.strokeStyle = BACKUP_COLOR;
         ctx.lineWidth = dataFanWidth;
+        if (liveRouteActive && drawLivePanelRoute(exit.col, exit.row, 8, 8, BACKUP_COLOR, dataFanWidth, BACKUP_FLOOR_Y, procX + 8, equipY + BOX_H)) {
+          // routed through live panels to the muster cell above
+        } else {
         ctx.beginPath();
 
         if (screenDeletedPanels.size > 0 && typeof findCableGridPath === 'function') {
@@ -841,10 +924,13 @@ function renderCableDiagram(screenId) {
           }
         }
         ctx.stroke();
+        }
 
+        const _bDotX = liveRouteActive ? (landingX + 8) : landingX;
+        const _bDotY = liveRouteActive ? (wallTopY + (exit.row + 0.5) * fullPanelPixelH + 8) : panelTargetY;
         deferredOverlays.push(function() {
-          drawMarker(landingX, panelTargetY, 3, BACKUP_COLOR);
-          drawCableLabel('B' + (dl + 1), landingX, panelTargetY, BACKUP_COLOR);
+          drawMarker(_bDotX, _bDotY, 3, BACKUP_COLOR);
+          drawCableLabel('B' + (dl + 1), _bDotX, _bDotY, BACKUP_COLOR);
         });
       }
     }

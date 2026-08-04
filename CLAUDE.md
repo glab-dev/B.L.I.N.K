@@ -14,35 +14,44 @@ sleep 2 && open http://localhost:8000             # open in browser
 
 ## Architecture
 
-Modular PWA: `index.html` (~1,405 lines) + 32 external JS modules across 9 directories.
+Modular PWA: `index.html` (~3,940 lines) + 49 external JS modules across 10 directories.
 
 | Region | Location | Content |
 |--------|----------|---------|
 | CSS | `styles.css` + inline `<style>` | Styling |
-| HTML | `index.html` ~1–1200 | DOM structure |
-| Inline JS | `index.html` ~1255–1377 | APP_VERSION, global variable declarations, screen globals |
-| External JS | 32 files in 9 dirs | All application logic (loaded via `<script>` tags) |
+| Inline JS | `index.html` ~49–68 and ~3710–3875 | APP_VERSION, global variable declarations, screen globals |
+| HTML | `index.html` ~69–3625 | DOM structure |
+| Script tags | `index.html` ~3628–3708 | CDN deps + all 49 module `<script defer>` tags |
+| External JS | 49 files in 10 dirs | All application logic |
 
 **JS module directories:**
 ```
-core/       — modals, utils, update, state, undo, calculate, init
+core/       — modals, utils, phase-balance, update, release-notes, supabase, auth-ui,
+              state, undo, calculate, gear-data, init
 specs/      — panels, processors, custom-panels, custom-processors
 layouts/    — standard, power, data, structure
 structure/  — bumpers, plates, weight, drawing
 interact/   — standard-canvas, touch-gestures
-nav/        — gear, canvas, combined, navigation
-export/     — pdf, canvas-export, resolume
-config/     — setup, save-load, dom-setup
+nav/        — gear, cable-diagram, combined-cable-diagram, canvas, raster, combined,
+              navigation, welcome
+export/     — canvas-export, title-block, resolume, pdfLayoutEngine, pdf, pdf-preview,
+              export-all, export-modal
+config/     — setup, save-load, gear-codes, distro-wiring, dom-setup
 screens/    — multi-screen
+tools/      — testpattern
 ```
 
 All modules use plain `<script>` tags (no build system, global scope). Script load order matters for parse-time code; runtime calls inside functions/DOMContentLoaded are safe regardless of order. Global variables are declared inline in `index.html` to guarantee initialization before any module reads them.
 
 External deps (CDN only — no npm):
-- jsPDF 2.5.1 — PDF generation
-- html2canvas 1.4.1 — canvas-to-image for PDF
-- Material Design Icons — UI icons
-- Google Fonts — Bangers, Roboto Condensed
+- pdfmake 0.2.9 (+ vfs_fonts) — PDF generation
+- html2canvas 1.4.1 — canvas-to-image capture
+- pdf.js 3.11.174 — PDF rendering
+- supabase-js 2.95.0 — auth, database, storage
+- JSZip 3 — zipped multi-file exports
+- mp4-muxer 5.1.3 — test pattern video export
+
+Fonts and icons are **self-hosted**, not CDN — `fonts/*.woff2` with `@font-face` at the top of `styles.css` (Bangers, Roboto Condensed, Material Symbols). No Google Fonts requests are made.
 
 PWA: offline-capable after first load, installable on mobile via manifest (base64-encoded inline).
 

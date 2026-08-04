@@ -2,8 +2,6 @@
  * LED Wall Calculator — Smoke Test (Node.js)
  * Runs basic validation checks after code changes.
  * Usage: node tests/smoke-test.js
- *
- * This is a 1:1 port of tests/smoke-test.py for machines without Python3.
  */
 
 const fs = require("fs");

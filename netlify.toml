@@ -53,3 +53,10 @@
   to = "https://blink-led.com/:splat"
   status = 301
   force = true
+
+# Design mockups are kept in the repo but not served publicly
+[[redirects]]
+  from = "/ui-mockups/*"
+  to = "/index.html"
+  status = 404
+  force = true

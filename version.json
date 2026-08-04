@@ -1,5 +1,5 @@
 {
-  "version": "2.11.114",
+  "version": "2.11.115",
   "updated": "2026-08-04",
-  "changelog": "Make canvas PNG exports pixel-perfect and keep screen labels whole across dead panels"
+  "changelog": "Remove stale agent tooling and empty test scaffolding, fix SW asset list"
 }

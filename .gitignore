@@ -7,8 +7,7 @@ SERVICES-REFERENCE.md
 SERVICES-REFERENCE.pdf
 scripts/md-to-pdf.js
 
-# Agent skills (third-party, not project files)
-.agent/
+# Local planning / scratch docs
 DESIGN.md
 SITE.md
 SESSION-TODO.md
@@ -32,8 +31,13 @@ playwright-report/
 test-results/
 tests/playwright/temp/
 
-# Claude Code artifacts
-.claude/
+# Claude Code artifacts (commands and hooks stay tracked)
+.claude/settings.local.json
+
+# Saved projects — keep local (test fixtures stay tracked)
+*.blinkled
+*.ledconfig
+!tests/playwright/test-data/*.ledconfig
 
 # Environment
 .env

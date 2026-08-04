@@ -1,7 +1,7 @@
 // ==================== CANVAS EXPORT (PNG/JPEG) ====================
 // Exports the canvas view as PNG or JPEG image.
 
-function exportCanvas(imgFormat){
+async function exportCanvas(imgFormat){
   try {
     const canvas = document.getElementById('canvasView');
     // The full-resolution canvas + clean-export cache are produced by
@@ -30,18 +30,23 @@ function exportCanvas(imgFormat){
     }
     
     const filenameInput = document.getElementById('canvasExportFilename');
-    let customName = filenameInput ? filenameInput.value.trim() : '';
-    
-    // Always include canvas size in filename
-    let filename;
-    if(customName) {
-      // If custom name provided, append canvas size
-      filename = `${customName}_${canvasSizeLabel}`;
-    } else {
-      // Default name with canvas size
-      filename = `LED_Wall_Canvas_${canvasSizeLabel}`;
+    let baseName = filenameInput ? filenameInput.value.trim() : '';
+
+    // Fall back to the project name, then ask — the base name also becomes the
+    // Resolume <XmlState name="...">, so it must identify the project.
+    if(!baseName) {
+      const configNameInput = document.getElementById('configName');
+      baseName = configNameInput ? configNameInput.value.trim() : '';
     }
-    
+    if(!baseName) {
+      const entered = await showPrompt('Name this export:', '', 'Export');
+      baseName = (entered || '').trim();
+      if(!baseName) return; // cancelled or left blank
+    }
+
+    // Always include canvas size in filename
+    let filename = `${baseName}_${canvasSizeLabel}`;
+
     // Clean filename of invalid characters
     filename = filename.replace(/[<>:"/\\|?*]/g, '_');
     

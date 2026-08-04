@@ -1,5 +1,5 @@
 {
-  "version": "2.11.111",
+  "version": "2.11.112",
   "updated": "2026-08-04",
-  "changelog": "Route behind-drop cables through live panels and snap SOCA feed points off dead panels"
+  "changelog": "Split Resolume slices around dead panels and name exports after the project"
 }

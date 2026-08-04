@@ -65,6 +65,54 @@ function syncFromSize(){
   if(panelsHighEl) panelsHighEl.value = ph;
 }
 
+function syncPixelsFromPanels(){
+  const allPanels = getAllPanels();
+  const p=allPanels[document.getElementById('panelType').value];
+  if(!p || !p.res_x || !p.res_y) return;
+  const pwInput = document.getElementById('panelsWide').value;
+  const phInput = document.getElementById('panelsHigh').value;
+  const pixelsWideEl = document.getElementById('pixelsWide');
+  const pixelsHighEl = document.getElementById('pixelsHigh');
+  if(pixelsWideEl) pixelsWideEl.value = pwInput ? Math.max(1,parseInt(pwInput)||1) * p.res_x : '';
+  if(pixelsHighEl) pixelsHighEl.value = phInput ? Math.max(1,parseInt(phInput)||1) * p.res_y : '';
+}
+
+// Convert pixel inputs -> nearest whole panels. driver ('width'|'height') drives the
+// aspect-ratio auto-fill of the OTHER pixel field (never overwrites the field being typed).
+function applyPixelInput(driver){
+  const allPanels = getAllPanels();
+  const p=allPanels[document.getElementById('panelType').value];
+  if(!p || !p.res_x || !p.res_y) return;
+  const pixelsWideEl = document.getElementById('pixelsWide');
+  const pixelsHighEl = document.getElementById('pixelsHigh');
+  const panelsWideEl = document.getElementById('panelsWide');
+  const panelsHighEl = document.getElementById('panelsHigh');
+  const aspect = getAspectRatioValue(); // width/height, or null when no lock
+
+  // Aspect lock: auto-fill the field the user is NOT typing (bidirectional)
+  if(aspect){
+    if(driver === 'width'){
+      const w = parseFloat(pixelsWideEl.value)||0;
+      if(w>0) pixelsHighEl.value = Math.round(w / aspect);
+    } else {
+      const h = parseFloat(pixelsHighEl.value)||0;
+      if(h>0) pixelsWideEl.value = Math.round(h * aspect);
+    }
+  }
+
+  // Convert both pixel fields -> nearest whole panel count (empty px -> empty panel field)
+  const pxW = parseFloat(pixelsWideEl.value)||0;
+  const pxH = parseFloat(pixelsHighEl.value)||0;
+  if(panelsWideEl) panelsWideEl.value = pxW>0 ? Math.max(1, Math.round(pxW / p.res_x)) : '';
+  if(panelsHighEl) panelsHighEl.value = pxH>0 ? Math.max(1, Math.round(pxH / p.res_y)) : '';
+
+  syncFromPanels();
+  initializeBumpers();
+  updateWeightDisplay();
+  saveCurrentScreenData();
+  calculate();
+}
+
 function getEffectivePanelCounts(){
   const allPanels = getAllPanels();
   const p=allPanels[document.getElementById('panelType').value];

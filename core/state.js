@@ -119,12 +119,16 @@ function setDimensionMode(mode) {
   currentDimensionMode = mode;
   document.getElementById('dimModePanelsBtn').classList.toggle('active', mode === 'panels');
   document.getElementById('dimModeSizeBtn').classList.toggle('active', mode === 'size');
+  document.getElementById('dimModePixelsBtn').classList.toggle('active', mode === 'pixels');
 
   document.getElementById('panelCountInputs').style.display = mode === 'panels' ? 'block' : 'none';
   document.getElementById('wallSizeInputs').style.display = mode === 'size' ? 'block' : 'none';
+  document.getElementById('pixelInputs').style.display = mode === 'pixels' ? 'block' : 'none';
 
   if(mode === 'panels') {
     syncFromPanels();
+  } else if(mode === 'pixels') {
+    syncPixelsFromPanels();
   } else {
     syncFromSize();
   }

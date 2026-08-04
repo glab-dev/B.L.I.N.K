@@ -1,5 +1,5 @@
 {
-  "version": "2.11.109",
-  "updated": "2026-08-02",
-  "changelog": "Open loaded project files under their saved file name"
+  "version": "2.11.110",
+  "updated": "2026-08-04",
+  "changelog": "Add Pixels dimension mode and fix dimension mode persistence across screens"
 }

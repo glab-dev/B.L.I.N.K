@@ -2466,6 +2466,7 @@
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="dimModePanelsBtn" onclick="setDimensionMode('panels')">Panels</button>
               <button type="button" class="slider-toggle-btn" id="dimModeSizeBtn" onclick="setDimensionMode('size')">Size</button>
+              <button type="button" class="slider-toggle-btn" id="dimModePixelsBtn" onclick="setDimensionMode('pixels')">Pixels</button>
             </div>
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="unitImperial" onclick="setUnitSystem('imperial')">Imperial</button>
@@ -2519,6 +2520,19 @@
               <label>
                 <span>Wall Height</span>
                 <input type="number" id="wallHeight" min="0.1" step="0.01">
+              </label>
+            </div>
+          </div>
+
+          <div id="pixelInputs" style="display: none;">
+            <div class="two-inputs max-w-200">
+              <label>
+                <span>Pixels Wide</span>
+                <input type="number" id="pixelsWide" min="1">
+              </label>
+              <label>
+                <span>Pixels High</span>
+                <input type="number" id="pixelsHigh" min="1">
               </label>
             </div>
           </div>
@@ -3695,8 +3709,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.109';
-const APP_CHANGELOG = 'Open loaded project files under their saved file name';
+const APP_VERSION = '2.11.110';
+const APP_CHANGELOG = 'Add Pixels dimension mode and fix dimension mode persistence across screens';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

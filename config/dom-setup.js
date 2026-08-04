@@ -413,6 +413,20 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
 
+    // Pixel dimension inputs: convert to nearest whole panels (bidirectional aspect fill)
+    const pixelsWideInput = document.getElementById('pixelsWide');
+    const pixelsHighInput = document.getElementById('pixelsHigh');
+    if(pixelsWideInput) {
+      pixelsWideInput.addEventListener('input', function() {
+        applyPixelInput('width');
+      });
+    }
+    if(pixelsHighInput) {
+      pixelsHighInput.addEventListener('input', function() {
+        applyPixelInput('height');
+      });
+    }
+
     // Listen to custom aspect ratio input changes
     const customARWidthInput = document.getElementById('customARWidth');
     const customARHeightInput = document.getElementById('customARHeight');

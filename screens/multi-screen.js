@@ -211,7 +211,7 @@ function saveCurrentScreenData() {
   data.wallHeight = document.getElementById('wallHeight').value;
   data.lengthUnit = displayLengthUnit;
   data.weightUnit = displayWeightUnit;
-  data.dimensionMode = document.querySelector('input[name="dimensionMode"]:checked')?.value || 'panels';
+  data.dimensionMode = currentDimensionMode || 'panels';
   
   // Panel Type
   data.panelType = document.getElementById('panelType').value;
@@ -341,15 +341,20 @@ function loadScreenData(screenId) {
   document.getElementById('unitMetric')?.classList.toggle('active', !isImperialScreen);
   
   // Set dimension mode
-  const modeRadio = document.querySelector(`input[name="dimensionMode"][value="${data.dimensionMode}"]`);
-  if(modeRadio) modeRadio.checked = true;
-  
+  currentDimensionMode = data.dimensionMode || 'panels';
+  document.getElementById('dimModePanelsBtn')?.classList.toggle('active', currentDimensionMode === 'panels');
+  document.getElementById('dimModeSizeBtn')?.classList.toggle('active', currentDimensionMode === 'size');
+  document.getElementById('dimModePixelsBtn')?.classList.toggle('active', currentDimensionMode === 'pixels');
+
   // Show/hide appropriate inputs
-  document.getElementById('panelCountInputs').style.display = data.dimensionMode === 'panels' ? 'block' : 'none';
-  document.getElementById('wallSizeInputs').style.display = data.dimensionMode === 'size' ? 'block' : 'none';
-  
+  document.getElementById('panelCountInputs').style.display = currentDimensionMode === 'panels' ? 'block' : 'none';
+  document.getElementById('wallSizeInputs').style.display = currentDimensionMode === 'size' ? 'block' : 'none';
+  document.getElementById('pixelInputs').style.display = currentDimensionMode === 'pixels' ? 'block' : 'none';
+
   // Panel Type
   document.getElementById('panelType').value = data.panelType || 'BP2_V2';
+  // Prefill pixel fields from restored panel counts when in pixel mode
+  if(currentDimensionMode === 'pixels') syncPixelsFromPanels();
   
   // Power
   document.getElementById('voltage').value = data.voltage || 208;

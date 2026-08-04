@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.110', date: '2026-08-04', notes: 'Add Pixels dimension mode and fix dimension mode persistence across screens' },
   { version: '2.11.109', date: '2026-08-02', notes: 'Open loaded project files under their saved file name' },
   { version: '2.11.108', date: '2026-07-26', notes: 'Blank combined dead panels with overlay labels, add release-notes popup, fix data-line gaps and tall-panel structure sizing' },
   { version: '2.11.107', date: '2026-07-26', notes: 'Keep red centre-of-wall mark in structure view when bumpers are off' },

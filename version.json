@@ -1,5 +1,5 @@
 {
-  "version": "2.11.113",
+  "version": "2.11.114",
   "updated": "2026-08-04",
-  "changelog": "Inherit canvas size on new screens and size screen labels per panel"
+  "changelog": "Make canvas PNG exports pixel-perfect and keep screen labels whole across dead panels"
 }

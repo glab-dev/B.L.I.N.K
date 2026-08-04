@@ -472,6 +472,30 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     const secondaryColor = screen.color2 || darkenColor(primaryColor, 30);
     const halfPanel = allPanels['CB5_MKII_HALF'];
 
+    // Pixel-perfect boundary: clip the panel fills and outlines to the union of
+    // this screen's live panels. Canvas strokes are centred on the path, so the
+    // 2px panel outline would otherwise bleed 1px outside the wall and 1px into
+    // knocked-out panels — making the exported PNG cover more pixels than the
+    // Resolume slice it has to match. The clip region is the same live-panel
+    // union the Resolume slices are built from, so the two stay in lockstep.
+    // Annotations (labels, crosshair, logo) are clipped separately below so they
+    // stay readable across knocked-out panels.
+    ctx.save();
+    ctx.beginPath();
+    for(let c = 0; c < pw; c++) {
+      for(let r = 0; r < totalRows; r++) {
+        if(deletedPanelsForScreen.has(`${c},${r}`)) continue;
+        const isHalfRow = hasCB5HalfRow && (r === ph);
+        ctx.rect(
+          offsetX + (c * p.res_x),
+          offsetY + (r * p.res_y),
+          isHalfRow ? halfPanel.res_x : p.res_x,
+          isHalfRow ? halfPanel.res_y : p.res_y
+        );
+      }
+    }
+    ctx.clip();
+
     // Draw panels for this screen - optimized loop
     for(let c = 0; c < pw; c++){
       const xBase = offsetX + (c * p.res_x);
@@ -525,6 +549,17 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
         }
       }
     }
+
+    ctx.restore(); // release the live-panel clip — panels are done
+
+    // Annotations from here on. Clipped to the screen's bounding rect so nothing
+    // escapes the screen, but NOT to the live-panel union: a screen name or
+    // crosshair must read straight across knocked-out panels, not be chopped
+    // into fragments by them.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(offsetX, offsetY, wallResX, wallResY);
+    ctx.clip();
 
     // Draw X crosshair if enabled for this screen (default: on)
     if(screen.showCrosshair !== false) {
@@ -683,6 +718,8 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
         ctx.fillText(screenName, labelX, labelY);
       }
     }
+
+    ctx.restore(); // release the annotation clip
 }
 
 function showCanvasView(){

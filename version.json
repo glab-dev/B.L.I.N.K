@@ -1,5 +1,5 @@
 {
-  "version": "2.11.112",
+  "version": "2.11.113",
   "updated": "2026-08-04",
-  "changelog": "Split Resolume slices around dead panels and name exports after the project"
+  "changelog": "Inherit canvas size on new screens and size screen labels per panel"
 }

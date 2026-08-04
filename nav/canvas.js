@@ -660,8 +660,16 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
           }
         }
 
-        const baseFontSize = Math.min(wallResX, wallResY) * 0.15;
+        // Sized off the panel height (not the wall) so every screen gets the
+        // same label size regardless of aspect ratio — a wide 1-high strip
+        // reads the same as a tall wall. Shrink to fit the wall width so long
+        // names don't overflow narrow screens.
+        let baseFontSize = p.res_y * 0.5;
         ctx.font = `bold ${baseFontSize}px Arial`;
+        while(baseFontSize > 10 && ctx.measureText(screenName).width > wallResX * 0.9) {
+          baseFontSize--;
+          ctx.font = `bold ${baseFontSize}px Arial`;
+        }
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 

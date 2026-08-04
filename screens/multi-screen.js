@@ -518,6 +518,7 @@ function loadScreenData(screenId) {
   document.getElementById('canvasSize').value = data.canvasSize || '4K_UHD';
   document.getElementById('customCanvasWidth').value = data.customCanvasWidth || '';
   document.getElementById('customCanvasHeight').value = data.customCanvasHeight || '';
+  syncSizePresetButtons('canvasSize');
   const snapMode = document.getElementById('snapMode');
   if(snapMode) snapMode.checked = data.snapMode || false;
   
@@ -671,6 +672,15 @@ function addNewScreen() {
     visible: true,
     data: getDefaultScreenData()
   };
+
+  // Canvas size is a system-wide setting (see dom-setup.js) — inherit the
+  // current value instead of resetting the new screen to the 4K_UHD default
+  const sizeEl = document.getElementById('canvasSize');
+  if(sizeEl) {
+    screens[newScreenId].data.canvasSize = sizeEl.value;
+    screens[newScreenId].data.customCanvasWidth = document.getElementById('customCanvasWidth').value;
+    screens[newScreenId].data.customCanvasHeight = document.getElementById('customCanvasHeight').value;
+  }
 
   console.log('New screen created:', screens[newScreenId]);
   console.log('All screens:', Object.keys(screens));

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.117",
+  "version": "2.11.118",
   "updated": "2026-08-04",
-  "changelog": "Count data cross jumpers at both ends of each column crossing"
+  "changelog": "Label each visible screen island with its own canvas coordinates and size"
 }

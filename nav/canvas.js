@@ -426,6 +426,76 @@ function loadCanvasData(canvasId) {
   if(typeof renderHeaderFooterControls === 'function') renderHeaderFooterControls();
 }
 
+// Groups rectangles that form one visible piece into a single bounding box.
+// buildScreenSliceRects splits a screen into the rectangles Resolume needs, so a
+// notched or cross-shaped screen arrives as several horizontal bands. Those bands
+// touch each other — to the eye it is one piece, and it should carry one set of
+// numbers rather than one per band. Blocks separated by knocked-out panels stay
+// separate islands and keep their own numbers.
+// Returns one entry per island, ordered top-to-bottom then left-to-right:
+//   x, y, w, h                — the island's bounding box, the numbers to print
+//   topX, topY, topW          — top-left of its topmost rectangle, where the X/Y box goes
+//   botX, botBottom, botW     — left edge and bottom of its bottommost rectangle,
+//                               where the size label goes
+// The anchors are real live rectangles rather than the bounding box corners, because
+// a ring-shaped island's bounding box corner is dead space and can land exactly on a
+// different island. Rectangles never overlap, so anchors are always distinct.
+function groupRectsIntoIslands(rects) {
+  const parent = rects.map(function(_, i) { return i; });
+  function find(i) {
+    while(parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; }
+    return i;
+  }
+
+  for(let i = 0; i < rects.length; i++) {
+    for(let j = i + 1; j < rects.length; j++) {
+      const a = rects[i], b = rects[j];
+      const xo = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+      const yo = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+      // Overlap or a shared edge of positive length joins them. Corner-only contact
+      // (xo and yo both 0) does not — two blocks meeting at a single point read as
+      // two separate pieces.
+      if((xo > 0 && yo >= 0) || (yo > 0 && xo >= 0)) {
+        const ra = find(i), rb = find(j);
+        if(ra !== rb) parent[rb] = ra;
+      }
+    }
+  }
+
+  const groups = {};
+  rects.forEach(function(rect, i) {
+    const root = find(i);
+    const g = groups[root];
+    if(!g) {
+      groups[root] = { members: [rect], x0: rect.x, y0: rect.y, x1: rect.x + rect.w, y1: rect.y + rect.h };
+    } else {
+      g.members.push(rect);
+      g.x0 = Math.min(g.x0, rect.x);
+      g.y0 = Math.min(g.y0, rect.y);
+      g.x1 = Math.max(g.x1, rect.x + rect.w);
+      g.y1 = Math.max(g.y1, rect.y + rect.h);
+    }
+  });
+
+  return Object.keys(groups)
+    .map(function(k) {
+      const g = groups[k];
+      const top = g.members.reduce(function(best, r) {
+        return (r.y < best.y || (r.y === best.y && r.x < best.x)) ? r : best;
+      });
+      const bot = g.members.reduce(function(best, r) {
+        return (r.y + r.h > best.y + best.h ||
+                (r.y + r.h === best.y + best.h && r.x < best.x)) ? r : best;
+      });
+      return {
+        x: g.x0, y: g.y0, w: g.x1 - g.x0, h: g.y1 - g.y0,
+        topX: top.x, topY: top.y, topW: top.w,
+        botX: bot.x, botBottom: bot.y + bot.h, botW: bot.w
+      };
+    })
+    .sort(function(a, b) { return a.y - b.y || a.x - b.x; });
+}
+
 // Draw a single screen onto a 2D context at the given offset. Extracted from
 // showCanvasView so the same renderer can produce per-screen native-resolution
 // exports. cullW/cullH bound the off-screen culling check; dataOverlay carries
@@ -561,6 +631,49 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     ctx.rect(offsetX, offsetY, wallResX, wallResY);
     ctx.clip();
 
+    // Label rects: one per visible island of this screen. Built from the Resolume
+    // slice decomposition, then grouped so a screen that is one connected shape gets
+    // one set of numbers no matter how many rectangles it takes to describe it. A
+    // screen with no knocked-out panels yields a single rect covering the whole
+    // grid, so it renders exactly as it always has.
+    let labelRects = null;
+    const labelOriginX = screenData.canvasX || 0;
+    const labelOriginY = screenData.canvasY || 0;
+    if(screen.showCoordinates !== false || screen.showPixelDimensions !== false) {
+      // buildScreenSliceRects honours addCB5HalfRow for any panel type, but this
+      // renderer only draws that row for CB5 MKII. Feed it the flag the renderer
+      // actually used, so a stale flag left on a non-CB5 screen can't produce a
+      // label for a block that was never drawn.
+      const sliceRects = (typeof buildScreenSliceRects === 'function')
+        ? buildScreenSliceRects(Object.assign({}, screenData, { addCB5HalfRow: hasCB5HalfRow }), p)
+        : null;
+      if(!sliceRects || !sliceRects.length) {
+        labelRects = [{
+          x: labelOriginX, y: labelOriginY, w: wallResX, h: wallResY,
+          topX: labelOriginX, topY: labelOriginY, topW: wallResX,
+          botX: labelOriginX, botBottom: labelOriginY + wallResY, botW: wallResX
+        }];
+      } else {
+        // buildScreenSliceRects always emits the CB5 half row as its own rect. Fold
+        // vertically-contiguous rects of identical width back together so a half-row
+        // screen gets one label per block, not two stacked ones.
+        labelRects = [];
+        sliceRects.forEach(function(rect) {
+          const prev = labelRects[labelRects.length - 1];
+          if(prev && prev.x === rect.x && prev.w === rect.w && prev.y + prev.h === rect.y) {
+            prev.h += rect.h;
+          } else {
+            labelRects.push({ x: rect.x, y: rect.y, w: rect.w, h: rect.h });
+          }
+        });
+
+        // Collapse the bands of each connected shape into one bounding box, so a
+        // notched or cross-shaped screen carries one set of numbers instead of one
+        // per band. Screens split by dead panels keep a set per separate piece.
+        labelRects = groupRectsIntoIslands(labelRects);
+      }
+    }
+
     // Draw X crosshair if enabled for this screen (default: on)
     if(screen.showCrosshair !== false) {
       ctx.strokeStyle = '#e0e0e0';
@@ -582,62 +695,146 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
       ctx.setLineDash([]); // Reset to solid line
     }
 
-    // Add X/Y coordinates in top-left corner (if enabled for this screen)
+    // Add X/Y coordinates in the top-left corner of every visible block (if enabled
+    // for this screen). Label text is the canvas-space coordinate; the draw position
+    // is relative to offsetX/offsetY, which is 0,0 in the native-resolution PNG
+    // export but the canvas position in the canvas view.
+    // Every label box already placed on this screen. Islands are bounding boxes, so
+    // a ring-shaped island's box can enclose a smaller island sitting in its hole —
+    // their corner labels would otherwise land on top of each other.
+    const labelBoxes = [];
+
+    // Steps a label box by `step` px (negative = upward) until it clears everything
+    // already placed, stopping at `bound` so it never leaves its block. Records the
+    // settled box and returns it.
+    function settleLabel(box, step, bound) {
+      let guard = 0;
+      while(guard++ < 12 &&
+            (step < 0 ? box.y0 + step >= bound : box.y1 + step <= bound) &&
+            labelBoxes.some(function(d) {
+              return box.x0 < d.x1 && d.x0 < box.x1 && box.y0 < d.y1 && d.y0 < box.y1;
+            })) {
+        box.y0 += step;
+        box.y1 += step;
+      }
+      labelBoxes.push(box);
+      return box;
+    }
+
     if(screen.showCoordinates !== false) {
-      const coordFontSize = Math.max(11, Math.min(Math.min(wallResX, wallResY) * 0.03, Math.min(p.res_x, p.res_y) / 6));
-      ctx.font = `bold ${coordFontSize}px Arial`;
+      const baseCoordFontSize = Math.max(11, Math.min(Math.min(wallResX, wallResY) * 0.03, Math.min(p.res_x, p.res_y) / 6));
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
 
       const coordPadding = 6;
-      const textX = offsetX + coordPadding;
-      const textY = offsetY + coordPadding;
-      const lineHeight = coordFontSize + 2;
 
-      // Measure text width for dynamic background sizing
-      const xText = `X: ${screenData.canvasX || 0}`;
-      const yText = `Y: ${screenData.canvasY || 0}`;
-      const maxTextWidth = Math.max(ctx.measureText(xText).width, ctx.measureText(yText).width);
+      labelRects.forEach(function(rect) {
+        const xText = `X: ${rect.x}`;
+        const yText = `Y: ${rect.y}`;
 
-      // Semi-transparent dark background
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(textX - 4, textY - 4, maxTextWidth + 8, lineHeight * 2 + 6);
+        // Measure text width for dynamic background sizing, shrinking to fit so the
+        // box never spills out of the strip it sits on. Never wider than one panel,
+        // so a label reads as belonging to that strip's first panel instead of
+        // sprawling across the ones next to it.
+        const coordWidthLimit = Math.min(rect.topW, p.res_x) - coordPadding;
+        let coordFontSize = baseCoordFontSize;
+        ctx.font = `bold ${coordFontSize}px Arial`;
+        let maxTextWidth = Math.max(ctx.measureText(xText).width, ctx.measureText(yText).width);
+        while(coordFontSize > 10 && maxTextWidth + 8 > coordWidthLimit) {
+          coordFontSize--;
+          ctx.font = `bold ${coordFontSize}px Arial`;
+          maxTextWidth = Math.max(ctx.measureText(xText).width, ctx.measureText(yText).width);
+        }
 
-      // Draw coordinates
-      ctx.fillStyle = '#f0f0f0';
-      ctx.fillText(xText, textX, textY);
-      ctx.fillText(yText, textX, textY + lineHeight);
+        const lineHeight = coordFontSize + 2;
+        const textX = offsetX + (rect.topX - labelOriginX) + coordPadding;
+        const textY = offsetY + (rect.topY - labelOriginY) + coordPadding;
+
+        // Nudge downward past any label already claiming this corner
+        const box = settleLabel({
+          x0: textX - 4, x1: textX - 4 + maxTextWidth + 8,
+          y0: textY - 4, y1: textY - 4 + lineHeight * 2 + 6
+        }, lineHeight, offsetY + (rect.y - labelOriginY) + rect.h);
+        const coordDrawY = box.y0 + 4;
+
+        // Semi-transparent dark background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0);
+
+        // Draw coordinates
+        ctx.fillStyle = '#f0f0f0';
+        ctx.fillText(xText, textX, coordDrawY);
+        ctx.fillText(yText, textX, coordDrawY + lineHeight);
+      });
     }
 
-    // Add screen resolution at bottom-left (if enabled for this screen) - simplified shadow
+    // Add block resolution at bottom-left of every visible block (if enabled for this
+    // screen) - simplified shadow
     if(screen.showPixelDimensions !== false) {
-      const resFontSize = Math.max(10, Math.min(wallResX, wallResY) * 0.041);
-      ctx.font = `bold ${resFontSize}px Arial`;
+      const baseResFontSize = Math.max(10, Math.min(wallResX, wallResY) * 0.041);
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
 
-      const resTextX = offsetX + 10;
-      const resTextY = offsetY + wallResY - 10;
-      const resText = `${wallResX} × ${wallResY}`;
+      labelRects.forEach(function(rect) {
+        const resText = `${rect.w} × ${rect.h}`;
 
-      // Simple shadow
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.fillText(resText, resTextX + 2, resTextY + 2);
+        // Shrink to fit, and never past one panel, so the label stays inside the
+        // strip it sits on and reads as belonging to that strip's first panel
+        const resWidthLimit = Math.min(rect.botW, p.res_x) - 20;
+        let resFontSize = baseResFontSize;
+        ctx.font = `bold ${resFontSize}px Arial`;
+        while(resFontSize > 10 && ctx.measureText(resText).width > resWidthLimit) {
+          resFontSize--;
+          ctx.font = `bold ${resFontSize}px Arial`;
+        }
 
-      // Yellow text
-      ctx.fillStyle = '#FFFF00';
-      ctx.fillText(resText, resTextX, resTextY);
+        const resTextX = offsetX + (rect.botX - labelOriginX) + 10;
+        const resTextY = offsetY + (rect.botBottom - labelOriginY) - 10;
+
+        // +2 covers the shadow pass drawn below. Nudge upward past anything already
+        // claiming this corner.
+        const box = settleLabel({
+          x0: resTextX, x1: resTextX + ctx.measureText(resText).width + 2,
+          y0: resTextY - resFontSize, y1: resTextY + 2
+        }, -(resFontSize + 4), offsetY + (rect.y - labelOriginY));
+        const resDrawY = box.y1 - 2;
+
+        // Simple shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillText(resText, resTextX + 2, resDrawY + 2);
+
+        // Yellow text
+        ctx.fillStyle = '#FFFF00';
+        ctx.fillText(resText, resTextX, resDrawY);
+      });
     }
 
     // Add B.L.I.N.K. logo in bottom right corner
-    const logoFontSize = Math.max(8, Math.min(wallResX, wallResY) * 0.034);
+    const logoText = 'B.L.I.N.K.';
+    let logoFontSize = Math.max(8, Math.min(wallResX, wallResY) * 0.034);
     ctx.font = `bold ${logoFontSize}px Arial`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
 
+    // Same one-panel cap the labels use
+    while(logoFontSize > 8 && ctx.measureText(logoText).width > p.res_x - 20) {
+      logoFontSize--;
+      ctx.font = `bold ${logoFontSize}px Arial`;
+    }
+
     const logoTextX = offsetX + wallResX - 10;
-    const logoTextY = offsetY + wallResY - 10;
-    const logoText = 'B.L.I.N.K.';
+    let logoTextY = offsetY + wallResY - 10;
+
+    // The bottom-right block's labels land in this same corner, and on a narrow
+    // block there is no font size at which both fit side by side. The labels carry
+    // the data, so the logo is the one that moves: lift it a line at a time until it
+    // clears them, keeping every dimension label aligned along the bottom.
+    const logoWidth = ctx.measureText(logoText).width;
+    const logoBox = settleLabel({
+      x0: logoTextX - logoWidth, x1: logoTextX + 2,
+      y0: logoTextY - logoFontSize, y1: logoTextY + 2
+    }, -(logoFontSize + 4), offsetY);
+    logoTextY = logoBox.y1 - 2;
 
     // Simple shadow
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';

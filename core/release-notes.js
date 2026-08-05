@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.116', date: '2026-08-04', notes: 'Stop release-notes popup from breaking Playwright runs, correct PDF and font docs' },
   { version: '2.11.115', date: '2026-08-04', notes: 'Remove stale agent tooling and empty test scaffolding, fix SW asset list' },
   { version: '2.11.114', date: '2026-08-04', notes: 'Make canvas PNG exports pixel-perfect and keep screen labels whole across dead panels' },
   { version: '2.11.113', date: '2026-08-04', notes: 'Inherit canvas size on new screens and size screen labels per panel' },

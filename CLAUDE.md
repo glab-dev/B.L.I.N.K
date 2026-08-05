@@ -83,18 +83,17 @@ PWA: offline-capable after first load, installable on mobile via manifest (base6
 **Content Security Policy (`netlify.toml` line 15):**
 - Every external domain the app loads resources from MUST be listed in the correct CSP directive:
   - `script-src` — CDN scripts (cdn.jsdelivr.net, cdnjs.cloudflare.com)
-  - `style-src` — Google Fonts CSS (fonts.googleapis.com)
-  - `font-src` — Google Fonts files (fonts.gstatic.com, *.gstatic.com)
-  - `connect-src` — anything fetched via `fetch()` or SW, including CDN domains AND font domains
+  - `connect-src` — anything fetched via `fetch()` or SW, including all CDN domains
 - **When adding a new CDN dependency**, add its domain to BOTH the relevant resource directive AND `connect-src` (because the service worker's `fetch()` calls are governed by `connect-src`)
+- **Fonts are self-hosted** — `fonts/*.woff2` with `@font-face` at the top of `styles.css`. `font-src 'self'` is correct and no font domain belongs in any directive. Do not reintroduce Google Fonts.
 
 **Header ordering in `netlify.toml`:**
 - Generic cache rules (`/*.js`, `/*.css`) MUST come BEFORE specific no-cache overrides (`/sw.js`, `/version.json`, `/manifest.json`). Netlify applies the last matching rule, so specific rules must come after generic ones to take precedence.
 
-**Service Worker (`sw.js`) — font handling rules:**
-- **NEVER pre-cache Google Fonts in `CDN_ASSETS`** — Google Fonts CSS is User-Agent dependent. Pre-caching with the SW's UA serves wrong `@font-face` rules for the actual browser.
-- **NEVER intercept Google Fonts in the SW fetch handler** — Safari breaks when the SW intercepts font requests after the `controllerchange` → `reload()` cycle. The SW must `return` (not call `event.respondWith()`) for any request to `googleapis.com` or `gstatic.com`.
-- CDN scripts (jsPDF, html2canvas, Supabase) CAN be cached/intercepted by the SW — only fonts are excluded.
+**Service Worker (`sw.js`) — asset rules:**
+- **Keep the self-hosted fonts in `LOCAL_ASSETS`** — the three `fonts/*.woff2` files must stay pre-cached or the app renders with fallback fonts offline.
+- **Every module loaded by a `<script>` tag in `index.html` must appear in `LOCAL_ASSETS`** — a module that's missing simply isn't available offline. Verify after adding a module.
+- CDN scripts (pdfmake, html2canvas, pdf.js, Supabase, JSZip) CAN be cached and intercepted by the SW.
 
 ---
 
@@ -339,11 +338,12 @@ The smoke test includes:
 
 ## Export & PDF Awareness
 
-- **PDF has TWO separate rendering paths — always update BOTH:**
-  - `export/pdf.js` — pdfmake document definition (the actual downloaded PDF)
-  - `export/pdf-preview.js` — canvas-based preview modal (what the user sees first and bases feedback on)
-  - Changes to one do NOT affect the other. Any visual PDF change must be mirrored in both files.
-- PDF pipeline: `exportPDF()` → html2canvas captures → jsPDF assembles pages
+- **The PDF has ONE rendering path — the preview IS the PDF:**
+  - `export/pdf.js` owns the pdfmake document definition (`buildSimplePdf`, `buildComplexPdf`, `buildPdfDocDefinition`). Every visual change to the PDF is made here, once.
+  - `export/pdf-preview.js` owns only the preview chrome: the toggle options, page size/orientation, logo upload, and the eco/greyscale print-colour modes. It defines no document builders.
+  - Both `rebuildPreview()` and `exportFromPreview()` call the same `buildSimplePdf`/`buildComplexPdf` and hand the result to `pdfMake.createPdf()`. The preview renders that blob with PDF.js into `#pdfPreviewPages`; export downloads it. What the user previews is byte-for-byte the PDF they get.
+- PDF pipeline: `pdfCaptureCanvases()` → `buildSimplePdf`/`buildComplexPdf` → `pdfMake.createPdf()`
+- jsPDF is NOT used anywhere in the app. html2canvas is used only by `export/canvas-export.js` for PNG export, never by the PDF path.
 - Multi-screen PDFs iterate all visible screens
 - Resolume XML export: must match Arena 7 format
 - .led/.ledconfig files: JSON with full screen state — save/load must be symmetric

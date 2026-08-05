@@ -34,6 +34,28 @@ test.describe('Welcome Page @comprehensive @desktop', () => {
     await expect(page.locator('#rasterScreenTableContainer')).toBeVisible();
   });
 
+  test('should auto-show the What\'s New popup on an unseen version', async ({ page }) => {
+    // The base fixture marks the running version as seen so the popup stays out of
+    // the way. Undo that here to exercise the real first-load behaviour.
+    await page.addInitScript(() => {
+      try { localStorage.removeItem('lastSeenWelcomeVersion'); } catch (e) { /* opaque origin */ }
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    // Popup opens over the welcome page and is populated from RELEASE_NOTES
+    await expect(page.locator('#releaseNotesModal')).toHaveClass(/active/);
+    expect(await page.locator('#releaseNotesList .release-note-entry').count()).toBeGreaterThanOrEqual(1);
+
+    // Closing it releases the welcome page for interaction
+    await page.locator('#releaseNotesModal .modal-close').click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('#releaseNotesModal')).not.toHaveClass(/active/);
+
+    await page.locator('.welcome-btn-complex').click();
+    await page.waitForSelector('#welcomePage', { state: 'hidden' });
+  });
+
   test('should open Help modal from footer', async ({ page }) => {
     const helpBtn = page.locator('.welcome-footer-link', { hasText: 'Help' });
     await helpBtn.click();

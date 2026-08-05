@@ -1,5 +1,5 @@
 {
-  "version": "2.11.115",
+  "version": "2.11.116",
   "updated": "2026-08-04",
-  "changelog": "Remove stale agent tooling and empty test scaffolding, fix SW asset list"
+  "changelog": "Stop release-notes popup from breaking Playwright runs, correct PDF and font docs"
 }

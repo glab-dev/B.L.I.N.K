@@ -1,4 +1,6 @@
 import { test as base, Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { DimensionsSection } from '../page-objects/dimensions.po';
 import { PowerSection } from '../page-objects/power.po';
 import { DataSection } from '../page-objects/data.po';
@@ -9,6 +11,15 @@ import { GearList } from '../page-objects/gear-list.po';
 import { Navigation } from '../page-objects/navigation.po';
 import { TestPatternPage } from '../page-objects/test-pattern.po';
 import { RasterMode } from '../page-objects/raster.po';
+
+/**
+ * The running app version, read from version.json.
+ * tests/smoke-test.js asserts version.json matches APP_VERSION in index.html,
+ * so these cannot drift.
+ */
+const APP_VERSION = JSON.parse(
+  readFileSync(resolve(__dirname, '../../../version.json'), 'utf-8')
+).version;
 
 /**
  * Extended test fixtures for LED Calculator
@@ -29,6 +40,16 @@ type TestFixtures = {
 };
 
 export const test = base.extend<TestFixtures>({
+  // The "What's New" popup auto-opens over the welcome page on any version this
+  // browser profile hasn't seen, intercepting clicks on the mode buttons.
+  // Mark the running version as seen so tests start on a clean app.
+  page: async ({ page }, use) => {
+    await page.addInitScript((v) => {
+      try { localStorage.setItem('lastSeenWelcomeVersion', v); } catch (e) { /* opaque origin */ }
+    }, APP_VERSION);
+    await use(page);
+  },
+
   dimensions: async ({ page }, use) => {
     const dimensions = new DimensionsSection(page);
     await use(dimensions);
@@ -80,10 +101,15 @@ export const test = base.extend<TestFixtures>({
   },
 
   clearLocalStorage: async ({ page }, use) => {
-    // Use addInitScript so localStorage is cleared after navigation, not on about:blank
-    await page.addInitScript(() => {
-      try { localStorage.clear(); } catch (e) { /* ignore if not accessible */ }
-    });
+    // Use addInitScript so localStorage is cleared after navigation, not on about:blank.
+    // Re-seed lastSeenWelcomeVersion in the same script: init scripts run in
+    // registration order, so clearing alone would wipe the seed set by the page fixture.
+    await page.addInitScript((v) => {
+      try {
+        localStorage.clear();
+        localStorage.setItem('lastSeenWelcomeVersion', v);
+      } catch (e) { /* ignore if not accessible */ }
+    }, APP_VERSION);
     await use();
   },
 });

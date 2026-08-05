@@ -2,7 +2,7 @@
 // Provides offline caching for the B.L.I.N.K. PWA.
 // SW_VERSION must match APP_VERSION in index.html and version.json.
 
-const SW_VERSION = '2.11.115';
+const SW_VERSION = '2.11.116';
 const CACHE_NAME = 'blink-v' + SW_VERSION;
 
 // Local app files to pre-cache on install
@@ -81,9 +81,6 @@ const LOCAL_ASSETS = [
 ];
 
 // CDN dependencies to cache on first fetch
-// Note: Google Fonts are NOT pre-cached here because their CSS is User-Agent
-// dependent. Pre-caching with the SW's UA serves wrong @font-face rules.
-// The browser handles font loading natively (see fetch handler below).
 const CDN_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/pdfmake.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/vfs_fonts.js',
@@ -148,14 +145,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Don't intercept Google Fonts — let the browser handle them natively.
-  // Google Fonts CSS is User-Agent dependent and Safari has issues with
-  // SW-intercepted font requests after controllerchange reload.
-  if (url.hostname.includes('googleapis.com') || url.hostname.includes('gstatic.com')) {
-    return;
-  }
-
-  // Network-first for other cross-origin requests (CDN scripts, Supabase)
+  // Network-first for cross-origin requests (CDN scripts, Supabase)
   if (url.origin !== self.location.origin) {
     event.respondWith(networkFirst(event.request));
     return;

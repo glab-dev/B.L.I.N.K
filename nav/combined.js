@@ -2757,13 +2757,10 @@ function renderCombinedGearList(selectedScreenIds) {
     if(!panel.jumpers_builtin && panel.power_jumper_ft) {
       totalPowerJumpers += activePanels;
     }
-    if(calculatedData.dataCrossJumperCount) {
-      totalDataCrossJumpers += calculatedData.dataCrossJumperCount;
-    }
+    const screenCrossJumpers = calcDataCrossJumpers(data, panel, pw, ph);
+    totalDataCrossJumpers += screenCrossJumpers.crossJumperCount;
     if(panel.jumpers_builtin) {
-      const screenDataLines = calculatedData.dataLines || 0;
-      const screenCrossJumpers = calculatedData.dataCrossJumperCount || 0;
-      totalCat5Couplers += screenDataLines + screenCrossJumpers;
+      totalCat5Couplers += (calculatedData.dataLines || 0) + screenCrossJumpers.crossings;
     }
 
     // True1 Twofers

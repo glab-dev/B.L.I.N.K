@@ -1,5 +1,5 @@
 {
-  "version": "2.11.116",
+  "version": "2.11.117",
   "updated": "2026-08-04",
-  "changelog": "Stop release-notes popup from breaking Playwright runs, correct PDF and font docs"
+  "changelog": "Count data cross jumpers at both ends of each column crossing"
 }

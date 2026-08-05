@@ -2,6 +2,75 @@
 // Single source of truth for gear list calculations.
 // Consumed by: gear tab (nav/gear.js), PDF export, and email export (export/pdf.js)
 
+// Serpentine column-crossing count for data cabling.
+// Panels with cables attached to them join columns with Cat5 couplers (one per crossing);
+// panels without attached cables need a cross jumper at BOTH the top and the bottom of
+// every crossing, so their cross jumper count is twice the crossing count.
+function calcDataCrossJumpers(data, p, W, H) {
+  let crossings = 0;
+  if(W > 0 && H > 0) {
+    const pr = processors[data.processor] || processors['Brompton_SX40'];
+    const portCapacity = pr ? pr.base_pixels_1g : 525000;
+    const frameRate = parseInt(data.frameRate) || 60;
+    const bitDepth = parseInt(data.bitDepth) || 8;
+    let adjustedCapacity = portCapacity;
+    if(frameRate > 60) adjustedCapacity = Math.floor(portCapacity * (60 / frameRate));
+    if(bitDepth > 8) adjustedCapacity = Math.floor(adjustedCapacity * (8 / bitDepth));
+    const pixelsPerPanel = p.res_x * p.res_y;
+    let capacityBasedPPD = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
+    capacityBasedPPD = Math.min(capacityBasedPPD, 500);
+    const suggestedPPD = capacityBasedPPD;
+    const userMaxPPD = parseInt(data.maxPanelsPerData) || 0;
+    const panelsPerDataLine = userMaxPPD > 0 ? userMaxPPD : suggestedPPD;
+
+    const startDir = data.dataStartDir || 'top';
+    const deletedPanelsData = data.deletedPanels;
+    const customDataLines = data.customDataLineAssignments;
+    const hasCustomDataLines = customDataLines && customDataLines.size > 0;
+
+    if(startDir !== 'all_top' && startDir !== 'all_bottom') {
+      const dataLineColumns = new Map();
+      const usedCustomDataLines = new Set();
+      if(hasCustomDataLines) {
+        for(let c = 0; c < W; c++) {
+          for(let r = 0; r < H; r++) {
+            const pk = `${c},${r}`;
+            const isDeleted = deletedPanelsData && deletedPanelsData.has && deletedPanelsData.has(pk);
+            if(!isDeleted && customDataLines.has(pk)) usedCustomDataLines.add(customDataLines.get(pk) - 1);
+          }
+        }
+      }
+      let autoCounter = 0, panelsInCurrent = 0;
+      while(usedCustomDataLines.has(autoCounter)) autoCounter++;
+      let goingDown = (startDir === 'top');
+      for(let c = 0; c < W; c++) {
+        const rows = goingDown ? Array.from({length: H}, (_, i) => i) : Array.from({length: H}, (_, i) => H - 1 - i);
+        for(const r of rows) {
+          const pk = `${c},${r}`;
+          if(deletedPanelsData && deletedPanelsData.has && deletedPanelsData.has(pk)) continue;
+          let dl;
+          if(hasCustomDataLines && customDataLines.has(pk)) {
+            dl = customDataLines.get(pk) - 1;
+          } else {
+            while(usedCustomDataLines.has(autoCounter)) autoCounter++;
+            dl = autoCounter;
+            panelsInCurrent++;
+            if(panelsInCurrent >= panelsPerDataLine) { autoCounter++; panelsInCurrent = 0; while(usedCustomDataLines.has(autoCounter)) autoCounter++; }
+          }
+          if(!dataLineColumns.has(dl)) dataLineColumns.set(dl, new Set());
+          dataLineColumns.get(dl).add(c);
+        }
+        goingDown = !goingDown;
+      }
+      dataLineColumns.forEach((columns) => { if(columns.size > 1) crossings += (columns.size - 1); });
+    }
+  }
+  return {
+    crossings: crossings,
+    crossJumperCount: p.jumpers_builtin ? crossings : crossings * 2
+  };
+}
+
 function buildGearListData(screenIds) {
   if(!screenIds || screenIds.length === 0) return { configName: '', processorGroups: {}, screens: [] };
 
@@ -232,64 +301,7 @@ function buildGearListData(screenIds) {
     const jumpersBuiltin = p.jumpers_builtin || false;
     const dataLinesCount = calcData.dataLines || 0;
 
-    let dataCrossJumperCount = 0;
-    if(W > 0 && H > 0) {
-      const pr = processors[data.processor] || processors['Brompton_SX40'];
-      const portCapacity = pr ? pr.base_pixels_1g : 525000;
-      const frameRate = parseInt(data.frameRate) || 60;
-      const bitDepth = parseInt(data.bitDepth) || 8;
-      let adjustedCapacity = portCapacity;
-      if(frameRate > 60) adjustedCapacity = Math.floor(portCapacity * (60 / frameRate));
-      if(bitDepth > 8) adjustedCapacity = Math.floor(adjustedCapacity * (8 / bitDepth));
-      const pixelsPerPanel = p.res_x * p.res_y;
-      let capacityBasedPPD = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
-      capacityBasedPPD = Math.min(capacityBasedPPD, 500);
-      const suggestedPPD = capacityBasedPPD;
-      const userMaxPPD = parseInt(data.maxPanelsPerData) || 0;
-      const panelsPerDataLine = userMaxPPD > 0 ? userMaxPPD : suggestedPPD;
-
-      const startDir = data.dataStartDir || 'top';
-      const deletedPanelsData = data.deletedPanels;
-      const customDataLines = data.customDataLineAssignments;
-      const hasCustomDataLines = customDataLines && customDataLines.size > 0;
-
-      if(startDir !== 'all_top' && startDir !== 'all_bottom') {
-        const dataLineColumns = new Map();
-        const usedCustomDataLines = new Set();
-        if(hasCustomDataLines) {
-          for(let c = 0; c < W; c++) {
-            for(let r = 0; r < H; r++) {
-              const pk = `${c},${r}`;
-              const isDeleted = deletedPanelsData && deletedPanelsData.has && deletedPanelsData.has(pk);
-              if(!isDeleted && customDataLines.has(pk)) usedCustomDataLines.add(customDataLines.get(pk) - 1);
-            }
-          }
-        }
-        let autoCounter = 0, panelsInCurrent = 0;
-        while(usedCustomDataLines.has(autoCounter)) autoCounter++;
-        let goingDown = (startDir === 'top');
-        for(let c = 0; c < W; c++) {
-          const rows = goingDown ? Array.from({length: H}, (_, i) => i) : Array.from({length: H}, (_, i) => H - 1 - i);
-          for(const r of rows) {
-            const pk = `${c},${r}`;
-            if(deletedPanelsData && deletedPanelsData.has && deletedPanelsData.has(pk)) continue;
-            let dl;
-            if(hasCustomDataLines && customDataLines.has(pk)) {
-              dl = customDataLines.get(pk) - 1;
-            } else {
-              while(usedCustomDataLines.has(autoCounter)) autoCounter++;
-              dl = autoCounter;
-              panelsInCurrent++;
-              if(panelsInCurrent >= panelsPerDataLine) { autoCounter++; panelsInCurrent = 0; while(usedCustomDataLines.has(autoCounter)) autoCounter++; }
-            }
-            if(!dataLineColumns.has(dl)) dataLineColumns.set(dl, new Set());
-            dataLineColumns.get(dl).add(c);
-          }
-          goingDown = !goingDown;
-        }
-        dataLineColumns.forEach((columns) => { if(columns.size > 1) dataCrossJumperCount += (columns.size - 1); });
-      }
-    }
+    const crossJumpers = calcDataCrossJumpers(data, p, W, H);
 
     // --- CABLING (from calculateCabling) ---
     const cabling = (typeof calculateCabling === 'function') ? calculateCabling(screenId) : null;
@@ -309,14 +321,14 @@ function buildGearListData(screenIds) {
       knockoutCables.forEach((c, idx) => { knockoutDetail.push({ index: idx, fromPanel: c.fromPanel, toPanel: c.toPanel, lengthFt: c.lengthFt, roundedFt: c.roundedFt }); });
     }
 
-    const cat5CouplerCount = jumpersBuiltin ? (dataCrossJumperCount + dataLinesCount) : 0;
+    const cat5CouplerCount = jumpersBuiltin ? (crossJumpers.crossings + dataLinesCount) : 0;
 
     const dataCables = {
       dataJumperLen: dataJumperLen,
       jumpersBuiltin: jumpersBuiltin,
       jumperCount: (!jumpersBuiltin && dataJumperLen) ? activePanels : 0,
       crossJumperLen: dataCrossJumperLen,
-      crossJumperCount: dataCrossJumperCount,
+      crossJumperCount: crossJumpers.crossJumperCount,
       cat5CouplerCount: cat5CouplerCount,
       cat6ByLength: cat6ByLength,
       cableDetail: cableDetail,

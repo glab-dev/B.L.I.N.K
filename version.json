@@ -1,5 +1,5 @@
 {
-  "version": "2.11.118",
-  "updated": "2026-08-04",
-  "changelog": "Label each visible screen island with its own canvas coordinates and size"
+  "version": "2.11.119",
+  "updated": "2026-08-05",
+  "changelog": "Sync panel counts and wall size in every dimension mode, fix combined view crash"
 }

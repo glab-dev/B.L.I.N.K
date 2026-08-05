@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.119', date: '2026-08-05', notes: 'Sync panel counts and wall size in every dimension mode, fix combined view crash' },
   { version: '2.11.118', date: '2026-08-04', notes: 'Label each visible screen island with its own canvas coordinates and size' },
   { version: '2.11.117', date: '2026-08-04', notes: 'Count data cross jumpers at both ends of each column crossing' },
   { version: '2.11.116', date: '2026-08-04', notes: 'Stop release-notes popup from breaking Playwright runs, correct PDF and font docs' },

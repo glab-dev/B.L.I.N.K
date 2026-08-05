@@ -1159,31 +1159,38 @@ function initCombinedView() {
   if(combinedSelectedScreens.size > 0) {
     renderCombinedView();
   } else {
-    // Show placeholder message
-    const specsContent = document.getElementById('combinedSpecsContent');
-    const gearContent = document.getElementById('combinedGearListContent');
-    const specsToggles = document.getElementById('combinedSpecsToggles');
-    if(specsToggles) specsToggles.style.display = 'none';
-    if(specsContent) specsContent.innerHTML = '';
-    if(gearContent) gearContent.innerHTML = '';
-
-    // Clear canvases
-    ['combinedStandardCanvas', 'combinedPowerCanvas', 'combinedDataCanvas', 'combinedStructureCanvas', 'combinedCableDiagramCanvas'].forEach(canvasId => {
-      const canvas = document.getElementById(canvasId);
-      if(canvas) {
-        canvas.width = 100;
-        canvas.height = 100;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#1a1a1a';
-        ctx.fillRect(0, 0, 100, 100);
-        ctx.fillStyle = '#888';
-        ctx.font = '10px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('No screens', 50, 45);
-        ctx.fillText('selected', 50, 58);
-      }
-    });
+    showCombinedPlaceholder();
   }
+}
+
+// Clear the combined specs/gear/canvases and show the "No screens selected" placeholder.
+// Called by initCombinedView when nothing is selected, and by renderCombinedView when the
+// selected screens have no panels yet - renderCombinedView must never call initCombinedView
+// back, or the two recurse until the stack overflows.
+function showCombinedPlaceholder() {
+  const specsContent = document.getElementById('combinedSpecsContent');
+  const gearContent = document.getElementById('combinedGearListContent');
+  const specsToggles = document.getElementById('combinedSpecsToggles');
+  if(specsToggles) specsToggles.style.display = 'none';
+  if(specsContent) specsContent.innerHTML = '';
+  if(gearContent) gearContent.innerHTML = '';
+
+  // Clear canvases
+  ['combinedStandardCanvas', 'combinedPowerCanvas', 'combinedDataCanvas', 'combinedStructureCanvas', 'combinedCableDiagramCanvas'].forEach(canvasId => {
+    const canvas = document.getElementById(canvasId);
+    if(canvas) {
+      canvas.width = 100;
+      canvas.height = 100;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#1a1a1a';
+      ctx.fillRect(0, 0, 100, 100);
+      ctx.fillStyle = '#888';
+      ctx.font = '10px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('No screens', 50, 45);
+      ctx.fillText('selected', 50, 58);
+    }
+  });
 }
 
 // Toggle a screen in the combined view
@@ -1242,7 +1249,7 @@ function renderCombinedView() {
   });
 
   if(totalPanelsWide === 0) {
-    initCombinedView();
+    showCombinedPlaceholder();
     return;
   }
 
@@ -1294,7 +1301,7 @@ function renderCombinedView() {
   });
 
   if(screenDimensions.length === 0) {
-    initCombinedView(); // Will show placeholder
+    showCombinedPlaceholder();
     return;
   }
 

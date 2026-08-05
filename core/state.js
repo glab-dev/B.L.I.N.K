@@ -130,6 +130,14 @@ function setDimensionMode(mode) {
   } else if(mode === 'pixels') {
     syncPixelsFromPanels();
   } else {
+    // The wall fields can arrive empty (pixels mode, or a config saved before they were
+    // kept in sync). Fill them from the panel counts first - syncFromSize treats an empty
+    // wall dimension as "cleared" and would blank the panel counts along with it.
+    const wallWidthEl = document.getElementById('wallWidth');
+    const wallHeightEl = document.getElementById('wallHeight');
+    if(!wallWidthEl.value || !wallHeightEl.value) {
+      syncFromPanels();
+    }
     syncFromSize();
   }
   calculate();
@@ -139,9 +147,25 @@ function setDimensionMode(mode) {
 let currentAspectRatio = 'none';
 let customARWidth = 16;
 let customARHeight = 10;
+// Which dimension field the user last typed in ('width'|'height'). Anchors the lock so
+// that switching ratios keeps their entry and recalculates the auto-filled field.
+let lastDimensionDriver = 'width';
+
+// Resolve which field should drive the lock: the field the user last typed in, unless
+// it is empty and the other one has a value. Returns null when nothing is entered.
+function getAspectRatioDriver() {
+  const ids = currentDimensionMode === 'panels' ? ['panelsWide', 'panelsHigh']
+            : currentDimensionMode === 'pixels' ? ['pixelsWide', 'pixelsHigh']
+            : ['wallWidth', 'wallHeight'];
+  const anchor = lastDimensionDriver === 'height' ? 1 : 0;
+  if((parseFloat(document.getElementById(ids[anchor]).value) || 0) > 0) return lastDimensionDriver;
+  if((parseFloat(document.getElementById(ids[1 - anchor]).value) || 0) > 0) {
+    return lastDimensionDriver === 'height' ? 'width' : 'height';
+  }
+  return null;
+}
 
 function setAspectRatio(ratio) {
-  const previousRatio = currentAspectRatio;
   currentAspectRatio = ratio;
 
   // Update toggle button states
@@ -162,12 +186,11 @@ function setAspectRatio(ratio) {
     customARHeight = parseInt(document.getElementById('customARHeight').value) || 10;
   }
 
-  // Clear dimension inputs when switching between different aspect ratios (not from 'none')
-  if(previousRatio !== 'none' && previousRatio !== ratio) {
-    document.getElementById('panelsWide').value = '';
-    document.getElementById('panelsHigh').value = '';
-    document.getElementById('wallWidth').value = '';
-    document.getElementById('wallHeight').value = '';
+  // Re-apply the new ratio to whatever is already entered, anchored on the field the
+  // user typed in. Nothing entered - leave everything alone.
+  if(ratio !== 'none') {
+    const driver = getAspectRatioDriver();
+    if(driver) applyAspectRatioLock(driver);
   }
 }
 
@@ -184,60 +207,80 @@ function getAspectRatioValue() {
   }
 }
 
-// Apply aspect ratio lock when width changes - calculates height
-function applyAspectRatioFromWidth() {
+// Apply the aspect ratio lock. driver ('width'|'height') is the field the user is
+// editing - the OTHER field is recalculated, never the one being typed in.
+function applyAspectRatioLock(driver) {
   const aspectRatio = getAspectRatioValue();
   if(!aspectRatio) return; // No aspect ratio lock
+
+  // Pixels mode already has a correct bidirectional implementation
+  if(currentDimensionMode === 'pixels') {
+    applyPixelInput(driver);
+    return;
+  }
 
   const allPanels = getAllPanels();
   const p = allPanels[document.getElementById('panelType').value];
   if(!p || !p.res_x || !p.res_y) return;
 
   if(currentDimensionMode === 'panels') {
-    // Panels mode: calculate panels high based on panels wide and pixel aspect ratio
-    const pwInput = document.getElementById('panelsWide').value;
+    // Panels mode: apply the ratio in pixel space, then round to whole panels
+    const wideEl = document.getElementById('panelsWide');
+    const highEl = document.getElementById('panelsHigh');
 
-    // If width is empty, clear height too
-    if(pwInput === '' || pwInput === null) {
-      document.getElementById('panelsHigh').value = '';
-      syncFromPanels();
-      return;
+    if(driver === 'width') {
+      // If width is empty, clear height too
+      if(wideEl.value === '' || wideEl.value === null) {
+        highEl.value = '';
+        syncFromPanels();
+        return;
+      }
+      const pw = parseInt(wideEl.value) || 0;
+      if(pw <= 0) return;
+      highEl.value = Math.max(1, Math.round((pw * p.res_x / aspectRatio) / p.res_y));
+    } else {
+      // If height is empty, clear width too
+      if(highEl.value === '' || highEl.value === null) {
+        wideEl.value = '';
+        syncFromPanels();
+        return;
+      }
+      const ph = parseInt(highEl.value) || 0;
+      if(ph <= 0) return;
+      wideEl.value = Math.max(1, Math.round((ph * p.res_y * aspectRatio) / p.res_x));
     }
-
-    const pw = parseInt(pwInput) || 0;
-    if(pw <= 0) return;
-
-    // Total pixels wide
-    const totalPixelsWide = pw * p.res_x;
-    // Calculate pixels high for target aspect ratio
-    const targetPixelsHigh = totalPixelsWide / aspectRatio;
-    // Round to nearest panel count
-    const ph = Math.max(1, Math.round(targetPixelsHigh / p.res_y));
-
-    document.getElementById('panelsHigh').value = ph;
     syncFromPanels();
-    saveCurrentScreenData(); // Save to screen data before calculate
-    calculate(); // Trigger calculation to populate wall on canvas
   } else {
-    // Size mode: calculate wall height based on wall width
-    const wallWidthInput = document.getElementById('wallWidth').value;
+    // Size mode: apply the ratio directly to the wall dimensions
+    const wEl = document.getElementById('wallWidth');
+    const hEl = document.getElementById('wallHeight');
 
-    // If width is empty, clear height too
-    if(wallWidthInput === '' || wallWidthInput === null) {
-      document.getElementById('wallHeight').value = '';
-      syncFromSize();
-      return;
+    if(driver === 'width') {
+      // If width is empty, clear height too
+      if(wEl.value === '' || wEl.value === null) {
+        hEl.value = '';
+        syncFromSize();
+        return;
+      }
+      const wallWidth = parseFloat(wEl.value) || 0;
+      if(wallWidth <= 0) return;
+      hEl.value = (wallWidth / aspectRatio).toFixed(2);
+    } else {
+      // If height is empty, clear width too
+      if(hEl.value === '' || hEl.value === null) {
+        wEl.value = '';
+        syncFromSize();
+        return;
+      }
+      const wallHeight = parseFloat(hEl.value) || 0;
+      if(wallHeight <= 0) return;
+      wEl.value = (wallHeight * aspectRatio).toFixed(2);
     }
-
-    const wallWidth = parseFloat(wallWidthInput) || 0;
-    if(wallWidth <= 0) return;
-
-    const wallHeight = wallWidth / aspectRatio;
-    document.getElementById('wallHeight').value = wallHeight.toFixed(2);
     syncFromSize();
-    saveCurrentScreenData(); // Save to screen data before calculate
-    calculate(); // Trigger calculation to populate wall on canvas
   }
+
+  saveCurrentScreenData(); // Save to screen data before calculate
+  calculate(); // Trigger calculation to populate wall on canvas
 }
 
 // Phase toggle

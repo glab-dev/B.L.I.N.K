@@ -69,7 +69,10 @@ test.describe('Dimensions — Size Mode @comprehensive @desktop', () => {
   });
 
   test('should apply aspect ratio buttons in Panels mode', async ({ page, dimensions }) => {
-    await dimensions.setPanelCount(8, 4);
+    // Width is the last field typed, so it anchors the lock
+    await dimensions.panelsWideInput.fill('8');
+    await dimensions.panelsWideInput.blur();
+    await page.waitForTimeout(300);
 
     // Set 16:9
     await dimensions.setAspectRatio('16:9');
@@ -83,6 +86,30 @@ test.describe('Dimensions — Size Mode @comprehensive @desktop', () => {
 
     // Different aspect ratios should yield different heights for same width
     expect(high169).not.toBe(high43);
+    await expect(dimensions.panelsWideInput).toHaveValue('8');
+  });
+
+  test('should keep the entered height and adjust width across ratio switches', async ({
+    page,
+    dimensions,
+  }) => {
+    // Height is the last field typed, so it anchors the lock
+    await dimensions.panelsHighInput.fill('9');
+    await dimensions.panelsHighInput.blur();
+    await page.waitForTimeout(300);
+
+    await dimensions.setAspectRatio('16:9');
+    await page.waitForTimeout(300);
+    const wide169 = await dimensions.panelsWideInput.inputValue();
+    await expect(dimensions.panelsHighInput).toHaveValue('9');
+
+    await dimensions.setAspectRatio('4:3');
+    await page.waitForTimeout(300);
+    const wide43 = await dimensions.panelsWideInput.inputValue();
+
+    // The entered height survives; the width is what re-derives
+    await expect(dimensions.panelsHighInput).toHaveValue('9');
+    expect(wide169).not.toBe(wide43);
   });
 
   test('should show custom aspect ratio inputs', async ({ page, dimensions }) => {

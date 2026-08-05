@@ -390,26 +390,44 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if(panelsWideInput) {
       panelsWideInput.addEventListener('input', function() {
-        applyAspectRatioFromWidth(); // Apply aspect ratio lock
+        lastDimensionDriver = 'width'; // Anchor the aspect ratio lock on this field
+        applyAspectRatioLock('width'); // Apply aspect ratio lock
+        syncFromPanels(); // Panel counts -> wall size (empty wall fields blank the wall on mode switch)
         initializeBumpers(); // Reinitialize when width changes
         updateWeightDisplay();
+        saveCurrentScreenData(); // Re-save with the synced wall size
       });
     }
     if(panelsHighInput) {
       panelsHighInput.addEventListener('input', function() {
-        // No aspect ratio from height - only width triggers auto-calculation
+        lastDimensionDriver = 'height'; // Anchor the aspect ratio lock on this field
+        applyAspectRatioLock('height'); // Apply aspect ratio lock
+        syncFromPanels(); // Panel counts -> wall size (empty wall fields blank the wall on mode switch)
         initializeBumpers(); // Reinitialize when height changes
         updateWeightDisplay();
+        saveCurrentScreenData(); // Re-save with the synced wall size
       });
     }
     if(wallWidthInput) {
       wallWidthInput.addEventListener('input', function() {
-        applyAspectRatioFromWidth(); // Apply aspect ratio lock
+        lastDimensionDriver = 'width'; // Anchor the aspect ratio lock on this field
+        applyAspectRatioLock('width'); // Apply aspect ratio lock
+        syncFromSize(); // Wall size -> panel counts (bumpers and screen data read these)
+        initializeBumpers(); // Reinitialize when width changes
+        updateWeightDisplay();
+        saveCurrentScreenData(); // Re-save with the synced panel counts
+        calculate();
       });
     }
     if(wallHeightInput) {
       wallHeightInput.addEventListener('input', function() {
-        // No aspect ratio from height - only width triggers auto-calculation
+        lastDimensionDriver = 'height'; // Anchor the aspect ratio lock on this field
+        applyAspectRatioLock('height'); // Apply aspect ratio lock
+        syncFromSize(); // Wall size -> panel counts (bumpers and screen data read these)
+        initializeBumpers(); // Reinitialize when height changes
+        updateWeightDisplay();
+        saveCurrentScreenData(); // Re-save with the synced panel counts
+        calculate();
       });
     }
 
@@ -418,11 +436,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const pixelsHighInput = document.getElementById('pixelsHigh');
     if(pixelsWideInput) {
       pixelsWideInput.addEventListener('input', function() {
+        lastDimensionDriver = 'width'; // Anchor the aspect ratio lock on this field
         applyPixelInput('width');
       });
     }
     if(pixelsHighInput) {
       pixelsHighInput.addEventListener('input', function() {
+        lastDimensionDriver = 'height'; // Anchor the aspect ratio lock on this field
         applyPixelInput('height');
       });
     }
@@ -433,7 +453,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if(customARWidthInput) {
       customARWidthInput.addEventListener('input', function() {
         if(currentAspectRatio === 'custom') {
-          applyAspectRatioFromWidth(); // Re-apply with new ratio
+          const driver = getAspectRatioDriver(); // Re-apply with new ratio
+          if(driver) applyAspectRatioLock(driver);
           calculate();
         }
       });
@@ -441,7 +462,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if(customARHeightInput) {
       customARHeightInput.addEventListener('input', function() {
         if(currentAspectRatio === 'custom') {
-          applyAspectRatioFromWidth(); // Re-apply with new ratio
+          const driver = getAspectRatioDriver(); // Re-apply with new ratio
+          if(driver) applyAspectRatioLock(driver);
           calculate();
         }
       });

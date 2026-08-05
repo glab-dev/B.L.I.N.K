@@ -1,5 +1,5 @@
 {
-  "version": "2.11.119",
+  "version": "2.11.120",
   "updated": "2026-08-05",
-  "changelog": "Sync panel counts and wall size in every dimension mode, fix combined view crash"
+  "changelog": "Add drag-box panel selection, match cable and gear SOCA spans to manual assignments"
 }

@@ -51,9 +51,9 @@ function updateLayoutHints() {
   const standardHint = document.getElementById('standardLayoutHint');
   if(standardHint) {
     if(isTouchDevice || isMobile) {
-      standardHint.textContent = 'Tap to select • Tap again for options • Drag to multi-select';
+      standardHint.textContent = 'Tap to select • Tap again for options • Turn on Select Mode to drag a box';
     } else {
-      standardHint.textContent = 'Click to select • Right-click for options • Drag to multi-select';
+      standardHint.textContent = 'Click to select • Right-click for options • Drag a box to multi-select';
     }
   }
 

@@ -343,12 +343,29 @@ function renderCableDiagram(screenId) {
     return true;
   }
 
-  // Power cables — one per SOCA
-  for (let s = 0; s < socaCount; s++) {
-    const firstCircuit = s * 6;
-    const lastCircuit = Math.min(firstCircuit + 5, circuitsNeeded - 1);
-    const firstCol = firstCircuit * columnsPerCircuit;
-    const lastCol = Math.min((lastCircuit + 1) * columnsPerCircuit - 1, pw - 1);
+  // Power cables — one per SOCA. Column spans and labels come from the as-assigned
+  // per-panel grouping (calculatedData.socaSpans), so a manual Assign SOCA # lands here
+  // exactly as it does on the power canvas. The geometric fallback (soca s covers circuits
+  // s*6..s*6+5) covers calculatedData saved before socaSpans existed.
+  const socaRuns = (Array.isArray(calc.socaSpans) && calc.socaSpans.length)
+    ? calc.socaSpans.map(sp => ({
+        firstCol: Math.max(0, Math.min(sp.firstCol, pw - 1)),
+        lastCol: Math.max(0, Math.min(sp.lastCol, pw - 1)),
+        labelIdx: (typeof sp.labelIdx === 'number') ? sp.labelIdx : sp.socaIdx
+      }))
+    : Array.from({ length: socaCount }, (_unused, s) => {
+        const firstCircuit = s * 6;
+        const lastCircuit = Math.min(firstCircuit + 5, circuitsNeeded - 1);
+        return {
+          firstCol: firstCircuit * columnsPerCircuit,
+          lastCol: Math.min((lastCircuit + 1) * columnsPerCircuit - 1, pw - 1),
+          labelIdx: s
+        };
+      });
+
+  for (const socaRun of socaRuns) {
+    const firstCol = socaRun.firstCol;
+    const lastCol = socaRun.lastCol;
 
     // Landing X = center of the columns this SOCA covers
     let landingX = adjWallLeftX + ((firstCol + lastCol + 1) / 2) * panelPixelW;
@@ -407,7 +424,7 @@ function renderCableDiagram(screenId) {
     // Defer SOCA marker, bracket, and label to draw on top of all cables.
     // When live-routed, the dot sits at the panel centre where the cable starts
     // (matching the power cable's diagonal offset) so it connects to the line.
-    const _landingX = landingX, _s = s;
+    const _landingX = landingX, _s = socaRun.labelIdx;
     const _socaDotX = liveRouteActive ? (landingX - 8) : landingX;
     const _socaDotY = liveRouteActive
       ? (wallTopY + (edgeRow + 0.5) * fullPanelPixelH - 8)

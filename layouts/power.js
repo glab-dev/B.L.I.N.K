@@ -126,7 +126,7 @@ function renderPowerLayout(params) {
     const _perPanelW = _panel ? (_powerType === 'max' ? (_panel.power_max_w || 0) : (_panel.power_avg_w || 0)) : 0;
     const _voltageEl = document.getElementById('voltage');
     const _voltage = parseFloat(_voltageEl && _voltageEl.value) || 208;
-    renderSocaCircuitTable(computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, _perPanelW, _voltage));
+    renderSocaCircuitTable(computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, _perPanelW, _voltage), _usedBalanced);
   }
 
   // 3-phase leg-pair colouring (optional "Color by Leg" view). Reads the
@@ -496,7 +496,7 @@ function renderPhaseBalanceLegend() {
 // and the SOCA total. Accepts a freshly-computed breakdown (passed by the power
 // renderer so the table always matches the canvas); falls back to the breakdown
 // stored in core/calculate.js. Hidden when there is no data.
-function renderSocaCircuitTable(breakdown) {
+function renderSocaCircuitTable(breakdown, usedBalanced) {
   const el = document.getElementById('socaCircuitTable');
   if (!el) return;
   let sb = Array.isArray(breakdown) ? breakdown : null;
@@ -506,9 +506,10 @@ function renderSocaCircuitTable(breakdown) {
   }
   if (!sb || !sb.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
-  // Share Distro: continuous SOCA numbering across the group (calculatedData.socaLabelMap).
+  // Share Distro: group SOCA numbering (calculatedData.socaLabelMap). Gated on !usedBalanced
+  // to match the canvas, which skips the relabel because balanced mode redefines SOCAs.
   const _cd = (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].calculatedData : null;
-  const _labelMap = (_cd && Array.isArray(_cd.socaLabelMap)) ? new Map(_cd.socaLabelMap) : null;
+  const _labelMap = (!usedBalanced && _cd && Array.isArray(_cd.socaLabelMap)) ? new Map(_cd.socaLabelMap) : null;
   const _socaLabelIdx = idx => (_labelMap && _labelMap.has(idx)) ? _labelMap.get(idx) : idx;
 
   el.innerHTML = sb.map(soca => {

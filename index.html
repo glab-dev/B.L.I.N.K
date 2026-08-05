@@ -2773,7 +2773,7 @@
             <button type="button" class="toggle-btn toggle-btn-standalone" id="selectModeBtn" onclick="toggleSelectMode()">Off</button>
           </div>
         </div>
-        <div class="mobile-hint" id="standardLayoutHint">Tap to select • Tap again for options • Drag to multi-select</div>
+        <div class="mobile-hint" id="standardLayoutHint">Tap to select • Tap again for options • Turn on Select Mode to drag a box</div>
         <canvas id="standardCanvas"></canvas>
       </div>
     </div>
@@ -3089,20 +3089,23 @@
       <div class="layout-content" id="combinedStandardContent">
         <!-- Interaction Hints -->
         <div id="combinedInteractionHints" class="combined-interaction-hints">
-          <span id="combinedHintsDesktop" style="display: none;"><strong>Panels:</strong> Right-click for options, double-click to delete/restore &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
-          <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> Tap to select, tap again for options &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
+          <span id="combinedHintsDesktop" style="display: none;"><strong>Panels:</strong> Drag a box to select, right-click for options, double-click to delete/restore &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
+          <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> Tap to select, tap again for options, Select Mode to drag a box &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
         </div>
         <!-- Position Controls -->
         <div id="combinedPositionControls">
+          <div class="slider-toggle d-inline-flex" id="combinedSelectModeRow" style="display:none;">
+            <button type="button" class="slider-toggle-btn" id="combinedSelectModeBtn" aria-pressed="false" onclick="toggleCombinedSelectMode()">Select Mode</button>
+          </div>
           <div class="slider-toggle d-inline-flex">
             <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()">Reset</button>
             <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()">Manual Adjust</button>
           </div>
           <!-- Zoom Controls (slider-toggle style to match Reset/Manual Adjust) -->
           <div class="slider-toggle d-inline-flex">
-            <button type="button" class="slider-toggle-btn" onclick="adjustCombinedZoom(-10)" title="Zoom Out" class="combined-zoom-btn">−</button>
+            <button type="button" class="slider-toggle-btn combined-zoom-btn" onclick="adjustCombinedZoom(-10)" title="Zoom Out">−</button>
             <input type="number" id="combinedZoomInput" value="100" min="50" max="200" step="10" onchange="setCombinedZoom(parseInt(this.value))" title="Enter zoom percentage">
-            <button type="button" class="slider-toggle-btn" onclick="adjustCombinedZoom(10)" title="Zoom In" class="combined-zoom-btn-plus">+</button>
+            <button type="button" class="slider-toggle-btn combined-zoom-btn-plus" onclick="adjustCombinedZoom(10)" title="Zoom In">+</button>
           </div>
         </div>
         <div id="combinedStandardCanvasWrapper" class="overflow-x-auto">
@@ -3709,8 +3712,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.119';
-const APP_CHANGELOG = 'Sync panel counts and wall size in every dimension mode, fix combined view crash';
+const APP_VERSION = '2.11.120';
+const APP_CHANGELOG = 'Add drag-box panel selection, match cable and gear SOCA spans to manual assignments';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

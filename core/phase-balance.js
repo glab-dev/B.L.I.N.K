@@ -110,6 +110,50 @@ function computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, perPan
   });
 }
 
+// The SOCA indices (0-based) a screen got from an explicit per-panel assignment, as
+// opposed to the circuit's natural group. Keyed off panelToCircuit rather than the
+// override map directly so deleted / out-of-grid panels are excluded — the result
+// matches what assignSocas actually produced.
+function explicitSocaIndices(panelToCircuit, customSocaAssignments) {
+  const out = new Set();
+  if (!customSocaAssignments) return out;
+  panelToCircuit.forEach((circuitNum, panelKey) => {
+    const explicit = customSocaAssignments.get(panelKey);
+    if (typeof explicit === 'number' && explicit >= 1) out.add(explicit - 1);
+  });
+  return out;
+}
+
+// Column span and circuit list of each SOCA, from the as-assigned per-panel maps.
+// Returns a sorted array: [{ socaIdx, firstCol, lastCol, circuits: [circuit numbers] }].
+// The cable/gear paths used to re-derive this geometrically (soca s covers circuits
+// s*6..s*6+5, hence columns s*6*columnsPerCircuit...), which ignores manual SOCA
+// assignment entirely; deriving it from panelToSoca keeps them in step with the canvas.
+function computeSocaSpans(panelToCircuit, panelToSoca) {
+  const spans = new Map(); // socaIdx -> { firstCol, lastCol, circuits: Set }
+  panelToCircuit.forEach((circuitNum, panelKey) => {
+    const s = panelToSoca ? panelToSoca.get(panelKey) : undefined;
+    const socaIdx = (typeof s === 'number') ? s : Math.floor(circuitNum / 6);
+    const col = parseInt(panelKey.split(',')[0], 10);
+    if (!Number.isFinite(col)) return;
+    let e = spans.get(socaIdx);
+    if (!e) { e = { firstCol: col, lastCol: col, circuits: new Set() }; spans.set(socaIdx, e); }
+    if (col < e.firstCol) e.firstCol = col;
+    if (col > e.lastCol) e.lastCol = col;
+    e.circuits.add(circuitNum);
+  });
+
+  return [...spans.keys()].sort((a, b) => a - b).map(socaIdx => {
+    const e = spans.get(socaIdx);
+    return {
+      socaIdx,
+      firstCol: e.firstCol,
+      lastCol: e.lastCol,
+      circuits: [...e.circuits].sort((a, b) => a - b)
+    };
+  });
+}
+
 // Per-circuit contributions for one screen, used for cross-screen SOCA sharing. Returns
 // { wiringType, perCircuit: [{ customSoca, pair, amps }] } where customSoca is the explicit
 // per-panel SOCA number (1-based) shared by the circuit's panels — or null when the circuit

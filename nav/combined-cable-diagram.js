@@ -465,13 +465,33 @@ function calculateCombinedCabling(selectedScreenIds, config) {
       }
     }
 
-    // Power circuits for this screen
-    const perPanelW = config.powerType === 'avg' ? (p.power_avg_w || p.power_max_w * 0.5) : p.power_max_w;
+    // Power circuits for this screen. Voltage/breaker stay the combined view's own (one
+    // distro feeds every wall), but Max/Avg and the Max Panels Per Circuit override are
+    // per-screen — the override is the user's quick way to re-circuit a wall without
+    // assigning every panel by hand, so it has to apply here too. Mirrors the combined
+    // canvas (nav/combined.js) so the cable runs match the circuits it draws.
+    const powerType = data.powerType || 'max';
+    const perPanelW = powerType === 'avg' ? (p.power_avg_w || p.power_max_w * 0.5) : p.power_max_w;
     const circuitCapacityW = config.voltage * config.breaker;
-    const panelsPerCircuit = Math.max(1, Math.floor(circuitCapacityW / perPanelW));
+    const calculatedPanelsPerCircuit = Math.max(1, Math.floor(circuitCapacityW / perPanelW));
+    const userMaxPanelsPerCircuit = parseInt(data.maxPanelsPerCircuit);
+    const panelsPerCircuit = userMaxPanelsPerCircuit > 0 ? userMaxPanelsPerCircuit : calculatedPanelsPerCircuit;
     const columnsPerCircuit = Math.max(1, Math.floor(panelsPerCircuit / ph));
     const circuitsNeeded = Math.ceil(pw / columnsPerCircuit);
     const socaCount = Math.ceil(circuitsNeeded / 6);
+
+    // SOCA column spans from the screen's as-assigned per-panel grouping, so a manual
+    // Assign SOCA # routes here the same way it does on the power canvas. Circuiting still
+    // uses this view's own combined config (voltage/breaker/powerType), not per-screen power.
+    let socaSpans = null;
+    if (typeof assignCircuits === 'function' && typeof assignSocas === 'function' && typeof computeSocaSpans === 'function') {
+      const toMap = v => v instanceof Map ? v : new Map(Array.isArray(v) ? v : []);
+      const { panelToCircuit } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanelsSet, toMap(data.customCircuitAssignments));
+      const panelToSoca = assignSocas(panelToCircuit, toMap(data.customSocaAssignments));
+      socaSpans = computeSocaSpans(panelToCircuit, panelToSoca);
+      const labelMap = (typeof sharedDistroSocaLabelMap === 'function') ? sharedDistroSocaLabelMap(screenId) : null;
+      socaSpans.forEach(sp => { sp.labelIdx = (labelMap && labelMap.has(sp.socaIdx)) ? labelMap.get(sp.socaIdx) : sp.socaIdx; });
+    }
 
     screenResults.push({
       screenId,
@@ -483,7 +503,7 @@ function calculateCombinedCabling(selectedScreenIds, config) {
       wallHeightFt: Math.round(wallHeightFt * 10) / 10,
       activePanelCount, screenPixels,
       dataLines, entryPoints, exitPoints, panelsPerDataLine,
-      circuitsNeeded, socaCount, columnsPerCircuit,
+      circuitsNeeded, socaCount, columnsPerCircuit, socaSpans,
       deletedPanelsSet
     });
   }
@@ -892,11 +912,27 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     var screenBottom = toY(sp.y + sp.height);
     var pxW = panelSize * pxToCanvas;
 
-    for (var si = 0; si < calc.socaCount; si++) {
-      var firstCircuit = si * 6;
-      var lastCircuit = Math.min(firstCircuit + 5, calc.circuitsNeeded - 1);
-      var firstCol = firstCircuit * calc.columnsPerCircuit;
-      var lastCol = Math.min((lastCircuit + 1) * calc.columnsPerCircuit - 1, calc.pw - 1);
+    // One cable per SOCA. Spans come from the screen's as-assigned grouping when available
+    // (calc.socaSpans), falling back to the geometric soca s = circuits s*6..s*6+5.
+    var socaRuns = (Array.isArray(calc.socaSpans) && calc.socaSpans.length)
+      ? calc.socaSpans.map(function(span) {
+          return {
+            firstCol: Math.max(0, Math.min(span.firstCol, calc.pw - 1)),
+            lastCol: Math.max(0, Math.min(span.lastCol, calc.pw - 1))
+          };
+        })
+      : Array.from({ length: calc.socaCount }, function(_unused, si) {
+          var firstCircuit = si * 6;
+          var lastCircuit = Math.min(firstCircuit + 5, calc.circuitsNeeded - 1);
+          return {
+            firstCol: firstCircuit * calc.columnsPerCircuit,
+            lastCol: Math.min((lastCircuit + 1) * calc.columnsPerCircuit - 1, calc.pw - 1)
+          };
+        });
+
+    for (var si = 0; si < socaRuns.length; si++) {
+      var firstCol = socaRuns[si].firstCol;
+      var lastCol = socaRuns[si].lastCol;
       var landingCenterX = screenLeft + ((firstCol + lastCol + 1) / 2) * pxW;
 
       // Snap the feed point off any deleted panel it lands on, staying within

@@ -45,6 +45,59 @@ function getPanelsInRect(x1, y1, x2, y2) {
   return panels;
 }
 
+// Draw the drag-selection box on top of the freshly rendered layout.
+function drawMarqueeRect() {
+  if(!marqueeActive || !marqueeMoved || !currentCanvas) return;
+
+  const ctx = currentCanvas.getContext('2d');
+  const rect = currentCanvas.getBoundingClientRect();
+  const scaleX = currentCanvas.width / rect.width;
+  const scaleY = currentCanvas.height / rect.height;
+
+  const x = (Math.min(marqueeX1, marqueeX2) - rect.left) * scaleX;
+  const y = (Math.min(marqueeY1, marqueeY2) - rect.top) * scaleY;
+  const w = Math.abs(marqueeX2 - marqueeX1) * scaleX;
+  const h = Math.abs(marqueeY2 - marqueeY1) * scaleY;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 255, 0, 0.12)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = '#00FF00';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.strokeRect(x, y, w, h);
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// Replace (or extend, when a modifier is held) the selection with everything
+// the drag box covers, then redraw the layout with the box on top.
+function applyMarqueeSelection(isAdditive) {
+  const next = (isAdditive && marqueeBaseSelection) ? new Set(marqueeBaseSelection) : new Set();
+  getPanelsInRect(marqueeX1, marqueeY1, marqueeX2, marqueeY2).forEach(p => next.add(p.key));
+
+  selectedPanels.clear();
+  next.forEach(key => selectedPanels.add(key));
+
+  // Coalesce redraws — generateLayout() is a full recompute, too heavy per raw move event
+  if(marqueeRafId) return;
+  marqueeRafId = requestAnimationFrame(function() {
+    marqueeRafId = 0;
+    generateLayout('standard');
+    drawMarqueeRect();
+  });
+}
+
+function endMarquee() {
+  marqueeActive = false;
+  marqueeMoved = false;
+  marqueeBaseSelection = null;
+  if(marqueeRafId) {
+    cancelAnimationFrame(marqueeRafId);
+    marqueeRafId = 0;
+  }
+}
+
 function deleteSelectedPanels() {
   if(selectedPanels.size === 0) return;
   
@@ -146,8 +199,8 @@ function toggleSelectMode() {
   }
   if(hint) {
     hint.textContent = selectMode
-      ? 'Drag to select • Tap to add • Tap selected for options'
-      : 'Tap to select • Tap again for options • Drag to multi-select';
+      ? 'Drag a box to select • Tap to add • Tap selected for options'
+      : 'Tap to select • Tap again for options • Turn on Select Mode to drag a box';
   }
 
   // Leaving Select Mode clears the working selection
@@ -160,6 +213,15 @@ function toggleSelectMode() {
 }
 
 let canvasListenersSetup = false;
+
+// Drag-select (marquee) state — client coords, live only while a drag is in progress
+let marqueeActive = false;
+let marqueeMoved = false;
+let marqueeX1 = 0, marqueeY1 = 0, marqueeX2 = 0, marqueeY2 = 0;
+let marqueeBaseSelection = null;
+let marqueeRafId = 0;
+let suppressNextDocumentClick = false;
+let lastTouchInteraction = 0; // touch devices fire compatibility mouse events after a tap
 
 function setupStandardCanvasInteractivity() {
   const canvas = document.getElementById('standardCanvas');
@@ -182,68 +244,83 @@ function setupStandardCanvasInteractivity() {
     if(selectModeRow) selectModeRow.style.display = 'flex';
   }
 
-  // Mouse down - start selection
+  // Mouse down - start the drag box (selection is not touched until move or release)
   canvas.addEventListener('mousedown', function(e) {
     if(e.button !== 0) return; // Only left click
-    
-    const panel = getPanelAtPosition(canvas, e.clientX, e.clientY);
-    if(!panel) return;
-    
-    // Check for modifier keys (Ctrl on Windows/Linux, Cmd on Mac)
-    const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
-    
-    if(!isMultiSelect) {
-      selectedPanels.clear();
-    }
-    
-    // Toggle selection of clicked panel
-    if(selectedPanels.has(panel.key)) {
-      selectedPanels.delete(panel.key);
-    } else {
-      selectedPanels.add(panel.key);
-    }
-    
+    // Ignore the mousedown a touch device synthesizes after a tap — the touch
+    // handlers below already dealt with it
+    if(Date.now() - lastTouchInteraction < 700) return;
+
+    e.preventDefault(); // suppress native drag/text selection while dragging the box
+
     isDragging = true;
     dragStartX = e.clientX;
     dragStartY = e.clientY;
-    
-    generateLayout('standard');
+
+    marqueeActive = true;
+    marqueeMoved = false;
+    marqueeX1 = marqueeX2 = e.clientX;
+    marqueeY1 = marqueeY2 = e.clientY;
+    marqueeBaseSelection = new Set(selectedPanels);
   });
-  
-  // Mouse move - drag selection
-  canvas.addEventListener('mousemove', function(e) {
+
+  // Mouse move - grow the drag box. On document so dragging past the canvas edge keeps working.
+  document.addEventListener('mousemove', function(e) {
     if(!isDragging) return;
-    
+
+    marqueeX2 = e.clientX;
+    marqueeY2 = e.clientY;
+
     const dx = Math.abs(e.clientX - dragStartX);
     const dy = Math.abs(e.clientY - dragStartY);
-    
-    // Only do rect selection if dragged more than 5 pixels
-    if(dx > 5 || dy > 5) {
-      const panels = getPanelsInRect(dragStartX, dragStartY, e.clientX, e.clientY);
-      
-      const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
-      if(!isMultiSelect) {
-        selectedPanels.clear();
+
+    // Only start the box once dragged past the click threshold
+    if(!marqueeMoved && dx <= 4 && dy <= 4) return;
+
+    marqueeMoved = true;
+    applyMarqueeSelection(e.ctrlKey || e.metaKey || e.shiftKey);
+  });
+
+  // Mouse up - finish the box, or treat a no-drag press as a plain click
+  document.addEventListener('mouseup', function(e) {
+    if(!isDragging) return;
+    isDragging = false;
+
+    if(marqueeMoved) {
+      // A drag that ends off-canvas still fires a click on document, which the
+      // "clear selection when clicking outside" handler would act on. Swallow it.
+      suppressNextDocumentClick = true;
+    } else {
+      const panel = getPanelAtPosition(canvas, e.clientX, e.clientY);
+      if(panel) {
+        // Check for modifier keys (Ctrl on Windows/Linux, Cmd on Mac)
+        const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
+        const wasSelected = selectedPanels.has(panel.key);
+
+        if(!isMultiSelect) {
+          selectedPanels.clear();
+        }
+
+        // Toggle selection of clicked panel
+        if(wasSelected) {
+          selectedPanels.delete(panel.key);
+        } else {
+          selectedPanels.add(panel.key);
+        }
       }
-      
-      panels.forEach(p => {
-        selectedPanels.add(p.key);
-      });
-      
-      generateLayout('standard');
     }
+
+    endMarquee();
+    generateLayout('standard'); // final render without the box
   });
-  
-  // Mouse up - end selection
-  canvas.addEventListener('mouseup', function(e) {
-    isDragging = false;
-  });
-  
-  // Mouse leave - end drag
-  canvas.addEventListener('mouseleave', function(e) {
-    isDragging = false;
-  });
-  
+
+  // Capture phase runs before the document-level clear-selection listener in core/init.js
+  document.addEventListener('click', function(e) {
+    if(!suppressNextDocumentClick) return;
+    suppressNextDocumentClick = false;
+    e.stopPropagation();
+  }, true);
+
   // Right click - context menu
   canvas.addEventListener('contextmenu', function(e) {
     e.preventDefault();
@@ -271,6 +348,7 @@ function setupStandardCanvasInteractivity() {
   let touchEndY = 0;
 
   canvas.addEventListener('touchstart', function(e) {
+    lastTouchInteraction = Date.now();
     if(e.touches.length !== 1) return;
 
     const touch = e.touches[0];
@@ -293,37 +371,39 @@ function setupStandardCanvasInteractivity() {
     const dx = Math.abs(touch.clientX - touchSelectStart.x);
     const dy = Math.abs(touch.clientY - touchSelectStart.y);
 
-    // Start drag selection after moving enough. Only paint-select in Select Mode —
+    // Start the drag box after moving enough. Only drag-select in Select Mode —
     // otherwise let the move fall through so the page scrolls normally.
     if(selectMode && (dx > 10 || dy > 10)) {
       if(!isTouchSelecting) {
-        // First move - clear selection and start fresh
+        // First move - start a fresh box from where the finger went down
         isTouchSelecting = true;
-        selectedPanels.clear();
-        if(touchStartPanel) {
-          selectedPanels.add(touchStartPanel.key);
-        }
+        marqueeActive = true;
+        marqueeMoved = true;
+        marqueeX1 = touchSelectStart.x;
+        marqueeY1 = touchSelectStart.y;
+        marqueeBaseSelection = new Set(selectedPanels);
+        vibrate(10); // Light haptic feedback
       }
 
       e.preventDefault();
 
-      // Get panel at current touch position
-      const panel = getPanelAtPosition(canvas, touch.clientX, touch.clientY);
-      if(panel && !selectedPanels.has(panel.key)) {
-        selectedPanels.add(panel.key);
-        vibrate(10); // Light haptic feedback
-        generateLayout('standard');
-      }
+      marqueeX2 = touch.clientX;
+      marqueeY2 = touch.clientY;
+      applyMarqueeSelection(false); // no modifier keys on touch — a drag always replaces
     }
   }, {passive: false});
 
   canvas.addEventListener('touchend', function(e) {
+    lastTouchInteraction = Date.now();
+
     // If dragging across panels, tapping on selected panel shows menu
     if(isTouchSelecting) {
       // Multi-select drag ended - don't show menu automatically
       touchSelectStart = null;
       isTouchSelecting = false;
       touchStartPanel = null;
+      endMarquee();
+      generateLayout('standard'); // final render without the box
       return;
     }
 
@@ -369,9 +449,12 @@ function setupStandardCanvasInteractivity() {
   });
 
   canvas.addEventListener('touchcancel', function(e) {
+    const wasSelecting = isTouchSelecting;
     touchSelectStart = null;
     isTouchSelecting = false;
     touchStartPanel = null;
+    endMarquee();
+    if(wasSelecting) generateLayout('standard'); // final render without the box
   });
 }
 

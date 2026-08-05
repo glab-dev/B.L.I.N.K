@@ -408,43 +408,79 @@ function recalculateScreenData(screenId) {
 
 
 // ---- Share Distro helpers (cross-screen SOCA grouping + continuous numbering) ----
-// Screen IDs (in Object.keys order) whose data.sharedDistro is on.
+// Screen IDs whose data.sharedDistro is on, in tab order (numeric screen_N suffix, as
+// renderScreenTabs sorts them) so the auto-numbering below runs in the order shown.
 function sharedDistroGroupIds() {
   if (typeof screens === 'undefined') return [];
-  return Object.keys(screens).filter(id => screens[id] && screens[id].data && screens[id].data.sharedDistro);
+  return Object.keys(screens)
+    .filter(id => screens[id] && screens[id].data && screens[id].data.sharedDistro)
+    .sort((a, b) => (parseInt(a.split('_')[1]) || 0) - (parseInt(b.split('_')[1]) || 0));
 }
 
-// Sorted distinct SOCA indices for a screen's data (from its as-wired grouping).
-function sharedDistroDistinctSocas(data) {
-  if (typeof resolveScreenPowerInputs !== 'function' || typeof assignCircuits !== 'function' || typeof assignSocas !== 'function') return [];
+// A screen's SOCAs from its saved data: { distinct: sorted indices, explicit: Set of the
+// indices that came from a manual Assign SOCA # rather than the circuit's natural group }.
+function sharedDistroScreenSocas(data) {
+  const empty = { distinct: [], explicit: new Set() };
+  if (typeof resolveScreenPowerInputs !== 'function' || typeof assignCircuits !== 'function' || typeof assignSocas !== 'function') return empty;
   const inp = resolveScreenPowerInputs(data);
-  if (!inp) return [];
+  if (!inp) return empty;
   const { panelToCircuit } = assignCircuits(inp.pw, inp.ph, inp.panelsPerCircuit, inp.deletedPanels, inp.customCircuit);
   const panelToSoca = assignSocas(panelToCircuit, inp.customSoca);
   const set = new Set();
   panelToSoca.forEach(idx => set.add(idx));
-  return [...set].sort((a, b) => a - b);
+  return {
+    distinct: [...set].sort((a, b) => a - b),
+    explicit: (typeof explicitSocaIndices === 'function') ? explicitSocaIndices(panelToCircuit, inp.customSoca) : new Set()
+  };
 }
 
-// Continuous SOCA label map for a screen in the shared-distro group: Map<localSocaIdx,
-// globalLabelIdx>, numbering each group screen's SOCAs after the prior screens' (screen
-// order). Returns null when the screen is not in the group. Computed from saved data —
-// the per-screen power view uses calculatedData.socaLabelMap (live) instead; this is for
-// the combined view, where every screen's saved data is already fresh.
-function sharedDistroSocaLabelMap(screenId) {
+// SOCA labelling for the whole shared-distro group: Map<screenId, Map<localSocaIdx,
+// labelIdx>>. A manually assigned SOCA keeps the number the user typed (label = its own
+// index) — it never moves with tab order or with what other screens do. Only auto-numbered
+// SOCAs are handed out sequentially, skipping every number claimed by an explicit
+// assignment anywhere in the group, walking group screens in tab order.
+// liveOverride = { screenId, distinct, explicit } lets the current screen supply its live
+// grouping, since its saved data can lag the DOM.
+function sharedDistroLabelPlan(liveOverride) {
   const groupIds = sharedDistroGroupIds();
-  if (!groupIds.includes(screenId)) return null;
-  let running = 0;
-  for (const id of groupIds) {
-    const socas = sharedDistroDistinctSocas(screens[id].data);
-    if (id === screenId) {
-      const m = new Map();
-      socas.forEach((idx, i) => m.set(idx, running + i));
-      return m;
-    }
-    running += socas.length;
+  const perScreen = new Map();
+  const claimed = new Set();
+
+  groupIds.forEach(id => {
+    const socas = (liveOverride && liveOverride.screenId === id)
+      ? { distinct: liveOverride.distinct || [], explicit: liveOverride.explicit || new Set() }
+      : sharedDistroScreenSocas(screens[id].data);
+    perScreen.set(id, socas);
+    socas.explicit.forEach(idx => claimed.add(idx));
+  });
+
+  const plan = new Map();
+  const handedOut = new Set();
+  let next = 0;
+  groupIds.forEach(id => {
+    const { distinct, explicit } = perScreen.get(id);
+    const m = new Map();
+    distinct.forEach(idx => {
+      if (explicit.has(idx)) { m.set(idx, idx); return; }
+      while (claimed.has(next) || handedOut.has(next)) next++;
+      handedOut.add(next);
+      m.set(idx, next);
+    });
+    plan.set(id, m);
+  });
+  return plan;
+}
+
+// Label map for one screen in the shared-distro group, or null when it isn't in the group.
+// The current screen's live map (calculatedData.socaLabelMap, built in calculate()) wins —
+// renderCombinedView can run from calculate() before saveCurrentScreenData().
+function sharedDistroSocaLabelMap(screenId) {
+  if (typeof currentScreenId !== 'undefined' && screenId === currentScreenId) {
+    const cd = screens[screenId] && screens[screenId].calculatedData;
+    if (cd && Array.isArray(cd.socaLabelMap)) return new Map(cd.socaLabelMap);
   }
-  return null;
+  const plan = sharedDistroLabelPlan();
+  return plan.has(screenId) ? plan.get(screenId) : null;
 }
 
 function resetCalculator() {
@@ -952,12 +988,16 @@ function calculate(){
   let phaseBalance = null;
   let socaBreakdown = null;
   let socaLabelMap = null; // [localSocaIdx, globalLabelIdx] entries when Share Distro renumbers this screen
+  let socaSpans = null; // per-SOCA column span + circuits — the cable/gear paths' source of truth
   let sharedDistroTotal = null; // combined load of the whole shared-distro group (own phaseBalance stays intact)
   if(typeof assignCircuits === 'function') {
     const { panelToCircuit, circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments);
     const panelToSoca = (typeof assignSocas === 'function') ? assignSocas(panelToCircuit, customSocaAssignments) : null;
     if(panelToSoca && typeof computeSocaBreakdown === 'function') {
       socaBreakdown = computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, perPanelW, voltage);
+    }
+    if(panelToSoca && typeof computeSocaSpans === 'function') {
+      socaSpans = computeSocaSpans(panelToCircuit, panelToSoca);
     }
     if(phase === 3 && typeof computePhaseBalance === 'function') {
       const pbMode = (typeof phaseBalanceMode !== 'undefined') ? phaseBalanceMode : 'aswired';
@@ -1015,19 +1055,26 @@ function calculate(){
           sharedDistro: true
         };
 
-        // Continuous SOCA numbering: this screen's SOCAs labelled after the prior group
-        // screens' SOCAs (display-only). Built from the current screen's LIVE grouping.
-        if(panelToSoca && typeof sharedDistroDistinctSocas === 'function' && typeof sharedDistroGroupIds === 'function') {
-          let offset = 0;
-          for(const id of sharedDistroGroupIds()) {
-            if(id === currentScreenId) break;
-            offset += sharedDistroDistinctSocas(screens[id].data).length;
-          }
+        // Group SOCA numbering (display-only): manually assigned SOCAs keep the number the
+        // user typed, auto ones fill the numbers no explicit assignment in the group claimed.
+        // This screen's grouping is passed in LIVE — its saved data can lag the DOM.
+        if(panelToSoca && typeof sharedDistroLabelPlan === 'function') {
           const liveDistinct = [...new Set([...panelToSoca.values()])].sort((a, b) => a - b);
-          socaLabelMap = liveDistinct.map((idx, i) => [idx, offset + i]);
+          const liveExplicit = (typeof explicitSocaIndices === 'function')
+            ? explicitSocaIndices(panelToCircuit, customSocaAssignments) : new Set();
+          const plan = sharedDistroLabelPlan({ screenId: currentScreenId, distinct: liveDistinct, explicit: liveExplicit });
+          const m = plan.get(currentScreenId);
+          if(m) socaLabelMap = [...m.entries()];
         }
       }
     }
+  }
+
+  // Resolve each SOCA's display label once, so every downstream consumer (cable diagram,
+  // gear list, PDF) labels it the same way the power canvas does.
+  if(socaSpans) {
+    const _lm = socaLabelMap ? new Map(socaLabelMap) : null;
+    socaSpans.forEach(s => { s.labelIdx = (_lm && _lm.has(s.socaIdx)) ? _lm.get(s.socaIdx) : s.socaIdx; });
   }
 
   const pixelsPerPanel = p.res_x*p.res_y;
@@ -1401,12 +1448,13 @@ function calculate(){
 
       // Power
       circuitsNeeded: circuitsByColumns,
-      socaCount: Math.ceil(circuitsByColumns / 6),
+      socaCount: (socaSpans && socaSpans.length) ? socaSpans.length : Math.ceil(circuitsByColumns / 6),
       columnsPerCircuit: columnsPerCircuit,
       phaseBalance: phaseBalance,
       sharedDistroTotal: sharedDistroTotal,
       socaBreakdown: socaBreakdown,
-      socaLabelMap: socaLabelMap
+      socaLabelMap: socaLabelMap,
+      socaSpans: socaSpans
     };
   }
   

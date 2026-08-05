@@ -286,14 +286,30 @@ function calculateCabling(screenId) {
   const socaCount = calc.socaCount || 0;
   const columnsPerCircuit = calc.columnsPerCircuit || 1;
 
-  for(let s = 0; s < socaCount; s++) {
-    // Each SOCA covers up to 6 circuits
-    const firstCircuit = s * 6;
-    const lastCircuit = Math.min(firstCircuit + 5, circuitsNeeded - 1);
+  // Column spans and labels come from the as-assigned per-panel grouping
+  // (calculatedData.socaSpans), so a manual Assign SOCA # gives the right cable length and
+  // the right SOCA number here. The geometric fallback (soca s covers circuits s*6..s*6+5)
+  // covers calculatedData saved before socaSpans existed.
+  const socaRuns = (Array.isArray(calc.socaSpans) && calc.socaSpans.length)
+    ? calc.socaSpans.map(sp => ({
+        firstCol: Math.max(0, Math.min(sp.firstCol, pw - 1)),
+        lastCol: Math.max(0, Math.min(sp.lastCol, pw - 1)),
+        labelIdx: (typeof sp.labelIdx === 'number') ? sp.labelIdx : sp.socaIdx
+      }))
+    : Array.from({ length: socaCount }, (_unused, s) => {
+        // Each SOCA covers up to 6 circuits
+        const firstCircuit = s * 6;
+        const lastCircuit = Math.min(firstCircuit + 5, circuitsNeeded - 1);
+        return {
+          firstCol: firstCircuit * columnsPerCircuit,
+          lastCol: Math.min((lastCircuit + 1) * columnsPerCircuit - 1, pw - 1),
+          labelIdx: s
+        };
+      });
 
-    // First and last columns this SOCA covers
-    const firstCol = firstCircuit * columnsPerCircuit;
-    const lastCol = Math.min((lastCircuit + 1) * columnsPerCircuit - 1, pw - 1);
+  for(const socaRun of socaRuns) {
+    const firstCol = socaRun.firstCol;
+    const lastCol = socaRun.lastCol;
 
     // Landing = center of covered columns (feet from wall left edge)
     const landingCenterFt = ((firstCol + lastCol + 1) / 2) * panelWidthFt;
@@ -307,7 +323,7 @@ function calculateCabling(screenId) {
       ? wallHeightFt + wallHorizFt + wallToFloor + distroToWall
       : wallHorizFt + dropToFloorFt + distroToWall;
     socaCables.push({
-      index: s + 1,
+      index: socaRun.labelIdx + 1,
       lengthFt: Math.round(totalFt * 10) / 10,
       roundedFt: roundUpToStandard(totalFt)
     });

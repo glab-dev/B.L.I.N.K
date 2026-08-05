@@ -53,6 +53,100 @@ let combinedZoomLevel = 100; // Zoom percentage (100 = 100%)
 let combinedSelectedPanel = null; // { screenId, col, row, key } - for single selection (mobile)
 let combinedSelectedPanels = new Set(); // Set of "screenId:col,row" strings for multi-selection (desktop)
 
+// Drag-select (marquee) state — client coords, live only while a drag is in progress
+let combinedSelectMode = false; // mobile: drag-select panels without scrolling the canvas
+let combinedMarqueeActive = false;
+let combinedMarqueeMoved = false;
+let combinedMarqueeX1 = 0, combinedMarqueeY1 = 0, combinedMarqueeX2 = 0, combinedMarqueeY2 = 0;
+let combinedMarqueeBase = null;
+let combinedMarqueeRafId = 0;
+let combinedLastTouch = 0; // touch devices fire compatibility mouse events after a tap
+
+// Draw the drag-selection box on top of the freshly rendered combined layout.
+function drawCombinedMarqueeRect() {
+  if(!combinedMarqueeActive || !combinedMarqueeMoved) return;
+
+  const canvas = document.getElementById('combinedStandardCanvas');
+  if(!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+
+  const x = (Math.min(combinedMarqueeX1, combinedMarqueeX2) - rect.left) * scaleX;
+  const y = (Math.min(combinedMarqueeY1, combinedMarqueeY2) - rect.top) * scaleY;
+  const w = Math.abs(combinedMarqueeX2 - combinedMarqueeX1) * scaleX;
+  const h = Math.abs(combinedMarqueeY2 - combinedMarqueeY1) * scaleY;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 255, 0, 0.12)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = '#00FF00';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.strokeRect(x, y, w, h);
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// Replace (or extend, when a modifier is held) the selection with everything
+// the drag box covers, then redraw the combined view with the box on top.
+function applyCombinedMarqueeSelection(isAdditive) {
+  const canvas = document.getElementById('combinedStandardCanvas');
+  if(!canvas) return;
+
+  const next = (isAdditive && combinedMarqueeBase) ? new Set(combinedMarqueeBase) : new Set();
+  getCombinedPanelsInRect(canvas, combinedMarqueeX1, combinedMarqueeY1, combinedMarqueeX2, combinedMarqueeY2)
+    .forEach(p => next.add(`${p.screenId}:${p.key}`));
+
+  combinedSelectedPanels.clear();
+  next.forEach(key => combinedSelectedPanels.add(key));
+  combinedSelectedPanel = null;
+
+  // Coalesce redraws — renderCombinedView() is a full re-render, too heavy per raw move event
+  if(combinedMarqueeRafId) return;
+  combinedMarqueeRafId = requestAnimationFrame(function() {
+    combinedMarqueeRafId = 0;
+    renderCombinedView();
+    drawCombinedMarqueeRect();
+  });
+}
+
+function endCombinedMarquee() {
+  combinedMarqueeActive = false;
+  combinedMarqueeMoved = false;
+  combinedMarqueeBase = null;
+  if(combinedMarqueeRafId) {
+    cancelAnimationFrame(combinedMarqueeRafId);
+    combinedMarqueeRafId = 0;
+  }
+}
+
+// Toggle mobile Select Mode for the Combined view: blocks native scroll on the
+// canvas so dragging paints a selection box instead of scrolling.
+function toggleCombinedSelectMode() {
+  combinedSelectMode = !combinedSelectMode;
+
+  const canvas = document.getElementById('combinedStandardCanvas');
+  const btn = document.getElementById('combinedSelectModeBtn');
+
+  if(canvas) canvas.classList.toggle('select-mode-active', combinedSelectMode);
+  if(btn) {
+    btn.classList.toggle('active', combinedSelectMode);
+    btn.setAttribute('aria-pressed', combinedSelectMode ? 'true' : 'false');
+  }
+
+  // Leaving Select Mode clears the working selection
+  if(!combinedSelectMode) {
+    combinedSelectedPanels.clear();
+    combinedSelectedPanel = null;
+    renderCombinedView();
+  }
+
+  vibrate(10);
+}
+
 // Screen positions for Combined view (custom offsets)
 // Format: { screenId: { x: offsetX, y: offsetY } }
 let combinedScreenPositions = {};
@@ -873,30 +967,23 @@ function setupCombinedCanvasHandlers() {
         e.preventDefault();
       }
     } else {
-      // Panel selection mode: start selection
+      // Panel selection mode: anchor the drag box. The selection is not touched
+      // until the mouse moves (marquee) or is released without moving (click).
+      // Ignore the mousedown a touch device synthesizes after a tap
+      if(Date.now() - combinedLastTouch < 700) return;
+
+      e.preventDefault(); // suppress native drag/text selection while dragging the box
+
       mouseSelectStart.x = e.clientX;
       mouseSelectStart.y = e.clientY;
       isMouseSelecting = true;
       mouseStartPanel = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
 
-      // Check for modifier keys (Ctrl/Cmd/Shift for multi-select)
-      const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
-      if(!isMultiSelect) {
-        combinedSelectedPanels.clear();
-      }
-
-      // Select clicked panel immediately, or deselect all if clicking empty area
-      if(mouseStartPanel) {
-        const panelKey = `${mouseStartPanel.screenId}:${mouseStartPanel.key}`;
-        if(combinedSelectedPanels.has(panelKey)) {
-          combinedSelectedPanels.delete(panelKey);
-        } else {
-          combinedSelectedPanels.add(panelKey);
-        }
-      }
-      // Always re-render to show selection changes (including deselection)
-      combinedSelectedPanel = null; // Clear single selection too
-      renderCombinedView();
+      combinedMarqueeActive = true;
+      combinedMarqueeMoved = false;
+      combinedMarqueeX1 = combinedMarqueeX2 = e.clientX;
+      combinedMarqueeY1 = combinedMarqueeY2 = e.clientY;
+      combinedMarqueeBase = new Set(combinedSelectedPanels);
     }
   });
 
@@ -922,27 +1009,24 @@ function setupCombinedCanvasHandlers() {
       combinedScreenPositions[screenId].y = combinedDragState.startPosY + (dy * scaleY) / zoomFactor;
 
       renderCombinedView();
-    } else if(isMouseSelecting) {
-      // Panel drag selection
-      const dx = Math.abs(e.clientX - mouseSelectStart.x);
-      const dy = Math.abs(e.clientY - mouseSelectStart.y);
-
-      // Only do rect selection if dragged more than 5 pixels
-      if(dx > 5 || dy > 5) {
-        const panels = getCombinedPanelsInRect(canvas, mouseSelectStart.x, mouseSelectStart.y, e.clientX, e.clientY);
-
-        const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
-        if(!isMultiSelect) {
-          combinedSelectedPanels.clear();
-        }
-
-        panels.forEach(p => {
-          combinedSelectedPanels.add(`${p.screenId}:${p.key}`);
-        });
-
-        renderCombinedView();
-      }
     }
+  });
+
+  // Panel drag box - on document so dragging past the canvas edge keeps working
+  document.addEventListener('mousemove', function(e) {
+    if(!isMouseSelecting) return;
+
+    combinedMarqueeX2 = e.clientX;
+    combinedMarqueeY2 = e.clientY;
+
+    const dx = Math.abs(e.clientX - mouseSelectStart.x);
+    const dy = Math.abs(e.clientY - mouseSelectStart.y);
+
+    // Only start the box once dragged past the click threshold
+    if(!combinedMarqueeMoved && dx <= 4 && dy <= 4) return;
+
+    combinedMarqueeMoved = true;
+    applyCombinedMarqueeSelection(e.ctrlKey || e.metaKey || e.shiftKey);
   });
 
   // Mouse up - end drag or selection
@@ -953,14 +1037,35 @@ function setupCombinedCanvasHandlers() {
       canvas.style.cursor = '';
       saveCombinedPositions();
     }
-    isMouseSelecting = false;
-    mouseStartPanel = null;
-  });
 
-  // Mouse leave - end selection (but not screen drag which uses document)
-  canvas.addEventListener('mouseleave', function(e) {
+    if(isMouseSelecting && !combinedMarqueeMoved) {
+      // No drag - treat as a plain click on the panel under the cursor
+      const panel = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
+      if(panel) {
+        const panelKey = `${panel.screenId}:${panel.key}`;
+        const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
+        const wasSelected = combinedSelectedPanels.has(panelKey);
+
+        if(!isMultiSelect) {
+          combinedSelectedPanels.clear();
+        }
+        if(wasSelected) {
+          combinedSelectedPanels.delete(panelKey);
+        } else {
+          combinedSelectedPanels.add(panelKey);
+        }
+      } else if(!(e.ctrlKey || e.metaKey || e.shiftKey)) {
+        // Clicking empty canvas space clears the selection
+        combinedSelectedPanels.clear();
+      }
+      combinedSelectedPanel = null;
+    }
+
+    const wasSelecting = isMouseSelecting;
     isMouseSelecting = false;
     mouseStartPanel = null;
+    endCombinedMarquee();
+    if(wasSelecting) renderCombinedView(); // final render without the box
   });
 
   // Right-click - context menu for panel (desktop)
@@ -1004,6 +1109,7 @@ function setupCombinedCanvasHandlers() {
   // ===== TOUCH HANDLERS (Mobile) =====
 
   canvas.addEventListener('touchstart', function(e) {
+    combinedLastTouch = Date.now();
     if(e.touches.length !== 1) return;
 
     const touch = e.touches[0];
@@ -1063,10 +1169,41 @@ function setupCombinedCanvasHandlers() {
         });
       }
       e.preventDefault();
+    } else if(combinedSelectMode) {
+      // Select Mode: drag a box to select panels instead of scrolling the canvas
+      const dx = Math.abs(touch.clientX - touchStartPos.x);
+      const dy = Math.abs(touch.clientY - touchStartPos.y);
+
+      if(dx > 10 || dy > 10) {
+        if(!combinedMarqueeActive) {
+          combinedMarqueeActive = true;
+          combinedMarqueeMoved = true;
+          combinedMarqueeX1 = touchStartPos.x;
+          combinedMarqueeY1 = touchStartPos.y;
+          combinedMarqueeBase = new Set(combinedSelectedPanels);
+          vibrate(10); // Light haptic feedback
+        }
+
+        e.preventDefault();
+
+        combinedMarqueeX2 = touch.clientX;
+        combinedMarqueeY2 = touch.clientY;
+        applyCombinedMarqueeSelection(false); // no modifier keys on touch — a drag always replaces
+      }
     }
   }, { passive: false });
 
   canvas.addEventListener('touchend', function(e) {
+    combinedLastTouch = Date.now();
+
+    // A drag box just finished - keep the selection, don't treat it as a tap
+    if(combinedMarqueeActive) {
+      endCombinedMarquee();
+      touchStartPanel = null;
+      renderCombinedView(); // final render without the box
+      return;
+    }
+
     if(combinedManualAdjust) {
       // End screen drag
       if(combinedDragState.isDragging) {
@@ -1101,9 +1238,12 @@ function setupCombinedCanvasHandlers() {
   });
 
   canvas.addEventListener('touchcancel', function(e) {
+    const wasMarquee = combinedMarqueeActive;
     combinedDragState.isDragging = false;
     combinedDragState.screenDim = null;
     touchStartPanel = null;
+    endCombinedMarquee();
+    if(wasMarquee) renderCombinedView(); // final render without the box
   });
 }
 
@@ -1118,6 +1258,10 @@ function initCombinedView() {
   const mobileHints = document.getElementById('combinedHintsMobile');
   if(desktopHints) desktopHints.style.display = isMobile ? 'none' : 'inline';
   if(mobileHints) mobileHints.style.display = isMobile ? 'inline' : 'none';
+
+  // Select Mode toggle is touch-only — desktop drag-select already works with the mouse
+  const selectModeRow = document.getElementById('combinedSelectModeRow');
+  if(selectModeRow) selectModeRow.style.display = isMobile ? 'inline-flex' : 'none';
 
   // Clear existing toggles
   togglesContainer.innerHTML = '';
@@ -1593,7 +1737,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
 
   // First, highlight all multi-selected panels (desktop)
   if(combinedSelectedPanels.size > 0) {
-    ctx.strokeStyle = '#FFFF00';
+    ctx.strokeStyle = '#00FF00';
     ctx.lineWidth = scaledLineWidth;
     combinedSelectedPanels.forEach(key => {
       const [screenId, panelKey] = key.split(':');
@@ -1679,7 +1823,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       const px = screenX + col * drawPanelSize;
       const py = screenY + row * drawPanelSize;
 
-      ctx.strokeStyle = '#FFFF00';
+      ctx.strokeStyle = '#00FF00';
       ctx.lineWidth = scaledLineWidth;
       ctx.strokeRect(px + scaledOffset, py + scaledOffset, drawPanelSize - scaledInset, drawPanelSize - scaledInset);
     }

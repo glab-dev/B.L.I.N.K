@@ -1929,7 +1929,9 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     const breaker = parseInt(data.breaker) || 20;
     const powerType = data.powerType || 'max';
     const perPanelW = powerType === 'max' ? (panelInfo?.power_max_w || 500) : (panelInfo?.power_avg_w || 250);
-    const circuitCapacityW = voltage * breaker;
+    // NEC 80% continuous-load derate (per-screen, mirrors generateLayout() in core/calculate.js).
+    const derate = data.derate ? 0.8 : 1.0;
+    const circuitCapacityW = voltage * breaker * derate;
     const calculatedPanelsPerCircuit = Math.max(1, Math.floor(circuitCapacityW / perPanelW));
     const userMaxPanelsPerCircuit = parseInt(data.maxPanelsPerCircuit);
     const panelsPerCircuit = userMaxPanelsPerCircuit > 0 ? userMaxPanelsPerCircuit : calculatedPanelsPerCircuit;

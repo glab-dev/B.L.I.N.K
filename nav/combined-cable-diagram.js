@@ -472,7 +472,8 @@ function calculateCombinedCabling(selectedScreenIds, config) {
     // canvas (nav/combined.js) so the cable runs match the circuits it draws.
     const powerType = data.powerType || 'max';
     const perPanelW = powerType === 'avg' ? (p.power_avg_w || p.power_max_w * 0.5) : p.power_max_w;
-    const circuitCapacityW = config.voltage * config.breaker;
+    const derate = data.derate ? 0.8 : 1.0;
+    const circuitCapacityW = config.voltage * config.breaker * derate;
     const calculatedPanelsPerCircuit = Math.max(1, Math.floor(circuitCapacityW / perPanelW));
     const userMaxPanelsPerCircuit = parseInt(data.maxPanelsPerCircuit);
     const panelsPerCircuit = userMaxPanelsPerCircuit > 0 ? userMaxPanelsPerCircuit : calculatedPanelsPerCircuit;

@@ -808,8 +808,8 @@ function updateSuggestedCircuitLimit(){
   
   const voltage = parseFloat(document.getElementById('voltage').value) || 208;
   const breaker = parseFloat(document.getElementById('breaker').value) || 20;
-  // Derate removed - default to no derating
-  const derate = 1.0; // Derating disabled
+  // NEC 80% continuous-load derate (toggle in power options); off = full rating.
+  const derate = (document.getElementById('derate') && document.getElementById('derate').value === 'on') ? 0.8 : 1.0;
   const powerType = document.getElementById('powerType').value;
   
   const circuitCapacityW = voltage * breaker * derate;

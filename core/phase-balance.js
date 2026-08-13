@@ -205,7 +205,8 @@ function resolveScreenPowerInputs(data) {
   const voltage = parseInt(data.voltage) || 208;
   const breaker = parseInt(data.breaker) || 20;
   const userMax = parseInt(data.maxPanelsPerCircuit);
-  const panelsPerCircuit = userMax > 0 ? userMax : Math.max(1, Math.floor((voltage * breaker) / (perPanelW || 1)));
+  const derate = data.derate ? 0.8 : 1.0;
+  const panelsPerCircuit = userMax > 0 ? userMax : Math.max(1, Math.floor((voltage * breaker * derate) / (perPanelW || 1)));
   const toSet = v => v instanceof Set ? v : new Set(Array.isArray(v) ? v : (v && v[Symbol.iterator] ? [...v] : []));
   const toMap = v => v instanceof Map ? v : new Map(Array.isArray(v) ? v : (v && v.entries ? [...v.entries()] : []));
   return {

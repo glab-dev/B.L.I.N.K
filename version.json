@@ -1,5 +1,5 @@
 {
-  "version": "2.11.121",
+  "version": "2.11.122",
   "updated": "2026-08-13",
-  "changelog": "Stop deleted panels showing selection outlines in the combined view"
+  "changelog": "Apply NEC 80% derate to combined power layout, cable diagram and circuit limit"
 }

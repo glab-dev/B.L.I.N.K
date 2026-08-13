@@ -546,6 +546,21 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
   return null;
 }
 
+// Is a panel deleted on its screen? deletedPanels may be a Set, an array (from
+// loaded JSON), or another iterable, so handle all three the way the renderer does.
+function isCombinedPanelDeleted(data, panelKey) {
+  const deleted = data && data.deletedPanels;
+  if(!deleted) return false;
+  if(deleted instanceof Set) return deleted.has(panelKey);
+  if(Array.isArray(deleted)) return deleted.includes(panelKey);
+  if(typeof deleted[Symbol.iterator] === 'function') {
+    for(const key of deleted) {
+      if(key === panelKey) return true;
+    }
+  }
+  return false;
+}
+
 // Get all panels within a rectangle (for drag selection)
 function getCombinedPanelsInRect(canvas, x1, y1, x2, y2) {
   const rect = canvas.getBoundingClientRect();
@@ -1743,7 +1758,9 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       const [screenId, panelKey] = key.split(':');
       const [col, row] = panelKey.split(',').map(Number);
       const selectedDim = screenDimensions.find(d => d.screenId === screenId);
-      if(selectedDim) {
+      // Deleted panels aren't drawn at all, so an outline there would float on
+      // empty background. They stay selectable — that's how they get restored.
+      if(selectedDim && !isCombinedPanelDeleted(selectedDim.data, panelKey)) {
         let screenX, screenY, drawPanelSize;
         if(combinedMirrorCanvas) {
           const canvasX = selectedDim.data.canvasX || 0;
@@ -1801,7 +1818,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   // Also highlight single selected panel (mobile)
   if(combinedSelectedPanel && combinedSelectedPanels.size === 0) {
     const selectedDim = screenDimensions.find(d => d.screenId === combinedSelectedPanel.screenId);
-    if(selectedDim) {
+    if(selectedDim && !isCombinedPanelDeleted(selectedDim.data, combinedSelectedPanel.key)) {
       let screenX, screenY, drawPanelSize;
       if(combinedMirrorCanvas) {
         const canvasX = selectedDim.data.canvasX || 0;

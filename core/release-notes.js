@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.123', date: '2026-08-16', notes: 'Match combined power SOCA outlines and labels to complex, fix CB5 half row' },
   { version: '2.11.122', date: '2026-08-13', notes: 'Apply NEC 80% derate to combined power layout, cable diagram and circuit limit' },
   { version: '2.11.121', date: '2026-08-13', notes: 'Stop deleted panels showing selection outlines in the combined view' },
   { version: '2.11.120', date: '2026-08-05', notes: 'Add drag-box panel selection, match cable and gear SOCA spans to manual assignments' },

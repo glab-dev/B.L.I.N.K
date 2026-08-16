@@ -1438,7 +1438,8 @@ function renderCombinedView() {
       const screenPanelType = data.panelType || 'CB5_MKII';
       const heightRatio = getPanelHeightRatio(screenPanelType);
       const hasCB5HalfRow = data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
-      const originalPh = hasCB5HalfRow ? ph - 1 : ph;
+      // The half row is an EXTRA row below the full ones — data.panelsHigh excludes it.
+      const originalPh = ph;
       const fullPanelHeight = panelSize * heightRatio;
       const halfPanelHeight = panelSize; // Half panels are square
       const height = hasCB5HalfRow ? (originalPh * fullPanelHeight + halfPanelHeight) : (ph * fullPanelHeight);
@@ -1642,13 +1643,15 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     const drawPanelWidth = drawPanelSize;
     const drawPanelHeight = drawPanelSize * screenHeightRatio;
 
-    // Check if this screen has half panel row enabled
+    // Check if this screen has half panel row enabled. The half row is an EXTRA row
+    // below the full ones, so the grid is one taller than data.panelsHigh.
     const screenHasCB5HalfRow = data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
-    const screenOriginalPh = screenHasCB5HalfRow ? ph - 1 : ph;
+    const screenOriginalPh = ph;                                  // full-height rows
+    const screenEffectivePh = screenHasCB5HalfRow ? ph + 1 : ph;  // incl. the half row
     const halfPanelDrawHeight = drawPanelSize; // Half panels are square
 
     for(let c = 0; c < pw; c++) {
-      for(let r = 0; r < ph; r++) {
+      for(let r = 0; r < screenEffectivePh; r++) {
         const panelKey = `${c},${r}`;
 
         // Determine if this row is the half panel row
@@ -1693,7 +1696,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     if(screen.name) {
       let sumX = 0, sumY = 0, liveCount = 0;
       for(let c = 0; c < pw; c++) {
-        for(let r = 0; r < ph; r++) {
+        for(let r = 0; r < screenEffectivePh; r++) {
           if(screenDeletedPanels.has(`${c},${r}`)) continue;
           const isHalfRow = screenHasCB5HalfRow && r === screenOriginalPh;
           const cellH = isHalfRow ? halfPanelDrawHeight : drawPanelHeight;
@@ -1714,7 +1717,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
         if(screenDeletedPanels.has(`${cCol},${cRow}`)) {
           let bestDist = Infinity;
           for(let c = 0; c < pw; c++) {
-            for(let r = 0; r < ph; r++) {
+            for(let r = 0; r < screenEffectivePh; r++) {
               if(screenDeletedPanels.has(`${c},${r}`)) continue;
               const isHalfRow = screenHasCB5HalfRow && r === screenOriginalPh;
               const cellH = isHalfRow ? halfPanelDrawHeight : drawPanelHeight;
@@ -1781,7 +1784,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
         const screenPanelType = selectedDim.data.panelType || 'CB5_MKII';
         const screenHeightRatio = getPanelHeightRatio(screenPanelType);
         const hasCB5HalfRow = selectedDim.data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
-        const originalPh = hasCB5HalfRow ? selectedDim.ph - 1 : selectedDim.ph;
+        const originalPh = selectedDim.ph;
         const isHalfPanelRow = hasCB5HalfRow && row === originalPh;
         
         let highlightWidth, highlightHeight;
@@ -1852,27 +1855,13 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
   const canvas = document.getElementById('combinedPowerCanvas');
   if(!canvas) return;
 
-  // Add SOCA label height at the top
-  const socaLabelHeight = 60;
   canvas.width = canvasWidth;
-  canvas.height = canvasHeight + socaLabelHeight;
+  canvas.height = canvasHeight;
   const ctx = canvas.getContext('2d');
 
-  // Fill label area with white background
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvasWidth, socaLabelHeight);
-
-  // Panel area background — white in eco/greyscale print mode, black in normal mode
+  // Background — white in eco/greyscale print mode, black in normal mode
   ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#000';
-  ctx.fillRect(0, socaLabelHeight, canvasWidth, canvasHeight);
-
-  // Draw black border at bottom of SOCA label area
-  ctx.strokeStyle = '#000000';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, socaLabelHeight);
-  ctx.lineTo(canvasWidth, socaLabelHeight);
-  ctx.stroke();
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   const leftPadding = 20;
 
@@ -1880,7 +1869,7 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     const { screen, data, pw, ph, x, screenId } = dim;
     // Use the default x position from screenDimensions (no custom positioning)
     const screenX = leftPadding + x;
-    const screenY = topPadding + socaLabelHeight;
+    const screenY = topPadding;
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
     let screenDeletedPanels = new Set();
@@ -1936,65 +1925,17 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     const userMaxPanelsPerCircuit = parseInt(data.maxPanelsPerCircuit);
     const panelsPerCircuit = userMaxPanelsPerCircuit > 0 ? userMaxPanelsPerCircuit : calculatedPanelsPerCircuit;
 
-    // Build list of all panels in order (column by column, top to bottom) - SAME AS ORIGINAL
-    const orderedPanels = [];
-    for(let c=0; c<pw; c++){
-      for(let r=0; r<ph; r++){
-        const panelKey = `${c},${r}`;
-        const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
-        if(!hasDeleted) {
-          const hasCustom = screenCustomCircuits.has ? screenCustomCircuits.has(panelKey) : false;
-          orderedPanels.push({
-            key: panelKey,
-            col: c,
-            row: r,
-            isCustom: hasCustom,
-            customCircuit: hasCustom ? screenCustomCircuits.get(panelKey) - 1 : null
-          });
-        }
-      }
-    }
+    // The CB5 half row is an EXTRA row below the full ones, so the grid is one row
+    // taller than data.panelsHigh. Mirrors getEffectivePanelCountsForLayout() in
+    // core/calculate.js, which returns ph + 1 for the Complex canvas.
+    const screenHasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
+    const screenOriginalPh = ph;                                  // full-height rows
+    const screenEffectivePh = screenHasCB5HalfRow ? ph + 1 : ph;  // incl. the half row
 
-    // Collect all custom circuit numbers that are in use
-    const usedCustomCircuits = new Set();
-    orderedPanels.forEach(p => {
-      if(p.isCustom) {
-        usedCustomCircuits.add(p.customCircuit);
-      }
-    });
-
-    // Assign circuit numbers using same logic as original
-    const panelToCircuit = new Map();
-    let autoCircuitCounter = 0;
-    let panelsInCurrentAutoCircuit = 0;
-
-    orderedPanels.forEach(panel => {
-      if(panel.isCustom) {
-        panelToCircuit.set(panel.key, panel.customCircuit);
-      } else {
-        while(usedCustomCircuits.has(autoCircuitCounter)) {
-          autoCircuitCounter++;
-        }
-        panelToCircuit.set(panel.key, autoCircuitCounter);
-        panelsInCurrentAutoCircuit++;
-
-        if(panelsInCurrentAutoCircuit >= panelsPerCircuit) {
-          autoCircuitCounter++;
-          panelsInCurrentAutoCircuit = 0;
-          while(usedCustomCircuits.has(autoCircuitCounter)) {
-            autoCircuitCounter++;
-          }
-        }
-      }
-    });
-
-    // Compute SOCA group per panel — explicit assignment (1-based) wins over derived
-    const panelToSoca = new Map();
-    panelToCircuit.forEach((circuitNum, panelKey) => {
-      const explicit = screenCustomSocas.get(panelKey);
-      const socaIdx = (typeof explicit === 'number' && explicit >= 1) ? (explicit - 1) : Math.floor(circuitNum / 6);
-      panelToSoca.set(panelKey, socaIdx);
-    });
+    // Circuit + SOCA assignment via the shared helpers in core/phase-balance.js — the
+    // same ones renderPowerLayout() uses — so the grouping matches the Complex canvas.
+    const { panelToCircuit } = assignCircuits(pw, screenEffectivePh, panelsPerCircuit, screenDeletedPanels, screenCustomCircuits);
+    const panelToSoca = assignSocas(panelToCircuit, screenCustomSocas);
 
     // Share Distro: continuous SOCA numbering across the shared-distro group (if this screen is in it).
     const _socaLabelMap = (typeof sharedDistroSocaLabelMap === 'function') ? sharedDistroSocaLabelMap(screenId) : null;
@@ -2004,15 +1945,11 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     const screenHeightRatio = getPanelHeightRatio(panelType);
     const drawPanelWidth = panelSize;
     const drawPanelHeight = panelSize * screenHeightRatio;
-
-    // Check if this screen has half panel row enabled
-    const screenHasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
-    const screenOriginalPh = screenHasCB5HalfRow ? ph - 1 : ph;
     const halfPanelDrawHeight = panelSize; // Half panels are square
 
     // Draw all panels using resistor colors (same as original)
     for(let c=0; c<pw; c++){
-      for(let r=0; r<ph; r++){
+      for(let r=0; r<screenEffectivePh; r++){
         const panelKey = `${c},${r}`;
 
         // Determine if this row is the half panel row
@@ -2060,65 +1997,23 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       }
     }
 
-    // Hide SOCA brackets for this screen when any custom assignment is present —
-    // brackets can render incorrectly across non-contiguous SOCA spans.
-    const screenHasCustoms = screenCustomCircuits.size > 0 || screenCustomSocas.size > 0;
-
-    if (!screenHasCustoms) {
-      // Draw SOCA labels for this screen — iterate unique SOCA groups
-      const socaInfoMap = new Map();
-      for(let c=0; c<pw; c++){
-        for(let r=0; r<ph; r++){
-          const panelKey = `${c},${r}`;
-          const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
-          if(hasDeleted) continue;
-          const circuitNum = panelToCircuit.get(panelKey);
-          if(circuitNum === undefined) continue;
-          const socaIdx = panelToSoca.has(panelKey) ? panelToSoca.get(panelKey) : Math.floor(circuitNum / 6);
-          const x = screenX + c * drawPanelWidth;
-          let info = socaInfoMap.get(socaIdx);
-          if(!info) {
-            info = { minX: Infinity, maxX: -Infinity };
-            socaInfoMap.set(socaIdx, info);
-          }
-          if(x < info.minX) info.minX = x;
-          if(x > info.maxX) info.maxX = x;
-        }
-      }
-      const uniqueSocas = [...socaInfoMap.keys()].sort((a,b) => a - b);
-
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3;
-      ctx.font = 'bold 14px Arial';
-      ctx.fillStyle = '#000000';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      uniqueSocas.forEach(socaIdx => {
-        const info = socaInfoMap.get(socaIdx);
-        const lineY = 35;
-        const startX = info.minX;
-        const endX = info.maxX + drawPanelWidth;
-        const midX = (startX + endX) / 2;
-
-        ctx.beginPath();
-        ctx.moveTo(startX, lineY);
-        ctx.lineTo(endX, lineY);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(startX, lineY - 8);
-        ctx.lineTo(startX, lineY + 8);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(endX, lineY - 8);
-        ctx.lineTo(endX, lineY + 8);
-        ctx.stroke();
-
-        ctx.fillText(`SOCA ${formatSocaLabel(_socaLabelIdx(socaIdx))}`, midX, lineY - 18);
-      });
-    }
+    // SOCA outlines + diagonal labels, drawn by the same shared renderer the Complex
+    // power canvas uses (layouts/power.js) so the two views match, including when
+    // manual circuit/SOCA assignments make the groups non-contiguous.
+    drawSocaOverlay(ctx, {
+      panelToCircuit, panelToSoca,
+      deletedPanels: screenDeletedPanels,
+      panelWidth: drawPanelWidth,
+      panelHeight: drawPanelHeight,
+      halfPanelHeight: halfPanelDrawHeight,
+      hasCB5HalfRow: screenHasCB5HalfRow,
+      originalPh: screenOriginalPh,
+      offsetX: screenX, offsetY: screenY,
+      outlineLineWidth: 1.5,
+      socaLabelIdx: _socaLabelIdx,
+      drawOutlines: (typeof socaOutlinesEnabled !== 'undefined') ? socaOutlinesEnabled : true,
+      drawLabels:   (typeof socaDiagonalLabelEnabled !== 'undefined') ? socaDiagonalLabelEnabled : true
+    });
 
     // Draw screen label
     ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000' : '#fff';
@@ -2184,7 +2079,8 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
 
     // Check if this screen has half panel row enabled
     const screenHasCB5HalfRow = data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
-    const screenOriginalPh = screenHasCB5HalfRow ? ph - 1 : ph;
+    const screenOriginalPh = ph;                                  // full-height rows
+    const screenEffectivePh = screenHasCB5HalfRow ? ph + 1 : ph;  // incl. the half row
     const halfPanelDrawHeight = panelSize; // Half panels are square
 
     // Build data line assignments using serpentine pattern (same as original)
@@ -2193,7 +2089,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     // Collect all custom data line numbers that are in use
     const usedCustomDataLines = new Set();
     for(let c=0; c<pw; c++){
-      for(let r=0; r<ph; r++){
+      for(let r=0; r<screenEffectivePh; r++){
         const panelKey = `${c},${r}`;
         if(screenCustomDataLines.has(panelKey)) {
           usedCustomDataLines.add(screenCustomDataLines.get(panelKey) - 1);
@@ -2205,7 +2101,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     const serp = [];
     if(startDir === 'all_top') {
       for(let c=0; c<pw; c++){
-        for(let r=0; r<ph; r++) {
+        for(let r=0; r<screenEffectivePh; r++) {
           const panelKey = `${c},${r}`;
           const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
           if(!hasDeleted) {
@@ -2215,7 +2111,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       }
     } else if(startDir === 'all_bottom') {
       for(let c=0; c<pw; c++){
-        for(let r=ph-1; r>=0; r--) {
+        for(let r=screenEffectivePh-1; r>=0; r--) {
           const panelKey = `${c},${r}`;
           const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
           if(!hasDeleted) {
@@ -2229,7 +2125,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       for(let c=0; c<pw; c++){
         const goingDown = startFromTop ? (c % 2 === 0) : (c % 2 === 1);
         if(goingDown) {
-          for(let r=0; r<ph; r++) {
+          for(let r=0; r<screenEffectivePh; r++) {
             const panelKey = `${c},${r}`;
             const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
             if(!hasDeleted) {
@@ -2237,7 +2133,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
             }
           }
         } else {
-          for(let r=ph-1; r>=0; r--) {
+          for(let r=screenEffectivePh-1; r>=0; r--) {
             const panelKey = `${c},${r}`;
             const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
             if(!hasDeleted) {
@@ -2275,7 +2171,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
 
     // Draw all panels using resistor colors (same as original)
     for(let c=0; c<pw; c++){
-      for(let r=0; r<ph; r++){
+      for(let r=0; r<screenEffectivePh; r++){
         const panelKey = `${c},${r}`;
 
         // Determine if this row is the half panel row
@@ -2361,9 +2257,11 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     const drawPanelWidth = panelSize;
     const drawPanelHeight = panelSize * screenHeightRatio;
 
-    // Check if this screen has half panel row enabled
+    // Check if this screen has half panel row enabled. The half row is an EXTRA row
+    // below the full ones, so the grid is one taller than data.panelsHigh.
     const screenHasCB5HalfRow = data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
-    const screenOriginalPh = screenHasCB5HalfRow ? ph - 1 : ph;
+    const screenOriginalPh = ph;                                  // full-height rows
+    const screenEffectivePh = screenHasCB5HalfRow ? ph + 1 : ph;  // incl. the half row
     const halfPanelDrawHeight = panelSize; // Half panels are square
 
     // Calculate total screen height (accounting for half panel row if present)
@@ -2385,7 +2283,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 
     // Draw panels first (white background with black outline, same as original)
     for(let c=0; c<pw; c++){
-      for(let r=0; r<ph; r++){
+      for(let r=0; r<screenEffectivePh; r++){
         const panelKey = `${c},${r}`;
 
         // Determine if this row is the half panel row

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.122",
-  "updated": "2026-08-13",
-  "changelog": "Apply NEC 80% derate to combined power layout, cable diagram and circuit limit"
+  "version": "2.11.123",
+  "updated": "2026-08-16",
+  "changelog": "Match combined power SOCA outlines and labels to complex, fix CB5 half row"
 }

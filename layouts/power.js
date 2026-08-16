@@ -2,6 +2,225 @@
 // Renders the power (circuit/SOCA grouping) layout view.
 // Called by generateLayout() dispatcher in index.html.
 
+// ==================== SOCA OVERLAY (shared) ====================
+// Draws each SOCA's neon perimeter outline and its rotated "SOCA n" label over an
+// already-painted panel grid. Shared by the Complex power canvas (renderPowerLayout,
+// below) and the Combined power canvas (renderCombinedPowerLayout in nav/combined.js)
+// so the two can never drift apart. Cell coordinates are grid-relative; offsetX/offsetY
+// place the grid on the target canvas.
+function drawSocaOverlay(ctx, o) {
+  const { panelToCircuit, panelToSoca, deletedPanels,
+          panelWidth, panelHeight, halfPanelHeight, hasCB5HalfRow, originalPh,
+          offsetX, offsetY, outlineLineWidth, socaLabelIdx } = o;
+  const _drawOutlines = !!o.drawOutlines;
+  const _labelsOn     = !!o.drawLabels;
+  if (!panelToCircuit || (!_drawOutlines && !_labelsOn)) return;
+  // Group active panels by SOCA index. Works for both custom and default (circuit-grouped) cases.
+  const socaPanels = new Map(); // socaIdx -> Set("c,r")
+  if (typeof panelToCircuit !== 'undefined') {
+    panelToCircuit.forEach((circuitNum, panelKey) => {
+      if (deletedPanels.has(panelKey)) return;
+      const socaIdx = panelToSoca.has(panelKey) ? panelToSoca.get(panelKey) : Math.floor(circuitNum / 6);
+      if (!socaPanels.has(socaIdx)) socaPanels.set(socaIdx, new Set());
+      socaPanels.get(socaIdx).add(panelKey);
+    });
+  }
+
+  // Map every occupied cell -> its SOCA, so a SOCA's diagonal label can span
+  // across deleted/empty columns yet never paint over another SOCA's panels.
+  const _cellOwner = new Map();
+  socaPanels.forEach((cellSet, idx) => cellSet.forEach(k => _cellOwner.set(k, idx)));
+
+  const _socaOutlinePalette = ['#ff10f0', '#39ff14', '#00aaff'].map(function(h){
+    return greyscalePrintMode ? toGreyscale(h) : (ecoPrintMode ? toPastelColor(h) : h);
+  });
+  const socaColorIdx = new Map();
+  if (_drawOutlines) {
+    // Reverse lookup: panelKey -> socaIdx
+    const cellToSoca = new Map();
+    socaPanels.forEach((cellSet, idx) => cellSet.forEach(k => cellToSoca.set(k, idx)));
+
+    // Build SOCA-to-SOCA adjacency (4-neighbor) for graph coloring.
+    const socaAdj = new Map();
+    socaPanels.forEach((_, idx) => socaAdj.set(idx, new Set()));
+    cellToSoca.forEach((socaIdx, panelKey) => {
+      const [c, r] = panelKey.split(',').map(Number);
+      [[c,r-1],[c,r+1],[c-1,r],[c+1,r]].forEach(([nc, nr]) => {
+        const nSoca = cellToSoca.get(`${nc},${nr}`);
+        if (nSoca === undefined || nSoca === socaIdx) return;
+        socaAdj.get(socaIdx).add(nSoca);
+      });
+    });
+
+    // Greedy 3-color: order SOCAs by descending degree, assign lowest free color.
+    const orderedSocas = [...socaPanels.keys()].sort((a, b) => {
+      const da = socaAdj.get(b).size - socaAdj.get(a).size;
+      return da !== 0 ? da : a - b;
+    });
+    orderedSocas.forEach(idx => {
+      const used = new Set();
+      socaAdj.get(idx).forEach(n => {
+        if (socaColorIdx.has(n)) used.add(socaColorIdx.get(n));
+      });
+      let pick = 0;
+      while (used.has(pick)) pick++;
+      socaColorIdx.set(idx, pick % _socaOutlinePalette.length);
+    });
+  }
+
+  socaPanels.forEach((cellSet, socaIdx) => {
+    // Collect (c,r) and find bounding box for label placement.
+    let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
+    cellSet.forEach(k => {
+      const [cc, rr] = k.split(',').map(Number);
+      if (cc < minC) minC = cc; if (cc > maxC) maxC = cc;
+      if (rr < minR) minR = rr; if (rr > maxR) maxR = rr;
+    });
+
+    // ----- Outline: trace perimeter edges of the panel union (inset so adjacent SOCAs show side-by-side) -----
+    if (_drawOutlines) {
+      const inset = outlineLineWidth / 2;
+      const segments = []; // [x1,y1,x2,y2]
+      cellSet.forEach(k => {
+        const [c, r] = k.split(',').map(Number);
+        const isHalfRow = hasCB5HalfRow && r === originalPh;
+        const ph_ = isHalfRow ? halfPanelHeight : panelHeight;
+        const x = c * panelWidth + offsetX;
+        const y = (isHalfRow ? (originalPh * panelHeight) : (r * panelHeight)) + offsetY;
+        const hasTop   = cellSet.has(`${c},${r-1}`);
+        const hasBot   = cellSet.has(`${c},${r+1}`);
+        const hasLeft  = cellSet.has(`${c-1},${r}`);
+        const hasRight = cellSet.has(`${c+1},${r}`);
+        if (!hasTop)   segments.push([x + (hasLeft?0:inset), y + inset,         x + panelWidth - (hasRight?0:inset), y + inset]);
+        if (!hasBot)   segments.push([x + (hasLeft?0:inset), y + ph_ - inset,   x + panelWidth - (hasRight?0:inset), y + ph_ - inset]);
+        if (!hasLeft)  segments.push([x + inset,             y + (hasTop?0:inset), x + inset,                          y + ph_ - (hasBot?0:inset)]);
+        if (!hasRight) segments.push([x + panelWidth - inset, y + (hasTop?0:inset), x + panelWidth - inset,            y + ph_ - (hasBot?0:inset)]);
+      });
+
+      // Chain segments into continuous polylines so corner joins are mitered
+      // by the canvas — drawing each segment as its own sub-path produces
+      // visible micro-gaps at joints when scaled up for hi-res capture.
+      const ptKey = (x, y) => x.toFixed(2) + ',' + y.toFixed(2);
+      const endpointMap = new Map(); // key -> [segmentIndex, ...]
+      segments.forEach((s, i) => {
+        const k1 = ptKey(s[0], s[1]);
+        const k2 = ptKey(s[2], s[3]);
+        if (!endpointMap.has(k1)) endpointMap.set(k1, []);
+        if (!endpointMap.has(k2)) endpointMap.set(k2, []);
+        endpointMap.get(k1).push(i);
+        endpointMap.get(k2).push(i);
+      });
+      const used = new Array(segments.length).fill(false);
+      const polylines = [];
+      for (let i = 0; i < segments.length; i++) {
+        if (used[i]) continue;
+        used[i] = true;
+        const s = segments[i];
+        const points = [[s[0], s[1]], [s[2], s[3]]];
+        // Extend forward (from points[last]) then backward (from points[0])
+        for (let dir = 0; dir < 2; dir++) {
+          while (true) {
+            const tip = (dir === 0) ? points[points.length - 1] : points[0];
+            const cands = endpointMap.get(ptKey(tip[0], tip[1])) || [];
+            let next = -1;
+            for (const idx of cands) { if (!used[idx]) { next = idx; break; } }
+            if (next < 0) break;
+            used[next] = true;
+            const ns = segments[next];
+            const startMatches = (Math.abs(ns[0] - tip[0]) < 0.01) && (Math.abs(ns[1] - tip[1]) < 0.01);
+            const newPt = startMatches ? [ns[2], ns[3]] : [ns[0], ns[1]];
+            if (dir === 0) points.push(newPt);
+            else points.unshift(newPt);
+          }
+        }
+        polylines.push(points);
+      }
+
+      ctx.save();
+      ctx.strokeStyle = _socaOutlinePalette[socaColorIdx.get(socaIdx) || 0];
+      ctx.lineWidth = outlineLineWidth;
+      ctx.setLineDash([]);
+      ctx.lineCap = 'square';
+      ctx.lineJoin = 'miter';
+      ctx.miterLimit = 4;
+      polylines.forEach(pts => {
+        ctx.beginPath();
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    // ----- Diagonal label, fitted inside the SOCA's own footprint -----
+    if (_labelsOn) {
+      // Largest solid rectangle of THIS SOCA's cells, so the label never
+      // paints over a hole or a neighbouring SOCA — and, because every panel
+      // belongs to one SOCA, multiple SOCA labels can never overlap.
+      const gW = maxC - minC + 1, gH = maxR - minR + 1;
+      const heights = new Array(gW).fill(0);
+      let best = { area: 0, r0: minR, c0: minC, r1: minR, c1: minC };
+      for (let r = 0; r < gH; r++) {
+        for (let c = 0; c < gW; c++) {
+          const _hk = `${minC + c},${minR + r}`;
+          // Usable = this SOCA's cell, or an empty/deleted hole (owned by no
+          // SOCA) so the label spans across deleted columns; another SOCA blocks.
+          const _avail = cellSet.has(_hk) || !_cellOwner.has(_hk);
+          heights[c] = _avail ? heights[c] + 1 : 0;
+        }
+        const stack = [];
+        for (let c = 0; c <= gW; c++) {
+          const h = c < gW ? heights[c] : 0;
+          while (stack.length && heights[stack[stack.length - 1]] >= h) {
+            const hh = heights[stack.pop()];
+            const left = stack.length ? stack[stack.length - 1] + 1 : 0;
+            const area = hh * (c - left);
+            if (area > best.area) {
+              best = { area, r0: minR + r - hh + 1, c0: minC + left, r1: minR + r, c1: minC + c - 1 };
+            }
+          }
+          stack.push(c);
+        }
+      }
+
+      // Pixel bounds of the chosen rectangle (honour the CB5 half row).
+      const topIsHalf = hasCB5HalfRow && best.r0 === originalPh;
+      const botIsHalf = hasCB5HalfRow && best.r1 === originalPh;
+      const rx = best.c0 * panelWidth + offsetX;
+      const ry = (topIsHalf ? originalPh * panelHeight : best.r0 * panelHeight) + offsetY;
+      const rw = (best.c1 - best.c0 + 1) * panelWidth;
+      const yBot = (botIsHalf ? originalPh * panelHeight + halfPanelHeight
+                              : (best.r1 + 1) * panelHeight) + offsetY;
+      const rh = yBot - ry;
+
+      const cx = rx + rw / 2, cy = ry + rh / 2;
+      const diag = Math.sqrt(rw * rw + rh * rh);
+      const cos = rw / diag, sin = rh / diag;   // label follows this rectangle's diagonal
+      const labelText = `SOCA ${formatSocaLabel(socaLabelIdx(socaIdx))}`;
+      ctx.save();
+      ctx.font = `bold 100px Arial`;
+      const w100 = ctx.measureText(labelText).width; // text width at 100px font
+      const margin = 0.9;
+      // Rotated footprint must fit rw x rh on both axes (H ≈ em = 100 at 100px).
+      const fX = (margin * rw) * 100 / (w100 * cos + 100 * sin);
+      const fY = (margin * rh) * 100 / (w100 * sin + 100 * cos);
+      const fontSize = Math.max(14, Math.min(120, Math.floor(Math.min(fX, fY))));
+      ctx.font = `bold ${fontSize}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.translate(cx, cy);
+      ctx.rotate(-Math.atan2(rh, rw));
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.fillText(labelText, 0, 0);
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = Math.max(1.5, fontSize * 0.015);
+      ctx.strokeStyle = '#10b981';
+      ctx.strokeText(labelText, 0, 0);
+      ctx.restore();
+    }
+  });
+}
+
 function renderPowerLayout(params) {
   const {pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, panelsPerCircuit} = params;
 
@@ -212,220 +431,17 @@ function renderPowerLayout(params) {
     }
   }
 
-  // SOCA diagonal labels (always) + outlines (only for custom assignments).
-  // Toggles are read from globals defined in core/utils.js (default true, persisted).
-  {
-    const _outlinesOn   = (typeof socaOutlinesEnabled !== 'undefined') ? socaOutlinesEnabled : true;
-    const _labelsOn     = (typeof socaDiagonalLabelEnabled !== 'undefined') ? socaDiagonalLabelEnabled : true;
-    const _drawOutlines = _outlinesOn;
-    if (_drawOutlines || _labelsOn) {
-      // Group active panels by SOCA index. Works for both custom and default (circuit-grouped) cases.
-      const socaPanels = new Map(); // socaIdx -> Set("c,r")
-      if (typeof panelToCircuit !== 'undefined') {
-        panelToCircuit.forEach((circuitNum, panelKey) => {
-          if (deletedPanels.has(panelKey)) return;
-          const socaIdx = panelToSoca.has(panelKey) ? panelToSoca.get(panelKey) : Math.floor(circuitNum / 6);
-          if (!socaPanels.has(socaIdx)) socaPanels.set(socaIdx, new Set());
-          socaPanels.get(socaIdx).add(panelKey);
-        });
-      }
-
-      // Map every occupied cell -> its SOCA, so a SOCA's diagonal label can span
-      // across deleted/empty columns yet never paint over another SOCA's panels.
-      const _cellOwner = new Map();
-      socaPanels.forEach((cellSet, idx) => cellSet.forEach(k => _cellOwner.set(k, idx)));
-
-      const _socaOutlinePalette = ['#ff10f0', '#39ff14', '#00aaff'].map(function(h){
-        return greyscalePrintMode ? toGreyscale(h) : (ecoPrintMode ? toPastelColor(h) : h);
-      });
-      const socaColorIdx = new Map();
-      if (_drawOutlines) {
-        // Reverse lookup: panelKey -> socaIdx
-        const cellToSoca = new Map();
-        socaPanels.forEach((cellSet, idx) => cellSet.forEach(k => cellToSoca.set(k, idx)));
-
-        // Build SOCA-to-SOCA adjacency (4-neighbor) for graph coloring.
-        const socaAdj = new Map();
-        socaPanels.forEach((_, idx) => socaAdj.set(idx, new Set()));
-        cellToSoca.forEach((socaIdx, panelKey) => {
-          const [c, r] = panelKey.split(',').map(Number);
-          [[c,r-1],[c,r+1],[c-1,r],[c+1,r]].forEach(([nc, nr]) => {
-            const nSoca = cellToSoca.get(`${nc},${nr}`);
-            if (nSoca === undefined || nSoca === socaIdx) return;
-            socaAdj.get(socaIdx).add(nSoca);
-          });
-        });
-
-        // Greedy 3-color: order SOCAs by descending degree, assign lowest free color.
-        const orderedSocas = [...socaPanels.keys()].sort((a, b) => {
-          const da = socaAdj.get(b).size - socaAdj.get(a).size;
-          return da !== 0 ? da : a - b;
-        });
-        orderedSocas.forEach(idx => {
-          const used = new Set();
-          socaAdj.get(idx).forEach(n => {
-            if (socaColorIdx.has(n)) used.add(socaColorIdx.get(n));
-          });
-          let pick = 0;
-          while (used.has(pick)) pick++;
-          socaColorIdx.set(idx, pick % _socaOutlinePalette.length);
-        });
-      }
-
-      socaPanels.forEach((cellSet, socaIdx) => {
-        // Collect (c,r) and find bounding box for label placement.
-        let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
-        cellSet.forEach(k => {
-          const [cc, rr] = k.split(',').map(Number);
-          if (cc < minC) minC = cc; if (cc > maxC) maxC = cc;
-          if (rr < minR) minR = rr; if (rr > maxR) maxR = rr;
-        });
-
-        // ----- Outline: trace perimeter edges of the panel union (inset so adjacent SOCAs show side-by-side) -----
-        if (_drawOutlines) {
-          const outlineLineWidth = _pdfMode ? Math.max(1.5, 1.5 * _markerScale) : 1.5;
-          const inset = outlineLineWidth / 2;
-          const segments = []; // [x1,y1,x2,y2]
-          cellSet.forEach(k => {
-            const [c, r] = k.split(',').map(Number);
-            const isHalfRow = hasCB5HalfRow && r === originalPh;
-            const ph_ = isHalfRow ? halfPanelHeight : panelHeight;
-            const x = c * panelWidth + rowMarkerW;
-            const y = (isHalfRow ? (originalPh * panelHeight) : (r * panelHeight)) + topBandH;
-            const hasTop   = cellSet.has(`${c},${r-1}`);
-            const hasBot   = cellSet.has(`${c},${r+1}`);
-            const hasLeft  = cellSet.has(`${c-1},${r}`);
-            const hasRight = cellSet.has(`${c+1},${r}`);
-            if (!hasTop)   segments.push([x + (hasLeft?0:inset), y + inset,         x + panelWidth - (hasRight?0:inset), y + inset]);
-            if (!hasBot)   segments.push([x + (hasLeft?0:inset), y + ph_ - inset,   x + panelWidth - (hasRight?0:inset), y + ph_ - inset]);
-            if (!hasLeft)  segments.push([x + inset,             y + (hasTop?0:inset), x + inset,                          y + ph_ - (hasBot?0:inset)]);
-            if (!hasRight) segments.push([x + panelWidth - inset, y + (hasTop?0:inset), x + panelWidth - inset,            y + ph_ - (hasBot?0:inset)]);
-          });
-
-          // Chain segments into continuous polylines so corner joins are mitered
-          // by the canvas — drawing each segment as its own sub-path produces
-          // visible micro-gaps at joints when scaled up for hi-res capture.
-          const ptKey = (x, y) => x.toFixed(2) + ',' + y.toFixed(2);
-          const endpointMap = new Map(); // key -> [segmentIndex, ...]
-          segments.forEach((s, i) => {
-            const k1 = ptKey(s[0], s[1]);
-            const k2 = ptKey(s[2], s[3]);
-            if (!endpointMap.has(k1)) endpointMap.set(k1, []);
-            if (!endpointMap.has(k2)) endpointMap.set(k2, []);
-            endpointMap.get(k1).push(i);
-            endpointMap.get(k2).push(i);
-          });
-          const used = new Array(segments.length).fill(false);
-          const polylines = [];
-          for (let i = 0; i < segments.length; i++) {
-            if (used[i]) continue;
-            used[i] = true;
-            const s = segments[i];
-            const points = [[s[0], s[1]], [s[2], s[3]]];
-            // Extend forward (from points[last]) then backward (from points[0])
-            for (let dir = 0; dir < 2; dir++) {
-              while (true) {
-                const tip = (dir === 0) ? points[points.length - 1] : points[0];
-                const cands = endpointMap.get(ptKey(tip[0], tip[1])) || [];
-                let next = -1;
-                for (const idx of cands) { if (!used[idx]) { next = idx; break; } }
-                if (next < 0) break;
-                used[next] = true;
-                const ns = segments[next];
-                const startMatches = (Math.abs(ns[0] - tip[0]) < 0.01) && (Math.abs(ns[1] - tip[1]) < 0.01);
-                const newPt = startMatches ? [ns[2], ns[3]] : [ns[0], ns[1]];
-                if (dir === 0) points.push(newPt);
-                else points.unshift(newPt);
-              }
-            }
-            polylines.push(points);
-          }
-
-          ctx.save();
-          ctx.strokeStyle = _socaOutlinePalette[socaColorIdx.get(socaIdx) || 0];
-          ctx.lineWidth = outlineLineWidth;
-          ctx.setLineDash([]);
-          ctx.lineCap = 'square';
-          ctx.lineJoin = 'miter';
-          ctx.miterLimit = 4;
-          polylines.forEach(pts => {
-            ctx.beginPath();
-            ctx.moveTo(pts[0][0], pts[0][1]);
-            for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-            ctx.stroke();
-          });
-          ctx.restore();
-        }
-
-        // ----- Diagonal label, fitted inside the SOCA's own footprint -----
-        if (_labelsOn) {
-          // Largest solid rectangle of THIS SOCA's cells, so the label never
-          // paints over a hole or a neighbouring SOCA — and, because every panel
-          // belongs to one SOCA, multiple SOCA labels can never overlap.
-          const gW = maxC - minC + 1, gH = maxR - minR + 1;
-          const heights = new Array(gW).fill(0);
-          let best = { area: 0, r0: minR, c0: minC, r1: minR, c1: minC };
-          for (let r = 0; r < gH; r++) {
-            for (let c = 0; c < gW; c++) {
-              const _hk = `${minC + c},${minR + r}`;
-              // Usable = this SOCA's cell, or an empty/deleted hole (owned by no
-              // SOCA) so the label spans across deleted columns; another SOCA blocks.
-              const _avail = cellSet.has(_hk) || !_cellOwner.has(_hk);
-              heights[c] = _avail ? heights[c] + 1 : 0;
-            }
-            const stack = [];
-            for (let c = 0; c <= gW; c++) {
-              const h = c < gW ? heights[c] : 0;
-              while (stack.length && heights[stack[stack.length - 1]] >= h) {
-                const hh = heights[stack.pop()];
-                const left = stack.length ? stack[stack.length - 1] + 1 : 0;
-                const area = hh * (c - left);
-                if (area > best.area) {
-                  best = { area, r0: minR + r - hh + 1, c0: minC + left, r1: minR + r, c1: minC + c - 1 };
-                }
-              }
-              stack.push(c);
-            }
-          }
-
-          // Pixel bounds of the chosen rectangle (honour the CB5 half row).
-          const topIsHalf = hasCB5HalfRow && best.r0 === originalPh;
-          const botIsHalf = hasCB5HalfRow && best.r1 === originalPh;
-          const rx = best.c0 * panelWidth + rowMarkerW;
-          const ry = (topIsHalf ? originalPh * panelHeight : best.r0 * panelHeight) + topBandH;
-          const rw = (best.c1 - best.c0 + 1) * panelWidth;
-          const yBot = (botIsHalf ? originalPh * panelHeight + halfPanelHeight
-                                  : (best.r1 + 1) * panelHeight) + topBandH;
-          const rh = yBot - ry;
-
-          const cx = rx + rw / 2, cy = ry + rh / 2;
-          const diag = Math.sqrt(rw * rw + rh * rh);
-          const cos = rw / diag, sin = rh / diag;   // label follows this rectangle's diagonal
-          const labelText = `SOCA ${formatSocaLabel(_socaLabelIdx(socaIdx))}`;
-          ctx.save();
-          ctx.font = `bold 100px Arial`;
-          const w100 = ctx.measureText(labelText).width; // text width at 100px font
-          const margin = 0.9;
-          // Rotated footprint must fit rw x rh on both axes (H ≈ em = 100 at 100px).
-          const fX = (margin * rw) * 100 / (w100 * cos + 100 * sin);
-          const fY = (margin * rh) * 100 / (w100 * sin + 100 * cos);
-          const fontSize = Math.max(14, Math.min(120, Math.floor(Math.min(fX, fY))));
-          ctx.font = `bold ${fontSize}px Arial`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.translate(cx, cy);
-          ctx.rotate(-Math.atan2(rh, rw));
-          ctx.fillStyle = 'rgba(0,0,0,0.28)';
-          ctx.fillText(labelText, 0, 0);
-          ctx.lineJoin = 'round';
-          ctx.lineWidth = Math.max(1.5, fontSize * 0.015);
-          ctx.strokeStyle = '#10b981';
-          ctx.strokeText(labelText, 0, 0);
-          ctx.restore();
-        }
-      });
-    }
-  }
+  // SOCA outlines + diagonal labels, via the shared renderer so the Combined
+  // power canvas (nav/combined.js) draws them identically.
+  drawSocaOverlay(ctx, {
+    panelToCircuit, panelToSoca, deletedPanels,
+    panelWidth, panelHeight, halfPanelHeight, hasCB5HalfRow, originalPh,
+    offsetX: rowMarkerW, offsetY: topBandH,
+    outlineLineWidth: _pdfMode ? Math.max(1.5, 1.5 * _markerScale) : 1.5,
+    socaLabelIdx: _socaLabelIdx,
+    drawOutlines: (typeof socaOutlinesEnabled !== 'undefined') ? socaOutlinesEnabled : true,
+    drawLabels:   (typeof socaDiagonalLabelEnabled !== 'undefined') ? socaDiagonalLabelEnabled : true
+  });
 
 
   // Column number markers (always shown, positioned just above panel grid).

@@ -223,11 +223,10 @@ function getCombinedScreenAtPosition(canvas, clientX, clientY) {
       drawPanelSize = combinedPanelSize;
     }
 
-    const screenHeightRatio = getPanelHeightRatio(dim.data.panelType || 'CB5_MKII');
+    const geo = combinedRowGeometry(dim.data, drawPanelSize);
     const actualPanelWidth = drawPanelSize;
-    const actualPanelHeight = drawPanelSize * screenHeightRatio;
     const screenWidth = dim.pw * actualPanelWidth;
-    const screenHeight = dim.ph * actualPanelHeight;
+    const screenHeight = geo.totalH;
 
     const withinX = canvasX >= screenX && canvasX < screenX + screenWidth;
 
@@ -240,7 +239,8 @@ function getCombinedScreenAtPosition(canvas, clientX, clientY) {
     // so clicks over blank/dead cells fall through to the screen behind.
     if(withinX && canvasY >= screenY && canvasY < screenY + screenHeight) {
       const col = Math.floor((canvasX - screenX) / actualPanelWidth);
-      const row = Math.floor((canvasY - screenY) / actualPanelHeight);
+      const row = geo.rowAt(canvasY - screenY);
+      if(row < 0) continue;
 
       // Normalize deletedPanels (may be array from JSON or Set) to a Set
       const deleted = new Set();
@@ -517,21 +517,19 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
     }
 
     // Calculate proper panel dimensions for this screen
-    const screenPanelType = dim.data.panelType || 'CB5_MKII';
-    const screenHeightRatio = getPanelHeightRatio(screenPanelType);
+    const geo = combinedRowGeometry(dim.data, drawPanelSize);
     const actualPanelWidth = drawPanelSize;
-    const actualPanelHeight = drawPanelSize * screenHeightRatio;
 
     const screenWidth = dim.pw * actualPanelWidth;
-    const screenHeight = dim.ph * actualPanelHeight;
+    const screenHeight = geo.totalH;
 
     // Check if click is within this screen's bounds
     if(canvasX >= screenX && canvasX < screenX + screenWidth &&
        canvasY >= screenY && canvasY < screenY + screenHeight) {
       const col = Math.floor((canvasX - screenX) / actualPanelWidth);
-      const row = Math.floor((canvasY - screenY) / actualPanelHeight);
+      const row = geo.rowAt(canvasY - screenY);
 
-      if(col >= 0 && col < dim.pw && row >= 0 && row < dim.ph) {
+      if(col >= 0 && col < dim.pw && row >= 0 && row < geo.effectivePh) {
         return {
           screenId: dim.screenId,
           screen: dim.screen,
@@ -544,6 +542,33 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
     }
   }
   return null;
+}
+
+// Row geometry for one combined-view screen at a given drawn panel size, honouring
+// the CB5 half row: it is an EXTRA row below the full ones (data.panelsHigh excludes
+// it) and is half their height. Mirrors what the renderers draw, so hit detection and
+// the canvas can never disagree about where a row is.
+function combinedRowGeometry(data, panelSize) {
+  const panelType = (data && data.panelType) || 'CB5_MKII';
+  const fullH = panelSize * getPanelHeightRatio(panelType);
+  const halfH = panelSize; // half panels are square
+  const hasHalf = !!(data && data.addCB5HalfRow) && panelType === 'CB5_MKII';
+  const ph = (data && data.panelsHigh) || 0;
+  return {
+    hasHalf,
+    effectivePh: hasHalf ? ph + 1 : ph,
+    totalH: hasHalf ? (ph * fullH + halfH) : (ph * fullH),
+    rowY: r => (hasHalf && r === ph) ? (ph * fullH) : (r * fullH),
+    rowH: r => (hasHalf && r === ph) ? halfH : fullH,
+    // Row index at a y offset from the top of the grid, or -1 when outside it.
+    rowAt: dy => {
+      if(dy < 0) return -1;
+      const full = Math.floor(dy / fullH);
+      if(full < ph) return full;
+      if(hasHalf && dy < ph * fullH + halfH) return ph;
+      return -1;
+    }
+  };
 }
 
 // Is a panel deleted on its screen? deletedPanels may be a Set, an array (from
@@ -603,12 +628,13 @@ function getCombinedPanelsInRect(canvas, x1, y1, x2, y2) {
     }
 
     // Check each panel in this screen
+    const geo = combinedRowGeometry(dim.data, drawPanelSize);
     for(let c = 0; c < dim.pw; c++) {
-      for(let r = 0; r < dim.ph; r++) {
+      for(let r = 0; r < geo.effectivePh; r++) {
         const px = screenX + c * drawPanelSize;
-        const py = screenY + r * drawPanelSize;
+        const py = screenY + geo.rowY(r);
         const px2 = px + drawPanelSize;
-        const py2 = py + drawPanelSize;
+        const py2 = py + geo.rowH(r);
 
         // Check if panel overlaps with selection rect
         if(px < canvasX2 && px2 > canvasX1 && py < canvasY2 && py2 > canvasY1) {

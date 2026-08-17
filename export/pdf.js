@@ -1999,7 +1999,7 @@ function buildComplexPdf(opts, canvasCache) {
       const lblH = m.sectionLabelH + m.afterLabelGap;
       const estSocaH    = estSocaTableHeight(screenId);
       const estDataMapH = estDataMapHeight(screenId);
-      const estStructH  = 160; // matches the structure-section estimate used below
+      const estStructH  = estStructureInfoHeight(screenId);
       // Image height when fit to the page width (the real height for wide/short walls).
       const fitH = calculateGridScale(pw, ph, cw, uh).renderHeight;
 
@@ -2027,8 +2027,11 @@ function buildComplexPdf(opts, canvasCache) {
       const singlePageMaxH = useCollapse
         ? Math.floor((uh - m.headerBarH - 80) / 4)
         : Math.floor((uh - layoutOverhead) / 3);
-      // One-per-page image cap: fill the page minus the section label and the layout's own table.
-      const fillImgH = (tableH) => Math.max(140, uh - hdrH - lblH - (tableH || 0) - 12);
+      // One-per-page image cap: fill the page minus the section label and the layout's own
+      // table. The reserve covers the image's own 4pt bottom margin plus slack for rounding
+      // in the table estimates — without it a tall wall sized the image to the exact
+      // remaining space and nudged its table onto the next page.
+      const fillImgH = (tableH) => Math.max(140, uh - hdrH - lblH - (tableH || 0) - 28);
 
       if (opts.power !== false) {
         content.push(sectionLabel('Power Layout'));
@@ -2073,23 +2076,15 @@ function buildComplexPdf(opts, canvasCache) {
         }
 
         if (opts.cabling !== false) {
-          // If structure is also on this page, check if cabling section fits too.
-          // If not, start a fresh page with its own header.
-          if (!useCollapse && opts.structure !== false) {
-            const structCapH = oneLayoutPerPage ? fillImgH(estStructH) : singlePageMaxH;
-            const { renderHeight: structImgH } = calculateGridScale(pw, ph, cw, structCapH);
-            const structInfoEstH = 160; // conservative estimate for pickup-weight / structure tables
-            const structSectionH = m.sectionLabelH + m.afterLabelGap + 4 + structImgH + structInfoEstH;
-            const cabFitHCheck = screenIds.length > 1 ? 380 : 440;
-            const cabImgData = canvasCache && canvasCache[screenId + '_cabling'];
-            const cabAspect = (cabImgData && cabImgData.aspectRatio) || 0.5;
-            const cabImgH = Math.min(cabFitHCheck, cw * cabAspect);
-            const cabSectionH = m.sectionLabelH + m.afterLabelGap + cabImgH + 4;
-            const pageUsable = uh - m.headerBarH - m.afterHeaderGap;
-            if (structSectionH + cabSectionH > pageUsable) {
-              content.push({ text: '', pageBreak: 'before' });
-              content.push(buildPdfHeader(configName, dateStr, logoData));
-            }
+          // One-per-page: cabling always starts its own page, exactly like Data above.
+          // This used to be decided by estimating the structure section's height; when the
+          // estimate ran low the label stayed on the structure page while pdfmake flowed
+          // the image onto the next one — which, being an automatic break, got no report
+          // header. Only skip the break when structure is off, because the enclosing
+          // structure/cabling block already opened a fresh page in that case.
+          if (oneLayoutPerPage && opts.structure !== false) {
+            content.push({ text: '', pageBreak: 'before' });
+            content.push(buildPdfHeader(configName, dateStr, logoData));
           }
           content.push(sectionLabel('Cabling Layout'));
           const cabImg = canvasCache && canvasCache[screenId + '_cabling'];
@@ -2574,24 +2569,63 @@ function buildSocaCircuitTable(screenId) {
   };
 }
 
-// Rough height (pt) of the SOCA circuit table — used to decide PDF page layout.
+// Height (pt) of one card in the PDF's grey 4-column card tables (SOCA circuits, data
+// map, structure info). All three share a shape: an outer 6pt card margin, an
+// underlined 9pt title with a 4pt bottom margin, then one 8pt/1.3 line per item.
+// These feed the layout image-height budget, so they must never read LOW — an
+// under-estimate is what pushes a table onto the following page.
+function estCardHeight(itemLines) {
+  const TITLE_H = 9 * 1.3 + 4;  // title text + its bottom margin
+  const LINE_H  = 8 * 1.3;      // one item row
+  const CARD_PAD = 6 + 6;       // card margin top + bottom
+  return TITLE_H + Math.max(0, itemLines) * LINE_H + CARD_PAD;
+}
+// Per-row table chrome: the row table's own margin [0,6,0,4] plus its 0.5pt borders.
+const EST_ROW_CHROME = 11;
+
+// Height (pt) of the SOCA circuit table — used to decide PDF page layout.
 function estSocaTableHeight(screenId) {
   const cd = screens[screenId] && screens[screenId].calculatedData;
   const sb = cd && cd.socaBreakdown;
   if (!sb || !sb.length) return 0;
   const rows = Math.ceil(sb.length / 4);
   const maxCircuits = sb.reduce((mx, s) => Math.max(mx, (s.circuits || []).length), 0);
-  const cardH = 9 * 1.3 + maxCircuits * 8 * 1.3 + 8 * 1.3 + 14; // title + circuits + total + padding
-  return Math.ceil(rows * cardH) + 10;
+  // +1 line for the bold "Total" row, +2 for its top margin.
+  const cardH = estCardHeight(maxCircuits + 1) + 2;
+  return Math.ceil(rows * cardH + EST_ROW_CHROME);
 }
 
-// Rough height (pt) of the data-line map table — used to decide PDF page layout.
+// Height (pt) of the data-line map table — used to decide PDF page layout.
 function estDataMapHeight(screenId) {
   const cd = screens[screenId] && screens[screenId].calculatedData;
   const eps = cd && cd.dataLineEndpoints;
   if (!eps || !eps.length) return 0;
-  const cardH = 9 * 1.3 + eps.length * 8 * 1.3 + 14; // title + line rows + padding
-  return Math.ceil(cardH) + 10;
+  return Math.ceil(estCardHeight(eps.length) + EST_ROW_CHROME);
+}
+
+// Height (pt) of the structure info cards. Mirrors buildStructureInfoPdf: the flat
+// line list is split into tables at each header, packed 4 per row, one row table each.
+function estStructureInfoHeight(screenId) {
+  if (typeof buildStructureInfoLines !== 'function') return 0;
+  const lines = buildStructureInfoLines(screenId);
+  if (!lines || !lines.length) return 0;
+  const tables = [];
+  let current = null;
+  lines.forEach(function(l) {
+    if (l.header) { if (current) tables.push(current); current = { items: 0, bold: 0 }; }
+    else if (current && l.text) { current.items++; if (l.bold) current.bold++; }
+  });
+  if (current) tables.push(current);
+  if (!tables.length) return 0;
+  let h = 0;
+  for (let i = 0; i < tables.length; i += 4) {
+    const row = tables.slice(i, i + 4);
+    // Row height is the tallest card in it; bold items carry an extra 4pt top margin.
+    h += row.reduce(function(mx, t) {
+      return Math.max(mx, estCardHeight(t.items) + t.bold * 4);
+    }, 0) + EST_ROW_CHROME;
+  }
+  return Math.ceil(h);
 }
 
 function pdfCaptureCanvases() {

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.123",
-  "updated": "2026-08-16",
-  "changelog": "Match combined power SOCA outlines and labels to complex, fix CB5 half row"
+  "version": "2.11.124",
+  "updated": "2026-08-17",
+  "changelog": "Give each portrait PDF layout its own page, make CB5 half row clickable"
 }

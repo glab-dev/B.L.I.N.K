@@ -74,6 +74,21 @@ function pdfGetPageDimensions(format, orientation) {
   };
 }
 
+/**
+ * How many cards to pack per row in the PDF's grey card tables (SOCA circuits, data-line
+ * map, structure info). Those tables span the full content width, so a fixed 4-across
+ * makes every card half again as wide in landscape (786pt content) as in portrait
+ * (539pt) — same 8pt text in a much roomier box. Targeting a constant card width keeps
+ * them looking the same in both orientations.
+ *
+ * @param {number} contentWidth - page content width in pt
+ * @returns {number} cards per row (4 in portrait, 6 on A4 landscape)
+ */
+function pdfCardsPerRow(contentWidth) {
+  const TARGET_CARD_W = 135; // what a card measures in A4 portrait at 4 across
+  return Math.max(4, Math.round((contentWidth || 0) / TARGET_CARD_W));
+}
+
 // ==================== GRID SCALING ====================
 
 /**
@@ -148,111 +163,27 @@ function packStructureTables(tables, maxCols) {
 // ==================== PAGE COMPOSITION ====================
 
 /**
- * Determines whether the four layout diagrams (power, data, structure, cabling)
- * can all fit on a single page instead of two separate pages.
- *
- * Wide/short walls (e.g., 17×7) render as flat strips and leave lots of vertical
- * space. Square/tall walls (e.g., 10×10) fill more vertical space and need two pages.
- *
- * @param {number} pw   - panels wide
- * @param {number} ph   - panels high
- * @param {string} format      - 'a4' or 'letter'
- * @param {string} orientation - 'p' or 'l'
- * @param {number} structureTablesPt - estimated height of structure tables in pt (optional)
- * @returns {boolean} - true if all four layouts fit on one page
- */
-function canCollapseLayoutPages(pw, ph, format, orientation, structureTablesPt) {
-  const dims = pdfGetPageDimensions(format || 'a4', orientation || 'p');
-  const m    = PDF_TOKENS.layout;
-  const cw   = dims.contentWidth;
-  const uh   = dims.usableHeight;
-  const stH  = structureTablesPt || m.legendH * 2; // fallback estimate
-
-  // Fixed overhead: header + 4 labels + 2 legends (power, data) + structure tables + 2 resolution labels + footer
-  const overhead =
-    m.headerBarH  + m.afterHeaderGap +
-    4 * (m.sectionLabelH + m.afterLabelGap) +
-    2 * m.legendH  +
-    stH            +
-    2 * m.resolutionLblH +
-    m.footerH      +
-    40; // padding buffer
-
-  if (overhead >= uh) return false;
-
-  const availableForGrids = uh - overhead;
-
-  // Each grid gets 1/4 of the remaining space as its maximum height
-  const maxEachGrid = availableForGrids / 4;
-
-  // Calculate actual rendered heights using the aspect ratio
-  const { renderHeight: powerH  } = calculateGridScale(pw, ph, cw, maxEachGrid);
-  const { renderHeight: dataH   } = calculateGridScale(pw, ph, cw, maxEachGrid);
-  const { renderHeight: structH } = calculateGridScale(pw, ph, cw, maxEachGrid * 1.2);
-
-  // Cabling diagram is typically very wide (approx 3:1 aspect ratio)
-  const cablingAspect = 3.0;
-  const cablingH = Math.min(cw / cablingAspect, maxEachGrid);
-
-  const totalUsed = overhead + powerH + dataH + structH + cablingH;
-  return totalUsed <= uh;
-}
-
-/**
- * Returns the page plan for a single screen in complex mode.
- * Determines how many pages the screen will use and whether layout pages collapse.
+ * Returns how many pages one screen occupies in complex mode. Used to work out where
+ * each screen starts, for the multi-screen summary's page references — so it has to
+ * agree with buildComplexPdf(): a hero page, then one page per enabled layout, in both
+ * orientations. The gear list is deliberately NOT counted: there is a single combined
+ * gear-list page for the whole document, after every screen.
  *
  * @param {number} pw   - panels wide
  * @param {number} ph   - panels high
- * @param {object} opts - toggle options { specs, gearList, standard, power, data, structure, cabling }
- * @param {string} format      - 'a4' or 'letter'
- * @param {string} orientation - 'p' or 'l'
- * @returns {{ pageCount, collapseLayouts }}
+ * @param {object} opts - toggle options { specs, standard, power, data, structure, cabling }
+ * @returns {{ pageCount }}
  */
-function buildComplexPagePlan(pw, ph, opts, format, orientation) {
-  const hasHero    = opts.specs || opts.standard;
-  const hasLayouts = opts.power || opts.data || opts.structure || opts.cabling;
-
-  // Landscape uses adaptive multi-column packing — different page counts
-  if (orientation === 'l') {
-    const panels = pw * ph;
-    const gw = pw * 28;
-    let lsCls = 'large';
-    if (panels <= 15 && gw <= 170)      lsCls = 'tiny';
-    else if (panels <= 20 && gw <= 200) lsCls = 'small';
-    else if (panels <= 40 && gw <= 260) lsCls = 'medium';
-
-    let lsPages = 0;
-    if (hasHero)      lsPages++;
-    if (opts.gearList) lsPages++;
-    if (hasLayouts) {
-      if (lsCls === 'tiny')   lsPages += 1; // all layouts on 1 page
-      if (lsCls === 'small')  lsPages += 2; // 3-up + struct/cable
-      if (lsCls === 'medium') lsPages += 2; // canvas+2up + struct/cable
-      if (lsCls === 'large')  lsPages += 3; // canvas, power+data, struct+cable
-    }
-    return { pageCount: lsPages, collapseLayouts: lsCls === 'tiny' };
-  }
-
-  // Portrait: existing logic unchanged
+function buildComplexPagePlan(pw, ph, opts) {
   let pageCount = 0;
-  if (hasHero)      pageCount++;
-  if (opts.gearList) pageCount++;
-
-  if (hasLayouts) {
-    const collapseLayouts = canCollapseLayoutPages(pw, ph, format, orientation, null);
-    if (collapseLayouts) {
-      pageCount++;
-    } else {
-      const hasPowerData    = opts.power || opts.data;
-      const hasStructCabling = opts.structure || opts.cabling;
-      if (hasPowerData)     pageCount++;
-      if (hasStructCabling) pageCount++;
-    }
-    return { pageCount, collapseLayouts };
+  if (opts.specs || opts.standard) pageCount++;   // hero page
+  // Layout pages only render for a real wall (buildComplexPdf gates on pw * ph > 1).
+  if (pw * ph > 1) {
+    ['power', 'data', 'structure', 'cabling'].forEach(function(k) {
+      if (opts[k]) pageCount++;
+    });
   }
-
-  return { pageCount, collapseLayouts: false };
+  return { pageCount };
 }
 
 /**

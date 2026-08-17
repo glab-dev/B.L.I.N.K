@@ -1,5 +1,5 @@
 {
-  "version": "2.11.124",
+  "version": "2.11.125",
   "updated": "2026-08-17",
-  "changelog": "Give each portrait PDF layout its own page, make CB5 half row clickable"
+  "changelog": "Give landscape PDF one layout per page, align gear list, split spares"
 }

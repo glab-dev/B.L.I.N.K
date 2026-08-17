@@ -1130,7 +1130,10 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
  * @param {Array<{qty: number|string, item: string}>} items
  * @returns {object|null} pdfmake element or null
  */
-function buildGearSection(title, items) {
+// bodyColumns splits the item list across N side-by-side columns under a single header
+// bar. Defaults to 1, so every existing caller renders exactly as before; the combined
+// gear list passes 2 for SPARES in landscape, where the short page cannot fit it in one.
+function buildGearSection(title, items, bodyColumns) {
   const validItems = (items || []).filter(function(i) {
     return i && i.item && (Number(i.qty) > 0 || (typeof i.qty === 'string' && i.qty !== '' && i.qty !== '0'));
   });
@@ -1141,17 +1144,30 @@ function buildGearSection(title, items) {
     : (typeof ecoPrintMode !== 'undefined' && ecoPrintMode) ? '#6b7280'
     : tc.sectionHeaderBg;
 
-  // pdfmake fillColor only works on table cells — use tables for header and body
-  const bodyRows = validItems.map(function(i) {
-    return [{
+  const nCols = Math.max(1, bodyColumns || 1);
+  const perCol = Math.ceil(validItems.length / nCols);
+
+  // One item's qty + name. Blank pads the final short column so its fill still runs.
+  function itemCell(i) {
+    if (!i) return { text: ' ', fontSize: 8, margin: [4, 2, 4, 2] };
+    return {
       columns: [
         { text: String(i.qty), fontSize: 8, color: tc.textItem, bold: true, width: 22 },
         { text: i.item, fontSize: 8, color: tc.textItem, width: '*' }
       ],
       columnGap: 4,
       margin: [4, 2, 4, 2]
-    }];
-  });
+    };
+  }
+
+  // pdfmake fillColor only works on table cells — use tables for header and body.
+  // Column-major: reading order runs down column 1, then down column 2.
+  const bodyRows = [];
+  for (let r = 0; r < perCol; r++) {
+    const row = [];
+    for (let c = 0; c < nCols; c++) row.push(itemCell(validItems[c * perCol + r]));
+    bodyRows.push(row);
+  }
 
   return {
     stack: [
@@ -1170,11 +1186,13 @@ function buildGearSection(title, items) {
       },
       // Body — table so fillColor renders on each row
       {
-        table: { widths: ['*'], body: bodyRows.map(function(row) {
-          return [{ stack: [row[0]], fillColor: tc.sectionBodyBg,
-            border: [true, false, true, true],
-            borderColor: [tc.sectionBorder, null, tc.sectionBorder, tc.sectionBorder],
-            margin: [0, 0, 0, 0] }];
+        table: { widths: new Array(nCols).fill('*'), body: bodyRows.map(function(row) {
+          return row.map(function(cell) {
+            return { stack: [cell], fillColor: tc.sectionBodyBg,
+              border: [true, false, true, true],
+              borderColor: [tc.sectionBorder, null, tc.sectionBorder, tc.sectionBorder],
+              margin: [0, 0, 0, 0] };
+          });
         }) },
         layout: { hLineWidth: function() { return 0; }, vLineWidth: function() { return 0; },
                   paddingLeft: function() { return 0; }, paddingRight: function() { return 0; },
@@ -1392,10 +1410,11 @@ function buildStructureInfoPdf(screenId) {
     return { stack: [titleEl].concat(itemEls), margin: [6, 6, 6, 6] };
   }
 
-  // Wrap up to 4 table cards in a summary-bar-style 4-column row
+  // Wrap up to N table cards in a summary-bar-style row
+  const perRow = pdfCurrentCardsPerRow();
   function buildRow(rowTables) {
     const padded = rowTables.slice();
-    while (padded.length < 4) padded.push(null);
+    while (padded.length < perRow) padded.push(null);
     const cells = padded.map(function(t) {
       return {
         stack: t ? [buildCard(t)] : [{ text: ' ', fontSize: 4 }],
@@ -1405,7 +1424,7 @@ function buildStructureInfoPdf(screenId) {
       };
     });
     return {
-      table: { widths: ['*', '*', '*', '*'], body: [cells] },
+      table: { widths: new Array(perRow).fill('*'), body: [cells] },
       layout: {
         hLineWidth: () => 0.5, vLineWidth: () => 0.5,
         hLineColor: () => tc.sectionBorder, vLineColor: () => tc.sectionBorder,
@@ -1415,22 +1434,24 @@ function buildStructureInfoPdf(screenId) {
     };
   }
 
-  // Group tables into rows of 4, return single block or stacked rows
+  // Group tables into rows, return single block or stacked rows
   const blocks = [];
-  for (let i = 0; i < tables.length; i += 4) {
-    blocks.push(buildRow(tables.slice(i, i + 4)));
+  for (let i = 0; i < tables.length; i += perRow) {
+    blocks.push(buildRow(tables.slice(i, i + perRow)));
   }
   return blocks.length === 1 ? blocks[0] : { stack: blocks };
 }
 
 /**
- * Builds the complete COMPLEX MODE pdfmake document definition.
+ * Builds the complete COMPLEX MODE pdfmake document definition. Identical in portrait
+ * and landscape — only the page dimensions differ.
  * Structure per screen:
- *   Page 1 (Hero):        Header + screen label + expanded summary + standard grid
- *   Page 2 (Gear List):   Header + "GEAR LIST" label + 3-column gear list
- *   Page 3 (Power/Data):  Header + power grid + legend + data grid + legend
- *   Page 4 (Structure/Cabling): Header + structure grid + tables + cabling diagram
- *   (Pages 3+4 collapse to 1 page for wide/short walls)
+ *   Hero:      Header + screen label + expanded summary + standard grid
+ *   Power:     Header + power grid + SOCA circuit table
+ *   Data:      Header + data grid + data-line map table
+ *   Structure: Header + structure grid + structure info tables
+ *   Cabling:   Header + cabling diagram
+ * Then one combined gear-list page for the whole document.
  */
 function buildComplexPdf(opts, canvasCache) {
   const format      = pdfPageFormat      || 'a4';
@@ -1454,9 +1475,6 @@ function buildComplexPdf(opts, canvasCache) {
   // Track page starts so summary cards can show correct page references
   const screenPageStarts = {};
 
-  // Max height for layout images (power, data, structure, standard canvas) — 3 images per page
-  const layoutOverheadShared = m.headerBarH + m.afterHeaderGap + 2 * m.sectionLabelH + 2 * m.afterLabelGap + 2 * 4 + 20;
-  const layoutImgMaxH = Math.floor((uh - layoutOverheadShared) / 3);
 
   function sectionLabel(text) {
     return {
@@ -1484,15 +1502,6 @@ function buildComplexPdf(opts, canvasCache) {
       alignment: 'center',
       margin: [0, 0, 0, 4]
     };
-  }
-
-  function classifyScreenLandscape(pw, ph) {
-    const panels = pw * ph;
-    const gw = pw * 28; // estimated rendered width at 28pt per panel-column
-    if (panels <= 15 && gw <= 170) return 'tiny';   // 4-up, 1 page
-    if (panels <= 20 && gw <= 200) return 'small';  // 3-up page 1, struct+cable page 2
-    if (panels <= 40 && gw <= 260) return 'medium'; // canvas+2up page 1, struct+cable page 2
-    return 'large';                                  // 1-up, struct+cable still pinned
   }
 
   function escXml(str) {
@@ -1636,11 +1645,10 @@ function buildComplexPdf(opts, canvasCache) {
       const pw2 = parseInt(pd.panelsWide) || 0;
       const ph2 = parseInt(pd.panelsHigh) || 0;
       const plan = buildComplexPagePlan(pw2, ph2,
-        { specs: opts.specs !== false, gearList: opts.gearList !== false,
+        { specs: opts.specs !== false,
           standard: opts.standard !== false, power: opts.power !== false,
           data: opts.data !== false, structure: opts.structure !== false,
-          cabling: opts.cabling !== false },
-        format, orientation);
+          cabling: opts.cabling !== false });
       pageAccum += plan.pageCount;
     });
   }
@@ -1759,216 +1767,6 @@ function buildComplexPdf(opts, canvasCache) {
     const resStr    = (pw > 0 && ph > 0 && panelSpec.res_x && panelSpec.res_y)
       ? `${pw * panelSpec.res_x} × ${ph * panelSpec.res_y} px` : '';
 
-    // Determine adaptive layout collapse
-    const collapseLayouts = canCollapseLayoutPages(pw, ph, format, orientation, null);
-
-    // ===== LANDSCAPE: adaptive multi-column packing =====
-    if (orientation === 'l') {
-      const cls = classifyScreenLandscape(pw, ph);
-      const headerOverhead = m.headerBarH + m.afterHeaderGap + m.screenLabelH + 6;
-      const specBandH = opts.specs !== false ? m.summaryBarHExp + 8 : 0;
-
-      // Image scaled width-first — fills the column width. topMargin pushes the image down
-      // so that bottoms align when columns have different heights (e.g. Power SOCA bar).
-      function lsImg(key, colW, maxH, topMargin) {
-        const imgData = canvasCache && canvasCache[key];
-        if (!imgData || !imgData.dataUrl || pw * ph <= 1) return null;
-        const aspect = imgData.aspectRatio || (ph / pw);
-        var w = colW;
-        var h = Math.round(w * aspect);
-        if (h > maxH) { h = maxH; w = Math.round(h / aspect); }
-        return { image: imgData.dataUrl, width: w, height: h, alignment: 'center', margin: [0, topMargin || 0, 0, 4] };
-      }
-
-      // Returns the rendered image height at colW (capped at maxH), for spacer calculation.
-      function lsRenderedH(key, colW, maxH) {
-        var imgData = canvasCache && canvasCache[key];
-        if (!imgData || !imgData.dataUrl) return 0;
-        var aspect = imgData.aspectRatio || (ph / pw);
-        return Math.min(Math.round(colW * aspect), maxH);
-      }
-
-      // Column block: label at top, then image with optional top margin to bottom-align it.
-      function lsColBlock(key, label, colW, maxH, topMargin) {
-        var items = [];
-        if (label) items.push(sectionLabel(label));
-        var img = lsImg(key, colW, maxH, topMargin);
-        if (img) items.push(img);
-        return { stack: items, width: colW };
-      }
-
-      // Structure (left half) + Cabling (right half) side-by-side — pinned always on same page
-      function renderStructCablePinned() {
-        var GAP = 20;
-        var halfW = Math.floor((cw - GAP) / 2);
-        var pageH = uh - headerOverhead - 10;
-        var structImgH = Math.floor(pageH * 0.58);
-
-        var structItems = [];
-        if (opts.structure !== false) {
-          structItems.push(sectionLabel('Structure Layout'));
-          var sImg = lsImg(screenId + '_structure', halfW, structImgH);
-          if (sImg) structItems.push(sImg);
-          var structInfo = buildStructureInfoPdf(screenId, cw);
-          if (structInfo) structItems.push(structInfo);
-        }
-
-        var cableItems = [];
-        if (opts.cabling !== false) {
-          cableItems.push(sectionLabel('Cabling Layout'));
-          var cabImgData = canvasCache && canvasCache[screenId + '_cabling'];
-          if (cabImgData && cabImgData.dataUrl) {
-            var cabAspect = cabImgData.aspectRatio || (1 / 3);
-            var cw2 = halfW, ch2 = Math.round(cw2 * cabAspect);
-            if (ch2 > pageH) { ch2 = pageH; cw2 = Math.round(ch2 / cabAspect); }
-            cableItems.push({ image: cabImgData.dataUrl, width: Math.min(cw2, halfW), height: ch2, alignment: 'center', margin: [0, 0, 0, 4] });
-          }
-        }
-
-        content.push({
-          columns: [
-            { stack: structItems, width: halfW },
-            { stack: cableItems, width: halfW }
-          ],
-          columnGap: GAP
-        });
-      }
-
-      // Page break before each screen (same rule as portrait)
-      if (sIdx > 0 || screenIds.length > 1) content.push({ text: '', pageBreak: 'before' });
-
-      // Header + screen name on page 1 (shared by all classes)
-      content.push(buildPdfHeader(configName, dateStr, logoData));
-      content.push({ text: screen.name.toUpperCase(), fontSize: 11, bold: true, color: '#000000', margin: [0, 2, 0, 6] });
-      if (opts.specs !== false) content.push(buildComplexSummaryBar(data, calcData, panelSpec, sd));
-
-      var lsHasLayouts = pw * ph > 1 && (opts.power !== false || opts.data !== false || opts.structure !== false || opts.cabling !== false);
-
-      if (cls === 'tiny') {
-        // 4-up row + cabling full-width, all on 1 page
-        if (lsHasLayouts) {
-          var GAP4 = 14;
-          var colW4 = Math.floor((cw - GAP4 * 3) / 4);
-          var rowH4 = 180; // fixed safe height for 4-up row
-          content.push({
-            columns: [
-              opts.standard  !== false ? lsColBlock(screenId + '_standard',  'Canvas',           colW4, rowH4) : { text: '', width: colW4 },
-              opts.power     !== false ? lsColBlock(screenId + '_power',     'Power Layout',     colW4, rowH4) : { text: '', width: colW4 },
-              opts.data      !== false ? lsColBlock(screenId + '_data',      'Data Layout',      colW4, rowH4) : { text: '', width: colW4 },
-              opts.structure !== false ? lsColBlock(screenId + '_structure', 'Structure Layout', colW4, rowH4) : { text: '', width: colW4 }
-            ],
-            columnGap: GAP4,
-            margin: [0, 0, 0, 6]
-          });
-          if (opts.structure !== false) {
-            var si4 = buildStructureInfoPdf(screenId, cw);
-            if (si4) content.push(si4);
-          }
-          if (opts.cabling !== false) {
-            content.push(sectionLabel('Cabling Layout'));
-            var cab4 = canvasCache && canvasCache[screenId + '_cabling'];
-            if (cab4 && cab4.dataUrl) {
-              content.push({ image: cab4.dataUrl, fit: [cw, 150], alignment: 'center', margin: [0, 0, 0, 4] });
-            }
-          }
-        }
-      } else if (cls === 'small') {
-        // 3-up row page 1, struct+cable pinned page 2
-        if (lsHasLayouts) {
-          var GAP3 = 20;
-          var colW3 = Math.floor((cw - GAP3 * 2) / 3);
-          // 300pt safety ceiling. Compute each image's actual rendered height, then add a
-          // top margin to shorter columns so all three grid bottoms align horizontally.
-          var maxH3 = 300;
-          var hStd  = lsRenderedH(screenId + '_standard', colW3, maxH3);
-          var hPow  = lsRenderedH(screenId + '_power',    colW3, maxH3);
-          var hDat  = lsRenderedH(screenId + '_data',     colW3, maxH3);
-          var maxHRow = Math.max(hStd, hPow, hDat);
-          var topStd  = maxHRow - hStd;
-          var topPow  = maxHRow - hPow;
-          var topDat  = maxHRow - hDat;
-          content.push({
-            columns: [
-              opts.standard !== false ? lsColBlock(screenId + '_standard', 'Canvas',       colW3, maxH3, topStd) : { text: '', width: colW3 },
-              opts.power    !== false ? lsColBlock(screenId + '_power',    'Power Layout', colW3, maxH3, topPow) : { text: '', width: colW3 },
-              opts.data     !== false ? lsColBlock(screenId + '_data',     'Data Layout',  colW3, maxH3, topDat) : { text: '', width: colW3 }
-            ],
-            columnGap: GAP3
-          });
-          if (opts.structure !== false || opts.cabling !== false) {
-            content.push({ text: '', pageBreak: 'before' });
-            content.push(buildPdfHeader(configName, dateStr, logoData));
-            content.push({ text: screen.name.toUpperCase(), fontSize: 11, bold: true, color: '#000000', margin: [0, 2, 0, 6] });
-            renderStructCablePinned();
-          }
-        }
-      } else if (cls === 'medium') {
-        // canvas full-width + power/data 2-up on page 1, struct+cable pinned page 2
-        if (lsHasLayouts) {
-          var GAP2 = 20;
-          var halfW2 = Math.floor((cw - GAP2) / 2);
-          var canvasH2 = 200; // fixed safe height for canvas full-width row
-          var twoUpH2  = 200; // fixed safe height for power/data 2-up row
-          if (opts.standard !== false) {
-            content.push(sectionLabel('Canvas'));
-            var cImg2 = lsImg(screenId + '_standard', cw, canvasH2);
-            if (cImg2) content.push(cImg2);
-          }
-          content.push({
-            columns: [
-              opts.power !== false ? lsColBlock(screenId + '_power', 'Power Layout', halfW2, twoUpH2) : { text: '', width: halfW2 },
-              opts.data  !== false ? lsColBlock(screenId + '_data',  'Data Layout',  halfW2, twoUpH2) : { text: '', width: halfW2 }
-            ],
-            columnGap: GAP2
-          });
-          if (opts.structure !== false || opts.cabling !== false) {
-            content.push({ text: '', pageBreak: 'before' });
-            content.push(buildPdfHeader(configName, dateStr, logoData));
-            content.push({ text: screen.name.toUpperCase(), fontSize: 11, bold: true, color: '#000000', margin: [0, 2, 0, 6] });
-            renderStructCablePinned();
-          }
-        }
-      } else {
-        // large: canvas page 1, power+data page 2, struct+cable page 3 (still pinned)
-        if (lsHasLayouts) {
-          if (opts.standard !== false) {
-            var lgImg = gridImage(screenId + '_standard', pw, ph, layoutImgMaxH);
-            if (lgImg) content.push(lgImg);
-          }
-          if (opts.power !== false || opts.data !== false) {
-            content.push({ text: '', pageBreak: 'before' });
-            content.push(buildPdfHeader(configName, dateStr, logoData));
-            content.push({ text: screen.name.toUpperCase(), fontSize: 11, bold: true, color: '#000000', margin: [0, 2, 0, 6] });
-            if (opts.power !== false) {
-              content.push(sectionLabel('Power Layout'));
-              var pImgDataLg = canvasCache && canvasCache[screenId + '_power'];
-              var socaFracLg = (pImgDataLg && pImgDataLg.socaBarFraction) || 0;
-              var powerMaxHLg = socaFracLg > 0 ? Math.round(layoutImgMaxH / (1 - socaFracLg)) : layoutImgMaxH;
-              var pImgLg = gridImage(screenId + '_power', pw, ph, powerMaxHLg);
-              if (pImgLg) content.push(pImgLg);
-              var sMapLg = buildSocaCircuitTable(screenId);
-              if (sMapLg) content.push(sMapLg);
-            }
-            if (opts.data !== false) {
-              content.push(sectionLabel('Data Layout'));
-              var dImgLg = gridImage(screenId + '_data', pw, ph, layoutImgMaxH);
-              if (dImgLg) content.push(dImgLg);
-              var dMapLg = buildDataLineMapTable(screenId);
-              if (dMapLg) content.push(dMapLg);
-            }
-          }
-          if (opts.structure !== false || opts.cabling !== false) {
-            content.push({ text: '', pageBreak: 'before' });
-            content.push(buildPdfHeader(configName, dateStr, logoData));
-            content.push({ text: screen.name.toUpperCase(), fontSize: 11, bold: true, color: '#000000', margin: [0, 2, 0, 6] });
-            renderStructCablePinned();
-          }
-        }
-      }
-
-      return; // skip portrait rendering path for this screen
-    }
-    // ===== END LANDSCAPE =====
 
     // ===== PAGE 1: HERO =====
     if (opts.specs !== false || opts.standard !== false) {
@@ -1983,8 +1781,14 @@ function buildComplexPdf(opts, canvasCache) {
         content.push(buildComplexSummaryBar(data, calcData, panelSpec, sd));
       }
       if (opts.standard !== false) {
-        const usedAbove = m.headerBarH + 6 + m.screenLabelH + m.summaryBarHExp + 8;
-        const remainH   = Math.min(uh - usedAbove - m.resolutionLblH - 80, layoutImgMaxH);
+        // The canvas has this page to itself, so let it use what the summary bar leaves.
+        // It used to also be capped at a third of the page, left over from when three
+        // images shared one — which on the shorter landscape page left it tiny.
+        // summaryBarHExp (100) is the token but the expanded bar measures ~140pt with a
+        // full PANEL column, so budget 160 rather than push the image off the page.
+        const SUMMARY_BAR_MAX_H = 160;
+        const usedAbove = m.headerBarH + 6 + m.screenLabelH + SUMMARY_BAR_MAX_H + 8;
+        const remainH   = uh - usedAbove - m.resolutionLblH - 28;
         const img = gridImage(screenId + '_standard', pw, ph, remainH);
         if (img) content.push(img);
         if (resStr) content.push({ text: resStr, fontSize: 9, color: tc.textMuted, alignment: 'center', margin: [0, 0, 0, 0] });
@@ -2000,33 +1804,13 @@ function buildComplexPdf(opts, canvasCache) {
       const estSocaH    = estSocaTableHeight(screenId);
       const estDataMapH = estDataMapHeight(screenId);
       const estStructH  = estStructureInfoHeight(screenId);
-      // Image height when fit to the page width (the real height for wide/short walls).
-      const fitH = calculateGridScale(pw, ph, cw, uh).renderHeight;
 
-      // Large walls (or tall tables): give Power / Data / Structure each its own page so the
-      // layout and its table stay together (no bleed) and the image can fill the page. Small
-      // walls keep the compact collapsed layout, but only when the WHOLE stack (every enabled
-      // layout + its table + cabling) genuinely fits on one page — otherwise it would bleed.
-      const cabData = canvasCache && canvasCache[screenId + '_cabling'];
-      const cabAspect = (cabData && cabData.aspectRatio) || 0.5;
-      const cablingEstH = lblH + Math.min(440, cw * cabAspect);
-      const fullStackH = hdrH
-        + (opts.power     !== false ? lblH + fitH + estSocaH    : 0)
-        + (opts.data      !== false ? lblH + fitH + estDataMapH : 0)
-        + (opts.structure !== false ? lblH + fitH + estStructH  : 0)
-        + (opts.cabling   !== false ? cablingEstH               : 0);
-      const oneLayoutPerPage = !collapseLayouts || (fullStackH > uh);
-      const useCollapse = collapseLayouts && !oneLayoutPerPage;
-
-      // Page 3: Power + Data layouts (always new page; collapse controls whether page 4 exists)
+      // Every enabled layout gets its own page, in both orientations. Packing several
+      // layouts onto one page is what separated a section label from its image and
+      // pushed tall walls' tables onto a page with no report header.
       content.push({ text: '', pageBreak: 'before' });
       content.push(buildPdfHeader(configName, dateStr, logoData));
 
-      // Overhead per page: header + 2 labels + 2 after-label gaps + 2 image margins + safety buffer
-      const layoutOverhead = m.headerBarH + m.afterHeaderGap + 2 * m.sectionLabelH + 2 * m.afterLabelGap + 2 * 4 + 20;
-      const singlePageMaxH = useCollapse
-        ? Math.floor((uh - m.headerBarH - 80) / 4)
-        : Math.floor((uh - layoutOverhead) / 3);
       // One-per-page image cap: fill the page minus the section label and the layout's own
       // table. The reserve covers the image's own 4pt bottom margin plus slack for rounding
       // in the table estimates — without it a tall wall sized the image to the exact
@@ -2035,10 +1819,12 @@ function buildComplexPdf(opts, canvasCache) {
 
       if (opts.power !== false) {
         content.push(sectionLabel('Power Layout'));
-        const powerImgData = canvasCache && canvasCache[screenId + '_power'];
-        const socaFrac = (powerImgData && powerImgData.socaBarFraction) || 0;
-        const powerBaseH = oneLayoutPerPage ? fillImgH(estSocaH) : singlePageMaxH;
-        const powerMaxH = socaFrac > 0 ? Math.round(powerBaseH / (1 - socaFrac)) : powerBaseH;
+        // Cap the WHOLE image, column-marker band included. This used to divide the cap by
+        // (1 - socaBarFraction) so the panel grid alone filled the space, which made the
+        // image taller than the budget it was measured against. Portrait absorbed the few
+        // points in its reserve; landscape, where the band is a bigger share of a shorter
+        // page, ran the SOCA table onto the next page.
+        const powerMaxH = fillImgH(estSocaH);
         const img = gridImage(screenId + '_power', pw, ph, powerMaxH);
         if (img) content.push(img);
         const sMap = buildSocaCircuitTable(screenId);
@@ -2046,29 +1832,23 @@ function buildComplexPdf(opts, canvasCache) {
       }
 
       if (opts.data !== false) {
-        // One-per-page: data always starts its own page. (When collapsed, it stays on this page.)
-        if (oneLayoutPerPage) {
-          content.push({ text: '', pageBreak: 'before' });
-          content.push(buildPdfHeader(configName, dateStr, logoData));
-        }
+        content.push({ text: '', pageBreak: 'before' });
+        content.push(buildPdfHeader(configName, dateStr, logoData));
         content.push(sectionLabel('Data Layout'));
-        const dataBaseH = oneLayoutPerPage ? fillImgH(estDataMapH) : singlePageMaxH;
+        const dataBaseH = fillImgH(estDataMapH);
         const img = gridImage(screenId + '_data', pw, ph, dataBaseH);
         if (img) content.push(img);
         const dMap = buildDataLineMapTable(screenId);
         if (dMap) content.push(dMap);
       }
 
-      // Structure + Cabling (same page when collapsing, new page otherwise)
       if (opts.structure !== false || opts.cabling !== false) {
-        if (!useCollapse) {
-          content.push({ text: '', pageBreak: 'before' });
-          content.push(buildPdfHeader(configName, dateStr, logoData));
-        }
+        content.push({ text: '', pageBreak: 'before' });
+        content.push(buildPdfHeader(configName, dateStr, logoData));
 
         if (opts.structure !== false) {
           content.push(sectionLabel('Structure Layout'));
-          const structBaseH = oneLayoutPerPage ? fillImgH(estStructH) : singlePageMaxH;
+          const structBaseH = fillImgH(estStructH);
           const img = gridImage(screenId + '_structure', pw, ph, structBaseH);
           if (img) content.push(img);
           const structInfo = buildStructureInfoPdf(screenId, cw);
@@ -2076,13 +1856,13 @@ function buildComplexPdf(opts, canvasCache) {
         }
 
         if (opts.cabling !== false) {
-          // One-per-page: cabling always starts its own page, exactly like Data above.
-          // This used to be decided by estimating the structure section's height; when the
-          // estimate ran low the label stayed on the structure page while pdfmake flowed
-          // the image onto the next one — which, being an automatic break, got no report
-          // header. Only skip the break when structure is off, because the enclosing
-          // structure/cabling block already opened a fresh page in that case.
-          if (oneLayoutPerPage && opts.structure !== false) {
+          // Cabling always starts its own page, exactly like Data above. This used to be
+          // decided by estimating the structure section's height; when the estimate ran low
+          // the label stayed on the structure page while pdfmake flowed the image onto the
+          // next one — which, being an automatic break, got no report header. Only skip the
+          // break when structure is off, because the enclosing structure/cabling block
+          // already opened a fresh page in that case.
+          if (opts.structure !== false) {
             content.push({ text: '', pageBreak: 'before' });
             content.push(buildPdfHeader(configName, dateStr, logoData));
           }
@@ -2091,7 +1871,8 @@ function buildComplexPdf(opts, canvasCache) {
           if (cabImg && cabImg.dataUrl) {
             // Cabling — use fit to maintain aspect ratio.
             // Multi-screen: smaller images allow more room on structure page; single-screen has its own page.
-            const cabFitH = screenIds.length > 1 ? 380 : 440;
+            // Bounded by the page budget so the short landscape page cannot overflow.
+            const cabFitH = Math.min(screenIds.length > 1 ? 380 : 440, fillImgH(0));
             content.push({
               image: cabImg.dataUrl,
               fit: [cw, cabFitH],
@@ -2119,9 +1900,11 @@ function buildComplexPdf(opts, canvasCache) {
 
       const numCols = gearScreenIds.length;
       const colGap = 8;
-      const colW = Math.floor((cw - colGap * (numCols - 1)) / numCols);
 
-      var colDefs = [];
+      // One entry per screen: { name, sections: { TITLE -> node } }. Assembled into a
+      // table below so each section type occupies one row and its headings line up
+      // across screens, instead of every column stacking to its own heights.
+      var screenCols = [];
       gearScreenIds.forEach(function(sid, ci) {
         const scr = screens[sid];
         const sIdx = screenIds.indexOf(sid);
@@ -2197,21 +1980,57 @@ function buildComplexPdf(opts, canvasCache) {
         if (pc.true1_5     > 0) pcItems.push({ qty: pc.true1_5,     item: "5' True1"  });
         if (pc.true1Twofer > 0) pcItems.push({ qty: pc.true1Twofer, item: 'True1 Twofer' });
 
-        const colSections = [
-          { text: (scr && scr.name) ? scr.name.toUpperCase() : sid, fontSize: 9, bold: true, margin: [0, 0, 0, 4] },
-          buildGearSection('EQUIPMENT', eqItems),
-          buildGearSection('RIGGING HARDWARE', rigItems),
-          gs.hasGS       ? buildGearSection('GROUND SUPPORT', gsItems)   : null,
-          fh.hasFloorFrames ? buildGearSection('FLOOR HARDWARE', fhItems) : null,
-          buildGearSection('DATA CABLES',  dcItems),
-          buildGearSection('POWER CABLES', pcItems),
-        ].filter(Boolean);
-
-        if (ci > 0) colDefs.push({ width: colGap, text: '' });
-        colDefs.push({ stack: colSections, width: colW });
+        screenCols.push({
+          name: (scr && scr.name) ? scr.name.toUpperCase() : sid,
+          sections: {
+            'EQUIPMENT':        buildGearSection('EQUIPMENT', eqItems),
+            'RIGGING HARDWARE': buildGearSection('RIGGING HARDWARE', rigItems),
+            'GROUND SUPPORT':   gs.hasGS          ? buildGearSection('GROUND SUPPORT', gsItems)  : null,
+            'FLOOR HARDWARE':   fh.hasFloorFrames ? buildGearSection('FLOOR HARDWARE', fhItems)  : null,
+            'DATA CABLES':      buildGearSection('DATA CABLES',  dcItems),
+            'POWER CABLES':     buildGearSection('POWER CABLES', pcItems),
+          },
+          counts: {
+            'EQUIPMENT':        eqItems.length,
+            'RIGGING HARDWARE': rigItems.length,
+            'GROUND SUPPORT':   gs.hasGS          ? gsItems.length : 0,
+            'FLOOR HARDWARE':   fh.hasFloorFrames ? fhItems.length : 0,
+            'DATA CABLES':      dcItems.length,
+            'POWER CABLES':     pcItems.length,
+          }
+        });
       });
 
-      content.push({ columns: colDefs, columnGap: 0, margin: [0, 0, 0, 12] });
+      // Row 0 = screen names, then one row per section type that any screen has. A screen
+      // without that section gets an empty cell, so the next heading still lines up.
+      const GEAR_SECTION_ORDER = ['EQUIPMENT', 'RIGGING HARDWARE', 'GROUND SUPPORT',
+                                  'FLOOR HARDWARE', 'DATA CABLES', 'POWER CABLES'];
+      const gearBody = [ screenCols.map(function(c) {
+        return { text: c.name, fontSize: 9, bold: true, margin: [0, 0, colGap, 4] };
+      }) ];
+      var perScreenH = 18; // the screen-name row
+      GEAR_SECTION_ORDER.forEach(function(title) {
+        if (!screenCols.some(function(c) { return c.sections[title]; })) return;
+        gearBody.push(screenCols.map(function(c) {
+          const sec = c.sections[title];
+          // colGap lives in the cell's right margin — pdfmake table cells have no gutter.
+          return sec ? { stack: [sec], margin: [0, 0, colGap, 6] } : { text: '' };
+        }));
+        // A table row is as tall as its tallest cell; +6 for the cell's own bottom margin.
+        perScreenH += screenCols.reduce(function(mx, c) {
+          return Math.max(mx, estGearSectionHeight(c.counts[title], 1));
+        }, 0) + 6;
+      });
+
+      content.push({
+        table: { widths: new Array(numCols).fill('*'), body: gearBody },
+        layout: {
+          hLineWidth: function() { return 0; }, vLineWidth: function() { return 0; },
+          paddingLeft: function() { return 0; }, paddingRight: function() { return 0; },
+          paddingTop: function() { return 0; }, paddingBottom: function() { return 0; }
+        },
+        margin: [0, 0, 0, 12]
+      });
 
       // Shared: Signal Cables, Utility, Spares (appear once for the whole rig)
       const sc = gearData.signalCables || {};
@@ -2250,13 +2069,32 @@ function buildComplexPdf(opts, canvasCache) {
       if (sp.true1_5     > 0) spareItems.push({ qty: sp.true1_5,     item: "5' True1"  });
       if (sp.true1Twofer > 0) spareItems.push({ qty: sp.true1Twofer, item: 'True1 Twofer' });
 
+      // Spares is much the longest of the three, and landscape has ~250pt less usable
+      // height than portrait, so it ran off the page there. Split it over two columns
+      // inside its own third of the row — one SPARES heading spanning both.
+      const spareCols = orientation === 'l' ? 2 : 1;
       const sharedSections = [
         scItems.length    > 0 ? buildGearSection('SIGNAL CABLES', scItems)  : null,
         utilItems.length  > 0 ? buildGearSection('UTILITY',       utilItems) : null,
-        spareItems.length > 0 ? buildGearSection('SPARES',        spareItems) : null,
+        spareItems.length > 0 ? buildGearSection('SPARES',        spareItems, spareCols) : null,
       ].filter(Boolean);
 
       if (sharedSections.length > 0) {
+        // If the shared row cannot follow the per-screen table on this page, start a fresh
+        // one explicitly. Letting pdfmake break here instead would produce a page with no
+        // report header, because headers are pushed into the content per page.
+        const sharedH = Math.max(
+          estGearSectionHeight(scItems.length, 1),
+          estGearSectionHeight(utilItems.length, 1),
+          estGearSectionHeight(spareItems.length, spareCols)
+        );
+        const gearHdrH = m.headerBarH + m.afterHeaderGap + m.sectionLabelH + m.afterLabelGap;
+        if (gearHdrH + perScreenH + 12 + sharedH > uh) {
+          content.push({ text: '', pageBreak: 'before' });
+          content.push(buildPdfHeader(configName, dateStr, logoData));
+          content.push(sectionLabel('Gear List — Shared'));
+        }
+
         const sharedColW = Math.floor((cw - 16) / 3);
         const sharedCols = [];
         sharedSections.forEach(function(sec, i) {
@@ -2477,7 +2315,8 @@ function buildDataLineMapTable(screenId) {
   if (redundancy) {
     cards.push(buildCard('Backups', endpoints.map(ep => ({ label: ep.line + 'B', panel: fmt(ep.backup) }))));
   }
-  while (cards.length < 4) cards.push(null);
+  const perRow = pdfCurrentCardsPerRow();
+  while (cards.length < perRow) cards.push(null);
 
   const cells = cards.map(function(c) {
     return {
@@ -2488,7 +2327,7 @@ function buildDataLineMapTable(screenId) {
     };
   });
   return {
-    table: { widths: ['*', '*', '*', '*'], body: [cells] },
+    table: { widths: new Array(perRow).fill('*'), body: [cells] },
     layout: {
       hLineWidth: () => 0.5, vLineWidth: () => 0.5,
       hLineColor: () => tc.sectionBorder, vLineColor: () => tc.sectionBorder,
@@ -2542,11 +2381,13 @@ function buildSocaCircuitTable(screenId) {
     return { stack: [titleEl].concat(circuitEls).concat([totalEl]), margin: [6, 6, 6, 6] };
   }
 
-  // Pack 4 cards per row; pad the last row with blanks to keep equal widths.
+  // Pack N cards per row (width-aware, so a card is the same size in landscape as in
+  // portrait); pad the last row with blanks to keep equal widths.
+  const perRow = pdfCurrentCardsPerRow();
   const body = [];
-  for (let r = 0; r < sb.length; r += 4) {
+  for (let r = 0; r < sb.length; r += perRow) {
     const row = [];
-    for (let k = 0; k < 4; k++) {
+    for (let k = 0; k < perRow; k++) {
       const soca = sb[r + k];
       row.push({
         stack: soca ? [buildCard(soca)] : [{ text: ' ', fontSize: 4 }],
@@ -2559,7 +2400,7 @@ function buildSocaCircuitTable(screenId) {
   }
 
   return {
-    table: { widths: ['*', '*', '*', '*'], body: body },
+    table: { widths: new Array(perRow).fill('*'), body: body },
     layout: {
       hLineWidth: () => 0.5, vLineWidth: () => 0.5,
       hLineColor: () => tc.sectionBorder, vLineColor: () => tc.sectionBorder,
@@ -2569,7 +2410,7 @@ function buildSocaCircuitTable(screenId) {
   };
 }
 
-// Height (pt) of one card in the PDF's grey 4-column card tables (SOCA circuits, data
+// Height (pt) of one card in the PDF's grey card tables (SOCA circuits, data
 // map, structure info). All three share a shape: an outer 6pt card margin, an
 // underlined 9pt title with a 4pt bottom margin, then one 8pt/1.3 line per item.
 // These feed the layout image-height budget, so they must never read LOW — an
@@ -2583,12 +2424,33 @@ function estCardHeight(itemLines) {
 // Per-row table chrome: the row table's own margin [0,6,0,4] plus its 0.5pt borders.
 const EST_ROW_CHROME = 11;
 
+// Height (pt) of one gear-list section: the coloured header bar, then one row per item
+// (or per row of items when split across columns), plus the section's bottom margin.
+// Calibrated against measured output — a section header runs 18pt and an item row 13pt,
+// the odd row going to 15pt when a long name wraps.
+function estGearSectionHeight(itemCount, bodyColumns) {
+  const HEADER_H = 18;
+  const ROW_H    = 13;
+  const cols = Math.max(1, bodyColumns || 1);
+  if (!itemCount) return 0;
+  return HEADER_H + Math.ceil(itemCount / cols) * ROW_H + 6;
+}
+
+// Cards per row for those tables at the page size currently selected in the preview.
+function pdfCurrentCardsPerRow() {
+  const dims = pdfGetPageDimensions(
+    (typeof pdfPageFormat !== 'undefined' && pdfPageFormat) || 'a4',
+    (typeof pdfPageOrientation !== 'undefined' && pdfPageOrientation) || 'p'
+  );
+  return pdfCardsPerRow(dims.contentWidth);
+}
+
 // Height (pt) of the SOCA circuit table — used to decide PDF page layout.
 function estSocaTableHeight(screenId) {
   const cd = screens[screenId] && screens[screenId].calculatedData;
   const sb = cd && cd.socaBreakdown;
   if (!sb || !sb.length) return 0;
-  const rows = Math.ceil(sb.length / 4);
+  const rows = Math.ceil(sb.length / pdfCurrentCardsPerRow());
   const maxCircuits = sb.reduce((mx, s) => Math.max(mx, (s.circuits || []).length), 0);
   // +1 line for the bold "Total" row, +2 for its top margin.
   const cardH = estCardHeight(maxCircuits + 1) + 2;
@@ -2604,7 +2466,7 @@ function estDataMapHeight(screenId) {
 }
 
 // Height (pt) of the structure info cards. Mirrors buildStructureInfoPdf: the flat
-// line list is split into tables at each header, packed 4 per row, one row table each.
+// line list is split into tables at each header, packed N per row, one row table each.
 function estStructureInfoHeight(screenId) {
   if (typeof buildStructureInfoLines !== 'function') return 0;
   const lines = buildStructureInfoLines(screenId);
@@ -2618,8 +2480,9 @@ function estStructureInfoHeight(screenId) {
   if (current) tables.push(current);
   if (!tables.length) return 0;
   let h = 0;
-  for (let i = 0; i < tables.length; i += 4) {
-    const row = tables.slice(i, i + 4);
+  const perRow = pdfCurrentCardsPerRow();
+  for (let i = 0; i < tables.length; i += perRow) {
+    const row = tables.slice(i, i + perRow);
     // Row height is the tallest card in it; bold items carry an extra 4pt top margin.
     h += row.reduce(function(mx, t) {
       return Math.max(mx, estCardHeight(t.items) + t.bold * 4);

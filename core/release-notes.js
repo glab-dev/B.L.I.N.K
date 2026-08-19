@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.128', date: '2026-08-19', notes: 'Add SOCA field to combined Assign Circuit # prompt, matching the complex tab' },
   { version: '2.11.127', date: '2026-08-19', notes: 'Add combined power/data selection, group phase balance, PDF, bumper and data fixes' },
   { version: '2.11.126', date: '2026-08-17', notes: 'Remove dead buildGearListContent from PDF export' },
   { version: '2.11.125', date: '2026-08-17', notes: 'Give landscape PDF one layout per page, align gear list, split spares' },

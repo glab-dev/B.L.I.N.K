@@ -1170,7 +1170,10 @@ function showCombinedPanelContextMenu(x, y, panelInfo, layoutKind) {
   }, 100);
 }
 
-// Prompt user for custom circuit number and assign to selected panels
+// Prompt for a custom SOCA # and/or circuit # and assign them to the selected panels.
+// Mirrors showCircuitNumberPrompt() in interact/standard-canvas.js — the same dual-field
+// modal, the same validation, and the same rule that a blank field CLEARS that assignment —
+// but writes into each screen's data, since a combined selection can span screens.
 async function promptAssignCombinedCircuit() {
   // Get panels to assign (use multi-selection or single selected panel)
   const panelsToAssign = [];
@@ -1188,11 +1191,29 @@ async function promptAssignCombinedCircuit() {
 
   if(panelsToAssign.length === 0) return;
 
-  const input = await showPrompt(`Enter circuit number for ${panelsToAssign.length} panel(s):\n(Enter 0 or leave blank to clear custom assignment)`);
-  if(input === null) return; // Cancelled
+  const result = await showSocaCircuitPrompt(panelsToAssign.length);
+  if(result === null) return; // Cancelled
 
-  const circuitNum = parseInt(input);
-  const clearAssignment = input.trim() === '' || circuitNum === 0;
+  const socaRaw = (result.soca || '').trim();
+  const circRaw = (result.circuit || '').trim();
+
+  let socaNum = null;
+  if(socaRaw !== '') {
+    socaNum = parseSocaInput(socaRaw);
+    if(socaNum === null) {
+      showAlert('Please enter a valid SOCA (1-99 or A-Z)');
+      return;
+    }
+  }
+
+  let circNum = null;
+  if(circRaw !== '') {
+    circNum = parseInt(circRaw);
+    if(isNaN(circNum) || circNum < 1 || circNum > 999) {
+      showAlert('Please enter a valid circuit number between 1 and 999');
+      return;
+    }
+  }
 
   // Group panels by screen for efficient updates
   const panelsByScreen = {};
@@ -1201,35 +1222,56 @@ async function promptAssignCombinedCircuit() {
     panelsByScreen[p.screenId].push(p.panelKey);
   });
 
+  // One circuit can only hold so many panels. The limit is per screen (each has its own
+  // voltage/breaker/panel type), so check every screen the selection touches before
+  // writing anything — a partial assignment would be worse than none.
+  if(circNum !== null) {
+    for(const screenId of Object.keys(panelsByScreen)) {
+      const screen = screens[screenId];
+      if(!screen || !screen.data) continue;
+      const inp = (typeof resolveScreenPowerInputs === 'function') ? resolveScreenPowerInputs(screen.data) : null;
+      if(!inp) continue;
+      const liveCount = panelsByScreen[screenId].filter(k => !inp.deletedPanels.has(k)).length;
+      if(liveCount > inp.panelsPerCircuit) {
+        showAlert(
+          `${screen.name} has ${liveCount} panels selected but its max per circuit is ${inp.panelsPerCircuit}. ` +
+          `Reduce the selection or raise panels-per-circuit.`
+        );
+        return;
+      }
+    }
+  }
+
   // Apply to each screen's data
   Object.keys(panelsByScreen).forEach(screenId => {
     const screen = screens[screenId];
     if(!screen || !screen.data) return;
 
-    // Ensure customCircuitAssignments is a Map
-    if(!(screen.data.customCircuitAssignments instanceof Map)) {
-      if(Array.isArray(screen.data.customCircuitAssignments)) {
-        screen.data.customCircuitAssignments = new Map(screen.data.customCircuitAssignments);
-      } else {
-        screen.data.customCircuitAssignments = new Map();
-      }
-    }
+    const socaMap = toCombinedSocaMap(screen.data.customSocaAssignments);
+    const circuitMap = toCombinedSocaMap(screen.data.customCircuitAssignments);
 
-    // Update each panel
+    // Update each panel — a blank field clears that override
     panelsByScreen[screenId].forEach(panelKey => {
-      if(clearAssignment) {
-        screen.data.customCircuitAssignments.delete(panelKey);
-      } else {
-        screen.data.customCircuitAssignments.set(panelKey, circuitNum);
-      }
+      if(socaNum === null) socaMap.delete(panelKey);
+      else socaMap.set(panelKey, socaNum);
+
+      if(circNum === null) circuitMap.delete(panelKey);
+      else circuitMap.set(panelKey, circNum);
     });
 
-    // If this is the current screen, sync to global variable
+    screen.data.customSocaAssignments = socaMap;
+    screen.data.customCircuitAssignments = circuitMap;
+
+    // If this is the current screen, sync to the globals
     if(screenId === currentScreenId) {
-      customCircuitAssignments = new Map(screen.data.customCircuitAssignments);
-      calculate(); // Recalculate layouts
+      customSocaAssignments = new Map(socaMap);
+      customCircuitAssignments = new Map(circuitMap);
     }
   });
+
+  // Always recalculate — the current screen caches the shared-distro label map in its
+  // calculatedData, and changing any group member's SOCAs invalidates it.
+  if(typeof calculate === 'function') calculate();
 
   // Clear selection and re-render
   combinedSelectedPanels.clear();

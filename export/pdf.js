@@ -1291,6 +1291,33 @@ function buildStructureInfoPdf(screenId) {
  *   Cabling:   Header + cabling diagram
  * Then one combined gear-list page for the whole document.
  */
+// Order screens the way the Combined view lays them out — left to right, then top to bottom —
+// so the whole document walks the rig in physical order: summary table, per-screen pages and
+// gear list columns all follow this one list. Falls back to tab order when the project has no
+// arrangement (see getCombinedArrangement in nav/combined.js).
+function pdfScreenOrder() {
+  const byTab = Object.keys(screens).sort(function(a, b) {
+    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
+  });
+  const arrangement = (typeof getCombinedArrangement === 'function') ? getCombinedArrangement() : null;
+  if (!arrangement || !arrangement.items.length) return byTab;
+
+  const geom = {};
+  arrangement.items.forEach(function(it, i) { geom[it.screenId] = { x: it.x, y: it.y, i: i }; });
+  const tabRank = {};
+  byTab.forEach(function(sid, i) { tabRank[sid] = i; });
+
+  return byTab.slice().sort(function(a, b) {
+    const ga = geom[a], gb = geom[b];
+    if (!ga && !gb) return tabRank[a] - tabRank[b];
+    if (!ga) return 1;
+    if (!gb) return -1;
+    if (ga.x !== gb.x) return ga.x - gb.x;
+    if (ga.y !== gb.y) return ga.y - gb.y;
+    return ga.i - gb.i;
+  });
+}
+
 function buildComplexPdf(opts, canvasCache) {
   const format      = pdfPageFormat      || 'a4';
   const orientation = pdfPageOrientation || 'p';
@@ -1300,9 +1327,7 @@ function buildComplexPdf(opts, canvasCache) {
   const m           = PDF_TOKENS.layout;
   const tc          = PDF_TOKENS.colors;
 
-  const screenIds = Object.keys(screens).sort(function(a, b) {
-    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-  });
+  const screenIds = pdfScreenOrder();
   const gearData    = buildGearListData(screenIds);
   const allPanels   = getAllPanels();
   const configName  = document.getElementById('configName')?.value?.trim() || 'LED Wall';
@@ -1354,115 +1379,224 @@ function buildComplexPdf(opts, canvasCache) {
     const _grey = (typeof greyscalePrintMode !== 'undefined' && greyscalePrintMode);
     const _eco  = (typeof ecoPrintMode !== 'undefined' && ecoPrintMode);
 
-    // Lighten a hex color toward white by `amount` (0–1) — used for eco mode panels
-    function lightenHex(hex, amount) {
-      var r = parseInt(hex.slice(1,3), 16) || 0;
-      var g = parseInt(hex.slice(3,5), 16) || 0;
-      var b = parseInt(hex.slice(5,7), 16) || 0;
-      r = Math.round(r + (255 - r) * amount);
-      g = Math.round(g + (255 - g) * amount);
-      b = Math.round(b + (255 - b) * amount);
-      return '#' + r.toString(16).padStart(2,'0') + g.toString(16).padStart(2,'0') + b.toString(16).padStart(2,'0');
+    const EDGE_PAD  = 4;
+    const BOX_H_MAX = 140;
+    const FALLBACK_GAP_UNITS = 0.5;
+
+    // Approximate Helvetica advance widths (fraction of an em). There is no way to measure
+    // text inside the SVG, so labels under narrow screens are sized from this estimate —
+    // without it a wide label like "360x840 px" spills over its neighbours.
+    function textWidth(str, fontSize, bold) {
+      var total = 0;
+      for (var i = 0; i < str.length; i++) {
+        var ch = str[i];
+        if (ch === ' ')                  total += 0.278;
+        else if (ch === '\xd7')          total += 0.584;
+        else if (ch >= '0' && ch <= '9') total += 0.556;
+        else if (ch >= 'A' && ch <= 'Z') total += bold ? 0.72 : 0.68;
+        else                             total += bold ? 0.58 : 0.53;
+      }
+      return total * fontSize;
     }
 
-    const LABEL_H   = 14;
-    const BOX_H     = 120;
-    const SVG_H     = LABEL_H + BOX_H + LABEL_H + 4;
-    const GAP       = 5;
+    // Shrink a label until it fits its box, down to a floor that stays legible in print
+    function fitLabel(str, maxFont, minFont, maxW, bold) {
+      var size = maxFont;
+      var w = textWidth(str, size, bold);
+      if (w > maxW && w > 0) {
+        size = Math.max(minFont, maxFont * (maxW / w));
+        w = textWidth(str, size, bold);
+      }
+      return { size: size, width: w };
+    }
 
-    const items = sids.map(function(sid) {
-      const scr = screens[sid];
+    // Merge a screen's appearance (name, checkerboard colours, dead panels) onto the geometry
+    // supplied by the caller. Geometry is in panel units — 1 unit = one panel width.
+    function describe(screenId, geom) {
+      const scr = screens[screenId];
       const d   = (scr && scr.data) || {};
-      const p   = allPanels[d.panelType] || {};
-      const pw  = parseInt(d.panelsWide) || 1;
-      const ph  = parseInt(d.panelsHigh) || 1;
       const dp  = d.deletedPanels;
       const deletedSet = dp instanceof Set ? dp : (dp ? new Set(dp) : new Set());
       return {
-        name:  (scr && scr.name)  || sid,
-        color: (scr && scr.color) || '#888888',
-        realW: pw * (p.width_m  || 0.5),
-        realH: ph * (p.height_m || 0.5),
-        pw: pw, ph: ph,
-        resX: p.res_x || 0,
-        resY: p.res_y || 0,
+        name:   (scr && scr.name)   || screenId,
+        color:  (scr && scr.color)  || '#888888',
+        color2: (scr && scr.color2) || null,
+        pw: geom.pw, ph: geom.ph,
+        heightRatio: geom.heightRatio,
+        halfRow: geom.halfRow,
+        x: geom.x, y: geom.y, w: geom.w, h: geom.h,
         deletedPanels: deletedSet
+      };
+    }
+
+    // Geometry comes from the Combined view so the PDF renders the arrangement the user
+    // actually built — screen order, manual drag offsets and vertical stacking all carry
+    // through. Falls back to a plain left-to-right row if that module isn't available.
+    const arrangement = (typeof getCombinedArrangement === 'function') ? getCombinedArrangement() : null;
+    var items;
+    if (arrangement && arrangement.items.length) {
+      items = arrangement.items.map(function(it) { return describe(it.screenId, it); });
+    } else {
+      var rowX = 0;
+      items = sids.map(function(sid) {
+        const d  = (screens[sid] && screens[sid].data) || {};
+        const pw = parseInt(d.panelsWide) || 1;
+        const ph = parseInt(d.panelsHigh) || 1;
+        const pt = d.panelType || 'CB5_MKII';
+        const hr = (typeof getPanelHeightRatio === 'function') ? getPanelHeightRatio(pt) : 1;
+        const half = !!(d.addCB5HalfRow && pt === 'CB5_MKII');
+        const geom = {
+          pw: pw, ph: ph, heightRatio: hr, halfRow: half,
+          x: rowX, y: 0, w: pw, h: ph * hr + (half ? 1 : 0)
+        };
+        rowX += geom.w + FALLBACK_GAP_UNITS;
+        return describe(sid, geom);
+      });
+    }
+
+    const minX = items.reduce(function(m, it) { return Math.min(m, it.x); }, Infinity);
+    const maxX = items.reduce(function(m, it) { return Math.max(m, it.x + it.w); }, -Infinity);
+    const minY = items.reduce(function(m, it) { return Math.min(m, it.y); }, Infinity);
+    const maxY = items.reduce(function(m, it) { return Math.max(m, it.y + it.h); }, -Infinity);
+
+    const bboxW = Math.max(maxX - minX, 0.001);
+    const bboxH = Math.max(maxY - minY, 0.001);
+
+    // BOX_H_MAX caps the drawn height so a tall arrangement can never push the summary page
+    // onto a second page — the "p. N" references on this page assume the summary is one page.
+    const scale   = Math.min(cw / bboxW, BOX_H_MAX / bboxH);
+    const diagW   = bboxW * scale;
+    const diagH   = bboxH * scale;
+    const startX  = (cw - diagW) / 2;
+    // Every label now sits on its screen, so the bands that used to be reserved above and
+    // below the boxes are given back to the diagram instead (see BOX_H_MAX).
+    const diagTop = EDGE_PAD;
+    const SVG_H   = diagTop + diagH + EDGE_PAD;
+
+    var parts = [
+      '<svg xmlns="http://www.w3.org/2000/svg" width="' + cw + '" height="' + SVG_H.toFixed(2) + '">',
+      '<rect x="0" y="0" width="' + cw + '" height="' + SVG_H.toFixed(2) + '" fill="#f5f5f0"/>'
+    ];
+
+    // Row boundaries in panel units — full rows are heightRatio tall, the CB5 half row is 1.
+    // The half row is keyed as row index ph, matching renderStandardLayout().
+    function rowCountOf(it) { return it.ph + (it.halfRow ? 1 : 0); }
+    function rowEdge(it, r) {
+      return (r <= it.ph) ? (r * it.heightRatio) : (it.ph * it.heightRatio + (r - it.ph));
+    }
+    function cellCenterY(it, by, bh, r) {
+      return by + ((rowEdge(it, r) + rowEdge(it, r + 1)) / 2 / it.h) * bh;
+    }
+
+    // Resolve every drawn rect up front so boxes can be painted in one pass and labels in a
+    // second — otherwise a screen stacked over another paints out its neighbour's label.
+    var placed = items.map(function(it) {
+      return {
+        it: it,
+        bx: startX + (it.x - minX) * scale,
+        by: diagTop + (it.y - minY) * scale,
+        bw: it.w * scale,
+        bh: it.h * scale
       };
     });
 
-    const n          = items.length;
-    const totalGapW  = (n - 1) * GAP;
-    const totalRealW = items.reduce(function(s, it) { return s + it.realW; }, 0);
-    const maxRealH   = items.reduce(function(m, it) { return Math.max(m, it.realH); }, 0);
+    placed.forEach(function(pl) {
+      var it = pl.it, bx = pl.bx, by = pl.by, bw = pl.bw, bh = pl.bh;
+      var rowCount = rowCountOf(it);
+      var panelW = bw / it.pw;
 
-    const hScale     = (cw - totalGapW) / totalRealW;
-    const vScale     = BOX_H / maxRealH;
-    const scale      = Math.min(hScale, vScale);
+      // Same checkerboard the app paints in renderCombinedStandardLayout(): screen colour
+      // for even panels, colour2 (or a 30% darkened primary) for odd, each panel outlined in
+      // black. Deleted panels are skipped entirely so the page shows through, exactly as the
+      // app leaves them empty.
+      var primary   = it.color || '#808080';
+      var secondary = it.color2 || (typeof darkenColor === 'function' ? darkenColor(primary, 30) : primary);
+      if (_eco && typeof toPastelColor === 'function') {
+        primary = toPastelColor(primary); secondary = toPastelColor(secondary);
+      }
+      if (_grey && typeof toGreyscale === 'function') {
+        primary = toGreyscale(primary); secondary = toGreyscale(secondary);
+      }
 
-    const diagW      = items.reduce(function(s, it) { return s + it.realW * scale; }, 0) + totalGapW;
-    const startX     = (cw - diagW) / 2;
-    const diagTop    = LABEL_H + 2;
-    const diagBottom = diagTop + BOX_H;
+      // Panel numbers only when they actually fit, mirroring the app's size guard
+      var numFont  = Math.max(4.5, Math.min(9, panelW * 0.28));
+      var widest   = it.pw + '.' + rowCount;
+      var rowH     = (rowEdge(it, 1) / it.h) * bh;
+      var showNums = textWidth(widest, numFont, false) <= panelW * 0.85 && rowH >= numFont * 1.25;
 
-    var parts = [
-      '<svg xmlns="http://www.w3.org/2000/svg" width="' + cw + '" height="' + SVG_H + '">',
-      '<rect x="0" y="0" width="' + cw + '" height="' + SVG_H + '" fill="#f5f5f0"/>'
-    ];
-
-    var cx = startX;
-    items.forEach(function(it) {
-      var bw    = it.realW * scale;
-      var bh    = it.realH * scale;
-      var bx    = cx;
-      var by    = diagBottom - bh;
-      var midX  = cx + bw / 2;
-      var dim   = (it.resX && it.resY)
-        ? (it.pw * it.resX) + '\xd7' + (it.ph * it.resY) + ' px'
-        : it.pw + '\xd7' + it.ph;
-
-      // Fill each panel cell using exact cell boundaries (no gap subtraction — avoids
-      // float accumulation that makes gaps appear uneven). Grid lines are drawn explicitly
-      // afterward as SVG <line> elements, guaranteeing uniform 1pt line width everywhere.
-      var activeFill = _grey ? '#aaaaaa' : (_eco ? lightenHex(it.color, 0.45) : it.color);
-      var deadFill   = _grey ? '#555555' : '#111111';
-
-      // Background (dead panels show as dark fill)
-      parts.push('<rect x="' + bx.toFixed(2) + '" y="' + by.toFixed(2) + '" width="' + bw.toFixed(2) + '" height="' + bh.toFixed(2) + '" fill="' + deadFill + '"/>');
-
-      // Active panel cells — sized to exact cell boundaries to avoid accumulation gaps
-      for (var r = 0; r < it.ph; r++) {
+      for (var r = 0; r < rowCount; r++) {
         for (var c = 0; c < it.pw; c++) {
-          var key = c + ',' + r;
-          if (!it.deletedPanels.has(key)) {
-            var cx1 = bx + (c / it.pw) * bw;
-            var cy1 = by + (r / it.ph) * bh;
-            var cx2 = bx + ((c + 1) / it.pw) * bw;
-            var cy2 = by + ((r + 1) / it.ph) * bh;
-            parts.push('<rect x="' + cx1.toFixed(2) + '" y="' + cy1.toFixed(2) + '" width="' + (cx2 - cx1).toFixed(2) + '" height="' + (cy2 - cy1).toFixed(2) + '" fill="' + activeFill + '"/>');
+          if (it.deletedPanels.has(c + ',' + r)) continue;
+          var cx1 = bx + (c / it.pw) * bw;
+          var cx2 = bx + ((c + 1) / it.pw) * bw;
+          var cy1 = by + (rowEdge(it, r) / it.h) * bh;
+          var cy2 = by + (rowEdge(it, r + 1) / it.h) * bh;
+          parts.push('<rect x="' + cx1.toFixed(2) + '" y="' + cy1.toFixed(2) +
+            '" width="' + (cx2 - cx1).toFixed(2) + '" height="' + (cy2 - cy1).toFixed(2) +
+            '" fill="' + ((c + r) % 2 === 0 ? primary : secondary) +
+            '" stroke="#000000" stroke-width="0.6"/>');
+          if (showNums) {
+            parts.push('<text x="' + ((cx1 + cx2) / 2).toFixed(1) + '" y="' +
+              ((cy1 + cy2) / 2 + numFont * 0.36).toFixed(1) + '" font-size="' + numFont.toFixed(2) +
+              '" fill="#000000" text-anchor="middle" font-family="Helvetica">' +
+              (c + 1) + '.' + (r + 1) + '</text>');
+          }
+        }
+      }
+    });
+
+    // Second pass: every label goes on top of every box, so a stacked screen can never
+    // hide a neighbour's name. The name sits ON its screen, styled like the app's
+    // combined-view label (bold, yellow with a dark outline; inverted for print modes).
+    placed.forEach(function(pl) {
+      var it = pl.it, bx = pl.bx, by = pl.by, bw = pl.bw, bh = pl.bh;
+      var rowCount = rowCountOf(it);
+      var midX = bx + bw / 2;
+
+      // Centre the name on the live panels, so it never floats over a deleted gap
+      var nameX = midX, nameY = by + bh / 2;
+      var sumX = 0, sumY = 0, live = 0;
+      for (var lr = 0; lr < rowCount; lr++) {
+        for (var lc = 0; lc < it.pw; lc++) {
+          if (it.deletedPanels.has(lc + ',' + lr)) continue;
+          sumX += bx + ((lc + 0.5) / it.pw) * bw;
+          sumY += cellCenterY(it, by, bh, lr);
+          live++;
+        }
+      }
+      if (live > 0) {
+        nameX = sumX / live;
+        nameY = sumY / live;
+        // If the centroid lands on a deleted cell, snap to the nearest live panel centre
+        var ccol = Math.floor(((nameX - bx) / bw) * it.pw);
+        var cyu  = ((nameY - by) / bh) * it.h;
+        var crow = (cyu < it.ph * it.heightRatio) ? Math.floor(cyu / it.heightRatio) : it.ph;
+        if (it.deletedPanels.has(ccol + ',' + crow)) {
+          var best = Infinity;
+          for (var sr = 0; sr < rowCount; sr++) {
+            for (var sc = 0; sc < it.pw; sc++) {
+              if (it.deletedPanels.has(sc + ',' + sr)) continue;
+              var pcx = bx + ((sc + 0.5) / it.pw) * bw;
+              var pcy = cellCenterY(it, by, bh, sr);
+              var dd  = (pcx - nameX) * (pcx - nameX) + (pcy - nameY) * (pcy - nameY);
+              if (dd < best) { best = dd; nameX = pcx; nameY = pcy; }
+            }
           }
         }
       }
 
-      // Explicit grid lines — uniform 1pt stroke, no float accumulation
-      var lineColor = '#000000';
-      var lineW = '0.75';
-      for (var gc = 1; gc < it.pw; gc++) {
-        var lx = bx + (gc / it.pw) * bw;
-        parts.push('<line x1="' + lx.toFixed(2) + '" y1="' + by.toFixed(2) + '" x2="' + lx.toFixed(2) + '" y2="' + (by + bh).toFixed(2) + '" stroke="' + lineColor + '" stroke-width="' + lineW + '"/>');
-      }
-      for (var gr = 1; gr < it.ph; gr++) {
-        var ly = by + (gr / it.ph) * bh;
-        parts.push('<line x1="' + bx.toFixed(2) + '" y1="' + ly.toFixed(2) + '" x2="' + (bx + bw).toFixed(2) + '" y2="' + ly.toFixed(2) + '" stroke="' + lineColor + '" stroke-width="' + lineW + '"/>');
-      }
-      // Outer border
-      parts.push('<rect x="' + bx.toFixed(2) + '" y="' + by.toFixed(2) + '" width="' + bw.toFixed(2) + '" height="' + bh.toFixed(2) + '" fill="none" stroke="' + lineColor + '" stroke-width="0.75"/>');
+      var nameFit  = fitLabel(it.name, 9, 5, bw * 0.92, true);
+      var haloFill = (_grey || _eco) ? '#ffffff' : '#000000';
+      var textFill = (_grey || _eco) ? '#000000' : '#FFFF00';
 
-
-      var nameFill = _grey ? '#444444' : '#222222';
-      parts.push('<text x="' + midX.toFixed(1) + '" y="' + (diagTop - 2).toFixed(1) + '" font-size="9" fill="' + nameFill + '" text-anchor="middle" font-family="Helvetica-Bold">' + escXml(it.name) + '</text>');
-      parts.push('<text x="' + midX.toFixed(1) + '" y="' + (diagBottom + LABEL_H - 2).toFixed(1) + '" font-size="8" fill="#666666" text-anchor="middle" font-family="Helvetica">' + escXml(dim) + '</text>');
-
-      cx += bw + GAP;
+      // No dominant-baseline: offset the baseline by half the cap height instead, which
+      // every SVG renderer handles the same way.
+      var nameBase = nameY + nameFit.size * 0.36;
+      var attrs = 'x="' + nameX.toFixed(1) + '" y="' + nameBase.toFixed(1) +
+        '" font-size="' + nameFit.size.toFixed(2) + '" text-anchor="middle" font-family="Helvetica-Bold"';
+      parts.push('<text ' + attrs + ' fill="none" stroke="' + haloFill + '" stroke-width="' +
+        (nameFit.size * 0.32).toFixed(2) + '" stroke-linejoin="round">' + escXml(it.name) + '</text>');
+      parts.push('<text ' + attrs + ' fill="' + textFill + '">' + escXml(it.name) + '</text>');
     });
 
     parts.push('</svg>');
@@ -1559,6 +1693,7 @@ function buildComplexPdf(opts, canvasCache) {
       { text: 'SCREEN',       fontSize: 7, bold: true, color: tc.textMuted, border: borderBottom, borderColor: bColor },
       { text: 'PANELS',       fontSize: 7, bold: true, color: tc.textMuted, border: borderBottom, borderColor: bColor },
       { text: 'DIMENSIONS',   fontSize: 7, bold: true, color: tc.textMuted, border: borderBottom, borderColor: bColor },
+      { text: 'RESOLUTION',   fontSize: 7, bold: true, color: tc.textMuted, border: borderBottom, borderColor: bColor },
       { text: 'TOTAL PANELS', fontSize: 7, bold: true, color: tc.textMuted, border: borderBottom, borderColor: bColor },
       { text: 'PAGE',         fontSize: 7, bold: true, color: tc.textMuted, alignment: 'right', border: borderBottom, borderColor: bColor },
     ]);
@@ -1574,18 +1709,23 @@ function buildComplexPdf(opts, canvasCache) {
       const wFt = (pw2 * (p.width_m  || 0) * 3.28084).toFixed(1);
       const hFt = (ph2 * (p.height_m || 0) * 3.28084).toFixed(1);
       const startPage = screenPageStarts[sid] || '—';
+      // Pixel resolution moved here off the combined diagram
+      const resTxt = (p.res_x && p.res_y) ? `${pw2 * p.res_x}×${ph2 * p.res_y} px` : '—';
 
       cardRows.push([
         { text: scr.name || sid,        bold: true, fontSize: 9, border: borderBottom, borderColor: bColor },
         { text: `${pw2}×${ph2}`,        fontSize: 8, color: tc.textMuted, border: borderBottom, borderColor: bColor },
         { text: `${wFt}' × ${hFt}'`,   fontSize: 8, color: tc.textMuted, border: borderBottom, borderColor: bColor },
+        { text: resTxt,                 fontSize: 8, color: tc.textMuted, border: borderBottom, borderColor: bColor },
         { text: `${active} panels`,     fontSize: 8, color: tc.textMuted, border: borderBottom, borderColor: bColor },
         { text: `p. ${startPage}`,      fontSize: 8, color: tc.textMuted, alignment: 'right', border: borderBottom, borderColor: bColor },
       ]);
     });
 
     content.push({
-      table: { widths: ['auto', 'auto', '*', 'auto', 'auto'], body: cardRows },
+      // Name pinned left and page pinned right; the four data columns share the slack
+      // equally so they spread evenly instead of DIMENSIONS absorbing all of it.
+      table: { widths: ['auto', '*', '*', '*', '*', 'auto'], body: cardRows },
       layout: { hLineWidth: (i, node) => (i === node.table.body.length) ? 0 : 0.3, vLineWidth: () => 0,
                 hLineColor: () => tc.sectionBorder,
                 paddingLeft: () => 0, paddingRight: () => 12, paddingTop: () => 4, paddingBottom: () => 4 },

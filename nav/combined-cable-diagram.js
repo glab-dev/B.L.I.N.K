@@ -391,7 +391,7 @@ function findCableGridPath(startCol, startRow, endCol, endRow, pw, ph, deletedPa
 
 function calculateCombinedCabling(selectedScreenIds, config) {
   const allPanels = typeof getAllPanels === 'function' ? getAllPanels() : (typeof panels !== 'undefined' ? panels : {});
-  const allProcessors = typeof processors !== 'undefined' ? processors : {};
+  const allProcessors = typeof getAllProcessors === 'function' ? getAllProcessors() : (typeof processors !== 'undefined' ? processors : {});
   const pr = allProcessors[config.processor];
   if (!pr) return null;
 
@@ -440,10 +440,22 @@ function calculateCombinedCabling(selectedScreenIds, config) {
     const screenPixels = activePanelCount * pixelsPerPanel;
     totalPixels += screenPixels;
 
-    // Data lines for this screen
-    const adjustedCapacity = calculateAdjustedPixelCapacity(pr, config.frameRate, config.bitDepth);
-    const capacityBasedPPD = Math.min(Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel)), 500);
-    const panelsPerDataLine = capacityBasedPPD;
+    // Data lines for this screen — resolved from THIS screen's own processor, frame rate,
+    // bit depth and Max Panels Per Data override, via the same shared helper the combined
+    // data canvas and the Complex canvas use (core/calculate.js). Deriving it from the
+    // combined-level config instead is what let the cable runs disagree with the data
+    // lines actually drawn on the canvas.
+    const panelsPerDataLine = resolvePanelsPerDataLine({
+      panel: p,
+      halfPanel: allPanels['CB5_MKII_HALF'],
+      processor: allProcessors[data.processor],
+      frameRate: parseInt(data.frameRate) || 60,
+      bitDepth: parseInt(data.bitDepth) || 8,
+      hasCB5HalfRow,
+      pw, ph,
+      deletedCount: deletedPanelsSet.size,
+      userMax: parseInt(data.maxPanelsPerData)
+    });
     const dataLines = typeof calculateActualDataLines === 'function'
       ? calculateActualDataLines(pw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments)
       : Math.ceil((pw * effectivePh) / panelsPerDataLine);

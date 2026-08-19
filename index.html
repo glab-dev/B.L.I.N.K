@@ -3128,6 +3128,14 @@
               <button type="button" class="slider-toggle-btn" id="combinedSocaLabelLetterBtn" onclick="setSocaLabelStyle('letters')">ABC</button>
             </div>
           </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Phase Balance</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedPhaseBalanceBtn" onclick="toggleCombinedPhaseBalance()">Off</button>
+          </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Share Distro</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedShareDistroBtn" onclick="toggleCombinedShareDistro()">Off</button>
+          </div>
         </div>
         <div id="combinedPowerCanvasWrapper" class="overflow-x-auto">
           <canvas id="combinedPowerCanvas"></canvas>
@@ -3142,9 +3150,30 @@
         <span>Data Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedDataContainer')" id="combinedDataCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="combinedDataContent">
+        <div class="layout-toggle-row">
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">View</span>
+            <div class="slider-toggle">
+              <button type="button" class="slider-toggle-btn active" id="combinedDataFrontViewBtn" title="Applies to all selected screens" onclick="setCombinedDataView('front')">Front View</button>
+              <button type="button" class="slider-toggle-btn" id="combinedDataRearViewBtn" title="Applies to all selected screens" onclick="setCombinedDataView('rear')">Rear View</button>
+            </div>
+          </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Arrows</span>
+            <div class="grouped-btn-shadow">
+              <button type="button" class="toggle-btn active toggle-btn-grouped-left" id="combinedShowArrowsBtn" title="Applies to all selected screens" onclick="toggleCombinedShowArrows()">Arrows</button>
+              <button type="button" class="toggle-btn toggle-btn-grouped-right" id="combinedDataFlipBtn" title="Applies to all selected screens" onclick="toggleCombinedDataFlip()">Flip</button>
+            </div>
+          </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Data Labels</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedDataLineLabelsBtn" title="Applies to all selected screens" onclick="toggleCombinedDataLineLabels()">Off</button>
+          </div>
+        </div>
         <div id="combinedDataCanvasWrapper" class="overflow-x-auto">
           <canvas id="combinedDataCanvas"></canvas>
         </div>
+        <div id="combinedDataLineMap"></div>
       </div>
     </div>
 
@@ -3712,8 +3741,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.126';
-const APP_CHANGELOG = 'Remove dead buildGearListContent from PDF export';
+const APP_VERSION = '2.11.127';
+const APP_CHANGELOG = 'Add combined power/data selection, group phase balance, PDF, bumper and data fixes';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -3807,6 +3836,7 @@ let manualBottomBumpers = [];
 // Bumper tracking system - stores all placed bumpers with their properties
 let bumpers = []; // Array of {id, type:'1w'|'2w'|'4w', position:'top'|'bottom', startCol, endCol, x, y, width, height}
 let nextBumperId = 1;
+let bumpersWidth = 0; // Column count the bumpers array was built for (0 = unknown); lets reconcileBumpersToWidth() tell a widened wall from a deliberately cleared column
 let selectedBumper = null; // Currently selected bumper for editing
 let hoveredBumper = null; // Bumper under mouse cursor
 

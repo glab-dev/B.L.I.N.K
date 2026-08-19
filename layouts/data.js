@@ -1,15 +1,17 @@
 // ==================== DATA LAYOUT RENDERER ====================
 // Renders the data (port/line grouping) layout view with serpentine arrows.
 // Called by generateLayout() dispatcher in index.html.
+//
+// Split into param-driven pieces so the Combined view (nav/combined.js) can draw
+// the exact same layout for each screen instead of forking the logic — the same
+// pattern drawSocaOverlay() uses for the power layout (layouts/power.js).
 
-function renderDataLayout(params) {
-  const {pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, panelsPerDataLine, startDir, showArrows} = params;
-
-  // Rear view = mirror the draw x-coordinate horizontally (visual only; data
-  // assignments are unchanged). Labels stay upright and arrows mirror because
-  // their points inherit the mirrored x.
-  const _rearView = (typeof dataRearViewEnabled !== 'undefined') && dataRearViewEnabled;
-  const drawX = (c) => (_rearView ? (pw - 1 - c) : c) * panelWidth;
+// ==================== DATA LINE GROUPING ====================
+// Walks the wall in serpentine order and groups panels into data lines.
+// Pure: takes the per-screen deletedPanels Set / customDataLineAssignments Map as
+// params rather than reading the current-screen globals.
+function buildDataLineGroups(o) {
+  const {pw, ph, panelsPerDataLine, startDir, deletedPanels, customDataLineAssignments} = o;
 
   // Build data path based on start direction (matching calculateActualDataLines logic)
   const serp = [];
@@ -309,39 +311,59 @@ function renderDataLayout(params) {
     }
   }
 
-  // ---- Data line start endpoints ----
-  // First = first panel in flow order; last = the other end. The main cable feeds
-  // the start of the flow and the backup the opposite end — so when Flip reverses
-  // the flow direction, main/backup swap ends too.
-  // Stash per-screen so the in-app table and PDF table use the exact same mapping as drawn.
-  const _flip = (typeof dataFlipEnabled !== 'undefined') && dataFlipEnabled;
-  const dataLineEndpoints = sortedDataLines.map((ln, gi) => {
+  return {groups, sortedDataLines, usedCustomDataLines, panelToDataLine};
+}
+
+// ==================== DATA LINE ENDPOINTS ====================
+// First = first panel in flow order; last = the other end. The main cable feeds
+// the start of the flow and the backup the opposite end — so when Flip reverses
+// the flow direction, main/backup swap ends too.
+function computeDataLineEndpoints(groups, sortedDataLines, flip) {
+  return sortedDataLines.map((ln, gi) => {
     const first = groups[gi][0];
     const last = groups[gi][groups[gi].length - 1];
     return {
       line: ln + 1,
-      main: _flip ? last : first,
-      backup: _flip ? first : last
+      main: flip ? last : first,
+      backup: flip ? first : last
     };
   });
-  if (typeof screens !== 'undefined' && screens[currentScreenId]) {
-    if (!screens[currentScreenId].calculatedData) screens[currentScreenId].calculatedData = {};
-    screens[currentScreenId].calculatedData.dataLineEndpoints = dataLineEndpoints;
-  }
+}
+
+// ==================== DATA OVERLAY DRAWING ====================
+// Draws the panels, flow arrows and data-line start labels for one wall.
+// Works in cell coordinates offset by offsetX/offsetY, so the Complex canvas
+// (offset 0,0) and each screen on the Combined canvas share this one path.
+function drawDataOverlay(ctx, o) {
+  const {
+    groups, sortedDataLines, endpoints, deletedPanels, startDir,
+    pw, ph, panelWidth, panelHeight, halfPanelHeight, hasCB5HalfRow, originalPh,
+    offsetX, offsetY, rearView, flip, showArrows, showLabels, redundancy,
+    panelFontSize, arrowLineWidth, arrowHeadSize, lightDeletedPanels
+  } = o;
+
+  // Rear view = mirror the draw x-coordinate horizontally (visual only; data
+  // assignments are unchanged). Labels stay upright and arrows mirror because
+  // their points inherit the mirrored x.
+  const drawX = (c) => (rearView ? (pw - 1 - c) : c) * panelWidth + offsetX;
+  const drawY = (r) => offsetY + ((hasCB5HalfRow && r === originalPh) ? (originalPh * panelHeight) : (r * panelHeight));
+  const rowHeight = (r) => (hasCB5HalfRow && r === originalPh) ? halfPanelHeight : panelHeight;
+
+  ctx.font = `${panelFontSize}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
 
   // When the overlay toggle is on, map each start panel to its label ("N" main / "NB" backup).
-  const showLineLabels = (typeof dataLineLabelsEnabled !== 'undefined') && dataLineLabelsEnabled;
-  const _redundancy = !!(screens[currentScreenId] && screens[currentScreenId].data && screens[currentScreenId].data.redundancy);
   // Print modes (eco/greyscale PDF) convert label colors like the panel fills do.
   const _printColor = (h) => (typeof greyscalePrintMode !== 'undefined' && greyscalePrintMode) ? toGreyscale(h)
                    : ((typeof ecoPrintMode !== 'undefined' && ecoPrintMode) ? toPastelColor(h) : h);
   const MAIN_LABEL_COLOR = _printColor('#10b981');   // app green (--primary)
   const BACKUP_LABEL_COLOR = _printColor('#d27fc7'); // muted magenta (same tone family)
   const lineLabelMap = new Map();
-  if (showLineLabels) {
-    dataLineEndpoints.forEach(ep => {
+  if (showLabels) {
+    endpoints.forEach(ep => {
       const mKey = ep.main ? `${ep.main.c},${ep.main.r}` : null;
-      const bKey = (_redundancy && ep.backup) ? `${ep.backup.c},${ep.backup.r}` : null;
+      const bKey = (redundancy && ep.backup) ? `${ep.backup.c},${ep.backup.r}` : null;
       if (mKey && bKey && mKey === bKey) {
         lineLabelMap.set(mKey, { text: `${ep.line}/${ep.line}B`, color: MAIN_LABEL_COLOR }); // single-panel line shares the panel
       } else {
@@ -356,20 +378,16 @@ function renderDataLayout(params) {
     for(let r=0;r<ph;r++){
       const panelKey = `${c},${r}`;
 
-      // Determine if this row is the half panel row
-      const isHalfPanelRow = hasCB5HalfRow && r === originalPh;
-      const currentPanelHeight = isHalfPanelRow ? halfPanelHeight : panelHeight;
-      const x = drawX(c);
-      const y = isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight);
-
       // Check if panel is deleted
       if(deletedPanels.has(panelKey)) {
-        ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
-        ctx.fillRect(x,y,panelWidth,currentPanelHeight);
-        ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode) ? '#cccccc' : '#333333';
+        const x = drawX(c);
+        const y = drawY(r);
+        ctx.fillStyle = lightDeletedPanels ? '#ffffff' : '#1a1a1a';
+        ctx.fillRect(x,y,panelWidth,rowHeight(r));
+        ctx.strokeStyle = lightDeletedPanels ? '#cccccc' : '#333333';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
-        ctx.strokeRect(x,y,panelWidth,currentPanelHeight);
+        ctx.strokeRect(x,y,panelWidth,rowHeight(r));
         ctx.setLineDash([]);
       }
     }
@@ -385,11 +403,9 @@ function renderDataLayout(params) {
     for(let idx=0; idx<groups[gi].length; idx++){
       const pnt = groups[gi][idx];
 
-      // Determine if this row is the half panel row
-      const isHalfPanelRow = hasCB5HalfRow && pnt.r === originalPh;
-      const currentPanelHeight = isHalfPanelRow ? halfPanelHeight : panelHeight;
+      const currentPanelHeight = rowHeight(pnt.r);
       const x = drawX(pnt.c);
-      const y = isHalfPanelRow ? (originalPh * panelHeight) : (pnt.r * panelHeight);
+      const y = drawY(pnt.r);
 
       ctx.fillStyle=colors.fill;
       ctx.fillRect(x,y,panelWidth,currentPanelHeight);
@@ -413,6 +429,7 @@ function renderDataLayout(params) {
   }
 
   if(showArrows){
+    const arrowOpts = { lineWidth: arrowLineWidth, headSize: arrowHeadSize, hideArrowhead: showLabels };
     if(startDir === 'all_top' || startDir === 'all_bottom') {
       // For all_top and all_bottom, draw one arrow per column
       // Group points by column
@@ -432,8 +449,8 @@ function renderDataLayout(params) {
         // Draw arrow for each column
         columnGroups.forEach((columnPoints) => {
           if(columnPoints.length >= 2) {
-            const arrowPts = dataFlipEnabled ? [...columnPoints].reverse() : columnPoints;
-            drawArrowPath(ctx, arrowPts, '#000000');
+            const arrowPts = flip ? [...columnPoints].reverse() : columnPoints;
+            drawArrowPath(ctx, arrowPts, '#000000', arrowOpts);
           }
         });
       }
@@ -482,8 +499,8 @@ function renderDataLayout(params) {
 
         // Draw each segment
         segments.forEach(segment => {
-          const arrowPts = dataFlipEnabled ? [...segment].reverse() : segment;
-          drawArrowPath(ctx, arrowPts, '#000000');
+          const arrowPts = flip ? [...segment].reverse() : segment;
+          drawArrowPath(ctx, arrowPts, '#000000', arrowOpts);
         });
       }
     }
@@ -519,12 +536,54 @@ function renderDataLayout(params) {
   }
 }
 
+function renderDataLayout(params) {
+  const {pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, panelsPerDataLine, startDir, showArrows, fontSize} = params;
+
+  const {groups, sortedDataLines} = buildDataLineGroups({
+    pw, ph, panelsPerDataLine, startDir,
+    deletedPanels, customDataLineAssignments
+  });
+
+  const _flip = (typeof dataFlipEnabled !== 'undefined') && dataFlipEnabled;
+  const dataLineEndpoints = computeDataLineEndpoints(groups, sortedDataLines, _flip);
+
+  // Stash per-screen so the in-app table and PDF table use the exact same mapping as drawn.
+  if (typeof screens !== 'undefined' && screens[currentScreenId]) {
+    if (!screens[currentScreenId].calculatedData) screens[currentScreenId].calculatedData = {};
+    screens[currentScreenId].calculatedData.dataLineEndpoints = dataLineEndpoints;
+  }
+
+  drawDataOverlay(ctx, {
+    groups, sortedDataLines, endpoints: dataLineEndpoints,
+    deletedPanels,
+    pw, ph, panelWidth, panelHeight, halfPanelHeight, hasCB5HalfRow, originalPh,
+    offsetX: 0, offsetY: 0,
+    startDir,
+    rearView: (typeof dataRearViewEnabled !== 'undefined') && dataRearViewEnabled,
+    flip: _flip,
+    showArrows,
+    showLabels: (typeof dataLineLabelsEnabled !== 'undefined') && dataLineLabelsEnabled,
+    redundancy: !!(screens[currentScreenId] && screens[currentScreenId].data && screens[currentScreenId].data.redundancy),
+    panelFontSize: fontSize,
+    arrowLineWidth: 3,
+    arrowHeadSize: 12,
+    lightDeletedPanels: (ecoPrintMode || greyscalePrintMode)
+  });
+}
+
 // ==================== ARROW DRAWING ====================
 
-function drawArrowPath(ctx, points, colorHex){
+function drawArrowPath(ctx, points, colorHex, opts){
+  const lineWidth = (opts && opts.lineWidth) || 3;
+  const headSize = (opts && opts.headSize) || 12;
+  // Hide the end arrowhead when data labels are on — it overlaps the big start/B
+  // labels and clutters the look. The connecting line still shows the flow.
+  const hideArrowhead = opts ? !!opts.hideArrowhead
+    : ((typeof dataLineLabelsEnabled !== 'undefined') && dataLineLabelsEnabled);
+
   ctx.save();
   ctx.strokeStyle = colorHex;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = lineWidth;
   ctx.beginPath();
   ctx.moveTo(points[0].x, points[0].y);
   for(let i=1;i<points.length;i++){
@@ -532,14 +591,11 @@ function drawArrowPath(ctx, points, colorHex){
   }
   ctx.stroke();
 
-  // Hide the end arrowhead when data labels are on — it overlaps the big start/B
-  // labels and clutters the look. The connecting line still shows the flow.
-  const _hideHead = (typeof dataLineLabelsEnabled !== 'undefined') && dataLineLabelsEnabled;
-  if(!_hideHead){
+  if(!hideArrowhead){
     const end = points[points.length-1];
     const prev = points[points.length-2];
     const angle = Math.atan2(end.y - prev.y, end.x - prev.x);
-    drawVArrowhead(ctx, end.x, end.y, angle, colorHex);
+    drawVArrowhead(ctx, end.x, end.y, angle, colorHex, headSize, lineWidth);
   }
   ctx.restore();
 }
@@ -547,6 +603,36 @@ function drawArrowPath(ctx, points, colorHex){
 // ==================== DATA LINE MAPPING TABLE ====================
 // Renders the always-visible list of data line / backup start panels below the
 // data canvas, using the per-screen endpoints stashed by renderDataLayout().
+// Build a comic-style card matching the structure info boxes.
+// Shared with the combined view's per-screen map (nav/combined.js).
+function buildDataLineMapBox(variant, title, rows) {
+  const box = document.createElement('div');
+  box.className = `structure-info-box ${variant}`;
+  const h = document.createElement('div');
+  h.className = `structure-info-title ${variant}`;
+  h.textContent = title;
+  box.appendChild(h);
+  rows.forEach(function(row) {
+    const r = document.createElement('div');
+    r.className = 'weight-row';
+    const lab = document.createElement('span');
+    lab.className = 'weight-label';
+    lab.textContent = row.label;
+    const val = document.createElement('span');
+    val.className = 'weight-value';
+    val.textContent = row.panel;
+    r.appendChild(lab);
+    r.appendChild(val);
+    box.appendChild(r);
+  });
+  return box;
+}
+
+// Formats a data line endpoint panel as "column.row".
+function formatDataLinePanel(p) {
+  return p ? `${p.c+1}.${p.r+1}` : '—';
+}
+
 function renderDataLineMap() {
   const host = document.getElementById('dataLineMap');
   if(!host) return;
@@ -557,39 +643,13 @@ function renderDataLineMap() {
   if(!endpoints || endpoints.length === 0) return;
   const redundancy = !!(screen.data && screen.data.redundancy);
 
-  const fmt = (p) => p ? `${p.c+1}.${p.r+1}` : '—';
-
-  // Build a comic-style card matching the structure info boxes
-  function buildBox(variant, title, rows) {
-    const box = document.createElement('div');
-    box.className = `structure-info-box ${variant}`;
-    const h = document.createElement('div');
-    h.className = `structure-info-title ${variant}`;
-    h.textContent = title;
-    box.appendChild(h);
-    rows.forEach(function(row) {
-      const r = document.createElement('div');
-      r.className = 'weight-row';
-      const lab = document.createElement('span');
-      lab.className = 'weight-label';
-      lab.textContent = row.label;
-      const val = document.createElement('span');
-      val.className = 'weight-value';
-      val.textContent = row.panel;
-      r.appendChild(lab);
-      r.appendChild(val);
-      box.appendChild(r);
-    });
-    return box;
-  }
-
-  host.appendChild(buildBox('mains', 'Mains', endpoints.map(function(ep){
-    return { label: `${ep.line}`, panel: fmt(ep.main) };
+  host.appendChild(buildDataLineMapBox('mains', 'Mains', endpoints.map(function(ep){
+    return { label: `${ep.line}`, panel: formatDataLinePanel(ep.main) };
   })));
 
   if(redundancy) {
-    host.appendChild(buildBox('backups', 'Backups', endpoints.map(function(ep){
-      return { label: `${ep.line}B`, panel: fmt(ep.backup) };
+    host.appendChild(buildDataLineMapBox('backups', 'Backups', endpoints.map(function(ep){
+      return { label: `${ep.line}B`, panel: formatDataLinePanel(ep.backup) };
     })));
   }
 }

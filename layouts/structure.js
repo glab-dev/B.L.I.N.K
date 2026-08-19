@@ -99,6 +99,9 @@ function generateStructureLayout(){
 
   const {pw, ph} = getEffectivePanelCountsForLayout();
 
+  // Heal a saved bumper array that no longer fits this grid before anything reads it
+  reconcileBumpersToWidth(pw);
+
   const canvas = document.getElementById('structureCanvas');
   const ctx = canvas.getContext('2d');
 

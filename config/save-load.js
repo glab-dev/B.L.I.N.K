@@ -74,6 +74,7 @@ function buildCurrentConfig() {
         powerType: data.powerType,
         maxPanelsPerCircuit: data.maxPanelsPerCircuit,
         sharedDistro: data.sharedDistro || false,
+        phaseBalance: data.phaseBalance || false,
         processor: data.processor,
         frameRate: data.frameRate,
         bitDepth: data.bitDepth,
@@ -113,6 +114,7 @@ function buildCurrentConfig() {
         bumpers: Array.isArray(data.bumpers) ? data.bumpers : [],
         bumpersInitialized: data.bumpersInitialized || false,
         nextBumperId: data.nextBumperId || 1,
+        bumpersWidth: data.bumpersWidth || 0,
         deletedPanels: deletedPanelsArray,
         customCircuitAssignments: circuitAssignmentsArray,
         customSocaAssignments: socaAssignmentsArray,
@@ -194,6 +196,9 @@ function buildCurrentConfig() {
     customProcessors: usedCustomProcessors,
     // Per-project gear code overrides (if any)
     gearCodeOverrides: (typeof getGearCodeOverridesForSave === 'function') ? getGearCodeOverridesForSave() : undefined,
+    // Combined view arrangement (selection order + manual drag offsets) so the layout,
+    // and the PDF combined diagram built from it, survives save/reload
+    combinedView: (typeof getCombinedViewSaveState === 'function') ? getCombinedViewSaveState() : undefined,
     // Project logo (base64 data URL) — null if no logo uploaded
     logo: (typeof projectLogo !== 'undefined') ? projectLogo : null
   };
@@ -618,7 +623,13 @@ function applyConfiguration(config, fileNameOverride) {
       updateCanvasScreenToggles();
       // Refresh Combined view if it's currently visible
       if(typeof initCombinedView === 'function') {
-        combinedSelectedScreens.clear(); // Reset selection for new project
+        // Restore the saved arrangement; files written before this existed simply
+        // reset the selection as they always did.
+        if(config.combinedView && typeof applyCombinedViewSaveState === 'function') {
+          applyCombinedViewSaveState(config.combinedView);
+        } else {
+          combinedSelectedScreens.clear(); // Reset selection for new project
+        }
         initCombinedView();
       }
       // Reset gear tab selection for new project

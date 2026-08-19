@@ -215,8 +215,9 @@ function calculateBumperPickupWeight(bumper) {
   const panelType = document.getElementById('panelType').value;
   const allPanels = getAllPanels();
   const p = allPanels[panelType];
-  const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
-  const pw = parseInt(document.getElementById('panelsWide').value) || 0;
+  // Same counts the structure canvas draws. Deliberately NOT getEffectivePanelCountsForLayout()
+  // - that adds the CB5 half row to ph, which hasCB5HalfRow below already accounts for.
+  const {pw, ph} = getEffectivePanelCounts();
 
   if(!p) return { kg: 0, lbs: 0 };
 

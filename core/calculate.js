@@ -134,6 +134,41 @@ function getEffectivePanelCounts(){
   }
 }
 
+// Resolves how many panels fit on one data line for a screen: the processor's
+// pixel capacity at the chosen frame rate / bit depth, unless the user typed an
+// override. Shared so the Complex canvas and the Combined canvas cannot disagree
+// (the Combined view used to hard-code 48).
+// pw/ph/deletedCount are only read for the CB5 half-row average and may be 0 otherwise.
+function resolvePanelsPerDataLine(o) {
+  const {panel, halfPanel, processor, frameRate, bitDepth, hasCB5HalfRow, pw, ph, deletedCount, userMax} = o;
+
+  const pixelsPerPanel = (panel && panel.res_x && panel.res_y) ? panel.res_x * panel.res_y : (176*176);
+  const adjustedCapacity = calculateAdjustedPixelCapacity(processor, frameRate, bitDepth);
+
+  let capacityBasedPanelsPerData;
+  if(hasCB5HalfRow) {
+    // With half panels, calculate based on average pixels per panel
+    const totalPanelsGrid = pw * ph;
+    const activePanelsCount = totalPanelsGrid - deletedCount;
+    const halfPanelPixels = halfPanel.res_x * halfPanel.res_y;
+    const mainPanelCount = activePanelsCount; // All full panels
+    const halfPanelCount = pw; // Additional half panel row
+    const totalMixedPanels = mainPanelCount + halfPanelCount;
+    const totalPixels = (mainPanelCount * pixelsPerPanel) + (halfPanelCount * halfPanelPixels);
+    const avgPixelsPerPanel = totalPixels / totalMixedPanels;
+    capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / avgPixelsPerPanel));
+  } else {
+    capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
+  }
+
+  // Cap at 500 panels per port (Brompton Tessera hardware limit)
+  const MAX_PANELS_PER_PORT = 500;
+  capacityBasedPanelsPerData = Math.min(capacityBasedPanelsPerData, MAX_PANELS_PER_PORT);
+
+  // Max panels per data = port capacity based (varies with frame rate + bit depth)
+  return userMax > 0 ? userMax : capacityBasedPanelsPerData;
+}
+
 function calculateActualDataLines(pw, ph, panelsPerDataLine, startDir, deletedPanelsParam, customAssignmentsParam) {
   // Use per-screen params if provided, otherwise fall back to globals
   const dp = deletedPanelsParam || deletedPanels;
@@ -1002,7 +1037,20 @@ function calculate(){
     if(phase === 3 && typeof computePhaseBalance === 'function') {
       const pbMode = (typeof phaseBalanceMode !== 'undefined') ? phaseBalanceMode : 'aswired';
       const wiring = (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(voltage) : null;
-      if(pbMode === 'balanced' && typeof resolveBalancedCircuits === 'function') {
+      // On a shared distro the whole group is balanced together, so this screen's circuits
+      // come from that group plan — same source the power canvas uses, so the legend and
+      // the canvas can't disagree.
+      const _sharedHere = !!(screens[currentScreenId] && screens[currentScreenId].data && screens[currentScreenId].data.sharedDistro);
+      const _groupPlan = (_sharedHere && typeof sharedDistroBalancedPlan === 'function') ? sharedDistroBalancedPlan() : null;
+      const _groupEntry = (_groupPlan && _groupPlan.useBalanced) ? _groupPlan.byScreen.get(currentScreenId) : null;
+
+      if(_groupEntry) {
+        phaseBalance = computePhaseBalance(_groupEntry.circuitCounts, perPanelW, voltage, 'aswired', wiring);
+        phaseBalance.balanceMode = true;
+        phaseBalance.balanceApplied = true;
+        phaseBalance.aswiredImbalancePct = _groupPlan.aswiredImbalancePct;
+        phaseBalance.groupBalanced = true;
+      } else if(pbMode === 'balanced' && typeof resolveBalancedCircuits === 'function') {
         // "Balanced" re-circuits panels onto the lighter legs, but only when that
         // actually lowers the imbalance — resolveBalancedCircuits falls back to as-wired
         // otherwise, so the toggle can never raise it. Power-tab view only.
@@ -2082,42 +2130,22 @@ function generateLayout(mode){
   const userMaxPanelsPerCircuit = parseInt(document.getElementById('maxPanelsPerCircuit').value);
   const panelsPerCircuit = userMaxPanelsPerCircuit > 0 ? userMaxPanelsPerCircuit : calculatedPanelsPerCircuit;
   
-  const pixelsPerPanel=(p.res_x&&p.res_y)?p.res_x*p.res_y: (176*176);
-  const frameRate = parseInt(document.getElementById('frameRate').value) || 60;
-  const bitDepth = parseInt(document.getElementById('bitDepth').value) || 8;
-  const adjustedCapacity = calculateAdjustedPixelCapacity(proc, frameRate, bitDepth);
-  
-  // Calculate suggested panels per data line accounting for CB5 half panels
-  let capacityBasedPanelsPerData;
   // Using cb5HalfRowEnabled toggle state
   const hasCB5HalfRow = cb5HalfRowEnabled && document.getElementById('panelType').value === 'CB5_MKII';
-  
-  if(hasCB5HalfRow) {
-    // With half panels, calculate based on average pixels per panel
-    const {pw, ph} = getEffectivePanelCounts();
-    const totalPanelsGrid = pw * ph;
-    const activePanelsCount = totalPanelsGrid - deletedPanels.size;
-    const halfPanel = panels['CB5_MKII_HALF'];
-    const halfPanelPixels = halfPanel.res_x * halfPanel.res_y;
-    const mainPanelCount = activePanelsCount; // All full panels
-    const halfPanelCount = pw; // Additional half panel row
-    const totalMixedPanels = mainPanelCount + halfPanelCount;
-    const totalPixels = (mainPanelCount * pixelsPerPanel) + (halfPanelCount * halfPanelPixels);
-    const avgPixelsPerPanel = totalPixels / totalMixedPanels;
-    capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / avgPixelsPerPanel));
-  } else {
-    capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / pixelsPerPanel));
-  }
 
-  // Cap at 500 panels per port (Brompton Tessera hardware limit)
-  const MAX_PANELS_PER_PORT = 500;
-  capacityBasedPanelsPerData = Math.min(capacityBasedPanelsPerData, MAX_PANELS_PER_PORT);
-
-  // Max panels per data = port capacity based (varies with frame rate + bit depth)
-  const suggestedPanelsPerData = capacityBasedPanelsPerData;
-  
-  const userMax = parseInt(document.getElementById('maxPanelsPerData').value);
-  const panelsPerDataLine = (mode==='data') ? (userMax>0?userMax:suggestedPanelsPerData) : null;
+  const _halfRowCounts = hasCB5HalfRow ? getEffectivePanelCounts() : {pw: 0, ph: 0};
+  const panelsPerDataLine = (mode==='data') ? resolvePanelsPerDataLine({
+    panel: p,
+    halfPanel: panels['CB5_MKII_HALF'],
+    processor: proc,
+    frameRate: parseInt(document.getElementById('frameRate').value) || 60,
+    bitDepth: parseInt(document.getElementById('bitDepth').value) || 8,
+    hasCB5HalfRow,
+    pw: _halfRowCounts.pw,
+    ph: _halfRowCounts.ph,
+    deletedCount: deletedPanels.size,
+    userMax: parseInt(document.getElementById('maxPanelsPerData').value)
+  }) : null;
   const startDirEl = document.getElementById('dataStartDir');
   const startDir = startDirEl ? startDirEl.value : 'top';
   // Using showArrowsEnabled toggle state
@@ -2206,7 +2234,7 @@ function generateLayout(mode){
   }
 
   if(mode==='data'){
-    renderDataLayout({pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, panelsPerDataLine, startDir, showArrows});
+    renderDataLayout({pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, panelsPerDataLine, startDir, showArrows, fontSize});
     if(typeof renderDataLineMap === 'function') renderDataLineMap();
     return;
   }

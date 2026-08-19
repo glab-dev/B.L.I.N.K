@@ -782,13 +782,13 @@ async function showDataLineNumberPrompt() {
   calculate();
 }
 
-function drawVArrowhead(ctx, x, y, angle, colorHex){
-  const size = 12;
+function drawVArrowhead(ctx, x, y, angle, colorHex, sizeOverride, lineWidthOverride){
+  const size = sizeOverride || 12;
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
   ctx.strokeStyle = colorHex;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = lineWidthOverride || 3;
   ctx.beginPath();
   ctx.moveTo(-size, -size/2);
   ctx.lineTo(0, 0);

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.126",
-  "updated": "2026-08-17",
-  "changelog": "Remove dead buildGearListContent from PDF export"
+  "version": "2.11.127",
+  "updated": "2026-08-19",
+  "changelog": "Add combined power/data selection, group phase balance, PDF, bumper and data fixes"
 }

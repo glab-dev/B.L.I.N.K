@@ -60,6 +60,7 @@ function getDefaultScreenData() {
     powerType: 'max',
     maxPanelsPerCircuit: '',
     sharedDistro: false, // this screen shares one 3-phase distro with other sharedDistro screens
+    phaseBalance: false, // this screen's circuits are re-balanced onto the lighter legs
     
     // Data
     processor: 'Brompton_SX40',
@@ -100,6 +101,7 @@ function getDefaultScreenData() {
     // Per-screen state (previously global)
     bumpers: [],
     nextBumperId: 1,
+    bumpersWidth: 0,
     deletedPanels: new Set(),
     selectedPanels: new Set(),
     customCircuitAssignments: new Map(),
@@ -249,6 +251,9 @@ function saveCurrentScreenData() {
   // Share Distro toggle (per-screen) - mirror the global into this screen's data
   if(typeof shareDistroEnabled !== 'undefined') data.sharedDistro = shareDistroEnabled;
 
+  // Phase Balance toggle (per-screen) - mirror the global into this screen's data
+  if(typeof phaseBalanceMode !== 'undefined') data.phaseBalance = (phaseBalanceMode === 'balanced');
+
   // Connection method (Air Frame / Plates) is a global toggle - mirror it into this screen's data
   data.connectionMethod = connectionMethod;
   
@@ -287,6 +292,7 @@ function saveCurrentScreenData() {
   // Per-screen state - save current global state to screen data
   data.bumpers = JSON.parse(JSON.stringify(bumpers)); // Deep copy array
   data.nextBumperId = nextBumperId;
+  data.bumpersWidth = bumpersWidth;
   data.bumpersInitialized = true; // Mark that bumpers have been saved (even if empty from deletions)
   data.deletedPanels = new Set(deletedPanels); // Copy Set
   data.selectedPanels = new Set(selectedPanels); // Copy Set
@@ -537,9 +543,14 @@ function loadScreenData(screenId) {
     updateSuggestedCircuitLimit();
   }, 0);
   
+  // Structure editing globals are app-wide, not per-screen - clear them so a stale manual
+  // mode or undo stack can't write another screen's bumpers onto this one
+  resetStructureEditingState();
+
   // Per-screen state - restore from screen data to global variables
   bumpers = data.bumpers ? JSON.parse(JSON.stringify(data.bumpers)) : [];
   nextBumperId = data.nextBumperId || 1;
+  bumpersWidth = data.bumpersWidth || 0;
   deletedPanels = data.deletedPanels ? new Set(data.deletedPanels) : new Set();
   selectedPanels = data.selectedPanels ? new Set(data.selectedPanels) : new Set();
   customCircuitAssignments = data.customCircuitAssignments ? new Map(data.customCircuitAssignments) : new Map();
@@ -600,6 +611,13 @@ function loadScreenData(screenId) {
     shareDistroEnabled = !!data.sharedDistro;
     const shareDistroBtn = document.getElementById('shareDistroBtn');
     if(shareDistroBtn) { shareDistroBtn.classList.toggle('active', shareDistroEnabled); shareDistroBtn.textContent = shareDistroEnabled ? 'On' : 'Off'; }
+  }
+
+  // Restore per-screen Phase Balance toggle
+  if(typeof phaseBalanceMode !== 'undefined') {
+    phaseBalanceMode = data.phaseBalance ? 'balanced' : 'aswired';
+    const phaseBalanceBtn = document.getElementById('phaseBalanceBtn');
+    if(phaseBalanceBtn) { phaseBalanceBtn.classList.toggle('active', data.phaseBalance); phaseBalanceBtn.textContent = data.phaseBalance ? 'On' : 'Off'; }
   }
 
   // Restore connection method (global + button highlight). Set directly rather than calling

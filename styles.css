@@ -981,6 +981,12 @@ canvas {
   touch-action: none;
 }
 
+/* Combined view Select Mode: the power + data canvases are selectable too */
+#combinedPowerCanvas.select-mode-active,
+#combinedDataCanvas.select-mode-active {
+  touch-action: none;
+}
+
 /* Bumper Select Mode: block native scroll so dragging bumpers works on touch devices */
 #structureCanvas.bumper-select-mode-active {
   touch-action: none;
@@ -3894,6 +3900,32 @@ canvas:focus {
 .structure-info-box.mains   .weight-label { color: var(--primary); }
 .structure-info-box.backups .weight-label { color: #d27fc7; }
 
+/* Combined data map: one Mains/Backups block per screen, laid out across the width of
+   the data layout — up to 3 screens per row, then wrapping to the next row.
+   Scoped to #combinedDataLineMap so the single-screen #dataLineMap is untouched. */
+#combinedDataLineMap {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 20px;
+  align-items: start;
+  padding: 0 5px 5px;
+}
+#combinedDataLineMap .data-line-map { padding: 20px 0 5px; }
+#combinedDataLineMap .combined-data-map-screen {
+  font-family: 'Bangers', cursive;
+  font-size: 15px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #fff;
+  margin: 14px 0 -8px 2px;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
+/* Two screens per row once three no longer fit the two cards side by side */
+@media (max-width: 1200px) {
+  #combinedDataLineMap { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 /* Mobile: let the two cards shrink to share the width so the backup card isn't cut off */
 @media (max-width: 768px) {
   .data-line-map {
@@ -3910,6 +3942,10 @@ canvas:focus {
   #dataContent .layout-toggle-row { flex-wrap: wrap; row-gap: 10px; }
   /* Power toggles grew (SOCA + Phase Balance + Color by Leg) — wrap on mobile */
   #powerContent .layout-toggle-row { flex-wrap: wrap; row-gap: 10px; }
+  /* Same for the combined data toggles, so they don't force a horizontal scrollbar */
+  #combinedDataContent .layout-toggle-row { flex-wrap: wrap; row-gap: 10px; }
+  /* One screen per row on phones — two cards side by side already fills the width */
+  #combinedDataLineMap { grid-template-columns: 1fr; }
 }
 
 /* Desktop welcome page */

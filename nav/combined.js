@@ -11,6 +11,10 @@ function activateCombinedView() {
   if(typeof saveCurrentScreenData === 'function') {
     saveCurrentScreenData();
   }
+  // Seed the power toggles from the selected screens' per-screen flags, so opening the view
+  // after a project load reflects the groups already in the file.
+  combinedShareDistroOn = combinedScreensAllHaveFlag('sharedDistro');
+  combinedPhaseBalanceOn = combinedScreensAllHaveFlag('phaseBalance');
   // Initialize combined view
   if(typeof initCombinedView === 'function') {
     initCombinedView();
@@ -25,6 +29,72 @@ let combinedSelectedScreens = new Set();
 // Combined specs power/phase toggle state
 let combinedPowerType = 'max';
 let combinedPhase = 3;
+
+// Combined power-layout toggles. Both drive the SAME per-screen flags the Complex tab uses
+// (data.sharedDistro / data.phaseBalance) — the combined selection defines the group exactly:
+// on = true for every selected screen and false for every screen that isn't.
+let combinedShareDistroOn = false;
+let combinedPhaseBalanceOn = false;
+
+// True when every selected screen already has the per-screen flag on (and something is
+// selected). Used to seed the two toggles when the Combined view is opened.
+function combinedScreensAllHaveFlag(flag) {
+  if(combinedSelectedScreens.size === 0) return false;
+  return [...combinedSelectedScreens].every(id => screens[id] && screens[id].data && !!screens[id].data[flag]);
+}
+
+// "Selection defines the group exactly": set the flag on the selected screens and clear it
+// everywhere else, so a screen that isn't in the Combined view is never in the distro group
+// and is never phase balanced — its Complex-tab toggle reads Off to match.
+function applyCombinedScreenFlag(flag, on) {
+  Object.keys(screens).forEach(id => {
+    if(!screens[id] || !screens[id].data) return;
+    screens[id].data[flag] = !!(on && combinedSelectedScreens.has(id));
+  });
+}
+
+function updateCombinedPowerToggleButtons() {
+  const sd = document.getElementById('combinedShareDistroBtn');
+  if(sd) { sd.classList.toggle('active', combinedShareDistroOn); sd.textContent = combinedShareDistroOn ? 'On' : 'Off'; }
+  const pb = document.getElementById('combinedPhaseBalanceBtn');
+  if(pb) { pb.classList.toggle('active', combinedPhaseBalanceOn); pb.textContent = combinedPhaseBalanceOn ? 'On' : 'Off'; }
+}
+
+// After changing a per-screen flag from the Combined view, pull the current screen's value
+// back into the Complex tab's global + button so the two views can't disagree.
+function syncComplexPowerToggles() {
+  const data = (screens[currentScreenId] && screens[currentScreenId].data) || null;
+  if(!data) return;
+
+  if(typeof shareDistroEnabled !== 'undefined') {
+    shareDistroEnabled = !!data.sharedDistro;
+    const btn = document.getElementById('shareDistroBtn');
+    if(btn) { btn.classList.toggle('active', shareDistroEnabled); btn.textContent = shareDistroEnabled ? 'On' : 'Off'; }
+  }
+  if(typeof phaseBalanceMode !== 'undefined') {
+    phaseBalanceMode = data.phaseBalance ? 'balanced' : 'aswired';
+    const btn = document.getElementById('phaseBalanceBtn');
+    if(btn) { btn.classList.toggle('active', !!data.phaseBalance); btn.textContent = data.phaseBalance ? 'On' : 'Off'; }
+  }
+}
+
+function toggleCombinedShareDistro() {
+  combinedShareDistroOn = !combinedShareDistroOn;
+  applyCombinedScreenFlag('sharedDistro', combinedShareDistroOn);
+  syncComplexPowerToggles();
+  updateCombinedPowerToggleButtons();
+  if(typeof calculate === 'function') calculate();
+  renderCombinedView();
+}
+
+function toggleCombinedPhaseBalance() {
+  combinedPhaseBalanceOn = !combinedPhaseBalanceOn;
+  applyCombinedScreenFlag('phaseBalance', combinedPhaseBalanceOn);
+  syncComplexPowerToggles();
+  updateCombinedPowerToggleButtons();
+  if(typeof calculate === 'function') calculate();
+  renderCombinedView();
+}
 
 function setCombinedPowerType(type) {
   combinedPowerType = type;
@@ -49,9 +119,106 @@ let combinedLeftPadding = 20;
 let combinedPixelScale = 1; // Uniform scale for mirroring canvas positions
 let combinedZoomLevel = 100; // Zoom percentage (100 = 100%)
 
-// Combined view panel selection state
+// Combined view panel selection state.
+// These two always mirror the canvas last interacted with — the assign/delete helpers read
+// them, so pointing them at one canvas's selection is what makes those helpers act on it.
 let combinedSelectedPanel = null; // { screenId, col, row, key } - for single selection (mobile)
 let combinedSelectedPanels = new Set(); // Set of "screenId:col,row" strings for multi-selection (desktop)
+
+// Selection is PER CANVAS: selecting panels in the standard view must not select the same
+// panels in the power and data views — each layout is edited independently.
+const combinedSelectionByCanvas = {
+  combinedStandardCanvas: { panels: new Set(), panel: null },
+  combinedPowerCanvas:    { panels: new Set(), panel: null },
+  combinedDataCanvas:     { panels: new Set(), panel: null }
+};
+let combinedActiveSelectionCanvasId = 'combinedStandardCanvas';
+
+// Point the globals at one canvas's selection. Called at the start of every canvas
+// interaction. combinedSelectedPanels is assigned the stored Set itself (not a copy), so
+// every mutation the existing helpers make lands on that canvas's selection.
+function useCombinedSelection(canvasId) {
+  const sel = combinedSelectionByCanvas[canvasId];
+  if(!sel) return;
+  combinedActiveSelectionCanvasId = canvasId;
+  combinedSelectedPanels = sel.panels;
+  combinedSelectedPanel = sel.panel;
+}
+
+// combinedSelectedPanel is a value, not a reference like the Set, so it has to be written
+// back to the active canvas whenever it changes.
+function syncCombinedSelectedPanel() {
+  const sel = combinedSelectionByCanvas[combinedActiveSelectionCanvasId];
+  if(sel) sel.panel = combinedSelectedPanel;
+}
+
+// Drop every canvas's selection (leaving Select Mode, clearing the view).
+function clearAllCombinedSelections() {
+  Object.keys(combinedSelectionByCanvas).forEach(id => {
+    combinedSelectionByCanvas[id].panels.clear();
+    combinedSelectionByCanvas[id].panel = null;
+  });
+  combinedSelectedPanel = null;
+}
+
+// Geometry each combined renderer ACTUALLY drew, keyed by canvas id, so hit detection and the
+// selection overlay can never disagree with the pixels on screen. The standard canvas applies
+// zoom / custom drag positions / mirroring while the power+data canvases draw a plain
+// left-to-right row at the unzoomed panel size — re-deriving that in the hit-test would be
+// right at 100% zoom and silently wrong everywhere else.
+// canvasId -> [{ screenId, screen, data, pw, screenX, screenY, panelWidth, geo }]
+let combinedHitGeometry = {};
+
+function recordCombinedHitGeometry(canvasId, entries) {
+  combinedHitGeometry[canvasId] = entries;
+}
+
+// Green outline over every selected panel, drawn from the geometry the renderer just
+// published so it lands on the right cells on any of the three canvases. Deleted panels
+// aren't drawn at all, so an outline there would float on empty background — they stay
+// selectable (that's how they get restored), they just don't get an outline.
+function drawCombinedSelectionOverlay(ctx, canvasId) {
+  const entries = combinedHitGeometry[canvasId];
+  if(!entries || entries.length === 0) return;
+
+  // This canvas's OWN selection — not the active one, so each layout outlines only what
+  // was selected in it.
+  const sel = combinedSelectionByCanvas[canvasId];
+  if(!sel) return;
+  if(sel.panels.size === 0 && !sel.panel) return;
+
+  const byScreen = new Map();
+  entries.forEach(e => byScreen.set(e.screenId, e));
+
+  // Thin outline that still scales a little with the drawn panel size (2px at the usual
+  // 40px panel) — it marks the panel without hiding its colour or label.
+  const ref = entries[0].panelWidth || 20;
+  const lineWidth = Math.max(1, Math.round(ref / 24));
+  const inset = lineWidth / 2; // stroke is centred, so this keeps it inside the cell
+
+  const outline = (screenId, panelKey) => {
+    const e = byScreen.get(screenId);
+    if(!e || isCombinedPanelDeleted(e.data, panelKey)) return;
+    const [col, row] = panelKey.split(',').map(Number);
+    if(!(col >= 0 && col < e.pw && row >= 0 && row < e.geo.effectivePh)) return;
+    const px = e.screenX + col * e.panelWidth;
+    const py = e.screenY + e.geo.rowY(row);
+    ctx.strokeRect(px + inset, py + inset, e.panelWidth - inset * 2, e.geo.rowH(row) - inset * 2);
+  };
+
+  ctx.save();
+  ctx.strokeStyle = '#00FF00';
+  ctx.lineWidth = lineWidth;
+  if(sel.panels.size > 0) {
+    sel.panels.forEach(key => {
+      const sep = key.indexOf(':');
+      outline(key.slice(0, sep), key.slice(sep + 1));
+    });
+  } else if(sel.panel) {
+    outline(sel.panel.screenId, sel.panel.key);
+  }
+  ctx.restore();
+}
 
 // Drag-select (marquee) state — client coords, live only while a drag is in progress
 let combinedSelectMode = false; // mobile: drag-select panels without scrolling the canvas
@@ -61,12 +228,27 @@ let combinedMarqueeX1 = 0, combinedMarqueeY1 = 0, combinedMarqueeX2 = 0, combine
 let combinedMarqueeBase = null;
 let combinedMarqueeRafId = 0;
 let combinedLastTouch = 0; // touch devices fire compatibility mouse events after a tap
+// Which canvas the current drag started on — selection works on standard/power/data.
+let combinedMarqueeCanvasId = 'combinedStandardCanvas';
+
+// Mouse selection state. Module-level rather than per-canvas closures because the
+// mousemove/mouseup handlers live on `document` and are registered once for all canvases.
+let combinedMouseSelectStart = { x: 0, y: 0 };
+let combinedIsMouseSelecting = false;
+let combinedDocHandlersBound = false;
+
+// The canvases that support panel selection, and the options each one offers.
+const COMBINED_SELECTABLE_CANVASES = [
+  { id: 'combinedStandardCanvas', layoutKind: 'standard' },
+  { id: 'combinedPowerCanvas',    layoutKind: 'power' },
+  { id: 'combinedDataCanvas',     layoutKind: 'data' }
+];
 
 // Draw the drag-selection box on top of the freshly rendered combined layout.
 function drawCombinedMarqueeRect() {
   if(!combinedMarqueeActive || !combinedMarqueeMoved) return;
 
-  const canvas = document.getElementById('combinedStandardCanvas');
+  const canvas = document.getElementById(combinedMarqueeCanvasId);
   if(!canvas) return;
 
   const ctx = canvas.getContext('2d');
@@ -93,7 +275,7 @@ function drawCombinedMarqueeRect() {
 // Replace (or extend, when a modifier is held) the selection with everything
 // the drag box covers, then redraw the combined view with the box on top.
 function applyCombinedMarqueeSelection(isAdditive) {
-  const canvas = document.getElementById('combinedStandardCanvas');
+  const canvas = document.getElementById(combinedMarqueeCanvasId);
   if(!canvas) return;
 
   const next = (isAdditive && combinedMarqueeBase) ? new Set(combinedMarqueeBase) : new Set();
@@ -103,6 +285,7 @@ function applyCombinedMarqueeSelection(isAdditive) {
   combinedSelectedPanels.clear();
   next.forEach(key => combinedSelectedPanels.add(key));
   combinedSelectedPanel = null;
+  syncCombinedSelectedPanel();
 
   // Coalesce redraws — renderCombinedView() is a full re-render, too heavy per raw move event
   if(combinedMarqueeRafId) return;
@@ -128,19 +311,22 @@ function endCombinedMarquee() {
 function toggleCombinedSelectMode() {
   combinedSelectMode = !combinedSelectMode;
 
-  const canvas = document.getElementById('combinedStandardCanvas');
   const btn = document.getElementById('combinedSelectModeBtn');
 
-  if(canvas) canvas.classList.toggle('select-mode-active', combinedSelectMode);
+  // All three selectable canvases must block native scroll, or dragging a box on the
+  // power/data canvas would scroll the page instead of selecting.
+  COMBINED_SELECTABLE_CANVASES.forEach(({ id }) => {
+    const c = document.getElementById(id);
+    if(c) c.classList.toggle('select-mode-active', combinedSelectMode);
+  });
   if(btn) {
     btn.classList.toggle('active', combinedSelectMode);
     btn.setAttribute('aria-pressed', combinedSelectMode ? 'true' : 'false');
   }
 
-  // Leaving Select Mode clears the working selection
+  // Leaving Select Mode clears the working selection on every canvas
   if(!combinedSelectMode) {
-    combinedSelectedPanels.clear();
-    combinedSelectedPanel = null;
+    clearAllCombinedSelections();
     renderCombinedView();
   }
 
@@ -186,6 +372,175 @@ function saveCombinedPositions() {
   } catch(e) {
     console.error('Error saving combined positions:', e);
   }
+}
+
+// ==================== COMBINED ARRANGEMENT SNAPSHOT ====================
+// Read-only description of how the Combined view currently arranges screens, so the PDF
+// combined diagram can render the same thing. Nothing here renders or mutates the view.
+
+// Panel size the persisted drag offsets were captured at, restored from a project file.
+let combinedSavedPanelSize = 0;
+
+// Base (unzoomed) panel size the current arrangement is laid out with. renderCombinedView()
+// stores width in unzoomed px, so width/pw recovers it.
+function getCombinedArrangementPanelSize() {
+  // A saved panel size wins while the Combined view is off-screen: renderCombinedView()
+  // measures a hidden wrapper as 0 wide and clamps to its 15px floor, which would
+  // misscale the stored drag offsets.
+  const container = document.getElementById('combinedStandardCanvasWrapper');
+  const containerVisible = !!(container && container.clientWidth > 0);
+  if(containerVisible) {
+    for(let i = 0; i < combinedScreenDimensions.length; i++) {
+      const dim = combinedScreenDimensions[i];
+      if(dim && dim.pw > 0 && dim.width > 0) return dim.width / dim.pw;
+    }
+  }
+  if(combinedSavedPanelSize > 0) return combinedSavedPanelSize;
+  return 40;
+}
+
+// Returns { items, panelSize, gapUnits } with geometry in panel units (1 unit = one panel
+// width), which makes it independent of zoom and of the container width. Selected screens
+// come first in combinedSelectedScreens order — the app's left-to-right order — carrying
+// their manual drag offsets. Screens not in the Combined view are appended in tab order to
+// the right of that arrangement. Returns null when there is nothing to draw.
+function getCombinedArrangement() {
+  if(typeof screens === 'undefined' || Object.keys(screens).length === 0) return null;
+
+  const panelSize = getCombinedArrangementPanelSize();
+  const gapUnits = Math.max(10, Math.min(20, panelSize / 2)) / panelSize;
+
+  // Box size in panel units — mirrors the height math in renderCombinedView()
+  function boxUnits(screenId) {
+    const data = (screens[screenId] && screens[screenId].data) || {};
+    const pw = parseInt(data.panelsWide) || 0;
+    const ph = parseInt(data.panelsHigh) || 0;
+    const panelType = data.panelType || 'CB5_MKII';
+    const heightRatio = getPanelHeightRatio(panelType);
+    const halfRow = !!(data.addCB5HalfRow && panelType === 'CB5_MKII');
+    return {
+      pw: pw,
+      ph: ph,
+      heightRatio: heightRatio,
+      halfRow: halfRow,
+      w: pw,
+      h: ph * heightRatio + (halfRow ? 1 : 0)
+    };
+  }
+
+  const items = [];
+  const used = {};
+
+  // Selected screens. Base x is the running row position renderCombinedView() computes
+  // (running sum of widths plus a gap between neighbours), expressed in panel units; the
+  // manual drag offset is then applied on top exactly as the canvas renderer does.
+  let rowX = 0;
+  let placed = 0;
+  Array.from(combinedSelectedScreens).forEach(screenId => {
+    if(!screens[screenId]) return;
+    const box = boxUnits(screenId);
+    if(box.pw <= 0 || box.ph <= 0) return;
+    const baseX = rowX + (placed > 0 ? gapUnits : 0);
+    const pos = combinedScreenPositions[screenId] || { x: 0, y: 0 };
+    items.push({
+      screenId: screenId,
+      pw: box.pw,
+      ph: box.ph,
+      heightRatio: box.heightRatio,
+      halfRow: box.halfRow,
+      x: baseX + pos.x / panelSize,
+      y: pos.y / panelSize,
+      w: box.w,
+      h: box.h,
+      arranged: true
+    });
+    rowX = baseX + box.w;
+    placed++;
+    used[screenId] = true;
+  });
+
+  // Screens not in the Combined view still belong in the diagram — appended to the right
+  // of the arrangement in tab order, on the default baseline.
+  let tailX = 0;
+  items.forEach(it => { tailX = Math.max(tailX, it.x + it.w + gapUnits); });
+
+  Object.keys(screens)
+    .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]))
+    .forEach(screenId => {
+      if(used[screenId]) return;
+      const box = boxUnits(screenId);
+      if(box.pw <= 0 || box.ph <= 0) return;
+      items.push({
+        screenId: screenId,
+        pw: box.pw,
+        ph: box.ph,
+        heightRatio: box.heightRatio,
+        halfRow: box.halfRow,
+        x: tailX,
+        y: 0,
+        w: box.w,
+        h: box.h,
+        arranged: false
+      });
+      tailX += box.w + gapUnits;
+    });
+
+  if(items.length === 0) return null;
+  return { items: items, panelSize: panelSize, gapUnits: gapUnits };
+}
+
+// Snapshot of the Combined view arrangement for the project file, so the layout — and with
+// it the PDF combined diagram — survives save/reload and moves between devices. Offsets are
+// stored in px alongside the panel size they were captured at, so they can be interpreted
+// on a device whose container width produces a different panel size.
+function getCombinedViewSaveState() {
+  const positions = {};
+  Object.keys(combinedScreenPositions).forEach(screenId => {
+    const pos = combinedScreenPositions[screenId];
+    if(pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+      positions[screenId] = { x: pos.x, y: pos.y };
+    }
+  });
+  return {
+    selected: Array.from(combinedSelectedScreens),
+    positions: positions,
+    panelSize: getCombinedArrangementPanelSize(),
+    manualAdjust: combinedManualAdjust
+  };
+}
+
+// Restore a Combined view arrangement from a project file. Validation mirrors
+// loadCombinedPositions() — this is untrusted file input.
+function applyCombinedViewSaveState(state) {
+  combinedSelectedScreens.clear();
+  if(!state || typeof state !== 'object' || Array.isArray(state)) return;
+
+  if(Array.isArray(state.selected)) {
+    state.selected.forEach(screenId => {
+      if(typeof screenId !== 'string' || !/^screen_\d+$/.test(screenId)) return;
+      if(!screens[screenId]) return;
+      combinedSelectedScreens.add(screenId);
+    });
+  }
+
+  if(state.positions && typeof state.positions === 'object' && !Array.isArray(state.positions)) {
+    const safe = {};
+    Object.keys(state.positions).forEach(key => {
+      if(!isSafeKey(key) || !/^screen_\d+$/.test(key)) return;
+      const val = state.positions[key];
+      if(val && typeof val === 'object' && typeof val.x === 'number' && typeof val.y === 'number') {
+        safe[key] = { x: val.x, y: val.y };
+      }
+    });
+    combinedScreenPositions = safe;
+    saveCombinedPositions();
+  }
+
+  combinedSavedPanelSize = (typeof state.panelSize === 'number' && state.panelSize > 0)
+    ? state.panelSize
+    : 0;
+  combinedManualAdjust = state.manualAdjust === true;
+  updateManualAdjustButton();
 }
 
 // Get screen at position for dragging (checks screen label area)
@@ -480,6 +835,9 @@ function autoFitCombinedZoom() {
 
 // Get panel and screen at position in Combined standard canvas
 function getCombinedPanelAtPosition(canvas, clientX, clientY) {
+  const entries = combinedHitGeometry[canvas.id];
+  if(!entries) return null;
+
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
   const scaleY = canvas.height / rect.height;
@@ -487,53 +845,22 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
   const canvasX = (clientX - rect.left) * scaleX;
   const canvasY = (clientY - rect.top) * scaleY;
 
-  const allPanels = getAllPanels();
+  // Walk the geometry this canvas's renderer published, so hit detection uses the exact
+  // origin and panel size that were drawn (they differ per canvas — see recordCombinedHitGeometry).
+  for(const e of entries) {
+    const screenWidth = e.pw * e.panelWidth;
+    const screenHeight = e.geo.totalH;
 
-  // Check each screen
-  for(const dim of combinedScreenDimensions) {
-    let screenX, screenY, drawPanelSize;
+    if(canvasX >= e.screenX && canvasX < e.screenX + screenWidth &&
+       canvasY >= e.screenY && canvasY < e.screenY + screenHeight) {
+      const col = Math.floor((canvasX - e.screenX) / e.panelWidth);
+      const row = e.geo.rowAt(canvasY - e.screenY);
 
-    if(combinedMirrorCanvas) {
-      // Use canvas positions - convert from pixel coordinates to panel-based layout
-      const dataCanvasX = dim.data.canvasX || 0;
-      const dataCanvasY = dim.data.canvasY || 0;
-      // Get this screen's panel pixel width to properly scale its position
-      const panelType = dim.data.panelType || 'CB5_MKII';
-      const panelInfo = allPanels[panelType];
-      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-      // Convert pixel position to panel units, then to display pixels
-      screenX = combinedLeftPadding + (dataCanvasX / pixelWidth) * combinedPanelSize;
-      screenY = combinedTopPadding + (dataCanvasY / pixelWidth) * combinedPanelSize;
-      // Use same panel size as non-mirrored mode
-      drawPanelSize = combinedPanelSize;
-    } else {
-      // Use custom positions or default horizontal layout
-      // Scale both base position and custom offset by zoom factor
-      const zoomFactor = combinedZoomLevel / 100;
-      const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
-      screenX = combinedLeftPadding + (dim.x + customPos.x) * zoomFactor;
-      screenY = combinedTopPadding + customPos.y * zoomFactor;
-      drawPanelSize = combinedPanelSize; // Already zoomed from renderCombinedView
-    }
-
-    // Calculate proper panel dimensions for this screen
-    const geo = combinedRowGeometry(dim.data, drawPanelSize);
-    const actualPanelWidth = drawPanelSize;
-
-    const screenWidth = dim.pw * actualPanelWidth;
-    const screenHeight = geo.totalH;
-
-    // Check if click is within this screen's bounds
-    if(canvasX >= screenX && canvasX < screenX + screenWidth &&
-       canvasY >= screenY && canvasY < screenY + screenHeight) {
-      const col = Math.floor((canvasX - screenX) / actualPanelWidth);
-      const row = geo.rowAt(canvasY - screenY);
-
-      if(col >= 0 && col < dim.pw && row >= 0 && row < geo.effectivePh) {
+      if(col >= 0 && col < e.pw && row >= 0 && row < e.geo.effectivePh) {
         return {
-          screenId: dim.screenId,
-          screen: dim.screen,
-          data: dim.data,
+          screenId: e.screenId,
+          screen: e.screen,
+          data: e.data,
           col,
           row,
           key: `${col},${row}`
@@ -588,6 +915,9 @@ function isCombinedPanelDeleted(data, panelKey) {
 
 // Get all panels within a rectangle (for drag selection)
 function getCombinedPanelsInRect(canvas, x1, y1, x2, y2) {
+  const entries = combinedHitGeometry[canvas.id];
+  if(!entries) return [];
+
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
   const scaleY = canvas.height / rect.height;
@@ -598,37 +928,15 @@ function getCombinedPanelsInRect(canvas, x1, y1, x2, y2) {
   const canvasY2 = (Math.max(y1, y2) - rect.top) * scaleY;
 
   const panels = [];
-  const allPanels = getAllPanels();
 
-  // Check each screen
-  for(const dim of combinedScreenDimensions) {
-    let screenX, screenY, drawPanelSize;
+  // Same published geometry the point hit-test uses, so a drag box and a click can
+  // never disagree about where a panel is.
+  for(const dim of entries) {
+    const drawPanelSize = dim.panelWidth;
+    const screenX = dim.screenX;
+    const screenY = dim.screenY;
 
-    if(combinedMirrorCanvas) {
-      // Use canvas positions - convert from pixel coordinates to panel-based layout
-      const dataCanvasX = dim.data.canvasX || 0;
-      const dataCanvasY = dim.data.canvasY || 0;
-      // Get this screen's panel pixel width to properly scale its position
-      const panelType = dim.data.panelType || 'CB5_MKII';
-      const panelInfo = allPanels[panelType];
-      const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-      // Convert pixel position to panel units, then to display pixels
-      screenX = combinedLeftPadding + (dataCanvasX / pixelWidth) * combinedPanelSize;
-      screenY = combinedTopPadding + (dataCanvasY / pixelWidth) * combinedPanelSize;
-      // Use same panel size as non-mirrored mode
-      drawPanelSize = combinedPanelSize;
-    } else {
-      // Use custom positions or default horizontal layout
-      // Scale both base position and custom offset by zoom factor
-      const zoomFactor = combinedZoomLevel / 100;
-      const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
-      screenX = combinedLeftPadding + (dim.x + customPos.x) * zoomFactor;
-      screenY = combinedTopPadding + customPos.y * zoomFactor;
-      drawPanelSize = combinedPanelSize; // Already zoomed from renderCombinedView
-    }
-
-    // Check each panel in this screen
-    const geo = combinedRowGeometry(dim.data, drawPanelSize);
+    const geo = dim.geo;
     for(let c = 0; c < dim.pw; c++) {
       for(let r = 0; r < geo.effectivePh; r++) {
         const px = screenX + c * drawPanelSize;
@@ -685,11 +993,19 @@ function toggleCombinedPanelDelete(screenId, panelKey) {
   renderCombinedView();
 }
 
-// Show context menu for Combined view panel
-function showCombinedPanelContextMenu(x, y, panelInfo) {
+// Show context menu for Combined view panel.
+// layoutKind decides which options belong here: the power canvas offers only power
+// options, the data canvas only data options, and neither offers panel deletion —
+// those stay on the standard canvas where the whole panel grid is the subject.
+function showCombinedPanelContextMenu(x, y, panelInfo, layoutKind) {
   // Remove existing menu if any
   const existingMenu = document.getElementById('combinedPanelContextMenu');
   if(existingMenu) existingMenu.remove();
+
+  const kind = layoutKind || 'standard';
+  const showPower = (kind === 'standard' || kind === 'power');
+  const showData = (kind === 'standard' || kind === 'data');
+  const showDelete = (kind === 'standard');
 
   const { screenId, screen, data, col, row, key } = panelInfo;
 
@@ -751,47 +1067,68 @@ function showCombinedPanelContextMenu(x, y, panelInfo) {
     return option;
   }
 
-  // Assign Custom Circuit # option
-  const circuitOption = createMenuOption(
-    `Assign Circuit # to ${selectedCount} ${panelLabel}`,
-    '#2a4a6a',
-    function() {
-      menu.remove();
-      promptAssignCombinedCircuit();
-    }
-  );
-  menu.appendChild(circuitOption);
+  // Assign Custom Circuit # option (power)
+  if(showPower) {
+    const circuitOption = createMenuOption(
+      `Assign Circuit # to ${selectedCount} ${panelLabel}`,
+      '#2a4a6a',
+      function() {
+        menu.remove();
+        promptAssignCombinedCircuit();
+      }
+    );
+    menu.appendChild(circuitOption);
 
-  // Assign Custom Data Line # option
-  const dataOption = createMenuOption(
-    `Assign Data Line # to ${selectedCount} ${panelLabel}`,
-    '#4a2a6a',
-    function() {
-      menu.remove();
-      promptAssignCombinedDataLine();
+    // Assign SOCA # option — only when the selection sits inside ONE screen and spans 2+
+    // columns and 2+ rows, matching the Complex-view gate in interact/standard-canvas.js.
+    const socaSel = combinedSelectionForSoca(screenId, key);
+    if(socaSel) {
+      const socaOption = createMenuOption(
+        `Assign SOCA # to ${socaSel.keys.length} ${socaSel.keys.length === 1 ? 'panel' : 'panels'}`,
+        '#2a4a6a',
+        function() {
+          menu.remove();
+          promptAssignCombinedSoca(socaSel.screenId, socaSel.keys);
+        }
+      );
+      menu.appendChild(socaOption);
     }
-  );
-  menu.appendChild(dataOption);
+  }
+
+  // Assign Custom Data Line # option (data)
+  if(showData) {
+    const dataOption = createMenuOption(
+      `Assign Data Line # to ${selectedCount} ${panelLabel}`,
+      '#4a2a6a',
+      function() {
+        menu.remove();
+        promptAssignCombinedDataLine();
+      }
+    );
+    menu.appendChild(dataOption);
+  }
 
   // Delete/Restore option
-  const toggleOption = createMenuOption(
-    selectedCount > 1 ? `Delete ${selectedCount} ${panelLabel}` : (isDeleted ? 'Restore Panel' : 'Delete Panel'),
-    isDeleted ? '#2a6a2a' : '#6a2a2a',
-    function() {
-      if(combinedSelectedPanels.size > 0) {
-        combinedSelectedPanels.forEach(pkey => {
-          const [sid, pk] = pkey.split(':');
-          toggleCombinedPanelDelete(sid, pk);
-        });
-        combinedSelectedPanels.clear();
-      } else {
-        toggleCombinedPanelDelete(screenId, key);
+  if(showDelete) {
+    const toggleOption = createMenuOption(
+      selectedCount > 1 ? `Delete ${selectedCount} ${panelLabel}` : (isDeleted ? 'Restore Panel' : 'Delete Panel'),
+      isDeleted ? '#2a6a2a' : '#6a2a2a',
+      function() {
+        if(combinedSelectedPanels.size > 0) {
+          combinedSelectedPanels.forEach(pkey => {
+            const [sid, pk] = pkey.split(':');
+            toggleCombinedPanelDelete(sid, pk);
+          });
+          combinedSelectedPanels.clear();
+        } else {
+          toggleCombinedPanelDelete(screenId, key);
+        }
+        menu.remove();
       }
-      menu.remove();
-    }
-  );
-  toggleOption.style.borderTop = '1px solid #383838';
-  menu.appendChild(toggleOption);
+    );
+    toggleOption.style.borderTop = '1px solid #383838';
+    menu.appendChild(toggleOption);
+  }
 
   // Go to screen option (only for single selection)
   if(selectedCount === 1) {
@@ -897,6 +1234,7 @@ async function promptAssignCombinedCircuit() {
   // Clear selection and re-render
   combinedSelectedPanels.clear();
   combinedSelectedPanel = null;
+  syncCombinedSelectedPanel();
   renderCombinedView();
 }
 
@@ -964,104 +1302,167 @@ async function promptAssignCombinedDataLine() {
   // Clear selection and re-render
   combinedSelectedPanels.clear();
   combinedSelectedPanel = null;
+  syncCombinedSelectedPanel();
   renderCombinedView();
 }
 
-// Setup Combined standard canvas touch/click handlers
-// Unified handler for both screen dragging (Manual Adjust mode) and panel selection
+// ==================== COMBINED "ASSIGN SOCA #" (PER PANEL) ====================
+
+// The current combined selection, but only when it can take a SOCA assignment: every panel
+// must belong to ONE screen and the block must span 2+ columns and 2+ rows — the same gate
+// showContextMenu() applies in interact/standard-canvas.js. Returns { screenId, keys } or null.
+function combinedSelectionForSoca(fallbackScreenId, fallbackKey) {
+  let screenId = null;
+  const keys = [];
+
+  if(combinedSelectedPanels.size > 0) {
+    for(const pkey of combinedSelectedPanels) {
+      const [sid, pk] = pkey.split(':');
+      if(screenId === null) screenId = sid;
+      else if(sid !== screenId) return null; // spans more than one screen
+      keys.push(pk);
+    }
+  } else if(fallbackScreenId && fallbackKey) {
+    screenId = fallbackScreenId;
+    keys.push(fallbackKey);
+  }
+
+  if(!screenId || keys.length === 0) return null;
+
+  const cols = new Set(), rows = new Set();
+  keys.forEach(k => {
+    const [c, r] = k.split(',').map(Number);
+    cols.add(c); rows.add(r);
+  });
+  if(cols.size < 2 || rows.size < 2) return null;
+
+  return { screenId, keys };
+}
+
+// customSocaAssignments / customCircuitAssignments may be a Map or an array of entries
+// (from loaded JSON) — normalise to a Map we can write into.
+function toCombinedSocaMap(value) {
+  if(value instanceof Map) return new Map(value);
+  if(Array.isArray(value)) return new Map(value.filter(e => Array.isArray(e) && e.length === 2));
+  return new Map();
+}
+
+// Assign a SOCA # to a block of panels in one screen. Mirrors showAssignSocaPrompt() in
+// interact/standard-canvas.js — same column-bundling into circuits and the same two guards —
+// but writes into screens[screenId].data instead of the current screen's globals.
+async function promptAssignCombinedSoca(screenId, keys) {
+  const screen = screens[screenId];
+  if(!screen || !screen.data || !keys || keys.length === 0) return;
+
+  const inp = (typeof resolveScreenPowerInputs === 'function') ? resolveScreenPowerInputs(screen.data) : null;
+  if(!inp) return;
+
+  const result = await showSocaOnlyPrompt(keys.length);
+  if(result === null || result === undefined) return;
+
+  const socaNum = parseSocaInput(result);
+  if(socaNum === null) {
+    showAlert('Please enter a valid SOCA (1-99 or A-Z)');
+    return;
+  }
+
+  const ppc = inp.panelsPerCircuit;
+
+  // Group the selected panels by column
+  const byCol = new Map();
+  keys.forEach(k => {
+    if(inp.deletedPanels.has(k)) return;
+    const c = parseInt(k.split(',')[0]);
+    if(!byCol.has(c)) byCol.set(c, []);
+    byCol.get(c).push(k);
+  });
+  const sortedCols = [...byCol.keys()].sort((a, b) => a - b);
+  if(sortedCols.length === 0) return;
+
+  let maxColCount = 0, worstCol = sortedCols[0];
+  sortedCols.forEach(c => {
+    const n = byCol.get(c).length;
+    if(n > maxColCount) { maxColCount = n; worstCol = c; }
+  });
+  if(maxColCount > ppc) {
+    showAlert(
+      `Column ${worstCol + 1} has ${maxColCount} selected panels, but the max per circuit is ${ppc}. ` +
+      `Raise panels-per-circuit or reduce the selection.`
+    );
+    return;
+  }
+
+  // Bundle whole columns into circuits: as many equal-height columns as fit within
+  // one circuit's panel budget. A SOCA holds 6 circuits.
+  const colsPerCircuit = Math.max(1, Math.floor(ppc / maxColCount));
+  const circuitsNeeded = Math.ceil(sortedCols.length / colsPerCircuit);
+  if(circuitsNeeded > 6) {
+    showAlert(
+      `This selection needs ${circuitsNeeded} circuits, but a SOCA holds only 6. ` +
+      `Reduce the selection or raise panels-per-circuit.`
+    );
+    return;
+  }
+
+  const socaMap = toCombinedSocaMap(screen.data.customSocaAssignments);
+  const circuitMap = toCombinedSocaMap(screen.data.customCircuitAssignments);
+  const baseCircuit = (socaNum - 1) * 6 + 1;
+
+  sortedCols.forEach((c, colIdx) => {
+    const circuit = baseCircuit + Math.floor(colIdx / colsPerCircuit);
+    byCol.get(c).forEach(key => {
+      socaMap.set(key, socaNum);
+      circuitMap.set(key, circuit);
+    });
+  });
+
+  screen.data.customSocaAssignments = socaMap;
+  screen.data.customCircuitAssignments = circuitMap;
+
+  if(screenId === currentScreenId) {
+    customSocaAssignments = new Map(socaMap);
+    customCircuitAssignments = new Map(circuitMap);
+  }
+
+  // Always recalculate, even when another screen was edited: the CURRENT screen caches the
+  // shared-distro label map in its calculatedData, and sharedDistroSocaLabelMap() prefers that
+  // cache over the live plan. Changing any group member's SOCAs invalidates it, so skipping
+  // this leaves the current screen labelled from a stale plan while every other screen uses
+  // the fresh one — which shows up as two screens sharing a SOCA label.
+  if(typeof calculate === 'function') calculate();
+
+  combinedSelectedPanels.clear();
+  combinedSelectedPanel = null;
+  syncCombinedSelectedPanel();
+  renderCombinedView();
+}
+
+// Setup Combined canvas touch/click handlers.
+// The standard canvas additionally supports screen dragging (Manual Adjust) and
+// double-click delete; the power and data canvases are selection-only, and their context
+// menus offer just the options that belong to that layout.
 function setupCombinedCanvasHandlers() {
-  const canvas = document.getElementById('combinedStandardCanvas');
-  if(!canvas) return;
-
-  // Prevent duplicate handlers
-  if(canvas.dataset.combinedHandlersSet) return;
-  canvas.dataset.combinedHandlersSet = 'true';
-
-  // Touch state
-  let touchStartPos = { x: 0, y: 0 };
-  let touchLastPos = { x: 0, y: 0 };
-  let touchStartPanel = null;
-  let touchDragPending = false;
-
-  // Mouse panel selection state
-  let mouseSelectStart = { x: 0, y: 0 };
-  let isMouseSelecting = false;
-  let mouseStartPanel = null;
-
-  // ===== MOUSE HANDLERS (Desktop) =====
-
-  // Mouse down - start drag (if Manual Adjust) or start panel selection
-  canvas.addEventListener('mousedown', function(e) {
-    if(e.button !== 0) return; // Only left click
-
-    if(combinedManualAdjust) {
-      // Manual Adjust mode: drag screens
-      const screenDim = getCombinedScreenAtPosition(canvas, e.clientX, e.clientY);
-      if(screenDim) {
-        combinedDragState.isDragging = true;
-        combinedDragState.screenDim = screenDim;
-        combinedDragState.startX = e.clientX;
-        combinedDragState.startY = e.clientY;
-        combinedDragState.startPosX = combinedScreenPositions[screenDim.screenId]?.x || 0;
-        combinedDragState.startPosY = combinedScreenPositions[screenDim.screenId]?.y || 0;
-        canvas.style.cursor = 'grabbing';
-        e.preventDefault();
-      }
-    } else {
-      // Panel selection mode: anchor the drag box. The selection is not touched
-      // until the mouse moves (marquee) or is released without moving (click).
-      // Ignore the mousedown a touch device synthesizes after a tap
-      if(Date.now() - combinedLastTouch < 700) return;
-
-      e.preventDefault(); // suppress native drag/text selection while dragging the box
-
-      mouseSelectStart.x = e.clientX;
-      mouseSelectStart.y = e.clientY;
-      isMouseSelecting = true;
-      mouseStartPanel = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
-
-      combinedMarqueeActive = true;
-      combinedMarqueeMoved = false;
-      combinedMarqueeX1 = combinedMarqueeX2 = e.clientX;
-      combinedMarqueeY1 = combinedMarqueeY2 = e.clientY;
-      combinedMarqueeBase = new Set(combinedSelectedPanels);
-    }
+  bindCombinedDocumentSelectionHandlers();
+  COMBINED_SELECTABLE_CANVASES.forEach(({ id, layoutKind }) => {
+    setupCombinedCanvasHandlersFor(id, layoutKind);
   });
+}
 
-  // Mouse move - drag screen or extend panel selection
-  canvas.addEventListener('mousemove', function(e) {
-    if(combinedDragState.isDragging) {
-      // Screen dragging
-      const dx = e.clientX - combinedDragState.startX;
-      const dy = e.clientY - combinedDragState.startY;
+// mousemove/mouseup live on `document` so a drag that leaves the canvas keeps working.
+// They are shared by all three canvases, so they must be registered exactly once —
+// combinedMarqueeCanvasId says which canvas the active drag belongs to.
+function bindCombinedDocumentSelectionHandlers() {
+  if(combinedDocHandlersBound) return;
+  combinedDocHandlersBound = true;
 
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-
-      const screenId = combinedDragState.screenDim.screenId;
-      if(!combinedScreenPositions[screenId]) {
-        combinedScreenPositions[screenId] = { x: 0, y: 0 };
-      }
-      // Store positions in unzoomed units so they work correctly at any zoom level
-      // The drag movement is in screen pixels, convert to canvas pixels, then to unzoomed units
-      const zoomFactor = combinedZoomLevel / 100;
-      combinedScreenPositions[screenId].x = combinedDragState.startPosX + (dx * scaleX) / zoomFactor;
-      combinedScreenPositions[screenId].y = combinedDragState.startPosY + (dy * scaleY) / zoomFactor;
-
-      renderCombinedView();
-    }
-  });
-
-  // Panel drag box - on document so dragging past the canvas edge keeps working
   document.addEventListener('mousemove', function(e) {
-    if(!isMouseSelecting) return;
+    if(!combinedIsMouseSelecting) return;
 
     combinedMarqueeX2 = e.clientX;
     combinedMarqueeY2 = e.clientY;
 
-    const dx = Math.abs(e.clientX - mouseSelectStart.x);
-    const dy = Math.abs(e.clientY - mouseSelectStart.y);
+    const dx = Math.abs(e.clientX - combinedMouseSelectStart.x);
+    const dy = Math.abs(e.clientY - combinedMouseSelectStart.y);
 
     // Only start the box once dragged past the click threshold
     if(!combinedMarqueeMoved && dx <= 4 && dy <= 4) return;
@@ -1070,18 +1471,20 @@ function setupCombinedCanvasHandlers() {
     applyCombinedMarqueeSelection(e.ctrlKey || e.metaKey || e.shiftKey);
   });
 
-  // Mouse up - end drag or selection
   document.addEventListener('mouseup', function(e) {
     if(combinedDragState.isDragging) {
       combinedDragState.isDragging = false;
       combinedDragState.screenDim = null;
-      canvas.style.cursor = '';
+      const dragCanvas = document.getElementById('combinedStandardCanvas');
+      if(dragCanvas) dragCanvas.style.cursor = '';
       saveCombinedPositions();
     }
 
-    if(isMouseSelecting && !combinedMarqueeMoved) {
+    if(combinedIsMouseSelecting && !combinedMarqueeMoved) {
       // No drag - treat as a plain click on the panel under the cursor
-      const panel = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
+      useCombinedSelection(combinedMarqueeCanvasId);
+      const canvas = document.getElementById(combinedMarqueeCanvasId);
+      const panel = canvas ? getCombinedPanelAtPosition(canvas, e.clientX, e.clientY) : null;
       if(panel) {
         const panelKey = `${panel.screenId}:${panel.key}`;
         const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
@@ -1100,20 +1503,108 @@ function setupCombinedCanvasHandlers() {
         combinedSelectedPanels.clear();
       }
       combinedSelectedPanel = null;
+      syncCombinedSelectedPanel();
     }
 
-    const wasSelecting = isMouseSelecting;
-    isMouseSelecting = false;
-    mouseStartPanel = null;
+    const wasSelecting = combinedIsMouseSelecting;
+    combinedIsMouseSelecting = false;
     endCombinedMarquee();
     if(wasSelecting) renderCombinedView(); // final render without the box
   });
+}
+
+function setupCombinedCanvasHandlersFor(canvasId, layoutKind) {
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+
+  // Prevent duplicate handlers (the flag lives on the element, so it is already per-canvas)
+  if(canvas.dataset.combinedHandlersSet) return;
+  canvas.dataset.combinedHandlersSet = 'true';
+
+  // Screen dragging and delete are standard-canvas only: the power/data canvases lay
+  // screens out in a fixed row and offer no delete options.
+  const allowScreenDrag = (layoutKind === 'standard');
+  const allowDelete = (layoutKind === 'standard');
+
+  // Touch state (per canvas)
+  let touchStartPos = { x: 0, y: 0 };
+  let touchLastPos = { x: 0, y: 0 };
+  let touchStartPanel = null;
+  let touchDragPending = false;
+
+  // ===== MOUSE HANDLERS (Desktop) =====
+
+  // Mouse down - start drag (if Manual Adjust) or start panel selection
+  canvas.addEventListener('mousedown', function(e) {
+    if(e.button !== 0) return; // Only left click
+
+    if(allowScreenDrag && combinedManualAdjust) {
+      // Manual Adjust mode: drag screens
+      const screenDim = getCombinedScreenAtPosition(canvas, e.clientX, e.clientY);
+      if(screenDim) {
+        combinedDragState.isDragging = true;
+        combinedDragState.screenDim = screenDim;
+        combinedDragState.startX = e.clientX;
+        combinedDragState.startY = e.clientY;
+        combinedDragState.startPosX = combinedScreenPositions[screenDim.screenId]?.x || 0;
+        combinedDragState.startPosY = combinedScreenPositions[screenDim.screenId]?.y || 0;
+        canvas.style.cursor = 'grabbing';
+        e.preventDefault();
+      }
+    } else if(!combinedManualAdjust) {
+      // Panel selection mode: anchor the drag box. The selection is not touched
+      // until the mouse moves (marquee) or is released without moving (click).
+      // Ignore the mousedown a touch device synthesizes after a tap
+      if(Date.now() - combinedLastTouch < 700) return;
+
+      e.preventDefault(); // suppress native drag/text selection while dragging the box
+
+      useCombinedSelection(canvasId);
+      combinedMarqueeCanvasId = canvasId;
+      combinedMouseSelectStart.x = e.clientX;
+      combinedMouseSelectStart.y = e.clientY;
+      combinedIsMouseSelecting = true;
+
+      combinedMarqueeActive = true;
+      combinedMarqueeMoved = false;
+      combinedMarqueeX1 = combinedMarqueeX2 = e.clientX;
+      combinedMarqueeY1 = combinedMarqueeY2 = e.clientY;
+      combinedMarqueeBase = new Set(combinedSelectedPanels);
+    }
+  });
+
+  // Mouse move - drag screen (standard canvas only; the box is handled on document)
+  if(allowScreenDrag) {
+    canvas.addEventListener('mousemove', function(e) {
+      if(!combinedDragState.isDragging) return;
+
+      const dx = e.clientX - combinedDragState.startX;
+      const dy = e.clientY - combinedDragState.startY;
+
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      const screenId = combinedDragState.screenDim.screenId;
+      if(!combinedScreenPositions[screenId]) {
+        combinedScreenPositions[screenId] = { x: 0, y: 0 };
+      }
+      // Store positions in unzoomed units so they work correctly at any zoom level
+      // The drag movement is in screen pixels, convert to canvas pixels, then to unzoomed units
+      const zoomFactor = combinedZoomLevel / 100;
+      combinedScreenPositions[screenId].x = combinedDragState.startPosX + (dx * scaleX) / zoomFactor;
+      combinedScreenPositions[screenId].y = combinedDragState.startPosY + (dy * scaleY) / zoomFactor;
+
+      renderCombinedView();
+    });
+  }
 
   // Right-click - context menu for panel (desktop)
   canvas.addEventListener('contextmenu', function(e) {
     e.preventDefault();
     if(combinedManualAdjust) return; // No panel menu in adjust mode
 
+    useCombinedSelection(canvasId);
     const panelInfo = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
     if(panelInfo) {
       // If clicked panel is not in selection, clear and select only it
@@ -1123,29 +1614,33 @@ function setupCombinedCanvasHandlers() {
         combinedSelectedPanels.add(panelKey);
       }
       combinedSelectedPanel = panelInfo;
+      syncCombinedSelectedPanel();
       renderCombinedView(); // Show highlight
-      showCombinedPanelContextMenu(e.clientX, e.clientY, panelInfo);
+      showCombinedPanelContextMenu(e.clientX, e.clientY, panelInfo, layoutKind);
     }
   });
 
-  // Double-click to quick toggle delete (desktop)
-  canvas.addEventListener('dblclick', function(e) {
-    if(combinedManualAdjust) return; // No panel actions in adjust mode
+  // Double-click to quick toggle delete (desktop, standard canvas only)
+  if(allowDelete) {
+    canvas.addEventListener('dblclick', function(e) {
+      if(combinedManualAdjust) return; // No panel actions in adjust mode
 
-    // Delete all selected panels
-    if(combinedSelectedPanels.size > 0) {
-      combinedSelectedPanels.forEach(key => {
-        const [screenId, panelKey] = key.split(':');
-        toggleCombinedPanelDelete(screenId, panelKey);
-      });
-      combinedSelectedPanels.clear();
-    } else {
-      const panelInfo = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
-      if(panelInfo) {
-        toggleCombinedPanelDelete(panelInfo.screenId, panelInfo.key);
+      useCombinedSelection(canvasId);
+      // Delete all selected panels
+      if(combinedSelectedPanels.size > 0) {
+        combinedSelectedPanels.forEach(key => {
+          const [screenId, panelKey] = key.split(':');
+          toggleCombinedPanelDelete(screenId, panelKey);
+        });
+        combinedSelectedPanels.clear();
+      } else {
+        const panelInfo = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
+        if(panelInfo) {
+          toggleCombinedPanelDelete(panelInfo.screenId, panelInfo.key);
+        }
       }
-    }
-  });
+    });
+  }
 
   // ===== TOUCH HANDLERS (Mobile) =====
 
@@ -1159,7 +1654,7 @@ function setupCombinedCanvasHandlers() {
     touchLastPos.x = touch.clientX;
     touchLastPos.y = touch.clientY;
 
-    if(combinedManualAdjust) {
+    if(allowScreenDrag && combinedManualAdjust) {
       // Manual Adjust mode: immediate drag like Canvas view
       const screenDim = getCombinedScreenAtPosition(canvas, touch.clientX, touch.clientY);
       if(screenDim) {
@@ -1171,8 +1666,9 @@ function setupCombinedCanvasHandlers() {
         combinedDragState.startPosY = combinedScreenPositions[screenDim.screenId]?.y || 0;
         e.preventDefault();
       }
-    } else {
+    } else if(!combinedManualAdjust) {
       // Panel selection mode: track start panel for tap-to-select
+      useCombinedSelection(canvasId);
       touchStartPanel = getCombinedPanelAtPosition(canvas, touch.clientX, touch.clientY);
     }
   }, { passive: false });
@@ -1184,7 +1680,7 @@ function setupCombinedCanvasHandlers() {
     touchLastPos.x = touch.clientX;
     touchLastPos.y = touch.clientY;
 
-    if(combinedManualAdjust && combinedDragState.isDragging) {
+    if(allowScreenDrag && combinedManualAdjust && combinedDragState.isDragging) {
       // Drag screen
       if(!touchDragPending) {
         touchDragPending = true;
@@ -1210,13 +1706,15 @@ function setupCombinedCanvasHandlers() {
         });
       }
       e.preventDefault();
-    } else if(combinedSelectMode) {
+    } else if(combinedSelectMode && !combinedManualAdjust) {
       // Select Mode: drag a box to select panels instead of scrolling the canvas
       const dx = Math.abs(touch.clientX - touchStartPos.x);
       const dy = Math.abs(touch.clientY - touchStartPos.y);
 
       if(dx > 10 || dy > 10) {
         if(!combinedMarqueeActive) {
+          useCombinedSelection(canvasId);
+          combinedMarqueeCanvasId = canvasId;
           combinedMarqueeActive = true;
           combinedMarqueeMoved = true;
           combinedMarqueeX1 = touchStartPos.x;
@@ -1245,15 +1743,16 @@ function setupCombinedCanvasHandlers() {
       return;
     }
 
-    if(combinedManualAdjust) {
+    if(allowScreenDrag && combinedManualAdjust) {
       // End screen drag
       if(combinedDragState.isDragging) {
         combinedDragState.isDragging = false;
         combinedDragState.screenDim = null;
         saveCombinedPositions();
       }
-    } else {
+    } else if(!combinedManualAdjust) {
       // Panel selection mode: tap to select, tap again for menu
+      useCombinedSelection(canvasId);
       const dx = Math.abs(touchLastPos.x - touchStartPos.x);
       const dy = Math.abs(touchLastPos.y - touchStartPos.y);
 
@@ -1265,10 +1764,11 @@ function setupCombinedCanvasHandlers() {
         if(selectedKey === panelKey) {
           // Panel was already selected - show context menu
           vibrate(30);
-          showCombinedPanelContextMenu(touchLastPos.x, touchLastPos.y, touchStartPanel);
+          showCombinedPanelContextMenu(touchLastPos.x, touchLastPos.y, touchStartPanel, layoutKind);
         } else {
           // Select this panel (highlight it)
           combinedSelectedPanel = touchStartPanel;
+          syncCombinedSelectedPanel();
           vibrate(10);
           renderCombinedView(); // Will highlight selected panel
         }
@@ -1335,6 +1835,9 @@ function initCombinedView() {
     togglesContainer.appendChild(btn);
   });
 
+  // Power-layout toggle buttons
+  updateCombinedPowerToggleButtons();
+
   // Update dist box availability based on selected screens' processor
   if (typeof updateCombinedDistBoxAvailability === 'function') {
     updateCombinedDistBoxAvailability();
@@ -1353,6 +1856,12 @@ function initCombinedView() {
 // selected screens have no panels yet - renderCombinedView must never call initCombinedView
 // back, or the two recurse until the stack overflows.
 function showCombinedPlaceholder() {
+  // Nothing is drawn any more — drop the published geometry so a stale map can't
+  // keep answering hit tests for screens that are no longer on the canvas, and drop
+  // the selections that pointed at those screens.
+  combinedHitGeometry = {};
+  clearAllCombinedSelections();
+
   const specsContent = document.getElementById('combinedSpecsContent');
   const gearContent = document.getElementById('combinedGearListContent');
   const specsToggles = document.getElementById('combinedSpecsToggles');
@@ -1393,6 +1902,15 @@ function toggleCombinedScreen(screenId) {
     combinedMirrorCanvas = false;
     updateMirrorCanvasButton();
     saveCombinedPositions();
+  }
+
+  // Re-apply the active power toggles to the new selection: a screen toggled off leaves the
+  // distro group / stops being balanced, and a screen toggled on joins.
+  if(combinedShareDistroOn) applyCombinedScreenFlag('sharedDistro', true);
+  if(combinedPhaseBalanceOn) applyCombinedScreenFlag('phaseBalance', true);
+  if(combinedShareDistroOn || combinedPhaseBalanceOn) {
+    syncComplexPowerToggles();
+    if(typeof calculate === 'function') calculate();
   }
 
   // Re-initialize to update button states and render
@@ -1506,6 +2024,7 @@ function renderCombinedView() {
   renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
   renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
   renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
+  updateCombinedDataToggleButtons();
   renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
 
   // Combined cable diagram (uses screenDimensions for matching standard layout positions)
@@ -1606,6 +2125,8 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
 
   const leftPadding = 20;
 
+  const hitEntries = [];
+
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x, screenId } = dim;
 
@@ -1632,6 +2153,14 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       screenY = topPadding + customPos.y * zoomFactor;
       actualPanelSize = zoomedPanelSize;
     }
+
+    // Publish what this screen was drawn at, for hit detection + the selection overlay
+    hitEntries.push({
+      screenId, screen, data, pw,
+      screenX, screenY,
+      panelWidth: actualPanelSize,
+      geo: combinedRowGeometry(data, actualPanelSize)
+    });
 
     // Get screen colors for checkerboard pattern (same as original)
     let primaryColor = screen.color || '#808080';
@@ -1773,107 +2302,11 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     }
   });
 
-  // Draw selection highlight on top of everything (after all panels drawn)
-  // Calculate scaled border properties based on zoom level (zoomFactor already defined above)
-  const scaledLineWidth = Math.max(1, Math.round(2 * zoomFactor));
-  const scaledOffset = Math.max(1, Math.round(1 * zoomFactor));
-  const scaledInset = scaledOffset * 2;
+  recordCombinedHitGeometry('combinedStandardCanvas', hitEntries);
 
-  // First, highlight all multi-selected panels (desktop)
-  if(combinedSelectedPanels.size > 0) {
-    ctx.strokeStyle = '#00FF00';
-    ctx.lineWidth = scaledLineWidth;
-    combinedSelectedPanels.forEach(key => {
-      const [screenId, panelKey] = key.split(':');
-      const [col, row] = panelKey.split(',').map(Number);
-      const selectedDim = screenDimensions.find(d => d.screenId === screenId);
-      // Deleted panels aren't drawn at all, so an outline there would float on
-      // empty background. They stay selectable — that's how they get restored.
-      if(selectedDim && !isCombinedPanelDeleted(selectedDim.data, panelKey)) {
-        let screenX, screenY, drawPanelSize;
-        if(combinedMirrorCanvas) {
-          const canvasX = selectedDim.data.canvasX || 0;
-          const canvasY = selectedDim.data.canvasY || 0;
-          screenX = leftPadding + canvasX * pixelScale;
-          screenY = topPadding + canvasY * pixelScale;
-          const panelType = selectedDim.data.panelType || 'CB5_MKII';
-          const panelInfo = allPanels[panelType];
-          const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-          drawPanelSize = pixelWidth * pixelScale;
-        } else {
-          const customPos = combinedScreenPositions[selectedDim.screenId] || { x: 0, y: 0 };
-          screenX = leftPadding + (selectedDim.x + customPos.x) * zoomFactor;
-          screenY = topPadding + customPos.y * zoomFactor;
-          drawPanelSize = zoomedPanelSize;
-        }
-        // Calculate proper panel dimensions for highlight (skip CB5 half panels)
-        const screenPanelType = selectedDim.data.panelType || 'CB5_MKII';
-        const screenHeightRatio = getPanelHeightRatio(screenPanelType);
-        const hasCB5HalfRow = selectedDim.data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
-        const originalPh = selectedDim.ph;
-        const isHalfPanelRow = hasCB5HalfRow && row === originalPh;
-        
-        let highlightWidth, highlightHeight;
-        if (isHalfPanelRow) {
-          // Keep square highlight for CB5 half panels (as requested)
-          highlightWidth = drawPanelSize;
-          highlightHeight = drawPanelSize;
-        } else {
-          // Use rectangular highlight for CB5 full panels and other rectangular panels
-          highlightWidth = drawPanelSize;
-          highlightHeight = drawPanelSize * screenHeightRatio;
-        }
-        
-        const px = screenX + col * highlightWidth;
-        // For CB5 with half panel row, calculate Y position properly
-        let py;
-        if (hasCB5HalfRow) {
-          if (isHalfPanelRow) {
-            // Half panel row is at the bottom
-            py = screenY + originalPh * (drawPanelSize * screenHeightRatio);
-          } else {
-            // Full panels use rectangular height
-            py = screenY + row * (drawPanelSize * screenHeightRatio);
-          }
-        } else {
-          // No half panel row - use calculated highlight height
-          py = screenY + row * highlightHeight;
-        }
-        ctx.strokeRect(px + scaledOffset, py + scaledOffset, highlightWidth - scaledInset, highlightHeight - scaledInset);
-      }
-    });
-  }
-
-  // Also highlight single selected panel (mobile)
-  if(combinedSelectedPanel && combinedSelectedPanels.size === 0) {
-    const selectedDim = screenDimensions.find(d => d.screenId === combinedSelectedPanel.screenId);
-    if(selectedDim && !isCombinedPanelDeleted(selectedDim.data, combinedSelectedPanel.key)) {
-      let screenX, screenY, drawPanelSize;
-      if(combinedMirrorCanvas) {
-        const canvasX = selectedDim.data.canvasX || 0;
-        const canvasY = selectedDim.data.canvasY || 0;
-        screenX = leftPadding + canvasX * pixelScale;
-        screenY = topPadding + canvasY * pixelScale;
-        const panelType = selectedDim.data.panelType || 'CB5_MKII';
-        const panelInfo = allPanels[panelType];
-        const pixelWidth = panelInfo ? panelInfo.res_x : 176;
-        drawPanelSize = pixelWidth * pixelScale;
-      } else {
-        const customPos = combinedScreenPositions[selectedDim.screenId] || { x: 0, y: 0 };
-        screenX = leftPadding + (selectedDim.x + customPos.x) * zoomFactor;
-        screenY = topPadding + customPos.y * zoomFactor;
-        drawPanelSize = zoomedPanelSize;
-      }
-      const col = combinedSelectedPanel.col;
-      const row = combinedSelectedPanel.row;
-      const px = screenX + col * drawPanelSize;
-      const py = screenY + row * drawPanelSize;
-
-      ctx.strokeStyle = '#00FF00';
-      ctx.lineWidth = scaledLineWidth;
-      ctx.strokeRect(px + scaledOffset, py + scaledOffset, drawPanelSize - scaledInset, drawPanelSize - scaledInset);
-    }
-  }
+  // Selection outlines, drawn from the geometry recorded just above so this canvas
+  // and the power/data canvases all highlight the same cells.
+  drawCombinedSelectionOverlay(ctx, 'combinedStandardCanvas');
 }
 
 // Render combined power layout
@@ -1891,11 +2324,25 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
 
   const leftPadding = 20;
 
+  // Shared-distro group balancing is solved once for the whole distro, not per screen.
+  const _groupPlan = (typeof sharedDistroBalancedPlan === 'function') ? sharedDistroBalancedPlan() : null;
+
+  const hitEntries = [];
+
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x, screenId } = dim;
     // Use the default x position from screenDimensions (no custom positioning)
     const screenX = leftPadding + x;
     const screenY = topPadding;
+
+    // Publish what this screen was drawn at, for hit detection + the selection overlay.
+    // Note this canvas draws at the UNZOOMED panelSize, unlike the standard canvas.
+    hitEntries.push({
+      screenId, screen, data, pw,
+      screenX, screenY,
+      panelWidth: panelSize,
+      geo: combinedRowGeometry(data, panelSize)
+    });
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
     let screenDeletedPanels = new Set();
@@ -1960,7 +2407,23 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
 
     // Circuit + SOCA assignment via the shared helpers in core/phase-balance.js — the
     // same ones renderPowerLayout() uses — so the grouping matches the Complex canvas.
-    const { panelToCircuit } = assignCircuits(pw, screenEffectivePh, panelsPerCircuit, screenDeletedPanels, screenCustomCircuits);
+    // Phase Balance: on a shared distro the whole group is solved together (each screen
+    // balances against the legs the earlier SOCAs already loaded); otherwise the screen is
+    // balanced on its own. Both fall back to as-wired when balancing wouldn't help.
+    const _wiring = (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(voltage) : null;
+    const _groupEntry = (_groupPlan && _groupPlan.useBalanced && data.sharedDistro)
+      ? _groupPlan.byScreen.get(screenId) : null;
+    const _bal = (!_groupEntry && data.phaseBalance && typeof resolveBalancedCircuits === 'function')
+      ? resolveBalancedCircuits(pw, screenEffectivePh, panelsPerCircuit, screenDeletedPanels, _wiring, screenCustomCircuits, screenCustomSocas, perPanelW, voltage)
+      : null;
+    const panelToCircuit = _groupEntry ? _groupEntry.panelToCircuit
+      : (_bal ? _bal.panelToCircuit
+              : assignCircuits(pw, screenEffectivePh, panelsPerCircuit, screenDeletedPanels, screenCustomCircuits).panelToCircuit);
+    // Balancing PRESERVES SOCA membership — balanceCircuitsByLeg() re-numbers circuits as
+    // soca*6 + slot using the same assignSocas() grouping, so only the slot within a SOCA
+    // moves. Custom SOCAs and the shared-distro numbering therefore stay valid and MUST be
+    // re-applied: dropping them would restart a balanced screen at SOCA A/B/C even when
+    // those numbers are already taken by another screen on the same distro.
     const panelToSoca = assignSocas(panelToCircuit, screenCustomSocas);
 
     // Share Distro: continuous SOCA numbering across the shared-distro group (if this screen is in it).
@@ -2047,6 +2510,123 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     ctx.textAlign = 'center';
     ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - 10);
   });
+
+  recordCombinedHitGeometry('combinedPowerCanvas', hitEntries);
+  drawCombinedSelectionOverlay(ctx, 'combinedPowerCanvas');
+}
+
+// ==================== COMBINED DATA VIEW TOGGLES ====================
+// The data view toggles are per-screen (screens[id].data.dataFlip etc.), so the
+// combined row is a BULK control: clicking writes the chosen value to every selected
+// screen. A button reads back as active only when all selected screens agree — a
+// mixed selection shows off rather than implying agreement.
+
+// 'on' | 'off' | 'mixed' across the selected screens.
+// showArrows defaults to true when unset; the other three default to false.
+function combinedDataToggleState(key) {
+  let seen = 0, onCount = 0;
+  combinedSelectedScreens.forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+    seen++;
+    const on = (key === 'showArrows') ? (screen.data[key] !== false) : !!screen.data[key];
+    if(on) onCount++;
+  });
+  if(seen === 0 || onCount === 0) return 'off';
+  return onCount === seen ? 'on' : 'mixed';
+}
+
+function applyCombinedDataToggle(mutate) {
+  if(combinedSelectedScreens.size === 0) return;
+
+  let currentScreenTouched = false;
+  combinedSelectedScreens.forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+    mutate(screen.data);
+    if(screenId === currentScreenId) currentScreenTouched = true;
+  });
+
+  if(currentScreenTouched) {
+    // Keep the open screen's globals and its Complex-tab buttons in step. Without
+    // this, saveCurrentScreenData() — run at the top of renderCombinedView() — writes
+    // the stale globals straight back over what we just set.
+    const d = screens[currentScreenId].data;
+    showArrowsEnabled = d.showArrows !== false;
+    dataFlipEnabled = !!d.dataFlip;
+    dataRearViewEnabled = !!d.dataRearView;
+    dataLineLabelsEnabled = !!d.dataLineLabels;
+
+    const showArrowsBtn = document.getElementById('showArrowsBtn');
+    if(showArrowsBtn) showArrowsBtn.classList.toggle('active', showArrowsEnabled);
+    const dataFlipBtn = document.getElementById('dataFlipBtn');
+    if(dataFlipBtn) {
+      dataFlipBtn.classList.toggle('active', dataFlipEnabled);
+      dataFlipBtn.style.display = showArrowsEnabled ? '' : 'none';
+    }
+    const dataFrontViewBtn = document.getElementById('dataFrontViewBtn');
+    const dataRearViewBtn = document.getElementById('dataRearViewBtn');
+    if(dataFrontViewBtn) dataFrontViewBtn.classList.toggle('active', !dataRearViewEnabled);
+    if(dataRearViewBtn) dataRearViewBtn.classList.toggle('active', dataRearViewEnabled);
+    const dataLineLabelsBtn = document.getElementById('dataLineLabelsBtn');
+    if(dataLineLabelsBtn) { dataLineLabelsBtn.classList.toggle('active', dataLineLabelsEnabled); dataLineLabelsBtn.textContent = dataLineLabelsEnabled ? 'On' : 'Off'; }
+
+    calculate(); // redraws the Complex canvases, and the combined ones via its own hook
+  } else {
+    renderCombinedView();
+  }
+}
+
+function setCombinedDataView(view) {
+  const rear = (view === 'rear');
+  applyCombinedDataToggle(d => { d.dataRearView = rear; });
+}
+
+function toggleCombinedShowArrows() {
+  const on = combinedDataToggleState('showArrows') !== 'on';
+  // Mirrors toggleShowArrows(): turning arrows off clears Flip too.
+  applyCombinedDataToggle(d => {
+    d.showArrows = on;
+    if(!on) d.dataFlip = false;
+  });
+}
+
+function toggleCombinedDataFlip() {
+  const on = combinedDataToggleState('dataFlip') !== 'on';
+  applyCombinedDataToggle(d => { d.dataFlip = on; });
+}
+
+function toggleCombinedDataLineLabels() {
+  const on = combinedDataToggleState('dataLineLabels') !== 'on';
+  applyCombinedDataToggle(d => { d.dataLineLabels = on; });
+}
+
+function updateCombinedDataToggleButtons() {
+  const arrows = combinedDataToggleState('showArrows');
+  const flip = combinedDataToggleState('dataFlip');
+  const rear = combinedDataToggleState('dataRearView');
+  const labels = combinedDataToggleState('dataLineLabels');
+
+  const frontBtn = document.getElementById('combinedDataFrontViewBtn');
+  const rearBtn = document.getElementById('combinedDataRearViewBtn');
+  if(frontBtn) frontBtn.classList.toggle('active', rear === 'off');
+  if(rearBtn) rearBtn.classList.toggle('active', rear === 'on');
+
+  const arrowsBtn = document.getElementById('combinedShowArrowsBtn');
+  if(arrowsBtn) arrowsBtn.classList.toggle('active', arrows === 'on');
+
+  const flipBtn = document.getElementById('combinedDataFlipBtn');
+  if(flipBtn) {
+    flipBtn.classList.toggle('active', flip === 'on');
+    // Flip only applies while arrows are drawn — same as the Complex tab.
+    flipBtn.style.display = (arrows === 'off') ? 'none' : '';
+  }
+
+  const labelsBtn = document.getElementById('combinedDataLineLabelsBtn');
+  if(labelsBtn) {
+    labelsBtn.classList.toggle('active', labels === 'on');
+    labelsBtn.textContent = labels === 'on' ? 'On' : 'Off';
+  }
 }
 
 // Render combined data layout
@@ -2063,12 +2643,23 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   const leftPadding = 20;
+  const mapSections = []; // per-screen Mains/Backups, built from the endpoints actually drawn
+  const hitEntries = [];
 
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x, screenId } = dim;
     // Use the default x position from screenDimensions (no custom positioning)
     const screenX = leftPadding + x;
     const screenY = topPadding;
+
+    // Publish what this screen was drawn at, for hit detection + the selection overlay.
+    // Note this canvas draws at the UNZOOMED panelSize, unlike the standard canvas.
+    hitEntries.push({
+      screenId, screen, data, pw,
+      screenX, screenY,
+      panelWidth: panelSize,
+      geo: combinedRowGeometry(data, panelSize)
+    });
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
     let screenDeletedPanels = new Set();
@@ -2094,7 +2685,6 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       }
     }
 
-    const panelsPerDataLine = data.maxPanelsPerData || 48;
     const startDir = data.dataStartDir || 'top';
 
     // Calculate panel dimensions for CB5_MKII (rectangular) vs other panels (square)
@@ -2109,134 +2699,121 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     const screenEffectivePh = screenHasCB5HalfRow ? ph + 1 : ph;  // incl. the half row
     const halfPanelDrawHeight = panelSize; // Half panels are square
 
-    // Build data line assignments using serpentine pattern (same as original)
-    const panelToDataLine = new Map();
-
-    // Collect all custom data line numbers that are in use
-    const usedCustomDataLines = new Set();
-    for(let c=0; c<pw; c++){
-      for(let r=0; r<screenEffectivePh; r++){
-        const panelKey = `${c},${r}`;
-        if(screenCustomDataLines.has(panelKey)) {
-          usedCustomDataLines.add(screenCustomDataLines.get(panelKey) - 1);
-        }
-      }
-    }
-
-    // Build serpentine path based on data start direction
-    const serp = [];
-    if(startDir === 'all_top') {
-      for(let c=0; c<pw; c++){
-        for(let r=0; r<screenEffectivePh; r++) {
-          const panelKey = `${c},${r}`;
-          const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
-          if(!hasDeleted) {
-            serp.push({c, r, key: panelKey});
-          }
-        }
-      }
-    } else if(startDir === 'all_bottom') {
-      for(let c=0; c<pw; c++){
-        for(let r=screenEffectivePh-1; r>=0; r--) {
-          const panelKey = `${c},${r}`;
-          const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
-          if(!hasDeleted) {
-            serp.push({c, r, key: panelKey});
-          }
-        }
-      }
-    } else {
-      // Serpentine pattern for 'top' and 'bottom'
-      const startFromTop = (startDir === 'top');
-      for(let c=0; c<pw; c++){
-        const goingDown = startFromTop ? (c % 2 === 0) : (c % 2 === 1);
-        if(goingDown) {
-          for(let r=0; r<screenEffectivePh; r++) {
-            const panelKey = `${c},${r}`;
-            const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
-            if(!hasDeleted) {
-              serp.push({c, r, key: panelKey});
-            }
-          }
-        } else {
-          for(let r=screenEffectivePh-1; r>=0; r--) {
-            const panelKey = `${c},${r}`;
-            const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
-            if(!hasDeleted) {
-              serp.push({c, r, key: panelKey});
-            }
-          }
-        }
-      }
-    }
-
-    // Assign data lines
-    let autoDataLineCounter = 0;
-    let panelsInCurrentAutoDataLine = 0;
-
-    serp.forEach(panel => {
-      const hasCustom = screenCustomDataLines.has ? screenCustomDataLines.has(panel.key) : false;
-      if(hasCustom) {
-        panelToDataLine.set(panel.key, screenCustomDataLines.get(panel.key) - 1);
-      } else {
-        while(usedCustomDataLines.has(autoDataLineCounter)) {
-          autoDataLineCounter++;
-        }
-        panelToDataLine.set(panel.key, autoDataLineCounter);
-        panelsInCurrentAutoDataLine++;
-
-        if(panelsInCurrentAutoDataLine >= panelsPerDataLine) {
-          autoDataLineCounter++;
-          panelsInCurrentAutoDataLine = 0;
-          while(usedCustomDataLines.has(autoDataLineCounter)) {
-            autoDataLineCounter++;
-          }
-        }
-      }
+    // Panels per data line from THIS screen's own processor capacity, via the shared
+    // helper generateLayout() uses (core/calculate.js) — the combined view used to
+    // hard-code 48, which silently disagreed with the Complex canvas on Auto.
+    const allPanelsData = getAllPanels();
+    const allProcessorsData = getAllProcessors();
+    const panelsPerDataLine = resolvePanelsPerDataLine({
+      panel: allPanelsData[screenPanelType],
+      halfPanel: allPanelsData['CB5_MKII_HALF'],
+      processor: allProcessorsData[data.processor],
+      frameRate: parseInt(data.frameRate) || 60,
+      bitDepth: parseInt(data.bitDepth) || 8,
+      hasCB5HalfRow: screenHasCB5HalfRow,
+      pw, ph,
+      deletedCount: screenDeletedPanels.size,
+      userMax: parseInt(data.maxPanelsPerData)
     });
 
-    // Draw all panels using resistor colors (same as original)
-    for(let c=0; c<pw; c++){
-      for(let r=0; r<screenEffectivePh; r++){
-        const panelKey = `${c},${r}`;
+    // Data line grouping via the shared walk in layouts/data.js — the same one
+    // renderDataLayout() uses — so the grouping and colours match the Complex canvas
+    // for deleted columns, custom assignments and all_top/all_bottom start directions.
+    const {groups, sortedDataLines} = buildDataLineGroups({
+      pw, ph: screenEffectivePh, panelsPerDataLine, startDir,
+      deletedPanels: screenDeletedPanels,
+      customDataLineAssignments: screenCustomDataLines
+    });
 
-        // Determine if this row is the half panel row
-        const isHalfPanelRow = screenHasCB5HalfRow && r === screenOriginalPh;
-        const currentDrawHeight = isHalfPanelRow ? halfPanelDrawHeight : drawPanelHeight;
-        const px = screenX + c * drawPanelWidth;
-        const py = screenY + (isHalfPanelRow ? (screenOriginalPh * drawPanelHeight) : (r * drawPanelHeight));
+    // Per-screen view toggles: each wall draws with its OWN saved settings so it
+    // matches its own Data tab, not whichever screen happens to be open.
+    const screenFlip = !!data.dataFlip;
+    const endpoints = computeDataLineEndpoints(groups, sortedDataLines, screenFlip);
+    mapSections.push({ name: screen.name, endpoints, redundancy: !!data.redundancy });
 
-        const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
-        if(hasDeleted) {
-          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#1a1a1a';
-          ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#cccccc' : '#333333';
-          ctx.lineWidth = 1;
-          ctx.setLineDash([3, 3]);
-          ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.setLineDash([]);
-          continue;
-        }
-
-        const dataLineNum = panelToDataLine.get(panelKey);
-        if(dataLineNum === undefined) continue;
-
-        // Use colorForIndex for resistor colors (same as original)
-        const colors = colorForIndex(dataLineNum);
-
-        ctx.fillStyle = colors.fill;
-        ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
-      }
+    // Panel numbers scale down for the combined view's smaller cells; shrink further
+    // if the widest label (e.g. "16.12") would overflow the panel.
+    let numberFontSize = Math.max(7, Math.round(panelSize * 0.32));
+    ctx.save();
+    ctx.font = `${numberFontSize}px Arial`;
+    while(numberFontSize > 5 && ctx.measureText(`${pw}.${screenEffectivePh}`).width > drawPanelWidth * 0.85) {
+      numberFontSize -= 1;
+      ctx.font = `${numberFontSize}px Arial`;
     }
+    ctx.restore();
+
+    drawDataOverlay(ctx, {
+      groups, sortedDataLines, endpoints,
+      deletedPanels: screenDeletedPanels,
+      startDir,
+      pw, ph: screenEffectivePh,
+      panelWidth: drawPanelWidth,
+      panelHeight: drawPanelHeight,
+      halfPanelHeight: halfPanelDrawHeight,
+      hasCB5HalfRow: screenHasCB5HalfRow,
+      originalPh: screenOriginalPh,
+      offsetX: screenX, offsetY: screenY,
+      rearView: !!data.dataRearView,
+      flip: screenFlip,
+      showArrows: data.showArrows !== false,
+      showLabels: !!data.dataLineLabels,
+      redundancy: !!data.redundancy,
+      panelFontSize: numberFontSize,
+      arrowLineWidth: Math.max(1.5, panelSize * 0.075),
+      arrowHeadSize: Math.max(5, panelSize * 0.3),
+      lightDeletedPanels: (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode)
+    });
 
     // Draw screen label
     ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000' : '#fff';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(screen.name, screenX + (pw * drawPanelWidth) / 2, screenY - 10);
+  });
+
+  recordCombinedHitGeometry('combinedDataCanvas', hitEntries);
+  drawCombinedSelectionOverlay(ctx, 'combinedDataCanvas');
+
+  renderCombinedDataLineMap(mapSections);
+}
+
+// Mains/Backups start-panel cards below the combined data canvas — the multi-screen
+// counterpart of renderDataLineMap(). Built from the endpoints the canvas just drew,
+// so the table and the layout can't disagree. Each screen gets a block (heading + its
+// own .data-line-map grid) and the blocks flow across the width of the data layout,
+// up to three per row. The card titles stay "Mains"/"Backups" because
+// .structure-info-title is an absolutely-positioned tab that only fits one line.
+function renderCombinedDataLineMap(sections) {
+  const host = document.getElementById('combinedDataLineMap');
+  if(!host) return;
+  host.textContent = '';
+
+  sections.forEach(section => {
+    if(!section.endpoints || section.endpoints.length === 0) return;
+
+    const block = document.createElement('div');
+    block.className = 'combined-data-map-block';
+
+    const heading = document.createElement('div');
+    heading.className = 'combined-data-map-screen';
+    heading.textContent = section.name;
+    block.appendChild(heading);
+
+    const grid = document.createElement('div');
+    grid.className = 'data-line-map';
+
+    grid.appendChild(buildDataLineMapBox('mains', 'Mains', section.endpoints.map(function(ep){
+      return { label: `${ep.line}`, panel: formatDataLinePanel(ep.main) };
+    })));
+
+    if(section.redundancy) {
+      grid.appendChild(buildDataLineMapBox('backups', 'Backups', section.endpoints.map(function(ep){
+        return { label: `${ep.line}B`, panel: formatDataLinePanel(ep.backup) };
+      })));
+    }
+
+    block.appendChild(grid);
+    host.appendChild(block);
   });
 }
 
@@ -2426,13 +3003,20 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 // two can't drift.
 function computeCombinedLegAmps(selectedScreenIds) {
   if(typeof assignCircuits !== 'function' || typeof computePhaseBalance !== 'function') {
-    return { any3phase: false, legAmps: { X: 0, Y: 0, Z: 0 }, peakLeg: 0, imbalancePct: 0 };
+    return { any3phase: false, legAmps: { X: 0, Y: 0, Z: 0 }, peakLeg: 0, imbalancePct: 0, anyBalanceMode: false, anyBalanced: false, allShared: false };
   }
 
   const allPanelsData = getAllPanels();
   const totalPair = { XY: 0, YZ: 0, ZX: 0 };   // line-to-line branch currents
   const totalSingle = { X: 0, Y: 0, Z: 0 };    // line-to-neutral leg currents
   let any3phase = false;
+  let anyBalanceMode = false;  // at least one screen has Phase Balance on
+  let anyBalanced = false;     // ...and on at least one of those it actually re-circuited
+  let allShared = true;        // every counted screen is in the shared-distro group
+
+  // Shared-distro group balancing — solved once for the whole distro, exactly as the
+  // combined power canvas does, so the legend can't disagree with what's drawn.
+  const groupPlan = (typeof sharedDistroBalancedPlan === 'function') ? sharedDistroBalancedPlan() : null;
 
   (selectedScreenIds || []).forEach(screenId => {
     const screen = screens[screenId];
@@ -2443,31 +3027,38 @@ function computeCombinedLegAmps(selectedScreenIds) {
     if(pw <= 0 || ph <= 0) return;
     if((parseInt(data.phase) || 1) !== 3) return; // 3-phase screens only
 
-    // deletedPanels / customCircuitAssignments may be a Set/Map or an array (from JSON).
-    const deletedPanels = new Set();
-    if(data.deletedPanels instanceof Set) data.deletedPanels.forEach(k => deletedPanels.add(k));
-    else if(Array.isArray(data.deletedPanels)) data.deletedPanels.forEach(k => deletedPanels.add(k));
-    else if(data.deletedPanels && typeof data.deletedPanels[Symbol.iterator] === 'function') { for(const k of data.deletedPanels) deletedPanels.add(k); }
+    // Circuit inputs (panelsPerCircuit incl. the NEC derate, normalised Set/Map overrides,
+    // voltage, wiring) come from the shared helper so the grouping matches the combined
+    // power canvas exactly — required for balanced re-circuiting to agree with what's drawn.
+    const inp = (typeof resolveScreenPowerInputs === 'function') ? resolveScreenPowerInputs(data) : null;
+    if(!inp) return;
 
-    const customCircuits = new Map();
-    if(data.customCircuitAssignments instanceof Map) data.customCircuitAssignments.forEach((v, k) => customCircuits.set(k, v));
-    else if(Array.isArray(data.customCircuitAssignments)) data.customCircuitAssignments.forEach(([k, v]) => customCircuits.set(k, v));
-    else if(data.customCircuitAssignments && typeof data.customCircuitAssignments.entries === 'function') { for(const [k, v] of data.customCircuitAssignments.entries()) customCircuits.set(k, v); }
-
-    // perPanelW (combined Max/Avg toggle), voltage, panelsPerCircuit — mirror the combined canvas.
+    // perPanelW for the AMPS still honours the combined Max/Avg toggle, so that control keeps
+    // working; the circuit grouping below uses the screen's own perPanelW, like the canvas.
     const panelInfo = allPanelsData[data.panelType || 'CB5_MKII'];
     const perPanelW = combinedPowerType === 'max' ? (panelInfo?.power_max_w || 500) : (panelInfo?.power_avg_w || 250);
-    const voltage = parseInt(data.voltage) || 208;
-    const breaker = parseInt(data.breaker) || 20;
-    const calculatedPanelsPerCircuit = Math.max(1, Math.floor((voltage * breaker) / perPanelW));
-    const userMax = parseInt(data.maxPanelsPerCircuit);
-    const panelsPerCircuit = userMax > 0 ? userMax : calculatedPanelsPerCircuit;
+    const voltage = inp.voltage;
+    const wiring = inp.wiring;
 
-    const wiring = (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(voltage) : null;
-    const { circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuits);
+    // Phase Balance — same branch the combined canvas takes: group-wide on a shared distro,
+    // per-screen otherwise.
+    const groupEntry = (groupPlan && groupPlan.useBalanced && data.sharedDistro)
+      ? groupPlan.byScreen.get(screenId) : null;
+    const bal = (!groupEntry && data.phaseBalance && typeof resolveBalancedCircuits === 'function')
+      ? resolveBalancedCircuits(inp.pw, inp.ph, inp.panelsPerCircuit, inp.deletedPanels, wiring, inp.customCircuit, inp.customSoca, inp.perPanelW, voltage)
+      : null;
+    const circuitCounts = groupEntry ? groupEntry.circuitCounts
+      : (bal ? bal.circuitCounts
+             : assignCircuits(inp.pw, inp.ph, inp.panelsPerCircuit, inp.deletedPanels, inp.customCircuit).circuitCounts);
+    if(data.phaseBalance) anyBalanceMode = true;
+    if(groupEntry || (bal && bal.useBalanced)) anyBalanced = true;
+
+    // Balanced circuits are numbered soca*6 + slot, so 'aswired' pair assignment over them
+    // still lands each circuit on its real leg.
     const pb = computePhaseBalance(circuitCounts, perPanelW, voltage, 'aswired', wiring);
 
     any3phase = true;
+    if(!data.sharedDistro) allShared = false;
     (pb.perCircuit || []).forEach(c => {
       if(totalPair[c.pair] !== undefined) totalPair[c.pair] += c.amps;
       else if(totalSingle[c.pair] !== undefined) totalSingle[c.pair] += c.amps;
@@ -2485,7 +3076,7 @@ function computeCombinedLegAmps(selectedScreenIds) {
   const arr = [la.X, la.Y, la.Z];
   const peak = Math.max(...arr), min = Math.min(...arr);
   const imb = peak > 0 ? ((peak - min) / peak) * 100 : 0;
-  return { any3phase, legAmps: la, peakLeg: peak, imbalancePct: imb };
+  return { any3phase, legAmps: la, peakLeg: peak, imbalancePct: imb, anyBalanceMode, anyBalanced, allShared: any3phase && allShared };
 }
 
 function renderCombinedPhaseBalance(selectedScreenIds) {
@@ -2499,13 +3090,25 @@ function renderCombinedPhaseBalance(selectedScreenIds) {
   const imb = cb.imbalancePct;
   const imbClass = imb < 10 ? 'pbl-ok' : (imb < 20 ? 'pbl-warn' : 'pbl-bad');
 
+  // Phase Balance status: when the toggle is on, say whether re-circuiting actually lowered
+  // the imbalance or the screens were already optimal — otherwise the toggle looks dead on
+  // walls it can't improve. Mirrors renderPhaseBalanceLegend() in layouts/power.js.
+  let statusRow = '';
+  if(cb.anyBalanceMode) {
+    statusRow = cb.anyBalanced
+      ? `<div class="weight-row phase-balance-status"><span class="weight-label">Phase Balance</span><span class="weight-value pbl-ok">Re-circuited ✓</span></div>`
+      : `<div class="weight-row phase-balance-status"><span class="weight-label">Phase Balance</span><span class="weight-value">Already optimal</span></div>`;
+  }
+
+  const title = cb.allShared ? '3-Phase Load (Shared Distro)' : '3-Phase Load (Combined)';
   el.innerHTML =
     `<div class="structure-info-box phase-load">` +
-      `<div class="structure-info-title phase-load">3-Phase Load (Combined)</div>` +
+      `<div class="structure-info-title phase-load">${title}</div>` +
       `<div class="weight-row"><span class="weight-label">Leg X</span><span class="weight-value">${la.X.toFixed(1)} A</span></div>` +
       `<div class="weight-row"><span class="weight-label">Leg Y</span><span class="weight-value">${la.Y.toFixed(1)} A</span></div>` +
       `<div class="weight-row"><span class="weight-label">Leg Z</span><span class="weight-value">${la.Z.toFixed(1)} A</span></div>` +
       `<div class="weight-row"><span class="weight-label">Imbalance</span><span class="weight-value ${imbClass}">${imb.toFixed(0)}%</span></div>` +
+      statusRow +
     `</div>`;
   el.style.display = 'block';
 }

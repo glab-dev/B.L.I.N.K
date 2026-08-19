@@ -234,20 +234,24 @@ function initSocaToggleButtons() {
   if (sb) { sb.classList.toggle('active', shareDistroEnabled); sb.textContent = shareDistroEnabled ? 'On' : 'Off'; }
 }
 
-// 3-phase load balancing — power-canvas view toggles (persisted, like the SOCA
-// toggles above). 'aswired' (default) shows the leg-pair rotation as physically
-// wired; 'balanced' shows the greedy-optimised assignment. The per-leg amps in
-// calculatedData depend on the mode, so the mode toggle re-runs calculate().
-let phaseBalanceMode = (typeof localStorage !== 'undefined' && localStorage.getItem('ledcalc_phase_balance_mode') === 'balanced') ? 'balanced' : 'aswired';
+// 3-phase load balancing — per-screen, like Share Distro above. 'aswired' (default)
+// shows the leg-pair rotation as physically wired; 'balanced' re-circuits onto the
+// lighter legs. Mirrors the current screen's data.phaseBalance (saved/loaded by
+// multi-screen.js) so the Combined view can scope it to the selected screens.
+// The per-leg amps in calculatedData depend on the mode, so the toggle re-runs calculate().
+let phaseBalanceMode = 'aswired';
 // Color-by-leg recolours power-canvas panels by leg-pair (visual only).
 let colorByLegEnabled = (typeof localStorage !== 'undefined' && localStorage.getItem('ledcalc_color_by_leg') === 'true');
 
 function setPhaseBalanceMode(mode) {
   phaseBalanceMode = (mode === 'balanced') ? 'balanced' : 'aswired';
-  try { localStorage.setItem('ledcalc_phase_balance_mode', phaseBalanceMode); } catch(e) {}
   const btn = document.getElementById('phaseBalanceBtn');
   if (btn) { btn.classList.toggle('active', phaseBalanceMode === 'balanced'); btn.textContent = phaseBalanceMode === 'balanced' ? 'On' : 'Off'; }
+  if (typeof screens !== 'undefined' && screens[currentScreenId] && screens[currentScreenId].data) {
+    screens[currentScreenId].data.phaseBalance = (phaseBalanceMode === 'balanced'); // keep live so the combined view sees it
+  }
   if (typeof calculate === 'function') calculate();
+  if (typeof renderCombinedView === 'function') renderCombinedView();
 }
 
 // Single On/Off toggle: Off = as-wired, On = balanced.
@@ -264,8 +268,7 @@ function toggleColorByLeg() {
 }
 
 function initPhaseBalanceButtons() {
-  const pb = document.getElementById('phaseBalanceBtn');
-  if (pb) { pb.classList.toggle('active', phaseBalanceMode === 'balanced'); pb.textContent = phaseBalanceMode === 'balanced' ? 'On' : 'Off'; }
+  // #phaseBalanceBtn is per-screen now — loadScreenData() owns its state.
   const btn = document.getElementById('colorByLegBtn');
   if (btn) { btn.classList.toggle('active', colorByLegEnabled); btn.textContent = colorByLegEnabled ? 'On' : 'Off'; }
 }

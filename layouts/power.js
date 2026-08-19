@@ -312,8 +312,20 @@ function renderPowerLayout(params) {
   // panels are re-circuited onto the lighter legs (view only — panels keep their
   // grid position, only their circuit/colour changes).
   const _balancedView = (typeof phaseBalanceMode !== 'undefined') && phaseBalanceMode === 'balanced' && typeof resolveBalancedCircuits === 'function';
+  // On a shared distro the whole group is balanced together (each screen against the legs
+  // the earlier SOCAs already loaded), so this screen takes its layout from that group plan
+  // — otherwise the Complex canvas would disagree with the Combined one for the same screen.
+  const _sharedHere = !!(typeof screens !== 'undefined' && screens[currentScreenId]
+    && screens[currentScreenId].data && screens[currentScreenId].data.sharedDistro);
+  const _groupPlan = (_sharedHere && typeof sharedDistroBalancedPlan === 'function') ? sharedDistroBalancedPlan() : null;
+  const _groupEntry = (_groupPlan && _groupPlan.useBalanced) ? _groupPlan.byScreen.get(currentScreenId) : null;
+
   let panelToCircuit, circuitCounts, _usedBalanced = false;
-  if (_balancedView) {
+  if (_groupEntry) {
+    panelToCircuit = _groupEntry.panelToCircuit;
+    circuitCounts = _groupEntry.circuitCounts;
+    _usedBalanced = true;
+  } else if (_balancedView) {
     const _vEl = document.getElementById('voltage');
     const _voltage = parseFloat(_vEl && _vEl.value) || 208;
     const _wiring = (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(_voltage) : null;
@@ -331,9 +343,11 @@ function renderPowerLayout(params) {
 
   // STEP 4: Compute SOCA group per panel via the shared helper (explicit
   // per-panel assignment wins, else the circuit's natural 6-per-SOCA group).
-  // When the balanced layout is actually adopted the re-circuiting defines its own
-  // SOCAs, so ignore custom ones; if it fell back to as-wired, honour custom SOCAs.
-  const panelToSoca = _usedBalanced ? new Map() : assignSocas(panelToCircuit, customSocaAssignments);
+  // Balancing PRESERVES SOCA membership — it re-numbers circuits as soca*6 + slot from this
+  // same grouping, so only the slot within a SOCA moves. Custom SOCAs stay valid and must be
+  // re-applied, or a balanced screen would restart at SOCA 1 even when that number is
+  // already taken by another screen on the same distro.
+  const panelToSoca = assignSocas(panelToCircuit, customSocaAssignments);
 
   // Keep the per-SOCA amps table in sync with this canvas by recomputing the
   // breakdown from the same live assignments the canvas just used — so the table
@@ -362,10 +376,11 @@ function renderPowerLayout(params) {
   };
 
   // Continuous SOCA numbering across a shared distro (Share Distro): remap this screen's
-  // local SOCA index to its global label index (computed live in core/calculate.js). As-wired
-  // only — balanced mode redefines SOCAs. Falls back to the local index when not shared.
+  // local SOCA index to its global label index (computed live in core/calculate.js). Applies
+  // in balanced mode too — balancing keeps each SOCA's identity, only its slots move.
+  // Falls back to the local index when not shared.
   const _cdShare = (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].calculatedData : null;
-  const _socaLabelMap = (!_usedBalanced && _cdShare && Array.isArray(_cdShare.socaLabelMap)) ? new Map(_cdShare.socaLabelMap) : null;
+  const _socaLabelMap = (_cdShare && Array.isArray(_cdShare.socaLabelMap)) ? new Map(_cdShare.socaLabelMap) : null;
   const _socaLabelIdx = idx => (_socaLabelMap && _socaLabelMap.has(idx)) ? _socaLabelMap.get(idx) : idx;
 
   // Draw all panels

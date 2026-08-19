@@ -230,12 +230,18 @@ function resolveScreenPowerInputs(data) {
 // ascending so the resistor colours go up. Circuits are numbered soca*6 + slot via
 // the distro slot->leg map, so the renderer colours by slot and groups by soca.
 // Returns a Map(panelKey -> circuitNumber). `slots` is resolveDistroWiring(voltage).slots.
-function balanceCircuitsByLeg(pw, ph, maxPerCircuit, deletedPanels, slots, customCircuit, customSoca) {
+// `initialLoad` ({ leg -> watts }) seeds the running leg load, so a screen sharing a distro
+// with others balances against what the earlier SOCAs already put on the legs instead of
+// starting from zero. `perPanelW` converts panel counts to watts so screens with different
+// panel types are comparable; both are optional and omitting them reproduces the original
+// single-screen behaviour exactly (load starts at 0, weights are panel counts).
+function balanceCircuitsByLeg(pw, ph, maxPerCircuit, deletedPanels, slots, customCircuit, customSoca, initialLoad, perPanelW) {
   const max = maxPerCircuit > 0 ? maxPerCircuit : 6;
   const out = new Map();
   const wiring = (slots && slots.length === 6) ? slots : ['XY', 'YZ', 'ZX', 'XY', 'YZ', 'ZX'];
   const cc = customCircuit || new Map();
   const cs = customSoca || new Map();
+  const wPer = (typeof perPanelW === 'number' && perPanelW > 0) ? perPanelW : 1;
 
   // As-wired structure (respects manual circuit + SOCA assignments) — the same the
   // canvas shows in As-Wired mode.
@@ -266,7 +272,7 @@ function balanceCircuitsByLeg(pw, ph, maxPerCircuit, deletedPanels, slots, custo
   // leg token -> its slot indices (e.g. grouped: XY->[0,1]); distinct tokens in order.
   const legSlots = {}; const tokens = [];
   wiring.forEach((t, i) => { if (!legSlots[t]) { legSlots[t] = []; tokens.push(t); } legSlots[t].push(i); });
-  const load = {}; tokens.forEach(t => load[t] = 0);
+  const load = {}; tokens.forEach(t => load[t] = (initialLoad && typeof initialLoad[t] === 'number') ? initialLoad[t] : 0);
 
   // Process SOCAs in order. Full SOCA (6 circuits) -> keep each circuit's slot. Partial
   // SOCA -> reassign its circuits to the lightest legs, then lay the chosen slots out
@@ -282,7 +288,7 @@ function balanceCircuitsByLeg(pw, ph, maxPerCircuit, deletedPanels, slots, custo
       // partial SOCAs are re-circuited below.
       circuits.forEach((circ, slot) => {
         circ.panels.forEach(k => out.set(k, soca * 6 + slot));
-        load[wiring[slot]] += circ.count;
+        load[wiring[slot]] += circ.count * wPer;
       });
     } else {
       const usedPerLeg = {}; tokens.forEach(t => usedPerLeg[t] = 0);
@@ -295,13 +301,13 @@ function balanceCircuitsByLeg(pw, ph, maxPerCircuit, deletedPanels, slots, custo
         });
         if (L === null) L = tokens[0];
         chosenSlots.push(legSlots[L][usedPerLeg[L]++]);
-        tmpLoad[L] += circ.count;
+        tmpLoad[L] += circ.count * wPer;
       });
       chosenSlots.sort((a, b) => a - b);
       circuits.forEach((circ, i) => {
         const slot = chosenSlots[i];
         circ.panels.forEach(k => out.set(k, soca * 6 + slot));
-        load[wiring[slot]] += circ.count;
+        load[wiring[slot]] += circ.count * wPer;
       });
     }
   });
@@ -333,6 +339,142 @@ function resolveBalancedCircuits(pw, ph, panelsPerCircuit, deletedPanels, wiring
   return useBalanced
     ? { useBalanced: true, panelToCircuit: balMap, circuitCounts: balCounts, phaseBalance: balancedPb, aswiredImbalancePct: aswiredPb.imbalancePct }
     : { useBalanced: false, panelToCircuit: aswired.panelToCircuit, circuitCounts: aswired.circuitCounts, phaseBalance: aswiredPb, aswiredImbalancePct: aswiredPb.imbalancePct };
+}
+
+// ---- Shared-distro (group) phase balancing ----
+// One physical distro carries every screen with Share Distro on, so the legs that matter are
+// the distro's, not each screen's. These helpers chain the balancing across the group in SOCA
+// order — the screen on SOCA C balances against what SOCAs A and B already put on the legs —
+// and judge the result on the GROUP's imbalance rather than any one screen's.
+
+// Watts each leg-pair carries, given a screen's circuit counts and its distro wiring.
+function legWattsFromCircuits(circuitCounts, slots, perPanelW) {
+  const wiring = (slots && slots.length === 6) ? slots : SOCA_LEG_PAIRS;
+  const out = {};
+  wiring.forEach(t => { if (out[t] === undefined) out[t] = 0; });
+  circuitCounts.forEach((count, circuit) => {
+    const t = wiring[((circuit % 6) + 6) % 6];
+    out[t] = (out[t] || 0) + count * perPanelW;
+  });
+  return out;
+}
+
+// Combined per-leg amps + imbalance for a set of screens sharing one distro.
+// entries = [{ circuitCounts, perPanelW, voltage, wiring }].
+function groupLegImbalance(entries) {
+  const pairW = { XY: 0, YZ: 0, ZX: 0 };
+  const singleW = { X: 0, Y: 0, Z: 0 };
+  entries.forEach(e => {
+    const pb = computePhaseBalance(e.circuitCounts, e.perPanelW, e.voltage, 'aswired', e.wiring);
+    (pb.perCircuit || []).forEach(c => {
+      if (pairW[c.pair] !== undefined) pairW[c.pair] += c.amps;
+      else if (singleW[c.pair] !== undefined) singleW[c.pair] += c.amps;
+    });
+  });
+  const phasor = legAmpsFromPairWatts(pairW, 1);
+  const la = { X: phasor.X + singleW.X, Y: phasor.Y + singleW.Y, Z: phasor.Z + singleW.Z };
+  const arr = [la.X, la.Y, la.Z];
+  const peak = Math.max(...arr), min = Math.min(...arr);
+  return { legAmps: la, peakLeg: peak, imbalancePct: peak > 0 ? ((peak - min) / peak) * 100 : 0 };
+}
+
+// Balance a whole shared-distro group at once.
+// members = [{ screenId, pw, ph, panelsPerCircuit, deletedPanels, customCircuit, customSoca,
+//              perPanelW, voltage, wiring, balance }] already sorted into SOCA order.
+// `balance` false means the screen is on the distro (so it contributes load) but keeps its
+// as-wired circuits. Returns { useBalanced, byScreen: Map<screenId, {panelToCircuit,
+// circuitCounts}>, imbalancePct, aswiredImbalancePct }. The balanced layout is adopted only
+// when the GROUP's imbalance drops, so the toggle can never make the distro worse.
+function resolveGroupBalancedCircuits(members) {
+  const list = members || [];
+  const aswiredByScreen = new Map();
+  const balancedByScreen = new Map();
+  const load = {}; // running leg watts across the group, in SOCA order
+
+  list.forEach(m => {
+    const aswired = assignCircuits(m.pw, m.ph, m.panelsPerCircuit, m.deletedPanels, m.customCircuit);
+    aswiredByScreen.set(m.screenId, { panelToCircuit: aswired.panelToCircuit, circuitCounts: aswired.circuitCounts });
+
+    let entry;
+    if (m.balance) {
+      const slots = (m.wiring && Array.isArray(m.wiring.slots)) ? m.wiring.slots : null;
+      const balMap = balanceCircuitsByLeg(m.pw, m.ph, m.panelsPerCircuit, m.deletedPanels, slots, m.customCircuit, m.customSoca, load, m.perPanelW);
+      const balCounts = new Map();
+      balMap.forEach(ci => balCounts.set(ci, (balCounts.get(ci) || 0) + 1));
+      entry = { panelToCircuit: balMap, circuitCounts: balCounts };
+    } else {
+      entry = { panelToCircuit: aswired.panelToCircuit, circuitCounts: aswired.circuitCounts };
+    }
+    balancedByScreen.set(m.screenId, entry);
+
+    // Carry this screen's contribution forward so the next SOCA sees it
+    const contrib = legWattsFromCircuits(entry.circuitCounts, (m.wiring && m.wiring.slots) || null, m.perPanelW);
+    Object.keys(contrib).forEach(t => { load[t] = (load[t] || 0) + contrib[t]; });
+  });
+
+  const toEntries = byScreen => list.map(m => ({
+    circuitCounts: byScreen.get(m.screenId).circuitCounts,
+    perPanelW: m.perPanelW, voltage: m.voltage, wiring: m.wiring
+  }));
+  const aswiredPb = groupLegImbalance(toEntries(aswiredByScreen));
+  const balancedPb = groupLegImbalance(toEntries(balancedByScreen));
+
+  const useBalanced = balancedPb.imbalancePct < aswiredPb.imbalancePct;
+  return {
+    useBalanced,
+    byScreen: useBalanced ? balancedByScreen : aswiredByScreen,
+    imbalancePct: useBalanced ? balancedPb.imbalancePct : aswiredPb.imbalancePct,
+    aswiredImbalancePct: aswiredPb.imbalancePct
+  };
+}
+
+// Build the group from live app state and solve it. Every Share Distro screen is on the
+// distro so all of them contribute load, but only those with Phase Balance on get
+// re-circuited. Screens are ordered by the SOCA they actually occupy (the shared-distro
+// label plan), so "the screen on SOCA C" balances against SOCAs A and B before it.
+// Returns null when there is no shared-distro group, or none of it is being balanced.
+function sharedDistroBalancedPlan() {
+  if (typeof screens === 'undefined' || typeof sharedDistroGroupIds !== 'function') return null;
+  const ids = sharedDistroGroupIds();
+  if (ids.length === 0) return null;
+
+  // Order by each screen's lowest global SOCA number. Uses the recomputed plan rather than
+  // any screen's cached map so the ordering is consistent for every member.
+  const plan = (typeof sharedDistroLabelPlan === 'function') ? sharedDistroLabelPlan() : null;
+  const startLabel = id => {
+    const m = plan && plan.get(id);
+    if (!m || m.size === 0) return Number.MAX_SAFE_INTEGER;
+    return Math.min(...m.values());
+  };
+
+  const members = [];
+  ids.forEach(id => {
+    const data = screens[id] && screens[id].data;
+    if (!data) return;
+    const inp = resolveScreenPowerInputs(data);
+    if (!inp || inp.phase !== 3) return;
+    // The CB5 half row is an extra grid row — match the power canvases.
+    const panelType = data.panelType || 'CB5_MKII';
+    const effectivePh = (data.addCB5HalfRow && panelType === 'CB5_MKII') ? inp.ph + 1 : inp.ph;
+    members.push({
+      screenId: id,
+      pw: inp.pw,
+      ph: effectivePh,
+      panelsPerCircuit: inp.panelsPerCircuit,
+      deletedPanels: inp.deletedPanels,
+      customCircuit: inp.customCircuit,
+      customSoca: inp.customSoca,
+      perPanelW: inp.perPanelW,
+      voltage: inp.voltage,
+      wiring: inp.wiring,
+      balance: !!data.phaseBalance,
+      order: startLabel(id)
+    });
+  });
+
+  if (members.length === 0 || !members.some(m => m.balance)) return null;
+  members.sort((a, b) => a.order - b.order);
+  return resolveGroupBalancedCircuits(members);
 }
 
 // Per-leg line-current magnitudes from the watts on each leg-pair (delta load).

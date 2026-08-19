@@ -85,7 +85,11 @@ function initializeBumpers() {
     return;
   }
   
-  const pw = parseInt(document.getElementById('panelsWide').value) || 0;
+  // Use the same column count the structure canvas draws. Reading panelsWide directly
+  // drifts from the grid whenever the wall fields drive the count (panel type change,
+  // aspect-ratio lock, dimension mode) and leaves bumpers overhanging the wall.
+  const hasDimensions = !!(document.getElementById('panelsWide').value || document.getElementById('wallWidth').value);
+  const pw = hasDimensions ? getEffectivePanelCounts().pw : 0;
   const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
   const use4Way = use4WayBumpersEnabled;
   const panelType = document.getElementById('panelType').value;
@@ -98,7 +102,8 @@ function initializeBumpers() {
   
   bumpers = [];
   nextBumperId = 1;
-  
+  bumpersWidth = pw;
+
   // Reset the bumpersInitialized flag for current screen since we're creating fresh bumpers
   // This will be set back to true when saveCurrentScreenData() runs
   if(screens[currentScreenId] && screens[currentScreenId].data) {
@@ -243,6 +248,80 @@ function initializeBumpers() {
   }
   
   console.log(`Initialized ${bumpers.length} bumpers:`, bumpers);
+}
+
+// Repair a saved bumper array against the column count actually being drawn. The array is a
+// snapshot, so anything that changes the effective width without re-running initializeBumpers()
+// - panel type change, aspect-ratio lock, dimension mode switch, or a duplicated screen that
+// inherited bumpersInitialized - leaves bumpers hanging off the edge of the wall (a 2W drawn
+// and gear-listed where a 1W belongs) or trailing columns with nothing above them.
+// Repairs in place so manual distribution on columns that still exist survives.
+function reconcileBumpersToWidth(pw) {
+  if(!useBumpers || bumpers.length === 0 || pw <= 0) return false;
+
+  let changed = false;
+  const kept = [];
+
+  bumpers.forEach(bumper => {
+    // Starts past the last column - nothing of it is on the wall
+    if(bumper.startCol < 0 || bumper.startCol >= pw) { changed = true; return; }
+
+    // Measure a 1W/2W from its type, not its stored endCol - drawAllBumpers() sizes by type,
+    // so a bumper whose endCol disagrees would otherwise be drawn overhanging unnoticed
+    if(bumper.type === '2w' && bumper.startCol + 1 >= pw) {
+      // Only its left column still exists, so it is a 1W now
+      bumper.type = '1w';
+      bumper.endCol = bumper.startCol;
+      changed = true;
+    } else if(bumper.type === '2w' && bumper.endCol !== bumper.startCol + 1) {
+      bumper.endCol = bumper.startCol + 1; // fits, but endCol had drifted
+      changed = true;
+    } else if(bumper.type === '1w' && bumper.endCol !== bumper.startCol) {
+      bumper.endCol = bumper.startCol;
+      changed = true;
+    } else if(bumper.type === '4w' && bumper.endCol >= pw) {
+      // startCol/endCol are the centres of the two 2W bumpers underneath - half a 4W
+      // is not a real piece of hardware
+      changed = true;
+      return;
+    }
+
+    kept.push(bumper);
+  });
+
+  // Wall got wider: cover the trailing columns that never had a bumper. Gated on an actual
+  // widening - a bare column the user created by deleting or downsizing the last bumper is
+  // their choice, and getOrphanedColumns() already transfers its weight to the nearest
+  // bumper. Skipped when bumpersWidth is unknown (screens saved before this was tracked).
+  const widened = bumpersWidth > 0 && pw > bumpersWidth;
+  if(widened) ['top', 'bottom'].forEach(position => {
+    if(position === 'top' && !showTopBumper) return;
+    if(position === 'bottom' && !showBottomBumper) return;
+
+    const band = kept.filter(b => b.position === position);
+    if(band.length === 0) return; // band deliberately emptied by the user - don't resurrect it
+
+    let maxCovered = -1;
+    band.forEach(b => {
+      getBumperColumns(b).forEach(col => { if(col > maxCovered) maxCovered = col; });
+    });
+
+    for(let c = maxCovered + 1; c < pw; c += 2) {
+      const isPair = (pw - c) >= 2;
+      kept.push({
+        id: nextBumperId++,
+        type: isPair ? '2w' : '1w',
+        position: position,
+        startCol: c,
+        endCol: isPair ? c + 1 : c
+      });
+      changed = true;
+    }
+  });
+
+  bumpersWidth = pw;
+  if(changed) bumpers = kept;
+  return changed;
 }
 
 // Get bumper at mouse position
@@ -438,6 +517,41 @@ function toggleManualBumperMode() {
 
   // Redraw to show/hide selection highlights
   generateStructureLayout();
+}
+
+// Clear the structure editing globals when moving to another screen. manualBumperMode and
+// structureHistory are app-global with no screen id on the entries, so without this an Undo
+// pressed after a screen switch or duplicate restores the PREVIOUS screen's bumper array
+// onto the current one. Mirrors the "off" branch of toggleManualBumperMode() but skips the
+// redraw - loadScreenData() renders on its own.
+function resetStructureEditingState() {
+  manualBumperMode = false;
+  structureHistory = [];
+  structureHistoryIndex = -1;
+  selectedBumpers.clear();
+  selectedBumper = null;
+  hoveredBumper = null;
+
+  const toggleBtn = document.getElementById('manualBumperToggle');
+  if(toggleBtn) { toggleBtn.classList.remove('active'); toggleBtn.textContent = 'Manually Distribute Bumpers'; }
+  const hintSpan = document.getElementById('structureModeHint');
+  if(hintSpan) hintSpan.textContent = 'Auto-distribution active';
+  const selectionInfo = document.getElementById('structureSelectionInfo');
+  if(selectionInfo) selectionInfo.classList.remove('visible');
+  const undoRedoDiv = document.getElementById('structureUndoRedo');
+  if(undoRedoDiv) undoRedoDiv.style.display = 'none';
+  const selectModeRow = document.getElementById('structureSelectModeRow');
+  if(selectModeRow) selectModeRow.style.display = 'none';
+
+  if(bumperSelectMode) {
+    bumperSelectMode = false;
+    const selCanvas = document.getElementById('structureCanvas');
+    if(selCanvas) selCanvas.classList.remove('bumper-select-mode-active');
+    const selBtn = document.getElementById('structureBumperSelectModeBtn');
+    if(selBtn) { selBtn.textContent = 'Off'; selBtn.classList.remove('active'); }
+  }
+
+  updateStructureUndoRedoButtons();
 }
 
 // Toggle mobile bumper Select Mode: blocks page scroll on the structure canvas
@@ -690,6 +804,10 @@ function replaceBumperType(bumperId, newType) {
   
   saveStructureState(); // Save before change
   bumper.type = newType;
+  // Keep endCol in step with the type. drawAllBumpers() sizes a bumper from its type while
+  // the weight and reconcile paths size it from endCol; letting the two drift draws a 2W
+  // hanging off the end of the wall that no bounds check can see.
+  bumper.endCol = newType === '2w' ? bumper.startCol + 1 : bumper.startCol;
   generateStructureLayout();
   updateWeightDisplay();
   calculate();

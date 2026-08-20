@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.132', date: '2026-08-20', notes: 'Add data port plan resolving processor and distribution box per data line' },
   { version: '2.11.131', date: '2026-08-20', notes: 'Add customDataDestinations screen state and persist mx40ConnectionMode to file' },
   { version: '2.11.130', date: '2026-08-20', notes: 'Unify distribution box resolution behind processor topology across five call sites' },
   { version: '2.11.129', date: '2026-08-20', notes: 'Add processor topology specs and shared resolver for distribution boxes' },

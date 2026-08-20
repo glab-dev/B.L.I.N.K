@@ -1,5 +1,5 @@
 {
-  "version": "2.11.131",
+  "version": "2.11.132",
   "updated": "2026-08-20",
-  "changelog": "Add customDataDestinations screen state and persist mx40ConnectionMode to file"
+  "changelog": "Add data port plan resolving processor and distribution box per data line"
 }

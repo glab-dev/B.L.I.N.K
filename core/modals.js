@@ -88,6 +88,77 @@ function showSocaOnlyPrompt(panelCount) {
   });
 }
 
+// ==================== ASSIGN DATA PORT ====================
+// Three-field prompt: Processor #, Distribution Box # (only when the screen's
+// processor uses one) and Port #, which is the data line number.
+// Uses its own modal — #customAlertModal belongs to showSocaCircuitPrompt().
+// Resolves { proc, box, port } with null for any field left blank, or null if
+// cancelled.
+let _dataPortResolve = null;
+
+function showDataPortPrompt(panelCount, topology, current, availabilityText) {
+  return new Promise(resolve => {
+    _dataPortResolve = resolve;
+
+    const msg = document.getElementById('dataPortAssignMessage');
+    if(msg) {
+      msg.textContent = `Assign ${panelCount} panel(s). Leave a field blank to let the app choose, `
+        + `or clear Port # to remove the custom assignment.`;
+    }
+
+    const procInput = document.getElementById('dataPortProcInput');
+    const boxInput = document.getElementById('dataPortBoxInput');
+    const portInput = document.getElementById('dataPortPortInput');
+    const boxGroup = document.getElementById('dataPortBoxGroup');
+    const boxLabel = document.getElementById('dataPortBoxLabel');
+    const hint = document.getElementById('dataPortAvailabilityHint');
+
+    const cur = current || {};
+    if(procInput) procInput.value = (cur.proc !== null && cur.proc !== undefined) ? cur.proc : '';
+    if(boxInput) boxInput.value = (cur.box !== null && cur.box !== undefined) ? cur.box : '';
+    if(portInput) portInput.value = (cur.port !== null && cur.port !== undefined) ? cur.port : '';
+
+    // The box row only exists for processors that route through one.
+    const usesBox = !!(topology && topology.usesDistBox);
+    if(boxGroup) boxGroup.style.display = usesBox ? '' : 'none';
+    if(boxLabel && usesBox) boxLabel.textContent = (topology.distBoxName || 'Box') + ' #';
+
+    if(hint) {
+      hint.textContent = availabilityText || '';
+      hint.classList.remove('dp-warn');
+    }
+
+    document.getElementById('dataPortAssignModal').classList.add('active');
+    setTimeout(() => { if(procInput) { procInput.focus(); procInput.select(); } }, 50);
+  });
+}
+
+function closeDataPortAssign(result) {
+  const modal = document.getElementById('dataPortAssignModal');
+  const procInput = document.getElementById('dataPortProcInput');
+  const boxInput = document.getElementById('dataPortBoxInput');
+  const portInput = document.getElementById('dataPortPortInput');
+
+  const readNum = el => {
+    if(!el || el.value.trim() === '') return null;
+    const n = parseInt(el.value, 10);
+    return (isNaN(n) || n < 1) ? null : n;
+  };
+
+  const value = (result === false) ? null : {
+    proc: readNum(procInput),
+    box: readNum(boxInput),
+    port: readNum(portInput),
+    portCleared: !!portInput && portInput.value.trim() === ''
+  };
+
+  modal.classList.remove('active');
+  if(_dataPortResolve) { _dataPortResolve(value); _dataPortResolve = null; }
+  if(procInput) procInput.value = '';
+  if(boxInput) boxInput.value = '';
+  if(portInput) portInput.value = '';
+}
+
 function closeCustomAlert(result) {
   const input = document.getElementById('customAlertInput');
   const input2 = document.getElementById('customAlertInput2');

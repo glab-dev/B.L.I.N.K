@@ -317,6 +317,57 @@ function formatPortRanges(ports) {
   return out.join(', ');
 }
 
+// Availability line shown under the Port # field, e.g.
+// "XD 1: ports 1-6 used by Screen A. Free: 7-10."
+function dataPortHintFor(screenId, topology, current) {
+  if(!current || current.proc === null) return '';
+  if(topology.usesDistBox && current.box === null) return '';
+  try {
+    const procType = (screens[screenId] && screens[screenId].data.processor) || 'Brompton_SX40';
+    const avail = dataPortUnitAvailability(procType, current.proc, current.box, screenId, []);
+    const names = new Set();
+    avail.holders.forEach(sid => { if(screens[sid]) names.add(screens[sid].name); });
+    const who = names.size ? (' used by ' + [...names].join(', ')) : '';
+    return avail.unitLabel + ': ' + avail.used + '/' + avail.capacity + ' ports' + who
+         + '. Free: ' + formatPortRanges(avail.freePorts) + '.';
+  } catch(err) {
+    return '';
+  }
+}
+
+// Returns an explanatory message when an assignment cannot fit the target unit,
+// or null when it is fine. panelKeys is the selection being assigned.
+function dataPortAssignmentBlocker(screenId, panelKeys, topology, result) {
+  if(result.proc === null) return null;
+  if(topology.usesDistBox && result.box === null) return null;
+
+  const data = screens[screenId] && screens[screenId].data;
+  if(!data) return null;
+  const procType = data.processor || 'Brompton_SX40';
+
+  // How many distinct data lines is this selection about to put on the unit?
+  const info = screenDataLineDestinations(data);
+  const lines = new Set();
+  if(result.port !== null) {
+    lines.add(result.port);
+  } else {
+    const built = info.lines;
+    built.forEach(l => lines.add(l));
+  }
+
+  const avail = dataPortUnitAvailability(procType, result.proc, result.box, screenId, [...lines]);
+  if(lines.size <= avail.freePorts.length) return null;
+
+  const names = new Set();
+  avail.holders.forEach(sid => { if(screens[sid]) names.add(screens[sid].name); });
+  const who = names.size ? (' by ' + [...names].join(', ')) : '';
+  const usedPorts = formatPortRanges([...avail.holders.keys()]);
+
+  return avail.unitLabel + ' has only ' + avail.freePorts.length + ' free port(s) but this assignment needs '
+       + lines.size + '.\n\nPorts ' + usedPorts + ' are already in use' + who
+       + '.\nFree: ' + formatPortRanges(avail.freePorts) + '.\n\nPick another unit, or free up ports first.';
+}
+
 // Format a destination for display: "P1·XD2·7", or "P1·7" with no box.
 function formatDataPortLabel(dest, distBoxName) {
   if(!dest) return '';

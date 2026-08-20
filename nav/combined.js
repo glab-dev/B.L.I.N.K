@@ -1098,7 +1098,7 @@ function showCombinedPanelContextMenu(x, y, panelInfo, layoutKind) {
   // Assign Custom Data Line # option (data)
   if(showData) {
     const dataOption = createMenuOption(
-      `Assign Data Line # to ${selectedCount} ${panelLabel}`,
+      `Assign Data Port to ${selectedCount} ${panelLabel}`,
       '#4a2a6a',
       function() {
         menu.remove();
@@ -1298,48 +1298,79 @@ async function promptAssignCombinedDataLine() {
 
   if(panelsToAssign.length === 0) return;
 
-  const input = await showPrompt(`Enter data line number for ${panelsToAssign.length} panel(s):\n(Enter 0 or leave blank to clear custom assignment)`);
-  if(input === null) return; // Cancelled
-
-  const dataLineNum = parseInt(input);
-  const clearAssignment = input.trim() === '' || dataLineNum === 0;
-
-  // Group panels by screen for efficient updates
+  // Group panels by screen up front — the dialog and the capacity check both
+  // need to know which screens are involved.
   const panelsByScreen = {};
   panelsToAssign.forEach(p => {
     if(!panelsByScreen[p.screenId]) panelsByScreen[p.screenId] = [];
     panelsByScreen[p.screenId].push(p.panelKey);
   });
+  const screenIds = Object.keys(panelsByScreen);
+
+  const seedScreen = screens[panelsToAssign[0].screenId];
+  const seedData = seedScreen ? seedScreen.data : null;
+  const topology = resolveProcessorTopology(
+    (seedData && seedData.processor) || 'Brompton_SX40',
+    (seedData && seedData.mx40ConnectionMode) || 'direct'
+  );
+
+  const seedDest = toCombinedDestMap(seedData && seedData.customDataDestinations).get(panelsToAssign[0].panelKey) || {};
+  const seedLines = toCombinedSocaMap(seedData && seedData.customDataLineAssignments);
+  const current = {
+    proc: seedDest.proc !== undefined ? seedDest.proc : null,
+    box: seedDest.box !== undefined ? seedDest.box : null,
+    port: seedLines.has(panelsToAssign[0].panelKey) ? seedLines.get(panelsToAssign[0].panelKey) : null
+  };
+
+  const result = await showDataPortPrompt(panelsToAssign.length, topology, current,
+                                          dataPortHintFor(panelsToAssign[0].screenId, topology, current));
+  if(result === null) return; // Cancelled
+
+  if(result.port !== null && (result.port < 1 || result.port > 999)) {
+    showAlert('Please enter a valid port number between 1 and 999');
+    return;
+  }
+
+  for(const screenId of screenIds) {
+    const blocked = dataPortAssignmentBlocker(screenId, panelsByScreen[screenId], topology, result);
+    if(blocked) { showAlert(blocked, 'Unit Full'); return; }
+  }
+
+  if(typeof saveState === 'function') saveState();
 
   // Apply to each screen's data
-  Object.keys(panelsByScreen).forEach(screenId => {
+  screenIds.forEach(screenId => {
     const screen = screens[screenId];
     if(!screen || !screen.data) return;
 
-    // Ensure customDataLineAssignments is a Map
-    if(!(screen.data.customDataLineAssignments instanceof Map)) {
-      if(Array.isArray(screen.data.customDataLineAssignments)) {
-        screen.data.customDataLineAssignments = new Map(screen.data.customDataLineAssignments);
-      } else {
-        screen.data.customDataLineAssignments = new Map();
-      }
-    }
+    screen.data.customDataLineAssignments = toCombinedSocaMap(screen.data.customDataLineAssignments);
+    screen.data.customDataDestinations = toCombinedDestMap(screen.data.customDataDestinations);
 
-    // Update each panel
     panelsByScreen[screenId].forEach(panelKey => {
-      if(clearAssignment) {
+      if(result.portCleared) {
         screen.data.customDataLineAssignments.delete(panelKey);
+      } else if(result.port !== null) {
+        screen.data.customDataLineAssignments.set(panelKey, result.port);
+      }
+      if(result.proc === null && result.box === null) {
+        screen.data.customDataDestinations.delete(panelKey);
       } else {
-        screen.data.customDataLineAssignments.set(panelKey, dataLineNum);
+        screen.data.customDataDestinations.set(panelKey, { proc: result.proc, box: result.box });
       }
     });
 
-    // If this is the current screen, sync to global variable
+    // Keep the open screen's globals in step so saveCurrentScreenData() cannot
+    // write stale values back over this.
     if(screenId === currentScreenId) {
       customDataLineAssignments = new Map(screen.data.customDataLineAssignments);
-      calculate(); // Recalculate layouts
+      customDataDestinations = new Map(screen.data.customDataDestinations);
     }
   });
+
+  // Always recalculate: the port plan spans every screen, so a change on one wall
+  // can move another wall's ports. The same trap promptAssignCombinedSoca() hits
+  // with its cached label map.
+  calculate();
 
   // Clear selection and re-render
   combinedSelectedPanels.clear();
@@ -1383,6 +1414,12 @@ function combinedSelectionForSoca(fallbackScreenId, fallbackKey) {
 
 // customSocaAssignments / customCircuitAssignments may be a Map or an array of entries
 // (from loaded JSON) — normalise to a Map we can write into.
+function toCombinedDestMap(value) {
+  if(value instanceof Map) return value;
+  if(Array.isArray(value)) return new Map(value);
+  return new Map();
+}
+
 function toCombinedSocaMap(value) {
   if(value instanceof Map) return new Map(value);
   if(Array.isArray(value)) return new Map(value.filter(e => Array.isArray(e) && e.length === 2));

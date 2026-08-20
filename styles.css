@@ -2286,6 +2286,11 @@ canvas:focus {
   background: #ccc;
 }
 
+/* Data port modal warning text — scoped by ID so it cannot bleed onto other hints */
+#dataPortAssignModal .hint.dp-warn {
+  color: #f59e0b;
+}
+
 .modal-input-group .hint {
   font-size: 10px;
   color: #888;

@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.135', date: '2026-08-20', notes: 'Add Assign Data Port dialog with processor, distribution box and port fields' },
   { version: '2.11.134', date: '2026-08-20', notes: 'Add port availability lookup reporting which screen holds each port on a unit' },
   { version: '2.11.133', date: '2026-08-20', notes: 'Let manual processor and distribution box assignments drive gear list counts' },
   { version: '2.11.132', date: '2026-08-20', notes: 'Add data port plan resolving processor and distribution box per data line' },

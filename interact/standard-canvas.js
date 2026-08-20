@@ -526,7 +526,7 @@ function showContextMenu(x, y) {
 
   // Assign Data Line option
   const assignDataLineOption = document.createElement('div');
-  assignDataLineOption.textContent = `Assign Data Line # to ${selectedPanels.size} panel(s)`;
+  assignDataLineOption.textContent = `Assign Data Port to ${selectedPanels.size} panel(s)`;
   assignDataLineOption.style.padding = '8px 12px';
   assignDataLineOption.style.cursor = 'pointer';
   assignDataLineOption.style.color = '#e0e0e0';
@@ -753,31 +753,52 @@ async function showDataLineNumberPrompt() {
   // Capture selected panels before await — the document click handler clears
   // selectedPanels during the async gap when the prompt modal is open
   const panelsToAssign = new Set(selectedPanels);
+  if(panelsToAssign.size === 0) return;
 
-  const dataLineNum = await showPrompt(`Enter data line number for ${panelsToAssign.size} selected panel(s):\n\n(Enter a number 1-999, or leave blank to clear custom assignment)`);
+  const data = screens[currentScreenId] && screens[currentScreenId].data;
+  const topology = resolveProcessorTopology(
+    (data && data.processor) || 'Brompton_SX40',
+    (data && data.mx40ConnectionMode) || 'direct'
+  );
 
-  if(dataLineNum === null) return; // User cancelled
+  // Seed the dialog from whatever the first selected panel already carries.
+  const firstKey = panelsToAssign.values().next().value;
+  const curDest = customDataDestinations.get(firstKey) || {};
+  const current = {
+    proc: curDest.proc !== undefined ? curDest.proc : null,
+    box: curDest.box !== undefined ? curDest.box : null,
+    port: customDataLineAssignments.has(firstKey) ? customDataLineAssignments.get(firstKey) : null
+  };
+
+  const result = await showDataPortPrompt(panelsToAssign.size, topology, current,
+                                          dataPortHintFor(currentScreenId, topology, current));
+  if(result === null) return; // Cancelled
+
+  if(result.port !== null && (result.port < 1 || result.port > 999)) {
+    showAlert('Please enter a valid port number between 1 and 999');
+    return;
+  }
+
+  // Refuse an assignment that would overfill the target unit, naming who holds it.
+  const blocked = dataPortAssignmentBlocker(currentScreenId, panelsToAssign, topology, result);
+  if(blocked) { showAlert(blocked, 'Unit Full'); return; }
 
   saveState(); // Save state before making changes
 
-  if(dataLineNum.trim() === '') {
-    // Clear custom assignments for selected panels
-    panelsToAssign.forEach(key => {
+  panelsToAssign.forEach(key => {
+    if(result.portCleared) {
       customDataLineAssignments.delete(key);
-    });
-  } else {
-    const num = parseInt(dataLineNum);
-    if(isNaN(num) || num < 1 || num > 999) {
-      showAlert('Please enter a valid data line number between 1 and 999');
-      return;
+    } else if(result.port !== null) {
+      customDataLineAssignments.set(key, result.port);
     }
+    if(result.proc === null && result.box === null) {
+      customDataDestinations.delete(key);
+    } else {
+      // Always a fresh object — undo keeps only a shallow Map copy.
+      customDataDestinations.set(key, { proc: result.proc, box: result.box });
+    }
+  });
 
-    // Assign data line number to selected panels
-    panelsToAssign.forEach(key => {
-      customDataLineAssignments.set(key, num);
-    });
-  }
-  
   selectedPanels.clear();
   calculate();
 }

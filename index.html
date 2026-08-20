@@ -2062,6 +2062,37 @@
   </div>
 </div>
 
+<!-- Assign Data Port Modal (separate from customAlertModal, which showSocaCircuitPrompt owns) -->
+<div id="dataPortAssignModal" class="modal-overlay">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h2 class="modal-title">Assign Data Port</h2>
+    </div>
+    <div class="modal-body mb-10">
+      <p id="dataPortAssignMessage" class="modal-body-text"></p>
+      <div class="modal-input-row">
+        <div class="modal-input-group">
+          <label for="dataPortProcInput">Processor #</label>
+          <input type="number" id="dataPortProcInput" min="1" max="99" placeholder="Auto" onkeydown="if(event.key==='Enter'){event.preventDefault();closeDataPortAssign(true);}">
+        </div>
+        <div class="modal-input-group" id="dataPortBoxGroup">
+          <label for="dataPortBoxInput" id="dataPortBoxLabel">Box #</label>
+          <input type="number" id="dataPortBoxInput" min="1" max="99" placeholder="Auto" onkeydown="if(event.key==='Enter'){event.preventDefault();closeDataPortAssign(true);}">
+        </div>
+      </div>
+      <div class="modal-input-group">
+        <label for="dataPortPortInput">Port # (data line)</label>
+        <input type="number" id="dataPortPortInput" min="1" max="999" placeholder="Auto" onkeydown="if(event.key==='Enter'){event.preventDefault();closeDataPortAssign(true);}">
+        <div class="hint" id="dataPortAvailabilityHint"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeDataPortAssign(false)">Cancel</button>
+      <button class="btn-primary" onclick="closeDataPortAssign(true)">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- Request Item Modal -->
 <div id="requestItemModal" class="modal-overlay">
   <div class="modal-dialog">
@@ -3743,8 +3774,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.134';
-const APP_CHANGELOG = 'Add port availability lookup reporting which screen holds each port on a unit';
+const APP_VERSION = '2.11.135';
+const APP_CHANGELOG = 'Add Assign Data Port dialog with processor, distribution box and port fields';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

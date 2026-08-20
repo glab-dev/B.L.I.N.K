@@ -817,6 +817,8 @@ function resetCalculator() {
 
 function calculate(){
   console.log('=== calculate() called ===');
+  // The port plan spans every screen; rebuild it once per calculate cycle.
+  if(typeof invalidateDataPortPlan === 'function') invalidateDataPortPlan();
   console.log('Current screen:', currentScreenId);
   
   showSpecWarningIfNeeded();

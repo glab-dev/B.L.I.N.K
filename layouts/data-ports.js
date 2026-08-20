@@ -16,6 +16,43 @@
 // calculateAdjustedPixelCapacity (core/calculate.js), resolveProcessorTopology
 // (specs/processor-topology.js), getAllPanels/getAllProcessors.
 
+// The open screen's saved data lags the DOM — calculate() does not call
+// saveCurrentScreenData() — so read the live inputs and globals for that one
+// screen. Every other screen uses its saved data, which is correct because it is
+// not being edited. Same problem sharedDistroLabelPlan() solves with liveOverride.
+function liveScreenData(screenId) {
+  const screen = screens[screenId];
+  if(!screen || !screen.data) return null;
+  if(typeof currentScreenId === 'undefined' || screenId !== currentScreenId) return screen.data;
+  if(typeof document === 'undefined') return screen.data;
+
+  const num = (id, fallback) => {
+    const el = document.getElementById(id);
+    if(!el) return fallback;
+    const v = parseInt(el.value, 10);
+    return isNaN(v) ? fallback : v;
+  };
+  const str = (id, fallback) => {
+    const el = document.getElementById(id);
+    return (el && el.value) ? el.value : fallback;
+  };
+
+  const live = Object.create(screen.data);
+  live.panelsWide = num('panelsWide', screen.data.panelsWide);
+  live.panelsHigh = num('panelsHigh', screen.data.panelsHigh);
+  live.processor = str('processor', screen.data.processor);
+  live.panelType = str('panelType', screen.data.panelType);
+  live.frameRate = num('frameRate', screen.data.frameRate);
+  live.bitDepth = num('bitDepth', screen.data.bitDepth);
+  live.maxPanelsPerData = num('maxPanelsPerData', screen.data.maxPanelsPerData);
+  live.dataStartDir = str('dataStartDir', screen.data.dataStartDir);
+  if(typeof mx40ConnectionMode !== 'undefined') live.mx40ConnectionMode = mx40ConnectionMode;
+  if(typeof deletedPanels !== 'undefined') live.deletedPanels = deletedPanels;
+  if(typeof customDataLineAssignments !== 'undefined') live.customDataLineAssignments = customDataLineAssignments;
+  if(typeof customDataDestinations !== 'undefined') live.customDataDestinations = customDataDestinations;
+  return live;
+}
+
 // Per-screen data inputs, coerced out of saved data (Sets/Maps may arrive as
 // arrays from JSON). Returns null when the screen has no usable grid.
 function resolveScreenDataInputs(data) {
@@ -131,7 +168,7 @@ function buildDataPortPlan(liveOverride) {
   // Bucket screens by processor type, exactly as core/gear-data.js does.
   const buckets = new Map();
   dataPortScreenIds().forEach(id => {
-    const data = screens[id].data;
+    const data = liveScreenData(id) || screens[id].data;
     const info = (liveOverride && liveOverride.screenId === id)
       ? { lines: liveOverride.lines || [], explicit: liveOverride.explicit || new Map(),
           processorId: data.processor || 'Brompton_SX40', connectionMode: data.mx40ConnectionMode || 'direct' }
@@ -341,7 +378,7 @@ function dataPortAssignmentBlocker(screenId, panelKeys, topology, result) {
   if(result.proc === null) return null;
   if(topology.usesDistBox && result.box === null) return null;
 
-  const data = screens[screenId] && screens[screenId].data;
+  const data = liveScreenData(screenId);
   if(!data) return null;
   const procType = data.processor || 'Brompton_SX40';
 
@@ -366,6 +403,36 @@ function dataPortAssignmentBlocker(screenId, panelKeys, topology, result) {
   return avail.unitLabel + ' has only ' + avail.freePorts.length + ' free port(s) but this assignment needs '
        + lines.size + '.\n\nPorts ' + usedPorts + ' are already in use' + who
        + '.\nFree: ' + formatPortRanges(avail.freePorts) + '.\n\nPick another unit, or free up ports first.';
+}
+
+// Cached plan, rebuilt whenever a calculate() cycle invalidates it. buildDataPortPlan()
+// walks every screen's serpentine, so the per-line lookups below must not each
+// trigger a fresh build.
+let _dataPortPlanCache = null;
+function invalidateDataPortPlan() { _dataPortPlanCache = null; }
+function cachedDataPortPlan() {
+  if(!_dataPortPlanCache) _dataPortPlanCache = buildDataPortPlan();
+  return _dataPortPlanCache;
+}
+
+// Short destination for one screen's data line, e.g. "XD1 p3" or "P2 p7".
+// Returns '' when the line has no resolvable destination.
+function dataLineDestinationLabel(screenId, line) {
+  try {
+    const plan = cachedDataPortPlan();
+    const lineMap = plan.perScreen.get(screenId);
+    if(!lineMap) return '';
+    const dest = lineMap.get(line);
+    if(!dest) return '';
+    const group = plan.groups.get(dest.procType);
+    if(group && group.usesDistBox && dest.box !== null) {
+      const name = (group.distBoxName || 'Box').replace(/[^A-Za-z0-9]/g, '');
+      return name + dest.box + ' p' + dest.port;
+    }
+    return 'P' + dest.proc + ' p' + dest.port;
+  } catch(err) {
+    return '';
+  }
 }
 
 // Format a destination for display: "P1·XD2·7", or "P1·7" with no box.

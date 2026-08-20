@@ -4009,6 +4009,8 @@ canvas:focus {
   #powerContent .layout-toggle-row { flex-wrap: wrap; row-gap: 10px; }
   /* Same for the combined data toggles, so they don't force a horizontal scrollbar */
   #combinedDataContent .layout-toggle-row { flex-wrap: wrap; row-gap: 10px; }
+  /* Combined power toggles gained Select Mode — wrap instead of overflowing on mobile */
+  #combinedPowerContent .layout-toggle-row { flex-wrap: wrap; row-gap: 10px; }
   /* One screen per row on phones — two cards side by side already fills the width */
   #combinedDataLineMap { grid-template-columns: 1fr; }
 }

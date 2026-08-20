@@ -1,5 +1,5 @@
 {
-  "version": "2.11.136",
+  "version": "2.11.137",
   "updated": "2026-08-20",
-  "changelog": "Add per-screen processor pickers and apply-to-all to the combined data layout"
+  "changelog": "Show processor, distribution box and port destination on every data line map"
 }

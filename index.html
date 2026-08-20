@@ -14,7 +14,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="B.L.I.N.K.">
@@ -3121,13 +3121,16 @@
         <!-- Interaction Hints -->
         <div id="combinedInteractionHints" class="combined-interaction-hints">
           <span id="combinedHintsDesktop" style="display: none;"><strong>Panels:</strong> Drag a box to select, right-click for options, double-click to delete/restore &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
-          <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> Tap to select, tap again for options, Select Mode to drag a box &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
+          <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> Tap to select, tap a selected panel for options, Select Mode to drag a box &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
+        </div>
+        <div class="layout-toggle-row" id="combinedSelectModeRow" style="display:none;">
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Select Mode</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedSelectModeBtn" aria-pressed="false" onclick="toggleCombinedSelectMode('combinedStandardCanvas')">Off</button>
+          </div>
         </div>
         <!-- Position Controls -->
         <div id="combinedPositionControls">
-          <div class="slider-toggle d-inline-flex" id="combinedSelectModeRow" style="display:none;">
-            <button type="button" class="slider-toggle-btn" id="combinedSelectModeBtn" aria-pressed="false" onclick="toggleCombinedSelectMode()">Select Mode</button>
-          </div>
           <div class="slider-toggle d-inline-flex">
             <button type="button" class="slider-toggle-btn" id="resetPositionsBtn" onclick="resetCombinedPositions()">Reset</button>
             <button type="button" class="slider-toggle-btn" id="manualAdjustBtn" onclick="toggleManualAdjust()">Manual Adjust</button>
@@ -3167,6 +3170,10 @@
             <span class="toggle-label toggle-label-block">Share Distro</span>
             <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedShareDistroBtn" onclick="toggleCombinedShareDistro()">Off</button>
           </div>
+          <div class="flex-noshrink" id="combinedPowerSelectModeRow" style="display:none;">
+            <span class="toggle-label toggle-label-block">Select Mode</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedPowerSelectModeBtn" aria-pressed="false" onclick="toggleCombinedSelectMode('combinedPowerCanvas')">Off</button>
+          </div>
         </div>
         <div id="combinedPowerCanvasWrapper" class="overflow-x-auto">
           <canvas id="combinedPowerCanvas"></canvas>
@@ -3200,6 +3207,10 @@
           <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">Data Labels</span>
             <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedDataLineLabelsBtn" title="Applies to all selected screens" onclick="toggleCombinedDataLineLabels()">Off</button>
+          </div>
+          <div class="flex-noshrink" id="combinedDataSelectModeRow" style="display:none;">
+            <span class="toggle-label toggle-label-block">Select Mode</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedDataSelectModeBtn" aria-pressed="false" onclick="toggleCombinedSelectMode('combinedDataCanvas')">Off</button>
           </div>
         </div>
         <div id="combinedDataCanvasWrapper" class="overflow-x-auto">
@@ -3775,8 +3786,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.136';
-const APP_CHANGELOG = 'Add per-screen processor pickers and apply-to-all to the combined data layout';
+const APP_VERSION = '2.11.137';
+const APP_CHANGELOG = 'Show processor, distribution box and port destination on every data line map';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

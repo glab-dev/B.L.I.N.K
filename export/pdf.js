@@ -2289,7 +2289,15 @@ function buildDataLineMapTable(screenId) {
   }
 
   // Wrap cards in a 4-column summary-bar-style row (pad with blanks to match width)
-  const cards = [ buildCard('Mains', endpoints.map(ep => ({ label: String(ep.line), panel: fmt(ep.main) }))) ];
+  // Destination (processor / distribution box / physical port) per main line, so the
+  // printed map says where each line actually patches.
+  const destFor = (line) => {
+    if (typeof dataLineDestinationLabel !== 'function') return '';
+    const d = dataLineDestinationLabel(screenId, line);
+    return d ? ' \u2192 ' + d : '';
+  };
+
+  const cards = [ buildCard('Mains', endpoints.map(ep => ({ label: ep.line + destFor(ep.line), panel: fmt(ep.main) }))) ];
   if (redundancy) {
     cards.push(buildCard('Backups', endpoints.map(ep => ({ label: ep.line + 'B', panel: fmt(ep.backup) }))));
   }

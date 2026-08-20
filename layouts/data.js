@@ -643,8 +643,15 @@ function renderDataLineMap() {
   if(!endpoints || endpoints.length === 0) return;
   const redundancy = !!(screen.data && screen.data.redundancy);
 
+  // Destination (processor / distribution box / physical port) for each main line.
+  const destFor = function(line) {
+    if(typeof dataLineDestinationLabel !== 'function') return '';
+    const d = dataLineDestinationLabel(currentScreenId, line);
+    return d ? ` \u2192 ${d}` : '';
+  };
+
   host.appendChild(buildDataLineMapBox('mains', 'Mains', endpoints.map(function(ep){
-    return { label: `${ep.line}`, panel: formatDataLinePanel(ep.main) };
+    return { label: `${ep.line}${destFor(ep.line)}`, panel: formatDataLinePanel(ep.main) };
   })));
 
   if(redundancy) {

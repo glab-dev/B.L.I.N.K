@@ -152,6 +152,15 @@ function syncCombinedSelectedPanel() {
   if(sel) sel.panel = combinedSelectedPanel;
 }
 
+// Drop one canvas's selection (leaving that layout's Select Mode).
+function clearCombinedSelectionFor(canvasId) {
+  const sel = combinedSelectionByCanvas[canvasId];
+  if(!sel) return;
+  sel.panels.clear();
+  sel.panel = null;
+  if(combinedActiveSelectionCanvasId === canvasId) combinedSelectedPanel = null;
+}
+
 // Drop every canvas's selection (leaving Select Mode, clearing the view).
 function clearAllCombinedSelections() {
   Object.keys(combinedSelectionByCanvas).forEach(id => {
@@ -220,8 +229,15 @@ function drawCombinedSelectionOverlay(ctx, canvasId) {
   ctx.restore();
 }
 
+// Select Mode is PER CANVAS, like the selection above: turning it on in the standard layout
+// must not change how taps and drags behave in the power and data layouts.
+const combinedSelectModeByCanvas = {
+  combinedStandardCanvas: false,
+  combinedPowerCanvas:    false,
+  combinedDataCanvas:     false
+};
+
 // Drag-select (marquee) state — client coords, live only while a drag is in progress
-let combinedSelectMode = false; // mobile: drag-select panels without scrolling the canvas
 let combinedMarqueeActive = false;
 let combinedMarqueeMoved = false;
 let combinedMarqueeX1 = 0, combinedMarqueeY1 = 0, combinedMarqueeX2 = 0, combinedMarqueeY2 = 0;
@@ -237,11 +253,15 @@ let combinedMouseSelectStart = { x: 0, y: 0 };
 let combinedIsMouseSelecting = false;
 let combinedDocHandlersBound = false;
 
-// The canvases that support panel selection, and the options each one offers.
+// The canvases that support panel selection, the options each one offers, and the Select Mode
+// toggle that belongs to it.
 const COMBINED_SELECTABLE_CANVASES = [
-  { id: 'combinedStandardCanvas', layoutKind: 'standard' },
-  { id: 'combinedPowerCanvas',    layoutKind: 'power' },
-  { id: 'combinedDataCanvas',     layoutKind: 'data' }
+  { id: 'combinedStandardCanvas', layoutKind: 'standard',
+    rowId: 'combinedSelectModeRow',      btnId: 'combinedSelectModeBtn' },
+  { id: 'combinedPowerCanvas',    layoutKind: 'power',
+    rowId: 'combinedPowerSelectModeRow', btnId: 'combinedPowerSelectModeBtn' },
+  { id: 'combinedDataCanvas',     layoutKind: 'data',
+    rowId: 'combinedDataSelectModeRow',  btnId: 'combinedDataSelectModeBtn' }
 ];
 
 // Draw the drag-selection box on top of the freshly rendered combined layout.
@@ -306,27 +326,29 @@ function endCombinedMarquee() {
   }
 }
 
-// Toggle mobile Select Mode for the Combined view: blocks native scroll on the
-// canvas so dragging paints a selection box instead of scrolling.
-function toggleCombinedSelectMode() {
-  combinedSelectMode = !combinedSelectMode;
+// Toggle mobile Select Mode for ONE combined layout: blocks native scroll on that canvas
+// so dragging paints a selection box instead of scrolling. Each layout has its own toggle,
+// so selecting in the standard layout leaves power and data untouched.
+function toggleCombinedSelectMode(canvasId) {
+  const entry = COMBINED_SELECTABLE_CANVASES.find(c => c.id === canvasId);
+  if(!entry) return;
 
-  const btn = document.getElementById('combinedSelectModeBtn');
+  const on = !combinedSelectModeByCanvas[canvasId];
+  combinedSelectModeByCanvas[canvasId] = on;
 
-  // All three selectable canvases must block native scroll, or dragging a box on the
-  // power/data canvas would scroll the page instead of selecting.
-  COMBINED_SELECTABLE_CANVASES.forEach(({ id }) => {
-    const c = document.getElementById(id);
-    if(c) c.classList.toggle('select-mode-active', combinedSelectMode);
-  });
+  const canvas = document.getElementById(canvasId);
+  if(canvas) canvas.classList.toggle('select-mode-active', on);
+
+  const btn = document.getElementById(entry.btnId);
   if(btn) {
-    btn.classList.toggle('active', combinedSelectMode);
-    btn.setAttribute('aria-pressed', combinedSelectMode ? 'true' : 'false');
+    btn.textContent = on ? 'On' : 'Off';
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
 
-  // Leaving Select Mode clears the working selection on every canvas
-  if(!combinedSelectMode) {
-    clearAllCombinedSelections();
+  // Leaving Select Mode clears the working selection on THIS layout only
+  if(!on) {
+    clearCombinedSelectionFor(canvasId);
     renderCombinedView();
   }
 
@@ -1785,7 +1807,7 @@ function setupCombinedCanvasHandlersFor(canvasId, layoutKind) {
         });
       }
       e.preventDefault();
-    } else if(combinedSelectMode && !combinedManualAdjust) {
+    } else if(combinedSelectModeByCanvas[canvasId] && !combinedManualAdjust) {
       // Select Mode: drag a box to select panels instead of scrolling the canvas
       const dx = Math.abs(touch.clientX - touchStartPos.x);
       const dy = Math.abs(touch.clientY - touchStartPos.y);
@@ -1837,15 +1859,22 @@ function setupCombinedCanvasHandlersFor(canvasId, layoutKind) {
 
       // Only process as tap if didn't move much
       if(dx < 15 && dy < 15 && touchStartPanel) {
-        const panelKey = `${touchStartPanel.screenId}-${touchStartPanel.key}`;
-        const selectedKey = combinedSelectedPanel ? `${combinedSelectedPanel.screenId}-${combinedSelectedPanel.key}` : null;
+        // The Set is the source of truth for "is this panel selected". A drag box fills it
+        // and nulls combinedSelectedPanel, so testing the single panel alone made the first
+        // tap on a box-selected panel do nothing visible instead of opening the menu.
+        const panelKey = `${touchStartPanel.screenId}:${touchStartPanel.key}`;
+        const alreadySelected = combinedSelectedPanels.has(panelKey) ||
+          (combinedSelectedPanel &&
+           combinedSelectedPanel.screenId === touchStartPanel.screenId &&
+           combinedSelectedPanel.key === touchStartPanel.key);
 
-        if(selectedKey === panelKey) {
-          // Panel was already selected - show context menu
+        if(alreadySelected) {
+          // Panel is part of the current selection - show the options menu
           vibrate(30);
           showCombinedPanelContextMenu(touchLastPos.x, touchLastPos.y, touchStartPanel, layoutKind);
         } else {
-          // Select this panel (highlight it)
+          // Tapping outside the current selection drops it and selects just this panel
+          combinedSelectedPanels.clear();
           combinedSelectedPanel = touchStartPanel;
           syncCombinedSelectedPanel();
           vibrate(10);
@@ -1879,9 +1908,11 @@ function initCombinedView() {
   if(desktopHints) desktopHints.style.display = isMobile ? 'none' : 'inline';
   if(mobileHints) mobileHints.style.display = isMobile ? 'inline' : 'none';
 
-  // Select Mode toggle is touch-only — desktop drag-select already works with the mouse
-  const selectModeRow = document.getElementById('combinedSelectModeRow');
-  if(selectModeRow) selectModeRow.style.display = isMobile ? 'inline-flex' : 'none';
+  // Select Mode toggles are touch-only — desktop drag-select already works with the mouse
+  COMBINED_SELECTABLE_CANVASES.forEach(({ rowId }) => {
+    const row = document.getElementById(rowId);
+    if(row) row.style.display = isMobile ? 'flex' : 'none';
+  });
 
   // Clear existing toggles
   togglesContainer.innerHTML = '';
@@ -2946,7 +2977,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     // matches its own Data tab, not whichever screen happens to be open.
     const screenFlip = !!data.dataFlip;
     const endpoints = computeDataLineEndpoints(groups, sortedDataLines, screenFlip);
-    mapSections.push({ name: screen.name, endpoints, redundancy: !!data.redundancy });
+    mapSections.push({ screenId, name: screen.name, endpoints, redundancy: !!data.redundancy });
 
     // Panel numbers scale down for the combined view's smaller cells; shrink further
     // if the widest label (e.g. "16.12") would overflow the panel.
@@ -3019,8 +3050,14 @@ function renderCombinedDataLineMap(sections) {
     const grid = document.createElement('div');
     grid.className = 'data-line-map';
 
+    const destFor = function(line) {
+      if(typeof dataLineDestinationLabel !== 'function') return '';
+      const d = dataLineDestinationLabel(section.screenId, line);
+      return d ? ` \u2192 ${d}` : '';
+    };
+
     grid.appendChild(buildDataLineMapBox('mains', 'Mains', section.endpoints.map(function(ep){
-      return { label: `${ep.line}`, panel: formatDataLinePanel(ep.main) };
+      return { label: `${ep.line}${destFor(ep.line)}`, panel: formatDataLinePanel(ep.main) };
     })));
 
     if(section.redundancy) {

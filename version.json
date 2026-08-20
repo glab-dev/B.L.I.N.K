@@ -1,5 +1,5 @@
 {
-  "version": "2.11.142",
+  "version": "2.11.143",
   "updated": "2026-08-20",
-  "changelog": "Add unit label formatter and backup pairing helpers to the processor topology"
+  "changelog": "Model backup port pairing so loop-backs land on the right box and port"
 }

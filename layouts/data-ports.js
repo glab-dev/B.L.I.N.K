@@ -175,17 +175,33 @@ function buildDataPortPlan(liveOverride) {
       : screenDataLineDestinations(data);
     if(!info.lines.length) return;
     const procType = info.processorId;
-    if(!buckets.has(procType)) buckets.set(procType, { indirect: false, entries: [] });
+    if(!buckets.has(procType)) buckets.set(procType, { indirect: false, redundant: false, entries: [] });
     const bucket = buckets.get(procType);
     if(info.connectionMode === 'indirect') bucket.indirect = true;
+    // Any redundant screen makes the whole bucket redundant, matching the
+    // hasAnyRedundancy OR in core/gear-data.js.
+    if(data.redundancy) bucket.redundant = true;
     bucket.entries.push({ screenId: id, info: info });
   });
 
   buckets.forEach((bucket, procType) => {
     const topology = resolveProcessorTopology(procType, bucket.indirect ? 'indirect' : 'direct');
     const usesDistBox = topology.usesDistBox;
-    const capacity = Math.max(1, usesDistBox ? topology.distBoxPorts : topology.portsPerProcessor);
+    const redundant = bucket.redundant;
+    const pairedBoxes = redundant && topology.backupMode === 'paired_boxes';
+    const pairedPorts = redundant && topology.backupMode === 'paired_ports';
+    // Usable MAIN capacity. With paired ports half of them are loop-backs, so only
+    // every other port can take a main; with paired boxes the whole box pairs off
+    // instead and its port count is untouched.
+    const capacity = Math.max(1, mainPortsPerUnit(topology, redundant));
     const boxesPerProc = Math.max(1, usesDistBox ? topology.boxesPerProcessor : 1);
+
+    // Physical port for the Nth main on a unit: 1,3,5... when ports pair off.
+    const physicalPort = (ordinal) => pairedPorts ? (ordinal * 2 - 1) : ordinal;
+    // Main-box ordinal for a box index: with paired boxes, mains sit on the odd
+    // indices (A,C = 1,3), so index 3 is the SECOND main box. Counts must report
+    // ordinals, not raw indices, or the explicit floor downstream inflates.
+    const boxOrdinal = (boxIdx) => pairedBoxes ? Math.ceil(boxIdx / 2) : boxIdx;
 
     // slotKey -> count of lines landing on that unit. The PHYSICAL port a line
     // occupies is its position on the unit (1..capacity), derived here — it is not
@@ -199,7 +215,7 @@ function buildDataPortPlan(liveOverride) {
       const k = slotKey(proc, box);
       const used = occupancy.get(k) || 0;
       occupancy.set(k, used + 1);
-      return used + 1; // physical port on this unit
+      return physicalPort(used + 1); // physical port on this unit
     }
 
     // --- Pass 1: explicit assignments claim their unit first, in tab order ---
@@ -221,7 +237,8 @@ function buildDataPortPlan(liveOverride) {
     let curProc = 1, curBox = usesDistBox ? 1 : null;
     function advance() {
       if(usesDistBox) {
-        curBox++;
+        // Step by 2 when boxes pair off, so mains never land on B or D.
+        curBox += pairedBoxes ? 2 : 1;
         if(curBox > boxesPerProc) { curBox = 1; curProc++; }
       } else {
         curProc++;
@@ -243,15 +260,18 @@ function buildDataPortPlan(liveOverride) {
         const claimed = claimedPorts.get(entry.screenId + '|' + line);
         if(claimed) {
           lineMap.set(line, { procType: procType, proc: claimed.proc, box: claimed.box,
-                              port: claimed.port, explicit: true });
+                              port: claimed.port, explicit: true,
+                              backup: backupDestinationFor(topology, redundant, claimed.box, claimed.port) });
           return;
         }
         const dest = entry.info.explicit.get(line);
         const slot = nextUnitWithRoom();
         const proc = (dest && dest.proc !== null) ? dest.proc : slot.proc;
         const box = usesDistBox ? ((dest && dest.box !== null) ? dest.box : slot.box) : null;
+        const port = place(proc, box, entry.screenId, line);
         lineMap.set(line, { procType: procType, proc: proc, box: box,
-                            port: place(proc, box, entry.screenId, line), explicit: false });
+                            port: port, explicit: false,
+                            backup: backupDestinationFor(topology, redundant, box, port) });
       });
       perScreen.set(entry.screenId, lineMap);
     });
@@ -271,7 +291,8 @@ function buildDataPortPlan(liveOverride) {
       const box = parts[1] === '-' ? null : (parseInt(parts[1]) || 0);
       if(proc > procCount) procCount = proc;
       if(usesDistBox && box !== null) {
-        if(box > (maxBoxPerProc.get(proc) || 0)) maxBoxPerProc.set(proc, box);
+        const ord = boxOrdinal(box);
+        if(ord > (maxBoxPerProc.get(proc) || 0)) maxBoxPerProc.set(proc, ord);
       }
       if(used > capacity) {
         overflows.push({ procType: procType, proc: proc, box: box,
@@ -285,7 +306,9 @@ function buildDataPortPlan(liveOverride) {
       procCount: procCount,
       boxCount: usesDistBox ? boxCount : 0,
       distBoxName: usesDistBox ? topology.distBoxName : '',
-      usesDistBox: usesDistBox
+      usesDistBox: usesDistBox,
+      boxLabelStyle: topology.boxLabelStyle,
+      redundant: redundant
     });
   });
 
@@ -300,7 +323,11 @@ function dataPortUnitAvailability(procType, proc, box, excludeScreenId, excludeL
   const plan = buildDataPortPlan();
   const topology = resolveProcessorTopology(procType, dataPortBucketIsIndirect(procType) ? 'indirect' : 'direct');
   const usesDistBox = topology.usesDistBox;
-  const capacity = Math.max(1, usesDistBox ? topology.distBoxPorts : topology.portsPerProcessor);
+  const redundant = dataPortBucketIsRedundant(procType);
+  // Free MAIN ports only — offering a loop-back port as available would let the
+  // user patch a main onto a backup.
+  const capacity = Math.max(1, mainPortsPerUnit(topology, redundant));
+  const pairedPorts = redundant && topology.backupMode === 'paired_ports';
 
   const skip = new Set((excludeLines || []).map(l => String(l)));
   const holders = new Map(); // port -> screenId
@@ -318,8 +345,9 @@ function dataPortUnitAvailability(procType, proc, box, excludeScreenId, excludeL
   });
 
   const freePorts = [];
-  for(let p = 1; p <= capacity; p++) {
-    if(!holders.has(p)) freePorts.push(p);
+  for(let i = 1; i <= capacity; i++) {
+    const physical = pairedPorts ? (i * 2 - 1) : i;
+    if(!holders.has(physical)) freePorts.push(physical);
   }
 
   return {
@@ -327,8 +355,19 @@ function dataPortUnitAvailability(procType, proc, box, excludeScreenId, excludeL
     used: used,
     freePorts: freePorts,
     holders: holders,
-    unitLabel: usesDistBox ? ((topology.distBoxName || 'Box') + ' ' + box) : ('Processor ' + proc)
+    unitLabel: usesDistBox
+      ? ((topology.distBoxName || 'Box') + ' ' + formatUnitLabel(box, topology.boxLabelStyle))
+      : ('Processor ' + proc)
   };
+}
+
+// True when any screen using this processor type has redundancy on — the same
+// rule core/gear-data.js applies when grouping.
+function dataPortBucketIsRedundant(procType) {
+  return dataPortScreenIds().some(id => {
+    const d = liveScreenData(id) || screens[id].data;
+    return (d.processor || 'Brompton_SX40') === procType && !!d.redundancy;
+  });
 }
 
 // True when any screen using this processor type is in indirect mode — the same
@@ -426,9 +465,17 @@ function dataLineDestinationParts(screenId, line) {
     if(!dest) return null;
     const group = plan.groups.get(dest.procType);
     if(group && group.usesDistBox && dest.box !== null) {
-      return { unit: shortDistBoxCode(group.distBoxName) + dest.box, port: dest.port };
+      const label = formatUnitLabel(dest.box, group.boxLabelStyle);
+      const main = { unit: shortDistBoxCode(group.distBoxName) + ' ' + label, port: dest.port };
+      if(dest.backup) {
+        main.backupUnit = shortDistBoxCode(group.distBoxName) + ' ' + formatUnitLabel(dest.backup.box, group.boxLabelStyle);
+        main.backupPort = dest.backup.port;
+      }
+      return main;
     }
-    return { unit: 'P' + dest.proc, port: dest.port };
+    const res = { unit: 'P' + dest.proc, port: dest.port };
+    if(dest.backup) { res.backupUnit = 'P' + dest.proc; res.backupPort = dest.backup.port; }
+    return res;
   } catch(err) {
     return null;
   }

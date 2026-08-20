@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.143', date: '2026-08-20', notes: 'Model backup port pairing so loop-backs land on the right box and port' },
   { version: '2.11.142', date: '2026-08-20', notes: 'Add unit label formatter and backup pairing helpers to the processor topology' },
   { version: '2.11.141', date: '2026-08-20', notes: 'Stop combined data map cards overlapping and align their column headers' },
   { version: '2.11.140', date: '2026-08-20', notes: 'Split the data line map into Line, Panel, Unit and Port columns' },

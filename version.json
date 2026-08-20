@@ -1,5 +1,5 @@
 {
-  "version": "2.11.140",
+  "version": "2.11.141",
   "updated": "2026-08-20",
-  "changelog": "Split the data line map into Line, Panel, Unit and Port columns"
+  "changelog": "Stop combined data map cards overlapping and align their column headers"
 }

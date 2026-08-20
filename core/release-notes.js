@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.141', date: '2026-08-20', notes: 'Stop combined data map cards overlapping and align their column headers' },
   { version: '2.11.140', date: '2026-08-20', notes: 'Split the data line map into Line, Panel, Unit and Port columns' },
   { version: '2.11.139', date: '2026-08-20', notes: 'Scope the combined reset option to its layout and reduce it to one entry' },
   { version: '2.11.138', date: '2026-08-20', notes: 'Add reset options to combined panel menu and compact the processor pickers' },

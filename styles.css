@@ -3948,8 +3948,10 @@ canvas:focus {
    table share. */
 .dlm-row {
   display: grid;
-  grid-template-columns: 2.2em 3.2em 3.4em 2em;
-  gap: 10px;
+  /* Fixed px tracks, not em: the header row is a smaller font-size, and em tracks
+     would compute narrower there and drift out of line with the body rows. */
+  grid-template-columns: 30px 46px 48px 32px;
+  gap: 8px;
   padding: 3px 0;
   border-bottom: 1px solid #2a2a2a;
   align-items: baseline;
@@ -4058,7 +4060,9 @@ canvas:focus {
    Scoped to #combinedDataLineMap so the single-screen #dataLineMap is untouched. */
 #combinedDataLineMap {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* auto-fill on the real width of a screen block (two cards side by side), so
+     blocks wrap to the next row instead of overflowing into their neighbour. */
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   gap: 4px 20px;
   align-items: start;
   padding: 0 5px 5px;
@@ -4072,11 +4076,6 @@ canvas:focus {
   color: #fff;
   margin: 14px 0 -8px 2px;
   text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
-}
-
-/* Two screens per row once three no longer fit the two cards side by side */
-@media (max-width: 1200px) {
-  #combinedDataLineMap { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* Mobile: let the two cards shrink to share the width so the backup card isn't cut off */

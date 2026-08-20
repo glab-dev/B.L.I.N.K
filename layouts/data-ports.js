@@ -426,13 +426,20 @@ function dataLineDestinationParts(screenId, line) {
     if(!dest) return null;
     const group = plan.groups.get(dest.procType);
     if(group && group.usesDistBox && dest.box !== null) {
-      const name = (group.distBoxName || 'Box').replace(/[^A-Za-z0-9]/g, '');
-      return { unit: name + dest.box, port: dest.port };
+      return { unit: shortDistBoxCode(group.distBoxName) + dest.box, port: dest.port };
     }
     return { unit: 'P' + dest.proc, port: dest.port };
   } catch(err) {
     return null;
   }
+}
+
+// Column-friendly code for a box name: the leading letters only, so
+// "CVT-10 Pro" reads as CVT and "XD" stays XD.
+function shortDistBoxCode(name) {
+  if(!name) return 'B';
+  const letters = String(name).match(/^[A-Za-z]+/);
+  return letters ? letters[0].toUpperCase() : 'B';
 }
 
 // Short destination for one screen's data line, e.g. "XD1 p3" or "P2 p7".

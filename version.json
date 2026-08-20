@@ -1,5 +1,5 @@
 {
-  "version": "2.11.128",
-  "updated": "2026-08-19",
-  "changelog": "Add SOCA field to combined Assign Circuit # prompt, matching the complex tab"
+  "version": "2.11.129",
+  "updated": "2026-08-20",
+  "changelog": "Add processor topology specs and shared resolver for distribution boxes"
 }

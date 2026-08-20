@@ -62,6 +62,12 @@ function computeProcessorAndBoxCounts(o) {
   const totalPixels = o.totalPixels || 0;
   const hasRedundancy = !!o.hasRedundancy;
   const screenCount = o.screenCount || 0;
+  // Highest unit index the user assigned by hand, from buildDataPortPlan(). These
+  // are MAIN-line figures and act as a floor before any redundancy doubling, so a
+  // manual "XD box 3" guarantees at least three XDs. Explicit wins, exactly as a
+  // manually assigned SOCA does on the power side.
+  const explicitBoxes = o.explicitBoxes || 0;
+  const explicitProcs = o.explicitProcs || 0;
 
   let processorCount = 0;
   let distBoxCount = 0;
@@ -72,11 +78,15 @@ function computeProcessorAndBoxCounts(o) {
   if(t.usesDistBox) {
     if(t.redundancyDoubles === 'boxes') {
       // Boxes are sized from the main lines, then duplicated for backup.
-      const mainBoxes = mainPorts > 0 ? Math.ceil(mainPorts / t.distBoxPorts) : 0;
+      let mainBoxes = mainPorts > 0 ? Math.ceil(mainPorts / t.distBoxPorts) : 0;
+      if(explicitBoxes > mainBoxes) mainBoxes = explicitBoxes;
       distBoxCount = hasRedundancy ? mainBoxes * 2 : mainBoxes;
     } else {
+      // Backup shares this processor's box budget rather than duplicating boxes, so
+      // the manual floor applies to the MAIN box count and never gets doubled.
       const totalPorts = hasRedundancy ? mainPorts * 2 : mainPorts;
       distBoxCount = totalPorts > 0 ? Math.ceil(totalPorts / t.distBoxPorts) : 0;
+      if(explicitBoxes > distBoxCount) distBoxCount = explicitBoxes;
     }
 
     const totalPorts = hasRedundancy ? mainPorts * 2 : mainPorts;
@@ -95,6 +105,8 @@ function computeProcessorAndBoxCounts(o) {
       : (t.zeroPortsMeansZero ? 0 : screenCount);
     if(byPixels > 0) processorCount = Math.max(byPixels, processorCount);
   }
+
+  if(explicitProcs > processorCount) processorCount = explicitProcs;
 
   return {
     processorCount: processorCount,

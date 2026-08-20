@@ -150,37 +150,37 @@ function buildDataPortPlan(liveOverride) {
     const capacity = Math.max(1, usesDistBox ? topology.distBoxPorts : topology.portsPerProcessor);
     const boxesPerProc = Math.max(1, usesDistBox ? topology.boxesPerProcessor : 1);
 
-    // slotKey -> Set of line numbers already on that unit
+    // slotKey -> count of lines landing on that unit. The PHYSICAL port a line
+    // occupies is its position on the unit (1..capacity), derived here — it is not
+    // the screen-local data line number, which only labels the line within its own
+    // wall. Three screens that each call their first line "1" still share one box,
+    // taking physical ports 1, 2 and 3.
     const occupancy = new Map();
-    // "proc|box|line" -> { screenId, line }, for duplicate detection
-    const taken = new Map();
     const slotKey = (proc, box) => proc + '|' + (box === null ? '-' : box);
 
-    function claim(proc, box, line, screenId) {
-      const dup = taken.get(proc + '|' + (box === null ? '-' : box) + '|' + line);
-      if(dup) {
-        conflicts.push({ procType: procType, proc: proc, box: box, port: line,
-                         a: dup, b: { screenId: screenId, line: line } });
-        return false;
-      }
-      taken.set(proc + '|' + (box === null ? '-' : box) + '|' + line, { screenId: screenId, line: line });
+    function place(proc, box, screenId, line) {
       const k = slotKey(proc, box);
-      if(!occupancy.has(k)) occupancy.set(k, new Set());
-      occupancy.get(k).add(line);
-      return true;
+      const used = occupancy.get(k) || 0;
+      occupancy.set(k, used + 1);
+      return used + 1; // physical port on this unit
     }
 
-    // --- Pass 1: explicit assignments claim their slots first ---
+    // --- Pass 1: explicit assignments claim their unit first, in tab order ---
+    // Only fully-specified destinations claim here; partial ones resolve in pass 2.
+    const claimedPorts = new Map(); // "screenId|line" -> { proc, box, port }
     bucket.entries.forEach(entry => {
-      entry.info.explicit.forEach((dest, line) => {
-        if(dest.proc === null) return; // needs at least a processor to be a real claim
+      entry.info.lines.forEach(line => {
+        const dest = entry.info.explicit.get(line);
+        if(!dest || dest.proc === null) return;
+        if(usesDistBox && dest.box === null) return;
         const box = usesDistBox ? dest.box : null;
-        if(usesDistBox && box === null) return; // box still auto — resolved in pass 2
-        claim(dest.proc, box, line, entry.screenId);
+        claimedPorts.set(entry.screenId + '|' + line,
+                         { proc: dest.proc, box: box, port: place(dest.proc, box, entry.screenId, line) });
       });
     });
 
-    // --- Pass 2: fill the rest with a cursor that runs across the whole bucket ---
+    // --- Pass 2: auto lines fill the remaining capacity, cursor running
+    // continuously across the whole bucket ---
     let curProc = 1, curBox = usesDistBox ? 1 : null;
     function advance() {
       if(usesDistBox) {
@@ -190,15 +190,11 @@ function buildDataPortPlan(liveOverride) {
         curProc++;
       }
     }
-    function nextFreeSlot(line) {
-      // Walk forward until we find a unit with room that does not already hold this
-      // line number. Bounded so a pathological config cannot spin forever.
-      for(let guard = 0; guard < 10000; guard++) {
-        const k = slotKey(curProc, curBox);
-        const set = occupancy.get(k);
-        const full = set && set.size >= capacity;
-        const clash = set && set.has(line);
-        if(!full && !clash) return { proc: curProc, box: curBox };
+    function nextUnitWithRoom() {
+      for(let guard = 0; guard < 100000; guard++) {
+        if((occupancy.get(slotKey(curProc, curBox)) || 0) < capacity) {
+          return { proc: curProc, box: curBox };
+        }
         advance();
       }
       return { proc: curProc, box: curBox };
@@ -207,18 +203,18 @@ function buildDataPortPlan(liveOverride) {
     bucket.entries.forEach(entry => {
       const lineMap = new Map();
       entry.info.lines.forEach(line => {
-        const dest = entry.info.explicit.get(line);
-        let proc, box;
-        if(dest && dest.proc !== null && (!usesDistBox || dest.box !== null)) {
-          proc = dest.proc;
-          box = usesDistBox ? dest.box : null;
-        } else {
-          const slot = nextFreeSlot(line);
-          proc = (dest && dest.proc !== null) ? dest.proc : slot.proc;
-          box = usesDistBox ? ((dest && dest.box !== null) ? dest.box : slot.box) : null;
-          claim(proc, box, line, entry.screenId);
+        const claimed = claimedPorts.get(entry.screenId + '|' + line);
+        if(claimed) {
+          lineMap.set(line, { procType: procType, proc: claimed.proc, box: claimed.box,
+                              port: claimed.port, explicit: true });
+          return;
         }
-        lineMap.set(line, { procType: procType, proc: proc, box: box, port: line });
+        const dest = entry.info.explicit.get(line);
+        const slot = nextUnitWithRoom();
+        const proc = (dest && dest.proc !== null) ? dest.proc : slot.proc;
+        const box = usesDistBox ? ((dest && dest.box !== null) ? dest.box : slot.box) : null;
+        lineMap.set(line, { procType: procType, proc: proc, box: box,
+                            port: place(proc, box, entry.screenId, line), explicit: false });
       });
       perScreen.set(entry.screenId, lineMap);
     });
@@ -226,24 +222,31 @@ function buildDataPortPlan(liveOverride) {
     // --- Counts: highest unit index actually referenced ---
     // Using the max index rather than a sum is what makes two screens pinned to the
     // same processor/box share one physical unit instead of doubling it.
+    // Highest index wins on both axes: a line pinned to "XD box 5" means five boxes
+    // exist on that processor, not one. Box indices restart per processor, so the
+    // rig total is the per-processor maximum summed over the processors in use.
     let procCount = 0;
-    const boxKeys = new Set();
-    occupancy.forEach((set, k) => {
-      if(!set.size) return;
+    const maxBoxPerProc = new Map();
+    occupancy.forEach((used, k) => {
+      if(!used) return;
       const parts = k.split('|');
       const proc = parseInt(parts[0]) || 0;
+      const box = parts[1] === '-' ? null : (parseInt(parts[1]) || 0);
       if(proc > procCount) procCount = proc;
-      if(usesDistBox) boxKeys.add(k);
-      if(set.size > capacity) {
-        overflows.push({ procType: procType, proc: proc,
-                         box: parts[1] === '-' ? null : parseInt(parts[1]),
-                         capacity: capacity, assigned: set.size });
+      if(usesDistBox && box !== null) {
+        if(box > (maxBoxPerProc.get(proc) || 0)) maxBoxPerProc.set(proc, box);
+      }
+      if(used > capacity) {
+        overflows.push({ procType: procType, proc: proc, box: box,
+                         capacity: capacity, assigned: used });
       }
     });
+    let boxCount = 0;
+    maxBoxPerProc.forEach(maxBox => { boxCount += maxBox; });
 
     groups.set(procType, {
       procCount: procCount,
-      boxCount: usesDistBox ? boxKeys.size : 0,
+      boxCount: usesDistBox ? boxCount : 0,
       distBoxName: usesDistBox ? topology.distBoxName : '',
       usesDistBox: usesDistBox
     });

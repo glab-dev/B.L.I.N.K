@@ -1,5 +1,5 @@
 {
-  "version": "2.11.132",
+  "version": "2.11.133",
   "updated": "2026-08-20",
-  "changelog": "Add data port plan resolving processor and distribution box per data line"
+  "changelog": "Let manual processor and distribution box assignments drive gear list counts"
 }

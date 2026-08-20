@@ -106,15 +106,21 @@ function buildGearListData(screenIds) {
   // Calculate processor and dist box counts per group.
   // Port/box topology comes from specs/processor-topology.js so the gear list, the
   // combined gear list and calculate() all read the same source.
+  // Manual processor/box assignments raise the floor on these counts (explicit wins).
+  const portPlan = (typeof buildDataPortPlan === 'function') ? buildDataPortPlan() : null;
+
   Object.keys(processorGroups).forEach(procType => {
     const group = processorGroups[procType];
     const topology = resolveProcessorTopology(procType, group.hasAnyIndirectMode ? 'indirect' : 'direct');
+    const planned = portPlan && portPlan.groups.get(procType);
     const counts = computeProcessorAndBoxCounts({
       topology: topology,
       mainPorts: group.totalMainPorts,
       totalPixels: group.totalPixels,
       hasRedundancy: group.hasAnyRedundancy,
-      screenCount: group.screens.length
+      screenCount: group.screens.length,
+      explicitProcs: planned ? planned.procCount : 0,
+      explicitBoxes: planned ? planned.boxCount : 0
     });
     let processorCount = counts.processorCount;
     if(group.hasAnyProcessorRedundancy && processorCount > 0) processorCount *= 2;

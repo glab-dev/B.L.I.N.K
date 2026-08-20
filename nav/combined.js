@@ -3535,15 +3535,21 @@ function renderCombinedGearList(selectedScreenIds) {
   // Calculate processor counts per group (same source as the gear tab —
   // specs/processor-topology.js)
   let totalGroupedProcessors = 0;
+  // Manual processor/box assignments raise the floor on these counts (explicit wins).
+  const portPlan = (typeof buildDataPortPlan === 'function') ? buildDataPortPlan() : null;
+
   Object.keys(processorGroups).forEach(procType => {
     const group = processorGroups[procType];
     const topology = resolveProcessorTopology(procType, group.hasAnyIndirectMode ? 'indirect' : 'direct');
+    const planned = portPlan && portPlan.groups.get(procType);
     const counts = computeProcessorAndBoxCounts({
       topology: topology,
       mainPorts: group.totalMainPorts,
       totalPixels: group.totalPixels,
       hasRedundancy: group.hasAnyRedundancy,
-      screenCount: group.screens.length
+      screenCount: group.screens.length,
+      explicitProcs: planned ? planned.procCount : 0,
+      explicitBoxes: planned ? planned.boxCount : 0
     });
     let processorCount = counts.processorCount;
     if(group.hasAnyProcessorRedundancy && processorCount > 0) processorCount *= 2;

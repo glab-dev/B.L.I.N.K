@@ -2268,7 +2268,8 @@ function buildDataLineMapTable(screenId) {
   const tc = PDF_TOKENS.colors;
   const fmt = (p) => p ? (p.c + 1) + '.' + (p.r + 1) : '—';
 
-  // One card = underlined title + a stack of "label  panel" item lines.
+  // One card = underlined title + a four-column table:
+  // data line, panel, the processor/distribution box it lands on, and the port.
   function buildCard(title, rows) {
     const titleEl = {
       text: title,
@@ -2276,30 +2277,48 @@ function buildDataLineMapTable(screenId) {
       decoration: 'underline', decorationColor: '#000000',
       margin: [0, 0, 0, 4]
     };
-    const itemEls = rows.map(function(r) {
-      return {
-        text: [
-          { text: r.label, bold: true, color: '#000000' },
-          { text: '   ' + r.panel, color: tc.textSecondary }
-        ],
-        fontSize: 8, lineHeight: 1.3
-      };
-    });
-    return { stack: [titleEl].concat(itemEls), margin: [6, 6, 6, 6] };
+    const head = ['Line', 'Panel', 'Unit', 'Port'].map(h => ({
+      text: h, fontSize: 6, color: tc.textSecondary, bold: false
+    }));
+    const body = [head].concat(rows.map(function(r) {
+      return [
+        { text: r.line, fontSize: 8, bold: true, color: '#000000' },
+        { text: r.panel, fontSize: 8, color: tc.textSecondary },
+        { text: r.unit || '\u2014', fontSize: 8, color: tc.textSecondary },
+        { text: (r.port === null || r.port === undefined) ? '\u2014' : String(r.port),
+          fontSize: 8, bold: true, color: '#000000' }
+      ];
+    }));
+    const table = {
+      table: { widths: ['auto', 'auto', 'auto', 'auto'], body: body },
+      layout: {
+        hLineWidth: (i) => (i === 1 ? 0.5 : 0),
+        vLineWidth: () => 0,
+        hLineColor: () => tc.sectionBorder,
+        paddingLeft: (i) => (i === 0 ? 0 : 5),
+        paddingRight: () => 0,
+        paddingTop: () => 1.5,
+        paddingBottom: () => 1.5
+      }
+    };
+    return { stack: [titleEl, table], margin: [6, 6, 6, 6] };
   }
 
-  // Wrap cards in a 4-column summary-bar-style row (pad with blanks to match width)
-  // Destination (processor / distribution box / physical port) per main line, so the
-  // printed map says where each line actually patches.
-  const destFor = (line) => {
-    if (typeof dataLineDestinationLabel !== 'function') return '';
-    const d = dataLineDestinationLabel(screenId, line);
-    return d ? ' \u2192 ' + d : '';
+  // Destination parts per main line, so the printed map matches the app's map.
+  const partsFor = (line) => {
+    return (typeof dataLineDestinationParts === 'function')
+      ? dataLineDestinationParts(screenId, line) : null;
   };
 
-  const cards = [ buildCard('Mains', endpoints.map(ep => ({ label: ep.line + destFor(ep.line), panel: fmt(ep.main) }))) ];
+  const cards = [ buildCard('Mains', endpoints.map(ep => {
+    const d = partsFor(ep.line);
+    return { line: String(ep.line), panel: fmt(ep.main),
+             unit: d ? d.unit : '', port: d ? d.port : null };
+  })) ];
   if (redundancy) {
-    cards.push(buildCard('Backups', endpoints.map(ep => ({ label: ep.line + 'B', panel: fmt(ep.backup) }))));
+    cards.push(buildCard('Backups', endpoints.map(ep => ({
+      line: ep.line + 'B', panel: fmt(ep.backup), unit: '', port: null
+    }))));
   }
   const perRow = pdfCurrentCardsPerRow();
   while (cards.length < perRow) cards.push(null);
@@ -2448,7 +2467,9 @@ function estDataMapHeight(screenId) {
   const cd = screens[screenId] && screens[screenId].calculatedData;
   const eps = cd && cd.dataLineEndpoints;
   if (!eps || !eps.length) return 0;
-  return Math.ceil(estCardHeight(eps.length) + EST_ROW_CHROME);
+  // +1 for the Line/Panel/Unit/Port header row, +3pt for the table's own row
+  // padding. This budget must never read LOW or the table spills onto the next page.
+  return Math.ceil(estCardHeight(eps.length + 1) + EST_ROW_CHROME + 3);
 }
 
 // Height (pt) of the structure info cards. Mirrors buildStructureInfoPdf: the flat

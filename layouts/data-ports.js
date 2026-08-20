@@ -415,6 +415,26 @@ function cachedDataPortPlan() {
   return _dataPortPlanCache;
 }
 
+// Destination split into its parts for tabular display:
+// { unit: 'XD1' | 'P2', port: 3 }, or null when unresolved.
+function dataLineDestinationParts(screenId, line) {
+  try {
+    const plan = cachedDataPortPlan();
+    const lineMap = plan.perScreen.get(screenId);
+    if(!lineMap) return null;
+    const dest = lineMap.get(line);
+    if(!dest) return null;
+    const group = plan.groups.get(dest.procType);
+    if(group && group.usesDistBox && dest.box !== null) {
+      const name = (group.distBoxName || 'Box').replace(/[^A-Za-z0-9]/g, '');
+      return { unit: name + dest.box, port: dest.port };
+    }
+    return { unit: 'P' + dest.proc, port: dest.port };
+  } catch(err) {
+    return null;
+  }
+}
+
 // Short destination for one screen's data line, e.g. "XD1 p3" or "P2 p7".
 // Returns '' when the line has no resolvable destination.
 function dataLineDestinationLabel(screenId, line) {

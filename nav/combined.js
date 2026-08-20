@@ -3162,19 +3162,20 @@ function renderCombinedDataLineMap(sections) {
     const grid = document.createElement('div');
     grid.className = 'data-line-map';
 
-    const destFor = function(line) {
-      if(typeof dataLineDestinationLabel !== 'function') return '';
-      const d = dataLineDestinationLabel(section.screenId, line);
-      return d ? ` \u2192 ${d}` : '';
+    const partsFor = function(line) {
+      return (typeof dataLineDestinationParts === 'function')
+        ? dataLineDestinationParts(section.screenId, line) : null;
     };
 
     grid.appendChild(buildDataLineMapBox('mains', 'Mains', section.endpoints.map(function(ep){
-      return { label: `${ep.line}${destFor(ep.line)}`, panel: formatDataLinePanel(ep.main) };
+      const d = partsFor(ep.line);
+      return { line: `${ep.line}`, panel: formatDataLinePanel(ep.main),
+               unit: d ? d.unit : '', port: d ? d.port : null };
     })));
 
     if(section.redundancy) {
       grid.appendChild(buildDataLineMapBox('backups', 'Backups', section.endpoints.map(function(ep){
-        return { label: `${ep.line}B`, panel: formatDataLinePanel(ep.backup) };
+        return { line: `${ep.line}B`, panel: formatDataLinePanel(ep.backup), unit: '', port: null };
       })));
     }
 

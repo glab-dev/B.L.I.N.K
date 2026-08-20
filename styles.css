@@ -3943,6 +3943,53 @@ canvas:focus {
 }
 .data-line-map:empty { padding: 0; }
 
+/* Data line map rows: Line | Panel | Unit | Port.
+   Own classes rather than .weight-row, which the structure view and plates
+   table share. */
+.dlm-row {
+  display: grid;
+  grid-template-columns: 2.2em 3.2em 3.4em 2em;
+  gap: 10px;
+  padding: 3px 0;
+  border-bottom: 1px solid #2a2a2a;
+  align-items: baseline;
+}
+
+.dlm-row:last-child {
+  border-bottom: none;
+}
+
+.dlm-head {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #777;
+  border-bottom: 1px solid #3a3a3a;
+  padding-bottom: 3px;
+}
+
+.dlm-line {
+  color: #aaa;
+}
+
+.dlm-panel,
+.dlm-port {
+  font-weight: 600;
+  color: #fff;
+}
+
+.dlm-unit {
+  color: #e0e0e0;
+}
+
+.dlm-head .dlm-line,
+.dlm-head .dlm-panel,
+.dlm-head .dlm-unit,
+.dlm-head .dlm-port {
+  color: #777;
+  font-weight: 400;
+}
+
 /* 3-phase load card — reuses the .structure-info-box card styling so it matches
    the structure-view and data-layout tables. App green = var(--primary). */
 .phase-balance-legend { padding-top: 10px; }

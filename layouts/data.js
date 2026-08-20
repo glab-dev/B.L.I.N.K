@@ -605,6 +605,10 @@ function drawArrowPath(ctx, points, colorHex, opts){
 // data canvas, using the per-screen endpoints stashed by renderDataLayout().
 // Build a comic-style card matching the structure info boxes.
 // Shared with the combined view's per-screen map (nav/combined.js).
+// Rows are { line, panel, unit, port } and render as four columns: data line
+// number, panel, the processor or distribution box it lands on, and the port on
+// that unit. Uses its own .dlm-* classes — .weight-row is shared with the
+// structure view and the plates table.
 function buildDataLineMapBox(variant, title, rows) {
   const box = document.createElement('div');
   box.className = `structure-info-box ${variant}`;
@@ -612,17 +616,30 @@ function buildDataLineMapBox(variant, title, rows) {
   h.className = `structure-info-title ${variant}`;
   h.textContent = title;
   box.appendChild(h);
+
+  const head = document.createElement('div');
+  head.className = 'dlm-row dlm-head';
+  ['Line', 'Panel', 'Unit', 'Port'].forEach(function(label) {
+    const c = document.createElement('span');
+    c.textContent = label;
+    head.appendChild(c);
+  });
+  box.appendChild(head);
+
   rows.forEach(function(row) {
     const r = document.createElement('div');
-    r.className = 'weight-row';
-    const lab = document.createElement('span');
-    lab.className = 'weight-label';
-    lab.textContent = row.label;
-    const val = document.createElement('span');
-    val.className = 'weight-value';
-    val.textContent = row.panel;
-    r.appendChild(lab);
-    r.appendChild(val);
+    r.className = 'dlm-row';
+    [
+      { text: row.line, cls: 'dlm-line' },
+      { text: row.panel, cls: 'dlm-panel' },
+      { text: row.unit || '\u2014', cls: 'dlm-unit' },
+      { text: (row.port === null || row.port === undefined) ? '\u2014' : row.port, cls: 'dlm-port' }
+    ].forEach(function(cell) {
+      const c = document.createElement('span');
+      c.className = cell.cls;
+      c.textContent = cell.text;
+      r.appendChild(c);
+    });
     box.appendChild(r);
   });
   return box;
@@ -644,19 +661,20 @@ function renderDataLineMap() {
   const redundancy = !!(screen.data && screen.data.redundancy);
 
   // Destination (processor / distribution box / physical port) for each main line.
-  const destFor = function(line) {
-    if(typeof dataLineDestinationLabel !== 'function') return '';
-    const d = dataLineDestinationLabel(currentScreenId, line);
-    return d ? ` \u2192 ${d}` : '';
+  const partsFor = function(line) {
+    return (typeof dataLineDestinationParts === 'function')
+      ? dataLineDestinationParts(currentScreenId, line) : null;
   };
 
   host.appendChild(buildDataLineMapBox('mains', 'Mains', endpoints.map(function(ep){
-    return { label: `${ep.line}${destFor(ep.line)}`, panel: formatDataLinePanel(ep.main) };
+    const d = partsFor(ep.line);
+    return { line: `${ep.line}`, panel: formatDataLinePanel(ep.main),
+             unit: d ? d.unit : '', port: d ? d.port : null };
   })));
 
   if(redundancy) {
     host.appendChild(buildDataLineMapBox('backups', 'Backups', endpoints.map(function(ep){
-      return { label: `${ep.line}B`, panel: formatDataLinePanel(ep.backup) };
+      return { line: `${ep.line}B`, panel: formatDataLinePanel(ep.backup), unit: '', port: null };
     })));
   }
 }

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.135",
+  "version": "2.11.136",
   "updated": "2026-08-20",
-  "changelog": "Add Assign Data Port dialog with processor, distribution box and port fields"
+  "changelog": "Add per-screen processor pickers and apply-to-all to the combined data layout"
 }

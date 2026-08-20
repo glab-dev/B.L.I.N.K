@@ -2104,6 +2104,7 @@ function renderCombinedView() {
   renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
   renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
   updateCombinedDataToggleButtons();
+  renderCombinedProcessorPickers();
   renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding);
 
   // Combined cable diagram (uses screenDimensions for matching standard layout positions)
@@ -2706,6 +2707,143 @@ function updateCombinedDataToggleButtons() {
     labelsBtn.classList.toggle('active', labels === 'on');
     labelsBtn.textContent = labels === 'on' ? 'On' : 'Off';
   }
+}
+
+// ==================== COMBINED PER-SCREEN PROCESSOR PICKERS ====================
+// Each selected screen gets its own processor select, because a rig often runs
+// different processors on different walls. "Apply to all" writes one choice across
+// the whole selection. Choosing here updates screens[id].data.processor, which is
+// exactly what the Complex tab's #processor select reads.
+
+// Write a processor (and optionally a connection mode) to the given screens, then
+// keep the open screen's DOM + globals in step before recalculating. Without that
+// sync, saveCurrentScreenData() - which runs at the top of renderCombinedView() -
+// writes the stale globals straight back over the change.
+function writeCombinedProcessor(screenIds, procId, mode) {
+  let currentTouched = false;
+  screenIds.forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+    if(procId) screen.data.processor = procId;
+    if(mode) screen.data.mx40ConnectionMode = mode;
+    if(screenId === currentScreenId) currentTouched = true;
+  });
+
+  if(currentTouched) {
+    const d = screens[currentScreenId].data;
+    const procSelect = document.getElementById('processor');
+    if(procSelect && d.processor) procSelect.value = d.processor;
+    if(typeof mx40ConnectionMode !== 'undefined') mx40ConnectionMode = d.mx40ConnectionMode || 'direct';
+    if(typeof updateMX40ModeToggleVisibility === 'function') updateMX40ModeToggleVisibility();
+    const directBtn = document.getElementById('mx40DirectBtn');
+    const indirectBtn = document.getElementById('mx40IndirectBtn');
+    if(directBtn) directBtn.classList.toggle('active', (d.mx40ConnectionMode || 'direct') === 'direct');
+    if(indirectBtn) indirectBtn.classList.toggle('active', d.mx40ConnectionMode === 'indirect');
+  }
+
+  // Processor choice changes panels-per-data-line and the port plan, both of which
+  // span every screen, so always recalculate. calculate() re-renders the combined
+  // view through its own hook whenever that view is the active one.
+  calculate();
+}
+
+function setCombinedScreenProcessor(screenId, procId) {
+  writeCombinedProcessor([screenId], procId, null);
+}
+
+function setCombinedScreenMode(screenId, mode) {
+  writeCombinedProcessor([screenId], null, mode);
+}
+
+function applyCombinedProcessorToAll(procId) {
+  if(!procId) return;
+  writeCombinedProcessor([...combinedSelectedScreens], procId, null);
+}
+
+function renderCombinedProcessorPickers() {
+  const host = document.getElementById('combinedDataProcessorList');
+  if(!host) return;
+  host.innerHTML = '';
+  if(combinedSelectedScreens.size === 0) return;
+
+  const header = document.createElement('div');
+  header.className = 'cdp-header';
+  header.textContent = 'Processor per screen';
+  host.appendChild(header);
+
+  // "Apply to all" row
+  const allRow = document.createElement('div');
+  allRow.className = 'cdp-row';
+  const allLabel = document.createElement('span');
+  allLabel.className = 'cdp-name';
+  allLabel.textContent = 'All selected';
+  allRow.appendChild(allLabel);
+  const allSelect = document.createElement('select');
+  allSelect.title = 'Applies to every selected screen';
+  populateProcessorSelect(allSelect, false);
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Apply to all...';
+  allSelect.insertBefore(placeholder, allSelect.firstChild);
+  allSelect.value = '';
+  allSelect.addEventListener('change', function() {
+    const v = allSelect.value;
+    allSelect.value = '';
+    if(v) applyCombinedProcessorToAll(v);
+  });
+  allRow.appendChild(allSelect);
+  host.appendChild(allRow);
+
+  // One row per selected screen, in tab order
+  const ordered = [...combinedSelectedScreens].sort(
+    (a, b) => (parseInt(a.split('_')[1]) || 0) - (parseInt(b.split('_')[1]) || 0)
+  );
+
+  ordered.forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+
+    const row = document.createElement('div');
+    row.className = 'cdp-row';
+
+    const name = document.createElement('span');
+    name.className = 'cdp-name';
+    const swatch = document.createElement('span');
+    swatch.className = 'cdp-swatch';
+    swatch.style.background = screen.color || '#888';
+    name.appendChild(swatch);
+    name.appendChild(document.createTextNode(screen.name || screenId));
+    row.appendChild(name);
+
+    const select = document.createElement('select');
+    populateProcessorSelect(select, false);
+    select.value = screen.data.processor || 'Brompton_SX40';
+    select.addEventListener('change', function() {
+      setCombinedScreenProcessor(screenId, select.value);
+    });
+    row.appendChild(select);
+
+    // Direct/Indirect only for processors that offer both
+    const topology = resolveProcessorTopology(screen.data.processor || 'Brompton_SX40',
+                                              screen.data.mx40ConnectionMode || 'direct');
+    if(topology.supportsDirect && topology.canUseDistBox) {
+      const mode = screen.data.mx40ConnectionMode || 'direct';
+      const wrap = document.createElement('div');
+      wrap.className = 'slider-toggle cdp-mode';
+      ['direct', 'indirect'].forEach(m => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'slider-toggle-btn' + (mode === m ? ' active' : '');
+        btn.textContent = m === 'direct' ? 'Direct' : 'Indirect';
+        btn.title = 'Indirect routes this screen through ' + (topology.distBoxName || 'a distribution box');
+        btn.addEventListener('click', function() { setCombinedScreenMode(screenId, m); });
+        wrap.appendChild(btn);
+      });
+      row.appendChild(wrap);
+    }
+
+    host.appendChild(row);
+  });
 }
 
 // Render combined data layout

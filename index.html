@@ -3181,6 +3181,7 @@
         <span>Data Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedDataContainer')" id="combinedDataCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="combinedDataContent">
+        <div id="combinedDataProcessorList" class="cdp-list"></div>
         <div class="layout-toggle-row">
           <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">View</span>
@@ -3774,8 +3775,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.135';
-const APP_CHANGELOG = 'Add Assign Data Port dialog with processor, distribution box and port fields';
+const APP_VERSION = '2.11.136';
+const APP_CHANGELOG = 'Add per-screen processor pickers and apply-to-all to the combined data layout';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -23,15 +23,15 @@ function getCurrentProcessor() {
 }
 
 // Update processor dropdowns
-function updateProcessorDropdowns() {
-  const processorSelect = document.getElementById('processor');
-  if(!processorSelect) return;
-
-  const currentValue = processorSelect.value;
+// Fill a <select> with the brand-grouped processor list.
+// Shared by the Complex tab's #processor select and the combined view's per-screen
+// pickers so the two can never drift apart. includeAddCustom adds the
+// "Add Custom Processor..." sentinel that config/dom-setup.js intercepts — the
+// combined pickers pass false so it cannot fire from there.
+function populateProcessorSelect(selectEl, includeAddCustom) {
+  if(!selectEl) return;
   const allProcessors = getAllProcessors();
-
-  // Clear and rebuild
-  processorSelect.innerHTML = '';
+  selectEl.innerHTML = '';
 
   // Helper to extract brand from processor key or name
   function getProcessorBrand(key, proc) {
@@ -79,7 +79,7 @@ function updateProcessorDropdowns() {
       option.textContent = displayName;
       brandGroup.appendChild(option);
     });
-    processorSelect.appendChild(brandGroup);
+    selectEl.appendChild(brandGroup);
   });
 
   // Group custom processors by brand
@@ -103,17 +103,29 @@ function updateProcessorDropdowns() {
         option.textContent = proc.name + communityBadge;
         brandGroup.appendChild(option);
       });
-      processorSelect.appendChild(brandGroup);
+      selectEl.appendChild(brandGroup);
     });
   }
 
-  // Add "Add Custom Processor" option at the end
-  const addCustomOption = document.createElement('option');
-  addCustomOption.value = '__ADD_CUSTOM_PROCESSOR__';
-  addCustomOption.textContent = 'Add Custom Processor...';
-  addCustomOption.style.fontWeight = 'bold';
-  addCustomOption.style.color = '#4a9eff';
-  processorSelect.appendChild(addCustomOption);
+  if(includeAddCustom !== false) {
+    // Add "Add Custom Processor" option at the end
+    const addCustomOption = document.createElement('option');
+    addCustomOption.value = '__ADD_CUSTOM_PROCESSOR__';
+    addCustomOption.textContent = 'Add Custom Processor...';
+    addCustomOption.style.fontWeight = 'bold';
+    addCustomOption.style.color = '#4a9eff';
+    selectEl.appendChild(addCustomOption);
+  }
+}
+
+function updateProcessorDropdowns() {
+  const processorSelect = document.getElementById('processor');
+  if(!processorSelect) return;
+
+  const currentValue = processorSelect.value;
+  const allProcessors = getAllProcessors();
+
+  populateProcessorSelect(processorSelect, true);
 
   // Restore selection
   if(currentValue && allProcessors[currentValue]) {

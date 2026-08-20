@@ -395,12 +395,16 @@ function formatPortRanges(ports) {
 
 // Availability line shown under the Port # field, e.g.
 // "XD 1: ports 1-6 used by Screen A. Free: 7-10."
-function dataPortHintFor(screenId, topology, current) {
+function dataPortHintFor(screenId, topology, current, panelKeys) {
   if(!current || current.proc === null) return '';
   if(topology.usesDistBox && current.box === null) return '';
   try {
-    const procType = (screens[screenId] && screens[screenId].data.processor) || 'Brompton_SX40';
-    const avail = dataPortUnitAvailability(procType, current.proc, current.box, screenId, []);
+    const data = liveScreenData(screenId);
+    const procType = (data && data.processor) || 'Brompton_SX40';
+    // The selection's own lines are being re-assigned, so they do not count as
+    // occupying the unit.
+    const own = data ? [...dataLinesForPanels(data, panelKeys)] : [];
+    const avail = dataPortUnitAvailability(procType, current.proc, current.box, screenId, own);
     const names = new Set();
     avail.holders.forEach(sid => { if(screens[sid]) names.add(screens[sid].name); });
     const who = names.size ? (' used by ' + [...names].join(', ')) : '';
@@ -456,8 +460,30 @@ function dataPortLoopbackBlocker(procType, topology, redundant, box, port) {
   return null;
 }
 
-// Returns an explanatory message when an assignment cannot fit the target unit,
-// or null when it is fine. panelKeys is the selection being assigned.
+// The data lines the given panels belong to, on one screen.
+function dataLinesForPanels(data, panelKeys) {
+  const out = new Set();
+  const inp = resolveScreenDataInputs(data);
+  if(!inp || typeof buildDataLineGroups !== 'function') return out;
+  const built = buildDataLineGroups({
+    pw: inp.pw, ph: inp.ph,
+    panelsPerDataLine: inp.panelsPerDataLine,
+    startDir: inp.startDir,
+    deletedPanels: inp.deletedPanels,
+    customDataLineAssignments: inp.customDataLines
+  });
+  const wanted = new Set(panelKeys || []);
+  (built.sortedDataLines || []).forEach((ln, gi) => {
+    const group = built.groups[gi] || [];
+    if(group.some(pt => wanted.has(pt.c + ',' + pt.r))) out.add(ln + 1);
+  });
+  return out;
+}
+
+// Blocks only what the hardware genuinely forbids: a main on a loop-back box or
+// port. Running out of ports on a unit is NOT blocked — an explicit assignment is
+// authoritative and takes over, the same rule a manually assigned SOCA follows on
+// the power side. Over-capacity is reported by buildDataPortPlan() as overflows[].
 function dataPortAssignmentBlocker(screenId, panelKeys, topology, result) {
   if(result.proc === null) return null;
   if(topology.usesDistBox && result.box === null) return null;
@@ -466,31 +492,8 @@ function dataPortAssignmentBlocker(screenId, panelKeys, topology, result) {
   if(!data) return null;
   const procType = data.processor || 'Brompton_SX40';
 
-  // How many distinct data lines is this selection about to put on the unit?
-  const info = screenDataLineDestinations(data);
-  const lines = new Set();
-  if(result.port !== null) {
-    lines.add(result.port);
-  } else {
-    const built = info.lines;
-    built.forEach(l => lines.add(l));
-  }
-
   const redundant = dataPortBucketIsRedundant(procType);
-  const loopback = dataPortLoopbackBlocker(procType, topology, redundant, result.box, result.port);
-  if(loopback) return loopback;
-
-  const avail = dataPortUnitAvailability(procType, result.proc, result.box, screenId, [...lines]);
-  if(lines.size <= avail.freePorts.length) return null;
-
-  const names = new Set();
-  avail.holders.forEach(sid => { if(screens[sid]) names.add(screens[sid].name); });
-  const who = names.size ? (' by ' + [...names].join(', ')) : '';
-  const usedPorts = formatPortRanges([...avail.holders.keys()]);
-
-  return avail.unitLabel + ' has only ' + avail.freePorts.length + ' free port(s) but this assignment needs '
-       + lines.size + '.\n\nPorts ' + usedPorts + ' are already in use' + who
-       + '.\nFree: ' + formatPortRanges(avail.freePorts) + '.\n\nPick another unit, or free up ports first.';
+  return dataPortLoopbackBlocker(procType, topology, redundant, result.box, result.port);
 }
 
 // Cached plan, rebuilt whenever a calculate() cycle invalidates it. buildDataPortPlan()

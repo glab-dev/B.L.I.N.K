@@ -1,5 +1,5 @@
 {
-  "version": "2.11.145",
+  "version": "2.11.146",
   "updated": "2026-08-20",
-  "changelog": "Show backup destinations on the data line maps and in the PDF"
+  "changelog": "Let an explicit data port assignment take over instead of refusing a full unit"
 }

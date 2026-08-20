@@ -776,7 +776,7 @@ async function showDataLineNumberPrompt() {
   };
 
   const result = await showDataPortPrompt(panelsToAssign.size, topology, current,
-                                          dataPortHintFor(currentScreenId, topology, current));
+                                          dataPortHintFor(currentScreenId, topology, current, [...panelsToAssign]));
   if(result === null) return; // Cancelled
 
   // Processor and box accept a letter or a number, like the SOCA input.
@@ -792,7 +792,7 @@ async function showDataLineNumberPrompt() {
 
   // Refuse an assignment that would overfill the target unit, naming who holds it.
   const blocked = dataPortAssignmentBlocker(currentScreenId, panelsToAssign, topology, result);
-  if(blocked) { showAlert(blocked, 'Unit Full'); return; }
+  if(blocked) { showAlert(blocked, 'Loop-back Port'); return; }
 
   saveState(); // Save state before making changes
 

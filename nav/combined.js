@@ -1359,7 +1359,7 @@ async function promptAssignCombinedDataLine() {
   };
 
   const result = await showDataPortPrompt(panelsToAssign.length, topology, current,
-                                          dataPortHintFor(panelsToAssign[0].screenId, topology, current));
+                                          dataPortHintFor(panelsToAssign[0].screenId, topology, current, panelsByScreen[panelsToAssign[0].screenId]));
   if(result === null) return; // Cancelled
 
   // Processor and box accept a letter or a number, like the SOCA input.
@@ -1375,7 +1375,7 @@ async function promptAssignCombinedDataLine() {
 
   for(const screenId of screenIds) {
     const blocked = dataPortAssignmentBlocker(screenId, panelsByScreen[screenId], topology, result);
-    if(blocked) { showAlert(blocked, 'Unit Full'); return; }
+    if(blocked) { showAlert(blocked, 'Loop-back Port'); return; }
   }
 
   if(typeof saveState === 'function') saveState();

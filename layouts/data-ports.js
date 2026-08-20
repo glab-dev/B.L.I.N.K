@@ -255,6 +255,68 @@ function buildDataPortPlan(liveOverride) {
   return { perScreen: perScreen, groups: groups, conflicts: conflicts, overflows: overflows };
 }
 
+// Which physical ports on one unit are free, and who holds the rest.
+// Used before writing an assignment so the user is told "ports 1-6 are already
+// used by Screen A, 7-10 are free" instead of silently overflowing the unit.
+// excludeScreenId/excludeLines let a re-assignment ignore its own current lines.
+function dataPortUnitAvailability(procType, proc, box, excludeScreenId, excludeLines) {
+  const plan = buildDataPortPlan();
+  const topology = resolveProcessorTopology(procType, dataPortBucketIsIndirect(procType) ? 'indirect' : 'direct');
+  const usesDistBox = topology.usesDistBox;
+  const capacity = Math.max(1, usesDistBox ? topology.distBoxPorts : topology.portsPerProcessor);
+
+  const skip = new Set((excludeLines || []).map(l => String(l)));
+  const holders = new Map(); // port -> screenId
+  let used = 0;
+
+  plan.perScreen.forEach((lineMap, screenId) => {
+    lineMap.forEach((dest, line) => {
+      if(dest.procType !== procType) return;
+      if(dest.proc !== proc) return;
+      if(usesDistBox && dest.box !== box) return;
+      if(screenId === excludeScreenId && skip.has(String(line))) return;
+      used++;
+      holders.set(dest.port, screenId);
+    });
+  });
+
+  const freePorts = [];
+  for(let p = 1; p <= capacity; p++) {
+    if(!holders.has(p)) freePorts.push(p);
+  }
+
+  return {
+    capacity: capacity,
+    used: used,
+    freePorts: freePorts,
+    holders: holders,
+    unitLabel: usesDistBox ? ((topology.distBoxName || 'Box') + ' ' + box) : ('Processor ' + proc)
+  };
+}
+
+// True when any screen using this processor type is in indirect mode — the same
+// rule core/gear-data.js applies when grouping.
+function dataPortBucketIsIndirect(procType) {
+  return dataPortScreenIds().some(id => {
+    const d = screens[id].data;
+    return (d.processor || 'Brompton_SX40') === procType && d.mx40ConnectionMode === 'indirect';
+  });
+}
+
+// Compact "1-6, 9" style summary of a port list.
+function formatPortRanges(ports) {
+  if(!ports || !ports.length) return 'none';
+  const sorted = ports.slice().sort((a, b) => a - b);
+  const out = [];
+  let start = sorted[0], prev = sorted[0];
+  for(let i = 1; i <= sorted.length; i++) {
+    if(i < sorted.length && sorted[i] === prev + 1) { prev = sorted[i]; continue; }
+    out.push(start === prev ? String(start) : (start + '-' + prev));
+    if(i < sorted.length) { start = sorted[i]; prev = sorted[i]; }
+  }
+  return out.join(', ');
+}
+
 // Format a destination for display: "P1·XD2·7", or "P1·7" with no box.
 function formatDataPortLabel(dest, distBoxName) {
   if(!dest) return '';

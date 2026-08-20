@@ -1,5 +1,5 @@
 {
-  "version": "2.11.133",
+  "version": "2.11.134",
   "updated": "2026-08-20",
-  "changelog": "Let manual processor and distribution box assignments drive gear list counts"
+  "changelog": "Add port availability lookup reporting which screen holds each port on a unit"
 }

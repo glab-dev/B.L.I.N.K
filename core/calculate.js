@@ -671,6 +671,7 @@ function resetCalculator() {
   
   // Clear custom data line assignments
   customDataLineAssignments.clear();
+  customDataDestinations.clear();
   
   // Reset bumpers
   bumpers = [];

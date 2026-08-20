@@ -3742,8 +3742,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.130';
-const APP_CHANGELOG = 'Unify distribution box resolution behind processor topology across five call sites';
+const APP_VERSION = '2.11.131';
+const APP_CHANGELOG = 'Add customDataDestinations screen state and persist mx40ConnectionMode to file';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -3759,6 +3759,7 @@ let selectedPanels = new Set(); // stores "col,row" strings for multi-select
 let customCircuitAssignments = new Map(); // stores "col,row" -> circuit number
 let customSocaAssignments = new Map(); // stores "col,row" -> 1-based SOCA number
 let customDataLineAssignments = new Map(); // stores "col,row" -> data line number
+let customDataDestinations = new Map(); // stores "col,row" -> { proc, box } for that panel's data line
 let isDragging = false;
 let selectMode = false; // mobile: drag-select panels without scrolling the page
 let dragStartX = 0;

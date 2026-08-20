@@ -1,7 +1,8 @@
 // ==================== UNDO/REDO SYSTEM ====================
 // Panel undo/redo for standard layout changes.
 // Depends on globals: undoHistory, redoHistory, MAX_HISTORY, deletedPanels,
-// selectedPanels, customCircuitAssignments, customDataLineAssignments.
+// selectedPanels, customCircuitAssignments, customDataLineAssignments,
+// customDataDestinations.
 
 function saveState() {
   const state = {
@@ -9,7 +10,8 @@ function saveState() {
     selectedPanels: new Set(selectedPanels),
     customCircuitAssignments: new Map(customCircuitAssignments),
     customSocaAssignments: new Map(customSocaAssignments),
-    customDataLineAssignments: new Map(customDataLineAssignments)
+    customDataLineAssignments: new Map(customDataLineAssignments),
+    customDataDestinations: new Map(customDataDestinations)
   };
   
   undoHistory.push(state);
@@ -31,7 +33,8 @@ function undo() {
     selectedPanels: new Set(selectedPanels),
     customCircuitAssignments: new Map(customCircuitAssignments),
     customSocaAssignments: new Map(customSocaAssignments),
-    customDataLineAssignments: new Map(customDataLineAssignments)
+    customDataLineAssignments: new Map(customDataLineAssignments),
+    customDataDestinations: new Map(customDataDestinations)
   };
   redoHistory.push(currentState);
 
@@ -42,6 +45,7 @@ function undo() {
   customCircuitAssignments = new Map(previousState.customCircuitAssignments);
   customSocaAssignments = new Map(previousState.customSocaAssignments || []);
   customDataLineAssignments = new Map(previousState.customDataLineAssignments);
+  customDataDestinations = new Map(previousState.customDataDestinations || []);
   
   // Sync deleted panels to current screen data for canvas view
   if(screens[currentScreenId]) {
@@ -72,7 +76,8 @@ function redo() {
     selectedPanels: new Set(selectedPanels),
     customCircuitAssignments: new Map(customCircuitAssignments),
     customSocaAssignments: new Map(customSocaAssignments),
-    customDataLineAssignments: new Map(customDataLineAssignments)
+    customDataLineAssignments: new Map(customDataLineAssignments),
+    customDataDestinations: new Map(customDataDestinations)
   };
   undoHistory.push(currentState);
 
@@ -83,6 +88,7 @@ function redo() {
   customCircuitAssignments = new Map(nextState.customCircuitAssignments);
   customSocaAssignments = new Map(nextState.customSocaAssignments || []);
   customDataLineAssignments = new Map(nextState.customDataLineAssignments);
+  customDataDestinations = new Map(nextState.customDataDestinations || []);
   
   // Sync deleted panels to current screen data for canvas view
   if(screens[currentScreenId]) {

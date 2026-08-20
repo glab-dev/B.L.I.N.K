@@ -107,6 +107,7 @@ function getDefaultScreenData() {
     customCircuitAssignments: new Map(),
     customSocaAssignments: new Map(),
     customDataLineAssignments: new Map(),
+    customDataDestinations: new Map(),
     undoHistory: [],
     redoHistory: []
   };
@@ -299,6 +300,7 @@ function saveCurrentScreenData() {
   data.customCircuitAssignments = new Map(customCircuitAssignments); // Copy Map
   data.customSocaAssignments = new Map(customSocaAssignments); // Copy Map
   data.customDataLineAssignments = new Map(customDataLineAssignments); // Copy Map
+  data.customDataDestinations = new Map(customDataDestinations); // Copy Map
 
   // Deep copy undo/redo history
   data.undoHistory = undoHistory.map(state => ({
@@ -306,14 +308,16 @@ function saveCurrentScreenData() {
     selectedPanels: new Set(state.selectedPanels),
     customCircuitAssignments: new Map(state.customCircuitAssignments),
     customSocaAssignments: new Map(state.customSocaAssignments || []),
-    customDataLineAssignments: new Map(state.customDataLineAssignments)
+    customDataLineAssignments: new Map(state.customDataLineAssignments),
+    customDataDestinations: new Map(state.customDataDestinations || [])
   }));
   data.redoHistory = redoHistory.map(state => ({
     deletedPanels: new Set(state.deletedPanels),
     selectedPanels: new Set(state.selectedPanels),
     customCircuitAssignments: new Map(state.customCircuitAssignments),
     customSocaAssignments: new Map(state.customSocaAssignments || []),
-    customDataLineAssignments: new Map(state.customDataLineAssignments)
+    customDataLineAssignments: new Map(state.customDataLineAssignments),
+    customDataDestinations: new Map(state.customDataDestinations || [])
   }));
 }
 
@@ -556,6 +560,7 @@ function loadScreenData(screenId) {
   customCircuitAssignments = data.customCircuitAssignments ? new Map(data.customCircuitAssignments) : new Map();
   customSocaAssignments = data.customSocaAssignments ? new Map(data.customSocaAssignments) : new Map();
   customDataLineAssignments = data.customDataLineAssignments ? new Map(data.customDataLineAssignments) : new Map();
+  customDataDestinations = data.customDataDestinations ? new Map(data.customDataDestinations) : new Map();
 
   // Restore undo/redo history
   undoHistory = data.undoHistory ? data.undoHistory.map(state => ({
@@ -563,14 +568,16 @@ function loadScreenData(screenId) {
     selectedPanels: new Set(state.selectedPanels),
     customCircuitAssignments: new Map(state.customCircuitAssignments),
     customSocaAssignments: new Map(state.customSocaAssignments || []),
-    customDataLineAssignments: new Map(state.customDataLineAssignments)
+    customDataLineAssignments: new Map(state.customDataLineAssignments),
+    customDataDestinations: new Map(state.customDataDestinations || [])
   })) : [];
   redoHistory = data.redoHistory ? data.redoHistory.map(state => ({
     deletedPanels: new Set(state.deletedPanels),
     selectedPanels: new Set(state.selectedPanels),
     customCircuitAssignments: new Map(state.customCircuitAssignments),
     customSocaAssignments: new Map(state.customSocaAssignments || []),
-    customDataLineAssignments: new Map(state.customDataLineAssignments)
+    customDataLineAssignments: new Map(state.customDataLineAssignments),
+    customDataDestinations: new Map(state.customDataDestinations || [])
   })) : [];
   
   // Update undo/redo button states

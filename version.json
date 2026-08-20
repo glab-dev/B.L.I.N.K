@@ -1,5 +1,5 @@
 {
-  "version": "2.11.130",
+  "version": "2.11.131",
   "updated": "2026-08-20",
-  "changelog": "Unify distribution box resolution behind processor topology across five call sites"
+  "changelog": "Add customDataDestinations screen state and persist mx40ConnectionMode to file"
 }

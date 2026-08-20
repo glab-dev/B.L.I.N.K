@@ -1130,6 +1130,32 @@ function showCombinedPanelContextMenu(x, y, panelInfo, layoutKind) {
     menu.appendChild(dataOption);
   }
 
+  // Reset options — available on all three layouts, mirroring the Complex tab's
+  // context menu. Clears every override on the chosen panels so they revert to
+  // auto circuits, SOCAs, data lines and port destinations.
+  const resetSel = combinedSelectionPanels(screenId, key);
+  if(combinedSelectionHasOverrides(resetSel)) {
+    menu.appendChild(createMenuOption(
+      `Reset ${selectedCount} ${panelLabel} to original`,
+      '#6a4a2a',
+      function() {
+        menu.remove();
+        resetCombinedSelectedPanels(resetSel);
+      }
+    ));
+  }
+
+  if(combinedScreensHaveOverrides(resetSel)) {
+    menu.appendChild(createMenuOption(
+      'Reset all modified panels on this screen',
+      '#6a4a2a',
+      function() {
+        menu.remove();
+        resetCombinedScreenPanels(resetSel);
+      }
+    ));
+  }
+
   // Delete/Restore option
   if(showDelete) {
     const toggleOption = createMenuOption(
@@ -1436,6 +1462,128 @@ function combinedSelectionForSoca(fallbackScreenId, fallbackKey) {
 
 // customSocaAssignments / customCircuitAssignments may be a Map or an array of entries
 // (from loaded JSON) — normalise to a Map we can write into.
+// The current combined selection as [{ screenId, panelKey }], falling back to the
+// panel that was right-clicked.
+function combinedSelectionPanels(fallbackScreenId, fallbackKey) {
+  const out = [];
+  if(combinedSelectedPanels.size > 0) {
+    combinedSelectedPanels.forEach(pkey => {
+      const [sid, pk] = pkey.split(':');
+      out.push({ screenId: sid, panelKey: pk });
+    });
+  } else if(fallbackScreenId && fallbackKey) {
+    out.push({ screenId: fallbackScreenId, panelKey: fallbackKey });
+  }
+  return out;
+}
+
+// Every per-panel override map a reset has to clear.
+const COMBINED_OVERRIDE_MAPS = [
+  'customCircuitAssignments',
+  'customSocaAssignments',
+  'customDataLineAssignments',
+  'customDataDestinations'
+];
+
+function combinedSelectionHasOverrides(sel) {
+  return sel.some(p => {
+    const screen = screens[p.screenId];
+    if(!screen || !screen.data) return false;
+    const deleted = toCombinedDeletedSet(screen.data.deletedPanels);
+    if(deleted.has(p.panelKey)) return true;
+    return COMBINED_OVERRIDE_MAPS.some(m => toCombinedDestMap(screen.data[m]).has(p.panelKey));
+  });
+}
+
+function combinedScreensHaveOverrides(sel) {
+  const ids = new Set(sel.map(p => p.screenId));
+  return [...ids].some(id => {
+    const screen = screens[id];
+    if(!screen || !screen.data) return false;
+    if(toCombinedDeletedSet(screen.data.deletedPanels).size) return true;
+    return COMBINED_OVERRIDE_MAPS.some(m => toCombinedDestMap(screen.data[m]).size);
+  });
+}
+
+function toCombinedDeletedSet(value) {
+  if(value instanceof Set) return value;
+  if(Array.isArray(value)) return new Set(value);
+  if(value && typeof value[Symbol.iterator] === 'function') return new Set([...value]);
+  return new Set();
+}
+
+// Drop every override on the selected panels.
+function resetCombinedSelectedPanels(sel) {
+  if(!sel.length) return;
+  if(typeof saveState === 'function') saveState();
+
+  const byScreen = {};
+  sel.forEach(p => { (byScreen[p.screenId] = byScreen[p.screenId] || []).push(p.panelKey); });
+
+  Object.keys(byScreen).forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+    screen.data.deletedPanels = toCombinedDeletedSet(screen.data.deletedPanels);
+    COMBINED_OVERRIDE_MAPS.forEach(m => { screen.data[m] = toCombinedDestMap(screen.data[m]); });
+
+    byScreen[screenId].forEach(panelKey => {
+      screen.data.deletedPanels.delete(panelKey);
+      COMBINED_OVERRIDE_MAPS.forEach(m => screen.data[m].delete(panelKey));
+    });
+
+    syncCombinedOverridesToGlobals(screenId);
+  });
+
+  finishCombinedReset();
+}
+
+// Clear every override on each screen the selection touches.
+async function resetCombinedScreenPanels(sel) {
+  const ids = [...new Set(sel.map(p => p.screenId))];
+  if(!ids.length) return;
+
+  const names = ids.map(id => screens[id] && screens[id].name).filter(Boolean).join(', ');
+  const ok = await showConfirm(
+    `Reset every modified panel on ${names} back to original? This clears all custom `
+    + 'circuits, SOCAs, data lines and port assignments, and restores deleted panels.',
+    'Reset all panels'
+  );
+  if(!ok) return;
+
+  if(typeof saveState === 'function') saveState();
+
+  ids.forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen || !screen.data) return;
+    screen.data.deletedPanels = new Set();
+    COMBINED_OVERRIDE_MAPS.forEach(m => { screen.data[m] = new Map(); });
+    syncCombinedOverridesToGlobals(screenId);
+  });
+
+  finishCombinedReset();
+}
+
+// Keep the open screen's globals in step — saveCurrentScreenData() runs at the top
+// of renderCombinedView() and would otherwise write the stale ones straight back.
+function syncCombinedOverridesToGlobals(screenId) {
+  if(screenId !== currentScreenId) return;
+  const d = screens[screenId].data;
+  deletedPanels = new Set(d.deletedPanels);
+  customCircuitAssignments = new Map(d.customCircuitAssignments);
+  customSocaAssignments = new Map(d.customSocaAssignments);
+  customDataLineAssignments = new Map(d.customDataLineAssignments);
+  customDataDestinations = new Map(d.customDataDestinations);
+}
+
+function finishCombinedReset() {
+  combinedSelectedPanels.clear();
+  combinedSelectedPanel = null;
+  syncCombinedSelectedPanel();
+  // Always recalculate: circuits, SOCAs and the port plan all span screens.
+  calculate();
+  renderCombinedView();
+}
+
 function toCombinedDestMap(value) {
   if(value instanceof Map) return value;
   if(Array.isArray(value)) return new Map(value);
@@ -1908,10 +2056,13 @@ function initCombinedView() {
   if(desktopHints) desktopHints.style.display = isMobile ? 'none' : 'inline';
   if(mobileHints) mobileHints.style.display = isMobile ? 'inline' : 'none';
 
-  // Select Mode toggles are touch-only — desktop drag-select already works with the mouse
+  // Select Mode toggles are touch-only — desktop drag-select already works with the mouse.
+  // Clearing the inline display (rather than forcing one) lets each row fall back to its own
+  // stylesheet value: flex for the standard .layout-toggle-row, block for the .flex-noshrink
+  // groups sitting inside the power and data toggle rows.
   COMBINED_SELECTABLE_CANVASES.forEach(({ rowId }) => {
     const row = document.getElementById(rowId);
-    if(row) row.style.display = isMobile ? 'flex' : 'none';
+    if(row) row.style.display = isMobile ? '' : 'none';
   });
 
   // Clear existing toggles
@@ -2802,13 +2953,9 @@ function renderCombinedProcessorPickers() {
   header.textContent = 'Processor per screen';
   host.appendChild(header);
 
-  // "Apply to all" row
+  // "Apply to all" sits on its own row above the grid
   const allRow = document.createElement('div');
-  allRow.className = 'cdp-row';
-  const allLabel = document.createElement('span');
-  allLabel.className = 'cdp-name';
-  allLabel.textContent = 'All selected';
-  allRow.appendChild(allLabel);
+  allRow.className = 'cdp-apply';
   const allSelect = document.createElement('select');
   allSelect.title = 'Applies to every selected screen';
   populateProcessorSelect(allSelect, false);
@@ -2825,7 +2972,10 @@ function renderCombinedProcessorPickers() {
   allRow.appendChild(allSelect);
   host.appendChild(allRow);
 
-  // One row per selected screen, in tab order
+  // One compact cell per selected screen, in tab order, flowing into columns
+  const grid = document.createElement('div');
+  grid.className = 'cdp-grid';
+
   const ordered = [...combinedSelectedScreens].sort(
     (a, b) => (parseInt(a.split('_')[1]) || 0) - (parseInt(b.split('_')[1]) || 0)
   );
@@ -2839,6 +2989,7 @@ function renderCombinedProcessorPickers() {
 
     const name = document.createElement('span');
     name.className = 'cdp-name';
+    name.title = screen.name || screenId;
     const swatch = document.createElement('span');
     swatch.className = 'cdp-swatch';
     swatch.style.background = screen.color || '#888';
@@ -2861,20 +3012,24 @@ function renderCombinedProcessorPickers() {
       const mode = screen.data.mx40ConnectionMode || 'direct';
       const wrap = document.createElement('div');
       wrap.className = 'slider-toggle cdp-mode';
-      ['direct', 'indirect'].forEach(m => {
+      [['direct', 'Dir'], ['indirect', 'Ind']].forEach(pair => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'slider-toggle-btn' + (mode === m ? ' active' : '');
-        btn.textContent = m === 'direct' ? 'Direct' : 'Indirect';
-        btn.title = 'Indirect routes this screen through ' + (topology.distBoxName || 'a distribution box');
-        btn.addEventListener('click', function() { setCombinedScreenMode(screenId, m); });
+        btn.className = 'slider-toggle-btn' + (mode === pair[0] ? ' active' : '');
+        btn.textContent = pair[1];
+        btn.title = pair[0] === 'indirect'
+          ? ('Indirect routes this screen through ' + (topology.distBoxName || 'a distribution box'))
+          : 'Direct connection, no distribution box';
+        btn.addEventListener('click', function() { setCombinedScreenMode(screenId, pair[0]); });
         wrap.appendChild(btn);
       });
       row.appendChild(wrap);
     }
 
-    host.appendChild(row);
+    grid.appendChild(row);
   });
+
+  host.appendChild(grid);
 }
 
 // Render combined data layout

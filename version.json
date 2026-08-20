@@ -1,5 +1,5 @@
 {
-  "version": "2.11.137",
+  "version": "2.11.138",
   "updated": "2026-08-20",
-  "changelog": "Show processor, distribution box and port destination on every data line map"
+  "changelog": "Add reset options to combined panel menu and compact the processor pickers"
 }

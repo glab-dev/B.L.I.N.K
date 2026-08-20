@@ -136,6 +136,7 @@ function resetSelectedPanels() {
     customCircuitAssignments.delete(key);
     customSocaAssignments.delete(key);
     customDataLineAssignments.delete(key);
+    customDataDestinations.delete(key);
   });
   selectedPanels.clear();
 
@@ -153,12 +154,13 @@ function resetSelectedPanels() {
 
 async function resetAllModifiedPanels() {
   const hasMods = deletedPanels.size || customCircuitAssignments.size
-    || customSocaAssignments.size || customDataLineAssignments.size;
+    || customSocaAssignments.size || customDataLineAssignments.size
+    || customDataDestinations.size;
   if(!hasMods) return;
 
   const ok = await showConfirm(
     'Reset every modified panel on this screen back to its original state? ' +
-    'This clears all custom circuits, SOCAs, data lines, and restores deleted panels.',
+    'This clears all custom circuits, SOCAs, data lines, port assignments, and restores deleted panels.',
     'Reset all panels'
   );
   if(!ok) return;
@@ -169,6 +171,7 @@ async function resetAllModifiedPanels() {
   customCircuitAssignments.clear();
   customSocaAssignments.clear();
   customDataLineAssignments.clear();
+  customDataDestinations.clear();
   selectedPanels.clear();
 
   // Save to current screen data so canvas view can see restored panels
@@ -546,7 +549,8 @@ function showContextMenu(x, y) {
   // Reset selected option — only when at least one selected panel is modified
   const _anySelModified = [...selectedPanels].some(k =>
     deletedPanels.has(k) || customCircuitAssignments.has(k)
-    || customSocaAssignments.has(k) || customDataLineAssignments.has(k));
+    || customSocaAssignments.has(k) || customDataLineAssignments.has(k)
+    || customDataDestinations.has(k));
   let resetSelectedOption = null;
   if (_anySelModified) {
     resetSelectedOption = document.createElement('div');
@@ -570,7 +574,8 @@ function showContextMenu(x, y) {
 
   // Reset all option — only when any override exists on the screen
   const _anyScreenModified = deletedPanels.size || customCircuitAssignments.size
-    || customSocaAssignments.size || customDataLineAssignments.size;
+    || customSocaAssignments.size || customDataLineAssignments.size
+    || customDataDestinations.size;
   let resetAllOption = null;
   if (_anyScreenModified) {
     resetAllOption = document.createElement('div');

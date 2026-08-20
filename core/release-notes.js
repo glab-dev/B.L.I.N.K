@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.138', date: '2026-08-20', notes: 'Add reset options to combined panel menu and compact the processor pickers' },
   { version: '2.11.137', date: '2026-08-20', notes: 'Show processor, distribution box and port destination on every data line map' },
   { version: '2.11.136', date: '2026-08-20', notes: 'Add per-screen processor pickers and apply-to-all to the combined data layout' },
   { version: '2.11.135', date: '2026-08-20', notes: 'Add Assign Data Port dialog with processor, distribution box and port fields' },

@@ -1130,28 +1130,16 @@ function showCombinedPanelContextMenu(x, y, panelInfo, layoutKind) {
     menu.appendChild(dataOption);
   }
 
-  // Reset options — available on all three layouts, mirroring the Complex tab's
-  // context menu. Clears every override on the chosen panels so they revert to
-  // auto circuits, SOCAs, data lines and port destinations.
+  // Reset — scoped to the layout it was opened from: the data canvas resets only
+  // data, the power canvas only power, and the standard canvas everything.
   const resetSel = combinedSelectionPanels(screenId, key);
-  if(combinedSelectionHasOverrides(resetSel)) {
+  if(combinedSelectionHasOverrides(resetSel, kind)) {
     menu.appendChild(createMenuOption(
-      `Reset ${selectedCount} ${panelLabel} to original`,
+      'Reset selected panels',
       '#6a4a2a',
       function() {
         menu.remove();
-        resetCombinedSelectedPanels(resetSel);
-      }
-    ));
-  }
-
-  if(combinedScreensHaveOverrides(resetSel)) {
-    menu.appendChild(createMenuOption(
-      'Reset all modified panels on this screen',
-      '#6a4a2a',
-      function() {
-        menu.remove();
-        resetCombinedScreenPanels(resetSel);
+        resetCombinedSelectedPanels(resetSel, kind);
       }
     ));
   }
@@ -1477,31 +1465,25 @@ function combinedSelectionPanels(fallbackScreenId, fallbackKey) {
   return out;
 }
 
-// Every per-panel override map a reset has to clear.
-const COMBINED_OVERRIDE_MAPS = [
-  'customCircuitAssignments',
-  'customSocaAssignments',
-  'customDataLineAssignments',
-  'customDataDestinations'
-];
+// Which per-panel overrides a reset clears, by the layout it was opened from.
+// Only the standard layout owns panel deletion, so only it restores deleted panels.
+const COMBINED_POWER_MAPS = ['customCircuitAssignments', 'customSocaAssignments'];
+const COMBINED_DATA_MAPS = ['customDataLineAssignments', 'customDataDestinations'];
 
-function combinedSelectionHasOverrides(sel) {
+function combinedResetMaps(kind) {
+  if(kind === 'power') return COMBINED_POWER_MAPS;
+  if(kind === 'data') return COMBINED_DATA_MAPS;
+  return COMBINED_POWER_MAPS.concat(COMBINED_DATA_MAPS);
+}
+
+function combinedSelectionHasOverrides(sel, kind) {
+  const maps = combinedResetMaps(kind);
+  const clearsDeleted = (kind === 'standard');
   return sel.some(p => {
     const screen = screens[p.screenId];
     if(!screen || !screen.data) return false;
-    const deleted = toCombinedDeletedSet(screen.data.deletedPanels);
-    if(deleted.has(p.panelKey)) return true;
-    return COMBINED_OVERRIDE_MAPS.some(m => toCombinedDestMap(screen.data[m]).has(p.panelKey));
-  });
-}
-
-function combinedScreensHaveOverrides(sel) {
-  const ids = new Set(sel.map(p => p.screenId));
-  return [...ids].some(id => {
-    const screen = screens[id];
-    if(!screen || !screen.data) return false;
-    if(toCombinedDeletedSet(screen.data.deletedPanels).size) return true;
-    return COMBINED_OVERRIDE_MAPS.some(m => toCombinedDestMap(screen.data[m]).size);
+    if(clearsDeleted && toCombinedDeletedSet(screen.data.deletedPanels).has(p.panelKey)) return true;
+    return maps.some(m => toCombinedDestMap(screen.data[m]).has(p.panelKey));
   });
 }
 
@@ -1512,10 +1494,13 @@ function toCombinedDeletedSet(value) {
   return new Set();
 }
 
-// Drop every override on the selected panels.
-function resetCombinedSelectedPanels(sel) {
+// Drop the selected panels' overrides for this layout.
+function resetCombinedSelectedPanels(sel, kind) {
   if(!sel.length) return;
   if(typeof saveState === 'function') saveState();
+
+  const maps = combinedResetMaps(kind);
+  const clearsDeleted = (kind === 'standard');
 
   const byScreen = {};
   sel.forEach(p => { (byScreen[p.screenId] = byScreen[p.screenId] || []).push(p.panelKey); });
@@ -1523,12 +1508,12 @@ function resetCombinedSelectedPanels(sel) {
   Object.keys(byScreen).forEach(screenId => {
     const screen = screens[screenId];
     if(!screen || !screen.data) return;
-    screen.data.deletedPanels = toCombinedDeletedSet(screen.data.deletedPanels);
-    COMBINED_OVERRIDE_MAPS.forEach(m => { screen.data[m] = toCombinedDestMap(screen.data[m]); });
+    if(clearsDeleted) screen.data.deletedPanels = toCombinedDeletedSet(screen.data.deletedPanels);
+    maps.forEach(m => { screen.data[m] = toCombinedDestMap(screen.data[m]); });
 
     byScreen[screenId].forEach(panelKey => {
-      screen.data.deletedPanels.delete(panelKey);
-      COMBINED_OVERRIDE_MAPS.forEach(m => screen.data[m].delete(panelKey));
+      if(clearsDeleted) screen.data.deletedPanels.delete(panelKey);
+      maps.forEach(m => screen.data[m].delete(panelKey));
     });
 
     syncCombinedOverridesToGlobals(screenId);
@@ -1537,34 +1522,6 @@ function resetCombinedSelectedPanels(sel) {
   finishCombinedReset();
 }
 
-// Clear every override on each screen the selection touches.
-async function resetCombinedScreenPanels(sel) {
-  const ids = [...new Set(sel.map(p => p.screenId))];
-  if(!ids.length) return;
-
-  const names = ids.map(id => screens[id] && screens[id].name).filter(Boolean).join(', ');
-  const ok = await showConfirm(
-    `Reset every modified panel on ${names} back to original? This clears all custom `
-    + 'circuits, SOCAs, data lines and port assignments, and restores deleted panels.',
-    'Reset all panels'
-  );
-  if(!ok) return;
-
-  if(typeof saveState === 'function') saveState();
-
-  ids.forEach(screenId => {
-    const screen = screens[screenId];
-    if(!screen || !screen.data) return;
-    screen.data.deletedPanels = new Set();
-    COMBINED_OVERRIDE_MAPS.forEach(m => { screen.data[m] = new Map(); });
-    syncCombinedOverridesToGlobals(screenId);
-  });
-
-  finishCombinedReset();
-}
-
-// Keep the open screen's globals in step — saveCurrentScreenData() runs at the top
-// of renderCombinedView() and would otherwise write the stale ones straight back.
 function syncCombinedOverridesToGlobals(screenId) {
   if(screenId !== currentScreenId) return;
   const d = screens[screenId].data;

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.150",
+  "version": "2.11.151",
   "updated": "2026-08-21",
-  "changelog": "Number data lines by their port and start numbering from the first selected screen"
+  "changelog": "Stop iOS input auto-zoom detaching the fixed header and bottom nav"
 }

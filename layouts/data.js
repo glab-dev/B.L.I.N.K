@@ -674,7 +674,9 @@ function renderDataLineMap() {
 
   if(redundancy) {
     host.appendChild(buildDataLineMapBox('backups', 'Backups', endpoints.map(function(ep){
-      return { line: `${ep.line}B`, panel: formatDataLinePanel(ep.backup), unit: '', port: null };
+      const d = partsFor(ep.line);
+      return { line: `${ep.line}B`, panel: formatDataLinePanel(ep.backup),
+               unit: d ? d.backupUnit : '', port: d ? d.backupPort : null };
     })));
   }
 }

@@ -2316,9 +2316,11 @@ function buildDataLineMapTable(screenId) {
              unit: d ? d.unit : '', port: d ? d.port : null };
   })) ];
   if (redundancy) {
-    cards.push(buildCard('Backups', endpoints.map(ep => ({
-      line: ep.line + 'B', panel: fmt(ep.backup), unit: '', port: null
-    }))));
+    cards.push(buildCard('Backups', endpoints.map(ep => {
+      const d = partsFor(ep.line);
+      return { line: ep.line + 'B', panel: fmt(ep.backup),
+               unit: d ? d.backupUnit : '', port: d ? d.backupPort : null };
+    })));
   }
   const perRow = pdfCurrentCardsPerRow();
   while (cards.length < perRow) cards.push(null);

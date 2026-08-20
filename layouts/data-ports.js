@@ -203,22 +203,31 @@ function buildDataPortPlan(liveOverride) {
     // ordinals, not raw indices, or the explicit floor downstream inflates.
     const boxOrdinal = (boxIdx) => pairedBoxes ? Math.ceil(boxIdx / 2) : boxIdx;
 
-    // slotKey -> count of lines landing on that unit. The PHYSICAL port a line
-    // occupies is its position on the unit (1..capacity), derived here — it is not
-    // the screen-local data line number, which only labels the line within its own
-    // wall. Three screens that each call their first line "1" still share one box,
-    // taking physical ports 1, 2 and 3.
+    // slotKey -> Set of PHYSICAL ports already taken on that unit.
+    // An explicitly assigned line keeps its own number as the port: if you patch
+    // line 6 to XD A, it lands on XD A port 6. Auto lines fill whatever is left,
+    // in packing order — three screens that each call their first line "1" cannot
+    // all be port 1, so they take the next free ports instead.
     const occupancy = new Map();
     const slotKey = (proc, box) => proc + '|' + (box === null ? '-' : box);
 
-    function place(proc, box, screenId, line) {
+    function portsOn(proc, box) {
       const k = slotKey(proc, box);
-      const used = occupancy.get(k) || 0;
-      occupancy.set(k, used + 1);
-      return physicalPort(used + 1); // physical port on this unit
+      if(!occupancy.has(k)) occupancy.set(k, new Set());
+      return occupancy.get(k);
     }
 
-    // --- Pass 1: explicit assignments claim their unit first, in tab order ---
+    // Lowest free physical port on a unit, honouring odd-only when ports pair off.
+    function nextFreePortOn(proc, box) {
+      const used = portsOn(proc, box);
+      for(let ordinal = 1; ordinal <= capacity; ordinal++) {
+        const physical = physicalPort(ordinal);
+        if(!used.has(physical)) return physical;
+      }
+      return physicalPort(capacity);
+    }
+
+    // --- Pass 1: explicit assignments claim their unit AND their port number ---
     // Only fully-specified destinations claim here; partial ones resolve in pass 2.
     const claimedPorts = new Map(); // "screenId|line" -> { proc, box, port }
     bucket.entries.forEach(entry => {
@@ -227,8 +236,10 @@ function buildDataPortPlan(liveOverride) {
         if(!dest || dest.proc === null) return;
         if(usesDistBox && dest.box === null) return;
         const box = usesDistBox ? dest.box : null;
-        claimedPorts.set(entry.screenId + '|' + line,
-                         { proc: dest.proc, box: box, port: place(dest.proc, box, entry.screenId, line) });
+        // The line number IS the port number for an explicit assignment.
+        const port = line;
+        portsOn(dest.proc, box).add(port);
+        claimedPorts.set(entry.screenId + '|' + line, { proc: dest.proc, box: box, port: port });
       });
     });
 
@@ -246,7 +257,7 @@ function buildDataPortPlan(liveOverride) {
     }
     function nextUnitWithRoom() {
       for(let guard = 0; guard < 100000; guard++) {
-        if((occupancy.get(slotKey(curProc, curBox)) || 0) < capacity) {
+        if(portsOn(curProc, curBox).size < capacity) {
           return { proc: curProc, box: curBox };
         }
         advance();
@@ -268,7 +279,8 @@ function buildDataPortPlan(liveOverride) {
         const slot = nextUnitWithRoom();
         const proc = (dest && dest.proc !== null) ? dest.proc : slot.proc;
         const box = usesDistBox ? ((dest && dest.box !== null) ? dest.box : slot.box) : null;
-        const port = place(proc, box, entry.screenId, line);
+        const port = nextFreePortOn(proc, box);
+        portsOn(proc, box).add(port);
         lineMap.set(line, { procType: procType, proc: proc, box: box,
                             port: port, explicit: false,
                             backup: backupDestinationFor(topology, redundant, box, port) });
@@ -284,7 +296,8 @@ function buildDataPortPlan(liveOverride) {
     // rig total is the per-processor maximum summed over the processors in use.
     let procCount = 0;
     const maxBoxPerProc = new Map();
-    occupancy.forEach((used, k) => {
+    occupancy.forEach((usedSet, k) => {
+      const used = usedSet.size;
       if(!used) return;
       const parts = k.split('|');
       const proc = parseInt(parts[0]) || 0;

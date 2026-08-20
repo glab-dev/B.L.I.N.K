@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.147', date: '2026-08-20', notes: 'Give an explicitly assigned data line its own number as its port' },
   { version: '2.11.146', date: '2026-08-20', notes: 'Let an explicit data port assignment take over instead of refusing a full unit' },
   { version: '2.11.145', date: '2026-08-20', notes: 'Show backup destinations on the data line maps and in the PDF' },
   { version: '2.11.144', date: '2026-08-20', notes: 'Accept a letter or number for processor and box, and block mains on loop-backs' },

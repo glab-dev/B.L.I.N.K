@@ -1,5 +1,5 @@
 {
-  "version": "2.11.146",
+  "version": "2.11.147",
   "updated": "2026-08-20",
-  "changelog": "Let an explicit data port assignment take over instead of refusing a full unit"
+  "changelog": "Give an explicitly assigned data line its own number as its port"
 }

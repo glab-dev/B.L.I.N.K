@@ -779,6 +779,12 @@ async function showDataLineNumberPrompt() {
                                           dataPortHintFor(currentScreenId, topology, current));
   if(result === null) return; // Cancelled
 
+  // Processor and box accept a letter or a number, like the SOCA input.
+  const parsed = resolveDataPortInput(result, topology);
+  if(parsed.error) { showAlert(parsed.error); return; }
+  result.proc = parsed.proc;
+  result.box = parsed.box;
+
   if(result.port !== null && (result.port < 1 || result.port > 999)) {
     showAlert('Please enter a valid port number between 1 and 999');
     return;

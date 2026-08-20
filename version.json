@@ -1,5 +1,5 @@
 {
-  "version": "2.11.143",
+  "version": "2.11.144",
   "updated": "2026-08-20",
-  "changelog": "Model backup port pairing so loop-backs land on the right box and port"
+  "changelog": "Accept a letter or number for processor and box, and block mains on loop-backs"
 }

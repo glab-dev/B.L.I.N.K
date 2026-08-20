@@ -114,9 +114,15 @@ function showDataPortPrompt(panelCount, topology, current, availabilityText) {
     const hint = document.getElementById('dataPortAvailabilityHint');
 
     const cur = current || {};
+    const boxStyle = (topology && topology.boxLabelStyle) || 'number';
     if(procInput) procInput.value = (cur.proc !== null && cur.proc !== undefined) ? cur.proc : '';
-    if(boxInput) boxInput.value = (cur.box !== null && cur.box !== undefined) ? cur.box : '';
+    // Show the box in the form the hardware uses (XD A-D), while still accepting
+    // either a letter or a number back.
+    if(boxInput) boxInput.value = (cur.box !== null && cur.box !== undefined)
+      ? formatUnitLabel(cur.box, boxStyle) : '';
     if(portInput) portInput.value = (cur.port !== null && cur.port !== undefined) ? cur.port : '';
+    if(procInput) procInput.placeholder = 'Auto (1-99 or A-Z)';
+    if(boxInput) boxInput.placeholder = 'Auto (1-99 or A-Z)';
 
     // The box row only exists for processors that route through one.
     const usesBox = !!(topology && topology.usesDistBox);
@@ -144,10 +150,13 @@ function closeDataPortAssign(result) {
     const n = parseInt(el.value, 10);
     return (isNaN(n) || n < 1) ? null : n;
   };
+  const readRaw = el => (el ? el.value.trim() : '');
 
+  // proc/box come back raw so the caller can tell "blank means auto" apart from
+  // "unparseable" — parseSocaInput() returns null for both.
   const value = (result === false) ? null : {
-    proc: readNum(procInput),
-    box: readNum(boxInput),
+    procRaw: readRaw(procInput),
+    boxRaw: readRaw(boxInput),
     port: readNum(portInput),
     portCleared: !!portInput && portInput.value.trim() === ''
   };

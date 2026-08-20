@@ -411,6 +411,51 @@ function dataPortHintFor(screenId, topology, current) {
   }
 }
 
+// Turn the dialog's raw Processor/Box strings into numbers, accepting either a
+// letter or a number exactly as the SOCA input does. Blank means "auto", so the
+// blank check must come BEFORE parseSocaInput() — it returns null for both blank
+// and invalid.
+// Returns { proc, box } or { error } .
+function resolveDataPortInput(result, topology) {
+  let proc = null, box = null;
+  if(result.procRaw !== '') {
+    proc = parseSocaInput(result.procRaw);
+    if(proc === null) return { error: 'Please enter a valid processor (1-99 or A-Z)' };
+  }
+  if(topology.usesDistBox && result.boxRaw !== '') {
+    box = parseSocaInput(result.boxRaw);
+    if(box === null) {
+      return { error: 'Please enter a valid ' + (topology.distBoxName || 'box') + ' (1-99 or A-Z)' };
+    }
+  }
+  return { proc: proc, box: box };
+}
+
+// Reject an assignment that would put a MAIN on a loop-back unit or port.
+// Returns a message, or null when the target is a legitimate main slot.
+function dataPortLoopbackBlocker(procType, topology, redundant, box, port) {
+  if(!redundant) return null;
+  const boxName = topology.distBoxName || 'Box';
+  const style = topology.boxLabelStyle;
+
+  if(topology.backupMode === 'paired_boxes' && box !== null && box % 2 === 0) {
+    return boxName + ' ' + formatUnitLabel(box, style) + ' is the loop-back for '
+      + boxName + ' ' + formatUnitLabel(box - 1, style)
+      + '.\n\nWith redundancy on, mains go on ' + boxName + ' '
+      + formatUnitLabel(1, style) + ' and ' + formatUnitLabel(3, style)
+      + ' — their backups land on ' + formatUnitLabel(2, style) + ' and '
+      + formatUnitLabel(4, style) + ' automatically.';
+  }
+
+  if(topology.backupMode === 'paired_ports' && port !== null && port % 2 === 0) {
+    return 'Port ' + port + ' is the loop-back for port ' + (port - 1)
+      + '.\n\nWith redundancy on, ports pair up (1-2, 3-4, 5-6...), so mains go on '
+      + 'the odd port and the backup follows on the next one.';
+  }
+
+  return null;
+}
+
 // Returns an explanatory message when an assignment cannot fit the target unit,
 // or null when it is fine. panelKeys is the selection being assigned.
 function dataPortAssignmentBlocker(screenId, panelKeys, topology, result) {
@@ -430,6 +475,10 @@ function dataPortAssignmentBlocker(screenId, panelKeys, topology, result) {
     const built = info.lines;
     built.forEach(l => lines.add(l));
   }
+
+  const redundant = dataPortBucketIsRedundant(procType);
+  const loopback = dataPortLoopbackBlocker(procType, topology, redundant, result.box, result.port);
+  if(loopback) return loopback;
 
   const avail = dataPortUnitAvailability(procType, result.proc, result.box, screenId, [...lines]);
   if(lines.size <= avail.freePorts.length) return null;

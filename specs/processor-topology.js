@@ -99,6 +99,8 @@ function computeProcessorAndBoxCounts(o) {
   return {
     processorCount: processorCount,
     distBoxCount: distBoxCount,
-    distBoxName: t.distBoxName
+    // No boxes means no box name — callers test the name to decide whether to
+    // show a "Distribution box:" row at all.
+    distBoxName: distBoxCount > 0 ? t.distBoxName : ''
   };
 }

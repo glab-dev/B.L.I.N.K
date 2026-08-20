@@ -103,73 +103,24 @@ function buildGearListData(screenIds) {
     if(sc.data.mx40ConnectionMode === 'indirect') processorGroups[procType].hasAnyIndirectMode = true;
   });
 
-  // Calculate processor and dist box counts per group
+  // Calculate processor and dist box counts per group.
+  // Port/box topology comes from specs/processor-topology.js so the gear list, the
+  // combined gear list and calculate() all read the same source.
   Object.keys(processorGroups).forEach(procType => {
     const group = processorGroups[procType];
-    const totalMainPorts = group.totalMainPorts;
-    const hasRedundancy = group.hasAnyRedundancy;
-    const hasProcessorRedundancy = group.hasAnyProcessorRedundancy;
-    let processorCount = 0, distBoxCount = 0, distBoxName = '';
-
-    if(procType === 'Brompton_SX40') {
-      const mainXDs = totalMainPorts > 0 ? Math.ceil(totalMainPorts / 10) : 0;
-      distBoxCount = hasRedundancy ? mainXDs * 2 : mainXDs;
-      processorCount = distBoxCount > 0 ? Math.ceil(distBoxCount / 4) : 0;
-      distBoxName = 'XD';
-    } else if(procType === 'Brompton_S8') {
-      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-      processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 8) : 0;
-    } else if(procType === 'Brompton_M2') {
-      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-      processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 4) : 0;
-    } else if(procType === 'Brompton_S4') {
-      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-      processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 4) : 0;
-    } else if(procType === 'NovaStar_MX40_Pro') {
-      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-      const processorsByPixels = group.totalPixels > 0 ? Math.ceil(group.totalPixels / 9000000) : 0;
-      if(group.hasAnyIndirectMode) {
-        distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 10) : 0;
-        distBoxName = 'CVT-10 Pro';
-        processorCount = Math.max(processorsByPixels, Math.ceil(distBoxCount / 4));
-      } else {
-        const processorsByPorts = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / 20) : 0;
-        processorCount = Math.max(processorsByPixels, processorsByPorts);
-      }
-    } else {
-      // Check if it's a custom processor with known properties
-      const allProcs = getAllProcessors();
-      const proc = allProcs[procType];
-      const totalPortsNeeded = hasRedundancy ? totalMainPorts * 2 : totalMainPorts;
-
-      if(proc && proc.custom && proc.supports_direct && proc.uses_distribution_box) {
-        // Custom dual-mode processor (direct + indirect)
-        const processorsByPixels = group.totalPixels > 0 ? Math.ceil(group.totalPixels / proc.total_pixels) : 0;
-        if(group.hasAnyIndirectMode) {
-          const portsPerBox = proc.distribution_box_ports || 10;
-          distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerBox) : 0;
-          distBoxName = proc.distribution_box_name || '';
-          processorCount = Math.max(processorsByPixels, Math.ceil(distBoxCount / (proc.output_ports || 4)));
-        } else {
-          const portsPerProcessor = proc.output_ports || 4;
-          const processorsByPorts = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerProcessor) : 0;
-          processorCount = Math.max(processorsByPixels, processorsByPorts);
-        }
-      } else if(proc && proc.uses_distribution_box && proc.distribution_box_name) {
-        // Custom processor with distribution box only
-        const portsPerBox = proc.distribution_box_ports || 10;
-        distBoxCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerBox) : 0;
-        distBoxName = proc.distribution_box_name;
-        processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / (proc.output_ports || 8)) : group.screens.length;
-      } else {
-        const portsPerProcessor = (proc && proc.output_ports) || 8;
-        processorCount = totalPortsNeeded > 0 ? Math.ceil(totalPortsNeeded / portsPerProcessor) : group.screens.length;
-      }
-    }
-    if(hasProcessorRedundancy && processorCount > 0) processorCount *= 2;
+    const topology = resolveProcessorTopology(procType, group.hasAnyIndirectMode ? 'indirect' : 'direct');
+    const counts = computeProcessorAndBoxCounts({
+      topology: topology,
+      mainPorts: group.totalMainPorts,
+      totalPixels: group.totalPixels,
+      hasRedundancy: group.hasAnyRedundancy,
+      screenCount: group.screens.length
+    });
+    let processorCount = counts.processorCount;
+    if(group.hasAnyProcessorRedundancy && processorCount > 0) processorCount *= 2;
     group.processorCount = processorCount;
-    group.distBoxCount = distBoxCount;
-    group.distBoxName = distBoxName;
+    group.distBoxCount = counts.distBoxCount;
+    group.distBoxName = counts.distBoxName;
   });
 
   // Server → Processor cable is system-wide (one connection: main + backup = 2 cables)

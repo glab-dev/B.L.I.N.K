@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.130', date: '2026-08-20', notes: 'Unify distribution box resolution behind processor topology across five call sites' },
   { version: '2.11.129', date: '2026-08-20', notes: 'Add processor topology specs and shared resolver for distribution boxes' },
   { version: '2.11.128', date: '2026-08-19', notes: 'Add SOCA field to combined Assign Circuit # prompt, matching the complex tab' },
   { version: '2.11.127', date: '2026-08-19', notes: 'Add combined power/data selection, group phase balance, PDF, bumper and data fixes' },

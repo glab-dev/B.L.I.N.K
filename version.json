@@ -1,5 +1,5 @@
 {
-  "version": "2.11.129",
+  "version": "2.11.130",
   "updated": "2026-08-20",
-  "changelog": "Add processor topology specs and shared resolver for distribution boxes"
+  "changelog": "Unify distribution box resolution behind processor topology across five call sites"
 }

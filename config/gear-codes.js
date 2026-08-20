@@ -108,14 +108,12 @@ function buildGearItemRegistry() {
   });
 
   // --- Equipment: Distribution Boxes ---
-  // SX40 uses XD, NovaStar uses CVT-10 Pro, custom procs may have their own
+  // Box names come from the processor spec (SX40 -> XD, MX40 Pro -> CVT-10 Pro,
+  // custom procs carry their own).
   var distBoxAdded = {};
   Object.keys(allProcs).forEach(key => {
     var p = allProcs[key];
-    var distName = '';
-    if(key === 'Brompton_SX40') distName = 'XD';
-    else if(key === 'NovaStar_MX40_Pro') distName = 'CVT-10 Pro';
-    else if(p.uses_distribution_box && p.distribution_box_name) distName = p.distribution_box_name;
+    var distName = (p.uses_distribution_box && p.distribution_box_name) ? p.distribution_box_name : '';
     if(distName && !distBoxAdded[distName]) {
       items.push({ key: 'dist.' + key, category: 'equipment', label: distName + ' Distribution Box' });
       distBoxAdded[distName] = true;

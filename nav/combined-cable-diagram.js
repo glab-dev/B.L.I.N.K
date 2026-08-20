@@ -55,16 +55,9 @@ loadCombinedCablingConfig();
 
 // ---- Processor Dist Box Support Check ----
 function processorSupportsDistBox(processorId, mx40Mode) {
-  if (processorId === 'Brompton_SX40') return true;
-  if (processorId === 'NovaStar_MX40_Pro' && mx40Mode !== 'direct') return true;
-  // Custom processors
-  var allProcs = typeof processors !== 'undefined' ? processors : {};
-  var pr = allProcs[processorId];
-  if (pr && pr.custom && pr.uses_distribution_box) {
-    if (pr.supports_direct && mx40Mode === 'direct') return false;
-    return true;
-  }
-  return false;
+  // resolveProcessorTopology() reads getAllProcessors(), so custom processors are
+  // matched here too — the previous lookup only saw the built-in table.
+  return resolveProcessorTopology(processorId, mx40Mode).usesDistBox;
 }
 
 function updateCombinedDistBoxAvailability() {
@@ -532,23 +525,27 @@ function calculateCombinedCabling(selectedScreenIds, config) {
   let distributionBoxCount = 0;
   let distributionBoxName = '';
 
+  // Box name/count from the processor spec (specs/processor-topology.js).
+  const topology = resolveProcessorTopology(config.processor, config.mx40ConnectionMode);
+  const boxCounts = computeProcessorAndBoxCounts({
+    topology: topology,
+    mainPorts: portsNeeded,
+    totalPixels: totalPixels,
+    hasRedundancy: !!config.redundancy,
+    screenCount: 1
+  });
+  distributionBoxCount = boxCounts.distBoxCount;
+  distributionBoxName = boxCounts.distBoxName;
+
+  // Processor count here mirrors the per-screen path in core/calculate.js and stays
+  // pixel-driven; only the distribution-box resolution above was unified.
   if (config.processor === 'Brompton_SX40' && portsNeeded > 0) {
-    const baseDistCount = Math.ceil(portsNeeded / 10);
-    distributionBoxCount = config.redundancy ? baseDistCount * 2 : baseDistCount;
-    distributionBoxName = 'Brompton XD';
     processorCount = Math.ceil(totalPixels / pr.total_pixels);
   } else if (config.processor === 'NovaStar_MX40_Pro' && portsNeeded > 0) {
     if (config.mx40ConnectionMode === 'direct') {
-      const procByPorts = Math.ceil(portsNeededFinal / 20);
-      const procByPixels = Math.ceil(totalPixels / 9000000);
-      processorCount = Math.max(procByPorts, procByPixels);
+      processorCount = Math.max(Math.ceil(portsNeededFinal / 20), Math.ceil(totalPixels / 9000000));
     } else {
-      const portsPerCVT = 10;
-      distributionBoxCount = Math.ceil(portsNeededFinal / portsPerCVT);
-      distributionBoxName = 'NovaStar CVT-10 Pro';
-      const procByPixels = Math.ceil(totalPixels / 9000000);
-      const procByCVTs = Math.ceil(distributionBoxCount / 4);
-      processorCount = Math.max(procByPixels, procByCVTs);
+      processorCount = Math.max(Math.ceil(totalPixels / 9000000), Math.ceil(distributionBoxCount / 4));
     }
   } else {
     processorCount = Math.max(1, Math.ceil(totalPixels / (pr.total_pixels || 9000000)));

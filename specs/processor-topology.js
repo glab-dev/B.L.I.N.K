@@ -46,10 +46,46 @@ function resolveProcessorTopology(processorId, connectionMode) {
     // port count first and derives boxes from that. The two round differently
     // (2*ceil(p/10) vs ceil(2p/10)), so the distinction is preserved deliberately.
     redundancyDoubles: pr.redundancy_doubles || 'ports',
+    // How backup lines pair up, derived from the same fact redundancyDoubles
+    // encodes so there is one source of truth:
+    //   'paired_boxes' — whole boxes pair (SX40: XD A backs up to B, C to D), so
+    //                    mains only ever sit on odd box indices.
+    //   'paired_ports' — ports pair within a unit (S8: 1-2, 3-4, 5-6, 7-8), so a
+    //                    main on an odd port backs up to the port after it.
+    // CVT boxes are assumed to follow 'paired_ports' pending hardware confirmation.
+    backupMode: (pr.redundancy_doubles === 'boxes') ? 'paired_boxes' : 'paired_ports',
+    // Distribution boxes may be lettered on the hardware (XD A-D) or numbered.
+    boxLabelStyle: pr.box_label_style || 'number',
     // Unknown/custom processors fall back to one processor per screen when no ports
     // are needed; built-ins report zero.
     zeroPortsMeansZero: !!all[processorId] && !pr.custom
   };
+}
+
+// Main ports usable on one unit. With redundancy on a 'paired_ports' processor
+// half the ports are loop-backs, so only every other one can take a main.
+function mainPortsPerUnit(topology, hasRedundancy) {
+  const capacity = Math.max(1, topology.usesDistBox ? topology.distBoxPorts : topology.portsPerProcessor);
+  if(hasRedundancy && topology.backupMode === 'paired_ports') return Math.max(1, Math.floor(capacity / 2));
+  return capacity;
+}
+
+// Boxes on one processor that can carry mains. With redundancy on a
+// 'paired_boxes' processor, half of them are loop-backs (B and D of A-D).
+function mainBoxesPerProcessor(topology, hasRedundancy) {
+  const boxes = Math.max(1, topology.boxesPerProcessor);
+  if(hasRedundancy && topology.backupMode === 'paired_boxes') return Math.max(1, Math.floor(boxes / 2));
+  return boxes;
+}
+
+// The unit a main's loop-back lands on: the next box for 'paired_boxes', the next
+// port on the same unit for 'paired_ports'. Returns null when redundancy is off.
+function backupDestinationFor(topology, hasRedundancy, box, port) {
+  if(!hasRedundancy) return null;
+  if(topology.backupMode === 'paired_boxes') {
+    return { box: (box === null || box === undefined) ? null : box + 1, port: port };
+  }
+  return { box: (box === null || box === undefined) ? null : box, port: port + 1 };
 }
 
 // How many processors and distribution boxes a given main-port count needs.

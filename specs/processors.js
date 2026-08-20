@@ -14,7 +14,7 @@
 // Custom processors carry the same field names (specs/custom-processors.js).
 
 const processors = {
-  "Brompton_SX40": {name:"Brompton SX40", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, pixels_per_10g:9000000, total_pixels:9000000, outputs:"4 × 10G trunks", output_ports:4, uses_distribution_box:true, distribution_box_name:"XD", distribution_box_ports:10, boxes_per_processor:4, supports_direct:false, processors_from:'boxes', pixel_limited:false, redundancy_doubles:'boxes'},
+  "Brompton_SX40": {name:"Brompton SX40", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, pixels_per_10g:9000000, total_pixels:9000000, outputs:"4 × 10G trunks", output_ports:4, uses_distribution_box:true, distribution_box_name:"XD", distribution_box_ports:10, boxes_per_processor:4, supports_direct:false, processors_from:'boxes', pixel_limited:false, redundancy_doubles:'boxes', box_label_style:'letter'},
   "Brompton_S8": {name:"Brompton S8", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, total_pixels:4500000, outputs:"8 × 1G", output_ports:8, uses_distribution_box:false, supports_direct:true, processors_from:'ports', pixel_limited:false},
   "Brompton_M2": {name:"Brompton M2", base_pixels_1g:500000, base_framerate:60, base_bitdepth:8, total_pixels:2000000, outputs:"4 × 1G", output_ports:4, uses_distribution_box:false, supports_direct:true, processors_from:'ports', pixel_limited:false},
   "Brompton_S4": {name:"Brompton S4", base_pixels_1g:525000, base_framerate:60, base_bitdepth:8, total_pixels:2070000, outputs:"4 × 1G", output_ports:4, uses_distribution_box:false, supports_direct:true, processors_from:'ports', pixel_limited:false},

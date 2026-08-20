@@ -187,6 +187,18 @@ function initSocaLabelStyleButtons() {
   setSocaLabelStyle(socaLabelStyle);
 }
 
+// Label a 1-based unit index as a letter or a number, with the style passed in
+// rather than read from a global. formatSocaLabel() above is hard-wired to
+// socaLabelStyle, so it cannot serve a second label domain — distribution boxes
+// are lettered per the hardware (XD A-D), independently of the SOCA preference.
+function formatUnitLabel(index1Based, style) {
+  const i = Math.max(1, parseInt(index1Based, 10) || 1);
+  if (style !== 'letter') return String(i);
+  let n = i - 1, s = '';
+  do { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; } while (n >= 0);
+  return s;
+}
+
 // SOCA outlines (dashed green perimeter around each custom-SOCA group) — on by default.
 let socaOutlinesEnabled = (typeof localStorage !== 'undefined' && localStorage.getItem('ledcalc_soca_outlines') === 'false') ? false : true;
 // SOCA diagonal label (rotated label overlay per group) — on by default.

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.141",
+  "version": "2.11.142",
   "updated": "2026-08-20",
-  "changelog": "Stop combined data map cards overlapping and align their column headers"
+  "changelog": "Add unit label formatter and backup pairing helpers to the processor topology"
 }

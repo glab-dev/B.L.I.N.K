@@ -1,5 +1,5 @@
 {
-  "version": "2.11.147",
-  "updated": "2026-08-20",
-  "changelog": "Give an explicitly assigned data line its own number as its port"
+  "version": "2.11.148",
+  "updated": "2026-08-21",
+  "changelog": "Label each screen on the combined data layout with its distribution box or processor"
 }

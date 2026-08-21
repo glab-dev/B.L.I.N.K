@@ -392,6 +392,31 @@ function dataPortBucketIsIndirect(procType) {
   });
 }
 
+// Group a screen's panels by the unit (distribution box, or the processor when
+// there is no box) their data line terminates on. Feeds the diagonal labels on
+// the combined data canvas via drawSocaOverlay's labelFor hook.
+// Returns { panelToUnit: Map(panelKey -> unitIdx), labels: Map(unitIdx -> text) }.
+function buildDataUnitGroups(screenId, groups, sortedDataLines) {
+  const panelToUnit = new Map();
+  const labels = new Map();
+  const indexByText = new Map();
+  if(!groups || !sortedDataLines) return { panelToUnit, labels };
+
+  sortedDataLines.forEach((ln, gi) => {
+    const parts = dataLineDestinationParts(screenId, ln + 1);
+    if(!parts || !parts.unit) return;
+    let idx = indexByText.get(parts.unit);
+    if(idx === undefined) {
+      idx = indexByText.size;
+      indexByText.set(parts.unit, idx);
+      labels.set(idx, parts.unit);
+    }
+    (groups[gi] || []).forEach(pt => panelToUnit.set(pt.c + ',' + pt.r, idx));
+  });
+
+  return { panelToUnit, labels };
+}
+
 // Compact "1-6, 9" style summary of a port list.
 function formatPortRanges(ports) {
   if(!ports || !ports.length) return 'none';

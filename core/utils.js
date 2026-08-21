@@ -202,6 +202,20 @@ function formatUnitLabel(index1Based, style) {
 // SOCA outlines (dashed green perimeter around each custom-SOCA group) — on by default.
 let socaOutlinesEnabled = (typeof localStorage !== 'undefined' && localStorage.getItem('ledcalc_soca_outlines') === 'false') ? false : true;
 // SOCA diagonal label (rotated label overlay per group) — on by default.
+// Distribution box / processor labels on the combined data canvas — on by default.
+let dataUnitLabelsEnabled = (typeof localStorage !== 'undefined' && localStorage.getItem('ledcalc_data_unit_labels') === 'false') ? false : true;
+function toggleDataUnitLabels() {
+  dataUnitLabelsEnabled = !dataUnitLabelsEnabled;
+  try { localStorage.setItem('ledcalc_data_unit_labels', String(dataUnitLabelsEnabled)); } catch(e) {}
+  const btn = document.getElementById('combinedDataUnitLabelsBtn');
+  if (btn) { btn.classList.toggle('active', dataUnitLabelsEnabled); btn.textContent = dataUnitLabelsEnabled ? 'On' : 'Off'; }
+  if (typeof renderCombinedView === 'function') renderCombinedView();
+}
+function initDataUnitLabelButton() {
+  const btn = document.getElementById('combinedDataUnitLabelsBtn');
+  if (btn) { btn.classList.toggle('active', dataUnitLabelsEnabled); btn.textContent = dataUnitLabelsEnabled ? 'On' : 'Off'; }
+}
+
 let socaDiagonalLabelEnabled = (typeof localStorage !== 'undefined' && localStorage.getItem('ledcalc_soca_diagonal_label') === 'false') ? false : true;
 
 function toggleSocaOutlines() {

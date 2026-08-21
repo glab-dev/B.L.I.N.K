@@ -3208,6 +3208,10 @@
             <span class="toggle-label toggle-label-block">Data Labels</span>
             <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedDataLineLabelsBtn" title="Applies to all selected screens" onclick="toggleCombinedDataLineLabels()">Off</button>
           </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Unit Labels</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedDataUnitLabelsBtn" title="Distribution box / processor label across each screen" onclick="toggleDataUnitLabels()">On</button>
+          </div>
           <div class="flex-noshrink" id="combinedDataSelectModeRow" style="display:none;">
             <span class="toggle-label toggle-label-block">Select Mode</span>
             <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedDataSelectModeBtn" aria-pressed="false" onclick="toggleCombinedSelectMode('combinedDataCanvas')">Off</button>
@@ -3786,8 +3790,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.147';
-const APP_CHANGELOG = 'Give an explicitly assigned data line its own number as its port';
+const APP_VERSION = '2.11.148';
+const APP_CHANGELOG = 'Label each screen on the combined data layout with its distribution box or processor';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

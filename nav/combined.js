@@ -3130,6 +3130,33 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       lightDeletedPanels: (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode)
     });
 
+    // Distribution box / processor label across each screen, drawn by the same
+    // renderer the power canvas uses for SOCA labels (layouts/power.js) so the two
+    // match. Labels only — no outlines around the groups.
+    if(typeof dataUnitLabelsEnabled === 'undefined' || dataUnitLabelsEnabled) {
+      const unitGroups = buildDataUnitGroups(screenId, groups, sortedDataLines);
+      if(unitGroups.panelToUnit.size) {
+        drawSocaOverlay(ctx, {
+          panelToCircuit: unitGroups.panelToUnit,
+          panelToSoca: unitGroups.panelToUnit,
+          deletedPanels: screenDeletedPanels,
+          panelWidth: drawPanelWidth,
+          panelHeight: drawPanelHeight,
+          halfPanelHeight: halfPanelDrawHeight,
+          hasCB5HalfRow: screenHasCB5HalfRow,
+          originalPh: screenOriginalPh,
+          offsetX: screenX, offsetY: screenY,
+          outlineLineWidth: 1.5,
+          socaLabelIdx: (i) => i,
+          drawOutlines: false,
+          drawLabels: true,
+          labelFor: (idx) => unitGroups.labels.get(idx) || '',
+          labelColor: '#10b981',
+          labelDiagonal: false
+        });
+      }
+    }
+
     // Draw screen label
     ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000' : '#fff';
     ctx.font = 'bold 14px Arial';

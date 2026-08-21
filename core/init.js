@@ -94,6 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Sync SOCA label style toggle buttons with persisted setting
     if(typeof initSocaLabelStyleButtons === 'function') initSocaLabelStyleButtons();
+  if (typeof initDataUnitLabelButton === 'function') initDataUnitLabelButton();
     if(typeof initSocaToggleButtons === 'function') initSocaToggleButtons();
     if(typeof initPhaseBalanceButtons === 'function') initPhaseBalanceButtons();
 

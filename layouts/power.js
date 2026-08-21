@@ -12,6 +12,15 @@ function drawSocaOverlay(ctx, o) {
   const { panelToCircuit, panelToSoca, deletedPanels,
           panelWidth, panelHeight, halfPanelHeight, hasCB5HalfRow, originalPh,
           offsetX, offsetY, outlineLineWidth, socaLabelIdx } = o;
+  // labelFor/labelColor let another view reuse this grouping + diagonal-label
+  // geometry with its own text — the combined data layout labels distribution
+  // boxes with it. Omitted everywhere else, so SOCA behaviour is unchanged.
+  const _labelFor = (typeof o.labelFor === 'function') ? o.labelFor : null;
+  const _labelColor = o.labelColor || '#10b981';
+  // SOCA groups are usually wide column spans, so a diagonal label reads well.
+  // Tall narrow groups (a single screen on the data canvas) rotate almost
+  // vertical, so callers can ask for a horizontal label instead.
+  const _labelDiagonal = (o.labelDiagonal !== false);
   const _drawOutlines = !!o.drawOutlines;
   const _labelsOn     = !!o.drawLabels;
   if (!panelToCircuit || (!_drawOutlines && !_labelsOn)) return;
@@ -196,25 +205,30 @@ function drawSocaOverlay(ctx, o) {
       const cx = rx + rw / 2, cy = ry + rh / 2;
       const diag = Math.sqrt(rw * rw + rh * rh);
       const cos = rw / diag, sin = rh / diag;   // label follows this rectangle's diagonal
-      const labelText = `SOCA ${formatSocaLabel(socaLabelIdx(socaIdx))}`;
+      const labelText = _labelFor ? _labelFor(socaIdx) : `SOCA ${formatSocaLabel(socaLabelIdx(socaIdx))}`;
+      if (!labelText) return;
       ctx.save();
       ctx.font = `bold 100px Arial`;
       const w100 = ctx.measureText(labelText).width; // text width at 100px font
       const margin = 0.9;
       // Rotated footprint must fit rw x rh on both axes (H ≈ em = 100 at 100px).
-      const fX = (margin * rw) * 100 / (w100 * cos + 100 * sin);
-      const fY = (margin * rh) * 100 / (w100 * sin + 100 * cos);
+      const fX = _labelDiagonal
+        ? (margin * rw) * 100 / (w100 * cos + 100 * sin)
+        : (margin * rw) * 100 / w100;
+      const fY = _labelDiagonal
+        ? (margin * rh) * 100 / (w100 * sin + 100 * cos)
+        : (margin * rh);
       const fontSize = Math.max(14, Math.min(120, Math.floor(Math.min(fX, fY))));
       ctx.font = `bold ${fontSize}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.translate(cx, cy);
-      ctx.rotate(-Math.atan2(rh, rw));
+      if (_labelDiagonal) ctx.rotate(-Math.atan2(rh, rw));
       ctx.fillStyle = 'rgba(0,0,0,0.28)';
       ctx.fillText(labelText, 0, 0);
       ctx.lineJoin = 'round';
       ctx.lineWidth = Math.max(1.5, fontSize * 0.015);
-      ctx.strokeStyle = '#10b981';
+      ctx.strokeStyle = _labelColor;
       ctx.strokeText(labelText, 0, 0);
       ctx.restore();
     }

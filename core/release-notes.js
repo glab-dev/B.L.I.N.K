@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.152', date: '2026-08-21', notes: 'Confine mobile panel selection and the options menu to Select Mode' },
   { version: '2.11.151', date: '2026-08-21', notes: 'Stop iOS input auto-zoom detaching the fixed header and bottom nav' },
   { version: '2.11.150', date: '2026-08-21', notes: 'Number data lines by their port and start numbering from the first selected screen' },
   { version: '2.11.149', date: '2026-08-21', notes: 'Keep each screen connection mode independent and ask for a mode on apply-to-all' },

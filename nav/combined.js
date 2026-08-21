@@ -1962,8 +1962,10 @@ function setupCombinedCanvasHandlersFor(canvasId, layoutKind) {
         combinedDragState.screenDim = null;
         saveCombinedPositions();
       }
-    } else if(!combinedManualAdjust) {
-      // Panel selection mode: tap to select, tap again for menu
+    } else if(combinedSelectModeByCanvas[canvasId] && !combinedManualAdjust) {
+      // Panel selection mode: tap to select, tap again for menu. Gated on Select
+      // Mode exactly like the drag path above — with it off the tap belongs to the
+      // canvas so the layout can be panned.
       useCombinedSelection(canvasId);
       const dx = Math.abs(touchLastPos.x - touchStartPos.x);
       const dy = Math.abs(touchLastPos.y - touchStartPos.y);

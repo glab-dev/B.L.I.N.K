@@ -77,6 +77,10 @@ function setupMobileLongPress() {
         longPressTriggered = true;
         vibrate(50);
 
+        // Only Select Mode may open the panel menu — with it off the canvas is
+        // pan-only, matching the tap path in interact/standard-canvas.js.
+        if(typeof selectMode !== 'undefined' && !selectMode) return;
+
         // Get panel at touch position
         const panel = getPanelAtPosition(standardCanvas, longPressTouchStart.x, longPressTouchStart.y);
         if(panel) {

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.151",
+  "version": "2.11.152",
   "updated": "2026-08-21",
-  "changelog": "Stop iOS input auto-zoom detaching the fixed header and bottom nav"
+  "changelog": "Confine mobile panel selection and the options menu to Select Mode"
 }

@@ -410,39 +410,25 @@ function setupStandardCanvasInteractivity() {
       return;
     }
 
-    // Single tap behavior
-    if(touchStartPanel) {
-      if(selectMode) {
-        // A long-press already handled this touch (opened the context menu) — don't toggle.
-        if(longPressTriggered) {
-          touchSelectStart = null;
-          isTouchSelecting = false;
-          touchStartPanel = null;
-          return;
-        }
-        // Select Mode: tap an unselected panel to add it (keeping the rest of the
-        // selection); tap an already-selected panel to reveal the options menu.
-        if(selectedPanels.has(touchStartPanel.key)) {
-          vibrate(30);
-          showContextMenu(touchEndX, touchEndY);
-        } else {
-          selectedPanels.add(touchStartPanel.key);
-          vibrate(10);
-          generateLayout('standard');
-        }
+    // Single tap behavior. Only Select Mode touches the selection — with it off the
+    // tap belongs to the canvas so the layout can be panned freely.
+    if(touchStartPanel && selectMode) {
+      // A long-press already handled this touch (opened the context menu) — don't toggle.
+      if(longPressTriggered) {
+        touchSelectStart = null;
+        isTouchSelecting = false;
+        touchStartPanel = null;
+        return;
+      }
+      // Select Mode: tap an unselected panel to add it (keeping the rest of the
+      // selection); tap an already-selected panel to reveal the options menu.
+      if(selectedPanels.has(touchStartPanel.key)) {
+        vibrate(30);
+        showContextMenu(touchEndX, touchEndY);
       } else {
-        const wasAlreadySelected = selectedPanels.has(touchStartPanel.key);
-
-        if(wasAlreadySelected) {
-          // Panel was already selected - show context menu
-          vibrate(30);
-          showContextMenu(touchEndX, touchEndY);
-        } else {
-          // Panel not selected - select it (clear others first)
-          selectedPanels.clear();
-          selectedPanels.add(touchStartPanel.key);
-          generateLayout('standard');
-        }
+        selectedPanels.add(touchStartPanel.key);
+        vibrate(10);
+        generateLayout('standard');
       }
     }
 

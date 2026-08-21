@@ -2062,6 +2062,23 @@
   </div>
 </div>
 
+<!-- Connection mode choice, shown when applying a dual-mode processor to every screen -->
+<div id="modeChoiceModal" class="modal-overlay">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modeChoiceTitle">Connection Mode</h2>
+    </div>
+    <div class="modal-body mb-10">
+      <p id="modeChoiceMessage" class="modal-body-text"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModeChoice(null)">Cancel</button>
+      <button class="btn-secondary" onclick="closeModeChoice('indirect')" id="modeChoiceIndirectBtn">Indirect</button>
+      <button class="btn-primary" onclick="closeModeChoice('direct')">Direct</button>
+    </div>
+  </div>
+</div>
+
 <!-- Assign Data Port Modal (separate from customAlertModal, which showSocaCircuitPrompt owns) -->
 <div id="dataPortAssignModal" class="modal-overlay">
   <div class="modal-dialog">
@@ -3790,8 +3807,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.148';
-const APP_CHANGELOG = 'Label each screen on the combined data layout with its distribution box or processor';
+const APP_VERSION = '2.11.149';
+const APP_CHANGELOG = 'Keep each screen connection mode independent and ask for a mode on apply-to-all';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

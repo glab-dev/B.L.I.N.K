@@ -175,16 +175,22 @@ function buildDataPortPlan(liveOverride) {
       : screenDataLineDestinations(data);
     if(!info.lines.length) return;
     const procType = info.processorId;
-    if(!buckets.has(procType)) buckets.set(procType, { indirect: false, redundant: false, entries: [] });
-    const bucket = buckets.get(procType);
-    if(info.connectionMode === 'indirect') bucket.indirect = true;
+    // Bucket by processor type AND connection mode: a screen running direct plugs
+    // into the processor's own ports while an indirect one goes through boxes, so
+    // they occupy different slot spaces. Grouping them together would let one
+    // indirect screen drag every other screen onto distribution boxes.
+    const indirect = info.connectionMode === 'indirect';
+    const bucketKey = procType + '|' + (indirect ? 'indirect' : 'direct');
+    if(!buckets.has(bucketKey)) buckets.set(bucketKey, { procType: procType, indirect: indirect, redundant: false, entries: [] });
+    const bucket = buckets.get(bucketKey);
     // Any redundant screen makes the whole bucket redundant, matching the
     // hasAnyRedundancy OR in core/gear-data.js.
     if(data.redundancy) bucket.redundant = true;
     bucket.entries.push({ screenId: id, info: info });
   });
 
-  buckets.forEach((bucket, procType) => {
+  buckets.forEach((bucket, bucketKey) => {
+    const procType = bucket.procType;
     const topology = resolveProcessorTopology(procType, bucket.indirect ? 'indirect' : 'direct');
     const usesDistBox = topology.usesDistBox;
     const redundant = bucket.redundant;
@@ -270,7 +276,7 @@ function buildDataPortPlan(liveOverride) {
       entry.info.lines.forEach(line => {
         const claimed = claimedPorts.get(entry.screenId + '|' + line);
         if(claimed) {
-          lineMap.set(line, { procType: procType, proc: claimed.proc, box: claimed.box,
+          lineMap.set(line, { procType: procType, groupKey: bucketKey, proc: claimed.proc, box: claimed.box,
                               port: claimed.port, explicit: true,
                               backup: backupDestinationFor(topology, redundant, claimed.box, claimed.port) });
           return;
@@ -281,7 +287,7 @@ function buildDataPortPlan(liveOverride) {
         const box = usesDistBox ? ((dest && dest.box !== null) ? dest.box : slot.box) : null;
         const port = nextFreePortOn(proc, box);
         portsOn(proc, box).add(port);
-        lineMap.set(line, { procType: procType, proc: proc, box: box,
+        lineMap.set(line, { procType: procType, groupKey: bucketKey, proc: proc, box: box,
                             port: port, explicit: false,
                             backup: backupDestinationFor(topology, redundant, box, port) });
       });
@@ -315,7 +321,8 @@ function buildDataPortPlan(liveOverride) {
     let boxCount = 0;
     maxBoxPerProc.forEach(maxBox => { boxCount += maxBox; });
 
-    groups.set(procType, {
+    groups.set(bucketKey, {
+      procType: procType,
       procCount: procCount,
       boxCount: usesDistBox ? boxCount : 0,
       distBoxName: usesDistBox ? topology.distBoxName : '',
@@ -337,6 +344,7 @@ function dataPortUnitAvailability(procType, proc, box, excludeScreenId, excludeL
   const topology = resolveProcessorTopology(procType, dataPortBucketIsIndirect(procType) ? 'indirect' : 'direct');
   const usesDistBox = topology.usesDistBox;
   const redundant = dataPortBucketIsRedundant(procType);
+  const targetGroupKey = procType + '|' + (dataPortBucketIsIndirect(procType) ? 'indirect' : 'direct');
   // Free MAIN ports only — offering a loop-back port as available would let the
   // user patch a main onto a backup.
   const capacity = Math.max(1, mainPortsPerUnit(topology, redundant));
@@ -349,6 +357,9 @@ function dataPortUnitAvailability(procType, proc, box, excludeScreenId, excludeL
   plan.perScreen.forEach((lineMap, screenId) => {
     lineMap.forEach((dest, line) => {
       if(dest.procType !== procType) return;
+      // Only count lines in the same connection mode — a direct screen's ports are
+      // on the processor, not on this box.
+      if(dest.groupKey !== targetGroupKey) return;
       if(dest.proc !== proc) return;
       if(usesDistBox && dest.box !== box) return;
       if(screenId === excludeScreenId && skip.has(String(line))) return;
@@ -534,6 +545,20 @@ function dataPortAssignmentBlocker(screenId, panelKeys, topology, result) {
   return dataPortLoopbackBlocker(procType, topology, redundant, result.box, result.port);
 }
 
+// Explicit floors per processor TYPE, summed across its connection modes. Direct
+// and indirect screens are separate signal paths, so their units add rather than
+// overlap.
+function dataPortGroupTotals(plan, procType) {
+  let procCount = 0, boxCount = 0, distBoxName = '';
+  plan.groups.forEach(g => {
+    if(g.procType !== procType) return;
+    procCount += g.procCount;
+    boxCount += g.boxCount;
+    if(!distBoxName && g.distBoxName) distBoxName = g.distBoxName;
+  });
+  return { procCount, boxCount, distBoxName };
+}
+
 // Cached plan, rebuilt whenever a calculate() cycle invalidates it. buildDataPortPlan()
 // walks every screen's serpentine, so the per-line lookups below must not each
 // trigger a fresh build.
@@ -553,7 +578,7 @@ function dataLineDestinationParts(screenId, line) {
     if(!lineMap) return null;
     const dest = lineMap.get(line);
     if(!dest) return null;
-    const group = plan.groups.get(dest.procType);
+    const group = plan.groups.get(dest.groupKey);
     if(group && group.usesDistBox && dest.box !== null) {
       const label = formatUnitLabel(dest.box, group.boxLabelStyle);
       const main = { unit: shortDistBoxCode(group.distBoxName) + ' ' + label, port: dest.port };
@@ -588,10 +613,10 @@ function dataLineDestinationLabel(screenId, line) {
     if(!lineMap) return '';
     const dest = lineMap.get(line);
     if(!dest) return '';
-    const group = plan.groups.get(dest.procType);
+    const group = plan.groups.get(dest.groupKey);
     if(group && group.usesDistBox && dest.box !== null) {
-      const name = (group.distBoxName || 'Box').replace(/[^A-Za-z0-9]/g, '');
-      return name + dest.box + ' p' + dest.port;
+      const name = shortDistBoxCode(group.distBoxName);
+      return name + ' ' + formatUnitLabel(dest.box, group.boxLabelStyle) + ' p' + dest.port;
     }
     return 'P' + dest.proc + ' p' + dest.port;
   } catch(err) {

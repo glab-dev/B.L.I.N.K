@@ -92,6 +92,7 @@ function buildGearListData(screenIds) {
       processorGroups[procType] = {
         screens: [], totalMainPorts: 0, totalPixels: 0,
         hasAnyRedundancy: false, hasAnyProcessorRedundancy: false, hasAnyIndirectMode: false,
+        directMainPorts: 0, indirectMainPorts: 0,
         firstScreenId: sid, firstScreenName: sc.name
       };
     }
@@ -100,7 +101,15 @@ function buildGearListData(screenIds) {
     processorGroups[procType].totalPixels += (cd.totalPixels || 0);
     if(sc.data.redundancy) processorGroups[procType].hasAnyRedundancy = true;
     if(sc.data.processorRedundancy) processorGroups[procType].hasAnyProcessorRedundancy = true;
-    if(sc.data.mx40ConnectionMode === 'indirect') processorGroups[procType].hasAnyIndirectMode = true;
+    // Track ports per connection mode: a screen running direct plugs into the
+    // processor while an indirect one goes through boxes, so one indirect screen
+    // must not route the whole group through distribution boxes.
+    if(sc.data.mx40ConnectionMode === 'indirect') {
+      processorGroups[procType].hasAnyIndirectMode = true;
+      processorGroups[procType].indirectMainPorts += dl;
+    } else {
+      processorGroups[procType].directMainPorts += dl;
+    }
   });
 
   // Calculate processor and dist box counts per group.
@@ -111,17 +120,43 @@ function buildGearListData(screenIds) {
 
   Object.keys(processorGroups).forEach(procType => {
     const group = processorGroups[procType];
-    const topology = resolveProcessorTopology(procType, group.hasAnyIndirectMode ? 'indirect' : 'direct');
-    const planned = portPlan && portPlan.groups.get(procType);
-    const counts = computeProcessorAndBoxCounts({
-      topology: topology,
-      mainPorts: group.totalMainPorts,
+    const planned = portPlan && (typeof dataPortGroupTotals === 'function')
+      ? dataPortGroupTotals(portPlan, procType) : null;
+
+    // Each connection mode is sized on its own ports. Screens running direct plug
+    // into the processor; indirect ones go through distribution boxes. Sizing the
+    // whole group on whichever mode appeared first let a single indirect screen
+    // route every other screen through boxes.
+    const directTopo = resolveProcessorTopology(procType, 'direct');
+    const indirectTopo = resolveProcessorTopology(procType, 'indirect');
+
+    const directCounts = group.directMainPorts > 0 ? computeProcessorAndBoxCounts({
+      topology: directTopo,
+      mainPorts: group.directMainPorts,
       totalPixels: group.totalPixels,
       hasRedundancy: group.hasAnyRedundancy,
-      screenCount: group.screens.length,
-      explicitProcs: planned ? planned.procCount : 0,
-      explicitBoxes: planned ? planned.boxCount : 0
-    });
+      screenCount: group.screens.length
+    }) : { processorCount: 0, distBoxCount: 0, distBoxName: '' };
+
+    const indirectCounts = group.indirectMainPorts > 0 ? computeProcessorAndBoxCounts({
+      topology: indirectTopo,
+      mainPorts: group.indirectMainPorts,
+      totalPixels: group.totalPixels,
+      hasRedundancy: group.hasAnyRedundancy,
+      screenCount: group.screens.length
+    }) : { processorCount: 0, distBoxCount: 0, distBoxName: '' };
+
+    const counts = {
+      processorCount: Math.max(
+        directCounts.processorCount + indirectCounts.processorCount,
+        planned ? planned.procCount : 0
+      ),
+      distBoxCount: Math.max(
+        directCounts.distBoxCount + indirectCounts.distBoxCount,
+        planned ? planned.boxCount : 0
+      ),
+      distBoxName: indirectCounts.distBoxName || directCounts.distBoxName
+    };
     let processorCount = counts.processorCount;
     if(group.hasAnyProcessorRedundancy && processorCount > 0) processorCount *= 2;
     group.processorCount = processorCount;

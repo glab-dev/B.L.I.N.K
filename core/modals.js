@@ -88,6 +88,32 @@ function showSocaOnlyPrompt(panelCount) {
   });
 }
 
+// ==================== CONNECTION MODE CHOICE ====================
+// Asked when a dual-mode processor is applied to every selected screen, so the
+// choice is explicit rather than inherited from whatever each screen had.
+// Resolves 'direct' | 'indirect' | null (cancelled).
+let _modeChoiceResolve = null;
+
+function showModeChoice(procName, boxName) {
+  return new Promise(resolve => {
+    _modeChoiceResolve = resolve;
+    const msg = document.getElementById('modeChoiceMessage');
+    if(msg) {
+      msg.textContent = `How should ${procName} connect on every selected screen? `
+        + `Direct runs data straight from the processor; Indirect routes it through `
+        + `${boxName || 'a distribution box'}.`;
+    }
+    const indirectBtn = document.getElementById('modeChoiceIndirectBtn');
+    if(indirectBtn) indirectBtn.textContent = 'Indirect' + (boxName ? ' (' + boxName + ')' : '');
+    document.getElementById('modeChoiceModal').classList.add('active');
+  });
+}
+
+function closeModeChoice(mode) {
+  document.getElementById('modeChoiceModal').classList.remove('active');
+  if(_modeChoiceResolve) { _modeChoiceResolve(mode || null); _modeChoiceResolve = null; }
+}
+
 // ==================== ASSIGN DATA PORT ====================
 // Three-field prompt: Processor #, Distribution Box # (only when the screen's
 // processor uses one) and Port #, which is the data line number.

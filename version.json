@@ -1,5 +1,5 @@
 {
-  "version": "2.11.148",
+  "version": "2.11.149",
   "updated": "2026-08-21",
-  "changelog": "Label each screen on the combined data layout with its distribution box or processor"
+  "changelog": "Keep each screen connection mode independent and ask for a mode on apply-to-all"
 }

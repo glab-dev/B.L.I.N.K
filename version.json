@@ -1,5 +1,5 @@
 {
-  "version": "2.11.149",
+  "version": "2.11.150",
   "updated": "2026-08-21",
-  "changelog": "Keep each screen connection mode independent and ask for a mode on apply-to-all"
+  "changelog": "Number data lines by their port and start numbering from the first selected screen"
 }

@@ -3133,6 +3133,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       showArrows: data.showArrows !== false,
       showLabels: !!data.dataLineLabels,
       redundancy: !!data.redundancy,
+      lineDisplay: (typeof dataPortLineDisplayMap === 'function') ? dataPortLineDisplayMap(screenId) : null,
       panelFontSize: numberFontSize,
       arrowLineWidth: Math.max(1.5, panelSize * 0.075),
       arrowHeadSize: Math.max(5, panelSize * 0.3),
@@ -3209,16 +3210,22 @@ function renderCombinedDataLineMap(sections) {
         ? dataLineDestinationParts(section.screenId, line) : null;
     };
 
+    const shownLine = function(line) {
+      if(typeof dataPortLineDisplayMap !== 'function') return line;
+      const m = dataPortLineDisplayMap(section.screenId);
+      return m.has(line) ? m.get(line) : line;
+    };
+
     grid.appendChild(buildDataLineMapBox('mains', 'Mains', section.endpoints.map(function(ep){
       const d = partsFor(ep.line);
-      return { line: `${ep.line}`, panel: formatDataLinePanel(ep.main),
+      return { line: `${shownLine(ep.line)}`, panel: formatDataLinePanel(ep.main),
                unit: d ? d.unit : '', port: d ? d.port : null };
     })));
 
     if(section.redundancy) {
       grid.appendChild(buildDataLineMapBox('backups', 'Backups', section.endpoints.map(function(ep){
         const d = partsFor(ep.line);
-        return { line: `${ep.line}B`, panel: formatDataLinePanel(ep.backup),
+        return { line: `${shownLine(ep.line)}B`, panel: formatDataLinePanel(ep.backup),
                  unit: d ? d.backupUnit : '', port: d ? d.backupPort : null };
       })));
     }

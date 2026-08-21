@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.150', date: '2026-08-21', notes: 'Number data lines by their port and start numbering from the first selected screen' },
   { version: '2.11.149', date: '2026-08-21', notes: 'Keep each screen connection mode independent and ask for a mode on apply-to-all' },
   { version: '2.11.148', date: '2026-08-21', notes: 'Label each screen on the combined data layout with its distribution box or processor' },
   { version: '2.11.147', date: '2026-08-20', notes: 'Give an explicitly assigned data line its own number as its port' },

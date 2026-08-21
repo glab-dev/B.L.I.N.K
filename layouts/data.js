@@ -341,6 +341,10 @@ function drawDataOverlay(ctx, o) {
     offsetX, offsetY, rearView, flip, showArrows, showLabels, redundancy,
     panelFontSize, arrowLineWidth, arrowHeadSize, lightDeletedPanels
   } = o;
+  // Optional Map(trueLine -> displayed number). The data layout numbers lines by
+  // the port they land on; without it the raw line numbers are used.
+  const _lineDisplay = (o.lineDisplay instanceof Map) ? o.lineDisplay : null;
+  const _shown = (line) => (_lineDisplay && _lineDisplay.has(line)) ? _lineDisplay.get(line) : line;
 
   // Rear view = mirror the draw x-coordinate horizontally (visual only; data
   // assignments are unchanged). Labels stay upright and arrows mirror because
@@ -364,11 +368,12 @@ function drawDataOverlay(ctx, o) {
     endpoints.forEach(ep => {
       const mKey = ep.main ? `${ep.main.c},${ep.main.r}` : null;
       const bKey = (redundancy && ep.backup) ? `${ep.backup.c},${ep.backup.r}` : null;
+      const shown = _shown(ep.line);
       if (mKey && bKey && mKey === bKey) {
-        lineLabelMap.set(mKey, { text: `${ep.line}/${ep.line}B`, color: MAIN_LABEL_COLOR }); // single-panel line shares the panel
+        lineLabelMap.set(mKey, { text: `${shown}/${shown}B`, color: MAIN_LABEL_COLOR }); // single-panel line shares the panel
       } else {
-        if (mKey) lineLabelMap.set(mKey, { text: `${ep.line}`, color: MAIN_LABEL_COLOR });
-        if (bKey) lineLabelMap.set(bKey, { text: `${ep.line}B`, color: BACKUP_LABEL_COLOR });
+        if (mKey) lineLabelMap.set(mKey, { text: `${shown}`, color: MAIN_LABEL_COLOR });
+        if (bKey) lineLabelMap.set(bKey, { text: `${shown}B`, color: BACKUP_LABEL_COLOR });
       }
     });
   }
@@ -397,7 +402,9 @@ function drawDataOverlay(ctx, o) {
   const groupPoints = [];
   const bigLabelDraws = []; // deferred so all labels share one uniform font size and render ON TOP OF the arrows
   for(let gi=0; gi<groups.length; gi++){
-    const dataLineNum = sortedDataLines[gi]; // Use actual data line number for color
+    // Colour follows the displayed number, so the same port reads the same colour
+    // on every screen sharing that unit.
+    const dataLineNum = _shown(sortedDataLines[gi] + 1) - 1;
     const colors=colorForIndex(dataLineNum);
     groupPoints[gi] = [];
     for(let idx=0; idx<groups[gi].length; idx++){
@@ -555,6 +562,7 @@ function renderDataLayout(params) {
 
   drawDataOverlay(ctx, {
     groups, sortedDataLines, endpoints: dataLineEndpoints,
+    lineDisplay: (typeof dataPortLineDisplayMap === 'function') ? dataPortLineDisplayMap(currentScreenId) : null,
     deletedPanels,
     pw, ph, panelWidth, panelHeight, halfPanelHeight, hasCB5HalfRow, originalPh,
     offsetX: 0, offsetY: 0,
@@ -666,16 +674,22 @@ function renderDataLineMap() {
       ? dataLineDestinationParts(currentScreenId, line) : null;
   };
 
+  const shownLine = function(line) {
+    if(typeof dataPortLineDisplayMap !== 'function') return line;
+    const m = dataPortLineDisplayMap(currentScreenId);
+    return m.has(line) ? m.get(line) : line;
+  };
+
   host.appendChild(buildDataLineMapBox('mains', 'Mains', endpoints.map(function(ep){
     const d = partsFor(ep.line);
-    return { line: `${ep.line}`, panel: formatDataLinePanel(ep.main),
+    return { line: `${shownLine(ep.line)}`, panel: formatDataLinePanel(ep.main),
              unit: d ? d.unit : '', port: d ? d.port : null };
   })));
 
   if(redundancy) {
     host.appendChild(buildDataLineMapBox('backups', 'Backups', endpoints.map(function(ep){
       const d = partsFor(ep.line);
-      return { line: `${ep.line}B`, panel: formatDataLinePanel(ep.backup),
+      return { line: `${shownLine(ep.line)}B`, panel: formatDataLinePanel(ep.backup),
                unit: d ? d.backupUnit : '', port: d ? d.backupPort : null };
     })));
   }

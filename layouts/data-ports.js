@@ -144,9 +144,18 @@ function screenDataLineDestinations(data) {
 // shows and sharedDistroGroupIds() walks.
 function dataPortScreenIds() {
   if(typeof screens === 'undefined') return [];
-  return Object.keys(screens)
-    .filter(id => screens[id] && screens[id].data)
-    .sort((a, b) => (parseInt(a.split('_')[1]) || 0) - (parseInt(b.split('_')[1]) || 0));
+  const all = Object.keys(screens).filter(id => screens[id] && screens[id].data);
+  const byTab = all.slice().sort((a, b) =>
+    (parseInt(a.split('_')[1]) || 0) - (parseInt(b.split('_')[1]) || 0));
+
+  // Selection order in the combined view wins: the first screen you select gets
+  // port 1. combinedSelectedScreens is a Set, so it already iterates in the order
+  // screens were added. With nothing selected, fall back to tab order.
+  if(typeof combinedSelectedScreens === 'undefined' || combinedSelectedScreens.size === 0) return byTab;
+  const selected = [...combinedSelectedScreens].filter(id => screens[id] && screens[id].data);
+  if(!selected.length) return byTab;
+  const seen = new Set(selected);
+  return selected.concat(byTab.filter(id => !seen.has(id)));
 }
 
 // The whole rig's data port plan.
@@ -557,6 +566,20 @@ function dataPortGroupTotals(plan, procType) {
     if(!distBoxName && g.distBoxName) distBoxName = g.distBoxName;
   });
   return { procCount, boxCount, distBoxName };
+}
+
+// Map of a screen's true data line numbers to the physical port each one lands on.
+// The data layout numbers its lines by port so the label on the wall matches the
+// port it patches into, and so the colour ramp is consistent across screens.
+function dataPortLineDisplayMap(screenId) {
+  const out = new Map();
+  try {
+    const plan = cachedDataPortPlan();
+    const lineMap = plan.perScreen.get(screenId);
+    if(!lineMap) return out;
+    lineMap.forEach((dest, line) => { if(dest && dest.port) out.set(line, dest.port); });
+  } catch(err) { /* fall back to the raw line numbers */ }
+  return out;
 }
 
 // Cached plan, rebuilt whenever a calculate() cycle invalidates it. buildDataPortPlan()

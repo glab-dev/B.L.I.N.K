@@ -2310,15 +2310,19 @@ function buildDataLineMapTable(screenId) {
       ? dataLineDestinationParts(screenId, line) : null;
   };
 
+  const lineDisplay = (typeof dataPortLineDisplayMap === 'function')
+    ? dataPortLineDisplayMap(screenId) : new Map();
+  const shownLine = (line) => lineDisplay.has(line) ? lineDisplay.get(line) : line;
+
   const cards = [ buildCard('Mains', endpoints.map(ep => {
     const d = partsFor(ep.line);
-    return { line: String(ep.line), panel: fmt(ep.main),
+    return { line: String(shownLine(ep.line)), panel: fmt(ep.main),
              unit: d ? d.unit : '', port: d ? d.port : null };
   })) ];
   if (redundancy) {
     cards.push(buildCard('Backups', endpoints.map(ep => {
       const d = partsFor(ep.line);
-      return { line: ep.line + 'B', panel: fmt(ep.backup),
+      return { line: shownLine(ep.line) + 'B', panel: fmt(ep.backup),
                unit: d ? d.backupUnit : '', port: d ? d.backupPort : null };
     })));
   }

@@ -200,11 +200,7 @@ function toggleSelectMode() {
     btn.textContent = selectMode ? 'On' : 'Off';
     btn.classList.toggle('active', selectMode);
   }
-  if(hint) {
-    hint.textContent = selectMode
-      ? 'Drag a box to select • Tap to add • Tap selected for options'
-      : 'Tap to select • Tap again for options • Turn on Select Mode to drag a box';
-  }
+  if(hint) hint.textContent = standardLayoutHintText();
 
   // Leaving Select Mode clears the working selection
   if(!selectMode) {

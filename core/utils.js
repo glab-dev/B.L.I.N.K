@@ -42,6 +42,21 @@ document.addEventListener('DOMContentLoaded', function() {
   window.addEventListener('resize', updateLayoutHints);
 });
 
+// The standard layout hint describes what a tap actually does, so on touch it has to
+// track Select Mode — with it off, taps belong to the canvas and select nothing.
+// Shared with toggleSelectMode() so the two can't drift apart, and so a resize can't
+// repaint the Select-Mode-off text while Select Mode is still on.
+function standardLayoutHintText() {
+  const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  const isMobile = window.innerWidth <= 768;
+  if(!isTouchDevice && !isMobile) {
+    return 'Click to select • Right-click for options • Drag a box to multi-select';
+  }
+  return selectMode
+    ? 'Drag a box to select • Tap to add • Tap selected for options'
+    : 'Turn on Select Mode to select panels';
+}
+
 // Update hint text based on mobile vs desktop
 function updateLayoutHints() {
   const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
@@ -49,13 +64,7 @@ function updateLayoutHints() {
 
   // Standard layout hint
   const standardHint = document.getElementById('standardLayoutHint');
-  if(standardHint) {
-    if(isTouchDevice || isMobile) {
-      standardHint.textContent = 'Tap to select • Tap again for options • Turn on Select Mode to drag a box';
-    } else {
-      standardHint.textContent = 'Click to select • Right-click for options • Drag a box to multi-select';
-    }
-  }
+  if(standardHint) standardHint.textContent = standardLayoutHintText();
 
   // Structure layout hint
   const structureHint = document.getElementById('structureHintText');

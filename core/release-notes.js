@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.154', date: '2026-08-22', notes: 'Make the standard layout hint follow Select Mode' },
   { version: '2.11.153', date: '2026-08-22', notes: 'Align Select Mode across combined layouts, add Data Redun., fix mobile Port column' },
   { version: '2.11.152', date: '2026-08-21', notes: 'Confine mobile panel selection and the options menu to Select Mode' },
   { version: '2.11.151', date: '2026-08-21', notes: 'Stop iOS input auto-zoom detaching the fixed header and bottom nav' },

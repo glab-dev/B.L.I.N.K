@@ -4078,12 +4078,17 @@ canvas:focus {
   text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
 }
 
-/* Mobile: let the two cards shrink to share the width so the backup card isn't cut off */
+/* Mobile: stack the two cards. Side by side, each one is narrower than the 180px of
+   fixed tracks a .dlm-row needs, so the Port column spilled off the right of the card. */
 @media (max-width: 768px) {
   .data-line-map {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 10px;
   }
+  /* .mains and .backups pin themselves to columns 1 and 2 — release that when stacked,
+     or grid-column: 2 conjures a phantom second column. */
+  .data-line-map .structure-info-box.mains,
+  .data-line-map .structure-info-box.backups { grid-column: auto; }
   .data-line-map .structure-info-box {
     min-width: 0;
     padding-left: 12px;
@@ -6992,6 +6997,14 @@ canvas:focus {
   font-size: 10px;
   color: #10b981;
   line-height: 1.5;
+}
+
+/* Combined layouts: the toggle rows line up with the hint box, position controls and
+   canvases below them, which all start at the container edge. Scoped to the combined
+   wrapper so the non-combined .layout-toggle-row keeps its 14px indent. */
+#combinedLayoutsWrapper .layout-toggle-row {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 /* Combined position controls */

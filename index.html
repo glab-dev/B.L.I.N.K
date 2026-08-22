@@ -3138,7 +3138,7 @@
         <!-- Interaction Hints -->
         <div id="combinedInteractionHints" class="combined-interaction-hints">
           <span id="combinedHintsDesktop" style="display: none;"><strong>Panels:</strong> Drag a box to select, right-click for options, double-click to delete/restore &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
-          <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> Tap to select, tap a selected panel for options, Select Mode to drag a box &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
+          <span id="combinedHintsMobile" style="display: none;"><strong>Panels:</strong> <span id="combinedHintsMobilePanels">Turn on Select Mode to select panels</span> &nbsp;|&nbsp; <strong>Screens:</strong> Enable Manual Adjust, then drag to move</span>
         </div>
         <div class="layout-toggle-row" id="combinedSelectModeRow" style="display:none;">
           <div class="flex-noshrink">
@@ -3172,6 +3172,10 @@
       </div>
       <div class="layout-content" id="combinedPowerContent">
         <div class="layout-toggle-row">
+          <div class="flex-noshrink" id="combinedPowerSelectModeRow" style="display:none;">
+            <span class="toggle-label toggle-label-block">Select Mode</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedPowerSelectModeBtn" aria-pressed="false" onclick="toggleCombinedSelectMode('combinedPowerCanvas')">Off</button>
+          </div>
           <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">SOCA Naming</span>
             <div class="slider-toggle">
@@ -3186,10 +3190,6 @@
           <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">Share Distro</span>
             <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedShareDistroBtn" onclick="toggleCombinedShareDistro()">Off</button>
-          </div>
-          <div class="flex-noshrink" id="combinedPowerSelectModeRow" style="display:none;">
-            <span class="toggle-label toggle-label-block">Select Mode</span>
-            <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedPowerSelectModeBtn" aria-pressed="false" onclick="toggleCombinedSelectMode('combinedPowerCanvas')">Off</button>
           </div>
         </div>
         <div id="combinedPowerCanvasWrapper" class="overflow-x-auto">
@@ -3207,6 +3207,10 @@
       <div class="layout-content" id="combinedDataContent">
         <div id="combinedDataProcessorList" class="cdp-list"></div>
         <div class="layout-toggle-row">
+          <div class="flex-noshrink" id="combinedDataSelectModeRow" style="display:none;">
+            <span class="toggle-label toggle-label-block">Select Mode</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedDataSelectModeBtn" aria-pressed="false" onclick="toggleCombinedSelectMode('combinedDataCanvas')">Off</button>
+          </div>
           <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">View</span>
             <div class="slider-toggle">
@@ -3229,9 +3233,9 @@
             <span class="toggle-label toggle-label-block">Unit Labels</span>
             <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedDataUnitLabelsBtn" title="Distribution box / processor label across each screen" onclick="toggleDataUnitLabels()">On</button>
           </div>
-          <div class="flex-noshrink" id="combinedDataSelectModeRow" style="display:none;">
-            <span class="toggle-label toggle-label-block">Select Mode</span>
-            <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedDataSelectModeBtn" aria-pressed="false" onclick="toggleCombinedSelectMode('combinedDataCanvas')">Off</button>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Data Redun.</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone active" id="combinedDataRedundancyBtn" title="Applies to all selected screens" onclick="toggleCombinedDataRedundancy()">On</button>
           </div>
         </div>
         <div id="combinedDataCanvasWrapper" class="overflow-x-auto">
@@ -3807,8 +3811,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.152';
-const APP_CHANGELOG = 'Confine mobile panel selection and the options menu to Select Mode';
+const APP_VERSION = '2.11.153';
+const APP_CHANGELOG = 'Align Select Mode across combined layouts, add Data Redun., fix mobile Port column';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

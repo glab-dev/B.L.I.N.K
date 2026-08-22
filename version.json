@@ -1,5 +1,5 @@
 {
-  "version": "2.11.152",
-  "updated": "2026-08-21",
-  "changelog": "Confine mobile panel selection and the options menu to Select Mode"
+  "version": "2.11.153",
+  "updated": "2026-08-22",
+  "changelog": "Align Select Mode across combined layouts, add Data Redun., fix mobile Port column"
 }

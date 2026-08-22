@@ -326,6 +326,16 @@ function endCombinedMarquee() {
   }
 }
 
+// The standard layout's mobile hint describes what a tap actually does, so it has to
+// track Select Mode — with it off, taps belong to the canvas and select nothing.
+function updateCombinedStandardHint() {
+  const el = document.getElementById('combinedHintsMobilePanels');
+  if(!el) return;
+  el.textContent = combinedSelectModeByCanvas.combinedStandardCanvas
+    ? 'Drag a box to select, tap to add, tap a selected panel for options'
+    : 'Turn on Select Mode to select panels';
+}
+
 // Toggle mobile Select Mode for ONE combined layout: blocks native scroll on that canvas
 // so dragging paints a selection box instead of scrolling. Each layout has its own toggle,
 // so selecting in the standard layout leaves power and data untouched.
@@ -345,6 +355,9 @@ function toggleCombinedSelectMode(canvasId) {
     btn.classList.toggle('active', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
+
+  // Only the standard layout carries an interaction hint
+  if(canvasId === 'combinedStandardCanvas') updateCombinedStandardHint();
 
   // Leaving Select Mode clears the working selection on THIS layout only
   if(!on) {
@@ -2020,6 +2033,7 @@ function initCombinedView() {
   const mobileHints = document.getElementById('combinedHintsMobile');
   if(desktopHints) desktopHints.style.display = isMobile ? 'none' : 'inline';
   if(mobileHints) mobileHints.style.display = isMobile ? 'inline' : 'none';
+  updateCombinedStandardHint();
 
   // Select Mode toggles are touch-only — desktop drag-select already works with the mouse.
   // Clearing the inline display (rather than forcing one) lets each row fall back to its own
@@ -2749,14 +2763,15 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
 // mixed selection shows off rather than implying agreement.
 
 // 'on' | 'off' | 'mixed' across the selected screens.
-// showArrows defaults to true when unset; the other three default to false.
+// showArrows and redundancy default to true when unset; the others default to false.
 function combinedDataToggleState(key) {
   let seen = 0, onCount = 0;
+  const defaultsTrue = (key === 'showArrows' || key === 'redundancy');
   combinedSelectedScreens.forEach(screenId => {
     const screen = screens[screenId];
     if(!screen || !screen.data) return;
     seen++;
-    const on = (key === 'showArrows') ? (screen.data[key] !== false) : !!screen.data[key];
+    const on = defaultsTrue ? (screen.data[key] !== false) : !!screen.data[key];
     if(on) onCount++;
   });
   if(seen === 0 || onCount === 0) return 'off';
@@ -2783,6 +2798,7 @@ function applyCombinedDataToggle(mutate) {
     dataFlipEnabled = !!d.dataFlip;
     dataRearViewEnabled = !!d.dataRearView;
     dataLineLabelsEnabled = !!d.dataLineLabels;
+    redundancyEnabled = d.redundancy !== false;
 
     const showArrowsBtn = document.getElementById('showArrowsBtn');
     if(showArrowsBtn) showArrowsBtn.classList.toggle('active', showArrowsEnabled);
@@ -2797,6 +2813,8 @@ function applyCombinedDataToggle(mutate) {
     if(dataRearViewBtn) dataRearViewBtn.classList.toggle('active', dataRearViewEnabled);
     const dataLineLabelsBtn = document.getElementById('dataLineLabelsBtn');
     if(dataLineLabelsBtn) { dataLineLabelsBtn.classList.toggle('active', dataLineLabelsEnabled); dataLineLabelsBtn.textContent = dataLineLabelsEnabled ? 'On' : 'Off'; }
+    const redundancyBtn = document.getElementById('redundancyBtn');
+    if(redundancyBtn) redundancyBtn.classList.toggle('active', redundancyEnabled);
 
     calculate(); // redraws the Complex canvases, and the combined ones via its own hook
   } else {
@@ -2828,11 +2846,17 @@ function toggleCombinedDataLineLabels() {
   applyCombinedDataToggle(d => { d.dataLineLabels = on; });
 }
 
+function toggleCombinedDataRedundancy() {
+  const on = combinedDataToggleState('redundancy') !== 'on';
+  applyCombinedDataToggle(d => { d.redundancy = on; });
+}
+
 function updateCombinedDataToggleButtons() {
   const arrows = combinedDataToggleState('showArrows');
   const flip = combinedDataToggleState('dataFlip');
   const rear = combinedDataToggleState('dataRearView');
   const labels = combinedDataToggleState('dataLineLabels');
+  const redundancy = combinedDataToggleState('redundancy');
 
   const frontBtn = document.getElementById('combinedDataFrontViewBtn');
   const rearBtn = document.getElementById('combinedDataRearViewBtn');
@@ -2853,6 +2877,12 @@ function updateCombinedDataToggleButtons() {
   if(labelsBtn) {
     labelsBtn.classList.toggle('active', labels === 'on');
     labelsBtn.textContent = labels === 'on' ? 'On' : 'Off';
+  }
+
+  const redundancyBtn = document.getElementById('combinedDataRedundancyBtn');
+  if(redundancyBtn) {
+    redundancyBtn.classList.toggle('active', redundancy === 'on');
+    redundancyBtn.textContent = redundancy === 'on' ? 'On' : 'Off';
   }
 }
 

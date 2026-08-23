@@ -2,7 +2,7 @@
 // Unit system, dimension modes, toggles, getters, and state helpers.
 // Depends on globals: displayLengthUnit, displayWeightUnit, showArrowsEnabled,
 // redundancyEnabled, use4WayBumpersEnabled, snapModeEnabled, cb5HalfRowEnabled,
-// connectionMethod, distBoxOnWallEnabled, etc.
+// connectionMethod, xdPlacement, etc.
 
 // Unit conversion constants
 const FT_TO_M = 0.3048;
@@ -603,16 +603,60 @@ function setPowerInPosition(position) {
   generateGearList();
 }
 
-// Dist box on wall toggle
-let distBoxOnWallEnabled = false;
-function toggleDistBoxOnWall() {
-  distBoxOnWallEnabled = !distBoxOnWallEnabled;
-  updateDistBoxCheckUI(distBoxOnWallEnabled);
+// Dist box (XD) placement — 'proc' = at the processor, 'wall' = on the LED wall,
+// 'remote' = off to the side on the floor. Projects saved before this toggle existed
+// stored a boolean distBoxOnWall, so resolve reads through it.
+function resolveXdPlacement(data) {
+  const mode = data && data.xdPlacement;
+  if(mode === 'proc' || mode === 'wall' || mode === 'remote') return mode;
+  return (data && data.distBoxOnWall) ? 'wall' : 'proc';
+}
+
+// Does this screen's processor actually use a distribution box? The condition used to be
+// expressed three different ways across the app (box count, dist-box cable count, topology
+// flag). The topology is the authoritative one: a processor with no box can never produce
+// one however many data lines it has, whereas the counts also read false before any lines
+// exist. Every "is there a dist box" test should go through here.
+function screenUsesDistBox(screenId) {
+  const scr = screens[screenId];
+  if(!scr || !scr.data) return false;
+  if(typeof resolveProcessorTopology !== 'function') return false;
+  return resolveProcessorTopology(scr.data.processor, scr.data.mx40ConnectionMode || 'direct').usesDistBox;
+}
+
+// The screen the Cabling panel is currently editing
+function xdPlacementTargetScreenId() {
+  return (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+    ? gearActiveScreenId : currentScreenId;
+}
+
+// Grey out the Dist Box row when the processor has no box, and snap it back to At Proc.
+function updateXdPlacementAvailability() {
+  const targetId = xdPlacementTargetScreenId();
+  const supported = screenUsesDistBox(targetId);
+  const row = document.getElementById('xdPlacementRow');
+  if(row) {
+    row.style.opacity = supported ? '1' : '0.3';
+    row.style.pointerEvents = supported ? '' : 'none';
+  }
+  if(!supported) {
+    xdPlacement = 'proc';
+    if(screens[targetId]) screens[targetId].data.xdPlacement = 'proc';
+    updateXdPlacementUI('proc');
+  }
+}
+
+let xdPlacement = 'proc';
+function setXdPlacement(mode) {
+  // Block wall/remote on a processor that has no dist box
+  if(mode !== 'proc' && !screenUsesDistBox(xdPlacementTargetScreenId())) return;
+  xdPlacement = mode;
+  updateXdPlacementUI(mode);
   // Save to gear-active screen when in gear view, otherwise current screen
   const targetId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
     ? gearActiveScreenId : currentScreenId;
   if(screens[targetId]) {
-    screens[targetId].data.distBoxOnWall = distBoxOnWallEnabled;
+    screens[targetId].data.xdPlacement = mode;
   }
   generateGearList();
 }
@@ -634,16 +678,15 @@ function setCableView(view) {
   generateGearList();
 }
 
-// Update dist box checkbox visual state
-function updateDistBoxCheckUI(enabled) {
-  const check = document.getElementById('distBoxOnWallCheck');
-  if (check) {
-    check.textContent = enabled ? '✓' : '';
-    check.style.background = enabled ? 'var(--primary)' : 'transparent';
-    check.style.borderColor = enabled ? 'var(--primary)' : '#555';
-  }
+// Update XD placement toggle state and reveal the sub-controls for the active mode
+function updateXdPlacementUI(mode) {
+  document.getElementById('xdPlacementProcBtn')?.classList.toggle('active', mode === 'proc');
+  document.getElementById('xdPlacementWallBtn')?.classList.toggle('active', mode === 'wall');
+  document.getElementById('xdPlacementRemoteBtn')?.classList.toggle('active', mode === 'remote');
   const posControls = document.getElementById('distBoxPositionControls');
-  if (posControls) posControls.style.display = enabled ? '' : 'none';
+  if (posControls) posControls.style.display = (mode === 'wall') ? '' : 'none';
+  const remoteControls = document.getElementById('xdRemoteControls');
+  if (remoteControls) remoteControls.style.display = (mode === 'remote') ? '' : 'none';
 }
 
 // Main dist box horizontal position (SR / Center / SL)

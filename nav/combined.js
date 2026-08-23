@@ -2078,11 +2078,6 @@ function initCombinedView() {
   // Power-layout toggle buttons
   updateCombinedPowerToggleButtons();
 
-  // Update dist box availability based on selected screens' processor
-  if (typeof updateCombinedDistBoxAvailability === 'function') {
-    updateCombinedDistBoxAvailability();
-  }
-
   // Render combined view if screens are selected
   if(combinedSelectedScreens.size > 0) {
     renderCombinedView();
@@ -2272,11 +2267,6 @@ function renderCombinedView() {
   if (typeof renderCombinedCableDiagram === 'function') {
     renderCombinedCableDiagram(selectedScreenIds, screenDimensions);
   }
-  // Restore cabling input UI from saved config
-  if (typeof restoreCombinedCablingInputs === 'function') {
-    restoreCombinedCablingInputs();
-  }
-
   // Render combined specs and gear list
   renderCombinedSpecs(selectedScreenIds);
   renderCombinedGearList(selectedScreenIds);
@@ -4119,88 +4109,8 @@ function renderCombinedGearList(selectedScreenIds) {
     }
   });
 
-  // If per-screen data didn't produce dist box cables, check the combined cabling config
-  if(Object.keys(combinedDistBoxByType).length === 0 &&
-     typeof combinedCablingConfig !== 'undefined' && combinedCablingConfig.distBoxOnWall &&
-     typeof calculateCombinedCabling === 'function') {
-    // Use per-screen redundancy as fallback (same as combined cable diagram)
-    const ccCfg = Object.assign({}, combinedCablingConfig);
-    if(!ccCfg.redundancy) {
-      for(const sid of selectedScreenIds) {
-        const scr = screens[sid];
-        if(scr && scr.data && scr.data.redundancy) { ccCfg.redundancy = true; break; }
-      }
-    }
-    const ccCalc = calculateCombinedCabling(selectedScreenIds, ccCfg);
-    if(ccCalc && ccCalc.shared.distributionBoxCount > 0) {
-      const cfg = ccCfg;
-      const M_TO_FT = 3.28084;
-      // Use the tallest wall height across all selected screens
-      let maxWallHeightFt = 0;
-      let maxWallWidthFt = 0;
-      selectedScreenIds.forEach(sid => {
-        const sc = screens[sid];
-        if(!sc || !sc.data) return;
-        const allPanelsObj = typeof getAllPanels === 'function' ? getAllPanels() : panels;
-        const p = allPanelsObj[sc.data.panelType];
-        if(!p) return;
-        const ph = sc.data.panelsHigh || 0;
-        const pw = sc.data.panelsWide || 0;
-        let wH = ph * p.height_m * M_TO_FT;
-        if(sc.data.addCB5HalfRow && sc.data.panelType === 'CB5_MKII') {
-          const halfP = allPanelsObj['CB5_MKII_HALF'];
-          if(halfP) wH += halfP.height_m * M_TO_FT;
-        }
-        const wW = pw * p.width_m * M_TO_FT;
-        if(wH > maxWallHeightFt) maxWallHeightFt = wH;
-        if(wW > maxWallWidthFt) maxWallWidthFt = wW;
-      });
-
-      const wallToFloor = cfg.wallToFloor ?? 5;
-      const processorToWall = cfg.processorToWall ?? 15;
-      const cablePick = cfg.cablePick ?? 0;
-      const dropPos = cfg.cableDropPosition ?? 'behind';
-      let dropPointFt;
-      if(dropPos === 'behind') dropPointFt = maxWallWidthFt / 2;
-      else if(dropPos === 'sr') dropPointFt = 0;
-      else dropPointFt = maxWallWidthFt;
-      const dropToFloorFt = maxWallHeightFt + wallToFloor + cablePick;
-
-      // Main dist box position
-      const mainHPos = cfg.distBoxMainHorizPosition ?? 'center';
-      let mainDistBoxFt;
-      if(mainHPos === 'sr') mainDistBoxFt = maxWallWidthFt * 0.15;
-      else if(mainHPos === 'sl') mainDistBoxFt = maxWallWidthFt * 0.85;
-      else mainDistBoxFt = maxWallWidthFt / 2;
-      const mainHorizFt = Math.abs(mainDistBoxFt - dropPointFt);
-      const mainVert = cfg.distBoxMainVertPosition ?? 'top';
-      const mainTrunkFt = (mainVert === 'bottom')
-        ? mainHorizFt + wallToFloor + processorToWall
-        : mainHorizFt + dropToFloorFt + processorToWall;
-
-      const distBoxCount = ccCalc.shared.distributionBoxCount;
-      const mainType = mainTrunkFt > 200 ? 'fiber' : 'cat6a';
-      const mainRounded = typeof roundUpToStandard === 'function' ? roundUpToStandard(mainTrunkFt) : Math.ceil(mainTrunkFt / 25) * 25;
-      const mainKey = `${mainType === 'fiber' ? 'Fiber' : 'Cat6A'} ${mainRounded}'`;
-      combinedDistBoxByType[mainKey] = (combinedDistBoxByType[mainKey] || 0) + distBoxCount;
-
-      // Backup trunk — every dist box gets both a main and backup trunk cable
-      const backupHPos = cfg.distBoxBackupHorizPosition ?? 'center';
-      let backupDistBoxFt;
-      if(backupHPos === 'sr') backupDistBoxFt = maxWallWidthFt * 0.15;
-      else if(backupHPos === 'sl') backupDistBoxFt = maxWallWidthFt * 0.85;
-      else backupDistBoxFt = maxWallWidthFt / 2;
-      const backupHorizFt = Math.abs(backupDistBoxFt - dropPointFt);
-      const backupVert = cfg.distBoxBackupVertPosition ?? 'top';
-      const backupTrunkFt = (backupVert === 'bottom')
-        ? backupHorizFt + wallToFloor + processorToWall
-        : backupHorizFt + dropToFloorFt + processorToWall;
-      const backupType = backupTrunkFt > 200 ? 'fiber' : 'cat6a';
-      const backupRounded = typeof roundUpToStandard === 'function' ? roundUpToStandard(backupTrunkFt) : Math.ceil(backupTrunkFt / 25) * 25;
-      const backupKey = `${backupType === 'fiber' ? 'Fiber' : 'Cat6A'} ${backupRounded}'`;
-      combinedDistBoxByType[backupKey] = (combinedDistBoxByType[backupKey] || 0) + distBoxCount;
-    }
-  }
+  // Dist box trunks come from each screen's own calculateCabling() now that every cabling
+  // value is per-screen, so there is nothing left to reconstruct from a combined config.
 
   const hasCatCables = Object.keys(combinedDataByLength).length > 0;
   const hasDistBox = Object.keys(combinedDistBoxByType).length > 0;

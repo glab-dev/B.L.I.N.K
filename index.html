@@ -2833,6 +2833,10 @@
       <div class="layout-content" id="powerContent">
         <div class="layout-toggle-row">
           <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">SOCA Label</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone active" id="socaDiagonalLabelBtn" onclick="toggleSocaDiagonalLabel()">On</button>
+          </div>
+          <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">SOCA Naming</span>
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="socaLabelNumBtn" onclick="setSocaLabelStyle('numbers')">123</button>
@@ -2842,10 +2846,6 @@
           <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">SOCA Outlines</span>
             <button type="button" class="toggle-btn toggle-btn-standalone active" id="socaOutlinesBtn" onclick="toggleSocaOutlines()">On</button>
-          </div>
-          <div class="flex-noshrink">
-            <span class="toggle-label toggle-label-block">SOCA Label</span>
-            <button type="button" class="toggle-btn toggle-btn-standalone active" id="socaDiagonalLabelBtn" onclick="toggleSocaDiagonalLabel()">On</button>
           </div>
           <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">Phase Balance</span>
@@ -3043,12 +3043,6 @@
       <div>
         <div class="cabling-data-grid cabling-data-2col">
           <div class="cabling-header-data-inline">Data</div>
-          <div class="cabling-pl-6">
-            <label id="distBoxOnWallLabel" class="dist-box-label" onclick="toggleDistBoxOnWall()">
-              Dist Box
-              <span class="dist-box-check" id="distBoxOnWallCheck"></span>
-            </label>
-          </div>
           <div class="cabling-divider">
             <label class="mb-4">
               <span>Proc to Drop</span>
@@ -3060,6 +3054,24 @@
             </label>
           </div>
           <div class="cabling-divider-indent">
+            <div id="xdPlacementRow">
+              <span class="toggle-label toggle-label-block">Dist Box</span>
+              <div class="slider-toggle xd-placement-toggle">
+                <button type="button" class="slider-toggle-btn slider-toggle-btn-sm active" id="xdPlacementProcBtn" onclick="setXdPlacement('proc')">At Proc</button>
+                <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="xdPlacementWallBtn" onclick="setXdPlacement('wall')">On Wall</button>
+                <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="xdPlacementRemoteBtn" onclick="setXdPlacement('remote')">Remote</button>
+              </div>
+            </div>
+            <div id="xdRemoteControls" style="display: none;">
+              <label class="mb-4">
+                <span>Proc to XD</span>
+                <input type="number" id="xdToProcessor" min="0" step="0.1" placeholder="25">
+              </label>
+              <label class="mb-2">
+                <span>XD to Drop</span>
+                <input type="number" id="xdToWall" min="0" step="0.1" placeholder="40">
+              </label>
+            </div>
             <div id="distBoxPositionControls" style="display: none;">
               <!-- Main -->
               <span class="toggle-label toggle-label-block">Main</span>
@@ -3177,6 +3189,10 @@
             <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedPowerSelectModeBtn" aria-pressed="false" onclick="toggleCombinedSelectMode('combinedPowerCanvas')">Off</button>
           </div>
           <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">SOCA Label</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone active" id="combinedSocaDiagonalLabelBtn" onclick="toggleSocaDiagonalLabel()">On</button>
+          </div>
+          <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">SOCA Naming</span>
             <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="combinedSocaLabelNumBtn" onclick="setSocaLabelStyle('numbers')">123</button>
@@ -3264,100 +3280,9 @@
       <span>Cabling Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedCablingContainer')" id="combinedCablingCollapseBtn" title="Minimize">▼</button></span>
     </div>
     <div class="layout-content" id="combinedCablingContent">
-      <!-- Cabling Input Controls (matches gear tab layout) -->
-      <div class="cabling-grid cabling-3col mb-16">
-        <!-- Column 1: General -->
-        <div>
-          <div class="cabling-header cabling-header-general">General</div>
-          <div class="cabling-inputs-2col">
-            <label class="mb-2">
-              <span>Wall to Floor</span>
-              <input type="number" id="combinedCablingWallToFloor" min="0" step="0.1" value="5" oninput="updateCombinedCablingFromInputs()">
-            </label>
-            <label class="mb-2">
-              <span>Cable Pick</span>
-              <input type="number" id="combinedCablingCablePick" min="0" step="0.1" value="0" oninput="updateCombinedCablingFromInputs()">
-            </label>
-          </div>
-          <div class="cabling-subsection">
-            <span class="toggle-label toggle-label-block-2">Cable Drop</span>
-            <div class="slider-toggle">
-              <button type="button" class="slider-toggle-btn active" id="combinedCableDropBehindBtn" onclick="setCombinedCableDropPosition('behind')">Behind</button>
-              <button type="button" class="slider-toggle-btn" id="combinedCableDropSrBtn" onclick="setCombinedCableDropPosition('sr')">SR</button>
-              <button type="button" class="slider-toggle-btn" id="combinedCableDropSlBtn" onclick="setCombinedCableDropPosition('sl')">SL</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Column 2: Power -->
-        <div>
-          <div class="cabling-header cabling-header-power">Power</div>
-          <label class="mb-2">
-            <span>Distro to Drop</span>
-            <input type="number" id="combinedCablingDistroToWall" min="0" step="0.1" value="10" oninput="updateCombinedCablingFromInputs()">
-          </label>
-          <div class="cabling-subsection">
-            <span class="toggle-label toggle-label-block-2">Power In</span>
-            <div class="slider-toggle">
-              <button type="button" class="slider-toggle-btn active" id="combinedPowerInTopBtn" onclick="setCombinedPowerInPosition('top')">Top</button>
-              <button type="button" class="slider-toggle-btn" id="combinedPowerInBottomBtn" onclick="setCombinedPowerInPosition('bottom')">Bottom</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Column 3: Data -->
-        <div>
-          <div class="cabling-data-grid cabling-data-2col">
-            <div class="cabling-header-data-inline">Data</div>
-            <div class="cabling-pl-6">
-              <label id="combinedDistBoxOnWallLabel" class="dist-box-label" onclick="toggleCombinedDistBoxOnWall()">
-                Dist Box
-                <span class="dist-box-check" id="combinedDistBoxOnWallCheck"></span>
-              </label>
-            </div>
-            <div class="cabling-divider">
-              <label class="mb-4">
-                <span>Proc to Drop</span>
-                <input type="number" id="combinedCablingProcessorToWall" min="0" step="0.1" value="15" oninput="updateCombinedCablingFromInputs()">
-              </label>
-              <label class="mb-2">
-                <span>Server to Proc</span>
-                <input type="number" id="combinedCablingServerToProc" min="0" step="0.1" value="50" oninput="updateCombinedCablingFromInputs()">
-              </label>
-            </div>
-            <div class="cabling-divider-indent">
-              <div id="combinedDistBoxPositionControls" style="display: none;">
-                <!-- Main -->
-                <span class="toggle-label toggle-label-block">Main</span>
-                <div class="dist-box-row-mb">
-                  <div class="slider-toggle">
-                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="combinedDistBoxMainHorizSRBtn" onclick="setCombinedDistBoxMainHorizPosition('sr')">SR</button>
-                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm active" id="combinedDistBoxMainHorizCBtn" onclick="setCombinedDistBoxMainHorizPosition('center')">C</button>
-                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="combinedDistBoxMainHorizSLBtn" onclick="setCombinedDistBoxMainHorizPosition('sl')">SL</button>
-                  </div>
-                  <div class="slider-toggle">
-                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm active" id="combinedDistBoxMainTopBtn" onclick="setCombinedDistBoxMainVertPosition('top')">Top</button>
-                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="combinedDistBoxMainBottomBtn" onclick="setCombinedDistBoxMainVertPosition('bottom')">Bot</button>
-                  </div>
-                </div>
-                <!-- Backup -->
-                <span class="toggle-label toggle-label-block">Backup</span>
-                <div class="dist-box-row">
-                  <div class="slider-toggle">
-                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="combinedDistBoxBackupHorizSRBtn" onclick="setCombinedDistBoxBackupHorizPosition('sr')">SR</button>
-                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm active" id="combinedDistBoxBackupHorizCBtn" onclick="setCombinedDistBoxBackupHorizPosition('center')">C</button>
-                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="combinedDistBoxBackupHorizSLBtn" onclick="setCombinedDistBoxBackupHorizPosition('sl')">SL</button>
-                  </div>
-                  <div class="slider-toggle">
-                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm active" id="combinedDistBoxBackupTopBtn" onclick="setCombinedDistBoxBackupVertPosition('top')">Top</button>
-                    <button type="button" class="slider-toggle-btn slider-toggle-btn-sm" id="combinedDistBoxBackupBottomBtn" onclick="setCombinedDistBoxBackupVertPosition('bottom')">Bot</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- Read-only view: this diagram is assembled from each screen's own Cable tab
+           settings. Edit cabling per screen there, not here. -->
+      <div class="combined-cabling-note">Assembled from each screen&rsquo;s Cable tab &mdash; edit cabling there.</div>
 
       <!-- Cable Diagram Canvas -->
       <div id="combinedCableDiagramCanvasWrapper" class="overflow-x-auto">
@@ -3811,8 +3736,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.154';
-const APP_CHANGELOG = 'Make the standard layout hint follow Select Mode';
+const APP_VERSION = '2.11.155';
+const APP_CHANGELOG = 'Draw combined cables per screen to their assigned units, fix live SOCA labels';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

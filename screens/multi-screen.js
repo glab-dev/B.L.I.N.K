@@ -87,7 +87,9 @@ function getDefaultScreenData() {
     serverToProcessor: 50,
     cablePick: 0,
     cableDropPosition: 'behind',
-    distBoxOnWall: false,
+    xdPlacement: 'proc',
+    xdToProcessor: 25,
+    xdToWall: 40,
     cableRearView: false,
 
     // Canvas
@@ -264,15 +266,19 @@ function saveCurrentScreenData() {
   const processorToWallEl = document.getElementById('processorToWall');
   const serverToProcessorEl = document.getElementById('serverToProcessor');
   const cablePickEl = document.getElementById('cablePick');
+  const xdToProcessorEl = document.getElementById('xdToProcessor');
+  const xdToWallEl = document.getElementById('xdToWall');
 
   if(wallToFloorEl) data.wallToFloor = wallToFloorEl.value !== '' ? parseFloat(wallToFloorEl.value) : parseFloat(wallToFloorEl.placeholder);
   if(distroToWallEl) data.distroToWall = distroToWallEl.value !== '' ? parseFloat(distroToWallEl.value) : parseFloat(distroToWallEl.placeholder);
   if(processorToWallEl) data.processorToWall = processorToWallEl.value !== '' ? parseFloat(processorToWallEl.value) : parseFloat(processorToWallEl.placeholder);
   if(serverToProcessorEl) data.serverToProcessor = serverToProcessorEl.value !== '' ? parseFloat(serverToProcessorEl.value) : parseFloat(serverToProcessorEl.placeholder);
   if(cablePickEl) data.cablePick = cablePickEl.value !== '' ? parseFloat(cablePickEl.value) : 0;
+  if(xdToProcessorEl) data.xdToProcessor = xdToProcessorEl.value !== '' ? parseFloat(xdToProcessorEl.value) : parseFloat(xdToProcessorEl.placeholder);
+  if(xdToWallEl) data.xdToWall = xdToWallEl.value !== '' ? parseFloat(xdToWallEl.value) : parseFloat(xdToWallEl.placeholder);
   data.cableDropPosition = cableDropPosition;
   data.powerInPosition = powerInPosition;
-  data.distBoxOnWall = distBoxOnWallEnabled;
+  data.xdPlacement = xdPlacement;
   data.distBoxMainHorizPosition = distBoxMainHorizPosition;
   data.distBoxBackupHorizPosition = distBoxBackupHorizPosition;
   data.distBoxMainVertPosition = distBoxMainVertPosition;
@@ -459,6 +465,8 @@ function loadScreenData(screenId) {
   const processorToWallEl = document.getElementById('processorToWall');
   const serverToProcessorEl = document.getElementById('serverToProcessor');
   const cablePickEl = document.getElementById('cablePick');
+  const xdToProcessorEl = document.getElementById('xdToProcessor');
+  const xdToWallEl = document.getElementById('xdToWall');
 
   // Set value only if non-default, otherwise leave empty to show placeholder
   if(wallToFloorEl) wallToFloorEl.value = (data.wallToFloor && data.wallToFloor !== 5) ? data.wallToFloor : '';
@@ -467,6 +475,8 @@ function loadScreenData(screenId) {
   const serverVal = data.serverToProcessor ?? data.fohToProcessor;
   if(serverToProcessorEl) serverToProcessorEl.value = (serverVal && serverVal !== 50) ? serverVal : '';
   if(cablePickEl) cablePickEl.value = (data.cablePick && data.cablePick !== 0) ? data.cablePick : '';
+  if(xdToProcessorEl) xdToProcessorEl.value = (data.xdToProcessor && data.xdToProcessor !== 25) ? data.xdToProcessor : '';
+  if(xdToWallEl) xdToWallEl.value = (data.xdToWall && data.xdToWall !== 40) ? data.xdToWall : '';
 
   // Restore cable drop toggle buttons
   cableDropPosition = data.cableDropPosition || 'behind';
@@ -478,8 +488,9 @@ function loadScreenData(screenId) {
   document.getElementById('powerInTopBtn')?.classList.toggle('active', powerInPosition === 'top');
   document.getElementById('powerInBottomBtn')?.classList.toggle('active', powerInPosition === 'bottom');
 
-  distBoxOnWallEnabled = data.distBoxOnWall || false;
-  if (typeof updateDistBoxCheckUI === 'function') updateDistBoxCheckUI(distBoxOnWallEnabled);
+  xdPlacement = resolveXdPlacement(data);
+  if (typeof updateXdPlacementUI === 'function') updateXdPlacementUI(xdPlacement);
+  if (typeof updateXdPlacementAvailability === 'function') updateXdPlacementAvailability();
 
   distBoxMainHorizPosition = data.distBoxMainHorizPosition || data.distBoxHorizPosition || 'center';
   document.getElementById('distBoxMainHorizSRBtn')?.classList.toggle('active', distBoxMainHorizPosition === 'sr');
@@ -498,9 +509,6 @@ function loadScreenData(screenId) {
   distBoxBackupVertPosition = data.distBoxBackupVertPosition || 'top';
   document.getElementById('distBoxBackupTopBtn')?.classList.toggle('active', distBoxBackupVertPosition === 'top');
   document.getElementById('distBoxBackupBottomBtn')?.classList.toggle('active', distBoxBackupVertPosition === 'bottom');
-
-  const posControls = document.getElementById('distBoxPositionControls');
-  if (posControls) posControls.style.display = distBoxOnWallEnabled ? '' : 'none';
 
   cableRearViewEnabled = data.cableRearView || false;
   document.getElementById('cableFrontViewBtn')?.classList.toggle('active', !cableRearViewEnabled);

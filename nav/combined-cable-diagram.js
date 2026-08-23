@@ -3,7 +3,11 @@
 // Shows multiple LED walls sharing processors, distribution boxes, and power.
 // Renders into #combinedCableDiagramCanvas inside the combined tab.
 
-// ---- Combined Cabling Configuration (global, shared across all combined screens) ----
+// ---- Combined Cabling Configuration (DERIVED, not user-editable) ----
+// The combined view is read-only: every cabling value comes from the screens themselves,
+// edited in each screen's own Cable tab. This object is rebuilt from the selection on each
+// render purely so the existing consumers (calculateCombinedCabling, the combined gear
+// list) keep a single place to read the few genuinely rig-wide values from.
 let combinedCablingConfig = {
   processor: 'Brompton_SX40',
   frameRate: 60,
@@ -20,269 +24,72 @@ let combinedCablingConfig = {
   cableDropPosition: 'behind',
   powerInPosition: 'top',
   distBoxOnWall: false,
+  xdPlacement: 'proc',
+  xdToProcessor: 25,
   distBoxMainHorizPosition: 'center',
   distBoxMainVertPosition: 'top',
   distBoxBackupHorizPosition: 'center',
   distBoxBackupVertPosition: 'top'
 };
 
-// ---- localStorage Persistence ----
-
-function saveCombinedCablingConfig() {
-  try {
-    localStorage.setItem('ledcalc_combined_cabling_config', JSON.stringify(combinedCablingConfig));
-  } catch (e) { /* ignore quota errors */ }
+// Per-screen cabling values, with the same defaults the Cable tab uses.
+function screenCablingValues(screenId) {
+  const d = (screens[screenId] && screens[screenId].data) ? screens[screenId].data : {};
+  return {
+    wallToFloor: d.wallToFloor ?? 5,
+    distroToWall: d.distroToWall ?? 10,
+    processorToWall: d.processorToWall ?? 15,
+    serverToProcessor: d.serverToProcessor ?? 50,
+    cablePick: d.cablePick ?? 0,
+    cableDropPosition: d.cableDropPosition ?? 'behind',
+    powerInPosition: d.powerInPosition ?? 'top',
+    xdPlacement: (typeof resolveXdPlacement === 'function') ? resolveXdPlacement(d) : 'proc',
+    xdToProcessor: d.xdToProcessor ?? 25,
+    xdToWall: d.xdToWall ?? 40,
+    redundancy: !!d.redundancy,
+    voltage: d.voltage ?? 208,
+    breaker: d.breaker ?? 20,
+    processor: d.processor || 'Brompton_SX40',
+    mx40ConnectionMode: d.mx40ConnectionMode || 'direct'
+  };
 }
 
-function loadCombinedCablingConfig() {
-  try {
-    const saved = localStorage.getItem('ledcalc_combined_cabling_config');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        Object.keys(parsed).forEach(key => {
-          if (isSafeKey(key) && combinedCablingConfig.hasOwnProperty(key)) {
-            combinedCablingConfig[key] = parsed[key];
-          }
-        });
-      }
-    }
-  } catch (e) { /* ignore parse errors */ }
+// Rebuild the derived config from the current selection. Rig-wide values (server run,
+// distro distance) take the largest across the selection so nothing is under-reported.
+function deriveCombinedCablingConfig(selectedScreenIds) {
+  const ids = (selectedScreenIds || []).filter(id => screens[id] && screens[id].data);
+  if (!ids.length) return combinedCablingConfig;
+  const first = screenCablingValues(ids[0]);
+  const cfg = combinedCablingConfig;
+  cfg.processor = first.processor;
+  cfg.mx40ConnectionMode = first.mx40ConnectionMode;
+  cfg.voltage = first.voltage;
+  cfg.breaker = first.breaker;
+  cfg.frameRate = (screens[ids[0]].data.frameRate) || 60;
+  cfg.bitDepth = (screens[ids[0]].data.bitDepth) || 8;
+  cfg.redundancy = ids.some(id => screenCablingValues(id).redundancy);
+  cfg.wallToFloor = Math.max.apply(null, ids.map(id => screenCablingValues(id).wallToFloor));
+  cfg.distroToWall = Math.max.apply(null, ids.map(id => screenCablingValues(id).distroToWall));
+  cfg.processorToWall = Math.max.apply(null, ids.map(id => screenCablingValues(id).processorToWall));
+  cfg.serverToProcessor = Math.max.apply(null, ids.map(id => screenCablingValues(id).serverToProcessor));
+  cfg.cablePick = Math.max.apply(null, ids.map(id => screenCablingValues(id).cablePick));
+  cfg.xdToProcessor = Math.max.apply(null, ids.map(id => screenCablingValues(id).xdToProcessor));
+  // Placement is rig-wide only in the sense that the floor lane needs to know whether ANY
+  // screen puts its box out on the floor; per-screen placement still drives each run.
+  const placements = ids.map(id => screenCablingValues(id).xdPlacement);
+  cfg.xdPlacement = placements.includes('remote') ? 'remote'
+    : (placements.includes('wall') ? 'wall' : 'proc');
+  cfg.distBoxOnWall = cfg.xdPlacement === 'wall';
+  cfg.cableDropPosition = first.cableDropPosition;
+  cfg.powerInPosition = first.powerInPosition;
+  return cfg;
 }
-
-// Load on script parse
-loadCombinedCablingConfig();
 
 // ---- Processor Dist Box Support Check ----
 function processorSupportsDistBox(processorId, mx40Mode) {
   // resolveProcessorTopology() reads getAllProcessors(), so custom processors are
   // matched here too — the previous lookup only saw the built-in table.
   return resolveProcessorTopology(processorId, mx40Mode).usesDistBox;
-}
-
-function updateCombinedDistBoxAvailability() {
-  // Derive processor from selected screens, or fall back to current screen
-  var found = false;
-  var selectedIds = (typeof combinedSelectedScreens !== 'undefined' && combinedSelectedScreens.size > 0)
-    ? Array.from(combinedSelectedScreens) : [];
-  for (var i = 0; i < selectedIds.length; i++) {
-    var scr = screens[selectedIds[i]];
-    if (scr && scr.data && scr.data.processor) {
-      combinedCablingConfig.processor = scr.data.processor;
-      combinedCablingConfig.mx40ConnectionMode = scr.data.mx40ConnectionMode || 'direct';
-      found = true;
-      break;
-    }
-  }
-  if (!found && typeof currentScreenId !== 'undefined' && typeof screens !== 'undefined') {
-    var cur = screens[currentScreenId];
-    if (cur && cur.data && cur.data.processor) {
-      combinedCablingConfig.processor = cur.data.processor;
-      combinedCablingConfig.mx40ConnectionMode = cur.data.mx40ConnectionMode || 'direct';
-    }
-  }
-  var supportsDistBox = processorSupportsDistBox(
-    combinedCablingConfig.processor,
-    combinedCablingConfig.mx40ConnectionMode
-  );
-  var label = document.getElementById('combinedDistBoxOnWallLabel');
-  if (label) {
-    label.style.opacity = supportsDistBox ? '1' : '0.3';
-    label.style.pointerEvents = supportsDistBox ? '' : 'none';
-  }
-  if (!supportsDistBox) {
-    combinedCablingConfig.distBoxOnWall = false;
-    updateCombinedDistBoxCheckUI(false);
-  }
-}
-
-// ---- Input Handlers ----
-
-function updateCombinedCablingFromInputs() {
-  const get = (id) => document.getElementById(id);
-
-  const procEl = get('combinedCablingProcessor');
-  if (procEl) combinedCablingConfig.processor = procEl.value;
-
-  const frEl = get('combinedCablingFrameRate');
-  if (frEl) combinedCablingConfig.frameRate = parseFloat(frEl.value) || 60;
-
-  const bdEl = get('combinedCablingBitDepth');
-  if (bdEl) combinedCablingConfig.bitDepth = parseInt(bdEl.value) || 8;
-
-  const vEl = get('combinedCablingVoltage');
-  if (vEl) combinedCablingConfig.voltage = parseFloat(vEl.value) || 208;
-
-  const brEl = get('combinedCablingBreaker');
-  if (brEl) combinedCablingConfig.breaker = parseFloat(brEl.value) || 20;
-
-  const w2f = get('combinedCablingWallToFloor');
-  if (w2f) combinedCablingConfig.wallToFloor = parseFloat(w2f.value) || 0;
-
-  const cp = get('combinedCablingCablePick');
-  if (cp) combinedCablingConfig.cablePick = parseFloat(cp.value) || 0;
-
-  const d2w = get('combinedCablingDistroToWall');
-  if (d2w) combinedCablingConfig.distroToWall = parseFloat(d2w.value) || 0;
-
-  const p2w = get('combinedCablingProcessorToWall');
-  if (p2w) combinedCablingConfig.processorToWall = parseFloat(p2w.value) || 0;
-
-  const s2p = get('combinedCablingServerToProc');
-  if (s2p) combinedCablingConfig.serverToProcessor = parseFloat(s2p.value) || 0;
-
-  saveCombinedCablingConfig();
-
-  // Re-render if screens are selected
-  if (typeof combinedSelectedScreens !== 'undefined' && combinedSelectedScreens.size > 0) {
-    const dims = typeof combinedScreenDimensions !== 'undefined' ? combinedScreenDimensions : [];
-    renderCombinedCableDiagram(Array.from(combinedSelectedScreens), dims);
-  }
-}
-
-function setCombinedCableDropPosition(pos) {
-  combinedCablingConfig.cableDropPosition = pos;
-  ['behind', 'sr', 'sl'].forEach(p => {
-    const btn = document.getElementById('combinedCableDrop' + p.charAt(0).toUpperCase() + p.slice(1) + 'Btn');
-    if (btn) btn.classList.toggle('active', p === pos);
-  });
-  saveCombinedCablingConfig();
-  if (typeof combinedSelectedScreens !== 'undefined' && combinedSelectedScreens.size > 0) {
-    renderCombinedCableDiagram(Array.from(combinedSelectedScreens), typeof combinedScreenDimensions !== 'undefined' ? combinedScreenDimensions : []);
-  }
-}
-
-function setCombinedPowerInPosition(pos) {
-  combinedCablingConfig.powerInPosition = pos;
-  const topBtn = document.getElementById('combinedPowerInTopBtn');
-  const botBtn = document.getElementById('combinedPowerInBottomBtn');
-  if (topBtn) topBtn.classList.toggle('active', pos === 'top');
-  if (botBtn) botBtn.classList.toggle('active', pos === 'bottom');
-  saveCombinedCablingConfig();
-  if (typeof combinedSelectedScreens !== 'undefined' && combinedSelectedScreens.size > 0) {
-    renderCombinedCableDiagram(Array.from(combinedSelectedScreens), typeof combinedScreenDimensions !== 'undefined' ? combinedScreenDimensions : []);
-  }
-}
-
-function updateCombinedDistBoxCheckUI(enabled) {
-  const check = document.getElementById('combinedDistBoxOnWallCheck');
-  if (check) {
-    check.textContent = enabled ? '✓' : '';
-    check.style.background = enabled ? 'var(--primary)' : 'transparent';
-    check.style.borderColor = enabled ? 'var(--primary)' : '#555';
-  }
-  const controls = document.getElementById('combinedDistBoxPositionControls');
-  if (controls) controls.style.display = enabled ? 'block' : 'none';
-}
-
-function toggleCombinedDistBoxOnWall() {
-  // Block toggling ON if processor doesn't support dist boxes
-  if (!combinedCablingConfig.distBoxOnWall &&
-      !processorSupportsDistBox(combinedCablingConfig.processor, combinedCablingConfig.mx40ConnectionMode)) {
-    return;
-  }
-  combinedCablingConfig.distBoxOnWall = !combinedCablingConfig.distBoxOnWall;
-  updateCombinedDistBoxCheckUI(combinedCablingConfig.distBoxOnWall);
-  saveCombinedCablingConfig();
-  if (typeof combinedSelectedScreens !== 'undefined' && combinedSelectedScreens.size > 0) {
-    renderCombinedCableDiagram(Array.from(combinedSelectedScreens), typeof combinedScreenDimensions !== 'undefined' ? combinedScreenDimensions : []);
-  }
-}
-
-function setCombinedDistBoxMainHorizPosition(pos) {
-  combinedCablingConfig.distBoxMainHorizPosition = pos;
-  ['sr', 'center', 'sl'].forEach(p => {
-    const id = 'combinedDistBoxMainHoriz' + (p === 'sr' ? 'SR' : p === 'center' ? 'C' : 'SL') + 'Btn';
-    const btn = document.getElementById(id);
-    if (btn) btn.classList.toggle('active', p === pos);
-  });
-  saveCombinedCablingConfig();
-  if (typeof combinedSelectedScreens !== 'undefined' && combinedSelectedScreens.size > 0) {
-    renderCombinedCableDiagram(Array.from(combinedSelectedScreens), typeof combinedScreenDimensions !== 'undefined' ? combinedScreenDimensions : []);
-  }
-}
-
-function setCombinedDistBoxMainVertPosition(pos) {
-  combinedCablingConfig.distBoxMainVertPosition = pos;
-  const topBtn = document.getElementById('combinedDistBoxMainTopBtn');
-  const botBtn = document.getElementById('combinedDistBoxMainBottomBtn');
-  if (topBtn) topBtn.classList.toggle('active', pos === 'top');
-  if (botBtn) botBtn.classList.toggle('active', pos === 'bottom');
-  saveCombinedCablingConfig();
-  if (typeof combinedSelectedScreens !== 'undefined' && combinedSelectedScreens.size > 0) {
-    renderCombinedCableDiagram(Array.from(combinedSelectedScreens), typeof combinedScreenDimensions !== 'undefined' ? combinedScreenDimensions : []);
-  }
-}
-
-function setCombinedDistBoxBackupHorizPosition(pos) {
-  combinedCablingConfig.distBoxBackupHorizPosition = pos;
-  ['sr', 'center', 'sl'].forEach(p => {
-    const id = 'combinedDistBoxBackupHoriz' + (p === 'sr' ? 'SR' : p === 'center' ? 'C' : 'SL') + 'Btn';
-    const btn = document.getElementById(id);
-    if (btn) btn.classList.toggle('active', p === pos);
-  });
-  saveCombinedCablingConfig();
-  if (typeof combinedSelectedScreens !== 'undefined' && combinedSelectedScreens.size > 0) {
-    renderCombinedCableDiagram(Array.from(combinedSelectedScreens), typeof combinedScreenDimensions !== 'undefined' ? combinedScreenDimensions : []);
-  }
-}
-
-function setCombinedDistBoxBackupVertPosition(pos) {
-  combinedCablingConfig.distBoxBackupVertPosition = pos;
-  const topBtn = document.getElementById('combinedDistBoxBackupTopBtn');
-  const botBtn = document.getElementById('combinedDistBoxBackupBottomBtn');
-  if (topBtn) topBtn.classList.toggle('active', pos === 'top');
-  if (botBtn) botBtn.classList.toggle('active', pos === 'bottom');
-  saveCombinedCablingConfig();
-  if (typeof combinedSelectedScreens !== 'undefined' && combinedSelectedScreens.size > 0) {
-    renderCombinedCableDiagram(Array.from(combinedSelectedScreens), typeof combinedScreenDimensions !== 'undefined' ? combinedScreenDimensions : []);
-  }
-}
-
-function toggleCombinedRedundancy() {
-  combinedCablingConfig.redundancy = !combinedCablingConfig.redundancy;
-  const btn = document.getElementById('combinedRedundancyBtn');
-  if (btn) btn.classList.toggle('active', combinedCablingConfig.redundancy);
-  saveCombinedCablingConfig();
-  if (typeof combinedSelectedScreens !== 'undefined' && combinedSelectedScreens.size > 0) {
-    renderCombinedCableDiagram(Array.from(combinedSelectedScreens), typeof combinedScreenDimensions !== 'undefined' ? combinedScreenDimensions : []);
-  }
-}
-
-// Restore input UI from config (called when combined view activates)
-function restoreCombinedCablingInputs() {
-  const cfg = combinedCablingConfig;
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
-
-  set('combinedCablingProcessor', cfg.processor);
-  set('combinedCablingFrameRate', cfg.frameRate);
-  set('combinedCablingBitDepth', cfg.bitDepth);
-  set('combinedCablingVoltage', cfg.voltage);
-  set('combinedCablingBreaker', cfg.breaker);
-  set('combinedCablingWallToFloor', cfg.wallToFloor);
-  set('combinedCablingCablePick', cfg.cablePick);
-  set('combinedCablingDistroToWall', cfg.distroToWall);
-  set('combinedCablingProcessorToWall', cfg.processorToWall);
-  set('combinedCablingServerToProc', cfg.serverToProcessor);
-
-  // Toggle buttons
-  setCombinedCableDropPosition(cfg.cableDropPosition);
-  setCombinedPowerInPosition(cfg.powerInPosition);
-
-  updateCombinedDistBoxCheckUI(cfg.distBoxOnWall);
-
-  // Always sync dist box position buttons with config (even when dist box is off)
-  // so UI matches config when user toggles dist box on
-  setCombinedDistBoxMainHorizPosition(cfg.distBoxMainHorizPosition);
-  setCombinedDistBoxMainVertPosition(cfg.distBoxMainVertPosition);
-  setCombinedDistBoxBackupHorizPosition(cfg.distBoxBackupHorizPosition);
-  setCombinedDistBoxBackupVertPosition(cfg.distBoxBackupVertPosition);
-
-  const redundancyBtn = document.getElementById('combinedRedundancyBtn');
-  if (redundancyBtn) redundancyBtn.classList.toggle('active', cfg.redundancy);
-
-  // Re-apply processor-based dist box availability after restoring UI
-  updateCombinedDistBoxAvailability();
 }
 
 // ---- Color Constants (let for eco/greyscale reassignment) ----
@@ -613,9 +420,8 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   }
 
   container.classList.add('has-diagram');
-  updateCombinedDistBoxAvailability();
 
-  const cfg = combinedCablingConfig;
+  const cfg = deriveCombinedCablingConfig(selectedScreenIds);
   const calcData = calculateCombinedCabling(selectedScreenIds, cfg);
   if (!calcData || calcData.screens.length === 0) return;
 
@@ -629,9 +435,13 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
       if (scr && scr.data && scr.data.redundancy) { redundancy = true; break; }
     }
   }
-  const distBoxOnWall = cfg.distBoxOnWall;
+  // Placement is per screen now; these are only used for the rig-wide dimension labels.
+  const xdScreenDistances = selectedScreenIds.map(function(id) {
+    const scr = screens[id];
+    return (scr && scr.data && scr.data.xdToWall != null) ? scr.data.xdToWall : 40;
+  });
+  const minXdToWall = xdScreenDistances.length ? Math.min.apply(null, xdScreenDistances) : 40;
   const dropPos = cfg.cableDropPosition;
-  const powerInPos = cfg.powerInPosition;
 
   // ---- Recover panelSize and compute feet-to-pixel conversion ----
   const firstDim = screenDimensions[0];
@@ -688,29 +498,88 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   var wallWidthFt = bbW / ftToPx;
   var wallHeightFt = bbH / ftToPx;
 
-  // Scene bounds in feet — equipment extends left of drop point
-  // Server is pinned to far-left (MARGIN.left) and NOT included in scale calculation
-  // (matching per-screen cable-diagram.js pattern)
-  var maxLeftFt = Math.max(cfg.distroToWall, cfg.processorToWall) + 4;
+  // Every physical unit the selection's data lines land on. Numbering is already pooled
+  // globally by buildDataPortPlan, so two screens on the same processor share one box here.
+  var dataUnits = (typeof projectDataUnits === 'function') ? projectDataUnits() : { procs: [], boxes: [], byScreen: new Map() };
+  var selectedIdSet = new Set(selectedScreenIds);
+  var reachedProcIds = new Set();
+  var reachedBoxIds = new Set();
+  var remoteBoxIds = new Set();
+  selectedScreenIds.forEach(function(id) {
+    var reach = dataUnits.byScreen.get(id);
+    if (!reach) return;
+    var place = screenCablingValues(id).xdPlacement;
+    reach.procUnitIds.forEach(function(u) { reachedProcIds.add(u); });
+    reach.boxUnitIds.forEach(function(u) {
+      reachedBoxIds.add(u);
+      // Only a REMOTE box gets its own box on the floor; 'proc' keeps it at the
+      // processor and 'wall' draws it on the screen itself.
+      if (place === 'remote') remoteBoxIds.add(u);
+    });
+  });
+  var floorProcs = dataUnits.procs.filter(function(u) { return reachedProcIds.has(u.unitId); });
+  var floorBoxes = dataUnits.boxes.filter(function(u) { return remoteBoxIds.has(u.unitId); });
+  if (!floorProcs.length) floorProcs = [{ unitId: '__proc__', label: 'PROC' }];
+  var distroCount = 1; // Phase 1: one distro for the whole rig, as today
+  var floorBoxCount = distroCount + floorProcs.length + floorBoxes.length;
+
+  // Floor equipment sits in a FIXED lane left of the wall, in the order distro(s),
+  // processor(s), then the XD boxes nearest the wall. The distances are schematic:
+  // changing one only updates its dimension label, it never moves a box. The lane is
+  // sized in feet so it scales with the scene, and grows with the number of units so
+  // more boxes get more room rather than being squeezed together.
+
   var totalVertFt = wallHeightFt + cfg.wallToFloor + 3;
 
-  // Right padding in feet — extra room for SL drop/pick
+  // Right padding in feet — extra room for an SL drop/pick on any screen
+  var anySlPick = selectedScreenIds.some(function(id) {
+    var c = screenCablingValues(id);
+    return c.cableDropPosition === 'sl';
+  });
   var rightPadFt = 4;
-  if (dropPos === 'sl') rightPadFt += (cfg.cablePick > 0 ? 3 : 1);
-  var sceneWidthFt = maxLeftFt + wallWidthFt + rightPadFt;
+  if (anySlPick) rightPadFt += (cfg.cablePick > 0 ? 3 : 1);
 
-  // Scale to fit scene in drawable width, capped at 80 px/ft
+  // Floor equipment needs a real gap between boxes to stay readable. Spacing is generous
+  // when there are few units and tightens gracefully as the count grows, but never below
+  // a readable gap. The lane is sized in pixels, independent of scale.
   var drawableW = canvasW - MARGIN.left - MARGIN.right;
-  var scale = Math.min(drawableW / sceneWidthFt, 80);
+  var idealSlot = BOX_W + (isSmall ? 22 : 52);
+  var minSlot = BOX_W + (isSmall ? 8 : 12);
+  var laneBudget = Math.max(drawableW * 0.40, minSlot * 3);
+  var equipSlotPx = Math.min(idealSlot, Math.max(minSlot, laneBudget / (floorBoxCount + 1)));
+  var equipLaneW = equipSlotPx * (floorBoxCount + 1);
+
+  // The screens must keep at least this share of the width, so a rig with a lot of floor
+  // units widens the canvas (the wrapper scrolls) rather than squashing the walls.
+  var WALL_SHARE = 0.55;
+  var neededDrawableW = (BOX_W + equipLaneW) / (1 - WALL_SHARE);
+  if (drawableW < neededDrawableW) {
+    drawableW = neededDrawableW;
+    canvasW = drawableW + MARGIN.left + MARGIN.right;
+  }
+
+  // The wall takes whatever the lane leaves
+  var scale = Math.min((drawableW - BOX_W - equipLaneW) / (wallWidthFt + rightPadFt), 80);
+  var wallWidthPx = wallWidthFt * scale;
 
   // Pick vertical space (only for "behind" position)
   var PICK_GAP = isSmall ? 30 : 45;
   var PICK_RADIUS = 12;
-  var pickBehind = dropPos === 'behind';
-  var pickVertSpace = (cfg.cablePick > 0 && pickBehind) ? PICK_GAP + PICK_RADIUS * 2 + 10 : 0;
+  // Any screen with a behind-pick needs headroom above the wall
+  var anyBehindPick = selectedScreenIds.some(function(id) {
+    var c = screenCablingValues(id);
+    return c.cablePick > 0 && c.cableDropPosition === 'behind';
+  });
+  var pickVertSpace = anyBehindPick ? PICK_GAP + PICK_RADIUS * 2 + 10 : 0;
 
-  // Canvas height — reduced below-floor since equipment is above floor
-  var belowFloorPx = isSmall ? 55 : 65;
+  // Below-floor band: every screen's converging runs get their own row, then the
+  // dimension lines sit under them. Sized from the screen count so a big rig gets a
+  // taller drawing rather than a pile of overlapping cables on one line.
+  var FLOOR_ROW_STEP = isSmall ? 11 : 16;
+  var FLOOR_BAND_TOP = 10;
+  var floorBandPx = FLOOR_BAND_TOP + selectedScreenIds.length * FLOOR_ROW_STEP;
+  var dimRowsPx = ((floorBoxes.length ? 3 : 2) * 15) + 12;
+  var belowFloorPx = floorBandPx + dimRowsPx;
   var dpr = window.devicePixelRatio || 1;
   var legendExtra = isSmall ? 20 : 0;
   var canvasH = MARGIN.top + totalVertFt * scale + pickVertSpace + belowFloorPx + MARGIN.bottom + legendExtra;
@@ -728,10 +597,10 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   ctx.fillStyle = CC_BG_COLOR;
   ctx.fillRect(0, 0, canvasW, canvasH);
 
-  // ---- Wall positioning (centered in scene) ----
-  var sceneWidthPx = sceneWidthFt * scale;
-  var sceneOffsetX = MARGIN.left + (drawableW - sceneWidthPx) / 2;
-  var wallLeftX = sceneOffsetX + maxLeftFt * scale;
+  // ---- Wall positioning: the wall sits to the right of the equipment lane ----
+  var sceneWidthPx = BOX_W + equipLaneW + wallWidthPx + rightPadFt * scale;
+  var sceneOffsetX = MARGIN.left + Math.max(0, (drawableW - sceneWidthPx) / 2);
+  var wallLeftX = sceneOffsetX + BOX_W + equipLaneW;
   var wallRightX = wallLeftX + wallWidthFt * scale;
   var wallTopY = MARGIN.top + pickVertSpace;
   var wallBottomY = wallTopY + wallHeightFt * scale;
@@ -742,12 +611,39 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   var toX = function(px) { return wallLeftX + (px - bbL) * pxToCanvas; };
   var toY = function(py) { return wallTopY + (py - bbT) * pxToCanvas; };
 
-  // ---- Unified drop point (ONE for the whole bounding box) ----
-  var dropX;
+  // ---- Per-screen geometry: each screen drops its own cables ----
+  // Cables come down the back or the side of the screen they serve and only converge on
+  // the floor, so every screen gets its own drop point and pick from its OWN Cable tab
+  // settings — exactly what that screen shows in its own cable diagram.
   var SIDE_DROP_PAD = 20;
-  if (dropPos === 'behind') dropX = toX(bbL + bbW / 2);
-  else if (dropPos === 'sr') dropX = toX(bbL) - SIDE_DROP_PAD;
-  else dropX = toX(bbR) + SIDE_DROP_PAD;
+  screenPos.forEach(function(sp, i) {
+    sp.cab = screenCablingValues(sp.screenId);
+    sp.left = toX(sp.x);
+    sp.right = toX(sp.x + sp.width);
+    sp.top = toY(sp.y);
+    sp.bottom = toY(sp.y + sp.height);
+    sp.order = i;
+
+    if (sp.cab.cableDropPosition === 'sr') sp.dropX = sp.left - SIDE_DROP_PAD;
+    else if (sp.cab.cableDropPosition === 'sl') sp.dropX = sp.right + SIDE_DROP_PAD;
+    else sp.dropX = (sp.left + sp.right) / 2;
+
+    if (sp.cab.cablePick > 0) {
+      if (sp.cab.cableDropPosition === 'behind') {
+        sp.pickCX = sp.dropX;
+        sp.pickCY = sp.top - PICK_GAP - PICK_RADIUS;
+      } else if (sp.cab.cableDropPosition === 'sr') {
+        sp.pickCX = sp.left - PICK_GAP - PICK_RADIUS;
+        sp.pickCY = sp.top + PICK_RADIUS;
+      } else {
+        sp.pickCX = sp.right + PICK_GAP + PICK_RADIUS;
+        sp.pickCY = sp.top + PICK_RADIUS;
+      }
+    }
+  });
+
+  // Fallback drop for the few rig-wide bits (pick dimension, legend anchoring)
+  var dropX = screenPos[0].dropX;
 
   // ---- Draw Floor Line ----
   ctx.strokeStyle = CC_FLOOR_COLOR;
@@ -834,15 +730,54 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
 
   // ---- Equipment on Floor (ONE set for unified wall) ----
   // Equipment positions use feet-based scale (matching per-screen diagram)
-  var distroCanvasX = dropX - cfg.distroToWall * scale;
-  var procCanvasX = dropX - cfg.processorToWall * scale;
+  // FIXED lane, left to right: distro, proc, XD. The XD (when remote) sits closest to
+  // the wall; without it the processor does. Distances only change their labels.
+  // equipSlotPx / equipLaneW were sized with the canvas up top so the boxes always get a
+  // readable gap; the lane is simply laid out here.
   var equipY = floorY - BOX_H; // boxes sit ON TOP of floor line
+  var dataEndY = equipY + BOX_H;
 
-  // Offset distro box if it overlaps with processor box
+  // Lay the lane out right-to-left from the wall: XD boxes nearest, then processors,
+  // then distros. unitX maps a unitId to the centre X of its box.
+  var unitX = {};
+  var laneSlots = [];
+  var slotCursorX = wallLeftX - equipSlotPx;
+  floorBoxes.slice().reverse().forEach(function(u) {
+    unitX[u.unitId] = slotCursorX;
+    // With more than one processor a bare "XD A" is ambiguous — box indices restart
+    // per processor, so qualify the label with the processor it hangs off.
+    laneSlots.push({ x: slotCursorX,
+                     label: (floorProcs.length > 1 && u.qualifiedLabel) ? u.qualifiedLabel : u.label,
+                     color: CC_DISTBOX_COLOR, kind: 'box', unit: u });
+    slotCursorX -= equipSlotPx;
+  });
+  floorProcs.slice().reverse().forEach(function(u) {
+    unitX[u.unitId] = slotCursorX;
+    laneSlots.push({ x: slotCursorX, label: u.label, color: CC_PROC_COLOR, kind: 'proc', unit: u });
+    slotCursorX -= equipSlotPx;
+  });
+  var distroCanvasX = slotCursorX;
+  laneSlots.push({ x: distroCanvasX, label: isSmall ? 'DIST' : 'DISTRO', color: CC_POWER_COLOR, kind: 'distro' });
+
+  // Representative processor X, used by the server cable and any single-unit fallback
+  var procCanvasX = floorProcs.length ? unitX[floorProcs[0].unitId] : (wallLeftX - equipSlotPx);
   var distroEquipY = equipY;
-  var boxOverlap = Math.abs((distroCanvasX - BOX_W / 2) - (procCanvasX - BOX_W / 2)) < BOX_W;
-  if (boxOverlap) {
-    distroEquipY = equipY - BOX_H - 4; // stack distro above proc
+
+  // Where one screen's data run terminates: its remote XD box if it has one on the
+  // floor, otherwise the processor that feeds it.
+  function screenDataTargets(screenId) {
+    var reach = dataUnits.byScreen.get(screenId);
+    var place = screenCablingValues(screenId).xdPlacement;
+    var out = [];
+    if (reach && place === 'remote') {
+      reach.boxUnitIds.forEach(function(u) { if (unitX[u] !== undefined) out.push(unitX[u]); });
+    }
+    if (!out.length && reach) {
+      reach.procUnitIds.forEach(function(u) { if (unitX[u] !== undefined) out.push(unitX[u]); });
+    }
+    if (!out.length) out.push(procCanvasX);
+    out.sort(function(a, b) { return a - b; });
+    return out;
   }
 
   // Server: far-left, vertically centered between wall top and floor
@@ -855,26 +790,87 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   var procLabel = 'PROC';
   var srvLabel = isSmall ? 'SRV' : 'SERVER';
 
+  // Remote XD trunks: each floor XD box is fed by the processor that owns it. Length is
+  // a label, not a measured span. The backup box sits beside the main one, so redundancy
+  // only adds a second run.
+  // Runs from one processor to several boxes would sit on top of each other, so each
+  // trunk is lifted onto its own line above the boxes and drops into its target.
+  var trunkSeq = {};
+  floorBoxes.forEach(function(u) {
+    var boxX = unitX[u.unitId];
+    var srcX = (unitX[u.procUnitId] !== undefined) ? unitX[u.procUnitId] : procCanvasX;
+    if (boxX === undefined) return;
+    var seq = (trunkSeq[u.procUnitId] = (trunkSeq[u.procUnitId] || 0) + 1);
+    var trunkMidY = equipY - 6 - seq * (isSmall ? 5 : 7);
+    var drawTrunkRun = function(nudge) {
+      ctx.beginPath();
+      ctx.moveTo(srcX, equipY);
+      ctx.lineTo(srcX, trunkMidY + nudge);
+      ctx.lineTo(boxX, trunkMidY + nudge);
+      ctx.lineTo(boxX, equipY);
+      ctx.stroke();
+    };
+    ctx.setLineDash([]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = CC_TRUNK_COLOR;
+    drawTrunkRun(redundancy ? -2 : 0);
+    if (redundancy) {
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = CC_TRUNK_BACKUP_COLOR;
+      drawTrunkRun(2);
+      ctx.setLineDash([]);
+    }
+
+    // Cable length label sitting on the run, matching the server cable's treatment
+    var trunkLabelText = cfg.xdToProcessor + "'";
+    var trunkLabelX = boxX;
+    var trunkLabelY = trunkMidY - (redundancy ? 2 : 0);
+    var trunkFontSize = isPdf ? 18 : (isSmall ? 8 : 10);
+    ctx.font = 'bold ' + trunkFontSize + 'px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    var trunkTw = ctx.measureText(trunkLabelText).width + 6;
+    var trunkTh = trunkFontSize + 6;
+    ctx.fillStyle = CC_BG_COLOR;
+    ctx.fillRect(trunkLabelX - trunkTw / 2, trunkLabelY - trunkTh / 2, trunkTw, trunkTh);
+    ctx.fillStyle = isPrintMode ? ccFgColor : CC_TRUNK_COLOR;
+    ctx.fillText(trunkLabelText, trunkLabelX, trunkLabelY);
+    ctx.textBaseline = 'alphabetic';
+  });
+
+  // Every unit in the lane, plus the server
   if (typeof drawCableEquipmentBox === 'function') {
-    drawCableEquipmentBox(ctx, distroCanvasX - BOX_W / 2, distroEquipY, BOX_W, BOX_H, distLabel, CC_POWER_COLOR);
-    drawCableEquipmentBox(ctx, procCanvasX - BOX_W / 2, equipY, BOX_W, BOX_H, procLabel, CC_PROC_COLOR);
+    laneSlots.forEach(function(slot) {
+      drawCableEquipmentBox(ctx, slot.x - BOX_W / 2, equipY, BOX_W, BOX_H, slot.label, slot.color);
+    });
     drawCableEquipmentBox(ctx, serverCanvasX, serverBoxY, BOX_W, BOX_H, srvLabel, CC_SERVER_COLOR);
   }
 
-  // Server-to-processor cable (matching per-screen: right edge → down → horizontal to proc)
+  // Server-to-processor cable. It runs OVER the floor lane on its own line rather than
+  // straight through the distro box, then drops into the processor's top edge — the same
+  // treatment the proc→XD trunks get, one line clear of the topmost trunk.
   if (cfg.serverToProcessor > 0) {
+    var maxTrunkSeq = 0;
+    Object.keys(trunkSeq).forEach(function(k) { if (trunkSeq[k] > maxTrunkSeq) maxTrunkSeq = trunkSeq[k]; });
+    var trunkStepPx = isSmall ? 5 : 7;
+    var serverRunY = equipY - 6 - (maxTrunkSeq + 1) * trunkStepPx - (isSmall ? 3 : 5);
+    // Never ride up into the screens
+    serverRunY = Math.max(serverRunY, wallBottomY + 4);
+
     ctx.strokeStyle = CC_SERVER_COLOR;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(serverCanvasX + BOX_W, serverBoxCenterY);
-    ctx.lineTo(serverCanvasX + BOX_W, equipY + BOX_H / 2);
-    ctx.lineTo(procCanvasX - BOX_W / 2, equipY + BOX_H / 2);
+    ctx.moveTo(serverCanvasX + BOX_W / 2, serverBoxY + BOX_H);
+    ctx.lineTo(serverCanvasX + BOX_W / 2, serverRunY);
+    ctx.lineTo(procCanvasX, serverRunY);
+    ctx.lineTo(procCanvasX, equipY);
     ctx.stroke();
 
-    // Server distance label on vertical segment
+    // Server distance label on the vertical segment
     var srvLabelText = cfg.serverToProcessor + "'";
-    var srvLabelX = serverCanvasX + BOX_W + 4;
-    var srvLabelMidY = (serverBoxCenterY + equipY + BOX_H / 2) / 2;
+    var srvLabelX = serverCanvasX + BOX_W / 2 + 4;
+    var srvLabelMidY = (serverBoxY + BOX_H + serverRunY) / 2;
     ctx.font = 'bold ' + (isPdf ? (isSmall ? 13 : 16) : (isSmall ? 7 : 10)) + 'px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -886,30 +882,20 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     ctx.textBaseline = 'alphabetic';
   }
 
-  // ---- Cable Pick (ONE for unified wall) ----
-  var pickCX, pickCY;
-  if (dropPos === 'behind') {
-    // Above wall center
-    pickCX = dropX;
-    pickCY = toY(bbT) - PICK_GAP - PICK_RADIUS;
-  } else if (dropPos === 'sr') {
-    // To the left of wall at wall-top height
-    pickCX = toX(bbL) - PICK_GAP - PICK_RADIUS;
-    pickCY = toY(bbT) + PICK_RADIUS;
-  } else {
-    // To the right of wall at wall-top height
-    pickCX = toX(bbR) + PICK_GAP + PICK_RADIUS;
-    pickCY = toY(bbT) + PICK_RADIUS;
-  }
+  // Cable picks are per screen — set on each screenPos above, drawn after the cables.
 
   // ---- Cable Offset Constants (matching per-screen diagram separation) ----
   var POWER_DROP_OFFSET = -3;      // power cables offset left of drop X
   var DATA_OFFSET = 6;             // primary data offset right of drop X
   var BACKUP_OFFSET = 16;          // backup data offset further right
   var DATA_WALL_OFFSET = 10;       // data runs 10px outside wall edge for visual separation
-  var POWER_FLOOR_Y = floorY - 5;  // power above floor
-  var DATA_FLOOR_Y = floorY + 5;   // data below floor
-  var BACKUP_FLOOR_Y = floorY + 12; // backup further below
+  // Every screen's converging runs get their OWN row in the band below the floor, so a
+  // seven-screen rig reads as seven separate runs instead of one thick smear. Within a
+  // row, power / data / backup are nudged apart.
+  function screenFloorRow(order) { return floorY + FLOOR_BAND_TOP + order * FLOOR_ROW_STEP; }
+  var ROW_POWER = 0;
+  var ROW_DATA = FLOOR_ROW_STEP * 0.32;
+  var ROW_BACKUP = FLOOR_ROW_STEP * 0.64;
 
   // ---- Unified Power (SOCA) Cable Routing ----
   // All circuits from all screens route to ONE drop → floor → distro
@@ -948,7 +934,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
       // Snap the feed point off any deleted panel it lands on, staying within
       // this SOCA's own column span (mirrors the data-cable edge-row search)
       var dp = calc.deletedPanelsSet || new Set();
-      var edgeRow = (powerInPos === 'bottom') ? (calc.effectivePh - 1) : 0;
+      var edgeRow = (sp.cab.powerInPosition === 'bottom') ? (calc.effectivePh - 1) : 0;
       var colUnder = Math.min(lastCol, Math.floor((firstCol + lastCol + 1) / 2));
       if (colUnder < firstCol) colUnder = firstCol;
       if (dp.size > 0 && dp.has(colUnder + ',' + edgeRow)) {
@@ -967,432 +953,280 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
         }
       }
 
+      // Each screen's SOCAs come down THAT screen's own drop, then run along the floor
+      // to the distro. A small per-screen lane offset keeps converging runs readable.
+      var spDropX = sp.dropX;
+      var spPowerFloorY = screenFloorRow(sp.order) + ROW_POWER;
       ctx.strokeStyle = CC_POWER_COLOR;
       ctx.lineWidth = 2;
       ctx.globalAlpha = 0.7;
       ctx.beginPath();
 
-      if (powerInPos === 'bottom') {
-        var powerWallBottomY = screenBottom + 14;
-        ctx.moveTo(landingCenterX + POWER_DROP_OFFSET, screenBottom);
-        ctx.lineTo(landingCenterX + POWER_DROP_OFFSET, powerWallBottomY);
-        ctx.lineTo(dropX + POWER_DROP_OFFSET, powerWallBottomY);
-        if (cfg.cablePick > 0) {
-          if (dropPos === 'behind') {
-            ctx.lineTo(pickCX + POWER_DROP_OFFSET, pickCY);
-            ctx.lineTo(pickCX + POWER_DROP_OFFSET, POWER_FLOOR_Y);
-          } else {
-            ctx.lineTo(pickCX + POWER_DROP_OFFSET, pickCY);
-            ctx.lineTo(pickCX + POWER_DROP_OFFSET, POWER_FLOOR_Y);
-          }
-        } else {
-          ctx.lineTo(dropX + POWER_DROP_OFFSET, POWER_FLOOR_Y);
-        }
-        ctx.lineTo(distroCanvasX, POWER_FLOOR_Y);
-        ctx.lineTo(distroCanvasX, distroEquipY + BOX_H);
+      var powerEdgeY = (sp.cab.powerInPosition === 'bottom') ? screenBottom + 14 : screenTop - 14;
+      var powerStartY = (sp.cab.powerInPosition === 'bottom') ? screenBottom : screenTop;
+      ctx.moveTo(landingCenterX + POWER_DROP_OFFSET, powerStartY);
+      ctx.lineTo(landingCenterX + POWER_DROP_OFFSET, powerEdgeY);
+      ctx.lineTo(spDropX + POWER_DROP_OFFSET, powerEdgeY);
+      if (sp.cab.cablePick > 0 && sp.pickCX !== undefined) {
+        ctx.lineTo(sp.pickCX + POWER_DROP_OFFSET, sp.pickCY);
+        ctx.lineTo(sp.pickCX + POWER_DROP_OFFSET, spPowerFloorY);
       } else {
-        var powerWallTopY = screenTop - 14;
-        ctx.moveTo(landingCenterX + POWER_DROP_OFFSET, screenTop);
-        ctx.lineTo(landingCenterX + POWER_DROP_OFFSET, powerWallTopY);
-        ctx.lineTo(dropX + POWER_DROP_OFFSET, powerWallTopY);
-        if (cfg.cablePick > 0) {
-          if (dropPos === 'behind') {
-            ctx.lineTo(pickCX + POWER_DROP_OFFSET, pickCY);
-            ctx.lineTo(pickCX + POWER_DROP_OFFSET, POWER_FLOOR_Y);
-          } else {
-            ctx.lineTo(pickCX + POWER_DROP_OFFSET, pickCY);
-            ctx.lineTo(pickCX + POWER_DROP_OFFSET, POWER_FLOOR_Y);
-          }
-        } else {
-          ctx.lineTo(dropX + POWER_DROP_OFFSET, POWER_FLOOR_Y);
-        }
-        ctx.lineTo(distroCanvasX, POWER_FLOOR_Y);
-        ctx.lineTo(distroCanvasX, distroEquipY + BOX_H);
+        ctx.lineTo(spDropX + POWER_DROP_OFFSET, spPowerFloorY);
       }
+      ctx.lineTo(distroCanvasX, spPowerFloorY);
+      ctx.lineTo(distroCanvasX, distroEquipY + BOX_H);
       ctx.stroke();
       ctx.globalAlpha = 1.0;
     }
   });
 
-  // ---- Unified Data Cable Routing ----
-  // Collect ALL entry and exit points from ALL screens
+  // ---- Per-screen Data Cable Routing ----
+  // Each screen's data lines come down THAT screen's own drop and then run along the floor
+  // to the specific processor or XD box those lines are assigned to. buildDataPortPlan()
+  // already resolved that mapping globally, so two screens sharing a unit converge on one
+  // box here rather than each getting their own.
   var hasDistBox = calcData.shared.distributionBoxCount > 0;
 
-  var allEntryPoints = [];
-  var allExitPoints = [];
-  screenPos.forEach(function(sp) {
-    var calc = sp.calc;
-    if (!calc) return;
-
-    var screenLeft = toX(sp.x);
-    var screenTop = toY(sp.y);
-    var screenBottom = toY(sp.y + sp.height);
-    var panelType = sp.data.panelType || 'CB5_MKII';
-    var heightRatio = typeof getPanelHeightRatio === 'function' ? getPanelHeightRatio(panelType) : 1;
-    var pxW = panelSize * pxToCanvas;
-    var pxH = panelSize * heightRatio * pxToCanvas;
-
-    var dataFlip = sp.data.dataFlip || false;
-    var entryPoints = dataFlip ? (calc.exitPoints || {}) : (calc.entryPoints || {});
-    var exitPts = dataFlip ? (calc.entryPoints || {}) : (calc.exitPoints || {});
-
-    for (var dl = 0; dl < calc.dataLines; dl++) {
-      var pointData = {
-        screenLeft: screenLeft,
-        screenTop: screenTop,
-        screenBottom: screenBottom,
-        pxW: pxW,
-        pxH: pxH,
-        pw: sp.pw,
-        ph: calc.effectivePh,
-        deletedPanels: calc.deletedPanelsSet || new Set()
-      };
-
-      var entry = entryPoints[dl];
-      if (entry) {
-        allEntryPoints.push(Object.assign({
-          cx: screenLeft + (entry.col + 0.5) * pxW,
-          cy: screenTop + (entry.row + 0.5) * pxH,
-          col: entry.col,
-          row: entry.row
-        }, pointData));
-      }
-
-      var exit = exitPts[dl];
-      if (exit) {
-        allExitPoints.push(Object.assign({
-          cx: screenLeft + (exit.col + 0.5) * pxW,
-          cy: screenTop + (exit.row + 0.5) * pxH,
-          col: exit.col,
-          row: exit.row
-        }, pointData));
-      }
-    }
-  });
-
-  // Bounding box canvas coords (for dist box positioning)
+  // Canvas-space bounding box, still needed for the wall-edge lanes and dimension lines
   var bbCanvasL = toX(bbL);
   var bbCanvasR = toX(bbR);
   var bbCanvasT = toY(bbT);
   var bbCanvasB = toY(bbB);
   var bbCanvasW = bbCanvasR - bbCanvasL;
 
-  // Wall edge Y constants (for trunk routing along wall edges)
-  var DATA_WALL_TOP_Y = bbCanvasT - 4;
-  var DATA_WALL_BOTTOM_Y = bbCanvasB + 4;
-
-  if (distBoxOnWall && hasDistBox) {
-    // ---- Dist box on wall — positioned relative to unified bounding box ----
-    var mainFracX;
-    if (cfg.distBoxMainHorizPosition === 'sr') mainFracX = 0.15;
-    else if (cfg.distBoxMainHorizPosition === 'sl') mainFracX = 0.85;
-    else mainFracX = 0.5;
-
-    var mainDistBoxX = bbCanvasL + bbCanvasW * mainFracX;
-    var mainDistBoxY = cfg.distBoxMainVertPosition === 'bottom' ? bbCanvasB - BOX_H - 4 : bbCanvasT + 4;
-    var mainDistBoxIsTop = cfg.distBoxMainVertPosition !== 'bottom';
-    var mainDistBoxLeftX = mainDistBoxX - 20;
-    var mainDistBoxRightX = mainDistBoxX + 20;
-
-    // Backup dist box position
-    var backupFracX;
-    if (cfg.distBoxBackupHorizPosition === 'sr') backupFracX = 0.15;
-    else if (cfg.distBoxBackupHorizPosition === 'sl') backupFracX = 0.85;
-    else backupFracX = 0.5;
-    var backupDistBoxX = bbCanvasL + bbCanvasW * backupFracX;
-    var backupDistBoxY = cfg.distBoxBackupVertPosition === 'bottom' ? bbCanvasB - BOX_H - 4 : bbCanvasT + 4;
-    var backupDistBoxIsTop = cfg.distBoxBackupVertPosition !== 'bottom';
-    var backupDistBoxLeftX = backupDistBoxX - 20;
-    var backupDistBoxRightX = backupDistBoxX + 20;
-
-    // Detect same position — draw single box or two separate boxes
-    var sameDistBoxPos = (cfg.distBoxMainHorizPosition === cfg.distBoxBackupHorizPosition &&
-                          cfg.distBoxMainVertPosition === cfg.distBoxBackupVertPosition);
-    var twoDistBoxes = redundancy && !sameDistBoxPos;
-
-    // Fan Y offsets (±3px when sharing same box position)
-    var fanPrimaryY = twoDistBoxes ? mainDistBoxY + 9 : mainDistBoxY + 9 - 3;
-    var fanBackupY = twoDistBoxes ? backupDistBoxY + 9 : mainDistBoxY + 9 + 3;
-
-    // Draw dist box(es)
-    if (typeof drawCableEquipmentBox === 'function') {
-      if (twoDistBoxes) {
-        drawCableEquipmentBox(ctx, mainDistBoxLeftX, mainDistBoxY, 40, 18, 'MAIN', CC_DISTBOX_COLOR);
-        drawCableEquipmentBox(ctx, backupDistBoxLeftX, backupDistBoxY, 40, 18, 'BACKUP', CC_TRUNK_BACKUP_COLOR);
-      } else {
-        drawCableEquipmentBox(ctx, mainDistBoxLeftX, mainDistBoxY, 40, 18, 'XD', CC_DISTBOX_COLOR);
+  // Where one data line terminates on the floor. Backups land on their own loop-back
+  // box on a paired_boxes processor, so they get their own target.
+  function lineTargetX(screenId, lineNum, place, useBackup) {
+    try {
+      var plan = cachedDataPortPlan();
+      var lineMap = plan.perScreen.get(screenId);
+      var dest = lineMap && lineMap.get(lineNum);
+      if (!dest) return procCanvasX;
+      var group = plan.groups.get(dest.groupKey);
+      var box = useBackup && dest.backup ? dest.backup.box : dest.box;
+      if (place === 'remote' && group && group.usesDistBox && box !== null && box !== undefined) {
+        var boxUnitId = dest.groupKey + '|' + dest.proc + '|' + box;
+        if (unitX[boxUnitId] !== undefined) return unitX[boxUnitId];
       }
-    }
+      var procUnitId = dest.groupKey + '|' + dest.proc + '|-';
+      if (unitX[procUnitId] !== undefined) return unitX[procUnitId];
+    } catch (err) { /* fall through */ }
+    return procCanvasX;
+  }
 
-    // Primary fan: dist box edge → horizontal at fanPrimaryY → vertical into panel
-    allEntryPoints.forEach(function(ep) {
-      var fanStartX = ep.cx < mainDistBoxX ? mainDistBoxLeftX : mainDistBoxRightX;
-      ctx.strokeStyle = CC_DATA_COLOR;
-      ctx.lineWidth = 1;
-      ctx.globalAlpha = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(fanStartX, fanPrimaryY);
-      ctx.lineTo(ep.cx - 2, fanPrimaryY);
-      ctx.lineTo(ep.cx - 2, ep.cy);
-      ctx.stroke();
-      ctx.globalAlpha = 1.0;
-    });
+  screenPos.forEach(function(sp) {
+    var calc = sp.calc;
+    if (!calc) return;
 
-    // Primary trunk: dist box → wall edge → horizontal along wall edge → drop → pick → floor → proc → box
-    ctx.strokeStyle = CC_TRUNK_COLOR;
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    if (mainDistBoxIsTop) {
-      ctx.moveTo(mainDistBoxX + DATA_OFFSET, mainDistBoxY);
-    } else {
-      ctx.moveTo(mainDistBoxX + DATA_OFFSET, mainDistBoxY + 18);
-    }
-    ctx.lineTo(mainDistBoxX + DATA_OFFSET, DATA_WALL_TOP_Y);
-    ctx.lineTo(dropX + DATA_OFFSET, DATA_WALL_TOP_Y);
-    if (cfg.cablePick > 0) {
-      if (dropPos === 'behind') {
-        ctx.lineTo(pickCX + DATA_OFFSET, pickCY);
-        ctx.lineTo(pickCX + DATA_OFFSET, DATA_FLOOR_Y);
-      } else {
-        ctx.lineTo(pickCX + DATA_OFFSET, pickCY);
-        ctx.lineTo(pickCX + DATA_OFFSET, DATA_FLOOR_Y);
-      }
-    } else {
-      ctx.lineTo(dropX + DATA_OFFSET, DATA_FLOOR_Y);
-    }
-    ctx.lineTo(procCanvasX, DATA_FLOOR_Y);
-    ctx.lineTo(procCanvasX, equipY + BOX_H);
-    ctx.stroke();
+    var place = sp.cab.xdPlacement;
+    var panelType = sp.data.panelType || 'CB5_MKII';
+    var heightRatio = typeof getPanelHeightRatio === 'function' ? getPanelHeightRatio(panelType) : 1;
+    var pxW = panelSize * pxToCanvas;
+    var pxH = panelSize * heightRatio * pxToCanvas;
+    var dp = calc.deletedPanelsSet || new Set();
 
-    // Backup dist box + trunk if redundancy
-    if (redundancy) {
-      // Backup fan: dist box edge → horizontal at fanBackupY → vertical into panel
-      allExitPoints.forEach(function(ep) {
-        var bFanStartX = ep.cx < backupDistBoxX ? backupDistBoxLeftX : backupDistBoxRightX;
-        ctx.strokeStyle = CC_BACKUP_COLOR;
+    var dataFlip = sp.data.dataFlip || false;
+    var entryPts = dataFlip ? (calc.exitPoints || {}) : (calc.entryPoints || {});
+    var exitPts  = dataFlip ? (calc.entryPoints || {}) : (calc.exitPoints || {});
+
+    // Per-screen floor lane so converging runs stay individually readable
+    var spRow = screenFloorRow(sp.order);
+    var spDataFloorY = spRow + ROW_DATA;
+    var spBackupFloorY = spRow + ROW_BACKUP;
+
+    // Collect this screen's points, tagged with where each line terminates
+    var mains = [], backups = [];
+    for (var dl = 0; dl < calc.dataLines; dl++) {
+      var e = entryPts[dl];
+      if (e) mains.push({ col: e.col, row: e.row, targetX: lineTargetX(sp.screenId, dl + 1, place, false),
+                          cx: sp.left + (e.col + 0.5) * pxW, cy: sp.top + (e.row + 0.5) * pxH });
+      var x = exitPts[dl];
+      if (x) backups.push({ col: x.col, row: x.row, targetX: lineTargetX(sp.screenId, dl + 1, place, true),
+                            cx: sp.left + (x.col + 0.5) * pxW, cy: sp.top + (x.row + 0.5) * pxH });
+    }
+    if (!mains.length) return;
+
+    // ---- ON WALL: the box sits on this screen; fan across the panels, trunk down ----
+    if (place === 'wall' && hasDistBox) {
+      var dbHoriz = sp.data.distBoxMainHorizPosition || sp.data.distBoxHorizPosition || 'center';
+      var dbVert = sp.data.distBoxMainVertPosition || 'top';
+      // Panel-quantised, matching the per-screen diagram and the gear-list length math
+      var dbX = (dbHoriz === 'sr') ? sp.left + 2 * pxW
+              : (dbHoriz === 'sl') ? sp.right - 2 * pxW
+              : (sp.left + sp.right) / 2;
+      dbX = Math.max(sp.left + 20, Math.min(sp.right - 20, dbX));
+      var dbY = (dbVert === 'bottom') ? sp.bottom - 18 - 6 : sp.top + 6;
+      var fanY = dbY + 9;
+
+      mains.forEach(function(ep) {
+        ctx.strokeStyle = CC_DATA_COLOR;
         ctx.lineWidth = 1;
-        ctx.globalAlpha = 0.4;
+        ctx.globalAlpha = 0.5;
         ctx.beginPath();
-        ctx.moveTo(bFanStartX, fanBackupY);
-        ctx.lineTo(ep.cx + 2, fanBackupY);
-        ctx.lineTo(ep.cx + 2, ep.cy);
+        ctx.moveTo(ep.cx < dbX ? dbX - 20 : dbX + 20, fanY - (redundancy ? 3 : 0));
+        ctx.lineTo(ep.cx - 2, fanY - (redundancy ? 3 : 0));
+        ctx.lineTo(ep.cx - 2, ep.cy);
         ctx.stroke();
         ctx.globalAlpha = 1.0;
       });
+      if (redundancy) {
+        backups.forEach(function(ep) {
+          ctx.strokeStyle = CC_BACKUP_COLOR;
+          ctx.lineWidth = 1;
+          ctx.globalAlpha = 0.4;
+          ctx.beginPath();
+          ctx.moveTo(ep.cx < dbX ? dbX - 20 : dbX + 20, fanY + 3);
+          ctx.lineTo(ep.cx + 2, fanY + 3);
+          ctx.lineTo(ep.cx + 2, ep.cy);
+          ctx.stroke();
+          ctx.globalAlpha = 1.0;
+        });
+      }
 
-      // Backup trunk: dist box → wall edge → horizontal → drop → pick → floor → proc → box
-      ctx.strokeStyle = CC_TRUNK_BACKUP_COLOR;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 3]);
+      // Trunk: box → screen top edge → own drop → pick → floor → its processor
+      var wallTrunkTargetX = mains[0].targetX;
+      var trunkEdgeY = sp.top - 4;
+      ctx.strokeStyle = CC_TRUNK_COLOR;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
-      if (backupDistBoxIsTop) {
-        ctx.moveTo(backupDistBoxX + BACKUP_OFFSET, backupDistBoxY);
+      ctx.moveTo(dbX + DATA_OFFSET, dbVert === 'bottom' ? dbY + 18 : dbY);
+      ctx.lineTo(dbX + DATA_OFFSET, trunkEdgeY);
+      ctx.lineTo(sp.dropX + DATA_OFFSET, trunkEdgeY);
+      if (sp.cab.cablePick > 0 && sp.pickCX !== undefined) {
+        ctx.lineTo(sp.pickCX + DATA_OFFSET, sp.pickCY);
+        ctx.lineTo(sp.pickCX + DATA_OFFSET, spDataFloorY);
       } else {
-        ctx.moveTo(backupDistBoxX + BACKUP_OFFSET, backupDistBoxY + 18);
+        ctx.lineTo(sp.dropX + DATA_OFFSET, spDataFloorY);
       }
-      ctx.lineTo(backupDistBoxX + BACKUP_OFFSET, DATA_WALL_TOP_Y);
-      ctx.lineTo(dropX + BACKUP_OFFSET, DATA_WALL_TOP_Y);
-      if (cfg.cablePick > 0) {
-        if (dropPos === 'behind') {
-          ctx.lineTo(pickCX + BACKUP_OFFSET, pickCY);
-          ctx.lineTo(pickCX + BACKUP_OFFSET, BACKUP_FLOOR_Y);
-        } else {
-          ctx.lineTo(pickCX + BACKUP_OFFSET, pickCY);
-          ctx.lineTo(pickCX + BACKUP_OFFSET, BACKUP_FLOOR_Y);
-        }
-      } else {
-        ctx.lineTo(dropX + BACKUP_OFFSET, BACKUP_FLOOR_Y);
-      }
-      ctx.lineTo(procCanvasX + 8, BACKUP_FLOOR_Y);
-      ctx.lineTo(procCanvasX + 8, equipY + BOX_H);
+      ctx.lineTo(wallTrunkTargetX, spDataFloorY);
+      ctx.lineTo(wallTrunkTargetX, dataEndY);
       ctx.stroke();
-      ctx.setLineDash([]);
+
+      if (typeof drawCableEquipmentBox === 'function') {
+        drawCableEquipmentBox(ctx, dbX - 20, dbY, 40, 18, 'XD', CC_DISTBOX_COLOR);
+      }
+      return;
     }
-  } else {
-    // ---- No dist box: fan segments → wall edge → drop, then bundle → processor ----
 
-    // Helper: draw fan segments from entry/exit points to wall edge → drop
-    function drawFanSegments(points, color, lineWidth, alpha, dropOffsetX, wallOffset) {
+    // ---- AT PROC / REMOTE: fan to this screen's own drop, then run to each target ----
+    // Fan segments: entry panel → this screen's own top/bottom edge → its own drop
+    function drawFan(points, color, width, alpha, offsetX) {
       points.forEach(function(ep) {
-        var isBottom = ep.row >= ep.ph / 2;
-        // wallEdgeY is OUTSIDE the wall: top entries go above screenTop, bottom below screenBottom
-        var wallEdgeY = isBottom
-          ? (ep.screenTop + ep.ph * ep.pxH + wallOffset)
-          : (ep.screenTop - wallOffset);
-
+        var isBottom = ep.row >= calc.effectivePh / 2;
+        var wallEdgeY = isBottom ? sp.bottom + DATA_WALL_OFFSET : sp.top - DATA_WALL_OFFSET;
         ctx.strokeStyle = color;
-        ctx.lineWidth = lineWidth;
+        ctx.lineWidth = width;
         ctx.globalAlpha = alpha;
         ctx.beginPath();
 
-        if (ep.deletedPanels.size > 0) {
-          var targetRow = isBottom ? ep.ph - 1 : 0;
-          var targetCol = ep.col;
-          if (ep.deletedPanels.has(targetCol + ',' + targetRow)) {
-            var foundInEdgeRow = false;
-            for (var dist = 1; dist < ep.pw; dist++) {
-              if (targetCol - dist >= 0 && !ep.deletedPanels.has((targetCol - dist) + ',' + targetRow)) {
-                targetCol = targetCol - dist; foundInEdgeRow = true; break;
-              }
-              if (targetCol + dist < ep.pw && !ep.deletedPanels.has((targetCol + dist) + ',' + targetRow)) {
-                targetCol = targetCol + dist; foundInEdgeRow = true; break;
-              }
-            }
-            if (!foundInEdgeRow) {
-              var nearest = findNearestNonDeleted(ep.col, targetRow, ep.pw, ep.ph, ep.deletedPanels);
-              targetCol = nearest.col; targetRow = nearest.row;
-            }
+        var targetRow = isBottom ? calc.effectivePh - 1 : 0;
+        var targetCol = ep.col;
+        if (dp.size > 0 && dp.has(targetCol + ',' + targetRow)) {
+          var found = false;
+          for (var d = 1; d < calc.pw; d++) {
+            if (targetCol - d >= 0 && !dp.has((targetCol - d) + ',' + targetRow)) { targetCol -= d; found = true; break; }
+            if (targetCol + d < calc.pw && !dp.has((targetCol + d) + ',' + targetRow)) { targetCol += d; found = true; break; }
           }
-          var path = findCableGridPath(ep.col, ep.row, targetCol, targetRow, ep.pw, ep.ph, ep.deletedPanels);
-          if (path && path.length > 0) {
-            ctx.moveTo(ep.screenLeft + (path[0].col + 0.5) * ep.pxW, ep.screenTop + (path[0].row + 0.5) * ep.pxH);
-            for (var pi = 1; pi < path.length; pi++) {
-              ctx.lineTo(ep.screenLeft + (path[pi].col + 0.5) * ep.pxW, ep.screenTop + (path[pi].row + 0.5) * ep.pxH);
-            }
-            var lastCell = path[path.length - 1];
-            var lastCX = ep.screenLeft + (lastCell.col + 0.5) * ep.pxW;
-            ctx.lineTo(lastCX, wallEdgeY);
-            ctx.lineTo(dropX + dropOffsetX, wallEdgeY);
+          if (!found && typeof findNearestNonDeleted === 'function') {
+            var nn = findNearestNonDeleted(targetCol, targetRow, calc.pw, calc.effectivePh, dp);
+            targetCol = nn.col; targetRow = nn.row;
+          }
+        }
+        if (dp.size > 0 && typeof findCableGridPath === 'function') {
+          var path = findCableGridPath(ep.col, ep.row, targetCol, targetRow, calc.pw, calc.effectivePh, dp);
+          if (path && path.length) {
+            ctx.moveTo(ep.cx + offsetX * 0.2, ep.cy);
+            path.forEach(function(node) {
+              ctx.lineTo(sp.left + (node.col + 0.5) * pxW + offsetX * 0.2, sp.top + (node.row + 0.5) * pxH);
+            });
+            ctx.lineTo(sp.left + (targetCol + 0.5) * pxW + offsetX * 0.2, wallEdgeY);
           } else {
-            ctx.moveTo(ep.cx, ep.cy);
-            ctx.lineTo(ep.cx, wallEdgeY);
-            ctx.lineTo(dropX + dropOffsetX, wallEdgeY);
+            ctx.moveTo(ep.cx + offsetX * 0.2, ep.cy);
+            ctx.lineTo(ep.cx + offsetX * 0.2, wallEdgeY);
           }
         } else {
-          ctx.moveTo(ep.cx, ep.cy);
-          ctx.lineTo(ep.cx, wallEdgeY);
-          ctx.lineTo(dropX + dropOffsetX, wallEdgeY);
+          ctx.moveTo(ep.cx + offsetX * 0.2, ep.cy);
+          ctx.lineTo(ep.cx + offsetX * 0.2, wallEdgeY);
         }
+        ctx.lineTo(sp.dropX + offsetX, wallEdgeY);
         ctx.stroke();
         ctx.globalAlpha = 1.0;
       });
     }
 
-    // Determine which edges have entries/exits
-    var hasTopEntry = false, hasBottomEntry = false;
-    var hasTopExit = false, hasBottomExit = false;
-    allEntryPoints.forEach(function(ep) {
-      if (ep.row >= ep.ph / 2) hasBottomEntry = true;
-      else hasTopEntry = true;
-    });
-    if (redundancy) {
-      allExitPoints.forEach(function(ep) {
-        if (ep.row >= ep.ph / 2) hasBottomExit = true;
-        else hasTopExit = true;
+    // Bundle: this screen's drop → pick → floor → each distinct target unit
+    function drawBundles(points, color, width, offsetX, floorTargetY, extraX) {
+      var byTarget = {};
+      points.forEach(function(ep) { (byTarget[ep.targetX] = byTarget[ep.targetX] || []).push(ep); });
+      Object.keys(byTarget).forEach(function(key, i) {
+        var tx = parseFloat(key) + extraX;
+        var hasTop = byTarget[key].some(function(ep) { return ep.row < calc.effectivePh / 2; });
+        var startY = hasTop ? sp.top - DATA_WALL_OFFSET : sp.bottom + DATA_WALL_OFFSET;
+        var fy = floorTargetY + i * 3;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        ctx.moveTo(sp.dropX + offsetX, startY);
+        if (sp.cab.cablePick > 0 && sp.pickCX !== undefined) {
+          ctx.lineTo(sp.pickCX + offsetX, sp.pickCY);
+          ctx.lineTo(sp.pickCX + offsetX, fy);
+        } else {
+          ctx.lineTo(sp.dropX + offsetX, fy);
+        }
+        ctx.lineTo(tx, fy);
+        ctx.lineTo(tx, dataEndY);
+        ctx.stroke();
       });
     }
 
-    // --- Helper: draw bundle cable from wall edge → pick (if any) → floor → equipment ---
-    function drawBundleWithPick(startX, startY, offsetX, floorTargetY, equipX, lineWidth) {
-      ctx.lineWidth = lineWidth;
-      ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      if (cfg.cablePick > 0) {
-        if (dropPos === 'behind') {
-          ctx.lineTo(pickCX + offsetX, pickCY);
-          ctx.lineTo(pickCX + offsetX, floorTargetY);
-        } else {
-          ctx.lineTo(pickCX + offsetX, pickCY);
-          ctx.lineTo(pickCX + offsetX, floorTargetY);
-        }
-      } else {
-        ctx.lineTo(startX, floorTargetY);
-      }
-      ctx.lineTo(equipX, floorTargetY);
-      ctx.lineTo(equipX, equipY + BOX_H); // connect into equipment box
-      ctx.stroke();
+    drawBundles(mains, CC_DATA_COLOR, 2.5, DATA_OFFSET, spDataFloorY, 0);
+    drawFan(mains, CC_DATA_COLOR, 1.5, 0.6, DATA_OFFSET);
+    if (redundancy && backups.length) {
+      drawBundles(backups, CC_BACKUP_COLOR, 2, BACKUP_OFFSET, spBackupFloorY, 8);
+      drawFan(backups, CC_BACKUP_COLOR, 1.2, 0.45, BACKUP_OFFSET);
     }
+  });
 
-    // --- Primary bundle cable (cyan): drop → pick → floor → processor ---
-    if (allEntryPoints.length > 0) {
-      ctx.strokeStyle = CC_DATA_COLOR;
-      if (hasTopEntry) {
-        drawBundleWithPick(dropX + DATA_OFFSET, bbCanvasT - DATA_WALL_OFFSET, DATA_OFFSET, DATA_FLOOR_Y, procCanvasX, 2.5);
-      }
-      if (hasBottomEntry) {
-        var dataVertX = cfg.cablePick > 0 ? pickCX + DATA_OFFSET : dropX + DATA_OFFSET;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(dropX + DATA_OFFSET, bbCanvasB + DATA_WALL_OFFSET);
-        ctx.lineTo(dataVertX, bbCanvasB + DATA_WALL_OFFSET);
-        if (!hasTopEntry) {
-          ctx.lineTo(dataVertX, DATA_FLOOR_Y);
-          ctx.lineTo(procCanvasX, DATA_FLOOR_Y);
-          ctx.lineTo(procCanvasX, equipY + BOX_H);
-        }
-        ctx.stroke();
-      }
-    }
+  // ---- Draw each screen's cable pick ON TOP of its cables ----
+  screenPos.forEach(function(sp) {
+    if (!(sp.cab.cablePick > 0) || sp.pickCX === undefined) return;
 
-    // --- Backup bundle cable (pink): drop → pick → floor → processor ---
-    if (redundancy && allExitPoints.length > 0) {
-      ctx.strokeStyle = CC_BACKUP_COLOR;
-      if (hasTopExit) {
-        drawBundleWithPick(dropX + BACKUP_OFFSET, bbCanvasT - DATA_WALL_OFFSET, BACKUP_OFFSET, BACKUP_FLOOR_Y, procCanvasX + 8, 2);
-      }
-      if (hasBottomExit) {
-        var backupVertX = cfg.cablePick > 0 ? pickCX + BACKUP_OFFSET : dropX + BACKUP_OFFSET;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(dropX + BACKUP_OFFSET, bbCanvasB + DATA_WALL_OFFSET);
-        ctx.lineTo(backupVertX, bbCanvasB + DATA_WALL_OFFSET);
-        if (!hasTopExit) {
-          ctx.lineTo(backupVertX, BACKUP_FLOOR_Y);
-          ctx.lineTo(procCanvasX + 8, BACKUP_FLOOR_Y);
-          ctx.lineTo(procCanvasX + 8, equipY + BOX_H);
-        }
-        ctx.stroke();
-      }
-    }
-
-    // --- Primary fan segments (cyan): entry panel → screen edge → drop ---
-    drawFanSegments(allEntryPoints, CC_DATA_COLOR, 1.5, 0.6, DATA_OFFSET, DATA_WALL_OFFSET);
-
-    // --- Backup fan segments (pink): exit panel → screen edge → drop ---
-    if (redundancy) {
-      drawFanSegments(allExitPoints, CC_BACKUP_COLOR, 1, 0.4, BACKUP_OFFSET, DATA_WALL_OFFSET);
-    }
-  }
-
-  // ---- Draw cable pick ON TOP of cables ----
-  if (cfg.cablePick > 0) {
     // Fill background to erase cable lines inside the circle
     ctx.fillStyle = CC_BG_COLOR;
     ctx.beginPath();
-    ctx.arc(pickCX, pickCY, PICK_RADIUS + 1, 0, Math.PI * 2);
+    ctx.arc(sp.pickCX, sp.pickCY, PICK_RADIUS + 1, 0, Math.PI * 2);
     ctx.fill();
 
-    // Draw circle outline
     ctx.strokeStyle = CC_PICK_COLOR;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(pickCX, pickCY, PICK_RADIUS, 0, Math.PI * 2);
+    ctx.arc(sp.pickCX, sp.pickCY, PICK_RADIUS, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.fillStyle = isPrintMode ? ccFgColor : CC_PICK_COLOR;
     ctx.font = 'bold 9px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('PICK', pickCX, pickCY);
+    ctx.fillText('PICK', sp.pickCX, sp.pickCY);
     ctx.textBaseline = 'alphabetic';
 
-    // Cable pick dimension
     if (typeof drawCableDimensionLine === 'function') {
-      if (dropPos === 'behind') {
-        var pickDimX = pickCX - (isSmall ? 15 : 25);
-        drawCableDimensionLine(ctx, pickDimX, pickCY - PICK_RADIUS, pickDimX, toY(bbT),
-          cfg.cablePick + "'", ccDimColor, CC_BG_COLOR);
-      } else if (dropPos === 'sr') {
-        var pickDimY = pickCY - PICK_RADIUS - 14;
-        drawCableDimensionLine(ctx, pickCX - PICK_RADIUS, pickDimY, toX(bbL), pickDimY,
-          cfg.cablePick + "'", ccDimColor, CC_BG_COLOR);
+      var pos = sp.cab.cableDropPosition;
+      if (pos === 'behind') {
+        var pickDimX = sp.pickCX - (isSmall ? 15 : 25);
+        drawCableDimensionLine(ctx, pickDimX, sp.pickCY - PICK_RADIUS, pickDimX, sp.top,
+          sp.cab.cablePick + "'", ccDimColor, CC_BG_COLOR);
+      } else if (pos === 'sr') {
+        var pickDimY = sp.pickCY - PICK_RADIUS - 14;
+        drawCableDimensionLine(ctx, sp.pickCX - PICK_RADIUS, pickDimY, sp.left, pickDimY,
+          sp.cab.cablePick + "'", ccDimColor, CC_BG_COLOR);
       } else {
-        var pickDimY = pickCY - PICK_RADIUS - 14;
-        drawCableDimensionLine(ctx, toX(bbR), pickDimY, pickCX + PICK_RADIUS, pickDimY,
-          cfg.cablePick + "'", ccDimColor, CC_BG_COLOR);
+        var pickDimY2 = sp.pickCY - PICK_RADIUS - 14;
+        drawCableDimensionLine(ctx, sp.right, pickDimY2, sp.pickCX + PICK_RADIUS, pickDimY2,
+          sp.cab.cablePick + "'", ccDimColor, CC_BG_COLOR);
       }
     }
-  }
+  });
 
   // ---- Redraw screen labels + borders on top of cables ----
   screenPos.forEach(function(sp) {
@@ -1454,15 +1288,23 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
       }
     }
 
-    // Distro-to-wall distance — below floor (matching per-screen spacing)
-    var distDimY = floorY + 18;
-    drawCableDimensionLine(ctx, distroCanvasX, distDimY, dropX, distDimY,
-      cfg.distroToWall + "'", ccDimColor, CC_BG_COLOR);
-
-    // Processor-to-wall distance — below floor (further down to avoid overlap)
-    var procDimY = floorY + 33;
-    drawCableDimensionLine(ctx, procCanvasX, procDimY, dropX, procDimY,
+    // Distances to the drop — below floor, nested so the box nearest the wall reads
+    // first. The lane is fixed, so these only ever change their label, never their
+    // extent. Proc-to-XD is labelled on the run itself rather than measured here.
+    // Measured from the nearest screen edge, since each screen now has its own drop.
+    var dimAnchorX = bbCanvasL;
+    // Sit under the per-screen floor rows rather than on top of them
+    var dimRowY = floorY + floorBandPx + 10;
+    if (floorBoxes.length) {
+      drawCableDimensionLine(ctx, unitX[floorBoxes[0].unitId], dimRowY, dimAnchorX, dimRowY,
+        minXdToWall + "'", ccDimColor, CC_BG_COLOR);
+      dimRowY += 15;
+    }
+    drawCableDimensionLine(ctx, procCanvasX, dimRowY, dimAnchorX, dimRowY,
       cfg.processorToWall + "'", ccDimColor, CC_BG_COLOR);
+    dimRowY += 15;
+    drawCableDimensionLine(ctx, distroCanvasX, dimRowY, dimAnchorX, dimRowY,
+      cfg.distroToWall + "'", ccDimColor, CC_BG_COLOR);
   }
 
   // ---- Legend (wraps to multiple rows on small screens) ----
@@ -1474,6 +1316,11 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     { color: CC_SERVER_COLOR, label: 'Server' }
   ];
   if (redundancy) legendItems.push({ color: CC_BACKUP_COLOR, label: 'Backup' });
+  if (floorBoxes.length) {
+    legendItems.push({ color: CC_DISTBOX_COLOR, label: 'Dist Box' });
+    legendItems.push({ color: CC_TRUNK_COLOR, label: redundancy ? 'Main Trunk' : 'Trunk' });
+    if (redundancy) legendItems.push({ color: CC_TRUNK_BACKUP_COLOR, label: 'Backup Trunk' });
+  }
   if (cfg.cablePick > 0) legendItems.push({ color: CC_PICK_COLOR, label: 'Pick' });
 
   var legendFontSize = isPdf ? (isSmall ? 14 : 16) : (isSmall ? 8 : 9);

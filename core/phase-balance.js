@@ -438,9 +438,35 @@ function sharedDistroBalancedPlan() {
   const ids = sharedDistroGroupIds();
   if (ids.length === 0) return null;
 
+  // The current screen's saved data lags the DOM — calculate() renders before
+  // saveCurrentScreenData() runs — so its panel overrides come from the live globals, the
+  // same reason sharedDistroLabelPlan() takes a liveOverride. Without this a manual Assign
+  // SOCA #/Circuit # on the current screen wouldn't reach the group plan until the screen
+  // data was saved, and the power canvas would keep drawing the previous circuits.
+  const liveCur = (typeof currentScreenId !== 'undefined' && screens[currentScreenId]) ? currentScreenId : null;
+  const liveDeleted = (typeof deletedPanels !== 'undefined') ? deletedPanels : new Set();
+  const liveCircuit = (typeof customCircuitAssignments !== 'undefined') ? customCircuitAssignments : new Map();
+  const liveSoca = (typeof customSocaAssignments !== 'undefined') ? customSocaAssignments : new Map();
+
+  // Same live grouping for the ordering below — the SOCA a screen occupies decides which
+  // legs it balances against, so a freshly assigned SOCA has to be visible to it.
+  let liveOverride = null;
+  if (liveCur) {
+    const li = resolveScreenPowerInputs(screens[liveCur].data);
+    if (li) {
+      const { panelToCircuit } = assignCircuits(li.pw, li.ph, li.panelsPerCircuit, liveDeleted, liveCircuit);
+      const p2s = assignSocas(panelToCircuit, liveSoca);
+      liveOverride = {
+        screenId: liveCur,
+        distinct: [...new Set([...p2s.values()])].sort((a, b) => a - b),
+        explicit: explicitSocaIndices(panelToCircuit, liveSoca)
+      };
+    }
+  }
+
   // Order by each screen's lowest global SOCA number. Uses the recomputed plan rather than
   // any screen's cached map so the ordering is consistent for every member.
-  const plan = (typeof sharedDistroLabelPlan === 'function') ? sharedDistroLabelPlan() : null;
+  const plan = (typeof sharedDistroLabelPlan === 'function') ? sharedDistroLabelPlan(liveOverride) : null;
   const startLabel = id => {
     const m = plan && plan.get(id);
     if (!m || m.size === 0) return Number.MAX_SAFE_INTEGER;
@@ -461,9 +487,9 @@ function sharedDistroBalancedPlan() {
       pw: inp.pw,
       ph: effectivePh,
       panelsPerCircuit: inp.panelsPerCircuit,
-      deletedPanels: inp.deletedPanels,
-      customCircuit: inp.customCircuit,
-      customSoca: inp.customSoca,
+      deletedPanels: (id === liveCur) ? liveDeleted : inp.deletedPanels,
+      customCircuit: (id === liveCur) ? liveCircuit : inp.customCircuit,
+      customSoca: (id === liveCur) ? liveSoca : inp.customSoca,
       perPanelW: inp.perPanelW,
       voltage: inp.voltage,
       wiring: inp.wiring,

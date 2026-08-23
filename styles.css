@@ -641,16 +641,17 @@ input[type=number] {
   max-width: 90px;
 }
 
-/* Align Data header border with General/Power headers */
-.cabling-data-grid > div:nth-child(1),
-.cabling-data-grid > div:nth-child(2) {
+/* Align Data header border with General/Power headers — the header spans both columns
+   so the inputs and the Dist Box controls start on the same row beneath it */
+.cabling-data-grid > div:nth-child(1) {
+  grid-column: 1 / -1;
   font-size: 13px;
   padding-bottom: 2px;
   border-bottom: 1px solid #333;
   margin-bottom: 2px;
 }
-.cabling-data-grid > div:nth-child(3),
-.cabling-data-grid > div:nth-child(4) {
+.cabling-data-grid > div:nth-child(2),
+.cabling-data-grid > div:nth-child(3) {
   margin-top: 0 !important;
   border-top: none !important;
   padding-top: 0 !important;
@@ -713,29 +714,19 @@ input[type=number] {
   .cabling-data-grid {
     grid-template-columns: 1fr !important;
   }
-  /* Dist Box toggle — move below inputs on mobile */
-  .cabling-data-grid > div:nth-child(2) {
-    padding-left: 0 !important;
-    margin-bottom: 0 !important;
-    order: 1;
-    border-top: 1px solid #333;
-    padding-top: 4px !important;
-    margin-top: 4px !important;
-  }
   /* Inputs column — side-by-side on mobile */
-  .cabling-data-grid > div:nth-child(3) {
+  .cabling-data-grid > div:nth-child(2) {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 4px 8px;
   }
-  /* Controls column — stack below dist box toggle on mobile */
-  .cabling-data-grid > div:nth-child(4) {
+  /* Dist Box column — stacks below the inputs on mobile */
+  .cabling-data-grid > div:nth-child(3) {
     border-left: none !important;
     padding-left: 0 !important;
     border-top: 1px solid #333 !important;
     padding-top: 8px !important;
     margin-top: 4px !important;
-    order: 2;
   }
 }
 
@@ -3950,7 +3941,7 @@ canvas:focus {
   display: grid;
   /* Fixed px tracks, not em: the header row is a smaller font-size, and em tracks
      would compute narrower there and drift out of line with the body rows. */
-  grid-template-columns: 30px 46px 48px 32px;
+  grid-template-columns: 30px 46px 78px 32px;
   gap: 8px;
   padding: 3px 0;
   border-bottom: 1px solid #2a2a2a;
@@ -6563,6 +6554,18 @@ canvas:focus {
 }
 .cabling-pl-6 {
   padding-left: 6px;
+}
+/* XD placement toggle — three labels in a narrow column, so the buttons size to their
+   own text instead of splitting the width evenly (which clipped "Remote") */
+.xd-placement-toggle {
+  width: fit-content;
+  max-width: 100%;
+}
+.xd-placement-toggle .slider-toggle-btn {
+  flex: 0 1 auto;
+  padding: 6px 6px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 .dist-box-label {
   display: inline-flex;

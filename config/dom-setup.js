@@ -470,7 +470,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Cabling input listeners - save to active gear screen then update gear list
-    const cablingInputIds = ['wallToFloor', 'distroToWall', 'processorToWall', 'serverToProcessor', 'cablePick'];
+    const cablingInputIds = ['wallToFloor', 'distroToWall', 'processorToWall', 'serverToProcessor', 'cablePick', 'xdToProcessor', 'xdToWall'];
     cablingInputIds.forEach(id => {
       const el = document.getElementById(id);
       if(el) {

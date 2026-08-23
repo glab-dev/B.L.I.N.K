@@ -32,7 +32,11 @@ function renderCableDiagram(screenId) {
   const processorToWall = cabling.inputs.processorToWall;
   const cablePick = cabling.inputs.cablePick;
   const serverToProcessor = cabling.serverCable ? cabling.serverCable.lengthFt : 0;
-  const distBoxOnWall = screen.data.distBoxOnWall || false;
+  const xdPlace = cabling.inputs.xdPlacement || 'proc';
+  const distBoxOnWall = xdPlace === 'wall';
+  const xdToProcessor = cabling.inputs.xdToProcessor ?? 25;
+  const xdToWall = cabling.inputs.xdToWall ?? 40;
+  const hasRemoteXd = xdPlace === 'remote' && (cabling.distBoxCables || []).length > 0;
   const dropPos = screen.data.cableDropPosition || 'behind';
   const powerInPos = screen.data.powerInPosition || 'top';
   const rearView = screen.data.cableRearView || false;
@@ -51,12 +55,13 @@ function renderCableDiagram(screenId) {
   const dataStartDir = cabling.dataStartDir || 'top';
   const dataRedundancy = screen.data.redundancy || false;
 
-  // Canvas sizing — use full container width
+  // Canvas sizing — fill the container, growing past it only when the wall plus the
+  // equipment lane need more room (the wrapper scrolls horizontally, as the layout
+  // containers do)
   const containerWidth = container.clientWidth || 300;
-  const canvasW = containerWidth;
 
   // Layout constants — tighter on small screens; larger in PDF mode for readability
-  const isSmall = canvasW < 500;
+  const isSmall = containerWidth < 500;
   const isPdf = cableDiagramPdfMode;
   const MARGIN = { top: isPdf ? (isSmall ? 60 : 90) : (isSmall ? 35 : 50), bottom: isSmall ? 40 : 55, left: isSmall ? 10 : 20, right: isSmall ? 42 : 50 };
   const BOX_W = isPdf ? (isSmall ? 52 : 90) : (isSmall ? 40 : 48);
@@ -65,22 +70,48 @@ function renderCableDiagram(screenId) {
   const PICK_RADIUS = isSmall ? 6 : 8;
   const dpr = window.devicePixelRatio || 1;
 
-  // Scene bounds in feet — wall is on the right, equipment to the left of drop point
-  // Equipment extends left from the drop point; drop point is on the wall
-  const dropLocalFt = (dropPos === 'sr') ? 0 : (dropPos === 'sl') ? wallWidthFt : wallWidthFt / 2;
-  const leftmostEquipFt = dropLocalFt - Math.max(distroToWall, processorToWall);
-  const maxLeftFt = Math.max(-leftmostEquipFt, 2) + 2;
-  const totalVertFt = wallHeightFt + wallToFloor + 2; // +2 for floor equipment space
+  // === Panel cell sizing — IDENTICAL to generateLayout() in core/calculate.js ===
+  // The standard, power, data and structure views all size their panels this way, so the
+  // wall is drawn at exactly the same dimensions here as it is in those tabs.
+  const pw = screen.data.panelsWide || 1;
+  const ph = screen.data.panelsHigh || 1;
+  const panelType = screen.data.panelType || '';
+  const hasCB5HalfRow = screen.data.addCB5HalfRow && panelType === 'CB5_MKII';
+  const heightRatio = (typeof getPanelHeightRatio === 'function') ? getPanelHeightRatio(panelType) : 1;
+  const LAYOUT_MIN_SIZE = 30;
+  const LAYOUT_MAX_SIZE = 80;
+  const layoutMaxW = Math.min(containerWidth - 32, isPdf ? 4000 : 800);
+  const effectiveMaxSize = (!isPdf && heightRatio > 1)
+    ? Math.floor(LAYOUT_MAX_SIZE / heightRatio)
+    : LAYOUT_MAX_SIZE;
+  const cellSize = Math.max(LAYOUT_MIN_SIZE, Math.min(effectiveMaxSize, Math.floor(layoutMaxW / pw)));
+  const panelPixelW = cellSize;
+  const fullPanelPixelH = cellSize * heightRatio;
+  const halfPanelPixelH = fullPanelPixelH / 2;
+  const totalRows = hasCB5HalfRow ? ph + 1 : ph;
+  const wallWpx = pw * panelPixelW;
+  const wallHpx = hasCB5HalfRow ? (ph * fullPanelPixelH + halfPanelPixelH) : (ph * fullPanelPixelH);
+  // Feet-to-pixels implied by the panel cell — used for the floor distances below
+  const scale = panelPixelW / (wallWidthFt / pw);
 
-  // Scale to fit — fill the full width, height follows proportionally
-  const drawableW = canvasW - MARGIN.left - MARGIN.right;
-  const scaleH = drawableW / (maxLeftFt + wallWidthFt + 4);
-  const scale = Math.min(scaleH, 80);
+  // Floor equipment sits in a FIXED lane left of the wall, always in the same order
+  // (server, distro, processor, then the remote XD closest to the wall). The distances
+  // are schematic: changing one only updates its dimension label, it never moves a box.
+  // Slot width adapts to the room the wall leaves so the diagram usually fits without
+  // scrolling — but it never depends on any distance, so the boxes stay put.
+  const floorBoxCount = hasRemoteXd ? 3 : 2;
+  const idealSlot = isPdf ? (isSmall ? 90 : 150) : (isSmall ? 62 : 105);
+  const spareW = containerWidth - MARGIN.left - MARGIN.right - BOX_W - wallWpx;
+  const EQUIP_SLOT = Math.max(BOX_W + 10, Math.min(idealSlot, spareW / (floorBoxCount + 1)));
+  const equipLanePx = EQUIP_SLOT * (floorBoxCount + 1);
+  const canvasW = Math.max(containerWidth, MARGIN.left + BOX_W + equipLanePx + wallWpx + MARGIN.right);
 
   // Behind pick needs extra vertical space above the wall
   const pickBehind = dropPos === 'behind';
   const pickVertSpace = (cablePick > 0 && pickBehind) ? PICK_GAP + PICK_RADIUS * 2 + 10 : 0;
-  const canvasH = MARGIN.top + totalVertFt * scale + MARGIN.bottom + pickVertSpace;
+  // A remote XD adds a third dimension line below the floor — give it room
+  const canvasH = MARGIN.top + pickVertSpace + wallHpx + (wallToFloor + 2) * scale
+    + MARGIN.bottom + (hasRemoteXd ? 15 : 0);
 
   // Set canvas size with HiDPI
   canvas.width = canvasW * dpr;
@@ -118,20 +149,16 @@ function renderCableDiagram(screenId) {
   ctx.fillRect(0, 0, canvasW, canvasH);
 
   // === Position calculations ===
-  // Wall sits on the right side of the diagram
+  // Wall sits on the right side of the diagram, at the layout-matched pixel size
   const wallRightX = canvasW - MARGIN.right;
-  const wallLeftX = wallRightX - wallWidthFt * scale;
+  const wallLeftX = wallRightX - wallWpx;
   const wallCenterX = (wallLeftX + wallRightX) / 2;
   const wallTopY = MARGIN.top + pickVertSpace;
-  const wallBottomY = wallTopY + wallHeightFt * scale;
+  const wallBottomY = wallTopY + wallHpx;
   const floorY = wallBottomY + wallToFloor * scale;
-  const wallW = wallRightX - wallLeftX;
-  const wallH = wallBottomY - wallTopY;
-
-  // Ensure minimum wall size for visibility
-  const minWallW = Math.max(wallW, 40);
-  const minWallH = Math.max(wallH, 30);
-  const adjWallLeftX = wallRightX - minWallW;
+  const wallW = wallWpx;
+  const wallH = wallHpx;
+  const adjWallLeftX = wallLeftX;
 
   // Cable drop point based on position toggle
   // Front view: SR = viewer's left edge, SL = viewer's right edge
@@ -144,10 +171,17 @@ function renderCableDiagram(screenId) {
     dropX = wallCenterX; // behind = center
   }
 
-  // Equipment positions on the floor — distances are from drop point
-  const distroX = dropX - distroToWall * scale;
-  const procX = dropX - processorToWall * scale;
+  // Equipment positions on the floor — FIXED lane, left to right: distro, proc, XD.
+  // The XD (when remote) sits closest to the wall; without it the processor does.
+  const equipRightX = adjWallLeftX - EQUIP_SLOT;
+  const xdX = equipRightX;
+  const procX = hasRemoteXd ? equipRightX - EQUIP_SLOT : equipRightX;
+  const distroX = procX - EQUIP_SLOT;
   const equipY = floorY - BOX_H; // boxes sit on top of floor line
+  const xdBoxY = equipY; // fixed lane guarantees clearance, so the XD never needs stacking
+  // Data bundles terminate at the remote XD instead of running all the way to the processor
+  const dataEndX = hasRemoteXd ? xdX : procX;
+  const dataEndY = equipY + BOX_H;
 
   // Server box — fixed on the left, vertically centered between wall top and floor
   const serverBoxX = MARGIN.left;
@@ -178,21 +212,11 @@ function renderCableDiagram(screenId) {
   if (rearView) { ctx.save(); ctx.translate(canvasW, 0); ctx.scale(-1, 1); }
 
   // === Draw LED wall as panel grid ===
-  const pw = screen.data.panelsWide || 1;
-  const ph = screen.data.panelsHigh || 1;
+  // pw / ph / panelType / hasCB5HalfRow and the cell sizes (panelPixelW, fullPanelPixelH,
+  // halfPanelPixelH, totalRows) are all computed up top from the shared layout sizing.
   const screenDeletedPanels = screen.data.deletedPanels || new Set();
-  const panelType = screen.data.panelType || '';
-  const hasCB5HalfRow = screen.data.addCB5HalfRow && panelType === 'CB5_MKII';
-  const actualWallW = Math.max(wallW, minWallW);
-  const actualWallH = Math.max(wallH, minWallH);
-  const panelPixelW = actualWallW / pw;
-
-  // With half row: ph full rows + 1 half row. Half panel = half the height of a full panel.
-  // Total wall height = ph * fullH + fullH/2 = fullH * (ph + 0.5)
-  // Without half row: ph rows all equal height.
-  const totalRows = hasCB5HalfRow ? ph + 1 : ph;
-  const fullPanelPixelH = hasCB5HalfRow ? actualWallH / (ph + 0.5) : actualWallH / ph;
-  const halfPanelPixelH = fullPanelPixelH / 2;
+  const actualWallW = wallW;
+  const actualWallH = wallH;
   const panelFontSize = Math.max(6, Math.min(10, Math.floor(Math.min(panelPixelW, fullPanelPixelH) * 0.35)));
 
   ctx.font = panelFontSize + 'px Arial';
@@ -737,8 +761,8 @@ function renderCableDiagram(screenId) {
       } else {
         ctx.lineTo(dropX + DATA_OFFSET, DATA_FLOOR_Y);
       }
-      ctx.lineTo(procX, DATA_FLOOR_Y);
-      ctx.lineTo(procX, equipY + BOX_H);
+      ctx.lineTo(dataEndX, DATA_FLOOR_Y);
+      ctx.lineTo(dataEndX, dataEndY);
       ctx.stroke();
     }
     if (!liveRouteActive && hasBottomEntry) {
@@ -750,8 +774,8 @@ function renderCableDiagram(screenId) {
       if (!hasTopEntry) {
         // No top bundle — draw own vertical drop to floor and processor
         ctx.lineTo(dataDropX, DATA_FLOOR_Y);
-        ctx.lineTo(procX, DATA_FLOOR_Y);
-        ctx.lineTo(procX, equipY + BOX_H);
+        ctx.lineTo(dataEndX, DATA_FLOOR_Y);
+        ctx.lineTo(dataEndX, dataEndY);
       }
       ctx.stroke();
     }
@@ -769,8 +793,8 @@ function renderCableDiagram(screenId) {
         } else {
           ctx.lineTo(dropX + BACKUP_OFFSET, BACKUP_FLOOR_Y);
         }
-        ctx.lineTo(procX + 8, BACKUP_FLOOR_Y);
-        ctx.lineTo(procX + 8, equipY + BOX_H);
+        ctx.lineTo(dataEndX + 8, BACKUP_FLOOR_Y);
+        ctx.lineTo(dataEndX + 8, dataEndY);
         ctx.stroke();
       }
       if (!liveRouteActive && hasBottomExit) {
@@ -782,8 +806,8 @@ function renderCableDiagram(screenId) {
         if (!hasTopExit) {
           // No top bundle — draw own vertical drop to floor and processor
           ctx.lineTo(backupDropX, BACKUP_FLOOR_Y);
-          ctx.lineTo(procX + 8, BACKUP_FLOOR_Y);
-          ctx.lineTo(procX + 8, equipY + BOX_H);
+          ctx.lineTo(dataEndX + 8, BACKUP_FLOOR_Y);
+          ctx.lineTo(dataEndX + 8, dataEndY);
         }
         ctx.stroke();
       }
@@ -800,7 +824,7 @@ function renderCableDiagram(screenId) {
 
       ctx.strokeStyle = DATA_COLOR;
       ctx.lineWidth = dataFanWidth;
-      if (liveRouteActive && drawLivePanelRoute(entry.col, entry.row, 0, 0, DATA_COLOR, dataFanWidth, DATA_FLOOR_Y, procX, equipY + BOX_H)) {
+      if (liveRouteActive && drawLivePanelRoute(entry.col, entry.row, 0, 0, DATA_COLOR, dataFanWidth, DATA_FLOOR_Y, dataEndX, dataEndY)) {
         // routed through live panels to the muster cell above
       } else {
       ctx.beginPath();
@@ -881,7 +905,7 @@ function renderCableDiagram(screenId) {
 
         ctx.strokeStyle = BACKUP_COLOR;
         ctx.lineWidth = dataFanWidth;
-        if (liveRouteActive && drawLivePanelRoute(exit.col, exit.row, 8, 8, BACKUP_COLOR, dataFanWidth, BACKUP_FLOOR_Y, procX + 8, equipY + BOX_H)) {
+        if (liveRouteActive && drawLivePanelRoute(exit.col, exit.row, 8, 8, BACKUP_COLOR, dataFanWidth, BACKUP_FLOOR_Y, dataEndX + 8, dataEndY)) {
           // routed through live panels to the muster cell above
         } else {
         ctx.beginPath();
@@ -986,9 +1010,56 @@ function renderCableDiagram(screenId) {
   // === Draw deferred overlays (markers, brackets, labels) on top of all cable lines ===
   deferredOverlays.forEach(function(fn) { fn(); });
 
+  // === Remote XD trunk: processor → XD along the floor ===
+  // Length is a label, not a measured span — the run is drawn box-edge to box-edge no
+  // matter which box sits further out. Redundancy adds a second run to the backup box,
+  // which sits right beside the main one.
+  if (hasRemoteXd) {
+    const trunkMidY = equipY + BOX_H / 2;
+    const xdTrunkY = xdBoxY + BOX_H / 2;
+    const xdIsRightOfProc = xdX >= procX;
+    const trunkFromX = procX + (xdIsRightOfProc ? BOX_W / 2 : -BOX_W / 2);
+    const trunkToX = xdX + (xdIsRightOfProc ? -BOX_W / 2 : BOX_W / 2);
+    const trunkElbowX = trunkToX + (xdIsRightOfProc ? -2 : 2);
+    const drawTrunk = function(color, nudge) {
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(trunkFromX, trunkMidY + nudge);
+      ctx.lineTo(trunkElbowX, trunkMidY + nudge);
+      ctx.lineTo(trunkElbowX, xdTrunkY + nudge);
+      ctx.lineTo(trunkToX, xdTrunkY + nudge);
+      ctx.stroke();
+    };
+    ctx.setLineDash([]);
+    ctx.lineWidth = 3;
+    drawTrunk(DISTBOX_COLOR, dataRedundancy ? -3 : 0);
+    if (dataRedundancy) drawTrunk(TRUNK_COLOR, 3);
+
+    // Cable length label sitting on the run, matching the server cable's treatment
+    const trunkLabelText = xdToProcessor + "'";
+    const trunkLabelX = (trunkFromX + trunkElbowX) / 2;
+    const trunkLabelY = trunkMidY - BOX_H / 2 - 4;
+    const trunkFontSize = isPdf ? 22 : 10;
+    ctx.font = 'bold ' + trunkFontSize + 'px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const trunkTw = ctx.measureText(trunkLabelText).width + 6;
+    const trunkTh = trunkFontSize + 6;
+    if (rearView) { ctx.save(); ctx.translate(trunkLabelX, trunkLabelY); ctx.scale(-1, 1); ctx.translate(-trunkLabelX, -trunkLabelY); }
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(trunkLabelX - trunkTw / 2, trunkLabelY - trunkTh / 2, trunkTw, trunkTh);
+    ctx.fillStyle = isPrintMode ? fgColor : DISTBOX_COLOR;
+    ctx.fillText(trunkLabelText, trunkLabelX, trunkLabelY);
+    if (rearView) { ctx.restore(); }
+  }
+
   // === Draw equipment boxes ===
   drawCableEquipmentBox(ctx, distroX - BOX_W / 2, equipY, BOX_W, BOX_H, 'DISTRO', POWER_COLOR, rearView);
   drawCableEquipmentBox(ctx, procX - BOX_W / 2, equipY, BOX_W, BOX_H, 'PROC', PROC_COLOR, rearView);
+  if (hasRemoteXd) {
+    const remoteXdLabel = (screen.calculatedData.distributionBoxName || 'XD').toUpperCase();
+    drawCableEquipmentBox(ctx, xdX - BOX_W / 2, xdBoxY, BOX_W, BOX_H, remoteXdLabel, DISTBOX_COLOR, rearView);
+  }
   if (serverToProcessor > 0) {
     drawCableEquipmentBox(ctx, serverBoxX, serverBoxY, BOX_W, BOX_H, 'SERVER', SERVER_COLOR, rearView);
   }
@@ -1086,13 +1157,20 @@ function renderCableDiagram(screenId) {
     }
   }
 
-  // Distro to drop — below floor
-  drawCableDimensionLine(ctx, distroX, floorY + 18, dropX, floorY + 18,
-    distroToWall + "'", fgColor, bgColor, rearView);
-
-  // Processor to drop — below floor (further down to avoid overlap)
-  drawCableDimensionLine(ctx, procX, floorY + 33, dropX, floorY + 33,
+  // Distances to the drop — below floor, nested so the box nearest the wall reads first.
+  // The lane is fixed, so these lines only ever change their label, never their extent.
+  // Proc-to-XD is labelled on the run itself rather than measured here.
+  let dimRowY = floorY + 18;
+  if (hasRemoteXd) {
+    drawCableDimensionLine(ctx, xdX, dimRowY, dropX, dimRowY,
+      xdToWall + "'", fgColor, bgColor, rearView);
+    dimRowY += 15;
+  }
+  drawCableDimensionLine(ctx, procX, dimRowY, dropX, dimRowY,
     processorToWall + "'", fgColor, bgColor, rearView);
+  dimRowY += 15;
+  drawCableDimensionLine(ctx, distroX, dimRowY, dropX, dimRowY,
+    distroToWall + "'", fgColor, bgColor, rearView);
 
   // End rear-view mirror — legend below is drawn un-flipped (upright, normal order)
   if (rearView) { ctx.restore(); }
@@ -1130,6 +1208,22 @@ function renderCableDiagram(screenId) {
     ctx.fillStyle = fgColor;
     ctx.fillText('Pick', MARGIN.left + legendOffset + legendTx, legendY);
     legendOffset += isPdf ? 74 : 48;
+  }
+
+  if (hasRemoteXd) {
+    ctx.fillStyle = DISTBOX_COLOR;
+    ctx.fillRect(MARGIN.left + legendOffset, legendY - legendSq / 2, legendSq, legendSq);
+    ctx.fillStyle = fgColor;
+    ctx.fillText(dataRedundancy ? 'Main Trunk' : 'Trunk', MARGIN.left + legendOffset + legendTx, legendY);
+    legendOffset += dataRedundancy ? (isPdf ? 120 : 75) : (isPdf ? 88 : 55);
+
+    if (dataRedundancy) {
+      ctx.fillStyle = TRUNK_COLOR;
+      ctx.fillRect(MARGIN.left + legendOffset, legendY - legendSq / 2, legendSq, legendSq);
+      ctx.fillStyle = fgColor;
+      ctx.fillText('Backup Trunk', MARGIN.left + legendOffset + legendTx, legendY);
+      legendOffset += isPdf ? 134 : 85;
+    }
   }
 
   if (distBoxOnWall) {

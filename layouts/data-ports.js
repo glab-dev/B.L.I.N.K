@@ -415,7 +415,8 @@ function dataPortBucketIsIndirect(procType) {
 // Group a screen's panels by the unit (distribution box, or the processor when
 // there is no box) their data line terminates on. Feeds the diagonal labels on
 // the combined data canvas via drawSocaOverlay's labelFor hook.
-// Returns { panelToUnit: Map(panelKey -> unitIdx), labels: Map(unitIdx -> text) }.
+// Returns { panelToUnit: Map(panelKey -> unitIdx), labels: Map(unitIdx -> string[]) },
+// each label being the lines to stack: the processor model, then the box/index.
 function buildDataUnitGroups(screenId, groups, sortedDataLines) {
   const panelToUnit = new Map();
   const labels = new Map();
@@ -429,7 +430,8 @@ function buildDataUnitGroups(screenId, groups, sortedDataLines) {
     if(idx === undefined) {
       idx = indexByText.size;
       indexByText.set(parts.unit, idx);
-      labels.set(idx, parts.unit);
+      const code = parts.unitCode || parts.unit;
+      labels.set(idx, parts.unitDetail ? [code, parts.unitDetail] : [code]);
     }
     (groups[gi] || []).forEach(pt => panelToUnit.set(pt.c + ',' + pt.r, idx));
   });
@@ -594,6 +596,8 @@ function cachedDataPortPlan() {
 
 // Destination split into its parts for tabular display:
 // { unit: 'XD1' | 'P2', port: 3 }, or null when unresolved.
+// unitCode/unitDetail carry the same text pre-split for the two-line canvas label:
+// the processor model on top, the box and/or processor index underneath.
 function dataLineDestinationParts(screenId, line) {
   try {
     const plan = cachedDataPortPlan();
@@ -602,21 +606,49 @@ function dataLineDestinationParts(screenId, line) {
     const dest = lineMap.get(line);
     if(!dest) return null;
     const group = plan.groups.get(dest.groupKey);
+    // The processor's model code identifies the unit on the drawing; the index is
+    // only meaningful — and only shown — when more than one of that model is in the
+    // rig. Totals come from dataPortGroupTotals() so a processor split across direct
+    // and indirect screens still counts as one type.
+    const code = shortProcessorCode(dest.procType);
+    const totalProcs = dataPortGroupTotals(plan, dest.procType).procCount;
+    const procIdx = totalProcs > 1 ? String(dest.proc) : '';
+    const procTag = procIdx ? (code + ' ' + procIdx) : code;
+    // The second line of the canvas label: the processor index and the box, whichever
+    // of the two this rig actually needs.
+    const detail = (boxTag) => [procIdx, boxTag].filter(Boolean).join(' ');
+
     if(group && group.usesDistBox && dest.box !== null) {
-      const label = formatUnitLabel(dest.box, group.boxLabelStyle);
-      const main = { unit: shortDistBoxCode(group.distBoxName) + ' ' + label, port: dest.port };
+      const boxCode = shortDistBoxCode(group.distBoxName);
+      const boxTag = boxCode + ' ' + formatUnitLabel(dest.box, group.boxLabelStyle);
+      const main = { unit: procTag + ' ' + boxTag, port: dest.port,
+                     unitCode: code, unitDetail: detail(boxTag) };
       if(dest.backup) {
-        main.backupUnit = shortDistBoxCode(group.distBoxName) + ' ' + formatUnitLabel(dest.backup.box, group.boxLabelStyle);
+        const backupBoxTag = boxCode + ' ' + formatUnitLabel(dest.backup.box, group.boxLabelStyle);
+        main.backupUnit = procTag + ' ' + backupBoxTag;
+        main.backupDetail = detail(backupBoxTag);
         main.backupPort = dest.backup.port;
       }
       return main;
     }
-    const res = { unit: 'P' + dest.proc, port: dest.port };
-    if(dest.backup) { res.backupUnit = 'P' + dest.proc; res.backupPort = dest.backup.port; }
+    const res = { unit: procTag, port: dest.port, unitCode: code, unitDetail: procIdx };
+    if(dest.backup) { res.backupUnit = procTag; res.backupDetail = procIdx; res.backupPort = dest.backup.port; }
     return res;
   } catch(err) {
     return null;
   }
+}
+
+// Short model code for a processor type: the brand and any trailing words dropped,
+// so "Brompton SX40" reads as SX40 and "NovaStar MX40 Pro" as MX40. The processor-side
+// counterpart of shortDistBoxCode().
+function shortProcessorCode(procType) {
+  const all = (typeof getAllProcessors === 'function') ? getAllProcessors() : {};
+  const pr = all[procType] || {};
+  let name = pr.name || String(procType).replace(/_/g, ' ');
+  const brand = pr.brand || String(procType).split('_')[0];
+  if(brand && name.startsWith(brand + ' ')) name = name.substring(brand.length + 1);
+  return name.split(/\s+/)[0] || String(procType);
 }
 
 // Column-friendly code for a box name: the leading letters only, so
@@ -627,31 +659,70 @@ function shortDistBoxCode(name) {
   return letters ? letters[0].toUpperCase() : 'B';
 }
 
-// Short destination for one screen's data line, e.g. "XD1 p3" or "P2 p7".
-// Returns '' when the line has no resolvable destination.
-function dataLineDestinationLabel(screenId, line) {
-  try {
-    const plan = cachedDataPortPlan();
-    const lineMap = plan.perScreen.get(screenId);
-    if(!lineMap) return '';
-    const dest = lineMap.get(line);
-    if(!dest) return '';
-    const group = plan.groups.get(dest.groupKey);
-    if(group && group.usesDistBox && dest.box !== null) {
-      const name = shortDistBoxCode(group.distBoxName);
-      return name + ' ' + formatUnitLabel(dest.box, group.boxLabelStyle) + ' p' + dest.port;
-    }
-    return 'P' + dest.proc + ' p' + dest.port;
-  } catch(err) {
-    return '';
-  }
-}
+// Every physical unit the project's data lines actually land on, plus which screens
+// reach each one. Pure derivation over the cached port plan — nothing is persisted.
+//
+// Numbering is already global per processor bucket (see buildDataPortPlan), so two
+// screens pinned to processor 1 / box 1 resolve to ONE unit here, not two.
+//
+//   unitId = groupKey + '|' + proc + '|' + (box ?? '-')
+//
+// Box indices restart per processor, so a box's identity needs its processor too;
+// procUnitId links a box back to the processor that feeds it.
+function projectDataUnits() {
+  const result = { procs: [], boxes: [], byScreen: new Map() };
+  let plan;
+  try { plan = cachedDataPortPlan(); } catch(err) { return result; }
+  if(!plan || !plan.perScreen) return result;
 
-// Format a destination for display: "P1·XD2·7", or "P1·7" with no box.
-function formatDataPortLabel(dest, distBoxName) {
-  if(!dest) return '';
-  const box = (dest.box !== null && dest.box !== undefined)
-    ? '·' + (distBoxName ? distBoxName.replace(/[^A-Za-z0-9]/g, '') : 'B') + dest.box
-    : '';
-  return 'P' + dest.proc + box + '·' + dest.port;
+  const procSeen = new Map();
+  const boxSeen = new Map();
+
+  plan.perScreen.forEach((lineMap, screenId) => {
+    let reach = result.byScreen.get(screenId);
+    if(!reach) {
+      reach = { procUnitIds: new Set(), boxUnitIds: new Set() };
+      result.byScreen.set(screenId, reach);
+    }
+
+    lineMap.forEach(dest => {
+      const group = plan.groups.get(dest.groupKey);
+      if(!group) return;
+
+      const procUnitId = dest.groupKey + '|' + dest.proc + '|-';
+      if(!procSeen.has(procUnitId)) {
+        const entry = { unitId: procUnitId, groupKey: dest.groupKey, procType: dest.procType,
+                        proc: dest.proc, label: 'P' + dest.proc };
+        procSeen.set(procUnitId, entry);
+        result.procs.push(entry);
+      }
+      reach.procUnitIds.add(procUnitId);
+
+      // Backups land on their own box on a paired_boxes processor, so count them too
+      const boxes = [];
+      if(group.usesDistBox && dest.box !== null && dest.box !== undefined) boxes.push(dest.box);
+      if(group.usesDistBox && dest.backup && dest.backup.box !== null && dest.backup.box !== undefined) {
+        boxes.push(dest.backup.box);
+      }
+      boxes.forEach(box => {
+        const boxUnitId = dest.groupKey + '|' + dest.proc + '|' + box;
+        if(!boxSeen.has(boxUnitId)) {
+          const entry = { unitId: boxUnitId, groupKey: dest.groupKey, procType: dest.procType,
+                          proc: dest.proc, box: box, procUnitId: procUnitId,
+                          label: shortDistBoxCode(group.distBoxName) + ' ' + formatUnitLabel(box, group.boxLabelStyle),
+                          // Box indices restart on every processor, so "XD A" alone is
+                          // ambiguous once a rig has more than one processor.
+                          qualifiedLabel: 'P' + dest.proc + ' ' + shortDistBoxCode(group.distBoxName) + ' ' + formatUnitLabel(box, group.boxLabelStyle) };
+          boxSeen.set(boxUnitId, entry);
+          result.boxes.push(entry);
+        }
+        reach.boxUnitIds.add(boxUnitId);
+      });
+    });
+  });
+
+  // Stable draw order: by processor number, then box ordinal
+  result.procs.sort((a, b) => a.proc - b.proc);
+  result.boxes.sort((a, b) => (a.proc - b.proc) || (a.box - b.box));
+  return result;
 }

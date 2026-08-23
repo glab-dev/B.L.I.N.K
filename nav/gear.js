@@ -258,7 +258,9 @@ function calculateCabling(screenId) {
   const cablePick = data.cablePick ?? 0;
   const dropPos = data.cableDropPosition ?? 'behind';
   const powerInPos = data.powerInPosition ?? 'top';
-  const distBoxOnWall = data.distBoxOnWall ?? false;
+  const placement = resolveXdPlacement(data);
+  const xdToProcessor = data.xdToProcessor ?? 25;
+  const xdToWall = data.xdToWall ?? 40;
   const distBoxMainHorizPos = data.distBoxMainHorizPosition ?? data.distBoxHorizPosition ?? 'center';
   const distBoxBackupHorizPos = data.distBoxBackupHorizPosition ?? data.distBoxHorizPosition ?? 'center';
   const distBoxMainVert = data.distBoxMainVertPosition ?? 'top';
@@ -350,7 +352,9 @@ function calculateCabling(screenId) {
     data.customDataLineAssignments
   );
 
-  if(distBoxOnWall && hasDistBox) {
+  const isRemoteXd = placement === 'remote' && hasDistBox;
+
+  if(placement === 'wall' && hasDistBox) {
     // Main distribution box horizontal position
     let mainDistBoxPositionFt;
     if(distBoxMainHorizPos === 'sr') {
@@ -464,7 +468,11 @@ function calculateCabling(screenId) {
       });
     }
   } else {
-    // No dist box on wall: data cables run from entry panel → wall edge → drop → floor → processor
+    // Dist box is not on the wall: data cables run from entry panel → wall edge → drop → floor →
+    // equipment. The equipment is the processor ('proc'), or the remote XD sitting closer to the
+    // wall on the floor ('remote') — same route, different end point.
+    const floorRunFt = isRemoteXd ? xdToWall : processorToWall;
+
     for(let dl = 0; dl < dataLines; dl++) {
       const entry = entryPoints[dl];
       if(!entry) continue;
@@ -481,11 +489,11 @@ function calculateCabling(screenId) {
       if(isBottomEntry) {
         // Route: panel → wall bottom → along bottom → floor → processor
         const panelToBottomFt = wallHeightFt - entryVFt;
-        totalFt = panelToBottomFt + wallHorizFt + wallToFloor + processorToWall;
+        totalFt = panelToBottomFt + wallHorizFt + wallToFloor + floorRunFt;
       } else {
         // Route: panel → wall top → along top → drop → pick → floor → processor
         const panelToTopFt = entryVFt;
-        totalFt = panelToTopFt + wallHorizFt + dropToFloorFt + processorToWall;
+        totalFt = panelToTopFt + wallHorizFt + dropToFloorFt + floorRunFt;
       }
 
       // Add knockout detour if applicable
@@ -509,6 +517,24 @@ function calculateCabling(screenId) {
     if(redundancy) {
       const backupCables = dataCables.map(c => ({...c, lineIndex: c.lineIndex, backup: true}));
       dataCables.push(...backupCables);
+    }
+
+    // Remote XD: one trunk per box from the processor out to the XD.
+    // distributionBoxCount already includes the backup boxes when redundancy is on
+    // (computeProcessorAndBoxCounts doubles it), so this loop must NOT double again.
+    // Backup boxes sit right beside the main ones, so every trunk is the same length.
+    if(isRemoteXd) {
+      const trunkType = xdToProcessor > 200 ? 'fiber' : 'cat6a';
+      for(let b = 0; b < distributionBoxCount; b++) {
+        const isBackupBox = redundancy && b >= distributionBoxCount / 2;
+        distBoxCables.push({
+          boxIndex: b + 1,
+          lengthFt: Math.round(xdToProcessor * 10) / 10,
+          roundedFt: roundUpToStandard(xdToProcessor),
+          type: trunkType,
+          label: isBackupBox ? 'backup' : 'main'
+        });
+      }
     }
   }
 
@@ -573,7 +599,7 @@ function calculateCabling(screenId) {
     serverCable: {lengthFt: serverToProcessor},
     wallHeightFt: Math.round(wallHeightFt * 10) / 10,
     wallWidthFt: Math.round(wallWidthFt * 10) / 10,
-    inputs: {wallToFloor, distroToWall, processorToWall, cablePick},
+    inputs: {wallToFloor, distroToWall, processorToWall, cablePick, xdPlacement: placement, xdToProcessor, xdToWall},
     entryPoints,
     exitPoints,
     dataStartDir: data.dataStartDir || 'top',
@@ -604,12 +630,16 @@ function saveGearCablingInputs(screenId) {
   const processorToWallEl = document.getElementById('processorToWall');
   const serverToProcessorEl = document.getElementById('serverToProcessor');
   const cablePickEl = document.getElementById('cablePick');
+  const xdToProcessorEl = document.getElementById('xdToProcessor');
+  const xdToWallEl = document.getElementById('xdToWall');
 
   if(wallToFloorEl) data.wallToFloor = wallToFloorEl.value !== '' ? parseFloat(wallToFloorEl.value) : parseFloat(wallToFloorEl.placeholder);
   if(distroToWallEl) data.distroToWall = distroToWallEl.value !== '' ? parseFloat(distroToWallEl.value) : parseFloat(distroToWallEl.placeholder);
   if(processorToWallEl) data.processorToWall = processorToWallEl.value !== '' ? parseFloat(processorToWallEl.value) : parseFloat(processorToWallEl.placeholder);
   if(serverToProcessorEl) data.serverToProcessor = serverToProcessorEl.value !== '' ? parseFloat(serverToProcessorEl.value) : parseFloat(serverToProcessorEl.placeholder);
   if(cablePickEl) data.cablePick = cablePickEl.value !== '' ? parseFloat(cablePickEl.value) : 0;
+  if(xdToProcessorEl) data.xdToProcessor = xdToProcessorEl.value !== '' ? parseFloat(xdToProcessorEl.value) : parseFloat(xdToProcessorEl.placeholder);
+  if(xdToWallEl) data.xdToWall = xdToWallEl.value !== '' ? parseFloat(xdToWallEl.value) : parseFloat(xdToWallEl.placeholder);
 }
 
 function loadGearCablingInputs(screenId) {
@@ -620,6 +650,8 @@ function loadGearCablingInputs(screenId) {
   const processorToWallEl = document.getElementById('processorToWall');
   const serverToProcessorEl = document.getElementById('serverToProcessor');
   const cablePickEl = document.getElementById('cablePick');
+  const xdToProcessorEl = document.getElementById('xdToProcessor');
+  const xdToWallEl = document.getElementById('xdToWall');
 
   if(wallToFloorEl) wallToFloorEl.value = (data.wallToFloor && data.wallToFloor !== 5) ? data.wallToFloor : '';
   if(distroToWallEl) distroToWallEl.value = (data.distroToWall && data.distroToWall !== 10) ? data.distroToWall : '';
@@ -627,6 +659,8 @@ function loadGearCablingInputs(screenId) {
   const serverVal = data.serverToProcessor ?? data.fohToProcessor;
   if(serverToProcessorEl) serverToProcessorEl.value = (serverVal && serverVal !== 50) ? serverVal : '';
   if(cablePickEl) cablePickEl.value = (data.cablePick && data.cablePick !== 0) ? data.cablePick : '';
+  if(xdToProcessorEl) xdToProcessorEl.value = (data.xdToProcessor && data.xdToProcessor !== 25) ? data.xdToProcessor : '';
+  if(xdToWallEl) xdToWallEl.value = (data.xdToWall && data.xdToWall !== 40) ? data.xdToWall : '';
 
   // Update toggle button states
   const dropPos = data.cableDropPosition || 'behind';
@@ -640,9 +674,9 @@ function loadGearCablingInputs(screenId) {
   document.getElementById('powerInTopBtn').classList.toggle('active', powerPos === 'top');
   document.getElementById('powerInBottomBtn').classList.toggle('active', powerPos === 'bottom');
 
-  const distBox = data.distBoxOnWall || false;
-  distBoxOnWallEnabled = distBox;
-  if (typeof updateDistBoxCheckUI === 'function') updateDistBoxCheckUI(distBox);
+  xdPlacement = resolveXdPlacement(data);
+  if (typeof updateXdPlacementUI === 'function') updateXdPlacementUI(xdPlacement);
+  if (typeof updateXdPlacementAvailability === 'function') updateXdPlacementAvailability();
 
   distBoxMainHorizPosition = data.distBoxMainHorizPosition || data.distBoxHorizPosition || 'center';
   document.getElementById('distBoxMainHorizSRBtn')?.classList.toggle('active', distBoxMainHorizPosition === 'sr');
@@ -661,9 +695,6 @@ function loadGearCablingInputs(screenId) {
   distBoxBackupVertPosition = data.distBoxBackupVertPosition || 'top';
   document.getElementById('distBoxBackupTopBtn')?.classList.toggle('active', distBoxBackupVertPosition === 'top');
   document.getElementById('distBoxBackupBottomBtn')?.classList.toggle('active', distBoxBackupVertPosition === 'bottom');
-
-  const posControls = document.getElementById('distBoxPositionControls');
-  if (posControls) posControls.style.display = distBox ? '' : 'none';
 
   cableRearViewEnabled = data.cableRearView || false;
   document.getElementById('cableFrontViewBtn')?.classList.toggle('active', !cableRearViewEnabled);
@@ -861,6 +892,9 @@ function generateGearList() {
   if(typeof currentMobileView !== 'undefined' && currentMobileView === 'gear') {
     gearListContainer.style.display = 'block';
   }
+
+  // Grey out the Dist Box row when this screen's processor has no box
+  if(typeof updateXdPlacementAvailability === 'function') updateXdPlacementAvailability();
 
   // Render cable layout diagram for the active gear screen
   if(typeof renderCableDiagram === 'function') {

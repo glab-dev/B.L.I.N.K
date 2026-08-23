@@ -567,7 +567,9 @@ function resetCalculator() {
       cablePick: 0,
       cableDropPosition: 'behind',
       powerInPosition: 'top',
-      distBoxOnWall: false,
+      xdPlacement: 'proc',
+      xdToProcessor: 25,
+      xdToWall: 40,
       cableRearView: false,
       distBoxMainHorizPosition: 'center',
       distBoxBackupHorizPosition: 'center',
@@ -640,8 +642,12 @@ function resetCalculator() {
   document.getElementById('maxPanelsPerCircuit').value = '';
   
   // Reset cabling fields
-  distBoxOnWallEnabled = false;
-  if (typeof updateDistBoxCheckUI === 'function') updateDistBoxCheckUI(false);
+  xdPlacement = 'proc';
+  if (typeof updateXdPlacementUI === 'function') updateXdPlacementUI('proc');
+  const xdToProcessorReset = document.getElementById('xdToProcessor');
+  if (xdToProcessorReset) xdToProcessorReset.value = '';
+  const xdToWallReset = document.getElementById('xdToWall');
+  if (xdToWallReset) xdToWallReset.value = '';
   cableRearViewEnabled = false;
   document.getElementById('cableFrontViewBtn')?.classList.add('active');
   document.getElementById('cableRearViewBtn')?.classList.remove('active');

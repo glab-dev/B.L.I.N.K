@@ -205,31 +205,42 @@ function drawSocaOverlay(ctx, o) {
       const cx = rx + rw / 2, cy = ry + rh / 2;
       const diag = Math.sqrt(rw * rw + rh * rh);
       const cos = rw / diag, sin = rh / diag;   // label follows this rectangle's diagonal
-      const labelText = _labelFor ? _labelFor(socaIdx) : `SOCA ${formatSocaLabel(socaLabelIdx(socaIdx))}`;
-      if (!labelText) return;
+      const rawLabel = _labelFor ? _labelFor(socaIdx) : `SOCA ${formatSocaLabel(socaLabelIdx(socaIdx))}`;
+      // A label is either one string or an array of lines to stack — the combined data
+      // canvas sends [processor, box/index] so the model sits on its own row. A single
+      // line reduces the maths below to exactly what it was before stacking existed.
+      const lines = (Array.isArray(rawLabel) ? rawLabel : [rawLabel])
+        .filter(t => t !== null && t !== undefined && t !== '').map(String);
+      if (!lines.length) return;
+      const LINE_H = 0.9;                          // leading between stacked lines, in em
+      const emH = 1 + (lines.length - 1) * LINE_H; // block height in em
       ctx.save();
       ctx.font = `bold 100px Arial`;
-      const w100 = ctx.measureText(labelText).width; // text width at 100px font
+      const w100 = Math.max(...lines.map(t => ctx.measureText(t).width)); // widest line at 100px font
       const margin = 0.9;
-      // Rotated footprint must fit rw x rh on both axes (H ≈ em = 100 at 100px).
+      // Rotated footprint must fit rw x rh on both axes (H ≈ em = 100 * emH at 100px).
       const fX = _labelDiagonal
-        ? (margin * rw) * 100 / (w100 * cos + 100 * sin)
+        ? (margin * rw) * 100 / (w100 * cos + 100 * emH * sin)
         : (margin * rw) * 100 / w100;
       const fY = _labelDiagonal
-        ? (margin * rh) * 100 / (w100 * sin + 100 * cos)
-        : (margin * rh);
+        ? (margin * rh) * 100 / (w100 * sin + 100 * emH * cos)
+        : (margin * rh) / emH;
       const fontSize = Math.max(14, Math.min(120, Math.floor(Math.min(fX, fY))));
       ctx.font = `bold ${fontSize}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.translate(cx, cy);
       if (_labelDiagonal) ctx.rotate(-Math.atan2(rh, rw));
-      ctx.fillStyle = 'rgba(0,0,0,0.28)';
-      ctx.fillText(labelText, 0, 0);
+      const step = fontSize * LINE_H;
+      const y0 = -step * (lines.length - 1) / 2;
+      // Solid dark grey fill, outlined in the label colour — one flat pair that stays
+      // legible over every panel colour and over the black canvas behind them.
+      ctx.fillStyle = '#404040';
+      lines.forEach((t, i) => ctx.fillText(t, 0, y0 + i * step));
       ctx.lineJoin = 'round';
       ctx.lineWidth = Math.max(1.5, fontSize * 0.015);
       ctx.strokeStyle = _labelColor;
-      ctx.strokeText(labelText, 0, 0);
+      lines.forEach((t, i) => ctx.strokeText(t, 0, y0 + i * step));
       ctx.restore();
     }
   });

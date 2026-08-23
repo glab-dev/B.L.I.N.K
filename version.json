@@ -1,5 +1,5 @@
 {
-  "version": "2.11.154",
-  "updated": "2026-08-22",
-  "changelog": "Make the standard layout hint follow Select Mode"
+  "version": "2.11.155",
+  "updated": "2026-08-23",
+  "changelog": "Draw combined cables per screen to their assigned units, fix live SOCA labels"
 }

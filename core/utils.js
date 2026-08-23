@@ -238,9 +238,14 @@ function toggleSocaOutlines() {
 function toggleSocaDiagonalLabel() {
   socaDiagonalLabelEnabled = !socaDiagonalLabelEnabled;
   try { localStorage.setItem('ledcalc_soca_diagonal_label', String(socaDiagonalLabelEnabled)); } catch(e) {}
-  const btn = document.getElementById('socaDiagonalLabelBtn');
-  if (btn) { btn.classList.toggle('active', socaDiagonalLabelEnabled); btn.textContent = socaDiagonalLabelEnabled ? 'On' : 'Off'; }
+  // Both power layouts carry this button and share the one preference, so keep the
+  // pair in step the way setSocaLabelStyle() does for SOCA Naming.
+  ['socaDiagonalLabelBtn', 'combinedSocaDiagonalLabelBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.toggle('active', socaDiagonalLabelEnabled); el.textContent = socaDiagonalLabelEnabled ? 'On' : 'Off'; }
+  });
   if (typeof generateLayout === 'function') generateLayout('power');
+  if (typeof renderCombinedView === 'function') renderCombinedView();
 }
 
 // Share Distro (per-screen) — when on, this screen shares one physical 3-phase distro with
@@ -263,8 +268,10 @@ function toggleShareDistro() {
 function initSocaToggleButtons() {
   const ob = document.getElementById('socaOutlinesBtn');
   if (ob) { ob.classList.toggle('active', socaOutlinesEnabled); ob.textContent = socaOutlinesEnabled ? 'On' : 'Off'; }
-  const lb = document.getElementById('socaDiagonalLabelBtn');
-  if (lb) { lb.classList.toggle('active', socaDiagonalLabelEnabled); lb.textContent = socaDiagonalLabelEnabled ? 'On' : 'Off'; }
+  ['socaDiagonalLabelBtn', 'combinedSocaDiagonalLabelBtn'].forEach(id => {
+    const lb = document.getElementById(id);
+    if (lb) { lb.classList.toggle('active', socaDiagonalLabelEnabled); lb.textContent = socaDiagonalLabelEnabled ? 'On' : 'Off'; }
+  });
   const sb = document.getElementById('shareDistroBtn');
   if (sb) { sb.classList.toggle('active', shareDistroEnabled); sb.textContent = shareDistroEnabled ? 'On' : 'Off'; }
 }

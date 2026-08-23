@@ -1,5 +1,5 @@
 {
-  "version": "2.11.157",
+  "version": "2.11.158",
   "updated": "2026-08-23",
-  "changelog": "Add the SOCA Outlines toggle to the combined power layout"
+  "changelog": "Save power-in and dist box positions so cable lengths survive a reload"
 }

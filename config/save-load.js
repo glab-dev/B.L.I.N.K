@@ -105,10 +105,18 @@ function buildCurrentConfig() {
         serverToProcessor: data.serverToProcessor,
         cablePick: data.cablePick,
         cableDropPosition: data.cableDropPosition,
+        powerInPosition: data.powerInPosition,
         xdPlacement: data.xdPlacement,
         xdToProcessor: data.xdToProcessor,
         xdToWall: data.xdToWall,
         distBoxOnWall: data.distBoxOnWall,
+        // These feed the cable-length math, so losing them on save/load changed the
+        // gear list silently. Files saved before this carry none of them and still
+        // fall back to the defaults on load, which is the best that can be done.
+        distBoxMainHorizPosition: data.distBoxMainHorizPosition,
+        distBoxMainVertPosition: data.distBoxMainVertPosition,
+        distBoxBackupHorizPosition: data.distBoxBackupHorizPosition,
+        distBoxBackupVertPosition: data.distBoxBackupVertPosition,
         cableRearView: data.cableRearView,
         canvasX: data.canvasX,
         canvasY: data.canvasY,

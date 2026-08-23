@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.158', date: '2026-08-23', notes: 'Save power-in and dist box positions so cable lengths survive a reload' },
   { version: '2.11.157', date: '2026-08-23', notes: 'Add the SOCA Outlines toggle to the combined power layout' },
   { version: '2.11.156', date: '2026-08-23', notes: 'Label combined cable diagram units by processor type instead of P1/P2' },
   { version: '2.11.155', date: '2026-08-23', notes: 'Draw combined cables per screen to their assigned units, fix live SOCA labels' },

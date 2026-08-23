@@ -689,10 +689,17 @@ function projectDataUnits() {
       const group = plan.groups.get(dest.groupKey);
       if(!group) return;
 
+      // Same tag dataLineDestinationParts() prints, so the cable diagram names a unit
+      // exactly as the data layout and the Mains/Backups tables do: the model, with an
+      // index only once more than one of that model is in the rig.
+      const code = shortProcessorCode(dest.procType);
+      const totalProcs = dataPortGroupTotals(plan, dest.procType).procCount;
+      const procTag = totalProcs > 1 ? (code + ' ' + dest.proc) : code;
+
       const procUnitId = dest.groupKey + '|' + dest.proc + '|-';
       if(!procSeen.has(procUnitId)) {
         const entry = { unitId: procUnitId, groupKey: dest.groupKey, procType: dest.procType,
-                        proc: dest.proc, label: 'P' + dest.proc };
+                        proc: dest.proc, label: procTag };
         procSeen.set(procUnitId, entry);
         result.procs.push(entry);
       }
@@ -712,7 +719,7 @@ function projectDataUnits() {
                           label: shortDistBoxCode(group.distBoxName) + ' ' + formatUnitLabel(box, group.boxLabelStyle),
                           // Box indices restart on every processor, so "XD A" alone is
                           // ambiguous once a rig has more than one processor.
-                          qualifiedLabel: 'P' + dest.proc + ' ' + shortDistBoxCode(group.distBoxName) + ' ' + formatUnitLabel(box, group.boxLabelStyle) };
+                          qualifiedLabel: procTag + ' ' + shortDistBoxCode(group.distBoxName) + ' ' + formatUnitLabel(box, group.boxLabelStyle) };
           boxSeen.set(boxUnitId, entry);
           result.boxes.push(entry);
         }

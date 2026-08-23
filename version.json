@@ -1,5 +1,5 @@
 {
-  "version": "2.11.155",
+  "version": "2.11.156",
   "updated": "2026-08-23",
-  "changelog": "Draw combined cables per screen to their assigned units, fix live SOCA labels"
+  "changelog": "Label combined cable diagram units by processor type instead of P1/P2"
 }

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.156",
+  "version": "2.11.157",
   "updated": "2026-08-23",
-  "changelog": "Label combined cable diagram units by processor type instead of P1/P2"
+  "changelog": "Add the SOCA Outlines toggle to the combined power layout"
 }

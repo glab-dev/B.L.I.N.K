@@ -3200,6 +3200,10 @@
             </div>
           </div>
           <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">SOCA Outlines</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone active" id="combinedSocaOutlinesBtn" onclick="toggleSocaOutlines()">On</button>
+          </div>
+          <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">Phase Balance</span>
             <button type="button" class="toggle-btn toggle-btn-standalone" id="combinedPhaseBalanceBtn" onclick="toggleCombinedPhaseBalance()">Off</button>
           </div>
@@ -3736,8 +3740,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.156';
-const APP_CHANGELOG = 'Label combined cable diagram units by processor type instead of P1/P2';
+const APP_VERSION = '2.11.157';
+const APP_CHANGELOG = 'Add the SOCA Outlines toggle to the combined power layout';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -230,9 +230,14 @@ let socaDiagonalLabelEnabled = (typeof localStorage !== 'undefined' && localStor
 function toggleSocaOutlines() {
   socaOutlinesEnabled = !socaOutlinesEnabled;
   try { localStorage.setItem('ledcalc_soca_outlines', String(socaOutlinesEnabled)); } catch(e) {}
-  const btn = document.getElementById('socaOutlinesBtn');
-  if (btn) { btn.classList.toggle('active', socaOutlinesEnabled); btn.textContent = socaOutlinesEnabled ? 'On' : 'Off'; }
+  // Both power layouts carry this button and share the one preference, so keep the
+  // pair in step the way toggleSocaDiagonalLabel() does for SOCA Label.
+  ['socaOutlinesBtn', 'combinedSocaOutlinesBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.toggle('active', socaOutlinesEnabled); el.textContent = socaOutlinesEnabled ? 'On' : 'Off'; }
+  });
   if (typeof generateLayout === 'function') generateLayout('power');
+  if (typeof renderCombinedView === 'function') renderCombinedView();
 }
 
 function toggleSocaDiagonalLabel() {
@@ -266,8 +271,10 @@ function toggleShareDistro() {
 }
 
 function initSocaToggleButtons() {
-  const ob = document.getElementById('socaOutlinesBtn');
-  if (ob) { ob.classList.toggle('active', socaOutlinesEnabled); ob.textContent = socaOutlinesEnabled ? 'On' : 'Off'; }
+  ['socaOutlinesBtn', 'combinedSocaOutlinesBtn'].forEach(id => {
+    const ob = document.getElementById(id);
+    if (ob) { ob.classList.toggle('active', socaOutlinesEnabled); ob.textContent = socaOutlinesEnabled ? 'On' : 'Off'; }
+  });
   ['socaDiagonalLabelBtn', 'combinedSocaDiagonalLabelBtn'].forEach(id => {
     const lb = document.getElementById(id);
     if (lb) { lb.classList.toggle('active', socaDiagonalLabelEnabled); lb.textContent = socaDiagonalLabelEnabled ? 'On' : 'Off'; }

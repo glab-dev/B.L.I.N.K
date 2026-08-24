@@ -1,5 +1,5 @@
 {
-  "version": "2.11.162",
+  "version": "2.11.163",
   "updated": "2026-08-24",
-  "changelog": "Show SOCA counts in the power specs and per screen in combined specs"
+  "changelog": "Show SOCAs and data lines per screen in combined specs, harden exports"
 }

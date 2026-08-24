@@ -699,6 +699,8 @@ function _layoutTitleText(layout, isCombined) {
   var base = layout === 'power' ? 'Power Layout'
            : layout === 'data' ? 'Data Layout'
            : layout === 'structure' ? 'Structure Layout'
+           : layout === 'standard' ? 'Standard Layout'
+           : layout === 'cable' ? 'Cable Layout'
            : layout;
   return isCombined ? base + ' (Combined)' : base;
 }
@@ -718,7 +720,10 @@ function captureLayoutScreenshotBlobs(callback) {
     var mainWasHidden = mainContainer && mainContainer.style.display === 'none';
     if (mainContainer) mainContainer.style.display = 'block';
 
-    var containerIds = ['standardContainer', 'powerContainer', 'dataContainer', 'structureContainer'];
+    // gearListContainer is the parent of cableDiagramContainer — both must be
+    // visible so renderCableDiagram sees a non-zero clientWidth.
+    var containerIds = ['standardContainer', 'powerContainer', 'dataContainer', 'structureContainer',
+                        'gearListContainer', 'cableDiagramContainer'];
     var savedDisplay = {};
     containerIds.forEach(function(id) {
       var el = document.getElementById(id);
@@ -726,8 +731,12 @@ function captureLayoutScreenshotBlobs(callback) {
     });
     if (mainContainer) void mainContainer.offsetWidth;
 
+    // Only the grid layouts get widened to 4000px (so generateLayout renders at
+    // max panel size). The cable diagram keeps its natural width so the PNG
+    // matches the in-app diagram.
+    var widenIds = ['standardContainer', 'powerContainer', 'dataContainer', 'structureContainer'];
     var savedLayoutWidths = {};
-    containerIds.forEach(function(id) {
+    widenIds.forEach(function(id) {
       var el = document.getElementById(id);
       if (el) { savedLayoutWidths[id] = el.style.width; el.style.width = '4000px'; }
     });
@@ -741,11 +750,14 @@ function captureLayoutScreenshotBlobs(callback) {
     function finish(results) {
       if (typeof pdfLayoutCaptureMode !== 'undefined') pdfLayoutCaptureMode = false;
       if (typeof pdfMultiScreenCapture !== 'undefined') pdfMultiScreenCapture = false;
-      containerIds.forEach(function(id) {
+      widenIds.forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.style.width = savedLayoutWidths[id] !== undefined ? savedLayoutWidths[id] : '';
       });
       if (typeof switchToScreen === 'function') switchToScreen(originalScreenId);
+      // Leave the app's cable canvas showing the screen the user was on, not the
+      // last one captured.
+      try { if (typeof renderCableDiagram === 'function') renderCableDiagram(originalScreenId); } catch(e) {}
       containerIds.forEach(function(id) {
         var el = document.getElementById(id);
         if (el && savedDisplay[id] !== undefined) el.style.display = savedDisplay[id];
@@ -773,6 +785,13 @@ function captureLayoutScreenshotBlobs(callback) {
           if (typeof dataLineLabelsEnabled !== 'undefined') dataLineLabelsEnabled = _savedDataLabels;
           try { if (typeof generateLayout === 'function') generateLayout('data'); } catch(e) {}
         }
+      },
+      // Cable diagram, rendered in the app's own style (no cableDiagramPdfMode) at
+      // the container's natural width — the PDF keeps its separate print rendering.
+      { id: 'cableDiagramCanvas', layout: 'cable', folder: 'cable', title: 'Cable Layout',
+        prep: function(sid) {
+          try { if (typeof renderCableDiagram === 'function') renderCableDiagram(sid); } catch(e) {}
+        }
       }
     ];
 
@@ -787,7 +806,7 @@ function captureLayoutScreenshotBlobs(callback) {
       function nextCap(ci) {
         if (ci >= layoutCaps.length) { nextScreen(si + 1); return; }
         var cap = layoutCaps[ci];
-        if (cap.prep) { try { cap.prep(); } catch(e) {} }
+        if (cap.prep) { try { cap.prep(screenId); } catch(e) {} }
         var canvas = document.getElementById(cap.id);
         if (!(canvas && canvas.width > 0 && canvas.height > 0)) {
           if (cap.cleanup) { try { cap.cleanup(); } catch(e) {} }
@@ -810,35 +829,86 @@ function captureLayoutScreenshotBlobs(callback) {
   }
 }
 
-// Render combined power/data/structure views (multi-screen only) and emit blobs.
+// Render the combined views (multi-screen only) and emit blobs.
 // callback(results) where results = [{ layout, blob }, ...]
+//
+// The combined images must match what the user sees in the app, so this uses
+// combinedSelectedScreens exactly as they left it — both which screens are in
+// the view and their left-to-right order. Only when the combined view has never
+// been set up do we fall back to including every screen.
 function captureCombinedLayoutBlobs(callback) {
+  var restoreState = null;
   try {
     if (typeof screens === 'undefined') { callback([]); return; }
-    var screenIds = Object.keys(screens);
+    var screenIds = Object.keys(screens).sort(function(a, b) {
+      return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
+    });
     if (screenIds.length < 2) { callback([]); return; }
     if (typeof renderCombinedView !== 'function' || typeof combinedSelectedScreens === 'undefined') {
       callback([]); return;
     }
 
-    var savedSet = new Set(combinedSelectedScreens);
-    combinedSelectedScreens.clear();
-    screenIds.forEach(function(id) { combinedSelectedScreens.add(id); });
+    // Only touch the user's selection when there isn't a usable one.
+    var savedSet = null;
+    if (combinedSelectedScreens.size < 2) {
+      savedSet = new Set(combinedSelectedScreens);
+      combinedSelectedScreens.clear();
+      screenIds.forEach(function(id) { combinedSelectedScreens.add(id); });
+    }
+    var selectedIds = Array.from(combinedSelectedScreens);
 
     var combinedContainer = document.getElementById('combinedContainer');
     var savedCombinedDisplay = combinedContainer ? combinedContainer.style.display : null;
     if (combinedContainer) combinedContainer.style.display = 'block';
 
-    try { renderCombinedView(); } catch(e) { console.error('renderCombinedView failed:', e); }
+    // Saved label state for the data variants below.
+    var savedUnitLabels = (typeof dataUnitLabelsEnabled !== 'undefined') ? dataUnitLabelsEnabled : true;
+    var savedLineLabelsGlobal = (typeof dataLineLabelsEnabled !== 'undefined') ? dataLineLabelsEnabled : false;
+    var savedLineLabelsByScreen = {};
+    selectedIds.forEach(function(id) {
+      var d = screens[id] && screens[id].data;
+      if (d) savedLineLabelsByScreen[id] = d.dataLineLabels;
+    });
 
-    // Restore the user's combined-view selection and redraw, then deliver results.
-    function finish(results) {
-      combinedSelectedScreens.clear();
-      savedSet.forEach(function(id) { combinedSelectedScreens.add(id); });
+    // Force the two label toggles for one capture. Unit labels are a plain global
+    // (never toggleDataUnitLabels() — that persists to localStorage). Data line
+    // labels live per screen, and the global has to move with them because
+    // renderCombinedView() runs saveCurrentScreenData() first, which would write
+    // the global back over the open screen's value.
+    function setLabelState(unitLabels, lineLabels) {
+      if (typeof dataUnitLabelsEnabled !== 'undefined') dataUnitLabelsEnabled = unitLabels;
+      if (typeof dataLineLabelsEnabled !== 'undefined') dataLineLabelsEnabled = lineLabels;
+      selectedIds.forEach(function(id) {
+        var d = screens[id] && screens[id].data;
+        if (d) d.dataLineLabels = lineLabels;
+      });
+      try { renderCombinedView(); } catch(e) { console.error('renderCombinedView failed:', e); }
+    }
+
+    restoreState = function() {
+      if (typeof dataUnitLabelsEnabled !== 'undefined') dataUnitLabelsEnabled = savedUnitLabels;
+      if (typeof dataLineLabelsEnabled !== 'undefined') dataLineLabelsEnabled = savedLineLabelsGlobal;
+      Object.keys(savedLineLabelsByScreen).forEach(function(id) {
+        var d = screens[id] && screens[id].data;
+        if (d) d.dataLineLabels = savedLineLabelsByScreen[id];
+      });
+      if (savedSet) {
+        combinedSelectedScreens.clear();
+        savedSet.forEach(function(id) { combinedSelectedScreens.add(id); });
+      }
       if (combinedContainer && savedCombinedDisplay !== null) combinedContainer.style.display = savedCombinedDisplay;
       if (combinedSelectedScreens.size > 0) {
         try { renderCombinedView(); } catch(e) {}
       }
+    };
+
+    // First pass renders every combined canvas; the data variants re-render for
+    // their own label state.
+    setLabelState(true, false);
+
+    // Restore the user's combined-view state and redraw, then deliver results.
+    function finish(results) {
+      restoreState();
       callback(results);
     }
 
@@ -846,17 +916,25 @@ function captureCombinedLayoutBlobs(callback) {
     // restore-redraw above overwrites the combined source canvases).
     var results = [];
     var caps = [
+      { id: 'combinedStandardCanvas',  layout: 'standard' },
       { id: 'combinedPowerCanvas',     layout: 'power' },
       { id: 'combinedDataCanvas',      layout: 'data' },
-      { id: 'combinedStructureCanvas', layout: 'structure' }
+      // Data variants: unit labels = processor / dist box labels, line labels = data line numbers.
+      { id: 'combinedDataCanvas', layout: 'data_labeled', title: 'Data Layout (Labels) (Combined)',
+        prep: function() { setLabelState(true, true); } },
+      { id: 'combinedDataCanvas', layout: 'data_nounits', title: 'Data Layout (No Unit Labels) (Combined)',
+        prep: function() { setLabelState(false, true); } },
+      { id: 'combinedStructureCanvas', layout: 'structure', prep: function() { setLabelState(true, false); } },
+      { id: 'combinedCableDiagramCanvas', layout: 'cable', title: 'Cable Layout (Combined)' }
     ];
 
     function nextCap(i) {
       if (i >= caps.length) { finish(results); return; }
       var cap = caps[i];
+      if (cap.prep) { try { cap.prep(); } catch(e) {} }
       var canvas = document.getElementById(cap.id);
       if (!(canvas && canvas.width > 100 && canvas.height > 100)) { nextCap(i + 1); return; }
-      var composed = _composeLayoutWithHeader(canvas, _layoutTitleText(cap.layout, true));
+      var composed = _composeLayoutWithHeader(canvas, cap.title || _layoutTitleText(cap.layout, true));
       composed.toBlob(function(blob) {
         if (blob) results.push({ layout: cap.layout, blob: blob });
         composed.width = composed.height = 0; // free before the next one
@@ -866,6 +944,7 @@ function captureCombinedLayoutBlobs(callback) {
     nextCap(0);
   } catch(e) {
     console.error('captureCombinedLayoutBlobs error:', e);
+    if (restoreState) { try { restoreState(); } catch(e2) {} }
     callback([]);
   }
 }
@@ -1078,14 +1157,21 @@ function _getSectionOnlyPdfBlob(opts, callback) {
   }
 }
 
+// buildComplexPdf only emits the project summary page for multi-screen projects,
+// so page 1 is the summary there but is real content in a single-screen project.
+function _sectionPdfStartPage() {
+  return (typeof screens !== 'undefined' && Object.keys(screens).length > 1) ? 2 : 1;
+}
+
 // Returns specs PDF page PNG blobs (one entry per page). The cover/summary
-// page (always page 1) is skipped — only the actual specs content is returned.
+// page (page 1 on multi-screen projects) is skipped — only the actual specs
+// content is returned.
 // callback([{ pageNumber, blob }, ...])
 function getSpecsPdfPagePngBlobs(callback) {
   var opts = { specs: true, gearList: false, standard: false, power: false, data: false, structure: false, cabling: false, combined: false, ecoFriendly: false, greyscale: false };
   _getSectionOnlyPdfBlob(opts, function(blob) {
     if (!blob) { callback([]); return; }
-    renderPdfBlobToPngBlobs(blob, { scale: 2, startPage: 2 }, callback);
+    renderPdfBlobToPngBlobs(blob, { scale: 2, startPage: _sectionPdfStartPage() }, callback);
   });
 }
 
@@ -1095,7 +1181,7 @@ function getGearListPdfPagePngBlobs(callback) {
   var opts = { specs: false, gearList: true, standard: false, power: false, data: false, structure: false, cabling: false, combined: false, ecoFriendly: false, greyscale: false };
   _getSectionOnlyPdfBlob(opts, function(blob) {
     if (!blob) { callback([]); return; }
-    renderPdfBlobToPngBlobs(blob, { scale: 2, startPage: 2 }, callback);
+    renderPdfBlobToPngBlobs(blob, { scale: 2, startPage: _sectionPdfStartPage() }, callback);
   });
 }
 

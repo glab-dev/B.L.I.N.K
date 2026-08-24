@@ -3,9 +3,28 @@
 // (PNG + MP4 if initialized), and per-section hi-res PNG screenshots into
 // a single ZIP file organized by folder.
 
+// Filename label for a screen — the user's screen name, sanitized for the ZIP.
+// Falls back to Screen{N} when the screen has no name. Screen names are editable
+// and can collide, so a duplicated name gets the screen number appended (JSZip
+// would otherwise silently overwrite the first file).
 function _exportAllScreenLabel(screenId) {
   var n = parseInt((screenId || '').split('_')[1], 10);
-  return isNaN(n) ? screenId : ('Screen' + n);
+  var fallback = isNaN(n) ? screenId : ('Screen' + n);
+  var screen = (typeof screens !== 'undefined') ? screens[screenId] : null;
+  var raw = (screen && typeof screen.name === 'string') ? screen.name.trim() : '';
+  var label = (raw ? raw : fallback).replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
+
+  if(raw && typeof screens !== 'undefined') {
+    var collides = Object.keys(screens).some(function(sid) {
+      if(sid === screenId) return false;
+      var other = screens[sid];
+      var otherRaw = (other && typeof other.name === 'string') ? other.name.trim() : '';
+      if(!otherRaw) return false;
+      return otherRaw.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_') === label;
+    });
+    if(collides && !isNaN(n)) label += '_S' + n;
+  }
+  return label;
 }
 
 function _captureHtmlElementBlobAsync(elementId, opts) {
@@ -126,14 +145,21 @@ async function _captureAllScreenshotsToZip(zip, name) {
   });
   if(typeof switchToScreen === 'function') switchToScreen(originalScreenId);
 
-  // 3. Specs PNG [project-wide] — rasterized from the real PDF for pixel parity
+  // 3. Specs PNG [one page per screen] — rasterized from the real PDF for pixel
+  // parity. The specs PDF lays screens out in pdfScreenOrder(), so page N is that
+  // screen; name the file after it instead of a meaningless page index. Falls back
+  // to page numbering if the page count doesn't line up with the screen count.
+  var _specsOrder = (typeof pdfScreenOrder === 'function') ? pdfScreenOrder() : allScreenIds;
   await new Promise(function(resolve) {
     try {
       getSpecsPdfPagePngBlobs(function(pages) {
+        var useNames = (pages || []).length === _specsOrder.length;
         (pages || []).forEach(function(p, idx) {
           if(!p || !p.blob) return;
-          var suffix = (pages.length > 1) ? ('_p' + (idx + 1)) : '';
-          zip.file('specs/' + name + '_specs' + suffix + '.png', p.blob);
+          var file = useNames
+            ? (name + '_' + _exportAllScreenLabel(_specsOrder[idx]) + '_specs.png')
+            : (name + '_specs' + ((pages.length > 1) ? ('_p' + (idx + 1)) : '') + '.png');
+          zip.file('specs/' + file, p.blob);
         });
         resolve();
       });

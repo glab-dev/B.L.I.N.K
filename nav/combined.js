@@ -3574,6 +3574,7 @@ function renderCombinedSpecs(selectedScreenIds) {
   // SOCAs per screen, so the combined view shows both the rig total and the split
   const socaByScreen = [];
   let totalSocas = 0;
+  const dataLinesByScreen = [];
 
   // Track panels by type
   const panelsByType = {};
@@ -3661,7 +3662,9 @@ function renderCombinedSpecs(selectedScreenIds) {
     }
 
     // Data lines - use stored calculated value
-    totalDataLines += calcData.dataLines || Math.ceil(activePanels / (parseInt(data.maxPanelsPerData) || 48));
+    const screenDataLines = calcData.dataLines || Math.ceil(activePanels / (parseInt(data.maxPanelsPerData) || 48));
+    dataLinesByScreen.push({ name: screen.name || screenId, count: screenDataLines });
+    totalDataLines += screenDataLines;
 
     // Dimensions
     totalWidth += pw * (panel.width_m || 0.5);
@@ -3710,7 +3713,7 @@ function renderCombinedSpecs(selectedScreenIds) {
   }
 
   // Two-column layout with green title above white value (vertically stacked)
-  let html = '<div class="combined-specs-grid" style="display: grid; grid-template-columns: auto auto; justify-content: start; gap: 12px 24px;">';
+  let html = '<div class="combined-specs-grid" style="display: grid; grid-template-columns: auto auto auto auto; justify-content: start; gap: 12px 24px;">';
 
   // Left column: Total Screens, Total Panels, Total Pixels, Total Weight
   html += '<div style="display: flex; flex-direction: column; gap: 12px;">';
@@ -3720,7 +3723,7 @@ function renderCombinedSpecs(selectedScreenIds) {
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Total Weight</div><div style="color: #fff; font-size: 13px;">${weightDisplay}</div></div>`;
   html += '</div>';
 
-  // Right column: Dimensions, Power, Total Amps, Service needed, Data Lines
+  // Second column: Dimensions, Power, Total Amps, Service needed
   html += '<div style="display: flex; flex-direction: column; gap: 12px;">';
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Dimensions</div><div style="color: #fff; font-size: 13px;">${widthDisplay} × ${heightDisplay}</div></div>`;
   const powerLabel = combinedPowerType === 'max' ? 'Power (Max)' : 'Power (Avg)';
@@ -3733,11 +3736,22 @@ function renderCombinedSpecs(selectedScreenIds) {
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">${powerLabel}</div><div style="color: #fff; font-size: 13px;">${totalPowerW.toLocaleString()} W</div></div>`;
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Total Amps</div><div style="color: #fff; font-size: 13px;">${displayAmps.toFixed(1)} A</div></div>`;
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Service needed</div><div style="color: #fff; font-size: 13px;">${svcLabel}</div></div>`;
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Data Lines</div><div style="color: #fff; font-size: 13px;">${totalDataLines}</div></div>`;
-  const socaBreakdownHtml = socaByScreen
-    .map(s => `<div style="color: #9ca3af; font-size: 12px;">${escapeHtml(String(s.name))}: ${s.count}</div>`)
+  html += '</div>';
+
+  // Third and fourth columns: a rig total with the per-screen split beneath it
+  const breakdownHtml = rows => rows
+    .map(r => `<div style="color: #9ca3af; font-size: 12px;">${escapeHtml(String(r.name))}: ${r.count}</div>`)
     .join('');
-  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">SOCAs needed</div><div style="color: #fff; font-size: 13px;">${totalSocas}</div>${socaBreakdownHtml}</div>`;
+  const totalBlock = (label, total, rows) =>
+    `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">${label}</div>` +
+    `<div style="color: #fff; font-size: 13px;">${total}</div>${breakdownHtml(rows)}</div>`;
+
+  html += '<div style="display: flex; flex-direction: column; gap: 12px;">';
+  html += totalBlock('SOCAs needed', totalSocas, socaByScreen);
+  html += '</div>';
+
+  html += '<div style="display: flex; flex-direction: column; gap: 12px;">';
+  html += totalBlock('Data Lines', totalDataLines, dataLinesByScreen);
   html += '</div>';
 
   html += '</div>';

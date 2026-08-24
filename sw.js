@@ -2,7 +2,7 @@
 // Provides offline caching for the B.L.I.N.K. PWA.
 // SW_VERSION must match APP_VERSION in index.html and version.json.
 
-const SW_VERSION = '2.11.162';
+const SW_VERSION = '2.11.163';
 const CACHE_NAME = 'blink-v' + SW_VERSION;
 
 // Local app files to pre-cache on install
@@ -98,19 +98,23 @@ self.addEventListener('install', event => {
   console.log('[SW] Installing v' + SW_VERSION);
   event.waitUntil(
     caches.open(CACHE_NAME).then(function(cache) {
-      // Cache local assets individually (don't fail entire install if one is missing)
-      var localPromises = LOCAL_ASSETS.map(function(url) {
-        return cache.add(url).catch(function(err) {
-          console.log('[SW] Local cache skip:', url, err.message);
-        });
-      });
       // Cache CDN assets individually (don't fail install if CDN is down)
       var cdnPromises = CDN_ASSETS.map(function(url) {
         return cache.add(url).catch(function(err) {
           console.log('[SW] CDN cache skip:', url, err.message);
         });
       });
-      return Promise.allSettled(localPromises.concat(cdnPromises));
+      // Local assets are required. addAll is atomic: if any one file fails to
+      // fetch, the install rejects, this SW never activates, and the previous
+      // cache is left intact so the app keeps working on the old version.
+      // Caching them individually let the SW activate with a hole in its cache,
+      // which silently 404'd a module and broke the app after an update.
+      return cache.addAll(LOCAL_ASSETS).then(function() {
+        return Promise.allSettled(cdnPromises);
+      }).catch(function(err) {
+        console.log('[SW] Install failed, keeping previous version:', err.message);
+        throw err;
+      });
     })
   );
 });

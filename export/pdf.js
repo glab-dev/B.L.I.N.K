@@ -3195,7 +3195,7 @@ function getPdfBlobForExportAll(callback) {
       switchMobileView(currentAppMode);
     }
 
-    var opts = { specs: true, gearList: true, standard: true, power: true, data: true, structure: true, cabling: true, combined: false, ecoFriendly: false, greyscale: false };
+    var opts = { specs: true, gearList: true, standard: true, power: true, data: true, structure: true, cabling: true, combined: true, ecoFriendly: false, greyscale: false };
     var docDef = buildComplexPdf(opts, canvasCache);
     ecoPrintMode = false;
     greyscalePrintMode = false;

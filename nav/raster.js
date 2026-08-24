@@ -279,6 +279,85 @@ function updateRasterScreenName(screenId, value) {
   }, 500);
 }
 
+// The Raster table edits Cols/Rows, so the panel counts are this screen's anchor. The wall
+// size stored beside them is what getEffectivePanelCounts() prefers once the screen is opened
+// in the main view, so re-derive it from the counts and the screen's CURRENT panel - otherwise
+// a wall size still describing the old panel silently reshapes the grid (a 6x6 CB5 came out
+// 4x7 on AMT). Mirrors syncFromPanels(), but on screen data so it works off the current screen.
+function syncRasterScreenWallSize(screenId) {
+  var screen = screens[screenId];
+  if(!screen || !screen.data) return;
+  var data = screen.data;
+  var p = getAllPanels()[data.panelType];
+  if(!p) return;
+
+  var pw = parseInt(data.panelsWide) || 0;
+  var ph = parseInt(data.panelsHigh) || 0;
+  var units = data.lengthUnit || displayLengthUnit;
+  // Raster-created panels carry pixel dimensions only - there is no wall size to state
+  var hasPhysicalSize = !!(p.width_m && p.height_m);
+  data.wallWidth = (hasPhysicalSize && pw > 0) ? fromMeters(pw * p.width_m, units).toFixed(2) : '';
+  data.wallHeight = (hasPhysicalSize && ph > 0) ? fromMeters(ph * p.height_m, units).toFixed(2) : '';
+
+  // The current screen's inputs are what saveCurrentScreenData() writes back, so the stale
+  // wall size has to leave the DOM too or it lands right back on the screen data.
+  if(screenId === currentScreenId) {
+    var wallWidthEl = document.getElementById('wallWidth');
+    var wallHeightEl = document.getElementById('wallHeight');
+    if(wallWidthEl) wallWidthEl.value = data.wallWidth;
+    if(wallHeightEl) wallHeightEl.value = data.wallHeight;
+  }
+}
+
+// Drop the panel-level edits a screen carries when its panel changes. They were made against
+// the old panel's grid and its circuit/data limits, so none of them survive the swap.
+function resetRasterScreenLayouts(screenId) {
+  var screen = screens[screenId];
+  if(!screen || !screen.data) return;
+  var data = screen.data;
+
+  data.deletedPanels = new Set();
+  data.selectedPanels = new Set();
+  data.customCircuitAssignments = new Map();
+  data.customSocaAssignments = new Map();
+  data.customDataLineAssignments = new Map();
+  data.customDataDestinations = new Map();
+  data.undoHistory = [];
+  data.redoHistory = [];
+
+  // Typed limits belong to the old panel - fall back to the new panel's suggestions
+  data.maxPanelsPerCircuit = '';
+  data.maxPanelsPerData = '';
+
+  // Structure: clearing the flag makes loadScreenData() re-auto-distribute for the new panel
+  data.bumpers = [];
+  data.bumpersInitialized = false;
+
+  if(screenId !== currentScreenId) return;
+
+  // The current screen renders from the globals and inputs, not from screen data
+  deletedPanels.clear();
+  selectedPanels.clear();
+  customCircuitAssignments.clear();
+  customSocaAssignments.clear();
+  customDataLineAssignments.clear();
+  customDataDestinations.clear();
+  undoHistory = [];
+  redoHistory = [];
+  if(typeof updateUndoRedoButtons === 'function') updateUndoRedoButtons();
+
+  var maxCircuitEl = document.getElementById('maxPanelsPerCircuit');
+  var maxDataEl = document.getElementById('maxPanelsPerData');
+  if(maxCircuitEl) maxCircuitEl.value = '';
+  if(maxDataEl) maxDataEl.value = '';
+  if(typeof updateSuggestedCircuitLimit === 'function') updateSuggestedCircuitLimit();
+  if(typeof updateSuggestedDataLimit === 'function') updateSuggestedDataLimit();
+
+  if(typeof resetStructureEditingState === 'function') resetStructureEditingState();
+  if(typeof initializeBumpers === 'function') initializeBumpers();
+  if(typeof updateWeightDisplay === 'function') updateWeightDisplay();
+}
+
 function updateRasterScreenPanel(screenId, panelType) {
   if(panelType === '__ADD_CUSTOM__') {
     openRasterCustomPanelModal(screenId);
@@ -306,6 +385,12 @@ function updateRasterScreenPanel(screenId, panelType) {
     if(mainHalfBtn) mainHalfBtn.classList.toggle('active', halfOn);
   }
 
+  // Keep the panel counts and drop everything that was tied to the old panel. Runs after the
+  // block above: the suggested limits and the bumpers are rebuilt off the main panelType
+  // dropdown, so it has to already read the new panel.
+  syncRasterScreenWallSize(screenId);
+  resetRasterScreenLayouts(screenId);
+
   renderRasterScreenTable();
   showCanvasView();
 }
@@ -314,6 +399,9 @@ var _rasterDimTimer = null;
 function updateRasterScreenDim(screenId, field, value) {
   if(!screens[screenId]) return;
   screens[screenId].data[field] = parseInt(value) || 0;
+
+  // Cols/Rows are panel counts - re-derive the wall size so it can't outvote them later
+  syncRasterScreenWallSize(screenId);
 
   // Sync to main dimension inputs if this is the current screen
   if(screenId === currentScreenId) {
@@ -628,7 +716,9 @@ async function saveRasterCustomPanel() {
   var modal = document.getElementById('rasterCustomPanelModal');
   var returnScreenId = modal ? modal.dataset.returnScreenId : '';
   if(returnScreenId && screens[returnScreenId]) {
-    screens[returnScreenId].data.panelType = key;
+    // Route through the normal panel-change path so the wall size is re-derived for the
+    // new panel and the old panel's layout edits are dropped
+    updateRasterScreenPanel(returnScreenId, key);
   }
 
   closeRasterCustomPanelModal();

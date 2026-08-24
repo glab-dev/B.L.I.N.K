@@ -333,6 +333,42 @@ document.addEventListener('DOMContentLoaded', function() {
       // defaults above (circuit/data limits, bumpers, plates, structure) have been applied.
       panelTypeSelect.addEventListener('change', function() {
         if(isLoadingScreenData || this.value === '__ADD_CUSTOM__') return;
+
+        // The panel count / wall size / pixel fields are derived from each other through the
+        // OLD panel's dimensions, so re-derive them from the active mode's anchor. Without
+        // this the wall size still describes the old panel and getEffectivePanelCounts()
+        // (which prefers the wall size) reshapes the wall behind the inputs - a 6x6 CB5
+        // wall came out 4x7 on AMT while the panel count fields still read 6x6.
+        if(currentDimensionMode === 'size') {
+          syncFromSize();   // wall size is the anchor -> re-derive the panel counts
+        } else {
+          syncFromPanels(); // panel counts are the anchor -> re-derive the wall size
+          syncPixelsFromPanels();
+        }
+
+        // The standard/power/data edits were made against the old panel's grid and its
+        // circuit/data limits, so they can't carry over to a different panel.
+        deletedPanels.clear();
+        selectedPanels.clear();
+        customCircuitAssignments.clear();
+        customSocaAssignments.clear();
+        customDataLineAssignments.clear();
+        customDataDestinations.clear();
+        undoHistory = [];
+        redoHistory = [];
+        updateUndoRedoButtons();
+
+        // Typed limits belong to the old panel - fall back to the new panel's suggestions.
+        document.getElementById('maxPanelsPerCircuit').value = '';
+        document.getElementById('maxPanelsPerData').value = '';
+        updateSuggestedCircuitLimit();
+        updateSuggestedDataLimit();
+
+        // Structure view: drop the manual bumper edits and re-auto-distribute.
+        resetStructureEditingState();
+        initializeBumpers();
+        updateWeightDisplay();
+
         saveCurrentScreenData();
         calculate();
       });

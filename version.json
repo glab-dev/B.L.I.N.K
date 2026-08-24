@@ -1,5 +1,5 @@
 {
-  "version": "2.11.165",
+  "version": "2.11.166",
   "updated": "2026-08-24",
-  "changelog": "Band tall SOCA selections into circuits by row instead of rejecting them"
+  "changelog": "Keep panel counts on a panel swap and reset the affected layouts"
 }

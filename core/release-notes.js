@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.160', date: '2026-08-24', notes: 'Keep an assigned data port number when Processor and Box are left on Auto' },
   { version: '2.11.159', date: '2026-08-24', notes: 'Stack the combined equipment lane on two rows and fit box labels' },
   { version: '2.11.158', date: '2026-08-23', notes: 'Save power-in and dist box positions so cable lengths survive a reload' },
   { version: '2.11.157', date: '2026-08-23', notes: 'Add the SOCA Outlines toggle to the combined power layout' },

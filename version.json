@@ -1,5 +1,5 @@
 {
-  "version": "2.11.159",
+  "version": "2.11.160",
   "updated": "2026-08-24",
-  "changelog": "Stack the combined equipment lane on two rows and fit box labels"
+  "changelog": "Keep an assigned data port number when Processor and Box are left on Auto"
 }

@@ -105,7 +105,7 @@ function resolveScreenDataInputs(data) {
 // Backup lines are not modelled here — redundancy is handled downstream, unchanged.
 function screenDataLineDestinations(data) {
   const inp = resolveScreenDataInputs(data);
-  if(!inp || typeof buildDataLineGroups !== 'function') return { lines: [], explicit: new Map() };
+  if(!inp || typeof buildDataLineGroups !== 'function') return { lines: [], explicit: new Map(), portFixed: new Set() };
 
   const built = buildDataLineGroups({
     pw: inp.pw,
@@ -118,12 +118,16 @@ function screenDataLineDestinations(data) {
 
   const lines = (built.sortedDataLines || []).map(ln => ln + 1);
   const explicit = new Map();
+  // Lines whose number the user typed into Assign Data Port. That number IS the port,
+  // so it has to survive allocation even when Processor #/Box # were left on Auto.
+  const portFixed = new Set();
 
   // A line's destination comes from any panel on it that carries one. Later panels
   // win, matching how a line only ever terminates in one place.
   (built.sortedDataLines || []).forEach((ln, gi) => {
     const group = built.groups[gi] || [];
     group.forEach(pt => {
+      if(inp.customDataLines.has(pt.c + ',' + pt.r)) portFixed.add(ln + 1);
       const dest = inp.customDestinations.get(pt.c + ',' + pt.r);
       if(!dest) return;
       const proc = (typeof dest.proc === 'number' && dest.proc >= 1) ? dest.proc : null;
@@ -137,7 +141,8 @@ function screenDataLineDestinations(data) {
     });
   });
 
-  return { lines: lines, explicit: explicit, processorId: inp.processorId, connectionMode: inp.connectionMode };
+  return { lines: lines, explicit: explicit, portFixed: portFixed,
+           processorId: inp.processorId, connectionMode: inp.connectionMode };
 }
 
 // Screen ids in tab order (numeric screen_N suffix), the same order renderScreenTabs
@@ -180,6 +185,7 @@ function buildDataPortPlan(liveOverride) {
     const data = liveScreenData(id) || screens[id].data;
     const info = (liveOverride && liveOverride.screenId === id)
       ? { lines: liveOverride.lines || [], explicit: liveOverride.explicit || new Map(),
+          portFixed: liveOverride.portFixed || new Set(),
           processorId: data.processor || 'Brompton_SX40', connectionMode: data.mx40ConnectionMode || 'direct' }
       : screenDataLineDestinations(data);
     if(!info.lines.length) return;
@@ -255,6 +261,56 @@ function buildDataPortPlan(liveOverride) {
         const port = line;
         portsOn(dest.proc, box).add(port);
         claimedPorts.set(entry.screenId + '|' + line, { proc: dest.proc, box: box, port: port });
+      });
+    });
+
+    // --- Pass 1b: a line whose PORT the user typed keeps that number even when
+    // Processor #/Box # were left on Auto ---
+    // The Assign Data Port dialog defaults both unit fields to Auto, so without this
+    // the commonest assignment falls through to pass 2 and is silently renumbered —
+    // the wall shows port 4 where the user asked for 9. Only the port is pinned here;
+    // the unit still comes from the same proc/box walk pass 2 uses. Runs before pass 2
+    // so auto lines route around the reserved port instead of stealing it.
+
+    // First unit that still has room and has not already taken `port`, honouring a
+    // half-specified destination (Processor # given, box left on Auto, or vice versa).
+    function unitForFixedPort(port, pinProc, pinBox) {
+      const boxes = [];
+      if(!usesDistBox) boxes.push(null);
+      else if(pinBox !== null) boxes.push(pinBox);
+      // Step by 2 when boxes pair off, so mains never land on B or D.
+      else for(let b = 1; b <= boxesPerProc; b += (pairedBoxes ? 2 : 1)) boxes.push(b);
+
+      const firstProc = pinProc !== null ? pinProc : 1;
+      const lastProc = pinProc !== null ? pinProc : 1000;
+      for(let proc = firstProc; proc <= lastProc; proc++) {
+        for(let i = 0; i < boxes.length; i++) {
+          const used = portsOn(proc, boxes[i]);
+          if(used.size < capacity && !used.has(port)) return { proc: proc, box: boxes[i] };
+        }
+      }
+      // Everything the user pinned is full: the explicit assignment still wins and
+      // overflows, the same rule pass 1 follows for a fully-specified destination.
+      return { proc: firstProc, box: boxes[0] };
+    }
+
+    bucket.entries.forEach(entry => {
+      const portFixed = entry.info.portFixed || new Set();
+      entry.info.lines.forEach(line => {
+        if(!portFixed.has(line)) return;
+        const key = entry.screenId + '|' + line;
+        if(claimedPorts.has(key)) return;
+        // An even port is a loop-back once ports pair off, and an even box is a
+        // loop-back box — leave those to the cursor rather than patching a main onto
+        // a backup slot. dataPortLoopbackBlocker() refuses them at assignment time.
+        if(pairedPorts && line % 2 === 0) return;
+        const dest = entry.info.explicit.get(line);
+        const pinProc = (dest && dest.proc !== null) ? dest.proc : null;
+        const pinBox = (usesDistBox && dest && dest.box !== null) ? dest.box : null;
+        if(pairedBoxes && pinBox !== null && pinBox % 2 === 0) return;
+        const slot = unitForFixedPort(line, pinProc, pinBox);
+        portsOn(slot.proc, slot.box).add(line);
+        claimedPorts.set(key, { proc: slot.proc, box: slot.box, port: line });
       });
     });
 

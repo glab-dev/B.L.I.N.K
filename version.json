@@ -1,5 +1,5 @@
 {
-  "version": "2.11.169",
+  "version": "2.11.170",
   "updated": "2026-08-24",
-  "changelog": "Size the PDF power layout marker bands so row and column numbers never clip"
+  "changelog": "Update help modal and README for SOCA, data ports, Select Mode and exports"
 }

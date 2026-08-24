@@ -56,9 +56,11 @@ A professional LED wall calculator PWA (Progressive Web App) for planning LED vi
 - **Cabling calculations** — Cable routing diagram with distance inputs and automatic cable length calculation
 - **Canvas view** — Multi-screen visualization with drag-and-drop positioning
 - **Raster mode** — Canvas mapping for LED raster workflows with spreadsheet-style screen table
-- **5 layout views** — Standard, Power, Data, Structure, and Cable
+- **6 layout views** — Standard, Power, Data, Structure, Combined, and Cable
+- **SOCA circuit grouping** — Group circuits onto SOCA runs, balance phase legs, share a distro across screens
+- **Manual assignment** — Assign circuit numbers, SOCA numbers, and data ports by hand
 - **Test pattern generator** — Professional test patterns with layers, animations, processor lines, save/load, PNG and MP4 export
-- **5 export formats** — PDF, PNG, email gear list, Resolume XML, .blinkled files
+- **Export formats** — PDF report, PNG/JPEG, MP4, gear list (text or email), Resolume XML, and .blinkled / .blinkrast / .blinktp files
 - **Unit conversion** — Toggle between Imperial (ft/lbs) and Metric (m/kg)
 - **Aspect ratio lock** — Auto-calculate dimensions for 16:9, 4:3, or custom ratios
 - **Request new items** — Email request system for new panels and processors
@@ -107,7 +109,8 @@ The app works on both mobile and desktop devices. Both platforms support Simple 
 - All sections visible including structure, data direction, and layout views
 
 ### Mobile (Touch)
-- **Tap once** — Select bumper or element
+- **Select Mode** — Panel and bumper selection is off until you enable Select Mode above the layout, so scrolling never selects by accident
+- **Tap once** — Select bumper or element (with Select Mode on)
 - **Tap again** — Open options menu (replaces right-click)
 - **Hold and drag** — Move bumpers or screens
 - **Hamburger menu** — Access all options from the menu icon
@@ -116,6 +119,7 @@ The app works on both mobile and desktop devices. Both platforms support Simple 
 
 ### Desktop (Mouse)
 - **Mouse controls** — Click, drag, right-click for interactions
+- **Drag-box select** — Drag across the layout to select a region of panels
 - **Right-click menus** — Context menus for bumpers and panels
 - **Scroll wheel** — Ctrl+scroll to zoom canvas
 - **Keyboard shortcuts** — Full keyboard navigation support
@@ -127,7 +131,7 @@ The app works on both mobile and desktop devices. Both platforms support Simple 
 
 1. **Choose a Mode** — Select Simple or Complex on the welcome page
 2. **Select a Panel Type** — Choose your LED panel from the dropdown
-3. **Enter Dimensions** — Input panels wide/high or target wall size
+3. **Enter Dimensions** — Input panels wide/high, target wall size, or target pixel count
 4. **Configure Power** — Set voltage, breaker, and phase settings
 5. **Configure Data** — Select processor, frame rate, and bit depth
 6. **Review Results** — Check the calculated specifications
@@ -138,9 +142,19 @@ The app works on both mobile and desktop devices. Both platforms support Simple 
 
 ## Header Controls
 
-- **Load** — Load a previously saved .blinkled file
-- **Save** — Save current configuration (all screens) to a .blinkled file
+- **Home** — Return to the welcome page
+- **Recents** — Reopen a recent project; loaded files keep their saved file name
+- **Quick Save** — Save over the current project without a dialog
+- **Export** — Open the export menu (PDF Report, Canvas, Test Pattern, Gear List, Export All)
 - **Menu** — Access settings, custom items, exports, and app info
+
+### Menu Sections
+- **Configuration** — Save, Save As, Load, Recent, Export, Send to Jared
+- **Custom Items** — Add Panel, Add Processor, Manage Items, Requests
+- **Inventory** — Gear Code Mapping, to map gear to your own inventory codes
+- **Power** — Distro Wiring, to set which leg (X / Y / Z) each SOCA circuit is wired to
+- **Install** — Install B.L.I.N.K. as an app where the browser supports it
+- **Release Notes** — "What's New" from the welcome page footer, also shown once per update
 
 ---
 
@@ -149,7 +163,7 @@ The app works on both mobile and desktop devices. Both platforms support Simple 
 - **Multiple Screens** — Create and manage multiple LED wall screens in one project
 - **Add Screen (+)** — Click the + button to add a new screen
 - **Switch Screens** — Click on any screen tab to switch between screens
-- **Edit Screen** — Click the pencil icon to rename and change screen colors
+- **Edit Screen** — Click the pencil icon to rename, recolor, duplicate, or reset a screen
   - Set primary color (main panel color)
   - Set secondary color (alternating panel color for checkerboard effect)
 - **Delete Screen** — Click the X to remove a screen (cannot delete last screen)
@@ -303,6 +317,7 @@ Want a panel or processor added to the built-in library?
 ### Input Modes
 - **Panels** — Enter number of panels wide and high
 - **Size** — Enter desired wall width and height (auto-calculates panels needed)
+- **Pixels** — Enter target pixel width and height (auto-calculates panels needed)
 
 ### Unit Systems
 - **Imperial** — Feet (ft) and Pounds (lbs)
@@ -327,12 +342,27 @@ When an aspect ratio is selected, entering panels wide will automatically calcul
 - **Power Basis:**
   - **Max** — Calculate using maximum power consumption (recommended)
   - **Average** — Calculate using average power consumption
+- **Derate** — Apply the NEC 80% continuous-load derate to circuit capacity
 - **Max/Circuit** — Override maximum panels per circuit (leave blank for auto)
 
 ### Power Calculations
 - Automatic circuit distribution based on panel power draw
 - Phase balancing for 3-phase systems
 - Safety margins applied to all calculations
+
+### Circuits & SOCA (Complex Mode)
+A SOCA groups circuits onto one multi-circuit cable run. Controls sit above the Power layout:
+- **SOCA Outlines** — Draw a border around the panels each SOCA feeds
+- **SOCA Label** — Show the SOCA name across its panels
+- **SOCA Naming** — Number the SOCAs (123) or letter them (ABC)
+- **Phase Balance** — Even the load across legs; a legend below the layout shows the result
+- **Color by Leg** — Color panels by phase leg instead of by circuit
+- **Share Distro** — Chain screens onto one distro so legs balance across the whole group
+- **Circuit table** — Lists each SOCA, its circuits, and their loads below the layout
+
+**Manual assignment** — Select panels in the Power layout and use the panel menu for **Assign Circuit #** and **Assign SOCA #**. A manual assignment always wins; Share Distro only auto-fills numbers you have not claimed. Cable lengths and gear counts follow your assignments.
+
+**Distro Wiring** (Menu → Power) — Type the leg(s) each SOCA circuit is wired to. 120 V circuits sit on one leg (e.g. `X`), 208 V circuits bridge two (e.g. `XY`). Blank cells use the standard rotation.
 
 ---
 
@@ -349,7 +379,7 @@ When an aspect ratio is selected, entering panels wide will automatically calcul
 - Custom processors (user-created)
 
 ### Settings
-- **Frame Rate** — 24Hz, 25Hz, 30Hz, 50Hz, 60Hz, 120Hz
+- **Frame Rate** — 24Hz, 25Hz, 30Hz, 50Hz, 60Hz
 - **Bit Depth** — 8-bit, 10-bit, 12-bit
 - **Max/Data** — Override maximum panels per data line (leave blank for auto)
 
@@ -360,9 +390,18 @@ When an aspect ratio is selected, entering panels wide will automatically calcul
 - **All from Bottom** — All data lines start from bottom
 
 ### Options (Complex Mode)
-- **Arrows** — Show/hide data routing arrows on layouts
+- **Arrows / Flip** — Show/hide data routing arrows, or flip their direction
+- **View** — Front View or Rear View (mirrors the routing for cabling from behind)
+- **Data Labels** — Number each data line on the panels
 - **Data Redundancy** — Enable redundant data routing (doubles ports needed)
 - **Processor Redundancy** — Double the processor count for backup
+
+### Data Lines & Ports (Complex Mode)
+- **Data Line Map** — Table below the Data layout with Line, Panel, Unit, and Port columns
+- **Assign Data Port** — Select panels and use the panel menu to set the processor, distribution box, and port for a line. Processor and box accept a letter or a number; Auto leaves the app to pick.
+- The app warns before taking a port another line already holds, and manual assignments drive gear list counts
+- With Data Redundancy on, the map also shows each line's backup destination, and those loop-back ports appear in the PDF
+- **Connection Mode** — Per screen, run a processor direct or through its distribution box
 
 ### NovaStar MX40 Pro Connection Modes
 
@@ -410,9 +449,12 @@ Processor count is automatically calculated based on total pixel count and port 
 
 ## Layout Views
 
+**Select Mode** — Panel selection is off until you turn Select Mode on above the layout. It applies to the Standard, Power, Data, and Combined layouts; bumpers have their own Select Mode in Structure. Use the ▼ button on a layout title to collapse or expand it.
+
 ### Standard Layout
 - Shows panel grid with checkerboard coloring
 - Click panels to delete/restore them
+- Assign circuits, SOCAs, or data lines from the panel menu
 - Undo/Redo support for panel changes
 - Deleted panels shown as dotted outlines
 - Panel coordinates displayed on hover
@@ -421,15 +463,19 @@ Processor count is automatically calculated based on total pixel count and port 
 - Shows power circuit distribution
 - Each circuit color-coded
 - Displays circuit numbers on panels
-- Shows distribution box assignments
+- SOCA outlines, SOCA labels, and SOCA naming (123 or ABC)
+- Phase Balance, Color by Leg, and Share Distro toggles
+- Circuit table listing each SOCA, its circuits, and their loads
 - Serpentine circuit routing visualization
 
 ### Data Layout
 - Shows data routing paths
 - Serpentine pattern visualization
 - Data line numbers displayed
-- Arrows show signal direction (if enabled)
-- Port assignments visible
+- Front View / Rear View toggle
+- Arrows show signal direction (if enabled), with a Flip option
+- Data Labels toggle, plus the data line map with Line, Panel, Unit, and Port columns
+- Port assignments visible, including backup destinations when redundancy is on
 
 ### Structure Layout
 - Shows bumper bar positions and types
@@ -438,6 +484,7 @@ Processor count is automatically calculated based on total pixel count and port 
 - Connecting plates count (if applicable)
 - Ground support hardware visualization
 - Manual mode for custom bumper placement
+- Red centre-of-wall mark
 
 ### Gear List
 - Complete equipment list for the wall
@@ -474,16 +521,30 @@ Multi-screen canvas visualization for positioning multiple LED walls.
 - Click and drag empty space to pan when zoomed
 - Pan resets when zoom returns to 100%
 
-### Screen Visibility
-- Toggle individual screens on/off
-- Toggle pixel grid overlay
-- Toggle X crosshair overlay
-- Color-coded checkboxes match screen colors
+### Screens Table
+The Canvas page shows the same spreadsheet-style table as Raster mode — a row per screen with:
+- **Name**, **Color 1 / Color 2**, **Panel** type
+- **Tile X / Tile Y** — Panel pixel resolution
+- **Cols / Rows** — Panels wide and high
+- **Offset X / Offset Y** — Pixel position on the canvas
+- **Overlays** — Per-screen X/Y coordinates, pixel dimensions, and crosshair
+- **Active** — Show/hide the screen on the canvas
+- **Duplicate** — Copy a screen row
+
+### Canvas Tabs
+- **Add Canvas (+)** — Add more than one canvas when your screens don't all fit on one
+- Each canvas keeps its own size, positions, and visible screens
+
+### Header/Footer Band
+- **Enable** — Add a title block band to the canvas
+- **Position** — Header or footer
+- **Band Height** — Height of the band
 
 ### Export Options
-- Format: PNG, JPEG, or PDF
+- Format: PNG, JPEG, or Resolume XML
+- Scope: the whole canvas, or each screen at its native resolution
 - Custom filename support
-- Exports current canvas view at full resolution
+- Exports at full resolution
 
 ---
 
@@ -494,6 +555,7 @@ Canvas mapping mode for LED raster workflows. Access from the "Raster" button on
 ### Screen Table
 A spreadsheet-style table to manage all screens at once:
 - **Name** — Editable screen name
+- **Color 1 / Color 2** — Per-screen panel colors
 - **Panel** — Select panel type (built-in or custom) per screen
 - **Tile X / Tile Y** — Panel pixel resolution (read-only, from panel specs)
 - **Cols / Rows** — Number of panels wide and high
@@ -530,21 +592,31 @@ View and manage multiple screens together in a unified interface.
 - **Reset** — Reset all positions and zoom to defaults
 
 ### Panel Selection (Multi-Screen)
+- **Select Mode** — Turn it on before selecting panels, same as the Complex layouts
 - Click panels to select/deselect across any screen
 - Ctrl/Cmd+click for multi-select
 - Drag to rectangle-select multiple panels
-- Right-click selected panels for circuit/data assignment
+- Right-click selected panels to assign circuits, SOCAs, or data ports, or to reset that layout
 
 ### Combined Specs
 - Aggregated specifications across all selected screens
 - Total panels by type
 - Combined power, weight, and dimension totals
 - Total data lines and amp calculations
+- SOCA and data line counts per screen
+
+### Multi-Screen Power & Data
+- **Share Distro** and **Phase Balance** — Balance legs across every selected screen at once
+- **Per-screen processor pickers** — Set processor and distribution box per screen, or apply one to all
+- Each screen keeps its own connection mode
+
+> Projects saved before the combined view existed open with nothing selected — pick your screens to build the arrangement.
 
 ### Additional Combined Layouts
-- **Power Layout** — Combined power distribution view
-- **Data Layout** — Combined data routing view
+- **Power Layout** — Combined power distribution view, with SOCA outlines and labels
+- **Data Layout** — Combined data routing view, labelled per screen by processor or distribution box
 - **Structure Layout** — Combined structure/bumper view
+- **Cable Layout** — Combined cable diagram and cable list
 
 ---
 
@@ -571,17 +643,32 @@ Comprehensive equipment summary organized by category:
 
 ## Exports
 
+### Export Menu
+The header Export icon opens a menu with:
+- **PDF Report** — Opens the print preview
+- **Canvas** — PNG, native resolution, outline, title block, or Resolume
+- **Test Pattern** — PNG image or MP4 video
+- **Gear List** — Text file or Send to Jared
+- **Export All** — Every format at once, zipped
+
 ### PDF Export
 Generate a professional multi-page PDF report containing:
 - **Per screen:** Wall specs, power requirements, data specs, structure details, visual layouts
 - **Summary pages:** Configuration overview, complete gear list, canvas view
-- **Options:** Eco-friendly mode (lighter colors), greyscale mode
+- **Section toggles:** Choose which layouts and pages are included
+- **Page Size:** A4 or Letter
+- **Orientation:** Portrait or Landscape
+- **SOCA Outlines / SOCA Label:** Toggle for the power pages
+- **Logo:** Upload a logo for the title block
+- **Print colours:** Eco Friendly (lighter colors) or Greyscale
+
+The preview *is* the PDF — what you see in the preview is byte-for-byte what exports.
 
 ### PNG/JPEG Export
-Export the canvas view as an image file at full resolution. On mobile, uses the native share sheet.
+Export the canvas view as an image file at full resolution, or each screen at its native resolution. On mobile, uses the native share sheet.
 
-### Email Gear List
-Share the gear list via email with a formatted breakdown of all equipment, rigging, and cabling organized by screen. On mobile, uses the native share sheet.
+### Gear List
+Export the gear list as a text file, or send it by email with a formatted breakdown of all equipment, rigging, and cabling organized by screen. On mobile, uses the native share sheet.
 
 ### Resolume XML Export
 Export screen configurations as Resolume Arena 7 compatible XML files for LED mapping.
@@ -589,6 +676,8 @@ Export screen configurations as Resolume Arena 7 compatible XML files for LED ma
 ### Configuration Files
 - **Save** — Export all screens as a .blinkled file
 - **Load** — Import a previously saved .blinkled file to restore all screen configurations
+- **.blinkrast** — Raster mode projects
+- **.blinktp** — Test pattern projects
 
 ---
 
@@ -601,12 +690,15 @@ Generate professional test pattern images and videos for LED walls and displays.
 - **Display Size [px]** — Single display resolution in pixels (e.g. 1920×1080)
 - **Displays** — Number of displays in the grid (up to 12×12)
 - **Total Size [px]** — Auto-calculated total pixel resolution (Display Size × Displays)
+- **Quick Patterns** — One-tap presets: SMPTE, Grid, Checker, Gradient, Strobe, Solid
 - **Processor Lines** — Toggle + canvas size selector (4K UHD, 4K DCI, HD, or custom) to show where processor canvas boundaries fall on the pattern, with configurable line color
 
 ### Background (Column 2)
 - **BG Color** — Background fill color picker
 - **Checker** — Toggle checker pattern overlay with size slider, opacity slider, and dual color pickers
 - **Checker Border** — Toggle border checker pattern with size slider, opacity slider, and dual color pickers
+- **Solid Color** — Fill the whole pattern with one color for uniformity checks
+- **Gradient** — Gradient wash with direction control for banding checks
 
 ### Visual Controls (Column 2)
 - **Grid Size** — Adjustable grid square size (slider, 0–100%)
@@ -619,18 +711,25 @@ Generate professional test pattern images and videos for LED walls and displays.
 - **Pixel Size** — Show/hide the pixel dimensions
 - **Ratio** — Show/hide the aspect ratio
 - **Squares** — Show/hide grid square count
-- **Circles** — Show/hide center alignment circles, with spin mode (static/CW/CCW), revolution mode, and speed control
-- **Color Bars** — Color calibration bars with mode selector (default/circle) and opacity slider
+- **Circles** — Show/hide alignment circles, with spin mode (static, spin center, spin corners, spin all), matching reverse modes, and speed control
+- **Color Bars** — Color calibration bars with mode selector (default, center circle, corner circles, all circles, corners + center) and opacity slider
+- **Cross / Cross Outline** — Show/hide the center cross and its outline
+- **Displays** — Show/hide the per-display boundary lines
 
 ### Logo & BG Image (Column 4)
 - **Logo** — Upload custom logo with size slider, opacity slider, placement mode (default/circle), and static option
 - **BG Image** — Upload a background image that scales to fill the pattern
 
 ### Sweep Animation (Column 4)
-- **Sweep** — Animated horizontal and vertical sweep lines for testing display sync
+- **Sweep** — Animated sweep for testing display sync
+- **Style** — Default, Horz, Vert, Radar, or Circle
 - **H/V Colors** — Independent color pickers for horizontal and vertical sweeps
 - **Duration** — Sweep cycle duration (1–30 seconds)
 - **Width** — Sweep line width (0.5–10%)
+
+### Strobe & Scroll
+- **Strobe** — Full-field strobe with speed and intensity sliders
+- **Scroll** — Diagonal scroll with speed, plus a bounce mode with its own speed
 
 ### Layers
 - **Layers button** — Opens a drag-and-drop panel to reorder all visual elements (checker, grid, circles, crosshair, color bars, logo, etc.)
@@ -696,10 +795,10 @@ Generate professional test pattern images and videos for LED walls and displays.
 |-----------|----------|-----------|-------------|--------------|
 | Brompton SX40 | 40 | 4 | 2,304,000 | XD Box (10 ports) |
 | Brompton S8 | 8 | 0 | 2,304,000 | — |
-| Brompton M2 | 2 | 0 | 2,304,000 | — |
+| Brompton M2 | 4 | 0 | 2,304,000 | — |
 | Brompton S4 | 4 | 0 | 2,304,000 | — |
 | Brompton T1 | 1 | 0 | 2,304,000 | — |
-| Brompton SQ200 | 4 | 0 | 4,000,000 | — |
+| Brompton SQ200 | 8 | 0 | 4,000,000 | Dual 100G QSFP28 |
 | NovaStar MX40 Pro | 40 | 4 | 2,600,000 | CVT Box (10 ports) |
 
 ---

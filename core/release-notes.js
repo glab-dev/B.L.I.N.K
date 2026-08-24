@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.170', date: '2026-08-24', notes: 'Update help modal and README for SOCA, data ports, Select Mode and exports' },
   { version: '2.11.169', date: '2026-08-24', notes: 'Size the PDF power layout marker bands so row and column numbers never clip' },
   { version: '2.11.168', date: '2026-08-24', notes: 'Add sweep style toggles for horizontal, vertical, radar and circle sweeps' },
   { version: '2.11.167', date: '2026-08-24', notes: 'Show the uploaded logo in the PDF preview and move it left of the date' },

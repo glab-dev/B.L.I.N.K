@@ -920,6 +920,8 @@
               <li>Data direction controls &mdash; Top&rarr;Bottom, Bottom&rarr;Top, etc.</li>
               <li>Data &amp; Processor redundancy options</li>
               <li>6 layout views &mdash; Standard, Power, Data, Structure, Combined, and Cable</li>
+            <li>SOCA circuit grouping, phase balancing, and shared distro across screens</li>
+            <li>Manual circuit, SOCA, and data port assignment</li>
               <li>Bumper bar management &mdash; auto + manual positioning</li>
               <li>Ground stack, hanging, and floor configurations</li>
             </ul>
@@ -931,8 +933,24 @@
             <li><strong>Multiple Screens</strong> &mdash; create and manage multiple LED walls in one project</li>
             <li><strong>Add Screen (+)</strong> &mdash; click the + button to add a new screen</li>
             <li><strong>Switch Screens</strong> &mdash; click on any screen tab to switch between screens</li>
-            <li><strong>Edit Screen</strong> &mdash; click the pencil icon to rename and change screen colors</li>
+            <li><strong>Edit Screen</strong> &mdash; click the pencil icon to rename and set primary/secondary panel colors</li>
+            <li><strong>Duplicate Screen</strong> &mdash; copy a screen and all its settings from the edit dialog</li>
+            <li><strong>Reset Screen</strong> &mdash; the &#x21bb; button in the edit dialog returns the screen to defaults</li>
             <li><strong>Delete Screen</strong> &mdash; click the X to remove a screen (cannot delete last screen)</li>
+          </ul>
+
+          <h3 class="help-section-title">Header &amp; Menu</h3>
+          <p class="help-text">The header holds Home, Recents, Quick Save, Export, and the Menu.</p>
+          <ul class="help-list">
+            <li><strong>Recents</strong> &mdash; reopen a recent project; loaded files keep their saved file name</li>
+            <li><strong>Quick Save</strong> &mdash; save over the current project without a dialog</li>
+            <li><strong>Export</strong> &mdash; opens the export menu (PDF, Canvas, Test Pattern, Gear List)</li>
+            <li><strong>Menu &rarr; Configuration</strong> &mdash; Save, Save As, Load, Recent, Export, Send to Jared</li>
+            <li><strong>Menu &rarr; Custom Items</strong> &mdash; Add Panel, Add Processor, Manage Items, Requests</li>
+            <li><strong>Menu &rarr; Inventory</strong> &mdash; Gear Code Mapping, to map gear to your own inventory codes</li>
+            <li><strong>Menu &rarr; Power</strong> &mdash; Distro Wiring, to set which leg (X / Y / Z) each SOCA circuit is wired to</li>
+            <li><strong>Install</strong> &mdash; installs B.L.I.N.K. as an app when your browser supports it</li>
+            <li><strong>Release Notes</strong> &mdash; What&rsquo;s New, from the welcome page footer; also shown once per update</li>
           </ul>
 
           <h3 class="help-section-title">Panel Type</h3>
@@ -980,6 +998,7 @@
           <ul class="help-list">
             <li><strong>Panels mode</strong> &mdash; enter number of panels wide and high</li>
             <li><strong>Size mode</strong> &mdash; enter desired wall width and height (auto-calculates panels)</li>
+            <li><strong>Pixels mode</strong> &mdash; enter target pixel width and height (auto-calculates panels)</li>
             <li><strong>Units</strong> &mdash; toggle between Imperial (ft/lbs) and Metric (m/kg)</li>
             <li><strong>Aspect Ratio Lock</strong> &mdash; None, 16:9, 4:3, or Custom ratio</li>
           </ul>
@@ -990,8 +1009,25 @@
             <li><strong>Breaker</strong> &mdash; default 20A, or set custom breaker</li>
             <li><strong>Phase</strong> &mdash; 1-phase or 3-phase</li>
             <li><strong>Power Basis</strong> &mdash; Max (recommended) or Average</li>
+            <li><strong>Derate</strong> &mdash; apply the NEC 80% continuous-load derate to circuit capacity</li>
             <li><strong>Max/Circuit</strong> &mdash; override max panels per circuit (leave blank for auto)</li>
           </ul>
+
+          <div class="help-complex-section" style="display: none;">
+            <h3 class="help-section-title">Circuits &amp; SOCA</h3>
+            <p class="help-text">Controls above the Power layout. A SOCA groups circuits onto one multi-circuit cable run.</p>
+            <ul class="help-list">
+              <li><strong>SOCA Outlines</strong> &mdash; draw a border around the panels each SOCA feeds</li>
+              <li><strong>SOCA Label</strong> &mdash; show the SOCA name across its panels</li>
+              <li><strong>SOCA Naming</strong> &mdash; number the SOCAs (123) or letter them (ABC)</li>
+              <li><strong>Phase Balance</strong> &mdash; even the load across legs; the legend below the layout shows the result</li>
+              <li><strong>Color by Leg</strong> &mdash; color panels by their phase leg instead of by circuit</li>
+              <li><strong>Share Distro</strong> &mdash; chain screens onto one distro so legs balance across the whole group</li>
+              <li><strong>Circuit table</strong> &mdash; lists each SOCA, its circuits, and their loads below the layout</li>
+            </ul>
+            <p class="help-text"><strong>Assign Circuit #</strong> and <strong>Assign SOCA #</strong> &mdash; select panels in the Power layout and use the panel menu to set circuit and SOCA numbers by hand. A manual assignment always wins; Share Distro only auto-fills numbers you have not claimed. Cable and gear counts follow your assignments.</p>
+            <p class="help-text"><strong>Distro Wiring</strong> (Menu &rarr; Power) &mdash; type the leg(s) each SOCA circuit is wired to. 120&nbsp;V circuits sit on one leg, 208&nbsp;V circuits bridge two. Blank cells use the standard rotation.</p>
+          </div>
 
           <h3 class="help-section-title">Data</h3>
           <p class="help-text">Processors: Brompton SX40, S8, M2, S4, T1, SQ200 &bull; NovaStar MX40 Pro &bull; Custom</p>
@@ -1014,7 +1050,20 @@
               <li><strong>Processor Redundancy</strong> &mdash; doubles processor count</li>
             </ul>
           </div>
-          <p class="help-text"><strong>MX40 Pro Direct:</strong> 20 outputs directly (10 with redundancy). <strong>Indirect:</strong> CVT-10 Pro boxes, 10 outputs each (5 with redundancy), up to 4 CVT boxes per processor.</p>
+          <p class="help-text"><strong>Connection Mode</strong> (MX40 Pro) &mdash; <strong>Direct:</strong> 20 outputs off the processor (10 with redundancy). <strong>Indirect:</strong> CVT-10 Pro boxes, 10 outputs each (5 with redundancy), up to 4 CVT boxes per processor. Each screen keeps its own mode.</p>
+
+          <div class="help-complex-section" style="display: none;">
+            <h3 class="help-section-title">Data Lines &amp; Ports</h3>
+            <p class="help-text">Controls above the Data layout.</p>
+            <ul class="help-list">
+              <li><strong>View</strong> &mdash; Front View or Rear View (mirrors the routing for cabling from behind)</li>
+              <li><strong>Arrows / Flip</strong> &mdash; show routing arrows, or flip their direction</li>
+              <li><strong>Data Labels</strong> &mdash; number each data line on the panels</li>
+              <li><strong>Data Line Map</strong> &mdash; table below the layout with Line, Panel, Unit, and Port columns</li>
+            </ul>
+            <p class="help-text"><strong>Assign Data Port</strong> &mdash; select panels and use the panel menu to set the processor, distribution box, and port for a line. Processor and box accept a letter or a number, and Auto leaves the app to pick. The app warns before taking a port another line already holds, and manual assignments drive the gear list counts.</p>
+            <p class="help-text">With Data Redundancy on, the map also shows each line&rsquo;s backup destination, and those loop-back ports appear in the PDF.</p>
+          </div>
 
           <div class="help-complex-section" style="display: none;">
             <h3 class="help-section-title">Structure</h3>
@@ -1032,14 +1081,15 @@
 
           <div class="help-complex-section" style="display: none;">
             <h3 class="help-section-title">Layout Views</h3>
-            <p class="help-text">In Complex mode, toggle between layouts below the specs:</p>
+            <p class="help-text">In Complex mode, the layouts stack below the specs:</p>
             <ul class="help-list">
-              <li><strong>Standard</strong> &mdash; panel grid with checkerboard coloring, click to delete/restore panels, assign custom circuits or data lines</li>
-              <li><strong>Power</strong> &mdash; color-coded circuit distribution with circuit numbers</li>
-              <li><strong>Data</strong> &mdash; data routing paths with line numbers and direction arrows</li>
-              <li><strong>Structure</strong> &mdash; bumper positions, pickup weights, and ground support hardware</li>
+              <li><strong>Standard</strong> &mdash; panel grid with checkerboard coloring; delete/restore panels and assign circuits, SOCAs, or data lines</li>
+              <li><strong>Power</strong> &mdash; color-coded circuit distribution with SOCA outlines, labels, phase balance, and the circuit table</li>
+              <li><strong>Data</strong> &mdash; routing paths with line numbers, direction arrows, front/rear view, and the data line map</li>
+              <li><strong>Structure</strong> &mdash; bumper positions, pickup weights, ground support hardware, and the red centre-of-wall mark</li>
             </ul>
-            <p class="help-text">Tap a layout section title to collapse/expand it.</p>
+            <p class="help-text"><strong>Select Mode</strong> &mdash; panel selection is off until you turn Select Mode on above the layout. This keeps scrolling and panning from selecting panels by accident, and it applies to the Standard, Power, Data, and Combined layouts. Bumpers have their own Select Mode in Structure.</p>
+            <p class="help-text">Use the &#9660; button on a layout title to collapse or expand it. Undo and Redo sit in the Standard and Structure layout headers.</p>
           </div>
 
           <div class="help-complex-section" style="display: none;">
@@ -1049,12 +1099,16 @@
               <li>Select which screens to include</li>
               <li><strong>Zoom</strong> &mdash; 50%&ndash;200% to see detail or overview</li>
               <li><strong>Manual Adjust</strong> &mdash; drag screens to custom positions</li>
-              <li>Click panels to select across screens; Ctrl+click for multi-select</li>
-              <li>Right-click selected panels for circuit/data assignment</li>
-              <li>Combined specs across all selected screens</li>
+              <li><strong>Select Mode</strong> &mdash; turn it on before selecting panels, same as the Complex layouts</li>
+              <li>Click panels to select across screens; Ctrl+click for multi-select; drag a box to select a region</li>
+              <li>Right-click selected panels to assign circuits, SOCAs, or data ports, or to reset that layout</li>
+              <li><strong>Per-screen processor pickers</strong> &mdash; set processor and distribution box per screen, or apply one to all</li>
+              <li><strong>Share Distro</strong> and <strong>Phase Balance</strong> &mdash; balance legs across every selected screen at once</li>
+              <li>Combined specs across all selected screens, including SOCA and data line counts per screen</li>
               <li>Combined Power, Data, Structure, and Cable layout views</li>
               <li>Combined Cable list</li>
             </ul>
+            <p class="help-text help-text-muted">Projects saved before the combined view existed open with nothing selected &mdash; pick your screens to build the arrangement.</p>
           </div>
 
           <div class="help-complex-section" style="display: none;">
@@ -1080,8 +1134,10 @@
             <li><strong>Snap</strong> &mdash; toggle snapping to other screens and canvas edges</li>
             <li><strong>Zoom</strong> &mdash; +/- buttons, type a %, or Ctrl+Scroll (desktop)</li>
             <li><strong>Pan</strong> &mdash; drag empty space when zoomed in</li>
-            <li><strong>Screen toggles</strong> &mdash; show/hide individual screens, XY pos, pixel dimensions, X crosshair</li>
-            <li><strong>Export</strong> &mdash; PNG, JPEG, or Resolume XML with custom filename</li>
+            <li><strong>Screens table</strong> &mdash; a row per screen with name, colors, panel type, tile resolution, columns, rows, offset X/Y, overlays, and an Active toggle to show or hide it</li>
+            <li><strong>Overlays</strong> &mdash; per-screen X/Y coordinates, pixel dimensions, and crosshair</li>
+            <li><strong>Header/Footer</strong> &mdash; add a title block band to the canvas; set position (header or footer) and band height</li>
+            <li><strong>Export</strong> &mdash; PNG, JPEG, or Resolume XML with custom filename; export the whole canvas or each screen at native resolution</li>
             <li><strong>Resolume file</strong> &mdash; import in Resolume&rsquo;s advanced output section to create input and output screens based on canvas positions</li>
             <li><strong>Add Canvas</strong> &mdash; add more than one canvas if your screens don&rsquo;t all fit on one canvas</li>
           </ul>
@@ -1089,28 +1145,30 @@
           <h3 class="help-section-title">Exports</h3>
           <div class="help-simple-only">
             <ul class="help-list">
-              <li><strong>PDF</strong> &mdash; report with basic specs</li>
-              <li><strong>PNG/JPEG</strong> &mdash; canvas view at full resolution</li>
-              <li><strong>Email Gear List</strong> &mdash; formatted breakdown by screen</li>
+              <li><strong>PDF Report</strong> &mdash; report with basic specs, shown in a preview before you export</li>
+              <li><strong>Canvas</strong> &mdash; PNG or JPEG of the whole canvas, or each screen at its native resolution</li>
+              <li><strong>Gear List</strong> &mdash; text file, or Send to Jared for an emailed breakdown by screen</li>
               <li><strong>Resolume XML</strong> &mdash; Arena 7 compatible LED mapping</li>
               <li><strong>Save/Load</strong> &mdash; .blinkled, .blinkrast, .blinktp files with full project state</li>
             </ul>
           </div>
           <div class="help-complex-only" style="display: none;">
             <ul class="help-list">
-              <li><strong>PDF</strong> &mdash; multi-page report with specs, layouts, gear list per screen. Toggles to select what is exported. Print-friendly options</li>
-              <li><strong>PNG/JPEG</strong> &mdash; canvas view at full resolution</li>
-              <li><strong>Email Gear List</strong> &mdash; formatted breakdown by screen</li>
-              <li><strong>Resolume XML</strong> &mdash; Arena 7 compatible LED mapping</li>
+              <li><strong>PDF Report</strong> &mdash; multi-page report with specs, layouts, and gear list per screen; toggle which sections are included</li>
+              <li><strong>Canvas</strong> &mdash; PNG or JPEG of the whole canvas, each screen at native resolution, outline, title block, or Resolume XML</li>
+              <li><strong>Test Pattern</strong> &mdash; PNG image or MP4 video</li>
+              <li><strong>Gear List</strong> &mdash; text file, or Send to Jared for an emailed breakdown by screen</li>
+              <li><strong>Export All</strong> &mdash; every format at once, zipped</li>
               <li><strong>Save/Load</strong> &mdash; .blinkled, .blinkrast, .blinktp files with full project state</li>
             </ul>
           </div>
+          <p class="help-text"><strong>PDF preview</strong> &mdash; the left panel chooses which sections are included, then Page Size (A4 or Letter), Orientation (Portrait or Landscape), SOCA Outlines, SOCA Label, and a logo upload. <strong>Eco Friendly</strong> and <strong>Greyscale</strong> are print-saving colour modes. The preview is the PDF &mdash; what you see is exactly what exports.</p>
           <p class="help-text">On mobile, exports use the native share sheet.</p>
 
           <h3 class="help-section-title">Mobile (Touch)</h3>
           <ul class="help-list">
             <li><strong>Tap</strong> &mdash; select panels, buttons, controls</li>
-            <li><strong>Layout views</strong> &mdash; tap once to select panels, tap again to open options</li>
+            <li><strong>Layout views</strong> &mdash; turn on Select Mode first, then tap to select panels and tap again to open options</li>
             <li><strong>Drag</strong> &mdash; move screens in canvas view</li>
             <li><strong>Pinch zoom</strong> &mdash; zoom in/out on canvas</li>
             <li><strong>Hamburger menu</strong> &mdash; access all options</li>
@@ -1118,7 +1176,7 @@
 
           <h3 class="help-section-title">Desktop (Mouse)</h3>
           <ul class="help-list">
-            <li><strong>Click / Drag</strong> &mdash; select and move panels</li>
+            <li><strong>Click / Drag</strong> &mdash; select and move panels; drag a box to select a region</li>
             <li><strong>Right-click</strong> &mdash; context menus for bumpers and panels</li>
             <li><strong>Ctrl+Scroll</strong> &mdash; zoom canvas</li>
           </ul>
@@ -1148,10 +1206,10 @@
           <table class="help-table">
             <tr><td>SX40</td><td>40 &times; 1G &bull; XD Box (10 ports)</td></tr>
             <tr><td>S8</td><td>8 &times; 1G &bull; Direct</td></tr>
-            <tr><td>M2</td><td>2 &times; 1G &bull; Direct</td></tr>
+            <tr><td>M2</td><td>4 &times; 1G &bull; Direct</td></tr>
             <tr><td>S4</td><td>4 &times; 1G &bull; Direct</td></tr>
             <tr><td>T1</td><td>1 &times; 1G &bull; Direct</td></tr>
-            <tr><td>SQ200</td><td>4 &times; 1G &bull; Direct</td></tr>
+            <tr><td>SQ200</td><td>Dual 100G QSFP28 &bull; 8 ports &bull; Direct</td></tr>
             <tr><td>MX40 Pro</td><td>40 &times; 1G &bull; CVT Box (10 ports)</td></tr>
           </table>
 
@@ -1214,12 +1272,12 @@
           <h3 class="help-section-title">Raster</h3>
           <p class="help-text">Canvas mapping for LED raster workflows. Access from the &ldquo;Raster&rdquo; button on the welcome page.</p>
           <ul class="help-list">
-            <li><strong>Screen Table</strong> &mdash; spreadsheet-style table to manage screens: name, panel type, tile resolution, columns, rows, offset X/Y</li>
+            <li><strong>Screen Table</strong> &mdash; spreadsheet-style table to manage screens: name, colors, panel type, tile X/Y, columns, rows, offset X/Y</li>
             <li><strong>Overlays</strong> &mdash; toggle per-screen X/Y coordinates, pixel dimensions, and crosshair</li>
             <li><strong>Active Toggle</strong> &mdash; show/hide individual screens on the canvas</li>
             <li><strong>Duplicate Button</strong> &mdash; duplicate screen</li>
             <li><strong>+ Add Screen</strong> &mdash; add new screens with built-in or custom panels</li>
-            <li><strong>Canvas</strong> &mdash; works the same as the calculator canvas</li>
+            <li><strong>Canvas</strong> &mdash; works the same as the calculator canvas, including canvas tabs and the Header/Footer band</li>
             <li><strong>Toolbar</strong> &mdash; filename, save/load .blinkrast files, canvas size presets, X/Y position, fine increment, snap, export format (PNG, JPEG, Resolume)</li>
           </ul>
         </div>
@@ -1231,14 +1289,18 @@
           <ul class="help-list">
             <li><strong>Access</strong> &mdash; tap &ldquo;Test Pattern&rdquo; on the welcome page</li>
             <li><strong>Screen Options</strong> &mdash; image name, display size, displays grid (up to 12&times;12), auto-calculated total size</li>
+            <li><strong>Quick Patterns</strong> &mdash; one-tap presets: SMPTE, Grid, Checker, Gradient, Strobe, Solid</li>
             <li><strong>Processor Lines</strong> &mdash; show where processor canvas boundaries fall (4K UHD, 4K DCI, HD, or custom size)</li>
             <li><strong>Background</strong> &mdash; BG color, checker pattern with size/opacity/colors, checker border, and BG image upload</li>
-            <li><strong>Sliders</strong> &mdash; grid size, grid line width, text size</li>
-            <li><strong>Colors</strong> &mdash; grid, text, crosshair, display boundary, background, and processor line</li>
-            <li><strong>Circles</strong> &mdash; alignment circles with spin mode (static/CW/CCW), revolution mode, and speed</li>
-            <li><strong>Color Bars</strong> &mdash; calibration bars with mode (default/circle) and opacity</li>
+            <li><strong>Solid Color</strong> &mdash; fill the whole pattern with one colour for uniformity checks</li>
+            <li><strong>Gradient</strong> &mdash; gradient wash with direction control for banding checks</li>
+            <li><strong>Grid Options</strong> &mdash; grid size, grid line width, and grid colour</li>
+            <li><strong>Text Options</strong> &mdash; text size and colour, plus which labels to draw: name, pixel size, aspect ratio, square count</li>
+            <li><strong>Add On&rsquo;s</strong> &mdash; alignment circles (spin static / centre / corners / all, matching reverse modes, and spin speed) and colour bars (default, centre circle, corner circles, all circles, corners + centre) with opacity; plus cross, cross outline, and display boundaries</li>
             <li><strong>Logo</strong> &mdash; upload custom logo with size, opacity, placement mode, and static option</li>
-            <li><strong>Sweep</strong> &mdash; animated H/V sweep lines for testing display sync, with duration and width controls</li>
+            <li><strong>Sweep</strong> &mdash; animated sweep for testing display sync, in five styles &mdash; Default, Horz, Vert, Radar, Circle &mdash; with separate horizontal and vertical band colours, speed, and width</li>
+            <li><strong>Strobe</strong> &mdash; full-field strobe with speed and intensity</li>
+            <li><strong>Scroll</strong> &mdash; diagonal scroll with speed, plus a bounce mode</li>
             <li><strong>Layers</strong> &mdash; drag-and-drop panel to reorder all visual elements</li>
             <li><strong>Save/Load</strong> &mdash; save and load .blinktp pattern files from toolbar or hamburger menu</li>
             <li><strong>Live Out</strong> &mdash; popup window mirroring the canvas in real-time for display testing, with fullscreen (F key or double-click) and cursor auto-hide</li>
@@ -3750,8 +3812,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.169';
-const APP_CHANGELOG = 'Size the PDF power layout marker bands so row and column numbers never clip';
+const APP_VERSION = '2.11.170';
+const APP_CHANGELOG = 'Update help modal and README for SOCA, data ports, Select Mode and exports';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

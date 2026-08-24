@@ -1,5 +1,5 @@
 {
-  "version": "2.11.163",
+  "version": "2.11.164",
   "updated": "2026-08-24",
-  "changelog": "Show SOCAs and data lines per screen in combined specs, harden exports"
+  "changelog": "Route cable layout from each SOCA own rows and clear SOCA labels of size lines"
 }

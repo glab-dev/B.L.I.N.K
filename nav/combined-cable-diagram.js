@@ -961,14 +961,22 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     var screenTop = toY(sp.y);
     var screenBottom = toY(sp.y + sp.height);
     var pxW = panelSize * pxToCanvas;
+    var powerHeightRatio = typeof getPanelHeightRatio === 'function'
+      ? getPanelHeightRatio(sp.data.panelType || 'CB5_MKII') : 1;
+    var pxRowH = panelSize * powerHeightRatio * pxToCanvas;
 
     // One cable per SOCA. Spans come from the screen's as-assigned grouping when available
     // (calc.socaSpans), falling back to the geometric soca s = circuits s*6..s*6+5.
+    // The row span rides along so a hand-assigned SOCA that breaks off part way down the
+    // wall feeds from its own row instead of the screen's top/bottom edge.
     var socaRuns = (Array.isArray(calc.socaSpans) && calc.socaSpans.length)
       ? calc.socaSpans.map(function(span) {
           return {
             firstCol: Math.max(0, Math.min(span.firstCol, calc.pw - 1)),
-            lastCol: Math.max(0, Math.min(span.lastCol, calc.pw - 1))
+            lastCol: Math.max(0, Math.min(span.lastCol, calc.pw - 1)),
+            firstRow: (typeof span.firstRow === 'number') ? Math.max(0, Math.min(span.firstRow, calc.effectivePh - 1)) : null,
+            lastRow: (typeof span.lastRow === 'number') ? Math.max(0, Math.min(span.lastRow, calc.effectivePh - 1)) : null,
+            colRows: Array.isArray(span.colRows) ? span.colRows : null
           };
         })
       : Array.from({ length: calc.socaCount }, function(_unused, si) {
@@ -976,36 +984,62 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
           var lastCircuit = Math.min(firstCircuit + 5, calc.circuitsNeeded - 1);
           return {
             firstCol: firstCircuit * calc.columnsPerCircuit,
-            lastCol: Math.min((lastCircuit + 1) * calc.columnsPerCircuit - 1, calc.pw - 1)
+            lastCol: Math.min((lastCircuit + 1) * calc.columnsPerCircuit - 1, calc.pw - 1),
+            firstRow: null, lastRow: null, colRows: null
           };
         });
 
     for (var si = 0; si < socaRuns.length; si++) {
-      var firstCol = socaRuns[si].firstCol;
-      var lastCol = socaRuns[si].lastCol;
+      var run = socaRuns[si];
+      var firstCol = run.firstCol;
+      var lastCol = run.lastCol;
       var landingCenterX = screenLeft + ((firstCol + lastCol + 1) / 2) * pxW;
 
       // Snap the feed point off any deleted panel it lands on, staying within
       // this SOCA's own column span (mirrors the data-cable edge-row search)
       var dp = calc.deletedPanelsSet || new Set();
-      var edgeRow = (sp.cab.powerInPosition === 'bottom') ? (calc.effectivePh - 1) : 0;
+      var fromBottom = sp.cab.powerInPosition === 'bottom';
+      var wallEdgeRow = fromBottom ? (calc.effectivePh - 1) : 0;
+      // This SOCA's own boundary row in a given column. Spans saved before rows were
+      // tracked have none, so they fall back to the screen edge exactly as before.
+      var socaRowInCol = function(col) {
+        if (run.colRows) {
+          for (var ci = 0; ci < run.colRows.length; ci++) {
+            if (run.colRows[ci].col === col) {
+              var rr = fromBottom ? run.colRows[ci].lastRow : run.colRows[ci].firstRow;
+              return Math.max(0, Math.min(rr, calc.effectivePh - 1));
+            }
+          }
+        }
+        var overall = fromBottom ? run.lastRow : run.firstRow;
+        return (typeof overall === 'number') ? overall : wallEdgeRow;
+      };
       var colUnder = Math.min(lastCol, Math.floor((firstCol + lastCol + 1) / 2));
       if (colUnder < firstCol) colUnder = firstCol;
+      var landingCol = colUnder;
+      var edgeRow = socaRowInCol(colUnder);
       if (dp.size > 0 && dp.has(colUnder + ',' + edgeRow)) {
         var foundInSpan = false;
         for (var pdist = 1; pdist <= lastCol - firstCol; pdist++) {
-          if (colUnder - pdist >= firstCol && !dp.has((colUnder - pdist) + ',' + edgeRow)) {
-            landingCenterX = screenLeft + (colUnder - pdist + 0.5) * pxW; foundInSpan = true; break;
+          if (colUnder - pdist >= firstCol && !dp.has((colUnder - pdist) + ',' + socaRowInCol(colUnder - pdist))) {
+            landingCol = colUnder - pdist; edgeRow = socaRowInCol(landingCol);
+            landingCenterX = screenLeft + (landingCol + 0.5) * pxW; foundInSpan = true; break;
           }
-          if (colUnder + pdist <= lastCol && !dp.has((colUnder + pdist) + ',' + edgeRow)) {
-            landingCenterX = screenLeft + (colUnder + pdist + 0.5) * pxW; foundInSpan = true; break;
+          if (colUnder + pdist <= lastCol && !dp.has((colUnder + pdist) + ',' + socaRowInCol(colUnder + pdist))) {
+            landingCol = colUnder + pdist; edgeRow = socaRowInCol(landingCol);
+            landingCenterX = screenLeft + (landingCol + 0.5) * pxW; foundInSpan = true; break;
           }
         }
         if (!foundInSpan && typeof findNearestNonDeleted === 'function') {
           var nn = findNearestNonDeleted(colUnder, edgeRow, calc.pw, calc.effectivePh, dp);
-          landingCenterX = screenLeft + (nn.col + 0.5) * pxW;
+          landingCol = nn.col; edgeRow = nn.row;
+          landingCenterX = screenLeft + (landingCol + 0.5) * pxW;
         }
       }
+      // A SOCA on the screen's own edge row leaves straight off that edge as before; one
+      // that starts inboard picks up at its own row and climbs its column to the edge.
+      var powerInboard = edgeRow !== wallEdgeRow;
+      if (powerInboard) landingCenterX = screenLeft + (landingCol + 0.5) * pxW;
 
       // Each screen's SOCAs come down THAT screen's own drop, then run along the floor
       // to the distro. A small per-screen lane offset keeps converging runs readable.
@@ -1016,8 +1050,10 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
       ctx.globalAlpha = 0.7;
       ctx.beginPath();
 
-      var powerEdgeY = (sp.cab.powerInPosition === 'bottom') ? screenBottom + 14 : screenTop - 14;
-      var powerStartY = (sp.cab.powerInPosition === 'bottom') ? screenBottom : screenTop;
+      var powerEdgeY = fromBottom ? screenBottom + 14 : screenTop - 14;
+      var powerStartY = powerInboard
+        ? (screenTop + (edgeRow + 0.5) * pxRowH)
+        : (fromBottom ? screenBottom : screenTop);
       ctx.moveTo(landingCenterX + POWER_DROP_OFFSET, powerStartY);
       ctx.lineTo(landingCenterX + POWER_DROP_OFFSET, powerEdgeY);
       ctx.lineTo(spDropX + POWER_DROP_OFFSET, powerEdgeY);

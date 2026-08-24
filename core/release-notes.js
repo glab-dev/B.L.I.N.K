@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.164', date: '2026-08-24', notes: 'Route cable layout from each SOCA own rows and clear SOCA labels of size lines' },
   { version: '2.11.163', date: '2026-08-24', notes: 'Show SOCAs and data lines per screen in combined specs, harden exports' },
   { version: '2.11.162', date: '2026-08-24', notes: 'Show SOCA counts in the power specs and per screen in combined specs' },
   { version: '2.11.161', date: '2026-08-24', notes: 'Warn before assigning a data port number another line already holds' },

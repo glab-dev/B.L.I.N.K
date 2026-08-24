@@ -124,22 +124,40 @@ function explicitSocaIndices(panelToCircuit, customSocaAssignments) {
   return out;
 }
 
-// Column span and circuit list of each SOCA, from the as-assigned per-panel maps.
-// Returns a sorted array: [{ socaIdx, firstCol, lastCol, circuits: [circuit numbers] }].
+// Column span, row span and circuit list of each SOCA, from the as-assigned per-panel maps.
+// Returns a sorted array:
+//   [{ socaIdx, firstCol, lastCol, firstRow, lastRow, colRows: [{col, firstRow, lastRow}], circuits }].
 // The cable/gear paths used to re-derive this geometrically (soca s covers circuits
 // s*6..s*6+5, hence columns s*6*columnsPerCircuit...), which ignores manual SOCA
 // assignment entirely; deriving it from panelToSoca keeps them in step with the canvas.
+// Rows are carried alongside the columns because a hand-assigned SOCA can start part way
+// down a wall — the cable diagrams pin their feed point and bracket to the SOCA's own
+// boundary row, and without these they fall back to the wall's top/bottom edge.
+// colRows is per-column so a stepped SOCA feeds from the right row in the column it lands on.
 function computeSocaSpans(panelToCircuit, panelToSoca) {
-  const spans = new Map(); // socaIdx -> { firstCol, lastCol, circuits: Set }
+  const spans = new Map(); // socaIdx -> { firstCol, lastCol, firstRow, lastRow, byCol: Map, circuits: Set }
   panelToCircuit.forEach((circuitNum, panelKey) => {
     const s = panelToSoca ? panelToSoca.get(panelKey) : undefined;
     const socaIdx = (typeof s === 'number') ? s : Math.floor(circuitNum / 6);
-    const col = parseInt(panelKey.split(',')[0], 10);
-    if (!Number.isFinite(col)) return;
+    const parts = panelKey.split(',');
+    const col = parseInt(parts[0], 10);
+    const row = parseInt(parts[1], 10);
+    if (!Number.isFinite(col) || !Number.isFinite(row)) return;
     let e = spans.get(socaIdx);
-    if (!e) { e = { firstCol: col, lastCol: col, circuits: new Set() }; spans.set(socaIdx, e); }
+    if (!e) {
+      e = { firstCol: col, lastCol: col, firstRow: row, lastRow: row, byCol: new Map(), circuits: new Set() };
+      spans.set(socaIdx, e);
+    }
     if (col < e.firstCol) e.firstCol = col;
     if (col > e.lastCol) e.lastCol = col;
+    if (row < e.firstRow) e.firstRow = row;
+    if (row > e.lastRow) e.lastRow = row;
+    const cr = e.byCol.get(col);
+    if (!cr) e.byCol.set(col, { firstRow: row, lastRow: row });
+    else {
+      if (row < cr.firstRow) cr.firstRow = row;
+      if (row > cr.lastRow) cr.lastRow = row;
+    }
     e.circuits.add(circuitNum);
   });
 
@@ -149,6 +167,14 @@ function computeSocaSpans(panelToCircuit, panelToSoca) {
       socaIdx,
       firstCol: e.firstCol,
       lastCol: e.lastCol,
+      firstRow: e.firstRow,
+      lastRow: e.lastRow,
+      // Plain array (not a Map) so it survives the JSON round-trip into saved .led files
+      colRows: [...e.byCol.keys()].sort((a, b) => a - b).map(col => ({
+        col,
+        firstRow: e.byCol.get(col).firstRow,
+        lastRow: e.byCol.get(col).lastRow
+      })),
       circuits: [...e.circuits].sort((a, b) => a - b)
     };
   });

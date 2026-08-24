@@ -63,6 +63,17 @@ function renderCableDiagram(screenId) {
   // Layout constants — tighter on small screens; larger in PDF mode for readability
   const isSmall = containerWidth < 500;
   const isPdf = cableDiagramPdfMode;
+  // A SOCA that reaches the wall's top row brackets ABOVE the wall, and the wall-width
+  // dimension line is then pushed above the highest of those brackets (see wallWidthDimY).
+  // Neither the app's nor the PDF's stock top margin has room for that stack, which is what
+  // used to leave the dimension line painting straight through the SOCA labels. The exact
+  // height the stack needs is measured in resolveSocaPlacements() below, once the panel
+  // cell size is known, and added to MARGIN.top there.
+  const SOCA_LABEL_H = isPdf ? 18 : 12;
+  const SOCA_BRACKET_GAP = 18;
+  const SOCA_STACK_STEP = SOCA_LABEL_H + 6;
+  const DIM_CLEARANCE = isPdf ? 16 : 12;
+  const DIM_LABEL_HALF_H = (isPdf ? 24 : 10) / 2 + 3;
   const MARGIN = { top: isPdf ? (isSmall ? 60 : 90) : (isSmall ? 35 : 50), bottom: isSmall ? 40 : 55, left: isSmall ? 10 : 20, right: isSmall ? 42 : 50 };
   const BOX_W = isPdf ? (isSmall ? 52 : 90) : (isSmall ? 40 : 48);
   const BOX_H = isPdf ? (isSmall ? 28 : 34) : (isSmall ? 20 : 24);
@@ -93,6 +104,154 @@ function renderCableDiagram(screenId) {
   const wallHpx = hasCB5HalfRow ? (ph * fullPanelPixelH + halfPanelPixelH) : (ph * fullPanelPixelH);
   // Feet-to-pixels implied by the panel cell — used for the floor distances below
   const scale = panelPixelW / (wallWidthFt / pw);
+
+  // === SOCA runs and bracket placement ===
+  // Resolved BEFORE the canvas is sized, because the top margin has to reserve however much
+  // room the above-wall bracket stack actually needs. Every quantity here is relative — X to
+  // the wall's left edge, Y to the wall's top edge — and neither depends on MARGIN.top, so
+  // the placement is exact rather than estimated and the draw pass below just adds the
+  // wall's origin back on.
+  //
+  // Column spans, row spans and labels come from the as-assigned per-panel grouping
+  // (calculatedData.socaSpans), so a manual Assign SOCA # lands here exactly as it does on
+  // the power canvas — including a SOCA that starts part way down the wall instead of on the
+  // top row. The geometric fallback (soca s covers circuits s*6..s*6+5) covers calculatedData
+  // saved before socaSpans existed; those spans carry no rows and fall back to the wall edge.
+  const socaDeleted = screen.data.deletedPanels || new Set();
+  const rowTopOff = r => r * fullPanelPixelH;
+  const rowBotOff = r => rowTopOff(r) + ((hasCB5HalfRow && r === ph) ? halfPanelPixelH : fullPanelPixelH);
+  const rowMidOff = r => (rowTopOff(r) + rowBotOff(r)) / 2;
+
+  const socaPlacements = (function resolveSocaPlacements() {
+    const runs = (Array.isArray(calc.socaSpans) && calc.socaSpans.length)
+      ? calc.socaSpans.map(sp => ({
+          firstCol: Math.max(0, Math.min(sp.firstCol, pw - 1)),
+          lastCol: Math.max(0, Math.min(sp.lastCol, pw - 1)),
+          firstRow: (typeof sp.firstRow === 'number') ? Math.max(0, Math.min(sp.firstRow, totalRows - 1)) : null,
+          lastRow: (typeof sp.lastRow === 'number') ? Math.max(0, Math.min(sp.lastRow, totalRows - 1)) : null,
+          colRows: Array.isArray(sp.colRows) ? sp.colRows : null,
+          labelIdx: (typeof sp.labelIdx === 'number') ? sp.labelIdx : sp.socaIdx
+        }))
+      : Array.from({ length: socaCount }, (_unused, si) => {
+          const firstCircuit = si * 6;
+          const lastCircuit = Math.min(firstCircuit + 5, circuitsNeeded - 1);
+          return {
+            firstCol: firstCircuit * columnsPerCircuit,
+            lastCol: Math.min((lastCircuit + 1) * columnsPerCircuit - 1, pw - 1),
+            firstRow: null, lastRow: null, colRows: null,
+            labelIdx: si
+          };
+        });
+
+    const fromBottom = powerInPos === 'bottom';
+    const wallEdgeRow = fromBottom ? totalRows - 1 : 0;
+    const labelFont = (isPdf ? 'bold 16px' : 'bold 10px') + ' Arial';
+    // Scratch context purely for text measurement — the real one isn't sized yet
+    const mctx = document.createElement('canvas').getContext('2d');
+    mctx.font = labelFont;
+
+    const placed = []; // rects already committed, in wall-relative coords
+    let minTopOff = Infinity;
+
+    const out = runs.map(run => {
+      const firstCol = run.firstCol, lastCol = run.lastCol;
+
+      // This SOCA's own boundary row in a given column — the row its feed actually sits on.
+      // Falls back to the SOCA's overall boundary row, then to the wall edge.
+      const socaRowInCol = col => {
+        if (run.colRows) {
+          const cr = run.colRows.find(e => e.col === col);
+          if (cr) return Math.max(0, Math.min(fromBottom ? cr.lastRow : cr.firstRow, totalRows - 1));
+        }
+        const overall = fromBottom ? run.lastRow : run.firstRow;
+        return (typeof overall === 'number') ? overall : wallEdgeRow;
+      };
+
+      // Landing X = centre of the columns this SOCA covers
+      let landingOffX = ((firstCol + lastCol + 1) / 2) * panelPixelW;
+      let colUnder = Math.min(lastCol, Math.floor((firstCol + lastCol + 1) / 2));
+      if (colUnder < firstCol) colUnder = firstCol;
+      let landingCol = colUnder;
+      let feedRow = socaRowInCol(colUnder);
+
+      // Snap the feed point off any deleted panel it lands on, staying within
+      // this SOCA's own column span (mirrors the data-cable edge-row search)
+      if (socaDeleted.size > 0 && socaDeleted.has(colUnder + ',' + feedRow)) {
+        let foundInSpan = false;
+        for (let dist = 1; dist <= lastCol - firstCol; dist++) {
+          if (colUnder - dist >= firstCol && !socaDeleted.has((colUnder - dist) + ',' + socaRowInCol(colUnder - dist))) {
+            landingCol = colUnder - dist; foundInSpan = true; break;
+          }
+          if (colUnder + dist <= lastCol && !socaDeleted.has((colUnder + dist) + ',' + socaRowInCol(colUnder + dist))) {
+            landingCol = colUnder + dist; foundInSpan = true; break;
+          }
+        }
+        if (foundInSpan) {
+          feedRow = socaRowInCol(landingCol);
+          landingOffX = (landingCol + 0.5) * panelPixelW;
+        } else if (typeof findNearestNonDeleted === 'function') {
+          const nn = findNearestNonDeleted(colUnder, feedRow, pw, totalRows, socaDeleted);
+          landingCol = nn.col; feedRow = nn.row;
+          landingOffX = (landingCol + 0.5) * panelPixelW;
+        }
+      }
+
+      // A SOCA that reaches the wall's own top/bottom row leaves straight off that edge,
+      // exactly as before. One that starts inboard breaks out at its own row, so pin the
+      // landing to that column's centre — the feed has to sit on a real panel.
+      const inboard = feedRow !== wallEdgeRow;
+      if (inboard) landingOffX = (landingCol + 0.5) * panelPixelW;
+
+      // The bracket hugs THIS SOCA's own boundary row rather than the wall edge, so a SOCA
+      // that breaks off half way down the wall is bracketed where it actually is. A SOCA on
+      // the wall's own edge row lands on the line it always has.
+      const bracketRow = fromBottom
+        ? (typeof run.lastRow === 'number' ? run.lastRow : wallEdgeRow)
+        : (typeof run.firstRow === 'number' ? run.firstRow : wallEdgeRow);
+      const bandOff = fromBottom ? rowBotOff(bracketRow) : rowTopOff(bracketRow);
+
+      const labelText = 'SOCA ' + formatSocaLabel(run.labelIdx);
+      const labelW = mctx.measureText(labelText).width + 6;
+      const bracketStartOffX = firstCol * panelPixelW;
+      const bracketEndOffX = (lastCol + 1) * panelPixelW;
+      const boxL = Math.min(bracketStartOffX, landingOffX - labelW / 2);
+      const boxR = Math.max(bracketEndOffX, landingOffX + labelW / 2);
+
+      // Step the bracket clear of any already-placed one it would sit on top of. Brackets
+      // only ever move further away from the wall edge, so a stepped one never covers the
+      // panels — or the label — of the SOCA it stepped around.
+      let bracketOff = fromBottom ? bandOff + SOCA_BRACKET_GAP : bandOff - SOCA_BRACKET_GAP;
+      for (let guard = 0; guard < 24; guard++) {
+        const t = fromBottom ? bracketOff - 6 : bracketOff - SOCA_LABEL_H - 2;
+        const b = fromBottom ? bracketOff + SOCA_LABEL_H + 2 : bracketOff + 6;
+        if (!placed.some(r => boxL < r.x2 && boxR > r.x1 && t < r.y2 && b > r.y1)) break;
+        bracketOff += fromBottom ? SOCA_STACK_STEP : -SOCA_STACK_STEP;
+      }
+      const rectTop = fromBottom ? bracketOff - 6 : bracketOff - SOCA_LABEL_H - 2;
+      const rectBottom = fromBottom ? bracketOff + SOCA_LABEL_H + 2 : bracketOff + 6;
+      placed.push({ x1: boxL, x2: boxR, y1: rectTop, y2: rectBottom });
+      if (rectTop < minTopOff) minTopOff = rectTop;
+
+      return {
+        firstCol, lastCol, landingCol, feedRow, inboard, fromBottom,
+        landingOffX, bracketOffY: bracketOff, bracketStartOffX, bracketEndOffX,
+        feedMidOff: rowMidOff(feedRow), labelText, labelW, labelFont,
+        // An inboard bracket sits over the panel grid and the cable runs, so its label gets
+        // an opaque plate. Edge-row brackets sit on empty background and stay plain text.
+        plateLabel: inboard || bracketRow !== wallEdgeRow
+      };
+    });
+
+    out.minTopOff = minTopOff;
+    return out;
+  })();
+
+  // Reserve exactly the room the above-wall bracket stack plus the dimension line need.
+  // minTopOff is only negative when an overlay actually sits above the wall.
+  if (socaPlacements.minTopOff < 0) {
+    const needAbove = -socaPlacements.minTopOff + DIM_CLEARANCE + DIM_LABEL_HALF_H + 6;
+    MARGIN.top = Math.max(MARGIN.top, Math.ceil(needAbove));
+  }
 
   // Floor equipment sits in a FIXED lane left of the wall, always in the same order
   // (server, distro, processor, then the remote XD closest to the wall). The distances
@@ -367,54 +526,18 @@ function renderCableDiagram(screenId) {
     return true;
   }
 
-  // Power cables — one per SOCA. Column spans and labels come from the as-assigned
-  // per-panel grouping (calculatedData.socaSpans), so a manual Assign SOCA # lands here
-  // exactly as it does on the power canvas. The geometric fallback (soca s covers circuits
-  // s*6..s*6+5) covers calculatedData saved before socaSpans existed.
-  const socaRuns = (Array.isArray(calc.socaSpans) && calc.socaSpans.length)
-    ? calc.socaSpans.map(sp => ({
-        firstCol: Math.max(0, Math.min(sp.firstCol, pw - 1)),
-        lastCol: Math.max(0, Math.min(sp.lastCol, pw - 1)),
-        labelIdx: (typeof sp.labelIdx === 'number') ? sp.labelIdx : sp.socaIdx
-      }))
-    : Array.from({ length: socaCount }, (_unused, s) => {
-        const firstCircuit = s * 6;
-        const lastCircuit = Math.min(firstCircuit + 5, circuitsNeeded - 1);
-        return {
-          firstCol: firstCircuit * columnsPerCircuit,
-          lastCol: Math.min((lastCircuit + 1) * columnsPerCircuit - 1, pw - 1),
-          labelIdx: s
-        };
-      });
+  // Power cables — one per SOCA, drawn from the placements resolved above. Everything
+  // positional was decided there in wall-relative coords; here it just gets the wall's
+  // origin added back on.
+  let socaOverlayMinY = Infinity;
 
-  for (const socaRun of socaRuns) {
-    const firstCol = socaRun.firstCol;
-    const lastCol = socaRun.lastCol;
-
-    // Landing X = center of the columns this SOCA covers
-    let landingX = adjWallLeftX + ((firstCol + lastCol + 1) / 2) * panelPixelW;
-
-    // Snap the feed point off any deleted panel it lands on, staying within
-    // this SOCA's own column span (mirrors the data-cable edge-row search)
-    const edgeRow = powerInPos === 'bottom' ? totalRows - 1 : 0;
-    let colUnder = Math.min(lastCol, Math.floor((firstCol + lastCol + 1) / 2));
-    if (colUnder < firstCol) colUnder = firstCol;
-    let landingCol = colUnder;
-    if (screenDeletedPanels.size > 0 && screenDeletedPanels.has(colUnder + ',' + edgeRow)) {
-      let foundInSpan = false;
-      for (let dist = 1; dist <= lastCol - firstCol; dist++) {
-        if (colUnder - dist >= firstCol && !screenDeletedPanels.has((colUnder - dist) + ',' + edgeRow)) {
-          landingCol = colUnder - dist; landingX = adjWallLeftX + (landingCol + 0.5) * panelPixelW; foundInSpan = true; break;
-        }
-        if (colUnder + dist <= lastCol && !screenDeletedPanels.has((colUnder + dist) + ',' + edgeRow)) {
-          landingCol = colUnder + dist; landingX = adjWallLeftX + (landingCol + 0.5) * panelPixelW; foundInSpan = true; break;
-        }
-      }
-      if (!foundInSpan && typeof findNearestNonDeleted === 'function') {
-        const nn = findNearestNonDeleted(colUnder, edgeRow, pw, totalRows, screenDeletedPanels);
-        landingCol = nn.col; landingX = adjWallLeftX + (landingCol + 0.5) * panelPixelW;
-      }
-    }
+  for (const place of socaPlacements) {
+    const fromBottom = place.fromBottom;
+    const inboard = place.inboard;
+    const landingX = adjWallLeftX + place.landingOffX;
+    const feedCenterY = wallTopY + place.feedMidOff;
+    const edgeRow = place.feedRow;
+    const landingCol = place.landingCol;
 
     // Draw cable based on power in position. With dead panels ('behind'), route the
     // feed through live panels to the muster cell instead of floating to the drop.
@@ -422,16 +545,20 @@ function renderCableDiagram(screenId) {
     ctx.lineWidth = 2.5;
     if (!(liveRouteActive && drawLivePanelRoute(landingCol, edgeRow, -8, -8, POWER_COLOR, 2.5, POWER_FLOOR_Y, distroX, equipY + BOX_H))) {
       ctx.beginPath();
-      if (powerInPos === 'bottom') {
+      if (fromBottom) {
         // Bottom routing: landing at bottom → along bottom → drop → floor → distro
-        ctx.moveTo(landingX - 3, POWER_WALL_BOTTOM_Y);
+        if (inboard) ctx.moveTo(landingX - 3, feedCenterY);
+        else ctx.moveTo(landingX - 3, POWER_WALL_BOTTOM_Y);
+        ctx.lineTo(landingX - 3, POWER_WALL_BOTTOM_Y);
         ctx.lineTo(dropX - 3, POWER_WALL_BOTTOM_Y);
         ctx.lineTo(dropX - 3, POWER_FLOOR_Y);
         ctx.lineTo(distroX, POWER_FLOOR_Y);
         ctx.lineTo(distroX, equipY + BOX_H);
       } else {
         // Top routing (default): landing → along top → drop → pick → floor → distro
-        ctx.moveTo(landingX - 3, POWER_WALL_TOP_Y);
+        if (inboard) ctx.moveTo(landingX - 3, feedCenterY);
+        else ctx.moveTo(landingX - 3, POWER_WALL_TOP_Y);
+        ctx.lineTo(landingX - 3, POWER_WALL_TOP_Y);
         ctx.lineTo(dropX - 3, POWER_WALL_TOP_Y);
         if (cablePick > 0) {
           ctx.lineTo(pickCenterX - 3, pickCenterY);
@@ -448,13 +575,21 @@ function renderCableDiagram(screenId) {
     // Defer SOCA marker, bracket, and label to draw on top of all cables.
     // When live-routed, the dot sits at the panel centre where the cable starts
     // (matching the power cable's diagonal offset) so it connects to the line.
-    const _landingX = landingX, _s = socaRun.labelIdx;
+    const _landingX = landingX;
     const _socaDotX = liveRouteActive ? (landingX - 8) : landingX;
     const _socaDotY = liveRouteActive
-      ? (wallTopY + (edgeRow + 0.5) * fullPanelPixelH - 8)
-      : (powerInPos === 'bottom' ? wallBottomY : wallTopY);
-    const _bracketStartX = adjWallLeftX + firstCol * panelPixelW;
-    const _bracketEndX = adjWallLeftX + (lastCol + 1) * panelPixelW;
+      ? (feedCenterY - 8)
+      : (inboard ? feedCenterY : (fromBottom ? wallBottomY : wallTopY));
+    const _bracketStartX = adjWallLeftX + place.bracketStartOffX;
+    const _bracketEndX = adjWallLeftX + place.bracketEndOffX;
+    const _bracketY = wallTopY + place.bracketOffY;
+    const _labelFont = place.labelFont, _labelText = place.labelText, _labelW = place.labelW;
+    const _labelH = SOCA_LABEL_H;
+    const _plateLabel = place.plateLabel;
+
+    const _rectTop = fromBottom ? _bracketY - 6 : _bracketY - _labelH - 2;
+    if (_rectTop < socaOverlayMinY) socaOverlayMinY = _rectTop;
+
     deferredOverlays.push(function() {
       // SOCA landing marker on wall
       ctx.fillStyle = POWER_COLOR;
@@ -465,33 +600,30 @@ function renderCableDiagram(screenId) {
       // SOCA bracket and label
       ctx.strokeStyle = POWER_COLOR;
       ctx.lineWidth = 1.5;
-      if (powerInPos === 'bottom') {
-        const bracketY = wallBottomY + 18;
-        ctx.beginPath();
-        ctx.moveTo(_bracketStartX, bracketY - 6);
-        ctx.lineTo(_bracketStartX, bracketY);
-        ctx.lineTo(_bracketEndX, bracketY);
-        ctx.lineTo(_bracketEndX, bracketY - 6);
-        ctx.stroke();
-        ctx.fillStyle = isPrintMode ? fgColor : POWER_COLOR;
-        ctx.font = (isPdf ? 'bold 16px' : 'bold 10px') + ' Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        drawCableText(ctx, 'SOCA ' + formatSocaLabel(_s), _landingX, bracketY + 2, rearView);
+      ctx.beginPath();
+      if (fromBottom) {
+        ctx.moveTo(_bracketStartX, _bracketY - 6);
+        ctx.lineTo(_bracketStartX, _bracketY);
+        ctx.lineTo(_bracketEndX, _bracketY);
+        ctx.lineTo(_bracketEndX, _bracketY - 6);
       } else {
-        const bracketY = wallTopY - 18;
-        ctx.beginPath();
-        ctx.moveTo(_bracketStartX, bracketY + 6);
-        ctx.lineTo(_bracketStartX, bracketY);
-        ctx.lineTo(_bracketEndX, bracketY);
-        ctx.lineTo(_bracketEndX, bracketY + 6);
-        ctx.stroke();
-        ctx.fillStyle = isPrintMode ? fgColor : POWER_COLOR;
-        ctx.font = (isPdf ? 'bold 16px' : 'bold 10px') + ' Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        drawCableText(ctx, 'SOCA ' + formatSocaLabel(_s), _landingX, bracketY - 2, rearView);
+        ctx.moveTo(_bracketStartX, _bracketY + 6);
+        ctx.lineTo(_bracketStartX, _bracketY);
+        ctx.lineTo(_bracketEndX, _bracketY);
+        ctx.lineTo(_bracketEndX, _bracketY + 6);
       }
+      ctx.stroke();
+
+      const textY = fromBottom ? _bracketY + 2 : _bracketY - 2;
+      if (_plateLabel) {
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(_landingX - _labelW / 2, fromBottom ? textY : textY - _labelH, _labelW, _labelH);
+      }
+      ctx.fillStyle = isPrintMode ? fgColor : POWER_COLOR;
+      ctx.font = _labelFont;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = fromBottom ? 'top' : 'bottom';
+      drawCableText(ctx, _labelText, _landingX, textY, rearView);
     });
   }
 
@@ -1125,9 +1257,16 @@ function renderCableDiagram(screenId) {
   drawCableDimensionLine(ctx, wallRightX + dimOffsetRight, wallTopY, wallRightX + dimOffsetRight, wallBottomY,
     wallHeightFt + "'", fgColor, bgColor, rearView);
 
-  // Wall width — above wall. When power enters from top (SOCA bracket also above wall),
-  // push the dimension line high enough to clear the bracket + label text.
-  const wallWidthDimY = wallTopY - (powerInPos !== 'bottom' ? (isPdf ? 65 : 22) : 12);
+  // Wall width — above wall. When power enters from top the SOCA brackets sit above the
+  // wall too, so the dimension line is pushed above the highest one actually drawn rather
+  // than a fixed guess: at the old fixed offset the dashed line and its own opaque label
+  // plate ran straight through the SOCA labels. socaOverlayMinY is Infinity when no SOCA
+  // overlay reaches above the wall, which leaves the original offset in place. Clamped so
+  // the line's label can never be clipped off the top of the canvas.
+  const wallWidthDimY = (powerInPos !== 'bottom')
+    ? Math.max(DIM_LABEL_HALF_H + 2,
+               Math.min(wallTopY - (isPdf ? 65 : 22), socaOverlayMinY - DIM_CLEARANCE))
+    : wallTopY - 12;
   drawCableDimensionLine(ctx, adjWallLeftX, wallWidthDimY, wallRightX, wallWidthDimY,
     wallWidthFt + "'", fgColor, bgColor, rearView);
 

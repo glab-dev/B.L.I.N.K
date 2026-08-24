@@ -715,6 +715,16 @@
         <input type="color" id="tpSweepColorV" class="tp-color-input" value="#ffffff" title="Vertical band">
       </div>
 
+      <div class="tp-control-group">
+        <div class="toggle-group tp-sweep-style-group">
+          <button type="button" class="toggle-btn active" data-sweep-style="default" onclick="setTpSweepStyle('default')">Default</button>
+          <button type="button" class="toggle-btn" data-sweep-style="horizontal" onclick="setTpSweepStyle('horizontal')">Horz</button>
+          <button type="button" class="toggle-btn" data-sweep-style="vertical" onclick="setTpSweepStyle('vertical')">Vert</button>
+          <button type="button" class="toggle-btn" data-sweep-style="radar" onclick="setTpSweepStyle('radar')">Radar</button>
+          <button type="button" class="toggle-btn" data-sweep-style="circle" onclick="setTpSweepStyle('circle')">Circle</button>
+        </div>
+      </div>
+
       <div id="tpSweepControls" class="flex-col-gap-8">
         <div class="tp-slider-row">
           <label class="tp-label">Speed: <span id="tpSweepDurationVal">5s</span></label>
@@ -3740,8 +3750,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.167';
-const APP_CHANGELOG = 'Show the uploaded logo in the PDF preview and move it left of the date';
+const APP_VERSION = '2.11.168';
+const APP_CHANGELOG = 'Add sweep style toggles for horizontal, vertical, radar and circle sweeps';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -31,6 +31,7 @@ var tpLogoStatic = false;
 var tpColorBarsOpacity = 100;
 var tpLogoOpacity = 100;
 var tpSweepOn = false;
+var tpSweepStyle = 'default';
 var tpSweepColor = '#ffffff';
 var tpSweepColorV = '#ffffff';
 var tpSweepDuration = 5;
@@ -186,8 +187,7 @@ var _tpLayerRegistry = {
   }},
   sweep: { name: 'Sweep', draw: function(ctx, w, h) {
     if(!tpSweepOn) return;
-    drawTPSweep(ctx, w, h, _tpSweepProgress);
-    drawTPSweepVertical(ctx, w, h, _tpSweepProgress);
+    drawTPSweepFrame(ctx, w, h, _tpSweepProgress);
   }},
   solid: { name: 'Solid', draw: function(ctx, w, h) {
     if(!tpSolidOn) return;
@@ -234,7 +234,7 @@ function _tpGetState() {
     tpLogoOn: tpLogoOn, tpLogoImage: tpLogoImage, tpLogoSizePct: tpLogoSizePct,
     tpLogoMode: tpLogoMode, tpLogoStatic: tpLogoStatic,
     tpColorBarsOpacity: tpColorBarsOpacity, tpLogoOpacity: tpLogoOpacity,
-    tpSweepOn: tpSweepOn, tpSweepColor: tpSweepColor, tpSweepColorV: tpSweepColorV,
+    tpSweepOn: tpSweepOn, tpSweepStyle: tpSweepStyle, tpSweepColor: tpSweepColor, tpSweepColorV: tpSweepColorV,
     tpSweepDuration: tpSweepDuration, tpSweepWidthPct: tpSweepWidthPct, tpSweepFps: tpSweepFps,
     tpCircleSpinMode: tpCircleSpinMode, tpCircleRevMode: tpCircleRevMode, tpCircleSpinSpeed: tpCircleSpinSpeed,
     tpCheckerOn: tpCheckerOn, tpCheckerSizePct: tpCheckerSizePct,
@@ -268,7 +268,8 @@ function _tpApplyState(s) {
   tpLogoOn = s.tpLogoOn; tpLogoImage = s.tpLogoImage; tpLogoSizePct = s.tpLogoSizePct;
   tpLogoMode = s.tpLogoMode; tpLogoStatic = s.tpLogoStatic;
   tpColorBarsOpacity = s.tpColorBarsOpacity; tpLogoOpacity = s.tpLogoOpacity;
-  tpSweepOn = s.tpSweepOn; tpSweepColor = s.tpSweepColor; tpSweepColorV = s.tpSweepColorV;
+  tpSweepOn = s.tpSweepOn; tpSweepStyle = s.tpSweepStyle || 'default';
+  tpSweepColor = s.tpSweepColor; tpSweepColorV = s.tpSweepColorV;
   tpSweepDuration = s.tpSweepDuration; tpSweepWidthPct = s.tpSweepWidthPct; tpSweepFps = s.tpSweepFps;
   tpCircleSpinMode = s.tpCircleSpinMode; tpCircleRevMode = s.tpCircleRevMode; tpCircleSpinSpeed = s.tpCircleSpinSpeed;
   tpCheckerOn = s.tpCheckerOn; tpCheckerSizePct = s.tpCheckerSizePct;
@@ -340,6 +341,7 @@ function _tpSyncDOM() {
   document.getElementById('tpLogoOpacity').value = tpLogoOpacity;
   document.getElementById('tpLogoOpacityVal').textContent = tpLogoOpacity + '%';
   document.getElementById('tpSweep').checked = tpSweepOn;
+  _tpSyncSweepStyleButtons();
   document.getElementById('tpSweepDuration').value = tpSweepDuration;
   document.getElementById('tpSweepDurationVal').textContent = tpSweepDuration + 's';
   document.getElementById('tpSweepWidth').value = tpSweepWidthPct;
@@ -809,7 +811,7 @@ function resetTestPattern() {
   tpBgImageOn = false; tpBgImage = null;
   tpProcessorLinesOn = false; tpProcessorLineColor = '#ff0000';
   tpLayerOrder = _tpDefaultLayerOrder.slice();
-  tpSweepOn = false; tpSweepColor = '#ffffff'; tpSweepColorV = '#ffffff';
+  tpSweepOn = false; tpSweepStyle = 'default'; tpSweepColor = '#ffffff'; tpSweepColorV = '#ffffff';
   tpSweepDuration = 5; tpSweepWidthPct = 2;
   tpSweepFps = 60;
   tpSolidOn = false; tpSolidColor = '#808080';
@@ -875,6 +877,7 @@ function resetTestPattern() {
   document.getElementById('tpLogoOpacityVal').textContent = '100%';
   document.getElementById('tpLogoFile').value = '';
   document.getElementById('tpSweep').checked = false;
+  _tpSyncSweepStyleButtons();
   document.getElementById('tpSweepDuration').value = 5;
   document.getElementById('tpSweepDurationVal').textContent = '5s';
   document.getElementById('tpSweepWidth').value = 2;
@@ -975,6 +978,23 @@ function _tpSyncPresetButtons() {
     var p = btns[i].getAttribute('data-preset');
     var active = (p === 'strobe') ? tpStrobeOn : (_tpActiveBasePreset === p);
     btns[i].classList.toggle('active', active);
+  }
+}
+
+// Sweep style: default (tilted H + V bands) or one of the single-band styles.
+function setTpSweepStyle(name) {
+  tpSaveState();
+  tpSweepStyle = name;
+  _tpSyncSweepStyleButtons();
+  _tpUpdateUndoRedoBtns();
+  if(!_tpAnimId) scheduleTestPatternRedraw();
+}
+
+// Highlight the active sweep style button (.active) from current state.
+function _tpSyncSweepStyleButtons() {
+  var btns = document.querySelectorAll('.tp-sweep-style-group .toggle-btn');
+  for(var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('active', btns[i].getAttribute('data-sweep-style') === tpSweepStyle);
   }
 }
 
@@ -2864,6 +2884,121 @@ function drawTPSweepVertical(ctx, w, h, t) {
   ctx.restore();
 }
 
+// Single entry point for the sweep overlay — used by the layer registry and both export paths.
+function drawTPSweepFrame(ctx, w, h, t) {
+  if(tpSweepStyle === 'default') {
+    drawTPSweep(ctx, w, h, t);
+    drawTPSweepVertical(ctx, w, h, t);
+  } else {
+    drawTPSweepStyled(ctx, w, h, t);
+  }
+}
+
+// Non-default sweep styles: single band, colour blends from tpSweepColor (leading edge)
+// through tpSweepColorV (tail) and fades to transparent.
+function drawTPSweepStyled(ctx, w, h, t) {
+  var head = _tpParseSweepRGB(tpSweepColor);
+  var tail = _tpParseSweepRGB(tpSweepColorV);
+
+  if(tpSweepStyle === 'horizontal' || tpSweepStyle === 'vertical') {
+    var vertical = (tpSweepStyle === 'vertical');
+    var dim = vertical ? h : w;
+    var bandWidth = dim * (tpSweepWidthPct / 100);
+    var tailLength = bandWidth * 2;
+    var totalSpan = bandWidth + tailLength;
+
+    var totalTravel = dim + 2 * totalSpan;
+    var sweepFront = -totalSpan + t * totalTravel;
+    var gradStart = sweepFront - totalSpan;
+
+    var grad = vertical
+      ? ctx.createLinearGradient(0, gradStart, 0, sweepFront)
+      : ctx.createLinearGradient(gradStart, 0, sweepFront, 0);
+    var tailStop = tailLength / totalSpan;
+    grad.addColorStop(0, 'rgba(' + tail.r + ',' + tail.g + ',' + tail.b + ',0)');
+    grad.addColorStop(tailStop, 'rgba(' + tail.r + ',' + tail.g + ',' + tail.b + ',0.6)');
+    grad.addColorStop(1, 'rgba(' + head.r + ',' + head.g + ',' + head.b + ',0.6)');
+
+    ctx.save();
+    ctx.fillStyle = grad;
+    if(vertical) ctx.fillRect(0, gradStart, w, totalSpan);
+    else ctx.fillRect(gradStart, 0, totalSpan, h);
+    ctx.restore();
+    return;
+  }
+
+  var cx = w / 2;
+  var cy = h / 2;
+  var maxR = Math.sqrt(cx * cx + cy * cy);
+
+  if(tpSweepStyle === 'radar') {
+    var bandArc = 2 * Math.PI * (tpSweepWidthPct / 100);
+    var tailArc = bandArc * 2;
+    var totalArc = bandArc + tailArc;
+    var headAngle = -Math.PI / 2 + t * 2 * Math.PI;
+    var slices = 96;
+    // Overlap by ~1px at the outer rim: enough to hide seams between wedges,
+    // small enough that the double-blended sliver is invisible.
+    var overlap = 1 / maxR;
+
+    ctx.save();
+    for(var i = 0; i < slices; i++) {
+      // frac: 1 at the leading edge, 0 at the end of the tail
+      var frac = 1 - (i / slices);
+      var a0 = headAngle - totalArc * ((i + 1) / slices);
+      var a1 = headAngle - totalArc * (i / slices) + overlap;
+      // Full opacity across the band, ramping to transparent along the tail
+      var bandFrac = bandArc / totalArc;
+      var alpha = frac >= (1 - bandFrac) ? 0.6 : 0.6 * (frac / (1 - bandFrac));
+      var r = Math.round(tail.r + (head.r - tail.r) * frac);
+      var g = Math.round(tail.g + (head.g - tail.g) * frac);
+      var b = Math.round(tail.b + (head.b - tail.b) * frac);
+      ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, maxR, a0, a1);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+
+  if(tpSweepStyle === 'circle') {
+    var cBand = maxR * (tpSweepWidthPct / 100);
+    var cTail = cBand * 2;
+    var cSpan = cBand + cTail;
+    var front = -cSpan + t * (maxR + 2 * cSpan);
+    if(front <= 0) return;
+
+    var innerStop = Math.max(0, Math.min(1, (front - cSpan) / front));
+    var bandStop = Math.max(0, Math.min(1, (front - cBand) / front));
+
+    var cGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, front);
+    cGrad.addColorStop(innerStop, 'rgba(' + tail.r + ',' + tail.g + ',' + tail.b + ',0)');
+    cGrad.addColorStop(bandStop, 'rgba(' + tail.r + ',' + tail.g + ',' + tail.b + ',0.6)');
+    cGrad.addColorStop(1, 'rgba(' + head.r + ',' + head.g + ',' + head.b + ',0.6)');
+
+    // Clip to the ring's outer radius — a radial gradient extends its last stop
+    // past that radius and would otherwise flood the whole canvas.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, front, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = cGrad;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+}
+
+function _tpParseSweepRGB(hex) {
+  return {
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16)
+  };
+}
+
 // --- Unified Animation Loop (sweep + circle spin) ---
 
 function _tpStartAnimation() {
@@ -3129,8 +3264,7 @@ async function exportTestPatternVideo() {
       } else {
         // Static bg + sweep overlay only
         ctx.putImageData(bgImageData, 0, 0);
-        drawTPSweep(ctx, totalW, totalH, t);
-        drawTPSweepVertical(ctx, totalW, totalH, t);
+        drawTPSweepFrame(ctx, totalW, totalH, t);
       }
 
       var vf = new VideoFrame(canvas, {
@@ -3305,8 +3439,7 @@ async function getTestPatternMp4Blob(callback) {
         renderTestPattern(true);
       } else {
         ctx.putImageData(bgImageData, 0, 0);
-        drawTPSweep(ctx, totalW, totalH, t);
-        drawTPSweepVertical(ctx, totalW, totalH, t);
+        drawTPSweepFrame(ctx, totalW, totalH, t);
       }
       var vf = new VideoFrame(canvas, { timestamp: i * frameDurationUs, duration: frameDurationUs });
       encoder.encode(vf, { keyFrame: i % keyFrameInterval === 0 });

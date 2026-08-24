@@ -1,5 +1,5 @@
 {
-  "version": "2.11.167",
+  "version": "2.11.168",
   "updated": "2026-08-24",
-  "changelog": "Show the uploaded logo in the PDF preview and move it left of the date"
+  "changelog": "Add sweep style toggles for horizontal, vertical, radar and circle sweeps"
 }

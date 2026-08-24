@@ -1759,6 +1759,26 @@ canvas:focus {
   font-size: 12px;
   min-height: 36px;
 }
+/* Test Pattern: Sweep style row — 5 buttons wrap 3 + 2 within the narrow column */
+.tp-sweep-style-group {
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.tp-sweep-style-group .toggle-btn {
+  min-width: 0;
+  padding: 6px 4px;
+  font-size: 12px;
+  min-height: 36px;
+}
+/* Fixed 3 + 2 split at every column width. Bases subtract the 4px gaps plus the
+   button's own 8px padding + 4px border, which sit outside the content box. */
+.tp-sweep-style-group .toggle-btn:nth-child(-n+3) {
+  flex: 1 1 calc(33.333% - 15px);
+}
+.tp-sweep-style-group .toggle-btn:nth-child(n+4) {
+  flex: 1 1 calc(50% - 16px);
+}
 
 /* Toggle buttons */
 .toggle-btn, .unit-toggle-btn {

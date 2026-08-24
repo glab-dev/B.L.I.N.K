@@ -543,11 +543,28 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   // when there are few units and tightens gracefully as the count grows, but never below
   // a readable gap. The lane is sized in pixels, independent of scale.
   var drawableW = canvasW - MARGIN.left - MARGIN.right;
+  // Two rows once the lane gets busy: XD boxes on a shelf, distro + processors on the
+  // floor. The lane then only has to be as wide as the BIGGER row, which keeps a large
+  // rig on screen instead of scrolling sideways.
+  var floorRowCount = 1 + floorProcs.length;          // distro + processors
+  var shelfRowCount = floorBoxes.length;              // XD boxes
+  // The proc→XD trunks live in the gap between the shelf and the floor row, so the gap
+  // has to be tall enough to hold one line per box on the busiest processor.
+  var trunksPerProc = {};
+  floorBoxes.forEach(function(u) { trunksPerProc[u.procUnitId] = (trunksPerProc[u.procUnitId] || 0) + 1; });
+  var maxTrunksPerProc = 0;
+  Object.keys(trunksPerProc).forEach(function(k) { if (trunksPerProc[k] > maxTrunksPerProc) maxTrunksPerProc = trunksPerProc[k]; });
+  var TRUNK_STEP = isSmall ? 4 : 5;
+  var SHELF_GAP = (isSmall ? 8 : 12) + maxTrunksPerProc * TRUNK_STEP;
+  var useShelf = shelfRowCount > 0 && (floorRowCount + shelfRowCount) > 6;
+  var laneUnits = useShelf ? (Math.max(shelfRowCount, floorRowCount + 0.5) + 1)
+                           : (floorBoxCount + 1);
+
   var idealSlot = BOX_W + (isSmall ? 22 : 52);
   var minSlot = BOX_W + (isSmall ? 8 : 12);
   var laneBudget = Math.max(drawableW * 0.40, minSlot * 3);
-  var equipSlotPx = Math.min(idealSlot, Math.max(minSlot, laneBudget / (floorBoxCount + 1)));
-  var equipLaneW = equipSlotPx * (floorBoxCount + 1);
+  var equipSlotPx = Math.min(idealSlot, Math.max(minSlot, laneBudget / laneUnits));
+  var equipLaneW = equipSlotPx * laneUnits;
 
   // The screens must keep at least this share of the width, so a rig with a lot of floor
   // units widens the canvas (the wrapper scrolls) rather than squashing the walls.
@@ -582,7 +599,10 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   var belowFloorPx = floorBandPx + dimRowsPx;
   var dpr = window.devicePixelRatio || 1;
   var legendExtra = isSmall ? 20 : 0;
-  var canvasH = MARGIN.top + totalVertFt * scale + pickVertSpace + belowFloorPx + MARGIN.bottom + legendExtra;
+  // A stretched wall-to-floor gap (shelf headroom) adds height the feet-based figure
+  // does not know about
+  var shelfExtraPx = useShelf ? Math.max(0, (2 * BOX_H + SHELF_GAP + 24) - cfg.wallToFloor * scale) : 0;
+  var canvasH = MARGIN.top + totalVertFt * scale + pickVertSpace + belowFloorPx + MARGIN.bottom + legendExtra + shelfExtraPx;
 
   canvas.width = canvasW * dpr;
   canvas.height = canvasH * dpr;
@@ -604,7 +624,11 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   var wallRightX = wallLeftX + wallWidthFt * scale;
   var wallTopY = MARGIN.top + pickVertSpace;
   var wallBottomY = wallTopY + wallHeightFt * scale;
-  var floorY = wallBottomY + cfg.wallToFloor * scale;
+  // The shelf lives between the wall and the floor, so guarantee it room. These
+  // positions are schematic anyway — the wall-to-floor figure is a label, not a
+  // measured span — so stretching the gap costs nothing but readability gained.
+  var minFloorGapPx = useShelf ? (2 * BOX_H + SHELF_GAP + 24) : 0;
+  var floorY = wallBottomY + Math.max(cfg.wallToFloor * scale, minFloorGapPx);
 
   // Convert panelSize-pixel coords to canvas coords
   var pxToCanvas = scale / ftToPx;
@@ -737,31 +761,48 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   var equipY = floorY - BOX_H; // boxes sit ON TOP of floor line
   var dataEndY = equipY + BOX_H;
 
-  // Lay the lane out right-to-left from the wall: XD boxes nearest, then processors,
-  // then distros. unitX maps a unitId to the centre X of its box.
+  // The lane is TWO rows: XD boxes on a shelf, distro + processors on the floor below.
+  // Stacking keeps a big rig from running off the side, and vertical room is the cheap
+  // dimension here. The shelf is offset by half a slot so a cable rising to a shelf box
+  // always passes between two floor boxes rather than through one.
+  var shelfY = useShelf ? (equipY - BOX_H - SHELF_GAP) : equipY;
   var unitX = {};
+  var unitY = {};   // the Y a cable terminating on this unit should rise/drop to
   var laneSlots = [];
-  var slotCursorX = wallLeftX - equipSlotPx;
+
+  var shelfCursorX = wallLeftX - equipSlotPx;
   floorBoxes.slice().reverse().forEach(function(u) {
-    unitX[u.unitId] = slotCursorX;
-    // With more than one processor a bare "XD A" is ambiguous — box indices restart
-    // per processor, so qualify the label with the processor it hangs off.
-    laneSlots.push({ x: slotCursorX,
-                     label: (floorProcs.length > 1 && u.qualifiedLabel) ? u.qualifiedLabel : u.label,
+    unitX[u.unitId] = shelfCursorX;
+    unitY[u.unitId] = useShelf ? (shelfY + BOX_H) : (equipY + BOX_H);
+    // With more than one processor a bare "XD A" is ambiguous — box indices restart per
+    // processor, so the label carries the processor too, stacked onto its own line.
+    laneSlots.push({ x: shelfCursorX, y: useShelf ? shelfY : equipY,
+                     label: (floorProcs.length > 1 && u.labelLines) ? u.labelLines : u.label,
                      color: CC_DISTBOX_COLOR, kind: 'box', unit: u });
-    slotCursorX -= equipSlotPx;
+    shelfCursorX -= equipSlotPx;
   });
+
+  var floorCursorX = wallLeftX - equipSlotPx * (useShelf ? 1.5 : 1);
+  if (!useShelf) floorCursorX = shelfCursorX;
   floorProcs.slice().reverse().forEach(function(u) {
-    unitX[u.unitId] = slotCursorX;
-    laneSlots.push({ x: slotCursorX, label: u.label, color: CC_PROC_COLOR, kind: 'proc', unit: u });
-    slotCursorX -= equipSlotPx;
+    unitX[u.unitId] = floorCursorX;
+    unitY[u.unitId] = equipY + BOX_H;
+    laneSlots.push({ x: floorCursorX, y: equipY, label: u.label, color: CC_PROC_COLOR, kind: 'proc', unit: u });
+    floorCursorX -= equipSlotPx;
   });
-  var distroCanvasX = slotCursorX;
-  laneSlots.push({ x: distroCanvasX, label: isSmall ? 'DIST' : 'DISTRO', color: CC_POWER_COLOR, kind: 'distro' });
+  var distroCanvasX = floorCursorX;
+  laneSlots.push({ x: distroCanvasX, y: equipY, label: isSmall ? 'DIST' : 'DISTRO',
+                   color: CC_POWER_COLOR, kind: 'distro' });
 
   // Representative processor X, used by the server cable and any single-unit fallback
   var procCanvasX = floorProcs.length ? unitX[floorProcs[0].unitId] : (wallLeftX - equipSlotPx);
   var distroEquipY = equipY;
+  var dataEndYFor = function(x) {
+    // Match a terminating X back to its unit so the run stops at the right row
+    var hit = null;
+    Object.keys(unitX).forEach(function(k) { if (Math.abs(unitX[k] - x) < 0.5) hit = k; });
+    return hit && unitY[hit] !== undefined ? unitY[hit] : (equipY + BOX_H);
+  };
 
   // Where one screen's data run terminates: its remote XD box if it has one on the
   // floor, otherwise the processor that feeds it.
@@ -801,13 +842,18 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     var srcX = (unitX[u.procUnitId] !== undefined) ? unitX[u.procUnitId] : procCanvasX;
     if (boxX === undefined) return;
     var seq = (trunkSeq[u.procUnitId] = (trunkSeq[u.procUnitId] || 0) + 1);
-    var trunkMidY = equipY - 6 - seq * (isSmall ? 5 : 7);
+    // On a shelf the run rises out of the processor, crosses just under the shelf and
+    // drops into the box; on a single row it arcs over the boxes as before.
+    var boxBottomY = unitY[u.unitId] !== undefined ? unitY[u.unitId] : (equipY + BOX_H);
+    var trunkMidY = useShelf
+      ? (shelfY + BOX_H + 4 + seq * TRUNK_STEP)
+      : (equipY - 6 - seq * (isSmall ? 5 : 7));
     var drawTrunkRun = function(nudge) {
       ctx.beginPath();
       ctx.moveTo(srcX, equipY);
       ctx.lineTo(srcX, trunkMidY + nudge);
       ctx.lineTo(boxX, trunkMidY + nudge);
-      ctx.lineTo(boxX, equipY);
+      ctx.lineTo(boxX, useShelf ? boxBottomY : equipY);
       ctx.stroke();
     };
     ctx.setLineDash([]);
@@ -822,7 +868,9 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
       ctx.setLineDash([]);
     }
 
-    // Cable length label sitting on the run, matching the server cable's treatment
+    // Every trunk off a processor is the same length, so label the first one only —
+    // repeating it under each box just produced a pile of overlapping numbers.
+    if (seq > 1) return;
     var trunkLabelText = cfg.xdToProcessor + "'";
     var trunkLabelX = boxX;
     var trunkLabelY = trunkMidY - (redundancy ? 2 : 0);
@@ -842,7 +890,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   // Every unit in the lane, plus the server
   if (typeof drawCableEquipmentBox === 'function') {
     laneSlots.forEach(function(slot) {
-      drawCableEquipmentBox(ctx, slot.x - BOX_W / 2, equipY, BOX_W, BOX_H, slot.label, slot.color);
+      drawCableEquipmentBox(ctx, slot.x - BOX_W / 2, slot.y, BOX_W, BOX_H, slot.label, slot.color);
     });
     drawCableEquipmentBox(ctx, serverCanvasX, serverBoxY, BOX_W, BOX_H, srvLabel, CC_SERVER_COLOR);
   }
@@ -851,10 +899,16 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   // straight through the distro box, then drops into the processor's top edge — the same
   // treatment the proc→XD trunks get, one line clear of the topmost trunk.
   if (cfg.serverToProcessor > 0) {
-    var maxTrunkSeq = 0;
-    Object.keys(trunkSeq).forEach(function(k) { if (trunkSeq[k] > maxTrunkSeq) maxTrunkSeq = trunkSeq[k]; });
-    var trunkStepPx = isSmall ? 5 : 7;
-    var serverRunY = equipY - 6 - (maxTrunkSeq + 1) * trunkStepPx - (isSmall ? 3 : 5);
+    // With a shelf the trunks already fill the shelf-to-floor gap, so the server run goes
+    // over the top of the shelf; on a single row it clears the topmost trunk instead.
+    var serverRunY;
+    if (useShelf) {
+      serverRunY = shelfY - (isSmall ? 5 : 7);
+    } else {
+      var maxTrunkSeq = 0;
+      Object.keys(trunkSeq).forEach(function(k) { if (trunkSeq[k] > maxTrunkSeq) maxTrunkSeq = trunkSeq[k]; });
+      serverRunY = equipY - 6 - (maxTrunkSeq + 1) * (isSmall ? 5 : 7) - (isSmall ? 3 : 5);
+    }
     // Never ride up into the screens
     serverRunY = Math.max(serverRunY, wallBottomY + 4);
 
@@ -1099,7 +1153,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
         ctx.lineTo(sp.dropX + DATA_OFFSET, spDataFloorY);
       }
       ctx.lineTo(wallTrunkTargetX, spDataFloorY);
-      ctx.lineTo(wallTrunkTargetX, dataEndY);
+      ctx.lineTo(wallTrunkTargetX, dataEndYFor(wallTrunkTargetX));
       ctx.stroke();
 
       if (typeof drawCableEquipmentBox === 'function') {
@@ -1174,7 +1228,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
           ctx.lineTo(sp.dropX + offsetX, fy);
         }
         ctx.lineTo(tx, fy);
-        ctx.lineTo(tx, dataEndY);
+        ctx.lineTo(tx, dataEndYFor(parseFloat(key)));
         ctx.stroke();
       });
     }

@@ -719,7 +719,10 @@ function projectDataUnits() {
                           label: shortDistBoxCode(group.distBoxName) + ' ' + formatUnitLabel(box, group.boxLabelStyle),
                           // Box indices restart on every processor, so "XD A" alone is
                           // ambiguous once a rig has more than one processor.
-                          qualifiedLabel: procTag + ' ' + shortDistBoxCode(group.distBoxName) + ' ' + formatUnitLabel(box, group.boxLabelStyle) };
+                          qualifiedLabel: procTag + ' ' + shortDistBoxCode(group.distBoxName) + ' ' + formatUnitLabel(box, group.boxLabelStyle),
+                          // Same thing split for a two-line box label, so the combined
+                          // lane can show both without overflowing a narrow box.
+                          labelLines: [procTag, shortDistBoxCode(group.distBoxName) + ' ' + formatUnitLabel(box, group.boxLabelStyle)] };
           boxSeen.set(boxUnitId, entry);
           result.boxes.push(entry);
         }

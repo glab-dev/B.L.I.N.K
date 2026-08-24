@@ -1338,13 +1338,25 @@ function drawCableEquipmentBox(ctx, x, y, w, h, label, color, rearView) {
   ctx.lineWidth = 1.5;
   ctx.strokeRect(x, y, w, h);
 
-  // Label (responsive font: smaller when box is narrow on mobile)
+  // Label (responsive font: smaller when box is narrow on mobile).
+  // An array label stacks onto its own lines — the combined lane sends
+  // [processor, box] so a name like "SX40 1 XD A" fits without overflowing the box
+  // and being painted over by its neighbours.
+  var lines = (Array.isArray(label) ? label : [label])
+    .filter(function(t) { return t !== null && t !== undefined && t !== ''; })
+    .map(String);
+  if (!lines.length) { ctx.restore(); return; }
   var fontSize = cableDiagramPdfMode ? (w < 50 ? 18 : 22) : (w < 40 ? 8 : 10);
+  if (lines.length > 1) fontSize = Math.round(fontSize * 0.85);
   ctx.fillStyle = '#000000';
   ctx.font = 'bold ' + fontSize + 'px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  drawCableText(ctx, label, x + w / 2, y + h / 2, rearView);
+  var lineH = fontSize + 2;
+  var firstY = y + h / 2 - ((lines.length - 1) * lineH) / 2;
+  lines.forEach(function(t, i) {
+    drawCableText(ctx, t, x + w / 2, firstY + i * lineH, rearView);
+  });
 
   ctx.restore();
 }

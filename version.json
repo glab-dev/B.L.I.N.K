@@ -1,5 +1,5 @@
 {
-  "version": "2.11.158",
-  "updated": "2026-08-23",
-  "changelog": "Save power-in and dist box positions so cable lengths survive a reload"
+  "version": "2.11.159",
+  "updated": "2026-08-24",
+  "changelog": "Stack the combined equipment lane on two rows and fit box labels"
 }

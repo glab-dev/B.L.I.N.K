@@ -28,7 +28,9 @@ Commit the current changes with an automatic version bump.
    - Run `git add` for all modified files (be specific — list the files, don't use `git add .`).
    - Commit with the message format: `<description> (vX.X.X)`
    - Use a HEREDOC for the commit message.
-   - Include the trailer: `Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>`
+   - Include the trailer `Co-Authored-By: <model> <noreply@anthropic.com>`, where `<model>`
+     is the model actually running the commit — e.g. `Claude Opus 5`. Do not hard-code a
+     version here; it goes stale every model release.
 
 7. **Push to remote**: Run `git push` to push the commit to the remote repository.
 

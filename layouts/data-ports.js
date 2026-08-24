@@ -612,6 +612,79 @@ function dataPortAssignmentBlocker(screenId, panelKeys, topology, result) {
   return dataPortLoopbackBlocker(procType, topology, redundant, result.box, result.port);
 }
 
+// Warns when the typed port number is already held by another data line on the same
+// processor. Deliberately NOT a block: an explicit assignment stays authoritative,
+// the same rule dataPortAssignmentBlocker() follows for a full unit. Only a typed
+// assignment counts as a holder — an auto line yields its number without a fight.
+// panelsByScreen = { screenId: [panelKey, ...] }: the lines being re-assigned right
+// now, which never count as holders of their own number.
+// Returns a message to confirm, or null when the number is free.
+function dataPortDuplicateWarning(panelsByScreen, topology, result) {
+  if(result.portCleared || result.port === null) return null;
+  const screenIds = Object.keys(panelsByScreen || {});
+  if(!screenIds.length) return null;
+
+  const seed = liveScreenData(screenIds[0]);
+  if(!seed) return null;
+  const procType = seed.processor || 'Brompton_SX40';
+  const targetGroupKey = procType + '|' + (dataPortBucketIsIndirect(procType) ? 'indirect' : 'direct');
+
+  const own = new Set();
+  screenIds.forEach(sid => {
+    const d = liveScreenData(sid);
+    if(!d) return;
+    dataLinesForPanels(d, panelsByScreen[sid]).forEach(line => own.add(sid + '|' + line));
+  });
+
+  const unitLabel = (proc, box) => (topology.usesDistBox && box !== null)
+    ? ((topology.distBoxName || 'Box') + ' ' + formatUnitLabel(box, topology.boxLabelStyle))
+    : ('Processor ' + proc);
+
+  const holders = [];
+  try {
+    buildDataPortPlan().perScreen.forEach((lineMap, sid) => {
+      lineMap.forEach((dest, line) => {
+        if(dest.groupKey !== targetGroupKey) return;
+        if(dest.port !== result.port) return;
+        // An auto line never owns its number — pass 1/1b claim explicit ports first
+        // and the cursor routes around them, so only a typed assignment can collide.
+        if(!dest.explicit) return;
+        if(own.has(sid + '|' + line)) return;
+        holders.push({ screenId: sid, line: line, proc: dest.proc, box: dest.box });
+      });
+    });
+  } catch(err) {
+    return null;
+  }
+  if(!holders.length) return null;
+
+  const nameOf = sid => (screens[sid] ? screens[sid].name : sid);
+  const who = holders.map(h => nameOf(h.screenId) + ' line ' + h.line
+                               + ' on ' + unitLabel(h.proc, h.box)).join(', ');
+
+  // A holder on a screen in the selection is a different outcome: a port number is a
+  // line's identity within one screen, so two groups both assigned it merge into a
+  // single data line rather than the second one moving to another unit.
+  const sameScreen = holders.filter(h => panelsByScreen[h.screenId]);
+  if(sameScreen.length) {
+    return nameOf(sameScreen[0].screenId) + ' already uses port ' + result.port
+      + ' for another data line.\n\nAssigning it here merges the two into one data line '
+      + 'rather than creating a second port ' + result.port + '.\n\nAssign it anyway?';
+  }
+
+  // Pinning the same unit as a holder double-books one physical port; leaving the
+  // unit on Auto just pushes this line onto the next one.
+  const samePinnedUnit = result.proc !== null
+    && (!topology.usesDistBox || result.box !== null)
+    && holders.some(h => h.proc === result.proc && (!topology.usesDistBox || h.box === result.box));
+
+  return 'Port ' + result.port + ' is already assigned to ' + who + '.\n\n'
+    + (samePinnedUnit
+        ? 'Two data lines cannot share one physical port.'
+        : 'This line will keep port ' + result.port + ' and land on the next available unit, which adds one to the gear list.')
+    + '\n\nAssign it anyway?';
+}
+
 // Explicit floors per processor TYPE, summed across its connection modes. Direct
 // and indirect screens are separate signal paths, so their units add rather than
 // overlap.

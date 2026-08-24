@@ -1,5 +1,5 @@
 {
-  "version": "2.11.160",
+  "version": "2.11.161",
   "updated": "2026-08-24",
-  "changelog": "Keep an assigned data port number when Processor and Box are left on Auto"
+  "changelog": "Warn before assigning a data port number another line already holds"
 }

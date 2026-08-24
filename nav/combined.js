@@ -1391,6 +1391,10 @@ async function promptAssignCombinedDataLine() {
     if(blocked) { showAlert(blocked, 'Loop-back Port'); return; }
   }
 
+  // Another screen may already hold this port number — warn, but let it through.
+  const duplicate = dataPortDuplicateWarning(panelsByScreen, topology, result);
+  if(duplicate && !(await showConfirm(duplicate, 'Port Already Assigned'))) return;
+
   if(typeof saveState === 'function') saveState();
 
   // Apply to each screen's data

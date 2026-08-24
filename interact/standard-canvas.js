@@ -776,6 +776,10 @@ async function showDataLineNumberPrompt() {
   const blocked = dataPortAssignmentBlocker(currentScreenId, panelsToAssign, topology, result);
   if(blocked) { showAlert(blocked, 'Loop-back Port'); return; }
 
+  // Another screen may already hold this port number — warn, but let it through.
+  const duplicate = dataPortDuplicateWarning({ [currentScreenId]: [...panelsToAssign] }, topology, result);
+  if(duplicate && !(await showConfirm(duplicate, 'Port Already Assigned'))) return;
+
   saveState(); // Save state before making changes
 
   panelsToAssign.forEach(key => {

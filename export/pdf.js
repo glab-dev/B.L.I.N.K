@@ -690,7 +690,7 @@ function confirmPdfExport() {
 
 /**
  * Builds the B.L.I.N.K. REPORT header bar for any page.
- * Full-width dark green bar: left=title, center=project name, right=date [logo].
+ * Full-width dark green bar: left=title, center=project name, right=[logo] date.
  * @param {string} configName - project name
  * @param {string} dateStr - formatted date string
  * @param {object|null} logoData - { data: 'data:image/...;base64,...' } or null
@@ -717,18 +717,25 @@ function buildPdfHeader(configName, dateStr, logoData) {
     margin: [0, 7, 0, 7], alignment: 'center'
   };
 
-  // Right side: logo + date, or just date
-  const rightStack = [];
-  if (logoData && logoData.data) {
-    rightStack.push({ image: logoData.data, fit: [60, 22], alignment: 'right', margin: [0, 3, 10, 0] });
-  }
-  rightStack.push({ text: dateStr, fontSize: 8, color: tc.headerText, alignment: 'right', margin: [0, logoData && logoData.data ? 1 : 7, 10, 7] });
+  // Right side: logo sits to the LEFT of the date, on the same row
+  const dateText = {
+    text: dateStr, fontSize: 8, color: tc.headerText,
+    alignment: 'right', width: 'auto', margin: [0, 7, 10, 7]
+  };
 
   const rightCell = {
-    stack: rightStack,
     fillColor: headerBg, border: [false, false, false, false],
     alignment: 'right'
   };
+  if (logoData && logoData.data) {
+    rightCell.columns = [
+      { image: logoData.data, fit: [56, 16], width: 'auto', margin: [0, 4, 8, 4] },
+      dateText
+    ];
+    rightCell.columnGap = 0;
+  } else {
+    Object.assign(rightCell, dateText);
+  }
 
   return {
     table: { widths: ['auto', '*', 'auto'], body: [[titleCell, nameCell, rightCell]] },
@@ -1883,6 +1890,16 @@ function buildComplexPdf(opts, canvasCache) {
       // table below so each section type occupies one row and its headings line up
       // across screens, instead of every column stacking to its own heights.
       var screenCols = [];
+
+      // Processors and dist boxes belong to the rig (one set per shared-distro group), not
+      // to whichever screen happens to be first, so they collect into their own shared
+      // column below. Same-named entries from different groups merge into one line.
+      var procItems = [];
+      function addProcItem(qty, item) {
+        const hit = procItems.find(function(p) { return p.item === item; });
+        if (hit) hit.qty += qty; else procItems.push({ qty: qty, item: item });
+      }
+
       gearScreenIds.forEach(function(sid, ci) {
         const scr = screens[sid];
         const sIdx = screenIds.indexOf(sid);
@@ -1897,8 +1914,8 @@ function buildComplexPdf(opts, canvasCache) {
 
         const eqItems = [];
         if (eq.isFirstScreenInGroup) {
-          if (eq.processorCount > 0) eqItems.push({ qty: eq.processorCount, item: eq.processorName || 'Processor' });
-          if (eq.distBoxCount   > 0) eqItems.push({ qty: eq.distBoxCount,   item: eq.distBoxName   || 'Dist Box' });
+          if (eq.processorCount > 0) addProcItem(eq.processorCount, eq.processorName || 'Processor');
+          if (eq.distBoxCount   > 0) addProcItem(eq.distBoxCount,   eq.distBoxName   || 'Dist Box');
         }
         if (eq.activeFullPanels > 0) eqItems.push({ qty: eq.activeFullPanels, item: ((eq.panelBrand || '') + ' ' + (eq.panelName || '')).trim() });
         if (eq.activeHalfPanels > 0) eqItems.push({ qty: eq.activeHalfPanels, item: ((eq.panelBrand || '') + ' ' + (eq.halfPanelName || '')).trim() });
@@ -2051,10 +2068,13 @@ function buildComplexPdf(opts, canvasCache) {
       // height than portrait, so it ran off the page there. Split it over two columns
       // inside its own third of the row — one SPARES heading spanning both.
       const spareCols = orientation === 'l' ? 2 : 1;
+      // w = how many column units the section takes, so a two-column SPARES keeps the
+      // per-item width it had before PROCESSORS was added to this row.
       const sharedSections = [
-        scItems.length    > 0 ? buildGearSection('SIGNAL CABLES', scItems)  : null,
-        utilItems.length  > 0 ? buildGearSection('UTILITY',       utilItems) : null,
-        spareItems.length > 0 ? buildGearSection('SPARES',        spareItems, spareCols) : null,
+        procItems.length  > 0 ? { node: buildGearSection('PROCESSORS',    procItems), w: 1 } : null,
+        scItems.length    > 0 ? { node: buildGearSection('SIGNAL CABLES', scItems),   w: 1 } : null,
+        utilItems.length  > 0 ? { node: buildGearSection('UTILITY',       utilItems), w: 1 } : null,
+        spareItems.length > 0 ? { node: buildGearSection('SPARES',        spareItems, spareCols), w: spareCols } : null,
       ].filter(Boolean);
 
       if (sharedSections.length > 0) {
@@ -2062,6 +2082,7 @@ function buildComplexPdf(opts, canvasCache) {
         // one explicitly. Letting pdfmake break here instead would produce a page with no
         // report header, because headers are pushed into the content per page.
         const sharedH = Math.max(
+          estGearSectionHeight(procItems.length, 1),
           estGearSectionHeight(scItems.length, 1),
           estGearSectionHeight(utilItems.length, 1),
           estGearSectionHeight(spareItems.length, spareCols)
@@ -2073,11 +2094,12 @@ function buildComplexPdf(opts, canvasCache) {
           content.push(sectionLabel('Gear List — Shared'));
         }
 
-        const sharedColW = Math.floor((cw - 16) / 3);
+        const sharedUnits = sharedSections.reduce(function(t, sec) { return t + sec.w; }, 0);
+        const sharedColW = Math.floor((cw - 8 * (sharedSections.length - 1)) / sharedUnits);
         const sharedCols = [];
         sharedSections.forEach(function(sec, i) {
           if (i > 0) sharedCols.push({ width: 8, text: '' });
-          sharedCols.push({ stack: [sec], width: sharedColW });
+          sharedCols.push({ stack: [sec.node], width: sharedColW * sec.w });
         });
         content.push({ columns: sharedCols, columnGap: 0 });
       }

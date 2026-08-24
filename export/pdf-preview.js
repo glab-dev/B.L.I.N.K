@@ -467,6 +467,8 @@ function ppHandleLogoUpload(input) {
 
     const uploadBtn = document.getElementById('ppLogoUploadBtn');
     if (uploadBtn) uploadBtn.style.display = 'none';
+
+    rebuildPreview();
   };
   reader.readAsDataURL(file);
 }
@@ -483,6 +485,8 @@ function ppRemoveLogo() {
   if (thumb)   thumb.src = '';
   if (input)   input.value = '';
   if (uploadBtn) uploadBtn.style.display = '';
+
+  rebuildPreview();
 }
 
 // ==================== REBUILD PREVIEW ====================

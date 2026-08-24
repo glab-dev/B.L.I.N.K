@@ -1,5 +1,5 @@
 {
-  "version": "2.11.166",
+  "version": "2.11.167",
   "updated": "2026-08-24",
-  "changelog": "Keep panel counts on a panel swap and reset the affected layouts"
+  "changelog": "Show the uploaded logo in the PDF preview and move it left of the date"
 }

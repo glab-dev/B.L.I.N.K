@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.165', date: '2026-08-24', notes: 'Band tall SOCA selections into circuits by row instead of rejecting them' },
   { version: '2.11.164', date: '2026-08-24', notes: 'Route cable layout from each SOCA own rows and clear SOCA labels of size lines' },
   { version: '2.11.163', date: '2026-08-24', notes: 'Show SOCAs and data lines per screen in combined specs, harden exports' },
   { version: '2.11.162', date: '2026-08-24', notes: 'Show SOCA counts in the power specs and per screen in combined specs' },

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.164",
+  "version": "2.11.165",
   "updated": "2026-08-24",
-  "changelog": "Route cable layout from each SOCA own rows and clear SOCA labels of size lines"
+  "changelog": "Band tall SOCA selections into circuits by row instead of rejecting them"
 }

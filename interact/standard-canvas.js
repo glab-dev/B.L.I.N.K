@@ -695,40 +695,21 @@ async function showAssignSocaPrompt() {
     byCol.get(c).push(k);
   });
   const sortedCols = [...byCol.keys()].sort((a, b) => a - b);
+  if(sortedCols.length === 0) return;
 
-  let maxColCount = 0, worstCol = sortedCols[0];
-  sortedCols.forEach(c => {
-    const n = byCol.get(c).length;
-    if(n > maxColCount) { maxColCount = n; worstCol = c; }
-  });
-  if(maxColCount > ppc) {
-    showAlert(
-      `Column ${worstCol + 1} has ${maxColCount} selected panels, but the max per circuit is ${ppc}. ` +
-      `Raise panels-per-circuit or reduce the selection.`
-    );
-    return;
-  }
-
-  // Bundle whole columns into circuits: as many equal-height columns as fit within
-  // one circuit's panel budget. A SOCA holds 6 circuits.
-  const colsPerCircuit = Math.max(1, Math.floor(ppc / maxColCount));
-  const circuitsNeeded = Math.ceil(sortedCols.length / colsPerCircuit);
-  if(circuitsNeeded > 6) {
-    showAlert(
-      `This selection needs ${circuitsNeeded} circuits, but a SOCA holds only 6. ` +
-      `Reduce the selection or raise panels-per-circuit.`
-    );
+  const plan = planSocaCircuits(byCol, sortedCols, ppc);
+  if(plan.error) {
+    showAlert(plan.error);
     return;
   }
 
   const baseCircuit = (socaNum - 1) * 6 + 1;
 
   saveState();
-  sortedCols.forEach((c, colIdx) => {
-    const circuit = baseCircuit + Math.floor(colIdx / colsPerCircuit);
-    byCol.get(c).forEach(key => {
+  plan.circuits.forEach((keys, idx) => {
+    keys.forEach(key => {
       customSocaAssignments.set(key, socaNum);
-      customCircuitAssignments.set(key, circuit);
+      customCircuitAssignments.set(key, baseCircuit + idx);
     });
   });
 

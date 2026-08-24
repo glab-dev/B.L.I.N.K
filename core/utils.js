@@ -353,6 +353,56 @@ function parseSocaInput(raw) {
   return null;
 }
 
+// Splits a selected block of panels into the circuits of one SOCA.
+// Columns are cut into row bands of at most `ppc` panels, top band first, so a
+// column taller than one circuit's budget spills into a later circuit instead of
+// being rejected. Within a band, as many equal-height whole columns as fit share
+// a circuit. byCol = Map<col, [panelKey]>, sortedCols = its keys in column order.
+// Returns { circuits: [[panelKey, ...], ...] } in wiring order, or { error }
+// when the block needs more than the 6 circuits a SOCA carries.
+function planSocaCircuits(byCol, sortedCols, ppc) {
+  const perCircuit = ppc > 0 ? ppc : 1;
+  const rowOf = key => parseInt(key.split(',')[1], 10);
+
+  // Band on the rows the block actually occupies, so a sparse selection bands
+  // by its own rows rather than by the grid's.
+  const rows = new Set();
+  let tallest = 0;
+  sortedCols.forEach(c => {
+    const keys = byCol.get(c);
+    keys.forEach(k => rows.add(rowOf(k)));
+    if (keys.length > tallest) tallest = keys.length;
+  });
+  const sortedRows = [...rows].sort((a, b) => a - b);
+  const bandHeight = Math.min(perCircuit, Math.max(1, tallest));
+
+  const circuits = [];
+  for (let start = 0; start < sortedRows.length; start += bandHeight) {
+    const bandRows = new Set(sortedRows.slice(start, start + bandHeight));
+    const bandCols = [];
+    let bandTallest = 0;
+    sortedCols.forEach(c => {
+      const keys = byCol.get(c).filter(k => bandRows.has(rowOf(k)));
+      if (keys.length === 0) return;
+      bandCols.push(keys);
+      if (keys.length > bandTallest) bandTallest = keys.length;
+    });
+    if (bandCols.length === 0) continue;
+    const colsPerCircuit = Math.max(1, Math.floor(perCircuit / bandTallest));
+    for (let i = 0; i < bandCols.length; i += colsPerCircuit) {
+      let circuit = [];
+      bandCols.slice(i, i + colsPerCircuit).forEach(keys => { circuit = circuit.concat(keys); });
+      circuits.push(circuit);
+    }
+  }
+
+  if (circuits.length > 6) {
+    return { error: `This selection needs ${circuits.length} circuits, but a SOCA holds only 6. ` +
+      `Reduce the selection or raise panels-per-circuit.` };
+  }
+  return { circuits };
+}
+
 // Monotonic dark-to-light ramp for SOCA groups. SOCA 1 = base color (darkest),
 // each subsequent SOCA is ~14% lighter, capped at 0.70 to avoid washing out
 // to white. 6 shades — repeats every 6 SOCAs.

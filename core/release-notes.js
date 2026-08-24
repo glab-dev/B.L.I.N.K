@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.169', date: '2026-08-24', notes: 'Size the PDF power layout marker bands so row and column numbers never clip' },
   { version: '2.11.168', date: '2026-08-24', notes: 'Add sweep style toggles for horizontal, vertical, radar and circle sweeps' },
   { version: '2.11.167', date: '2026-08-24', notes: 'Show the uploaded logo in the PDF preview and move it left of the date' },
   { version: '2.11.166', date: '2026-08-24', notes: 'Keep panel counts on a panel swap and reset the affected layouts' },

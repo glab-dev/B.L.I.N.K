@@ -1,5 +1,5 @@
 {
-  "version": "2.11.168",
+  "version": "2.11.169",
   "updated": "2026-08-24",
-  "changelog": "Add sweep style toggles for horizontal, vertical, radar and circle sweeps"
+  "changelog": "Size the PDF power layout marker bands so row and column numbers never clip"
 }

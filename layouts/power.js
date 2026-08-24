@@ -258,16 +258,29 @@ function renderPowerLayout(params) {
   // for non-contiguous SOCA spans, and panels themselves carry SOCA info via in-panel labels.
   // Top band = column-marker bar only. SOCAs are shown via diagonal label overlay (see below).
   // Left band = row-marker column. Panel labels show SOCA.Circuit (e.g. "A.1").
-  const colMarkerH  = _pdfMode ? Math.round((_isMultiScreen ? 28 : 18) * canvasScale) : 22;
-  const rowMarkerW  = _pdfMode ? Math.round((_isMultiScreen ? 32 : 22) * canvasScale) : 28;
+  let colMarkerH    = _pdfMode ? Math.round((_isMultiScreen ? 28 : 18) * canvasScale) : 22;
+  let rowMarkerW    = _pdfMode ? Math.round((_isMultiScreen ? 32 : 22) * canvasScale) : 28;
   const bracketBarH = 0;
-  const topBandH    = bracketBarH + colMarkerH;
+
+  // Anchor PDF font sizes to actual PDF points regardless of width-fit vs height-cap.
+  const _expectedMaxHpt = (typeof window !== 'undefined' && window._pdfLayoutMaxHeightPt) || 230;
+  const _markerScale = _pdfMode
+    ? Math.max((canvas.width + rowMarkerW) / pdfContentPt, (canvas.height + bracketBarH + colMarkerH) / _expectedMaxHpt)
+    : 1;
+  const markerFont = _pdfMode ? Math.round(7 * _markerScale) : 11;
+  // The bands above are sized off canvasScale (width only), but the marker font follows
+  // _markerScale — and on a tall wall the image is height-capped, so _markerScale outruns
+  // canvasScale and the digits overflow their band, clipped by the canvas edge. Grow each
+  // band to the glyphs it has to hold; layouts whose bands already fit keep them as-is.
+  if (_pdfMode) {
+    ctx.font = `${markerFont}px Arial`;
+    colMarkerH = Math.max(colMarkerH, Math.ceil(markerFont * 1.5));
+    rowMarkerW = Math.max(rowMarkerW, Math.ceil(ctx.measureText(`${ph}`).width + markerFont * 0.8));
+  }
+  const topBandH = bracketBarH + colMarkerH;
 
   canvas.height += topBandH;
   canvas.width  += rowMarkerW;
-  // Anchor PDF font sizes to actual PDF points regardless of width-fit vs height-cap.
-  const _expectedMaxHpt = (typeof window !== 'undefined' && window._pdfLayoutMaxHeightPt) || 230;
-  const _markerScale = _pdfMode ? Math.max(canvas.width / pdfContentPt, canvas.height / _expectedMaxHpt) : 1;
   if (_pdfMode) {
     try {
       window._pdfPowerSocaFraction = topBandH / canvas.height;
@@ -485,8 +498,8 @@ function renderPowerLayout(params) {
 
 
   // Column number markers (always shown, positioned just above panel grid).
-  // _markerScale is computed near the top so SOCA bracket fonts can also use it.
-  const markerFont = _pdfMode ? Math.round(7 * _markerScale) : 11;
+  // markerFont/_markerScale are computed near the top so the marker bands can be sized
+  // to fit them and the SOCA bracket fonts can use the same scale.
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

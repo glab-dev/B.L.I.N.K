@@ -1,5 +1,5 @@
 {
-  "version": "2.11.161",
+  "version": "2.11.162",
   "updated": "2026-08-24",
-  "changelog": "Warn before assigning a data port number another line already holds"
+  "changelog": "Show SOCA counts in the power specs and per screen in combined specs"
 }

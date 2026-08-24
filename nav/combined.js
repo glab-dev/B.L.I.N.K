@@ -3571,6 +3571,9 @@ function renderCombinedSpecs(selectedScreenIds) {
   let maxHeight = 0;
   let totalDataLines = 0;
   let totalAmpsPerPhase = 0;
+  // SOCAs per screen, so the combined view shows both the rig total and the split
+  const socaByScreen = [];
+  let totalSocas = 0;
 
   // Track panels by type
   const panelsByType = {};
@@ -3633,6 +3636,11 @@ function renderCombinedSpecs(selectedScreenIds) {
     const voltage = parseInt(data.voltage) || 208;
     const screenAmps = voltage > 0 ? screenPowerW / voltage : 0;
     totalAmpsPerPhase += combinedPhase === 3 ? screenAmps / Math.sqrt(3) : screenAmps;
+
+    // SOCA count already respects any manual Assign SOCA # (see calculatedData.socaCount)
+    const screenSocas = calcData.socaCount || 0;
+    socaByScreen.push({ name: screen.name || screenId, count: screenSocas });
+    totalSocas += screenSocas;
 
     // Weight - use stored calculated data (panels + structure)
     if('panelWeightOnlyKg' in calcData) {
@@ -3726,6 +3734,10 @@ function renderCombinedSpecs(selectedScreenIds) {
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Total Amps</div><div style="color: #fff; font-size: 13px;">${displayAmps.toFixed(1)} A</div></div>`;
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Service needed</div><div style="color: #fff; font-size: 13px;">${svcLabel}</div></div>`;
   html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">Data Lines</div><div style="color: #fff; font-size: 13px;">${totalDataLines}</div></div>`;
+  const socaBreakdownHtml = socaByScreen
+    .map(s => `<div style="color: #9ca3af; font-size: 12px;">${escapeHtml(String(s.name))}: ${s.count}</div>`)
+    .join('');
+  html += `<div><div style="color: #10b981; font-family: 'Roboto Condensed', sans-serif; font-weight: 700; font-size: 13px;">SOCAs needed</div><div style="color: #fff; font-size: 13px;">${totalSocas}</div>${socaBreakdownHtml}</div>`;
   html += '</div>';
 
   html += '</div>';

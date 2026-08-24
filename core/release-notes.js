@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.162', date: '2026-08-24', notes: 'Show SOCA counts in the power specs and per screen in combined specs' },
   { version: '2.11.161', date: '2026-08-24', notes: 'Warn before assigning a data port number another line already holds' },
   { version: '2.11.160', date: '2026-08-24', notes: 'Keep an assigned data port number when Processor and Box are left on Auto' },
   { version: '2.11.159', date: '2026-08-24', notes: 'Stack the combined equipment lane on two rows and fit box labels' },

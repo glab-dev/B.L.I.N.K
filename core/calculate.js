@@ -1416,6 +1416,10 @@ function calculate(){
     }
     html += `<div class="result-row"><strong>Max panels per circuit:</strong> ${calculatedPanelsPerCircuit}</div>`;
     html += `<div class="result-row"><strong>Estimated circuits:</strong> ${circuitsByColumns}</div>`;
+    // A SOCA carries 6 circuits. Manual Assign SOCA # wins when it has been used, so this
+    // matches calculatedData.socaCount and therefore the gear list and cable diagram.
+    const _socaCountSpec = (socaSpans && socaSpans.length) ? socaSpans.length : Math.ceil(circuitsByColumns / 6);
+    html += `<div class="result-row"><strong>SOCAs needed:</strong> ${_socaCountSpec}</div>`;
     if(sharedDistroTotal) {
       const _sdt = sharedDistroTotal;
       html += `<br>`;

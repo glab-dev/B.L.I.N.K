@@ -1060,6 +1060,7 @@
               <li><strong>Arrows / Flip</strong> &mdash; show routing arrows, or flip their direction</li>
               <li><strong>Data Labels</strong> &mdash; number each data line on the panels</li>
               <li><strong>Data Line Map</strong> &mdash; table below the layout with Line, Panel, Unit, and Port columns</li>
+              <li><strong>Consistent numbering</strong> &mdash; a line is named by the processor port it lands on, and the data layout, cable diagram, and gear list all call it the same thing</li>
             </ul>
             <p class="help-text"><strong>Assign Data Port</strong> &mdash; select panels and use the panel menu to set the processor, distribution box, and port for a line. Processor and box accept a letter or a number, and Auto leaves the app to pick. The app warns before taking a port another line already holds, and manual assignments drive the gear list counts.</p>
             <p class="help-text">With Data Redundancy on, the map also shows each line&rsquo;s backup destination, and those loop-back ports appear in the PDF.</p>
@@ -1107,6 +1108,7 @@
               <li>Combined specs across all selected screens, including SOCA and data line counts per screen</li>
               <li>Combined Power, Data, Structure, and Cable layout views</li>
               <li>Combined Cable list, with editable System and Spares quantities</li>
+              <li><strong>Per-screen tables</strong> &mdash; the SOCA circuit table, data line map, and structure pickup weights appear under their combined layout, one block per screen, packed several screens across and carried into the PDF</li>
             </ul>
             <p class="help-text help-text-muted">Projects saved before the combined view existed open with nothing selected &mdash; pick your screens to build the arrangement.</p>
           </div>
@@ -1133,7 +1135,7 @@
               <li><strong>Spares</strong> &mdash; Panels &amp; Hardware (per panel type, shackles, cheeseyes), Data Cables (cross jumpers, Cat5 couplers, Cat6 by length), and Power Cables (Soca splays, Soca by length, True1, True1 twofers)</li>
             </ul>
             <p class="help-text"><strong>Editing quantities</strong> &mdash; every row is a number box. Leave it blank to use the auto-calculated quantity shown as the placeholder, or type a number to override it. Spares default to 10% for panels and 40% for cables and rigging. A row still shows at zero, so a line you zeroed can be put back.</p>
-            <p class="help-text">Cat6 and Soca rows list every stocked length (25&#39; through 300&#39;), not just the ones this rig runs, so you can spare a length the job does not otherwise use. Your overrides save with the project and flow through to the PDF and every gear export.</p>
+            <p class="help-text">Spare rows cover every stocked length rather than only the ones this rig runs, so you can spare a length the job does not otherwise use &mdash; Cat6 at 10&#39;, 25&#39;, 50&#39;, 75&#39;, 100&#39;, 200&#39;, and 300&#39;, and Soca at 25&#39;, 50&#39;, 75&#39;, and 100&#39;. These are the lengths stocked for spares, which are deliberately not the same as the lengths real cable runs are rounded up to. Your overrides save with the project and flow through to the PDF and every gear export.</p>
           </div>
 
           <h3 class="help-section-title">Canvas View</h3>
@@ -1170,12 +1172,13 @@
               <li><strong>Canvas</strong> &mdash; PNG or JPEG of the whole canvas, each screen at native resolution, outline, title block, or Resolume XML</li>
               <li><strong>Test Pattern</strong> &mdash; PNG image or MP4 video</li>
               <li><strong>Gear List</strong> &mdash; text file, or Send to Jared for an emailed breakdown by screen</li>
-              <li><strong>Export All</strong> &mdash; every format at once, zipped</li>
+              <li><strong>Export All</strong> &mdash; every format at once, as a foldered zip</li>
               <li><strong>Per-view export</strong> &mdash; the share button on any layout, specs, or gear box exports just that view as a one-page PDF</li>
               <li><strong>Save/Load</strong> &mdash; .blinkled, .blinkrast, .blinktp files with full project state</li>
             </ul>
           </div>
           <p class="help-text"><strong>PDF preview</strong> &mdash; the left panel chooses which sections are included, then Page Size (A4 or Letter), Orientation (Portrait or Landscape), SOCA Outlines, SOCA Label, and a logo upload. <strong>Eco Friendly</strong> and <strong>Greyscale</strong> are print-saving colour modes. The preview is the PDF &mdash; what you see is exactly what exports.</p>
+          <p class="help-text"><strong>Export All</strong> &mdash; builds a zip with a folder per view. Each layout comes out as a PDF page per screen (<em>specs</em>, <em>power</em>, <em>data</em>, <em>structure</em>, <em>cable</em>), with a second unlabelled copy of the data layout, plus <em>combined</em> pages across the selection, the <em>gear</em> list as both PDF and text, the <em>canvas</em> and per-screen <em>screens</em> images, the <em>title block</em>, <em>resolume</em> XML, any <em>test pattern</em>, and the full report at the top level. Every layout page is the same page the full report would have contained.</p>
           <p class="help-text">On mobile, exports use the native share sheet.</p>
 
           <div class="help-complex-section" style="display: none;">
@@ -3852,8 +3855,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.180';
-const APP_CHANGELOG = 'Keep combined data tables on the layout page and order all tables left to right';
+const APP_VERSION = '2.11.181';
+const APP_CHANGELOG = 'Add per-length cable spares with overrides and rework the gear and specs display';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

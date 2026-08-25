@@ -713,6 +713,15 @@ function dataPortLineDisplayMap(screenId) {
   return out;
 }
 
+// The number a line is labelled with anywhere in the app: the processor port it
+// lands on, falling back to its raw line number when the port plan can't resolve one.
+// The data layout, cable diagram and gear list all name a line through this, so a
+// line is called the same thing in all three.
+function dataLineDisplayNumber(screenId, line) {
+  const map = dataPortLineDisplayMap(screenId);
+  return map.has(line) ? map.get(line) : line;
+}
+
 // Cached plan, rebuilt whenever a calculate() cycle invalidates it. buildDataPortPlan()
 // walks every screen's serpentine, so the per-line lookups below must not each
 // trigger a fresh build.

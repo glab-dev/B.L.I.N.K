@@ -21,9 +21,13 @@ function activateGearView() {
 
 // ==================== CABLING CALCULATION SYSTEM ====================
 
+// Lengths that real cable runs are rounded up to. The spare rows offered in the
+// combined gear list come from SPARE_CAT6_LENGTHS / SPARE_SOCA_LENGTHS in
+// core/gear-data.js instead — changing this list would move calculated cable counts.
+const STANDARD_CABLE_LENGTHS = [25, 50, 75, 100, 150, 200, 250, 300];
+
 function roundUpToStandard(lengthFt) {
-  const standards = [25, 50, 75, 100, 150, 200, 250, 300];
-  for(const s of standards) {
+  for(const s of STANDARD_CABLE_LENGTHS) {
     if(lengthFt <= s) return s;
   }
   return Math.ceil(lengthFt / 50) * 50;
@@ -43,6 +47,13 @@ function getDataLineEntryPoints(pw, ph, panelsPerDataLine, startDir, deletedPane
   return entryPoints;
 }
 
+// Data line numbers present in an entry/exit point map, ascending. Line numbers are
+// sparse whenever a custom assignment skips ahead, so every consumer must walk the
+// keys rather than count 0..dataLines-1 — otherwise the skipped-to lines get no cable.
+function dataLineIndexes(points) {
+  return Object.keys(points || {}).map(Number).sort((a, b) => a - b);
+}
+
 // Get ALL panels per data line in serpentine order (for inter-panel cable calculations)
 function getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap) {
   const dataLinePanels = {}; // { dataLineIndex: [{col, row}, ...] in order }
@@ -57,35 +68,41 @@ function getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPa
     }
   }
 
+  // One column = one data line. A column that is fully deleted, or whose every panel
+  // carries a custom assignment, takes no auto line — so the counter only advances
+  // when the column actually used it. The data layout numbers columns the same way;
+  // advancing unconditionally here would offset every line number after such a column.
   if(startDir === 'all_top') {
     let autoDataLineCounter = 0;
     for(let c = 0; c < pw; c++) {
       while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
+      let columnTookAutoLine = false;
       for(let r = 0; r < ph; r++) {
         const panelKey = `${c},${r}`;
         if(deletedPanelsSet.has(panelKey)) continue;
-        const dl = (customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey))
-          ? customDataLineAssignmentsMap.get(panelKey) - 1
-          : autoDataLineCounter;
+        const isCustom = customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey);
+        const dl = isCustom ? customDataLineAssignmentsMap.get(panelKey) - 1 : autoDataLineCounter;
+        if(!isCustom) columnTookAutoLine = true;
         if(!dataLinePanels[dl]) dataLinePanels[dl] = [];
         dataLinePanels[dl].push({col: c, row: r});
       }
-      autoDataLineCounter++;
+      if(columnTookAutoLine) autoDataLineCounter++;
     }
   } else if(startDir === 'all_bottom') {
     let autoDataLineCounter = 0;
     for(let c = 0; c < pw; c++) {
       while(usedCustomDataLines.has(autoDataLineCounter)) autoDataLineCounter++;
+      let columnTookAutoLine = false;
       for(let r = ph - 1; r >= 0; r--) {
         const panelKey = `${c},${r}`;
         if(deletedPanelsSet.has(panelKey)) continue;
-        const dl = (customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey))
-          ? customDataLineAssignmentsMap.get(panelKey) - 1
-          : autoDataLineCounter;
+        const isCustom = customDataLineAssignmentsMap && customDataLineAssignmentsMap.has(panelKey);
+        const dl = isCustom ? customDataLineAssignmentsMap.get(panelKey) - 1 : autoDataLineCounter;
+        if(!isCustom) columnTookAutoLine = true;
         if(!dataLinePanels[dl]) dataLinePanels[dl] = [];
         dataLinePanels[dl].push({col: c, row: r});
       }
-      autoDataLineCounter++;
+      if(columnTookAutoLine) autoDataLineCounter++;
     }
   } else {
     // Serpentine: top or bottom
@@ -371,7 +388,7 @@ function calculateCabling(screenId) {
     const mainDistBoxCenterVertFt = (mainDistBoxRow + 0.5) * panelHeightFt;
 
     // Primary data cables from main dist box to each data line entry
-    for(let dl = 0; dl < dataLines; dl++) {
+    for(const dl of dataLineIndexes(entryPoints)) {
       const entry = entryPoints[dl];
       if(!entry) continue;
 
@@ -410,7 +427,7 @@ function calculateCabling(screenId) {
       const backupDistBoxRow = (distBoxBackupVert === 'bottom') ? effectivePh - 1 : 0;
       const backupDistBoxCenterVertFt = (backupDistBoxRow + 0.5) * panelHeightFt;
 
-      for(let dl = 0; dl < dataLines; dl++) {
+      for(const dl of dataLineIndexes(entryPoints)) {
         const entry = entryPoints[dl];
         if(!entry) continue;
 
@@ -473,7 +490,7 @@ function calculateCabling(screenId) {
     // wall on the floor ('remote') — same route, different end point.
     const floorRunFt = isRemoteXd ? xdToWall : processorToWall;
 
-    for(let dl = 0; dl < dataLines; dl++) {
+    for(const dl of dataLineIndexes(entryPoints)) {
       const entry = entryPoints[dl];
       if(!entry) continue;
 
@@ -819,10 +836,10 @@ function generateGearList() {
     // === DATA CABLES ===
     html += sectionHdr('Data Cables');
     if(dc.jumperCount > 0) {
-      html += gearLine(`Jumpers ${dc.dataJumperLen}':`, dc.jumperCount);
+      html += gearLine(`Jumpers ${dc.dataJumperLen}:`, dc.jumperCount);
     }
     if(dc.crossJumperLen && dc.crossJumperCount > 0) {
-      html += gearLine(`Cross Jumpers ${dc.crossJumperLen}':`, dc.crossJumperCount);
+      html += gearLine(`Cross Jumpers ${dc.crossJumperLen}:`, dc.crossJumperCount);
     }
     if(dc.jumpersBuiltin && dc.cat5CouplerCount > 0) {
       html += gearLine('Cat5 Couplers:', dc.cat5CouplerCount);
@@ -840,7 +857,9 @@ function generateGearList() {
       if(dc.cableDetail.length > 0 || dc.knockoutDetail.length > 0) {
         html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #fff; font-size: 12px;">Detail</summary>`;
         dc.cableDetail.forEach(c => {
-          html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">Line ${c.lineIndex}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
+          const _lineNo = (typeof dataLineDisplayNumber === 'function')
+            ? dataLineDisplayNumber(sd.screenId, c.lineIndex) : c.lineIndex;
+          html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">Line ${_lineNo}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
         });
         dc.knockoutDetail.forEach(c => {
           html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">Knockout ${c.index + 1} (P${c.fromPanel} → P${c.toPanel}): ${c.lengthFt}' → ${c.roundedFt}'</div>`;
@@ -852,7 +871,7 @@ function generateGearList() {
     // === POWER CABLES ===
     html += sectionHdr('Power Cables');
     if(pc.jumperCount > 0) {
-      html += gearLine(`Jumpers ${pc.powerJumperLen}':`, pc.jumperCount);
+      html += gearLine(`Jumpers ${pc.powerJumperLen}:`, pc.jumperCount);
     }
     if(pc.jumperCount > 0) html += subTypeSpacer;
     html += gearLine('Soca Splays:', pc.socaSplays);

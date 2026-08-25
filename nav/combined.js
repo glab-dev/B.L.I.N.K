@@ -3822,8 +3822,11 @@ function renderCombinedSpecs(selectedScreenIds) {
       }
     }
 
-    // Data lines - use stored calculated value
-    const screenDataLines = calcData.dataLines || Math.ceil(activePanels / (parseInt(data.maxPanelsPerData) || 48));
+    // Data lines - use stored calculated value. dataLinesFinal is the needed count
+    // (main + backup when redundancy is on), matching the per-screen specs panel.
+    const screenMainDataLines = calcData.dataLines || 0;
+    const screenDataLines = calcData.dataLinesFinal
+      || (screenMainDataLines * (data.redundancy !== false ? 2 : 1));
     dataLinesByScreen.push({ name: screen.name || screenId, count: screenDataLines });
     totalDataLines += screenDataLines;
 
@@ -3941,10 +3944,13 @@ function renderCombinedGearList(selectedScreenIds) {
   let totalCheeseye = 0;
   let totalSocaSplays = 0;
   let totalTrue1Twofers = 0;
-  let totalDataJumpers = 0;
-  let totalDataCrossJumpers = 0;
+  // Jumper lengths are a panel property, so a project mixing panel types has more than
+  // one. Bucket by length rather than summing into a single total that could only carry
+  // one screen's label.
+  const dataJumpersByLen = {};
+  const crossJumpersByLen = {};
+  const powerJumpersByLen = {};
   let totalCat5Couplers = 0;
-  let totalPowerJumpers = 0;
 
   // Ground support
   let totalRearTruss = 0;
@@ -3965,13 +3971,9 @@ function renderCombinedGearList(selectedScreenIds) {
 
   // Track panel info for jumpers
   let hasJumpersBuiltin = false;
-  let dataJumperLen = '';
-  let dataCrossJumperLen = '';
-  let powerJumperLen = '';
   let needsShacklesAndCheeseye = false;
   let hasHangingScreen = false;
   let hasFloorScreen = false;
-  let has4KCanvas = false;
 
   selectedScreenIds.forEach(screenId => {
     const screen = screens[screenId];
@@ -4065,28 +4067,22 @@ function renderCombinedGearList(selectedScreenIds) {
       totalFloorWeightKg += ff.totalWeightKg || 0;
     }
 
-    // Track canvas size for SDI type determination
-    const canvasSize = data.canvasSize || '4K_UHD';
-    const isHDCanvas = canvasSize === 'HD' || (canvasSize === 'custom' &&
-      (parseInt(data.customCanvasWidth) || 1920) <= 1920 &&
-      (parseInt(data.customCanvasHeight) || 1080) <= 1080);
-    if(!isHDCanvas) has4KCanvas = true;
-
     // Panel-specific info for data/power jumpers
     if(panel.jumpers_builtin) hasJumpersBuiltin = true;
-    if(panel.data_jumper_ft && !dataJumperLen) dataJumperLen = panel.data_jumper_ft;
-    if(panel.data_cross_jumper_ft && !dataCrossJumperLen) dataCrossJumperLen = panel.data_cross_jumper_ft;
-    if(panel.power_jumper_ft && !powerJumperLen) powerJumperLen = panel.power_jumper_ft;
 
-    // Data and power jumpers
+    // Data and power jumpers, keyed by this panel's own length
     if(!panel.jumpers_builtin && panel.data_jumper_ft) {
-      totalDataJumpers += activePanels;
+      dataJumpersByLen[panel.data_jumper_ft] = (dataJumpersByLen[panel.data_jumper_ft] || 0) + activePanels;
     }
     if(!panel.jumpers_builtin && panel.power_jumper_ft) {
-      totalPowerJumpers += activePanels;
+      powerJumpersByLen[panel.power_jumper_ft] = (powerJumpersByLen[panel.power_jumper_ft] || 0) + activePanels;
     }
     const screenCrossJumpers = calcDataCrossJumpers(data, panel, pw, ph);
-    totalDataCrossJumpers += screenCrossJumpers.crossJumperCount;
+    if(screenCrossJumpers.crossJumperCount > 0) {
+      // A custom panel may not declare a length; '' keeps its count rather than dropping it.
+      const cjLen = panel.data_cross_jumper_ft || '';
+      crossJumpersByLen[cjLen] = (crossJumpersByLen[cjLen] || 0) + screenCrossJumpers.crossJumperCount;
+    }
     if(panel.jumpers_builtin) {
       totalCat5Couplers += (calculatedData.dataLines || 0) + screenCrossJumpers.crossings;
     }
@@ -4132,7 +4128,6 @@ function renderCombinedGearList(selectedScreenIds) {
 
   // Calculate processor counts per group (same source as the gear tab —
   // specs/processor-topology.js)
-  let totalGroupedProcessors = 0;
   // Manual processor/box assignments raise the floor on these counts (explicit wins).
   const portPlan = (typeof buildDataPortPlan === 'function') ? buildDataPortPlan() : null;
 
@@ -4180,7 +4175,6 @@ function renderCombinedGearList(selectedScreenIds) {
     group.processorCount = processorCount;
     group.distBoxCount = counts.distBoxCount;
     group.distBoxName = counts.distBoxName;
-    totalGroupedProcessors += processorCount;
   });
 
   // Helper to add a gear line only if value > 0
@@ -4203,71 +4197,74 @@ function renderCombinedGearList(selectedScreenIds) {
 
   let html = '<div style="line-height: 1.8; font-size: 13px;">';
 
+  let colEquipment = '';
   // Equipment Section
-  html += addGearHeader('Equipment');
-  html += `<div style="margin-left: 12px; color: #fff;">Processor:</div>`;
+  colEquipment += addGearHeader('Equipment');
+  colEquipment += `<div style="margin-left: 12px; color: #fff;">Processor:</div>`;
   Object.keys(processorGroups).forEach(procType => {
     const group = processorGroups[procType];
     if(group.processorCount > 0) {
       const allProcs = getAllProcessors();
       const proc = allProcs[procType];
       const procName = proc ? proc.name : procType;
-      html += `<div style="margin-left: 24px; color: #fff;">${group.processorCount} x ${escapeHtml(procName)}</div>`;
+      colEquipment += `<div style="margin-left: 24px; color: #fff;">${group.processorCount} x ${escapeHtml(procName)}</div>`;
       if(group.distBoxCount > 0 && group.distBoxName) {
-        html += `<div style="margin-left: 24px; color: #fff;">${group.distBoxCount} x ${escapeHtml(group.distBoxName)}</div>`;
+        colEquipment += `<div style="margin-left: 24px; color: #fff;">${group.distBoxCount} x ${escapeHtml(group.distBoxName)}</div>`;
       }
     }
   });
-  html += `<div style="margin-left: 12px; color: #fff;">Panels:</div>`;
+  colEquipment += `<div style="margin-left: 12px; color: #fff;">Panels:</div>`;
   for(const [panelLabel, count] of Object.entries(panelsByType)) {
     if(count > 0) {
-      html += `<div style="margin-left: 24px; color: #fff;">${count} x ${escapeHtml(panelLabel)}</div>`;
+      colEquipment += `<div style="margin-left: 24px; color: #fff;">${count} x ${escapeHtml(panelLabel)}</div>`;
     }
   }
 
+  let colRigging = '';
   // Rigging Hardware Section
   const hasRiggingHardware = total1wBumpers > 0 || total2wBumpers > 0 || total4wBumpers > 0 ||
                              totalPlates2way > 0 || totalPlates4way > 0 || totalShackles > 0 || totalCheeseye > 0;
   if(hasRiggingHardware) {
-    html += addGearHeader('Rigging Hardware');
-    html += addGearLine('1W Bumpers:', total1wBumpers);
-    html += addGearLine('2W Bumpers:', total2wBumpers);
-    html += addGearLine('4W Bumpers:', total4wBumpers);
-    html += addGearLine('4W Connecting Plates:', totalPlates4way);
-    html += addGearLine('2W Connecting Plates:', totalPlates2way);
-    html += addGearLine('5/8" Shackles:', totalShackles);
-    html += addGearLine('Cheeseye:', totalCheeseye);
+    colRigging += addGearHeader('Rigging Hardware');
+    colRigging += addGearLine('1W Bumpers:', total1wBumpers);
+    colRigging += addGearLine('2W Bumpers:', total2wBumpers);
+    colRigging += addGearLine('4W Bumpers:', total4wBumpers);
+    colRigging += addGearLine('4W Connecting Plates:', totalPlates4way);
+    colRigging += addGearLine('2W Connecting Plates:', totalPlates2way);
+    colRigging += addGearLine('5/8" Shackles:', totalShackles);
+    colRigging += addGearLine('Cheeseye:', totalCheeseye);
   }
 
+  let colGround = '';
   // Ground Support Section
   const hasGroundSupport = totalRearTruss > 0 || totalBaseTruss > 0 || totalBridgeClamps > 0 ||
                            totalRearBridgeAdapters > 0 || totalSandbags > 0 || totalSwivelCheeseboroughs > 0 || totalPipes > 0;
   if(hasGroundSupport) {
-    html += addGearHeader('Ground Support');
-    html += addGearLine('Rear Truss:', totalRearTruss);
-    html += addGearLine('Base Truss:', totalBaseTruss);
-    html += addGearLine('Bridge Clamps:', totalBridgeClamps);
-    html += addGearLine('Rear Bridge Adapter:', totalRearBridgeAdapters);
-    html += addGearLine('Sandbags:', totalSandbags);
-    html += addGearLine('Swivel Cheeseborough:', totalSwivelCheeseboroughs);
-    html += addGearLine('Pipes:', totalPipes);
+    colGround += addGearHeader('Ground Support');
+    colGround += addGearLine('Rear Truss:', totalRearTruss);
+    colGround += addGearLine('Base Truss:', totalBaseTruss);
+    colGround += addGearLine('Bridge Clamps:', totalBridgeClamps);
+    colGround += addGearLine('Rear Bridge Adapter:', totalRearBridgeAdapters);
+    colGround += addGearLine('Sandbags:', totalSandbags);
+    colGround += addGearLine('Swivel Cheeseborough:', totalSwivelCheeseboroughs);
+    colGround += addGearLine('Pipes:', totalPipes);
   }
 
+  let colFloor = '';
   // Floor Hardware Section
   const hasFloorHardware = totalFrame1x1 > 0 || totalFrame2x1 > 0 || totalFrame2x2 > 0 || totalFrame3x2 > 0;
   if(hasFloorHardware) {
-    html += addGearHeader('Floor Hardware');
-    html += addGearLine('3×2 Frame:', totalFrame3x2);
-    html += addGearLine('2×2 Frame:', totalFrame2x2);
-    html += addGearLine('2×1 Frame:', totalFrame2x1);
-    html += addGearLine('1×1 Frame:', totalFrame1x1);
+    colFloor += addGearHeader('Floor Hardware');
+    colFloor += addGearLine('3×2 Frame:', totalFrame3x2);
+    colFloor += addGearLine('2×2 Frame:', totalFrame2x2);
+    colFloor += addGearLine('2×1 Frame:', totalFrame2x1);
+    colFloor += addGearLine('1×1 Frame:', totalFrame1x1);
   }
 
   // Aggregate cable lengths across all screens before rendering cable sections
   const combinedSocaByLength = {};
   const combinedDataByLength = {};
   const combinedDistBoxByType = {};
-  let combinedServerCableLength = 0;
 
   selectedScreenIds.forEach(screenId => {
     const screen = screens[screenId];
@@ -4293,11 +4290,6 @@ function renderCombinedGearList(selectedScreenIds) {
       const key = `${c.type === 'fiber' ? 'Fiber' : 'Cat6A'} ${c.roundedFt}'`;
       combinedDistBoxByType[key] = (combinedDistBoxByType[key] || 0) + 1;
     });
-
-    // Server cable: use longest value (system-wide, one run + backup)
-    if(cabling.serverCable && cabling.serverCable.lengthFt > combinedServerCableLength) {
-      combinedServerCableLength = cabling.serverCable.lengthFt;
-    }
   });
 
   // Dist box trunks come from each screen's own calculateCabling() now that every cabling
@@ -4307,148 +4299,164 @@ function renderCombinedGearList(selectedScreenIds) {
   const hasDistBox = Object.keys(combinedDistBoxByType).length > 0;
   const hasSocaRuns = Object.keys(combinedSocaByLength).length > 0;
 
+  let colData = '';
   // Data Cables Section
-  const hasDataCables = totalDataJumpers > 0 || totalDataCrossJumpers > 0 || totalCat5Couplers > 0 || hasCatCables || hasDistBox;
+  // Shortest first, matching how the cable length lists elsewhere read.
+  const byLenLines = (map, label) => Object.keys(map)
+    .sort((a, b) => (parseFloat(a) || 0) - (parseFloat(b) || 0))
+    .map(len => addGearLine(len ? `${label} ${len}:` : `${label}:`, map[len]))
+    .join('');
+  const sumByLen = (map) => Object.values(map).reduce((t, n) => t + n, 0);
+
+  const hasDataCables = sumByLen(dataJumpersByLen) > 0 || sumByLen(crossJumpersByLen) > 0 || totalCat5Couplers > 0 || hasCatCables || hasDistBox;
   if(hasDataCables) {
-    html += addGearHeader('Data Cables');
-    if(totalDataJumpers > 0 && dataJumperLen) {
-      html += addGearLine(`Jumpers ${dataJumperLen}':`, totalDataJumpers);
-    }
-    if(totalDataCrossJumpers > 0 && dataCrossJumperLen) {
-      html += addGearLine(`Cross Jumpers ${dataCrossJumperLen}':`, totalDataCrossJumpers);
-    }
-    html += addGearLine('Cat5 Couplers:', totalCat5Couplers);
+    colData += addGearHeader('Data Cables');
+    colData += byLenLines(dataJumpersByLen, 'Jumpers');
+    colData += byLenLines(crossJumpersByLen, 'Cross Jumpers');
+    colData += addGearLine('Cat5 Couplers:', totalCat5Couplers);
     if(hasCatCables) {
       for(const [len, count] of Object.entries(combinedDataByLength).sort((a,b) => a[0] - b[0])) {
-        html += `<div style="margin-left: 12px; color: #fff;">${count} x ${len}' Cat6</div>`;
+        colData += `<div style="margin-left: 12px; color: #fff;">${count} x ${len}' Cat6</div>`;
       }
     }
     if(hasDistBox) {
-      html += `<div style="margin-top: 10px;"></div>`;
-      html += `<div style="margin-left: 12px; color: #fff;">Processor → Dist Box:</div>`;
+      colData += `<div style="margin-top: 10px;"></div>`;
+      colData += `<div style="margin-left: 12px; color: #fff;">Processor → Dist Box:</div>`;
       for(const [desc, count] of Object.entries(combinedDistBoxByType)) {
-        html += `<div style="margin-left: 24px; color: #fff;">${count} x ${desc}</div>`;
+        colData += `<div style="margin-left: 24px; color: #fff;">${count} x ${desc}</div>`;
       }
     }
   }
 
+  let colPower = '';
   // Power Cables Section
-  const hasPowerCables = totalSocaSplays > 0 || totalPowerJumpers > 0 || totalTrue1Twofers > 0 || hasSocaRuns;
+  const hasPowerCables = totalSocaSplays > 0 || sumByLen(powerJumpersByLen) > 0 || totalTrue1Twofers > 0 || hasSocaRuns;
   if(hasPowerCables) {
-    html += addGearHeader('Power Cables');
-    if(totalPowerJumpers > 0 && powerJumperLen) {
-      html += addGearLine(`Jumpers ${powerJumperLen}':`, totalPowerJumpers);
-    }
-    html += addGearLine('Soca Splays:', totalSocaSplays);
+    colPower += addGearHeader('Power Cables');
+    colPower += byLenLines(powerJumpersByLen, 'Jumpers');
+    colPower += addGearLine('Soca Splays:', totalSocaSplays);
     if(hasSocaRuns) {
       for(const [len, count] of Object.entries(combinedSocaByLength).sort((a,b) => a[0] - b[0])) {
-        html += `<div style="margin-left: 12px; color: #fff;">${count} x ${len}' Soca</div>`;
+        colPower += `<div style="margin-left: 12px; color: #fff;">${count} x ${len}' Soca</div>`;
       }
     }
-    html += `<div style="margin-top: 10px;"></div>`;
-    html += addGearLine("25' True1:", totalSocaSplays);
-    html += addGearLine("10' True1:", totalSocaSplays);
-    html += addGearLine("5' True1:", totalSocaSplays * 2);
-    html += addGearLine('True1 Twofer:', totalTrue1Twofers);
+    colPower += `<div style="margin-top: 10px;"></div>`;
+    colPower += addGearLine("25' True1:", totalSocaSplays);
+    colPower += addGearLine("10' True1:", totalSocaSplays);
+    colPower += addGearLine("5' True1:", totalSocaSplays * 2);
+    colPower += addGearLine('True1 Twofer:', totalTrue1Twofers);
+  }
+
+  // A column is emitted only when its section has content, so a rig with no ground
+  // support or floor hardware keeps Data and Power on the first row instead of
+  // wrapping them to a second one.
+  const gearCol = (body) => body ? `<div class="gear-col">${body}</div>` : '';
+  const gearGrid = (cols, cls) => {
+    const filled = cols.map(gearCol).join('');
+    return filled ? `<div class="gear-grid ${cls}">${filled}</div>` : '';
+  };
+
+  // With ground support or floor hardware in play there are four hardware sections, so
+  // they take the row on their own and the cables drop to a row beneath. A rig with
+  // neither is only four sections all told, so they share one row.
+  if(colGround || colFloor) {
+    html += gearGrid([colEquipment, colRigging, colGround, colFloor], 'gear-grid-4');
+    html += gearGrid([colData, colPower], 'gear-grid-4');
+  } else {
+    html += gearGrid([colEquipment, colRigging, colData, colPower], 'gear-grid-4');
   }
 
   // === SYSTEM-WIDE SECTION ===
-  html += `<div style="margin-top: 16px; padding-top: 8px; border-top: 2px solid #10b981;"><span style="font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: #10b981; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">System</span></div>`;
 
-  // Signal Cables Section
-  if(totalGroupedProcessors > 0) {
-    html += addGearHeader('Signal Cables');
-    const sdiPerProcessor = totalGroupedProcessors * 2;
-    const sdiType = has4KCanvas ? '12G SDI' : '3G SDI';
-    const sdiCounts = {};
-    if(!has4KCanvas) {
-      sdiCounts[100] = sdiPerProcessor;
-      sdiCounts[50] = sdiPerProcessor;
-      sdiCounts[25] = sdiPerProcessor;
-      sdiCounts[10] = 6;
-      sdiCounts[3] = 6;
-    } else {
-      sdiCounts[100] = sdiPerProcessor;
-      sdiCounts[50] = sdiPerProcessor;
-      sdiCounts[25] = sdiPerProcessor;
+  // The system sections and the spares are all editable, and all come from
+  // buildGearListData() so the app and every export share one source of truth. The
+  // matching `*Auto` trees supply the placeholder each input falls back to.
+  const gearOverrideData = buildGearListData(selectedScreenIds);
+  const sp = gearOverrideData.spares;
+  const spAuto = gearOverrideData.sparesAuto;
+  const sig = gearOverrideData.signalCables;
+  const sigAuto = gearOverrideData.signalCablesAuto;
+  const util = gearOverrideData.utility;
+  const utilAuto = gearOverrideData.utilityAuto;
+  const spacer = '<div style="margin-top: 8px;"></div>';
+
+  // Rows render even at 0 so a zeroed line can be restored.
+  const editRow = (key, auto, label) => {
+    const override = getSpareOverride(key);
+    const shown = override === undefined ? '' : override;
+    return `<div class="spare-row"><input type="number" class="spare-qty-input" min="0" step="1" `
+      + `data-spare-key="${escapeHtml(key)}" placeholder="${auto}" value="${shown}" `
+      + `aria-label="${escapeHtml(label)} quantity" oninput="updateSpareOverride(this)">`
+      + `<span class="spare-row-label">x ${escapeHtml(label)}</span></div>`;
+  };
+  const editHint = '<div class="spare-hint">Leave blank for the auto-calculated quantity</div>';
+
+  // Signal Cables + Utility — one row of two columns.
+  let colSignal = '';
+  if(sig && sigAuto) {
+    colSignal += addGearHeader('Signal Cables');
+    for(const len of Object.keys(sigAuto.sdiByLength).map(Number).sort((a, b) => b - a)) {
+      colSignal += editRow('signal:sdi:' + len, sigAuto.sdiByLength[len], `${len}' ${sig.sdiType}`);
     }
-    // Server → Processor cable: single run + backup (2 cables total)
-    let serverFiberLine = null;
-    if(combinedServerCableLength > 0) {
-      if(combinedServerCableLength > 300) {
-        const fiberLen = Math.max(500, Math.ceil(combinedServerCableLength / 100) * 100);
-        serverFiberLine = { label: fiberLen + "' Fiber", count: 2 };
-      } else {
-        const sdiLen = roundUpToStandard(combinedServerCableLength);
-        sdiCounts[sdiLen] = (sdiCounts[sdiLen] || 0) + 2;
-      }
+    if(sigAuto.serverFiberLine) {
+      colSignal += editRow('signal:fiber', sigAuto.serverFiberLine.count, sigAuto.serverFiberLine.label);
     }
-    // Render SDI lines sorted by length descending
-    for(const len of Object.keys(sdiCounts).map(Number).sort((a,b) => b - a)) {
-      if(sdiCounts[len] > 0) {
-        html += addGearLine(`${len}' ${sdiType}:`, sdiCounts[len]);
-      }
+    for(const len of Object.keys(sigAuto.hdmi).map(Number).sort((a, b) => b - a)) {
+      colSignal += editRow('signal:hdmi:' + len, sigAuto.hdmi[len], `${len}' HDMI`);
     }
-    // Fiber line if server cable was too long for SDI
-    if(serverFiberLine) {
-      html += addGearLine(`${serverFiberLine.label}:`, serverFiberLine.count);
-    }
-    html += addGearLine("25' HDMI:", 6);
-    html += addGearLine("10' HDMI:", 6);
-    html += addGearLine("6' HDMI:", 6);
   }
 
-  // Utility Section
-  html += addGearHeader('Utility');
-  html += addGearLine("UG 10':", 8);
-  html += addGearLine("UG 25':", 6);
-  html += addGearLine("UG 50':", 6);
-  html += addGearLine('UG Twofers:', 8);
-  html += addGearLine('Power Bars:', 8);
+  let colUtility = '';
+  if(util && utilAuto) {
+    colUtility += addGearHeader('Utility');
+    colUtility += editRow('util:ug10', utilAuto.ug10, "UG 10'");
+    colUtility += editRow('util:ug25', utilAuto.ug25, "UG 25'");
+    colUtility += editRow('util:ug50', utilAuto.ug50, "UG 50'");
+    colUtility += editRow('util:ugTwofers', utilAuto.ugTwofers, 'UG Twofers');
+    colUtility += editRow('util:powerBars', utilAuto.powerBars, 'Power Bars');
+  }
 
-  // Spares Section (panels 10%, cables/rigging 40%) — every line is editable.
-  // Quantities come from buildGearListData() so the app and every export share one
-  // source of truth; `sparesAuto` supplies the placeholder each input falls back to.
-  const spareGearData = buildGearListData(selectedScreenIds);
-  const sp = spareGearData.spares;
-  const spAuto = spareGearData.sparesAuto;
+  html += '<div class="gear-band">System</div>';
+  html += editHint;
+  html += gearGrid([colSignal, colUtility], 'gear-grid-2');
+
+  // Spares (panels 10%, cables/rigging 40%) — one row of three columns. Cat6 and Soca
+  // list every stocked length, not just the ones this rig runs, so an unused length
+  // can still be spared.
   if(sp && spAuto) {
-    const spacer = '<div style="margin-top: 8px;"></div>';
-    html += addGearHeader('SPARES');
-    html += '<div class="spare-hint">Leave blank for the auto-calculated quantity</div>';
+    html += '<div class="gear-band">Spares</div>';
+    html += editHint;
 
-    // Rows render even at 0 so a zeroed line can be restored.
-    const spareRow = (key, auto, label) => {
-      const override = getSpareOverride(key);
-      const shown = override === undefined ? '' : override;
-      return `<div class="spare-row"><input type="number" class="spare-qty-input" min="0" step="1" `
-        + `data-spare-key="${escapeHtml(key)}" placeholder="${auto}" value="${shown}" `
-        + `aria-label="${escapeHtml(label)} spare quantity" oninput="updateSpareOverride(this)">`
-        + `<span class="spare-row-label">x ${escapeHtml(label)}</span></div>`;
-    };
-
-    // Panels by type
+    let colSpareHardware = addGearHeader('Panels & Hardware');
     for(const name of Object.keys(spAuto.panelsByType)) {
-      html += spareRow('panel:' + name, spAuto.panelsByType[name], name);
+      colSpareHardware += editRow('panel:' + name, spAuto.panelsByType[name], name);
     }
-    // Rigging
-    html += spacer;
-    html += spareRow('shackles', spAuto.shackles, 'Shackles');
-    html += spareRow('cheeseyes', spAuto.cheeseyes, 'Cheeseyes');
-    // Data
-    html += spacer;
-    if(sp.crossJumperLen) html += spareRow('crossJumpers', spAuto.crossJumpers, `Cross Jumpers ${sp.crossJumperLen}'`);
-    if(hasJumpersBuiltin) html += spareRow('cat5Couplers', spAuto.cat5Couplers, 'Cat5 Couplers');
-    for(const len of Object.keys(spAuto.cat6ByLength).sort((a, b) => Number(b) - Number(a))) {
-      html += spareRow('cat6:' + len, spAuto.cat6ByLength[len], `${len}' Cat6`);
+    colSpareHardware += spacer;
+    colSpareHardware += editRow('shackles', spAuto.shackles, 'Shackles');
+    colSpareHardware += editRow('cheeseyes', spAuto.cheeseyes, 'Cheeseyes');
+
+    let colSpareData = addGearHeader('Data Cables');
+    for(const len of Object.keys(spAuto.crossJumpersByLength)) {
+      colSpareData += editRow('crossJumpers:' + len, spAuto.crossJumpersByLength[len], `Cross Jumpers ${len}`);
     }
-    // Power
-    html += spacer;
-    html += spareRow('socaSplays', spAuto.socaSplays, 'Soca Splays');
-    html += spareRow('true1_25', spAuto.true1_25, "25' True1");
-    html += spareRow('true1_10', spAuto.true1_10, "10' True1");
-    html += spareRow('true1_5', spAuto.true1_5, "5' True1");
-    html += spareRow('true1Twofer', spAuto.true1Twofer, 'True1 Twofer');
+    if(hasJumpersBuiltin) colSpareData += editRow('cat5Couplers', spAuto.cat5Couplers, 'Cat5 Couplers');
+    for(const len of Object.keys(spAuto.cat6ByLength).map(Number).sort((a, b) => a - b)) {
+      colSpareData += editRow('cat6:' + len, spAuto.cat6ByLength[len], `${len}' Cat6`);
+    }
+
+    let colSparePower = addGearHeader('Power Cables');
+    colSparePower += editRow('socaSplays', spAuto.socaSplays, 'Soca Splays');
+    for(const len of Object.keys(spAuto.socaByLength).map(Number).sort((a, b) => a - b)) {
+      colSparePower += editRow('soca:' + len, spAuto.socaByLength[len], `${len}' Soca`);
+    }
+    colSparePower += spacer;
+    colSparePower += editRow('true1_50', spAuto.true1_50, "50' True1");
+    colSparePower += editRow('true1_25', spAuto.true1_25, "25' True1");
+    colSparePower += editRow('true1_10', spAuto.true1_10, "10' True1");
+    colSparePower += editRow('true1_5', spAuto.true1_5, "5' True1");
+    colSparePower += editRow('true1Twofer', spAuto.true1Twofer, 'True1 Twofer');
+
+    html += gearGrid([colSpareHardware, colSpareData, colSparePower], 'gear-grid-3');
   }
 
   html += '</div>';

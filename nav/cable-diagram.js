@@ -54,6 +54,11 @@ function renderCableDiagram(screenId) {
   const exitPoints = dataFlip ? (cabling.entryPoints || {}) : (cabling.exitPoints || {});
   const dataStartDir = cabling.dataStartDir || 'top';
   const dataRedundancy = screen.data.redundancy || false;
+  // Lines are labelled with the port they land on, exactly as the data layout labels
+  // them — D<n> for the main run, B<n> for its backup. Resolved once per render.
+  const lineDisplay = (typeof dataPortLineDisplayMap === 'function')
+    ? dataPortLineDisplayMap(screenId) : new Map();
+  const shownLine = (line) => lineDisplay.has(line) ? lineDisplay.get(line) : line;
 
   // Canvas sizing — fill the container, growing past it only when the wall plus the
   // equipment lane need more room (the wrapper scrolls horizontally, as the layout
@@ -763,7 +768,7 @@ function renderCableDiagram(screenId) {
       ? backupDistBoxTopY + BOX_H / 2
       : mainDistBoxTopY + BOX_H / 2 + 3;
 
-    for (let dl = 0; dl < dataLineCount; dl++) {
+    for (const dl of dataLineIndexes(entryPoints)) {
       const entry = entryPoints[dl];
       if (!entry) continue;
 
@@ -808,7 +813,7 @@ function renderCableDiagram(screenId) {
 
       deferredOverlays.push(function() {
         drawMarker(entryPxX, entryPxY, 4, DATA_COLOR);
-        drawCableLabel('D' + (dl + 1), entryPxX, entryPxY, DATA_COLOR);
+        drawCableLabel('D' + shownLine(dl + 1), entryPxX, entryPxY, DATA_COLOR);
       });
 
       // Backup fan-out to exit panel — from backup dist box
@@ -855,7 +860,7 @@ function renderCableDiagram(screenId) {
 
           deferredOverlays.push(function() {
             drawMarker(exitPxX, exitPxY, 3, BACKUP_COLOR);
-            drawCableLabel('B' + (dl + 1), exitPxX, exitPxY, BACKUP_COLOR);
+            drawCableLabel('B' + shownLine(dl + 1), exitPxX, exitPxY, BACKUP_COLOR);
           });
         }
       }
@@ -866,7 +871,7 @@ function renderCableDiagram(screenId) {
     // Check which edges have entries (primary + backup)
     let hasTopEntry = false, hasBottomEntry = false;
     let hasTopExit = false, hasBottomExit = false;
-    for (let dl = 0; dl < dataLineCount; dl++) {
+    for (const dl of dataLineIndexes(entryPoints)) {
       const entry = entryPoints[dl];
       if (entry) {
         if (entry.row >= totalRows / 2) hasBottomEntry = true;
@@ -946,7 +951,7 @@ function renderCableDiagram(screenId) {
     }
 
     // Primary fan segments: entry panel → wall edge → drop
-    for (let dl = 0; dl < dataLineCount; dl++) {
+    for (const dl of dataLineIndexes(entryPoints)) {
       const entry = entryPoints[dl];
       if (!entry) continue;
 
@@ -1021,13 +1026,13 @@ function renderCableDiagram(screenId) {
       const _dDotY = liveRouteActive ? (wallTopY + (entry.row + 0.5) * fullPanelPixelH) : panelTargetY;
       deferredOverlays.push(function() {
         drawMarker(landingX, _dDotY, 4, DATA_COLOR);
-        drawCableLabel('D' + (dl + 1), landingX, _dDotY, DATA_COLOR);
+        drawCableLabel('D' + shownLine(dl + 1), landingX, _dDotY, DATA_COLOR);
       });
     }
 
     // Backup fan segments (pink): exit panel → wall edge → drop
     if (dataRedundancy) {
-      for (let dl = 0; dl < dataLineCount; dl++) {
+      for (const dl of dataLineIndexes(exitPoints)) {
         const exit = exitPoints[dl];
         if (!exit) continue;
 
@@ -1103,7 +1108,7 @@ function renderCableDiagram(screenId) {
         const _bDotY = liveRouteActive ? (wallTopY + (exit.row + 0.5) * fullPanelPixelH + 8) : panelTargetY;
         deferredOverlays.push(function() {
           drawMarker(_bDotX, _bDotY, 3, BACKUP_COLOR);
-          drawCableLabel('B' + (dl + 1), _bDotX, _bDotY, BACKUP_COLOR);
+          drawCableLabel('B' + shownLine(dl + 1), _bDotX, _bDotY, BACKUP_COLOR);
         });
       }
     }

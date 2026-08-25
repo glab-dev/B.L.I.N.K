@@ -188,8 +188,8 @@ function buildGearListText(gearData) {
     }
 
     text += hdr('Data Cables');
-    if(dc.jumperCount > 0) text += line('Jumpers ' + dc.dataJumperLen + "':", dc.jumperCount);
-    if(dc.crossJumperLen && dc.crossJumperCount > 0) text += line('Cross Jumpers ' + dc.crossJumperLen + "':", dc.crossJumperCount);
+    if(dc.jumperCount > 0) text += line('Jumpers ' + dc.dataJumperLen + ':', dc.jumperCount);
+    if(dc.crossJumperLen && dc.crossJumperCount > 0) text += line('Cross Jumpers ' + dc.crossJumperLen + ':', dc.crossJumperCount);
     if(dc.jumpersBuiltin && dc.cat5CouplerCount > 0) text += line('Cat5 Couplers:', dc.cat5CouplerCount);
     var cat6Lengths = Object.entries(dc.cat6ByLength).sort(function(a, b) { return a[0] - b[0]; });
     for(var ci = 0; ci < cat6Lengths.length; ci++) {
@@ -197,7 +197,7 @@ function buildGearListText(gearData) {
     }
 
     text += hdr('Power Cables');
-    if(pc.jumperCount > 0) text += line('Jumpers ' + pc.powerJumperLen + "':", pc.jumperCount);
+    if(pc.jumperCount > 0) text += line('Jumpers ' + pc.powerJumperLen + ':', pc.jumperCount);
     text += line('Soca Splays:', pc.socaSplays);
     var socaLengths = Object.entries(pc.socaByLength).sort(function(a, b) { return a[0] - b[0]; });
     for(var si = 0; si < socaLengths.length; si++) {
@@ -252,7 +252,9 @@ function buildGearListText(gearData) {
     if(sp.shackles) text += line('Shackles:', sp.shackles);
     if(sp.cheeseyes) text += line('Cheeseyes:', sp.cheeseyes);
     text += nl;
-    if(sp.crossJumpers) text += line('Cross Jumpers ' + sp.crossJumperLen + "':", sp.crossJumpers);
+    Object.entries(sp.crossJumpersByLength || {}).forEach(function(e) {
+      if(e[1] > 0) text += line('Cross Jumpers ' + e[0] + ':', e[1]);
+    });
     if(sp.cat5Couplers) text += line('Cat5 Couplers:', sp.cat5Couplers);
     if(sp.cat6ByLength) {
       var cat6Spare = Object.entries(sp.cat6ByLength).sort(function(a, b) { return Number(b[0]) - Number(a[0]); });
@@ -262,6 +264,13 @@ function buildGearListText(gearData) {
     }
     text += nl;
     if(sp.socaSplays) text += line('Soca Splays:', sp.socaSplays);
+    if(sp.socaByLength) {
+      var socaSpare = Object.entries(sp.socaByLength).sort(function(a, b) { return Number(a[0]) - Number(b[0]); });
+      for(var si = 0; si < socaSpare.length; si++) {
+        if(socaSpare[si][1] > 0) text += line(socaSpare[si][0] + "' Soca:", socaSpare[si][1]);
+      }
+    }
+    if(sp.true1_50) text += line("50' True1:", sp.true1_50);
     if(sp.true1_25) text += line("25' True1:", sp.true1_25);
     if(sp.true1_10) text += line("10' True1:", sp.true1_10);
     if(sp.true1_5) text += line("5' True1:", sp.true1_5);
@@ -361,8 +370,8 @@ function sendGearListToJared(includeRP) {
 
     // Data Cables
     text += hdr('Data Cables');
-    if(dc.jumperCount > 0) text += line(`Jumpers ${dc.dataJumperLen}':`, dc.jumperCount);
-    if(dc.crossJumperLen && dc.crossJumperCount > 0) text += line(`Cross Jumpers ${dc.crossJumperLen}':`, dc.crossJumperCount);
+    if(dc.jumperCount > 0) text += line(`Jumpers ${dc.dataJumperLen}:`, dc.jumperCount);
+    if(dc.crossJumperLen && dc.crossJumperCount > 0) text += line(`Cross Jumpers ${dc.crossJumperLen}:`, dc.crossJumperCount);
     if(dc.jumpersBuiltin && dc.cat5CouplerCount > 0) text += line('Cat5 Couplers:', dc.cat5CouplerCount);
     const cat6Lengths = Object.entries(dc.cat6ByLength).sort((a,b) => a[0] - b[0]);
     for(const [len, count] of cat6Lengths) {
@@ -371,7 +380,7 @@ function sendGearListToJared(includeRP) {
 
     // Power Cables
     text += hdr('Power Cables');
-    if(pc.jumperCount > 0) text += line(`Jumpers ${pc.powerJumperLen}':`, pc.jumperCount);
+    if(pc.jumperCount > 0) text += line(`Jumpers ${pc.powerJumperLen}:`, pc.jumperCount);
     text += line('Soca Splays:', pc.socaSplays);
     const socaLengths = Object.entries(pc.socaByLength).sort((a,b) => a[0] - b[0]);
     for(const [len, count] of socaLengths) {
@@ -432,7 +441,9 @@ function sendGearListToJared(includeRP) {
     if(sp.cheeseyes) text += line('Cheeseyes:', sp.cheeseyes);
     // Data
     text += nl;
-    if(sp.crossJumpers) text += line(`Cross Jumpers ${sp.crossJumperLen}':`, sp.crossJumpers);
+    Object.entries(sp.crossJumpersByLength || {}).forEach(function(e) {
+      if(e[1] > 0) text += line(`Cross Jumpers ${e[0]}:`, e[1]);
+    });
     if(sp.cat5Couplers) text += line('Cat5 Couplers:', sp.cat5Couplers);
     if(sp.cat6ByLength) {
       for(const [len, count] of Object.entries(sp.cat6ByLength).sort((a,b) => Number(b[0]) - Number(a[0]))) {
@@ -442,6 +453,13 @@ function sendGearListToJared(includeRP) {
     // Power
     text += nl;
     if(sp.socaSplays) text += line('Soca Splays:', sp.socaSplays);
+    if(sp.socaByLength) {
+      var socaSpare = Object.entries(sp.socaByLength).sort(function(a, b) { return Number(a[0]) - Number(b[0]); });
+      for(var si = 0; si < socaSpare.length; si++) {
+        if(socaSpare[si][1] > 0) text += line(socaSpare[si][0] + "' Soca:", socaSpare[si][1]);
+      }
+    }
+    if(sp.true1_50) text += line("50' True1:", sp.true1_50);
     if(sp.true1_25) text += line("25' True1:", sp.true1_25);
     if(sp.true1_10) text += line("10' True1:", sp.true1_10);
     if(sp.true1_5) text += line("5' True1:", sp.true1_5);
@@ -1055,7 +1073,7 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
   const circuits      = cd.circuitsNeeded || 0;
   const maxPpc        = powerPerPanel > 0 ? Math.floor((voltage * breaker) / powerPerPanel) : 0;
 
-  const dataLines    = cd.dataLines    || 0;
+  const dataLines    = cd.dataLinesFinal || cd.dataLines || 0;
   const panelsPerDL  = cd.panelsPerDataLine || 0;
   const portsNeeded  = cd.portsNeededFinal || cd.portsNeeded || 0;
   const procName     = eq.processorName || '';
@@ -1970,8 +1988,8 @@ function buildComplexPdf(opts, canvasCache) {
         }
 
         const dcItems = [];
-        if (dc.jumperCount > 0) dcItems.push({ qty: dc.jumperCount, item: ('Data Jumpers ' + (dc.dataJumperLen || '') + "'").trim() });
-        if (dc.crossJumperLen && dc.crossJumperCount > 0) dcItems.push({ qty: dc.crossJumperCount, item: "Cross Jumpers " + dc.crossJumperLen + "'" });
+        if (dc.jumperCount > 0) dcItems.push({ qty: dc.jumperCount, item: ('Data Jumpers ' + (dc.dataJumperLen || '')).trim() });
+        if (dc.crossJumperLen && dc.crossJumperCount > 0) dcItems.push({ qty: dc.crossJumperCount, item: "Cross Jumpers " + dc.crossJumperLen });
         if (dc.jumpersBuiltin && dc.cat5CouplerCount > 0) dcItems.push({ qty: dc.cat5CouplerCount, item: 'Cat5 Couplers' });
         Object.entries(dc.cat6ByLength || {}).sort(function(a, b) { return Number(a[0]) - Number(b[0]); }).forEach(function(e) {
           if (Number(e[1]) > 0) dcItems.push({ qty: e[1], item: e[0] + "' Cat6" });
@@ -1984,7 +2002,7 @@ function buildComplexPdf(opts, canvasCache) {
         }
 
         const pcItems = [];
-        if (pc.jumperCount  > 0) pcItems.push({ qty: pc.jumperCount,  item: ('Power Jumpers ' + (pc.powerJumperLen || '') + "'").trim() });
+        if (pc.jumperCount  > 0) pcItems.push({ qty: pc.jumperCount,  item: ('Power Jumpers ' + (pc.powerJumperLen || '')).trim() });
         if (pc.socaSplays   > 0) pcItems.push({ qty: pc.socaSplays,   item: 'Soca Splays' });
         Object.entries(pc.socaByLength || {}).sort(function(a, b) { return Number(a[0]) - Number(b[0]); }).forEach(function(e) {
           if (Number(e[1]) > 0) pcItems.push({ qty: e[1], item: 'Soca ' + e[0] + "'" });
@@ -2072,12 +2090,18 @@ function buildComplexPdf(opts, canvasCache) {
       });
       if (sp.shackles    > 0) spareItems.push({ qty: sp.shackles,    item: 'Shackles' });
       if (sp.cheeseyes   > 0) spareItems.push({ qty: sp.cheeseyes,   item: 'Cheeseyes' });
-      if (sp.crossJumpers > 0 && sp.crossJumperLen) spareItems.push({ qty: sp.crossJumpers, item: sp.crossJumperLen + "' Cross Jumpers" });
+      Object.entries(sp.crossJumpersByLength || {}).forEach(function(e) {
+        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: e[0] + ' Cross Jumpers' });
+      });
       if (sp.cat5Couplers > 0) spareItems.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers' });
       Object.entries(sp.cat6ByLength || {}).forEach(function(e) {
         if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: e[0] + "' Cat6" });
       });
       if (sp.socaSplays  > 0) spareItems.push({ qty: sp.socaSplays,  item: 'Soca Splays' });
+      Object.entries(sp.socaByLength || {}).sort(function(a, b) { return Number(a[0]) - Number(b[0]); }).forEach(function(e) {
+        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: e[0] + "' Soca" });
+      });
+      if (sp.true1_50    > 0) spareItems.push({ qty: sp.true1_50,    item: "50' True1" });
       if (sp.true1_25    > 0) spareItems.push({ qty: sp.true1_25,    item: "25' True1" });
       if (sp.true1_10    > 0) spareItems.push({ qty: sp.true1_10,    item: "10' True1" });
       if (sp.true1_5     > 0) spareItems.push({ qty: sp.true1_5,     item: "5' True1"  });
@@ -2349,8 +2373,8 @@ function pdfBuildGearRows(sd) {
 
   if (dc) {
     addHeader('DATA CABLES');
-    addRow(dc.jumperCount, `Jumpers ${dc.dataJumperLen}'`);
-    if (dc.crossJumperLen && dc.crossJumperCount > 0) addRow(dc.crossJumperCount, `Cross Jumpers ${dc.crossJumperLen}'`);
+    addRow(dc.jumperCount, `Jumpers ${dc.dataJumperLen}`);
+    if (dc.crossJumperLen && dc.crossJumperCount > 0) addRow(dc.crossJumperCount, `Cross Jumpers ${dc.crossJumperLen}`);
     if (dc.jumpersBuiltin && dc.cat5CouplerCount > 0) addRow(dc.cat5CouplerCount, 'Cat5 Couplers');
     const cat6Lengths = Object.entries(dc.cat6ByLength || {}).sort((a, b) => Number(a[0]) - Number(b[0]));
     for (const [len, count] of cat6Lengths) {
@@ -2365,7 +2389,7 @@ function pdfBuildGearRows(sd) {
 
   if (pc) {
     addHeader('POWER CABLES');
-    addRow(pc.jumperCount, `Jumpers ${pc.powerJumperLen}'`);
+    addRow(pc.jumperCount, `Jumpers ${pc.powerJumperLen}`);
     addRow(pc.socaSplays, 'Soca Splays');
     const socaLengths = Object.entries(pc.socaByLength || {}).sort((a, b) => Number(a[0]) - Number(b[0]));
     for (const [len, count] of socaLengths) {
@@ -3068,12 +3092,18 @@ function buildPdfDocDefinition(opts, canvasCache) {
       });
       if (sp.shackles    > 0) spRows.push({ qty: sp.shackles,    item: 'Shackles' });
       if (sp.cheeseyes   > 0) spRows.push({ qty: sp.cheeseyes,   item: 'Cheeseyes' });
-      if (sp.crossJumpers > 0 && sp.crossJumperLen) spRows.push({ qty: sp.crossJumpers, item: `${sp.crossJumperLen}ft Cross Jumpers` });
+      Object.entries(sp.crossJumpersByLength || {}).forEach(function(e) {
+        if (Number(e[1]) > 0) spRows.push({ qty: e[1], item: `${e[0]} Cross Jumpers` });
+      });
       if (sp.cat5Couplers > 0) spRows.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers' });
       Object.entries(sp.cat6ByLength || {}).forEach(([len, count]) => {
         if (count > 0) spRows.push({ qty: count, item: `${len}' Cat6` });
       });
       if (sp.socaSplays  > 0) spRows.push({ qty: sp.socaSplays,  item: 'Soca Splays' });
+      Object.entries(sp.socaByLength || {}).sort(function(a, b) { return Number(a[0]) - Number(b[0]); }).forEach(function(e) {
+        if (Number(e[1]) > 0) spRows.push({ qty: e[1], item: e[0] + "' Soca" });
+      });
+      if (sp.true1_50    > 0) spRows.push({ qty: sp.true1_50,    item: "50' True1" });
       if (sp.true1_25    > 0) spRows.push({ qty: sp.true1_25,    item: "25' True1" });
       if (sp.true1_10    > 0) spRows.push({ qty: sp.true1_10,    item: "10' True1" });
       if (sp.true1_5     > 0) spRows.push({ qty: sp.true1_5,     item: "5' True1" });
@@ -3195,12 +3225,12 @@ function buildPdfDocDefinition(opts, canvasCache) {
       // Signal/Data section
       const eq = sd ? sd.equipment : null;
       const dc = sd ? sd.dataCables : null;
-      const dataLines = calcData.dataLines || 0;
+      const dataLines = calcData.dataLinesFinal || calcData.dataLines || 0;
       const signalRows = [
         eq && eq.processorName ? specRow('Processor:', `${eq.processorName}${eq.processorCount > 0 ? ' \u00D7 ' + eq.processorCount : ''}`) : null,
         dataLines > 0 ? specRow('Data Lines:', dataLines) : null,
-        dc && dc.dataJumperLen ? specRow('Data Jumpers:', `${dc.jumperCount} \u00D7 ${dc.dataJumperLen}ft`) : null,
-        dc && dc.crossJumperLen && dc.crossJumperCount > 0 ? specRow('Cross Jumpers:', `${dc.crossJumperCount} \u00D7 ${dc.crossJumperLen}ft`) : null,
+        dc && dc.dataJumperLen ? specRow('Data Jumpers:', `${dc.jumperCount} \u00D7 ${dc.dataJumperLen}`) : null,
+        dc && dc.crossJumperLen && dc.crossJumperCount > 0 ? specRow('Cross Jumpers:', `${dc.crossJumperCount} \u00D7 ${dc.crossJumperLen}`) : null,
       ].filter(Boolean);
       if (signalRows.length > 0) {
         specsStack.push(pdfSectionBar('Signal', colors));

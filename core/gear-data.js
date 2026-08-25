@@ -2,6 +2,13 @@
 // Single source of truth for gear list calculations.
 // Consumed by: gear tab (nav/gear.js), PDF export, and email export (export/pdf.js)
 
+// Cable lengths actually stocked, per type — these drive the spare rows offered in the
+// combined gear list. Deliberately NOT the same list as STANDARD_CABLE_LENGTHS in
+// nav/gear.js: that one sizes real cable runs, and changing it would move every
+// calculated cable count in the app.
+const SPARE_CAT6_LENGTHS = [10, 25, 50, 75, 100, 200, 300];
+const SPARE_SOCA_LENGTHS = [25, 50, 75, 100];
+
 // ==================== SPARE QUANTITY OVERRIDES ====================
 // Spares are auto-calculated (panels 10%, cables/rigging 40%) but every line is
 // editable in the Combined view gear list. Overrides live with the project — they
@@ -368,7 +375,12 @@ function buildGearListData(screenIds) {
       knockoutCables.forEach((c, idx) => { knockoutDetail.push({ index: idx, fromPanel: c.fromPanel, toPanel: c.toPanel, lengthFt: c.lengthFt, roundedFt: c.roundedFt }); });
     }
 
-    const cat5CouplerCount = jumpersBuiltin ? (crossJumpers.crossings + dataLinesCount) : 0;
+    // Panels with built-in jumpers need a coupler everywhere an external cable meets
+    // the chain: one per main line at its entry panel, one per backup line at the exit
+    // panel it feeds from, plus one per serpentine crossing. The backup runs back down
+    // the same chain, so crossings do not double.
+    const couplerFeeds = dataLinesCount * (data.redundancy !== false ? 2 : 1);
+    const cat5CouplerCount = jumpersBuiltin ? (crossJumpers.crossings + couplerFeeds) : 0;
 
     const dataCables = {
       dataJumperLen: dataJumperLen,
@@ -437,6 +449,7 @@ function buildGearListData(screenIds) {
 
   // === SYSTEM-WIDE: SIGNAL CABLES ===
   let signalCables = null;
+  let signalCablesAuto = null;
   if(screenDataList.length > 0) {
     // Determine SDI type: use 4K/12G if ANY screen has 4K+ canvas
     let isHDCanvas = true;
@@ -483,19 +496,48 @@ function buildGearListData(screenIds) {
       }
     }
 
-    signalCables = {
+    signalCablesAuto = {
       isHDCanvas: isHDCanvas,
       sdiType: sdiType,
       sdiByLength: sdiByLength,
       serverFiberLine: serverFiberLine,
       hdmi: { 25: 6, 10: 6, 6: 6 }
     };
+
+    // SDI counts are derived but the HDMI counts are flat constants, so both are
+    // user-overridable in the combined gear list. Same override map as the spares.
+    const overriddenSdi = {};
+    Object.entries(sdiByLength).forEach(([len, count]) => {
+      overriddenSdi[len] = resolveSpareOverride('signal:sdi:' + len, count);
+    });
+    const overriddenHdmi = {};
+    Object.entries(signalCablesAuto.hdmi).forEach(([len, count]) => {
+      overriddenHdmi[len] = resolveSpareOverride('signal:hdmi:' + len, count);
+    });
+
+    signalCables = {
+      isHDCanvas: isHDCanvas,
+      sdiType: sdiType,
+      sdiByLength: overriddenSdi,
+      serverFiberLine: serverFiberLine
+        ? { label: serverFiberLine.label, count: resolveSpareOverride('signal:fiber', serverFiberLine.count) }
+        : null,
+      hdmi: overriddenHdmi
+    };
   }
 
   // === SYSTEM-WIDE: UTILITY ===
-  const utility = screenDataList.length > 0 ? {
+  // Flat constants rather than a calculation, so every line is user-overridable.
+  const utilityAuto = screenDataList.length > 0 ? {
     ug10: 8, ug25: 6, ug50: 6,
     ugTwofers: 8, powerBars: 8
+  } : null;
+  const utility = utilityAuto ? {
+    ug10:      resolveSpareOverride('util:ug10',      utilityAuto.ug10),
+    ug25:      resolveSpareOverride('util:ug25',      utilityAuto.ug25),
+    ug50:      resolveSpareOverride('util:ug50',      utilityAuto.ug50),
+    ugTwofers: resolveSpareOverride('util:ugTwofers', utilityAuto.ugTwofers),
+    powerBars: resolveSpareOverride('util:powerBars', utilityAuto.powerBars)
   } : null;
 
   // === COMBINED SPARES (panels 10%, cables/rigging 40%) ===
@@ -507,10 +549,11 @@ function buildGearListData(screenIds) {
 
     const panelsByType = {}; // { 'Brand Name': totalCount }
     let totShackles = 0, totCheeseyes = 0;
-    let totCrossJumpers = 0, crossJumperLen = '';
+    const totCrossJumpersByLen = {};
     let totCat5Couplers = 0;
     let totSocaSplays = 0, totTrue1_25 = 0, totTrue1_10 = 0, totTrue1_5 = 0, totTrue1Twofer = 0;
     const totCat6 = {};
+    const totSoca = {};
 
     screenDataList.forEach(sd => {
       const eq = sd.equipment;
@@ -524,11 +567,16 @@ function buildGearListData(screenIds) {
       }
       totShackles += sd.rigging.shackles || 0;
       totCheeseyes += sd.rigging.cheeseye || 0;
-      totCrossJumpers += sd.dataCables.crossJumperCount || 0;
-      if(!crossJumperLen && sd.dataCables.crossJumperLen) crossJumperLen = sd.dataCables.crossJumperLen;
+      // Cross jumper length comes from the panel (data_cross_jumper_ft), so a project
+      // running two panel types needs a spare row for each length, not one merged total.
+      const cjLen = sd.dataCables.crossJumperLen;
+      if(cjLen) totCrossJumpersByLen[cjLen] = (totCrossJumpersByLen[cjLen] || 0) + (sd.dataCables.crossJumperCount || 0);
       totCat5Couplers += sd.dataCables.cat5CouplerCount || 0;
       Object.entries(sd.dataCables.cat6ByLength || {}).forEach(([len, count]) => {
         totCat6[len] = (totCat6[len] || 0) + count;
+      });
+      Object.entries(sd.powerCables.socaByLength || {}).forEach(([len, count]) => {
+        totSoca[len] = (totSoca[len] || 0) + count;
       });
       totSocaSplays += sd.powerCables.socaSplays || 0;
       totTrue1_25 += sd.powerCables.true1_25 || 0;
@@ -545,20 +593,32 @@ function buildGearListData(screenIds) {
       if(spare > 0) autoPanelsByType[name] = spare;
     });
 
-    const autoCat6 = {};
-    Object.entries(totCat6).forEach(([len, count]) => {
-      autoCat6[len] = spareCable(count);
-    });
+    // Seed every stocked length at zero, then fold in what the rig actually uses, so
+    // the combined gear list can offer a spare row for a length this rig doesn't run.
+    // Zero rows carry no override and stay filtered out of the exports. A length the
+    // rig does run still shows up even if it isn't stocked here, so nothing on the
+    // actual cable list can go unspared.
+    const byLengthSpares = (stocked, totals) => {
+      const out = {};
+      stocked.forEach(len => { out[len] = 0; });
+      Object.entries(totals).forEach(([len, count]) => { out[len] = spareCable(count); });
+      return out;
+    };
+    const autoCrossJumpers = {};
+    Object.entries(totCrossJumpersByLen).forEach(([len, count]) => { autoCrossJumpers[len] = spareCable(count); });
+    const autoCat6 = byLengthSpares(SPARE_CAT6_LENGTHS, totCat6);
+    const autoSoca = byLengthSpares(SPARE_SOCA_LENGTHS, totSoca);
 
     combinedSparesAuto = {
       panelsByType: autoPanelsByType,
       shackles: spareCable(totShackles),
       cheeseyes: spareCable(totCheeseyes),
-      crossJumpers: spareCable(totCrossJumpers),
-      crossJumperLen: crossJumperLen,
+      crossJumpersByLength: autoCrossJumpers,
       cat5Couplers: spareCable(totCat5Couplers),
       cat6ByLength: autoCat6,
+      socaByLength: autoSoca,
       socaSplays: spareCable(totSocaSplays),
+      true1_50: 0,
       true1_25: spareCable(totTrue1_25),
       true1_10: spareCable(totTrue1_10),
       true1_5: spareCable(totTrue1_5),
@@ -573,20 +633,26 @@ function buildGearListData(screenIds) {
       if(resolved > 0) sparePanelsByType[name] = resolved;
     });
 
-    const spareCat6 = {};
-    Object.entries(autoCat6).forEach(([len, spare]) => {
-      spareCat6[len] = resolveSpareOverride('cat6:' + len, spare);
-    });
+    const resolveByLength = (prefix, autos) => {
+      const out = {};
+      Object.entries(autos).forEach(([len, spare]) => {
+        out[len] = resolveSpareOverride(prefix + len, spare);
+      });
+      return out;
+    };
+    const spareCat6 = resolveByLength('cat6:', autoCat6);
+    const spareSoca = resolveByLength('soca:', autoSoca);
 
     combinedSpares = {
       panelsByType: sparePanelsByType,
       shackles: resolveSpareOverride('shackles', combinedSparesAuto.shackles),
       cheeseyes: resolveSpareOverride('cheeseyes', combinedSparesAuto.cheeseyes),
-      crossJumpers: resolveSpareOverride('crossJumpers', combinedSparesAuto.crossJumpers),
-      crossJumperLen: crossJumperLen,
+      crossJumpersByLength: resolveByLength('crossJumpers:', autoCrossJumpers),
       cat5Couplers: resolveSpareOverride('cat5Couplers', combinedSparesAuto.cat5Couplers),
       cat6ByLength: spareCat6,
+      socaByLength: spareSoca,
       socaSplays: resolveSpareOverride('socaSplays', combinedSparesAuto.socaSplays),
+      true1_50: resolveSpareOverride('true1_50', combinedSparesAuto.true1_50),
       true1_25: resolveSpareOverride('true1_25', combinedSparesAuto.true1_25),
       true1_10: resolveSpareOverride('true1_10', combinedSparesAuto.true1_10),
       true1_5: resolveSpareOverride('true1_5', combinedSparesAuto.true1_5),
@@ -599,7 +665,9 @@ function buildGearListData(screenIds) {
     processorGroups: processorGroups,
     screens: screenDataList,
     signalCables: signalCables,
+    signalCablesAuto: signalCablesAuto,
     utility: utility,
+    utilityAuto: utilityAuto,
     spares: combinedSpares,
     sparesAuto: combinedSparesAuto
   };

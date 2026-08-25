@@ -949,6 +949,37 @@ button:active {
   margin-left: 20px;
 }
 
+/* Desktop specs columns — PANEL | WALL on the top row, POWER | SHARED DISTRO | DATA
+   on the bottom row. Below 769px the wrappers stay plain blocks, so the specs panel
+   renders as the single stacked column it always has. */
+@media (min-width: 769px) {
+  #results .specs-columns {
+    padding-top: 12px; /* clear the absolutely positioned view-export button */
+  }
+
+  /* Both rows share one fixed 3-column track, so WALL lines up with the
+     SHARED DISTRO column whether or not that section is present. */
+  #results .specs-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 28px;
+    align-items: start;
+  }
+
+  #results .specs-row-bottom {
+    margin-top: 40px;
+  }
+
+  /* The <br> spacers only exist for the stacked mobile flow. */
+  #results .specs-columns br {
+    display: none;
+  }
+
+  #results .specs-row .result-section-title {
+    margin-top: 0;
+  }
+}
+
 canvas {
   border: 2px solid #000;
   margin-top: 12px;
@@ -7080,6 +7111,46 @@ canvas:focus {
   line-height: 1.8;
   padding-right: 5px;
   padding-bottom: 5px;
+}
+
+/* Combined gear list columns. Sections flow into grid rows; a column is only
+   emitted when its section has content, so a rig with no ground support or floor
+   hardware puts Data and Power on the first row instead of wrapping them. */
+.gear-grid {
+  display: grid;
+  gap: 4px 16px;
+  align-items: start;
+  margin-bottom: 4px;
+}
+
+/* minmax(0,...) plus .gear-col min-width:0 is load-bearing: .layout-container is
+   overflow-x:auto, so a track that cannot shrink would put a horizontal scrollbar
+   across the whole panel instead of wrapping a long item name. */
+.gear-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.gear-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.gear-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.gear-col { min-width: 0; }
+
+/* Full-width band label separating the grids */
+.gear-band {
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 2px solid var(--primary);
+  font-family: 'Bangers', cursive;
+  font-size: 16px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--primary);
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
+/* Two columns where they fit, one where they don't — auto-fit drops the track
+   count on its own, so no explicit single-column rule is needed. */
+@media (max-width: 768px) {
+  .gear-grid-4,
+  .gear-grid-3,
+  .gear-grid-2 { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 }
 
 /* Editable spare quantities — combined gear list only.

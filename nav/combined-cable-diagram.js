@@ -1126,7 +1126,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
 
     // Collect this screen's points, tagged with where each line terminates
     var mains = [], backups = [];
-    for (var dl = 0; dl < calc.dataLines; dl++) {
+    for (var dl of dataLineIndexes(entryPts)) {
       var e = entryPts[dl];
       if (e) mains.push({ col: e.col, row: e.row, targetX: lineTargetX(sp.screenId, dl + 1, place, false),
                           cx: sp.left + (e.col + 0.5) * pxW, cy: sp.top + (e.row + 0.5) * pxH });

@@ -174,119 +174,14 @@ function calculateActualDataLines(pw, ph, panelsPerDataLine, startDir, deletedPa
   const dp = deletedPanelsParam || deletedPanels;
   const cdla = customAssignmentsParam || customDataLineAssignments;
 
-  // Collect all custom data line numbers in use first
-  const usedCustomDataLines = new Set();
-  for(let c=0; c<pw; c++){
-    for(let r=0; r<ph; r++) {
-      const panelKey = `${c},${r}`;
-      if(!dp.has(panelKey) && cdla.has(panelKey)) {
-        usedCustomDataLines.add(cdla.get(panelKey) - 1);
-      }
-    }
-  }
-
-  // Build panel assignments based on start direction
-  let maxDataLine = -1;
-
-  if(startDir === 'all_top') {
-    // Each column is its own data line
-    let autoDataLineCounter = 0;
-    for(let c=0; c<pw; c++){
-      while(usedCustomDataLines.has(autoDataLineCounter)) {
-        autoDataLineCounter++;
-      }
-
-      for(let r=0; r<ph; r++) {
-        const panelKey = `${c},${r}`;
-        if(!dp.has(panelKey)) {
-          const dataLine = cdla.has(panelKey)
-            ? cdla.get(panelKey) - 1
-            : autoDataLineCounter;
-          if(dataLine > maxDataLine) maxDataLine = dataLine;
-        }
-      }
-      autoDataLineCounter++;
-    }
-  } else if(startDir === 'all_bottom') {
-    // Each column is its own data line
-    let autoDataLineCounter = 0;
-    for(let c=0; c<pw; c++){
-      while(usedCustomDataLines.has(autoDataLineCounter)) {
-        autoDataLineCounter++;
-      }
-
-      for(let r=ph-1; r>=0; r--) {
-        const panelKey = `${c},${r}`;
-        if(!dp.has(panelKey)) {
-          const dataLine = cdla.has(panelKey)
-            ? cdla.get(panelKey) - 1
-            : autoDataLineCounter;
-          if(dataLine > maxDataLine) maxDataLine = dataLine;
-        }
-      }
-      autoDataLineCounter++;
-    }
-  } else {
-    // Serpentine: top or bottom
-    // Use per-panel counting to match generateLayout visualization
-    const startFromTop = (startDir === 'top');
-    let autoDataLineCounter = 0;
-    let panelsInCurrentAutoDataLine = 0;
-
-    // Skip initial custom data lines
-    while(usedCustomDataLines.has(autoDataLineCounter)) {
-      autoDataLineCounter++;
-    }
-
-    // Build serpentine path
-    let currentColumn = 0;
-    let serpentineGoingDown = startFromTop;
-
-    while(currentColumn < pw) {
-      // Process panels in this column in serpentine order
-      const rows = serpentineGoingDown
-        ? Array.from({length: ph}, (_, i) => i)
-        : Array.from({length: ph}, (_, i) => ph - 1 - i);
-
-      for(const r of rows) {
-        const panelKey = `${currentColumn},${r}`;
-        if(dp.has(panelKey)) continue;
-
-        let dataLine;
-        if(cdla.has(panelKey)) {
-          dataLine = cdla.get(panelKey) - 1;
-        } else {
-          // Find next available data line number (skip over custom assignments)
-          while(usedCustomDataLines.has(autoDataLineCounter)) {
-            autoDataLineCounter++;
-          }
-
-          dataLine = autoDataLineCounter;
-          panelsInCurrentAutoDataLine++;
-
-          // Move to next data line when we reach the limit
-          if(panelsInCurrentAutoDataLine >= panelsPerDataLine) {
-            autoDataLineCounter++;
-            panelsInCurrentAutoDataLine = 0;
-
-            // Skip over any custom data lines
-            while(usedCustomDataLines.has(autoDataLineCounter)) {
-              autoDataLineCounter++;
-            }
-          }
-        }
-
-        if(dataLine > maxDataLine) maxDataLine = dataLine;
-      }
-
-      // Move to next column and toggle direction
-      currentColumn++;
-      serpentineGoingDown = !serpentineGoingDown;
-    }
-  }
-
-  // Return total number of data lines
-  return maxDataLine + 1;
+  // One source of truth for which panel lands on which line: getDataLinePanelOrdering,
+  // the same walk the data layout, gear list and cable diagram are built from. Counting
+  // the lines it produced — rather than taking the highest line number — is what keeps
+  // this in step with the layout: a custom assignment can skip ahead (line 9 on a
+  // 3-line wall) without adding six lines to the rig.
+  // Main lines only; callers reporting a needed count apply the redundancy doubling.
+  const ordering = getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, dp, cdla);
+  return Object.keys(ordering).length;
 }
 
 // Lightweight calculation that populates screen.calculatedData from screen.data
@@ -435,6 +330,7 @@ function recalculateScreenData(screenId) {
     bumper2wCount: 0,
     bumper4wCount: 0,
     dataLines: dataLines,
+    dataLinesFinal: dataLines * redundancyMultiplier,
     portsNeeded: portsNeeded,
     portsNeededFinal: portsNeededFinal,
     panelsPerDataLine: panelsPerDataLine,
@@ -1263,6 +1159,7 @@ function calculate(){
   if(isSimpleMode) {
     // SIMPLE MODE - Condensed specs
     // Panel specs
+    html += `<div class="specs-columns"><div class="specs-row specs-row-top"><div class="spec-group">`;
     html += `<div class="result-section-title">PANEL</div>`;
     html += `<div class="result-row"><strong>Panel:</strong> ${escapeHtml(p.brand)} ${escapeHtml(p.name)}</div>`;
     html += `<div class="result-row"><strong>Pixel pitch:</strong> ${p.pixel_pitch_mm} mm</div>`;
@@ -1271,6 +1168,7 @@ function calculate(){
     if(p.weight_kg) html += `<div class="result-row"><strong>Weight per panel:</strong> ${panelWeightDisplay} ${wtUnit}</div>`;
 
     // Wall specs
+    html += `</div><div class="spec-group">`;
     html += `<br>`;
     html += `<div class="result-section-title">WALL</div>`;
     html += `<div class="result-row"><strong>Dimensions:</strong> ${wallWidthDisplay} ${lenUnit} × ${wallHeightDisplay} ${lenUnit} (${pw} × ${ph} panels${hasCB5HalfRow ? ' + half row' : ''})</div>`;
@@ -1281,6 +1179,7 @@ function calculate(){
     html += `<div class="result-row"><strong>Resolution:</strong> ${resX} × ${resY}</div>`;
 
     // Power specs
+    html += `</div></div><div class="specs-row specs-row-bottom"><div class="spec-group">`;
     html += `<br>`;
     html += `<div class="result-section-title">POWER (${powerType.toUpperCase()})</div>`;
     html += `<div class="result-row"><strong>Total watts:</strong> ${totalPowerW.toLocaleString()} W</div>`;
@@ -1302,6 +1201,7 @@ function calculate(){
     html += `<div class="result-row"><strong>Max panels per circuit:</strong> ${calculatedPanelsPerCircuit}</div>`;
     if(sharedDistroTotal) {
       const _sdt = sharedDistroTotal;
+      html += `</div><div class="spec-group">`;
       html += `<br>`;
       html += `<div class="result-section-title">SHARED DISTRO TOTAL (${_sdt.screenCount} screens)</div>`;
       html += `<div class="result-row"><strong>Total power:</strong> ${Math.round(_sdt.power).toLocaleString()} W</div>`;
@@ -1316,6 +1216,7 @@ function calculate(){
     }
 
     // Data specs
+    html += `</div><div class="spec-group">`;
     html += `<br>`;
     html += `<div class="result-section-title">DATA</div>`;
     html += `<div class="result-row"><strong>Port capacity:</strong> ${adjustedCapacity.toLocaleString()} px</div>`;
@@ -1323,6 +1224,8 @@ function calculate(){
   } else {
     // COMPLEX MODE - Full specs (original)
     // PANEL Section
+    html += `<div class="specs-columns"><div class="specs-row specs-row-top"><div class="spec-group">`;
+    html += `<div class="result-section-title">PANEL</div>`;
     html += `<div class="result-row"><strong>Panel:</strong> ${escapeHtml(p.brand)} ${escapeHtml(p.name)}</div>`;
     html += `<div class="result-row"><strong>Pixel pitch:</strong> ${p.pixel_pitch_mm} mm</div>`;
     html += `<div class="result-row"><strong>Panel size:</strong> ${panelWidthDisplay} ${lenUnit} × ${panelHeightDisplay} ${lenUnit}</div>`;
@@ -1339,6 +1242,7 @@ function calculate(){
     }
 
     // WALL Section
+    html += `</div><div class="spec-group">`;
     html += `<br><br>`;
     html += `<div class="result-section-title">WALL</div>`;
     html += `<div class="result-row"><strong>Dimensions:</strong> ${wallWidthDisplay} ${lenUnit} × ${wallHeightDisplay} ${lenUnit} (${pw} × ${ph} panels${hasCB5HalfRow ? ' + half row' : ''})</div>`;
@@ -1397,6 +1301,7 @@ function calculate(){
     }
 
     // POWER Section
+    html += `</div></div><div class="specs-row specs-row-bottom"><div class="spec-group">`;
     html += `<br>`;
     html += `<div class="result-section-title">POWER (${powerType.toUpperCase()})</div>`;
     html += `<div class="result-row"><strong>Total wall power:</strong> ${totalPowerW.toLocaleString()} W</div>`;
@@ -1423,6 +1328,7 @@ function calculate(){
     html += `<div class="result-row"><strong>SOCAs needed:</strong> ${_socaCountSpec}</div>`;
     if(sharedDistroTotal) {
       const _sdt = sharedDistroTotal;
+      html += `</div><div class="spec-group">`;
       html += `<br>`;
       html += `<div class="result-section-title">SHARED DISTRO TOTAL (${_sdt.screenCount} screens)</div>`;
       html += `<div class="result-row"><strong>Total power:</strong> ${Math.round(_sdt.power).toLocaleString()} W</div>`;
@@ -1437,6 +1343,7 @@ function calculate(){
     }
 
     // DATA Section
+    html += `</div><div class="spec-group">`;
     html += `<br>`;
     html += `<div class="result-section-title">DATA</div>`;
     let processorDisplayName = escapeHtml(pr.name);
@@ -1455,6 +1362,8 @@ function calculate(){
     html += `<div class="result-row"><strong>Bit Depth:</strong> ${bitDepth}-bit</div>`;
     html += `<div class="result-row"><strong>Redundancy:</strong> ${redundancy ? 'Yes' : 'No'}</div>`;
   }
+
+  html += `</div></div></div>`;
 
   document.getElementById('results').innerHTML = html;
   
@@ -1483,6 +1392,7 @@ function calculate(){
 
       // Data
       dataLines: dataLines,
+      dataLinesFinal: dataLinesFinal,
       portsNeeded: portsNeeded,
       portsNeededFinal: portsNeededFinal,
       panelsPerDataLine: panelsPerDataLine,

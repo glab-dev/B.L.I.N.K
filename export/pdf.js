@@ -2575,9 +2575,9 @@ function estStructureInfoHeight(screenId) {
 //
 // Unlike the per-screen pass this cannot switch screens — the combined canvases
 // are drawn by renderCombinedView() from the whole selection at once, so the
-// save/restore below mirrors captureCombinedLayoutBlobs() in canvas-export.js:
-// selection, the two data-label toggles, and each screen's own dataLineLabels
-// all have to be put back or the on-screen view is left altered.
+// save/restore below has to cover everything that render touches: the selection,
+// the two data-label toggles, and each screen's own dataLineLabels all have to be
+// put back or the on-screen view is left altered.
 // callback(cache)
 function pdfCaptureCombinedCanvases(callback) {
   var restoreState = null;
@@ -2628,7 +2628,14 @@ function pdfCaptureCombinedCanvases(callback) {
       }
     };
 
+    // The combined canvases paint a dark surround in the app, which reads as a
+    // black box on the white PDF page. pdfWhiteBgMode is the existing print
+    // rendering — white ground, dark labels — and covers all five canvases,
+    // including the cable diagram (renderCombinedView draws that one too).
+    var savedWhiteBg = (typeof pdfWhiteBgMode !== 'undefined') ? pdfWhiteBgMode : false;
+    if (typeof pdfWhiteBgMode !== 'undefined') pdfWhiteBgMode = true;
     try { renderCombinedView(); } catch(e) { console.error('renderCombinedView failed:', e); }
+    if (typeof pdfWhiteBgMode !== 'undefined') pdfWhiteBgMode = savedWhiteBg;
 
     var _isMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
       (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
@@ -2690,6 +2697,33 @@ function pdfCaptureCanvases(captureOpts) {
     ? allScreenIds.filter(id => captureOpts.screenIds.indexOf(id) !== -1)
     : allScreenIds;
   const wantCanvas = (id) => !captureOpts.canvasIds || captureOpts.canvasIds.indexOf(id) !== -1;
+
+  // captureOpts.dataLabels forces the data layout's line labels for this pass
+  // ('on' | 'off') so Export All can capture both variants. switchToScreen()
+  // reloads dataLineLabelsEnabled from each screen's saved value, so the
+  // per-screen values have to move with the global — the global alone would be
+  // overwritten on the first switch. Unit labels are deliberately left alone:
+  // they only affect the combined data canvas and persist to localStorage.
+  let restoreDataLabels = null;
+  if (captureOpts.dataLabels === 'on' || captureOpts.dataLabels === 'off') {
+    const wantLabels = (captureOpts.dataLabels === 'on');
+    const savedLineGlobal = (typeof dataLineLabelsEnabled !== 'undefined') ? dataLineLabelsEnabled : false;
+    const savedLineByScreen = {};
+    allScreenIds.forEach(function(id) {
+      const d = screens[id] && screens[id].data;
+      if (d) { savedLineByScreen[id] = d.dataLineLabels; d.dataLineLabels = wantLabels; }
+    });
+    if (typeof dataLineLabelsEnabled !== 'undefined') dataLineLabelsEnabled = wantLabels;
+    restoreDataLabels = function() {
+      if (typeof dataLineLabelsEnabled !== 'undefined') dataLineLabelsEnabled = savedLineGlobal;
+      Object.keys(savedLineByScreen).forEach(function(id) {
+        const d = screens[id] && screens[id].data;
+        if (d) d.dataLineLabels = savedLineByScreen[id];
+      });
+      const btn = document.getElementById('dataLineLabelsBtn');
+      if (btn) { btn.classList.toggle('active', savedLineGlobal); btn.textContent = savedLineGlobal ? 'On' : 'Off'; }
+    };
+  }
 
   const mainContainer = document.querySelector('.main-container');
   const mainWasHidden = mainContainer && mainContainer.style.display === 'none';
@@ -2803,6 +2837,7 @@ function pdfCaptureCanvases(captureOpts) {
   });
 
   switchToScreen(originalScreenId);
+  if (restoreDataLabels) restoreDataLabels();
   containerIds.forEach(id => {
     const el = document.getElementById(id);
     if (el && savedDisplay[id] !== undefined) el.style.display = savedDisplay[id];

@@ -1,6 +1,6 @@
 // ==================== EXPORT ALL (ZIP) ====================
 // Packages PDF, Canvas PNG/JPEG, Resolume XML, Gear List, Test Pattern
-// (PNG + MP4 if initialized), and per-section hi-res PNG screenshots into
+// (PNG + MP4 if initialized), and one PDF page per screen per layout view into
 // a single ZIP file organized by folder.
 
 // Filename label for a screen — the user's screen name, sanitized for the ZIP.
@@ -27,14 +27,6 @@ function _exportAllScreenLabel(screenId) {
   return label;
 }
 
-function _captureHtmlElementBlobAsync(elementId, opts) {
-  return new Promise(function(resolve) {
-    try {
-      captureHtmlElementBlob(elementId, function(blob) { resolve(blob); }, opts);
-    } catch(e) { resolve(null); }
-  });
-}
-
 // Yields a macrotask between heavy capture phases so the browser can run GC and
 // reclaim the canvases/blobs from the previous step before the next allocates —
 // reduces peak memory and helps Export All survive on mobile.
@@ -45,11 +37,6 @@ function _yieldToBrowser(ms) {
 // Sequentially captures all per-section screenshots and adds them to the zip.
 // Runs as one task (not parallel) so screen-switching state is consistent.
 async function _captureAllScreenshotsToZip(zip, name) {
-  var allScreenIds = Object.keys(screens).sort(function(a, b) {
-    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-  });
-  var originalScreenId = currentScreenId;
-
   // 0. Per-canvas-tab PNG/JPEG → canvas/
   await new Promise(function(resolve) {
     try {
@@ -99,103 +86,110 @@ async function _captureAllScreenshotsToZip(zip, name) {
   });
   await _yieldToBrowser();
 
-  // 1. Per-screen layout PNGs [power/data/structure] — single render pass internally
-  await new Promise(function(resolve) {
-    try {
-      captureLayoutScreenshotBlobs(function(results) {
-        (results || []).forEach(function(r) {
-          if(!r || !r.blob) return;
-          zip.file((r.folder || r.layout) + '/' + name + '_' + _exportAllScreenLabel(r.screenId) + '_' + r.layout + '.png', r.blob);
-        });
-        resolve();
-      });
-    } catch(e) { resolve(); }
-  });
-  await _yieldToBrowser();
+  await _addSectionPdfsToZip(zip, name);
+}
 
-  // 2. Per-screen info tables PNG [html2canvas] — structure / power (SOCA) / data
-  // (line map). Force the layout containers visible so the normally-hidden tables
-  // have layout for html2canvas, then restore. Empty tables are skipped.
-  var _tableCaps = [
-    { id: 'structureInfoPanel', folder: 'structure', suffix: 'structure_tables' },
-    { id: 'socaCircuitTable',   folder: 'power',     suffix: 'power_tables' },
-    { id: 'dataLineMap',        folder: 'data',      suffix: 'data_tables' }
-  ];
-  var _tableContainerIds = ['powerContainer', 'dataContainer', 'structureContainer'];
-  var _savedTableDisplay = {};
-  _tableContainerIds.forEach(function(cid) {
-    var c = document.getElementById(cid);
-    if(c) { _savedTableDisplay[cid] = c.style.display; c.style.display = 'block'; }
+// Build one section-masked PDF blob from an already-captured canvas cache.
+// The mask is merged over the same all-false base the per-view export buttons
+// use, so a ZIP page and the matching quick-export page are the same page.
+function _sectionPdfBlob(mask, screenIds, cache) {
+  return new Promise(function(resolve) {
+    try {
+      var opts = (typeof _viewExportBaseMask === 'function') ? _viewExportBaseMask() : {
+        specs: false, gearList: false, standard: false, power: false, data: false,
+        structure: false, cabling: false, combined: false, ecoFriendly: false, greyscale: false
+      };
+      Object.keys(mask).forEach(function(k) { opts[k] = mask[k]; });
+      opts.screenIds = screenIds;
+      opts.summary = false;   // no cover page in front of a single-view file
+      _buildSectionPdfFromCache(opts, cache, function(blob) { resolve(blob); });
+    } catch(e) { resolve(null); }
   });
-  for(var i = 0; i < allScreenIds.length; i++) {
-    var sid = allScreenIds[i];
-    if(typeof switchToScreen === 'function') switchToScreen(sid);
-    for(var t = 0; t < _tableCaps.length; t++) {
-      var cap = _tableCaps[t];
-      var el = document.getElementById(cap.id);
-      if(!el || el.children.length === 0) continue; // skip empty tables
-      var tblBlob = await _captureHtmlElementBlobAsync(cap.id, { backgroundColor: null });
-      if(tblBlob) zip.file(cap.folder + '/' + name + '_' + _exportAllScreenLabel(sid) + '_' + cap.suffix + '.png', tblBlob);
+}
+
+// Per-screen and combined layout pages, as PDFs rather than PNGs. Every file is
+// the page the full report would have contained for that view — same pdfmake
+// pipeline, same tables under the image (SOCA on power, line map on data,
+// structure info on structure).
+//
+// Two capture passes fill the whole project's image cache — data line labels on,
+// then off — and every per-screen PDF is built from those, so the expensive
+// screen-switching render runs twice for the project instead of once per file.
+async function _addSectionPdfsToZip(zip, name) {
+  var screenIds = Object.keys(screens).sort(function(a, b) {
+    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
+  });
+  if(screenIds.length === 0) return;
+
+  if(typeof saveCurrentScreenData === 'function') saveCurrentScreenData();
+  if(typeof ecoPrintMode !== 'undefined') ecoPrintMode = false;
+  if(typeof greyscalePrintMode !== 'undefined') greyscalePrintMode = false;
+
+  // Pass A — power / structure / cabling, plus the data canvas with its labels on.
+  var cache = pdfCaptureCanvases({
+    canvasIds: ['powerCanvas', 'dataCanvas', 'structureCanvas', 'cableDiagramCanvas'],
+    dataLabels: 'on'
+  });
+
+  var sections = [
+    { mask: { specs: true },     folder: 'specs',     suffix: 'specs' },
+    { mask: { power: true },     folder: 'power',     suffix: 'power' },
+    { mask: { data: true },      folder: 'data',      suffix: 'data_labeled' },
+    { mask: { structure: true }, folder: 'structure', suffix: 'structure' },
+    { mask: { cabling: true },   folder: 'cable',     suffix: 'cable' }
+  ];
+  for(var si = 0; si < screenIds.length; si++) {
+    var label = _exportAllScreenLabel(screenIds[si]);
+    for(var ci = 0; ci < sections.length; ci++) {
+      var sec = sections[ci];
+      var blob = await _sectionPdfBlob(sec.mask, [screenIds[si]], cache);
+      if(blob) zip.file(sec.folder + '/' + name + '_' + label + '_' + sec.suffix + '.pdf', blob);
     }
     await _yieldToBrowser();
   }
-  _tableContainerIds.forEach(function(cid) {
-    var c = document.getElementById(cid);
-    if(c && _savedTableDisplay[cid] !== undefined) c.style.display = _savedTableDisplay[cid];
-  });
-  if(typeof switchToScreen === 'function') switchToScreen(originalScreenId);
 
-  // 3. Specs PNG [one page per screen] — rasterized from the real PDF for pixel
-  // parity. The specs PDF lays screens out in pdfScreenOrder(), so page N is that
-  // screen; name the file after it instead of a meaningless page index. Falls back
-  // to page numbering if the page count doesn't line up with the screen count.
-  var _specsOrder = (typeof pdfScreenOrder === 'function') ? pdfScreenOrder() : allScreenIds;
-  await new Promise(function(resolve) {
-    try {
-      getSpecsPdfPagePngBlobs(function(pages) {
-        var useNames = (pages || []).length === _specsOrder.length;
-        (pages || []).forEach(function(p, idx) {
-          if(!p || !p.blob) return;
-          var file = useNames
-            ? (name + '_' + _exportAllScreenLabel(_specsOrder[idx]) + '_specs.png')
-            : (name + '_specs' + ((pages.length > 1) ? ('_p' + (idx + 1)) : '') + '.png');
-          zip.file('specs/' + file, p.blob);
-        });
-        resolve();
-      });
-    } catch(e) { resolve(); }
-  });
+  // Gear list — project-wide, one PDF, the page the report ends with.
+  var gearBlob = await _sectionPdfBlob({ gearList: true }, screenIds, {});
+  if(gearBlob) zip.file('gear/' + name + '_gear.pdf', gearBlob);
+  cache = null;
   await _yieldToBrowser();
 
-  // 4. Gear list PNG [project-wide] — rasterized from the real PDF for pixel parity
-  await new Promise(function(resolve) {
-    try {
-      getGearListPdfPagePngBlobs(function(pages) {
-        (pages || []).forEach(function(p, idx) {
-          if(!p || !p.blob) return;
-          var suffix = (pages.length > 1) ? ('_p' + (idx + 1)) : '';
-          zip.file('gear/' + name + '_gear' + suffix + '.png', p.blob);
-        });
-        resolve();
-      });
-    } catch(e) { resolve(); }
-  });
-  await _yieldToBrowser();
-
-  // 5. Combined power/data/structure PNGs [multi-screen only]
-  if(allScreenIds.length > 1) {
-    await new Promise(function(resolve) {
-      try {
-        captureCombinedLayoutBlobs(function(results) {
-          (results || []).forEach(function(r) {
-            if(!r || !r.blob) return;
-            zip.file('combined/' + name + '_combined_' + r.layout + '.png', r.blob);
-          });
-          resolve();
-        });
-      } catch(e) { resolve(); }
-    });
+  // Pass B — the data canvas again with the line labels off (arrows only).
+  var noLabelCache = pdfCaptureCanvases({ canvasIds: ['dataCanvas'], dataLabels: 'off' });
+  for(var sj = 0; sj < screenIds.length; sj++) {
+    var dBlob = await _sectionPdfBlob({ data: true }, [screenIds[sj]], noLabelCache);
+    if(dBlob) zip.file('data/' + name + '_' + _exportAllScreenLabel(screenIds[sj]) + '_data_nolabels.pdf', dBlob);
+    await _yieldToBrowser();
   }
+  noLabelCache = null;
+
+  // Combined views — one capture of the combined canvases, one PDF per view from
+  // it. The label split is per-screen only, so the combined data page keeps
+  // whatever label state the user left the view in.
+  if(screenIds.length > 1 && typeof pdfCaptureCombinedCanvases === 'function') {
+    var combinedIds = (typeof _viewExportCombinedScreenIds === 'function')
+      ? _viewExportCombinedScreenIds() : screenIds;
+    var combinedCache = await new Promise(function(resolve) {
+      try { pdfCaptureCombinedCanvases(function(c) { resolve(c || {}); }); }
+      catch(e) { resolve({}); }
+    });
+    var combinedSecs = [
+      { mask: { combinedStandard: true },  suffix: 'standard' },
+      { mask: { combinedPower: true },     suffix: 'power' },
+      { mask: { combinedData: true },      suffix: 'data' },
+      { mask: { combinedStructure: true }, suffix: 'structure' },
+      { mask: { combinedCabling: true },   suffix: 'cable' }
+    ];
+    for(var k = 0; k < combinedSecs.length; k++) {
+      var cBlob = await _sectionPdfBlob(combinedSecs[k].mask, combinedIds, combinedCache);
+      if(cBlob) zip.file('combined/' + name + '_combined_' + combinedSecs[k].suffix + '.pdf', cBlob);
+      await _yieldToBrowser();
+    }
+  }
+
+  // Put the on-screen layouts back the way the capture passes found them.
+  try { if(typeof generateLayout === 'function') { generateLayout('standard'); generateLayout('power'); generateLayout('data'); } } catch(e) {}
+  try { if(typeof generateStructureLayout === 'function') generateStructureLayout(); } catch(e) {}
 }
 
 async function exportAll() {
@@ -295,12 +289,12 @@ async function exportAll() {
 
     await Promise.all(tasks);
 
-    // Per-section screenshots run sequentially after parallel exports finish, so
+    // Per-section captures run sequentially after the parallel exports finish, so
     // screen-switching state stays consistent and doesn't fight the PDF capture.
     try {
       await _captureAllScreenshotsToZip(zip, name);
     } catch(e) {
-      console.error('Export All screenshot capture error:', e);
+      console.error('Export All section capture error:', e);
     }
 
     var zipBlob = await zip.generateAsync({ type: 'blob' });

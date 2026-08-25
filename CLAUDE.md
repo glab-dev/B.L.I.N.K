@@ -45,7 +45,6 @@ All modules use plain `<script>` tags (no build system, global scope). Script lo
 
 External deps (CDN only — no npm):
 - pdfmake 0.2.9 (+ vfs_fonts) — PDF generation
-- html2canvas 1.4.1 — canvas-to-image capture
 - pdf.js 3.11.174 — PDF rendering
 - supabase-js 2.95.0 — auth, database, storage
 - JSZip 3 — zipped multi-file exports
@@ -93,7 +92,7 @@ PWA: offline-capable after first load, installable on mobile via manifest (base6
 **Service Worker (`sw.js`) — asset rules:**
 - **Keep the self-hosted fonts in `LOCAL_ASSETS`** — the three `fonts/*.woff2` files must stay pre-cached or the app renders with fallback fonts offline.
 - **Every module loaded by a `<script>` tag in `index.html` must appear in `LOCAL_ASSETS`** — a module that's missing simply isn't available offline. Verify after adding a module.
-- CDN scripts (pdfmake, html2canvas, pdf.js, Supabase, JSZip) CAN be cached and intercepted by the SW.
+- CDN scripts (pdfmake, pdf.js, Supabase, JSZip) CAN be cached and intercepted by the SW.
 
 ---
 
@@ -343,7 +342,7 @@ The smoke test includes:
   - `export/pdf-preview.js` owns only the preview chrome: the toggle options, page size/orientation, logo upload, and the eco/greyscale print-colour modes. It defines no document builders.
   - Both `rebuildPreview()` and `exportFromPreview()` call the same `buildSimplePdf`/`buildComplexPdf` and hand the result to `pdfMake.createPdf()`. The preview renders that blob with PDF.js into `#pdfPreviewPages`; export downloads it. What the user previews is byte-for-byte the PDF they get.
 - PDF pipeline: `pdfCaptureCanvases()` → `buildSimplePdf`/`buildComplexPdf` → `pdfMake.createPdf()`
-- jsPDF is NOT used anywhere in the app. html2canvas is used only by `export/canvas-export.js` for PNG export, never by the PDF path.
+- jsPDF and html2canvas are NOT used anywhere in the app. Canvas images reach the PDF via `pdfCaptureCanvases()`, which reads the app's own canvases directly.
 - Multi-screen PDFs iterate all visible screens
 - Resolume XML export: must match Arena 7 format
 - .led/.ledconfig files: JSON with full screen state — save/load must be symmetric

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.171",
+  "version": "2.11.172",
   "updated": "2026-08-25",
-  "changelog": "Add per-view PDF exports, editable spares, and screen-scoped gear list export"
+  "changelog": "Document editable spares, gear list quantities and screen-scoped gear exports"
 }

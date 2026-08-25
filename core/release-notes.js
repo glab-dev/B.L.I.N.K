@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.172', date: '2026-08-25', notes: 'Document editable spares, gear list quantities and screen-scoped gear exports' },
   { version: '2.11.171', date: '2026-08-25', notes: 'Add per-view PDF exports, editable spares, and screen-scoped gear list export' },
   { version: '2.11.170', date: '2026-08-24', notes: 'Update help modal and README for SOCA, data ports, Select Mode and exports' },
   { version: '2.11.169', date: '2026-08-24', notes: 'Size the PDF power layout marker bands so row and column numbers never clip' },

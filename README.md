@@ -612,6 +612,21 @@ View and manage multiple screens together in a unified interface.
 
 > Projects saved before the combined view existed open with nothing selected — pick your screens to build the arrangement.
 
+### Editable Quantities & Spares
+The Combined view's gear list adds two editable bands covering every selected screen:
+
+- **System** — Signal Cables (SDI by length, server fiber, HDMI by length) and Utility (UG 10'/25'/50', UG Twofers, Power Bars)
+- **Spares** — Panels & Hardware (per panel type, shackles, cheeseyes), Data Cables (cross jumpers, Cat5 couplers, Cat6 by length), and Power Cables (Soca splays, Soca by length, 25'/10'/5' True1, True1 Twofer)
+
+Every row is a number box:
+- Leave it blank to use the auto-calculated quantity, shown as the placeholder
+- Type a number to override it
+- Spares default to **10% for panels** and **40% for cables and rigging**
+- Rows render even at zero, so a line you zeroed can be restored
+- Cat6 and Soca rows list every stocked length (25' through 300'), not just the ones this rig runs, so an unused length can still be spared
+
+Overrides are saved with the project file and are read live by every export, so the PDF and gear list exports reflect your edits.
+
 ### Additional Combined Layouts
 - **Power Layout** — Combined power distribution view, with SOCA outlines and labels
 - **Data Layout** — Combined data routing view, labelled per screen by processor or distribution box
@@ -634,10 +649,12 @@ Cabling calculations, cable layout diagram, and gear list. Available in Complex 
 - Updates automatically when cabling inputs change
 
 ### Gear List
-Comprehensive equipment summary organized by category:
+Comprehensive equipment summary organized by category, listed per screen:
 - **Equipment** — Panels (count, weight), processors (type, quantity), distribution boxes
 - **Rigging** — Bumper bars by type (1W, 2W, 4W), connecting plates, ground support hardware
 - **Cabling** — Data, power, and signal cables with calculated lengths and standard sizes
+
+Each screen's gear box carries its own share button, which exports that screen's gear list as a PDF — the screen whose box you tapped, not whichever screen is otherwise active.
 
 ---
 
@@ -678,7 +695,7 @@ Every layout, the specs, and the gear list carry a small share button in the top
 Export the canvas view as an image file at full resolution, or each screen at its native resolution. On mobile, uses the native share sheet.
 
 ### Gear List
-Export the gear list as a text file, or send it by email with a formatted breakdown of all equipment, rigging, and cabling organized by screen. On mobile, uses the native share sheet.
+Export the gear list as a text file, or send it by email with a formatted breakdown of all equipment, rigging, and cabling organized by screen. Each screen's gear box also has its own share button for a PDF of just that screen's gear list. On mobile, uses the native share sheet.
 
 ### Resolume XML Export
 Export screen configurations as Resolume Arena 7 compatible XML files for LED mapping.

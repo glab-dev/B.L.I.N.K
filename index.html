@@ -1106,7 +1106,7 @@
               <li><strong>Share Distro</strong> and <strong>Phase Balance</strong> &mdash; balance legs across every selected screen at once</li>
               <li>Combined specs across all selected screens, including SOCA and data line counts per screen</li>
               <li>Combined Power, Data, Structure, and Cable layout views</li>
-              <li>Combined Cable list</li>
+              <li>Combined Cable list, with editable System and Spares quantities</li>
             </ul>
             <p class="help-text help-text-muted">Projects saved before the combined view existed open with nothing selected &mdash; pick your screens to build the arrangement.</p>
           </div>
@@ -1122,6 +1122,18 @@
               <li><strong>Cable Diagram</strong> &mdash; front-view layout showing cable routing from wall to processor/distro</li>
               <li><strong>Cable List</strong> &mdash; equipment and cable counts organized by category</li>
             </ul>
+          </div>
+
+          <div class="help-complex-section" style="display: none;">
+            <h3 class="help-section-title">Gear List</h3>
+            <p class="help-text">The Cable tab lists gear per screen, organized by category &mdash; equipment, rigging, and cabling. Each screen&rsquo;s box carries its own share button that exports that screen&rsquo;s gear list as a PDF.</p>
+            <p class="help-text">The Combined view&rsquo;s gear list adds two editable bands that cover every selected screen:</p>
+            <ul class="help-list">
+              <li><strong>System</strong> &mdash; Signal Cables (SDI by length, server fiber, HDMI) and Utility (UG 10&#39;/25&#39;/50&#39;, UG Twofers, Power Bars)</li>
+              <li><strong>Spares</strong> &mdash; Panels &amp; Hardware (per panel type, shackles, cheeseyes), Data Cables (cross jumpers, Cat5 couplers, Cat6 by length), and Power Cables (Soca splays, Soca by length, True1, True1 twofers)</li>
+            </ul>
+            <p class="help-text"><strong>Editing quantities</strong> &mdash; every row is a number box. Leave it blank to use the auto-calculated quantity shown as the placeholder, or type a number to override it. Spares default to 10% for panels and 40% for cables and rigging. A row still shows at zero, so a line you zeroed can be put back.</p>
+            <p class="help-text">Cat6 and Soca rows list every stocked length (25&#39; through 300&#39;), not just the ones this rig runs, so you can spare a length the job does not otherwise use. Your overrides save with the project and flow through to the PDF and every gear export.</p>
           </div>
 
           <h3 class="help-section-title">Canvas View</h3>
@@ -1170,7 +1182,8 @@
             <h3 class="help-section-title">Per-View PDF Export</h3>
             <p class="help-text">Every layout, the specs, and the gear list carry a small share button in the top-right of their box. Tap it for a one-page PDF of just that view, without opening the full report.</p>
             <ul class="help-list">
-              <li><strong>Screen views</strong> &mdash; Standard, Power, Data, Structure, Cabling, and Gear List export for the screen you are currently on</li>
+              <li><strong>Screen views</strong> &mdash; Standard, Power, Data, Structure, and Cabling export for the screen you are currently on</li>
+              <li><strong>Gear List</strong> &mdash; each screen&rsquo;s gear box has its own button, and exports that screen rather than the one you are on</li>
               <li><strong>Combined views</strong> &mdash; Combined Standard, Power, Data, Structure, Cabling, Specs, and Gear List cover every selected screen, and need at least two screens selected</li>
               <li><strong>Matches the full report</strong> &mdash; the page you get is the page the full PDF report would have contained for that view</li>
               <li><strong>Filename</strong> &mdash; config name, screen name, view name, and date</li>
@@ -3838,8 +3851,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.171';
-const APP_CHANGELOG = 'Add per-view PDF exports, editable spares, and screen-scoped gear list export';
+const APP_VERSION = '2.11.172';
+const APP_CHANGELOG = 'Document editable spares, gear list quantities and screen-scoped gear exports';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

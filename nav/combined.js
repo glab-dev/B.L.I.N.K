@@ -3304,7 +3304,7 @@ function renderCombinedSocaCircuitTable(selectedScreenIds) {
     any = true;
   });
 
-  host.style.display = any ? 'block' : 'none';
+  host.style.display = any ? '' : 'none';
 }
 
 // Structure info for a screen that isn't the open one. buildStructureInfoLines()
@@ -3392,7 +3392,7 @@ function renderCombinedStructureInfo(selectedScreenIds) {
     any = true;
   });
 
-  host.style.display = any ? 'block' : 'none';
+  host.style.display = any ? '' : 'none';
 }
 
 function _combinedEsc(str) {

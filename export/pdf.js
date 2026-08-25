@@ -2137,23 +2137,53 @@ function buildComplexPdf(opts, canvasCache) {
   // same builders the per-screen layout pages use — so a screen's SOCA card reads
   // identically whether you find it on its own page or on the combined one.
   function combinedInfoStack(kind, sids) {
-    const stack = [];
-    let est = 0;
+    // Power and structure run three screens across, with each screen's cards
+    // stacked inside its own block — a card at a third of the page is still wide
+    // enough for "2W #1: 265 lbs", and three screens to a row costs a third of the
+    // height that stacking them did. The data map keeps one screen per row: its
+    // Mains/Backups pair is already two cards wide.
+    const perRow = (kind === 'data') ? 1 : 3;
+
+    const blocks = [];
     sids.forEach(function(sid) {
       let node = null, h = 0;
-      // Two cards across: a combined page stacks a block per screen, and the
-      // 4-up packing the single-screen pages use left half of every row empty.
-      if (kind === 'data')           { node = buildDataLineMapTable(sid);               h = estDataMapHeight(sid); }
-      else if (kind === 'power')     { node = buildSocaCircuitTable(sid, 2);            h = estSocaTableHeight(sid, 2); }
-      else if (kind === 'structure') { node = buildStructureInfoPdf(sid, canvasCache, 2); h = estStructureInfoHeight(sid, canvasCache, 2); }
+      if (kind === 'data')           { node = buildDataLineMapTable(sid);                     h = estDataMapHeight(sid); }
+      else if (kind === 'power')     { node = buildSocaCircuitTable(sid, 1);                  h = estSocaTableHeight(sid, 1); }
+      else if (kind === 'structure') { node = buildStructureInfoPdf(sid, canvasCache, 1);     h = estStructureInfoHeight(sid, canvasCache, 1); }
       if (!node) return;
       const sc = screens[sid];
-      stack.push({ text: ((sc && sc.name) ? sc.name : sid).toUpperCase(),
-                   fontSize: 8, bold: true, color: tc.textMuted, margin: [0, 6, 0, 2] });
-      stack.push(node);
-      est += h + 16; // + heading and its margins
+      blocks.push({ name: ((sc && sc.name) ? sc.name : sid).toUpperCase(), node: node, h: h });
     });
-    return stack.length ? { stack: stack, est: est } : null;
+    if (!blocks.length) return null;
+
+    function heading(text) {
+      return { text: text, fontSize: 8, bold: true, color: tc.textMuted, margin: [0, 6, 0, 2] };
+    }
+
+    const stack = [];
+    let est = 0;
+    if (perRow === 1) {
+      blocks.forEach(function(b) {
+        stack.push(heading(b.name));
+        stack.push(b.node);
+        est += b.h + 16; // + heading and its margins
+      });
+    } else {
+      for (let i = 0; i < blocks.length; i += perRow) {
+        const row = blocks.slice(i, i + perRow);
+        const cells = [];
+        for (let k = 0; k < perRow; k++) {
+          const b = row[k];
+          cells.push(b
+            ? { width: '*', stack: [heading(b.name), b.node] }
+            : { width: '*', text: '' });
+        }
+        stack.push({ columns: cells, columnGap: 10 });
+        // A row is as tall as its tallest screen.
+        est += row.reduce(function(mx, b) { return Math.max(mx, b.h); }, 0) + 18;
+      }
+    }
+    return { stack: stack, est: est };
   }
 
   [

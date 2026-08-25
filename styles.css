@@ -4118,7 +4118,13 @@ canvas:focus {
    canvas, mirroring the combined data map above. Scoped to the two new IDs so the
    single-screen #socaCircuitTable and #structureInfoPanel keep their own layout. */
 #combinedSocaCircuitTable,
-#combinedStructureInfo { padding: 0 5px 5px; }
+#combinedStructureInfo {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px 20px;
+  align-items: start;
+  padding: 0 5px 5px;
+}
 #combinedSocaCircuitTable:empty,
 #combinedStructureInfo:empty { padding: 0; }
 
@@ -4132,12 +4138,11 @@ canvas:focus {
   text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
 }
 
-/* Two across, matching the structure cards below the combined structure canvas.
-   Scoped to the combined section so the single-screen #socaCircuitTable keeps its
-   own flex-wrap packing. */
+/* Same stacking as the structure cards. Scoped to the combined section so the
+   single-screen #socaCircuitTable keeps its own flex-wrap packing. */
 #combinedSocaCircuitTable .soca-circuit-table {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 16px;
   align-items: start;
   padding-top: 12px;
@@ -4145,9 +4150,11 @@ canvas:focus {
 
 /* Structure cards flow across the width rather than the fixed two columns the
    single-screen panel uses — a combined view can carry many screens. */
+/* Cards stack inside a screen block — the blocks themselves are what run three
+   across, so a card gets a third of the width rather than a sixth. */
 .combined-structure-info-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 16px;
   align-items: start;
   padding: 12px 0 5px;
@@ -4168,9 +4175,10 @@ canvas:focus {
   padding-top: 6px;
 }
 
+/* One screen block per row on phones — three columns of cards is unreadable there. */
 @media (max-width: 768px) {
-  .combined-structure-info-grid,
-  #combinedSocaCircuitTable .soca-circuit-table { grid-template-columns: 1fr; }
+  #combinedSocaCircuitTable,
+  #combinedStructureInfo { grid-template-columns: 1fr; }
 }
 
 /* Mobile: stack the two cards. Side by side, each one is narrower than the 180px of

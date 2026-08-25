@@ -1,5 +1,5 @@
 {
-  "version": "2.11.179",
+  "version": "2.11.180",
   "updated": "2026-08-25",
-  "changelog": "Run combined power and structure tables four screens across"
+  "changelog": "Keep combined data tables on the layout page and order all tables left to right"
 }

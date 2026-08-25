@@ -3244,6 +3244,27 @@ function renderCombinedDataLineMap(sections) {
   });
 }
 
+// Left to right, matching the canvas: sort by the arrangement's x — where each
+// screen actually sits once any manual drag is applied — rather than the order
+// they happen to sit in combinedSelectedScreens. Mirrors pdfScreenOrder(), which
+// orders the same blocks in the PDF.
+function _combinedOrderedScreenIds(ids) {
+  const list = (ids || []).slice();
+  const arrangement = (typeof getCombinedArrangement === 'function') ? getCombinedArrangement() : null;
+  if(!arrangement || !arrangement.items.length) return list;
+  const geom = {};
+  arrangement.items.forEach(function(it, i) { geom[it.screenId] = { x: it.x, y: it.y, i: i }; });
+  return list.sort(function(a, b) {
+    const ga = geom[a], gb = geom[b];
+    if(!ga && !gb) return 0;
+    if(!ga) return 1;
+    if(!gb) return -1;
+    if(ga.x !== gb.x) return ga.x - gb.x;
+    if(ga.y !== gb.y) return ga.y - gb.y;
+    return ga.i - gb.i;
+  });
+}
+
 // One titled block per screen inside a combined info section. Mirrors the block
 // structure renderCombinedDataLineMap() builds, so the three sections below the
 // combined canvases all read the same way.
@@ -3269,7 +3290,7 @@ function renderCombinedSocaCircuitTable(selectedScreenIds) {
   if(!host) return;
   host.textContent = '';
 
-  const ids = selectedScreenIds || [];
+  const ids = _combinedOrderedScreenIds(selectedScreenIds);
   let any = false;
 
   ids.forEach(screenId => {
@@ -3336,7 +3357,7 @@ function renderCombinedStructureInfo(selectedScreenIds) {
   if(!host) return;
   host.textContent = '';
 
-  const ids = selectedScreenIds || [];
+  const ids = _combinedOrderedScreenIds(selectedScreenIds);
   let any = false;
 
   // Card accent classes, matched to the single-screen structure panel by title.

@@ -2140,14 +2140,22 @@ function buildComplexPdf(opts, canvasCache) {
     // Power and structure run four screens across, with each screen's cards stacked
     // inside its own block — a card at a quarter of the page still holds
     // "2W #1: 265 lbs" on one line, and a row of four costs the height one screen
-    // used to. The data map keeps one screen per row: its Mains/Backups pair is
-    // already two cards wide.
-    const perRow = (kind === 'data') ? 1 : 4;
+    // used to. The data map runs two across and keeps its Mains/Backups pair side
+    // by side inside the block, which leaves those cards the width they have today
+    // while halving the height the section needs, so it stays on the layout's page.
+    const perRow = (kind === 'data') ? 2 : 4;
+
+    // Left to right, matching the canvas above it. pdfScreenOrder() sorts by the
+    // combined arrangement's x — where each screen actually sits, manual drags
+    // included — rather than the tab order opts.screenIds carries.
+    const arranged = (typeof pdfScreenOrder === 'function') ? pdfScreenOrder() : [];
+    const ordered = arranged.filter(function(id) { return sids.indexOf(id) !== -1; });
+    const list = (ordered.length === sids.length) ? ordered : sids;
 
     const blocks = [];
-    sids.forEach(function(sid) {
+    list.forEach(function(sid) {
       let node = null, h = 0;
-      if (kind === 'data')           { node = buildDataLineMapTable(sid);                     h = estDataMapHeight(sid); }
+      if (kind === 'data')           { node = buildDataLineMapTable(sid, 2);                  h = estDataMapHeight(sid); }
       else if (kind === 'power')     { node = buildSocaCircuitTable(sid, 1);                  h = estSocaTableHeight(sid, 1); }
       else if (kind === 'structure') { node = buildStructureInfoPdf(sid, canvasCache, 1);     h = estStructureInfoHeight(sid, canvasCache, 1); }
       if (!node) return;
@@ -2415,7 +2423,7 @@ function pdfBuildGearTable(rows, colors) {
 // Builds the data line / backup start-panel mapping table for the PDF. Styled to
 // match the structure info cards (grey-filled boxed cards, underlined bold title,
 // item lines). Reads per-screen endpoints stashed by renderDataLayout().
-function buildDataLineMapTable(screenId) {
+function buildDataLineMapTable(screenId, perRowOverride) {
   const screen = screens[screenId];
   const endpoints = screen && screen.calculatedData && screen.calculatedData.dataLineEndpoints;
   if (!endpoints || endpoints.length === 0) return null;
@@ -2481,7 +2489,7 @@ function buildDataLineMapTable(screenId) {
                unit: d ? d.backupUnit : '', port: d ? d.backupPort : null };
     })));
   }
-  const perRow = pdfCurrentCardsPerRow();
+  const perRow = perRowOverride || pdfCurrentCardsPerRow();
   while (cards.length < perRow) cards.push(null);
 
   const cells = cards.map(function(c) {

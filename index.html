@@ -1089,7 +1089,7 @@
               <li><strong>Structure</strong> &mdash; bumper positions, pickup weights, ground support hardware, and the red centre-of-wall mark</li>
             </ul>
             <p class="help-text"><strong>Select Mode</strong> &mdash; panel selection is off until you turn Select Mode on above the layout. This keeps scrolling and panning from selecting panels by accident, and it applies to the Standard, Power, Data, and Combined layouts. Bumpers have their own Select Mode in Structure.</p>
-            <p class="help-text">Use the &#9660; button on a layout title to collapse or expand it. Undo and Redo sit in the Standard and Structure layout headers.</p>
+            <p class="help-text">Use the &#9660; button on a layout title to collapse or expand it. Undo and Redo sit in the Standard and Structure layout headers, and the share button exports that one layout as a single-page PDF.</p>
           </div>
 
           <div class="help-complex-section" style="display: none;">
@@ -1159,11 +1159,24 @@
               <li><strong>Test Pattern</strong> &mdash; PNG image or MP4 video</li>
               <li><strong>Gear List</strong> &mdash; text file, or Send to Jared for an emailed breakdown by screen</li>
               <li><strong>Export All</strong> &mdash; every format at once, zipped</li>
+              <li><strong>Per-view export</strong> &mdash; the share button on any layout, specs, or gear box exports just that view as a one-page PDF</li>
               <li><strong>Save/Load</strong> &mdash; .blinkled, .blinkrast, .blinktp files with full project state</li>
             </ul>
           </div>
           <p class="help-text"><strong>PDF preview</strong> &mdash; the left panel chooses which sections are included, then Page Size (A4 or Letter), Orientation (Portrait or Landscape), SOCA Outlines, SOCA Label, and a logo upload. <strong>Eco Friendly</strong> and <strong>Greyscale</strong> are print-saving colour modes. The preview is the PDF &mdash; what you see is exactly what exports.</p>
           <p class="help-text">On mobile, exports use the native share sheet.</p>
+
+          <div class="help-complex-section" style="display: none;">
+            <h3 class="help-section-title">Per-View PDF Export</h3>
+            <p class="help-text">Every layout, the specs, and the gear list carry a small share button in the top-right of their box. Tap it for a one-page PDF of just that view, without opening the full report.</p>
+            <ul class="help-list">
+              <li><strong>Screen views</strong> &mdash; Standard, Power, Data, Structure, Cabling, and Gear List export for the screen you are currently on</li>
+              <li><strong>Combined views</strong> &mdash; Combined Standard, Power, Data, Structure, Cabling, Specs, and Gear List cover every selected screen, and need at least two screens selected</li>
+              <li><strong>Matches the full report</strong> &mdash; the page you get is the page the full PDF report would have contained for that view</li>
+              <li><strong>Filename</strong> &mdash; config name, screen name, view name, and date</li>
+            </ul>
+            <p class="help-text help-text-muted">Eco Friendly and Greyscale apply to the full report only. On mobile the file goes to the native share sheet.</p>
+          </div>
 
           <h3 class="help-section-title">Mobile (Touch)</h3>
           <ul class="help-list">
@@ -2879,6 +2892,7 @@
     <div id="specWarning" class="warn"></div>
 
     <div class="layout-container" id="standardContainer" style="display:none;">
+      <button type="button" class="view-export-btn" onclick="exportViewPdf('standard')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
       <div class="layout-title">
         <span>Standard Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('standardContainer')" id="standardCollapseBtn" title="Minimize">▼</button></span>
         <div class="undo-redo-buttons">
@@ -2899,6 +2913,7 @@
     </div>
 
     <div class="layout-container" id="powerContainer" style="display:none;">
+      <button type="button" class="view-export-btn" onclick="exportViewPdf('power')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
       <div class="layout-title">
         <span>Power Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('powerContainer')" id="powerCollapseBtn" title="Minimize">▼</button></span>
       </div>
@@ -2939,6 +2954,7 @@
     </div>
 
     <div class="layout-container" id="dataContainer" style="display:none;">
+      <button type="button" class="view-export-btn" onclick="exportViewPdf('data')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
       <div class="layout-title">
         <span>Data Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('dataContainer')" id="dataCollapseBtn" title="Minimize">▼</button></span>
       </div>
@@ -2969,6 +2985,7 @@
     </div>
 
     <div class="layout-container" id="structureContainer" style="display:none;">
+      <button type="button" class="view-export-btn" onclick="exportViewPdf('structure')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
       <div class="layout-title">
         <span>Structure Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('structureContainer')" id="structureCollapseBtn" title="Minimize">▼</button></span>
       </div>
@@ -3069,6 +3086,7 @@
   <!-- Cabling Section -->
   <div class="section-box mb-16" id="cablingSection">
     <div class="section-title">Cabling</div>
+    <button type="button" class="view-export-btn" onclick="exportViewPdf('cabling')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
 
     <div class="cabling-row">
     <div class="cabling-grid cabling-3col">
@@ -3215,6 +3233,7 @@
   <div id="combinedLayoutsWrapper" class="combined-layouts-wrap">
     <!-- Standard Layout -->
     <div class="layout-container mb-20" id="combinedStandardContainer">
+      <button type="button" class="view-export-btn" onclick="exportViewPdf('combinedStandard')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
       <div class="layout-title">
         <span>Standard Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedStandardContainer')" id="combinedStandardCollapseBtn" title="Minimize">▼</button></span>
       </div>
@@ -3251,6 +3270,7 @@
 
     <!-- Power Layout -->
     <div class="layout-container mb-20" id="combinedPowerContainer">
+      <button type="button" class="view-export-btn" onclick="exportViewPdf('combinedPower')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
       <div class="layout-title">
         <span>Power Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedPowerContainer')" id="combinedPowerCollapseBtn" title="Minimize">▼</button></span>
       </div>
@@ -3293,6 +3313,7 @@
 
     <!-- Data Layout -->
     <div class="layout-container mb-20" id="combinedDataContainer">
+      <button type="button" class="view-export-btn" onclick="exportViewPdf('combinedData')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
       <div class="layout-title">
         <span>Data Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedDataContainer')" id="combinedDataCollapseBtn" title="Minimize">▼</button></span>
       </div>
@@ -3339,6 +3360,7 @@
 
     <!-- Structure Layout -->
     <div class="layout-container mb-20" id="combinedStructureContainer">
+      <button type="button" class="view-export-btn" onclick="exportViewPdf('combinedStructure')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
       <div class="layout-title">
         <span>Structure Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedStructureContainer')" id="combinedStructureCollapseBtn" title="Minimize">▼</button></span>
       </div>
@@ -3352,6 +3374,7 @@
 
   <!-- Cabling Layout -->
   <div class="layout-container mb-20" id="combinedCablingContainer">
+    <button type="button" class="view-export-btn" onclick="exportViewPdf('combinedCabling')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
     <div class="layout-title">
       <span>Cabling Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedCablingContainer')" id="combinedCablingCollapseBtn" title="Minimize">▼</button></span>
     </div>
@@ -3369,6 +3392,7 @@
 
   <!-- Combined Specs -->
   <div class="layout-container mb-20" id="combinedSpecsContainer">
+    <button type="button" class="view-export-btn" onclick="exportViewPdf('combinedSpecs')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
     <div class="layout-title">
       <span>Combined Specifications<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedSpecsContainer')" id="combinedSpecsCollapseBtn" title="Minimize">▼</button></span>
     </div>
@@ -3395,6 +3419,7 @@
 
   <!-- Combined Gear List -->
   <div class="layout-container mb-20" id="combinedGearListContainer">
+    <button type="button" class="view-export-btn" onclick="exportViewPdf('combinedGearList')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
     <div class="layout-title">
       <span>Gear List<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedGearListContainer')" id="combinedGearListCollapseBtn" title="Minimize">▼</button></span>
     </div>
@@ -3788,6 +3813,7 @@
 
 <!-- Export Functions -->
 <script defer src="export/canvas-export.js"></script>
+<script defer src="export/view-export.js"></script>
 <script defer src="export/title-block.js"></script>
 <script defer src="export/resolume.js"></script>
 <script defer src="export/pdfLayoutEngine.js"></script>
@@ -3812,8 +3838,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.170';
-const APP_CHANGELOG = 'Update help modal and README for SOCA, data ports, Select Mode and exports';
+const APP_VERSION = '2.11.171';
+const APP_CHANGELOG = 'Add per-view PDF exports, editable spares, and screen-scoped gear list export';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

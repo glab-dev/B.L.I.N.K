@@ -217,6 +217,8 @@ function buildCurrentConfig() {
     customProcessors: usedCustomProcessors,
     // Per-project gear code overrides (if any)
     gearCodeOverrides: (typeof getGearCodeOverridesForSave === 'function') ? getGearCodeOverridesForSave() : undefined,
+    // Per-project spare quantity overrides from the combined gear list (if any)
+    spareOverrides: (typeof getSpareOverridesForSave === 'function') ? getSpareOverridesForSave() : undefined,
     // Combined view arrangement (selection order + manual drag offsets) so the layout,
     // and the PDF combined diagram built from it, survives save/reload
     combinedView: (typeof getCombinedViewSaveState === 'function') ? getCombinedViewSaveState() : undefined,
@@ -526,6 +528,11 @@ function applyConfiguration(config, fileNameOverride) {
     // Restore per-project gear code overrides
     if(typeof loadProjectGearCodeOverrides === 'function') {
       loadProjectGearCodeOverrides(config.gearCodeOverrides || {});
+    }
+
+    // Restore per-project spare quantity overrides
+    if(typeof loadProjectSpareOverrides === 'function') {
+      loadProjectSpareOverrides(config.spareOverrides || {});
     }
 
     // Restore project logo

@@ -1334,7 +1334,9 @@ function buildComplexPdf(opts, canvasCache) {
   const m           = PDF_TOKENS.layout;
   const tc          = PDF_TOKENS.colors;
 
-  const screenIds = pdfScreenOrder();
+  // opts.screenIds narrows the report to specific screens (per-view quick export).
+  // Absent = every screen, which is what every existing caller relies on.
+  const screenIds = (opts.screenIds && opts.screenIds.length) ? opts.screenIds : pdfScreenOrder();
   const gearData    = buildGearListData(screenIds);
   const allPanels   = getAllPanels();
   const configName  = document.getElementById('configName')?.value?.trim() || 'LED Wall';
@@ -1611,11 +1613,15 @@ function buildComplexPdf(opts, canvasCache) {
     return { svg: parts.join(''), width: cw, height: SVG_H, margin: [0, 0, 0, 12] };
   }
 
+  // opts.summary === false suppresses the project summary page (combined-view
+  // quick exports want a single page). Absent = today's behaviour.
+  const showSummary = opts.summary !== false && screenIds.length > 1;
+
   // For multi-screen: summary page page-reference is 1-based index in final PDF.
   // We calculate page starts by counting pageBreak elements as we build.
   // Summary page itself = page 1; so all screen hero pages start at 2+.
   // We do a pre-pass to record approximate starts (1 summary + N pages per screen).
-  if (screenIds.length > 1) {
+  if (showSummary) {
     let pageAccum = 2; // page 1 = summary page; screen 1 hero = page 2
     screenIds.forEach(function(sid) {
       screenPageStarts[sid] = pageAccum;
@@ -1633,7 +1639,7 @@ function buildComplexPdf(opts, canvasCache) {
   }
 
   // ===== MULTI-SCREEN SUMMARY PAGE =====
-  if (screenIds.length > 1) {
+  if (showSummary) {
     content.push(buildPdfHeader(configName, dateStr, logoData));
     content.push({ text: 'PROJECT SUMMARY', fontSize: 12, bold: true, color: '#000000', margin: [0, 2, 0, 8] });
 
@@ -1790,19 +1796,18 @@ function buildComplexPdf(opts, canvasCache) {
       const estDataMapH = estDataMapHeight(screenId);
       const estStructH  = estStructureInfoHeight(screenId);
 
-      // Every enabled layout gets its own page, in both orientations. Packing several
-      // layouts onto one page is what separated a section label from its image and
-      // pushed tall walls' tables onto a page with no report header.
-      content.push({ text: '', pageBreak: 'before' });
-      content.push(buildPdfHeader(configName, dateStr, logoData));
-
       // One-per-page image cap: fill the page minus the section label and the layout's own
       // table. The reserve covers the image's own 4pt bottom margin plus slack for rounding
       // in the table estimates — without it a tall wall sized the image to the exact
       // remaining space and nudged its table onto the next page.
       const fillImgH = (tableH) => Math.max(140, uh - hdrH - lblH - (tableH || 0) - 28);
 
+      // Every enabled layout gets its own page, in both orientations. Packing several
+      // layouts onto one page is what separated a section label from its image and
+      // pushed tall walls' tables onto a page with no report header.
       if (opts.power !== false) {
+        if (content.length > 0) content.push({ text: '', pageBreak: 'before' });
+        content.push(buildPdfHeader(configName, dateStr, logoData));
         content.push(sectionLabel('Power Layout'));
         // Cap the WHOLE image, column-marker band included. This used to divide the cap by
         // (1 - socaBarFraction) so the panel grid alone filled the space, which made the
@@ -1817,7 +1822,7 @@ function buildComplexPdf(opts, canvasCache) {
       }
 
       if (opts.data !== false) {
-        content.push({ text: '', pageBreak: 'before' });
+        if (content.length > 0) content.push({ text: '', pageBreak: 'before' });
         content.push(buildPdfHeader(configName, dateStr, logoData));
         content.push(sectionLabel('Data Layout'));
         const dataBaseH = fillImgH(estDataMapH);
@@ -1828,7 +1833,7 @@ function buildComplexPdf(opts, canvasCache) {
       }
 
       if (opts.structure !== false || opts.cabling !== false) {
-        content.push({ text: '', pageBreak: 'before' });
+        if (content.length > 0) content.push({ text: '', pageBreak: 'before' });
         content.push(buildPdfHeader(configName, dateStr, logoData));
 
         if (opts.structure !== false) {
@@ -1879,7 +1884,7 @@ function buildComplexPdf(opts, canvasCache) {
     });
 
     if (gearScreenIds.length > 0) {
-      content.push({ text: '', pageBreak: 'before' });
+      if (content.length > 0) content.push({ text: '', pageBreak: 'before' });
       content.push(buildPdfHeader(configName, dateStr, logoData));
       content.push(sectionLabel('Gear List — All Screens'));
 
@@ -2070,7 +2075,10 @@ function buildComplexPdf(opts, canvasCache) {
       const spareCols = orientation === 'l' ? 2 : 1;
       // w = how many column units the section takes, so a two-column SPARES keeps the
       // per-item width it had before PROCESSORS was added to this row.
-      const sharedSections = [
+      // opts.gearShared === false drops PROCESSORS / SIGNAL CABLES / UTILITY / SPARES.
+      // A single screen's own gear list export wants only what belongs to that screen —
+      // these four cover the whole rig, so they would misrepresent a one-screen sheet.
+      const sharedSections = opts.gearShared === false ? [] : [
         procItems.length  > 0 ? { node: buildGearSection('PROCESSORS',    procItems), w: 1 } : null,
         scItems.length    > 0 ? { node: buildGearSection('SIGNAL CABLES', scItems),   w: 1 } : null,
         utilItems.length  > 0 ? { node: buildGearSection('UTILITY',       utilItems), w: 1 } : null,
@@ -2105,6 +2113,42 @@ function buildComplexPdf(opts, canvasCache) {
       }
     }
   }
+
+  // ===== COMBINED-VIEW LAYOUT PAGES =====
+  // Opt-in only (=== true, not !== false): every existing caller leaves these
+  // undefined, so the report they get today is unchanged.
+  [
+    { flag: opts.combinedStandard,  key: 'combined_standard',  title: 'Standard Layout (Combined)' },
+    { flag: opts.combinedPower,     key: 'combined_power',     title: 'Power Layout (Combined)' },
+    { flag: opts.combinedData,      key: 'combined_data',      title: 'Data Layout (Combined)' },
+    { flag: opts.combinedStructure, key: 'combined_structure', title: 'Structure Layout (Combined)' },
+    { flag: opts.combinedCabling,   key: 'combined_cabling',   title: 'Cabling Layout (Combined)' }
+  ].filter(function(cp) { return cp.flag === true; }).forEach(function(cp) {
+    const img = canvasCache && canvasCache[cp.key];
+    if (!img || !img.dataUrl) return;
+
+    if (content.length > 0) content.push({ text: '', pageBreak: 'before' });
+    content.push(buildPdfHeader(configName, dateStr, logoData));
+    content.push(sectionLabel(cp.title));
+
+    // Fill the page width, then shrink to fit whatever height is left under the
+    // report header and the section label.
+    const overhead = m.headerBarH + m.afterHeaderGap + m.sectionLabelH + m.afterLabelGap + 12;
+    const maxH = uh - overhead;
+    const aspect = img.aspectRatio || 1;
+    let renderWidth = cw;
+    let renderHeight = Math.round(renderWidth * aspect);
+    if (renderHeight > maxH) {
+      renderHeight = maxH;
+      renderWidth = Math.round(renderHeight / aspect);
+    }
+    content.push({
+      image: img.dataUrl,
+      width: renderWidth, height: renderHeight,
+      alignment: 'center',
+      margin: [0, 0, 0, 4]
+    });
+  });
 
   return {
     pageSize:        (format === 'letter') ? 'LETTER' : 'A4',
@@ -2526,16 +2570,126 @@ function estStructureInfoHeight(screenId) {
   return Math.ceil(h);
 }
 
-function pdfCaptureCanvases() {
+// Capture the combined-view canvases into the same { dataUrl, aspectRatio }
+// cache shape pdfCaptureCanvases() produces, keyed combined_<layout>.
+//
+// Unlike the per-screen pass this cannot switch screens — the combined canvases
+// are drawn by renderCombinedView() from the whole selection at once, so the
+// save/restore below mirrors captureCombinedLayoutBlobs() in canvas-export.js:
+// selection, the two data-label toggles, and each screen's own dataLineLabels
+// all have to be put back or the on-screen view is left altered.
+// callback(cache)
+function pdfCaptureCombinedCanvases(callback) {
+  var restoreState = null;
+  try {
+    if (typeof screens === 'undefined') { callback({}); return; }
+    var screenIds = Object.keys(screens).sort(function(a, b) {
+      return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
+    });
+    if (screenIds.length < 2) { callback({}); return; }
+    if (typeof renderCombinedView !== 'function' || typeof combinedSelectedScreens === 'undefined') {
+      callback({}); return;
+    }
+
+    var savedSet = null;
+    if (combinedSelectedScreens.size < 2) {
+      savedSet = new Set(combinedSelectedScreens);
+      combinedSelectedScreens.clear();
+      screenIds.forEach(function(id) { combinedSelectedScreens.add(id); });
+    }
+    var selectedIds = Array.from(combinedSelectedScreens);
+
+    var combinedContainer = document.getElementById('combinedContainer');
+    var savedCombinedDisplay = combinedContainer ? combinedContainer.style.display : null;
+    if (combinedContainer) combinedContainer.style.display = 'block';
+
+    var savedUnitLabels = (typeof dataUnitLabelsEnabled !== 'undefined') ? dataUnitLabelsEnabled : true;
+    var savedLineLabelsGlobal = (typeof dataLineLabelsEnabled !== 'undefined') ? dataLineLabelsEnabled : false;
+    var savedLineLabelsByScreen = {};
+    selectedIds.forEach(function(id) {
+      var d = screens[id] && screens[id].data;
+      if (d) savedLineLabelsByScreen[id] = d.dataLineLabels;
+    });
+
+    restoreState = function() {
+      if (typeof dataUnitLabelsEnabled !== 'undefined') dataUnitLabelsEnabled = savedUnitLabels;
+      if (typeof dataLineLabelsEnabled !== 'undefined') dataLineLabelsEnabled = savedLineLabelsGlobal;
+      Object.keys(savedLineLabelsByScreen).forEach(function(id) {
+        var d = screens[id] && screens[id].data;
+        if (d) d.dataLineLabels = savedLineLabelsByScreen[id];
+      });
+      if (savedSet) {
+        combinedSelectedScreens.clear();
+        savedSet.forEach(function(id) { combinedSelectedScreens.add(id); });
+      }
+      if (combinedContainer && savedCombinedDisplay !== null) combinedContainer.style.display = savedCombinedDisplay;
+      if (combinedSelectedScreens.size > 0) {
+        try { renderCombinedView(); } catch(e) {}
+      }
+    };
+
+    try { renderCombinedView(); } catch(e) { console.error('renderCombinedView failed:', e); }
+
+    var _isMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
+      (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+
+    var cache = {};
+    [
+      { id: 'combinedStandardCanvas',     key: 'combined_standard' },
+      { id: 'combinedPowerCanvas',        key: 'combined_power' },
+      { id: 'combinedDataCanvas',         key: 'combined_data' },
+      { id: 'combinedStructureCanvas',    key: 'combined_structure' },
+      { id: 'combinedCableDiagramCanvas', key: 'combined_cabling', png: true }
+    ].forEach(function(cap) {
+      var canvas = document.getElementById(cap.id);
+      if (!(canvas && canvas.width > 0 && canvas.height > 0)) return;
+      var useAspect = canvas.height / canvas.width;
+      if (_isMobile) {
+        cache[cap.key] = {
+          dataUrl: cap.png ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.92),
+          aspectRatio: useAspect
+        };
+      } else {
+        var hiRes = document.createElement('canvas');
+        hiRes.width  = canvas.width  * 2;
+        hiRes.height = canvas.height * 2;
+        hiRes.getContext('2d').drawImage(canvas, 0, 0, hiRes.width, hiRes.height);
+        cache[cap.key] = {
+          dataUrl: cap.png ? hiRes.toDataURL('image/png') : hiRes.toDataURL('image/jpeg', 0.92),
+          aspectRatio: useAspect
+        };
+        hiRes.width = hiRes.height = 0;
+      }
+    });
+
+    restoreState();
+    callback(cache);
+  } catch(e) {
+    console.error('pdfCaptureCombinedCanvases error:', e);
+    if (restoreState) { try { restoreState(); } catch(e2) {} }
+    callback({});
+  }
+}
+
+// captureOpts (optional) narrows the work for a single-view quick export:
+//   { screenIds: [...], canvasIds: [...] }
+// Omitted = every screen and all five canvases, which is what the full report
+// and Export All rely on.
+function pdfCaptureCanvases(captureOpts) {
+  captureOpts = captureOpts || {};
   const cache = {};
   // On phones/tablets, capture layout images at 1x instead of 2x to keep peak
   // memory low enough for Export All to survive (see the per-canvas branch below).
   const _pdfCaptureIsMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
     (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
   const originalScreenId = currentScreenId;
-  const screenIds = Object.keys(screens).sort((a, b) =>
+  const allScreenIds = Object.keys(screens).sort((a, b) =>
     parseInt(a.split('_')[1]) - parseInt(b.split('_')[1])
   );
+  const screenIds = (captureOpts.screenIds && captureOpts.screenIds.length)
+    ? allScreenIds.filter(id => captureOpts.screenIds.indexOf(id) !== -1)
+    : allScreenIds;
+  const wantCanvas = (id) => !captureOpts.canvasIds || captureOpts.canvasIds.indexOf(id) !== -1;
 
   const mainContainer = document.querySelector('.main-container');
   const mainWasHidden = mainContainer && mainContainer.style.display === 'none';
@@ -2582,17 +2736,19 @@ function pdfCaptureCanvases() {
     generateLayout('power');
     generateLayout('data');
     generateStructureLayout();
-    const cableContainer = document.getElementById('cableDiagramContainer');
-    const savedCableWidth = cableContainer ? cableContainer.style.width : null;
-    if (cableContainer) {
-      cableContainer.style.width = '1400px';
-      void cableContainer.offsetWidth; // force reflow so clientWidth updates before renderCableDiagram reads it
+    if (wantCanvas('cableDiagramCanvas')) {
+      const cableContainer = document.getElementById('cableDiagramContainer');
+      const savedCableWidth = cableContainer ? cableContainer.style.width : null;
+      if (cableContainer) {
+        cableContainer.style.width = '1400px';
+        void cableContainer.offsetWidth; // force reflow so clientWidth updates before renderCableDiagram reads it
+      }
+      cableDiagramPdfMode = true;
+      if (typeof renderCableDiagram === 'function') renderCableDiagram(screenId);
+      cableDiagramPdfMode = false;
+      if (cableContainer && savedCableWidth !== null) cableContainer.style.width = savedCableWidth;
+      else if (cableContainer) cableContainer.style.width = '';
     }
-    cableDiagramPdfMode = true;
-    if (typeof renderCableDiagram === 'function') renderCableDiagram(screenId);
-    cableDiagramPdfMode = false;
-    if (cableContainer && savedCableWidth !== null) cableContainer.style.width = savedCableWidth;
-    else if (cableContainer) cableContainer.style.width = '';
 
     [
       { id: 'standardCanvas',     key: screenId + '_standard' },
@@ -2600,7 +2756,7 @@ function pdfCaptureCanvases() {
       { id: 'dataCanvas',         key: screenId + '_data' },
       { id: 'structureCanvas',    key: screenId + '_structure' },
       { id: 'cableDiagramCanvas', key: screenId + '_cabling' }
-    ].forEach(cap => {
+    ].filter(cap => wantCanvas(cap.id)).forEach(cap => {
       const canvas = document.getElementById(cap.id);
       if (canvas && canvas.width > 0 && canvas.height > 0) {
         const isPng = cap.id === 'cableDiagramCanvas';

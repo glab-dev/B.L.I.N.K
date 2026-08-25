@@ -793,6 +793,9 @@ function generateGearList() {
     const gearScreenColor = safeColor(sd.screenColor);
     html += `<div style="background: var(--comic-panel); border: 1px solid ${gearScreenColor}; border-radius: 2px; padding: 16px; padding-top: 28px; margin-bottom: 16px; margin-top: 12px; overflow: visible; position: relative; box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);">`;
     html += `<div style="position: absolute; top: -16px; left: 16px; background: #1a1a1a; border: 1px solid ${gearScreenColor}; padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: ${gearScreenColor}; transform: rotate(-2deg); text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">${escapeHtml(sd.screenName)}</div>`;
+    // Export button lives inside the screen's own box, so it exports that screen —
+    // the gear tab's active screen is not necessarily currentScreenId.
+    html += `<button type="button" class="view-export-btn" onclick="exportViewPdf('gearList', '${escapeHtml(sd.screenId)}')" title="Export this screen's gear list as PDF" aria-label="Export this screen's gear list as PDF"><span class="material-symbols-outlined">ios_share</span></button>`;
 
     // === EQUIPMENT ===
     html += sectionHdr('Equipment');

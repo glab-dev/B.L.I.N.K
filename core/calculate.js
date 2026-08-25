@@ -1240,6 +1240,7 @@ function calculate(){
 
   // Add Specs header at the top of results (positioned to sit on the top border)
   html += `<div style="position: absolute; top: -16px; left: 16px; background: #1a1a1a; border: 1px solid var(--primary); padding: 4px 10px; font-family: 'Bangers', cursive; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--primary); transform: rotate(-2deg);">Specs</div>`;
+  html += `<button type="button" class="view-export-btn" onclick="exportViewPdf('specs')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>`;
 
   // Get unit labels for display
   const lenUnit = getLengthUnitLabel();

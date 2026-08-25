@@ -4225,39 +4225,64 @@ function renderCombinedGearList(selectedScreenIds) {
   html += addGearLine('UG Twofers:', 8);
   html += addGearLine('Power Bars:', 8);
 
-  // Spares Section (panels 10%, cables/rigging 40%)
-  const sparePanel = (count) => count > 0 ? Math.ceil(count * 0.1) : 0;
-  const spareCable = (count) => count > 0 ? Math.ceil(count * 0.4) : 0;
-  const spacer = '<div style="margin-top: 8px;"></div>';
-  html += addGearHeader('SPARES');
-  // Panels by type
-  for(const [name, count] of Object.entries(panelsByType)) {
-    const spare = sparePanel(count);
-    if(spare > 0) html += addGearLine(`${name}:`, spare);
-  }
-  // Rigging
-  html += spacer;
-  html += addGearLine('Shackles:', spareCable(totalShackles));
-  html += addGearLine('Cheeseyes:', spareCable(totalCheeseye));
-  // Data
-  html += spacer;
-  if(dataCrossJumperLen) html += addGearLine(`Cross Jumpers ${dataCrossJumperLen}':`, spareCable(totalDataCrossJumpers));
-  if(hasJumpersBuiltin) html += addGearLine('Cat5 Couplers:', spareCable(totalCat5Couplers));
-  if(hasCatCables) {
-    for(const [len, count] of Object.entries(combinedDataByLength).sort((a,b) => Number(b[0]) - Number(a[0]))) {
-      html += addGearLine(`${len}' Cat6:`, spareCable(count));
+  // Spares Section (panels 10%, cables/rigging 40%) — every line is editable.
+  // Quantities come from buildGearListData() so the app and every export share one
+  // source of truth; `sparesAuto` supplies the placeholder each input falls back to.
+  const spareGearData = buildGearListData(selectedScreenIds);
+  const sp = spareGearData.spares;
+  const spAuto = spareGearData.sparesAuto;
+  if(sp && spAuto) {
+    const spacer = '<div style="margin-top: 8px;"></div>';
+    html += addGearHeader('SPARES');
+    html += '<div class="spare-hint">Leave blank for the auto-calculated quantity</div>';
+
+    // Rows render even at 0 so a zeroed line can be restored.
+    const spareRow = (key, auto, label) => {
+      const override = getSpareOverride(key);
+      const shown = override === undefined ? '' : override;
+      return `<div class="spare-row"><input type="number" class="spare-qty-input" min="0" step="1" `
+        + `data-spare-key="${escapeHtml(key)}" placeholder="${auto}" value="${shown}" `
+        + `aria-label="${escapeHtml(label)} spare quantity" oninput="updateSpareOverride(this)">`
+        + `<span class="spare-row-label">x ${escapeHtml(label)}</span></div>`;
+    };
+
+    // Panels by type
+    for(const name of Object.keys(spAuto.panelsByType)) {
+      html += spareRow('panel:' + name, spAuto.panelsByType[name], name);
     }
+    // Rigging
+    html += spacer;
+    html += spareRow('shackles', spAuto.shackles, 'Shackles');
+    html += spareRow('cheeseyes', spAuto.cheeseyes, 'Cheeseyes');
+    // Data
+    html += spacer;
+    if(sp.crossJumperLen) html += spareRow('crossJumpers', spAuto.crossJumpers, `Cross Jumpers ${sp.crossJumperLen}'`);
+    if(hasJumpersBuiltin) html += spareRow('cat5Couplers', spAuto.cat5Couplers, 'Cat5 Couplers');
+    for(const len of Object.keys(spAuto.cat6ByLength).sort((a, b) => Number(b) - Number(a))) {
+      html += spareRow('cat6:' + len, spAuto.cat6ByLength[len], `${len}' Cat6`);
+    }
+    // Power
+    html += spacer;
+    html += spareRow('socaSplays', spAuto.socaSplays, 'Soca Splays');
+    html += spareRow('true1_25', spAuto.true1_25, "25' True1");
+    html += spareRow('true1_10', spAuto.true1_10, "10' True1");
+    html += spareRow('true1_5', spAuto.true1_5, "5' True1");
+    html += spareRow('true1Twofer', spAuto.true1Twofer, 'True1 Twofer');
   }
-  // Power
-  html += spacer;
-  html += addGearLine('Soca Splays:', spareCable(totalSocaSplays));
-  html += addGearLine("25' True1:", spareCable(totalSocaSplays));
-  html += addGearLine("10' True1:", spareCable(totalSocaSplays));
-  html += addGearLine("5' True1:", spareCable(totalSocaSplays * 2));
-  html += addGearLine('True1 Twofer:', spareCable(totalTrue1Twofers));
 
   html += '</div>';
 
   gearContent.innerHTML = html;
+}
+
+// Spare quantity edit handler. Stores the override and stops there — the input already
+// shows what was typed, so skipping a re-render keeps the caret where the user left it.
+// Exports read the override live from buildGearListData(), and the next natural
+// renderCombinedGearList() re-reads it too.
+function updateSpareOverride(el) {
+  if(!el) return;
+  const key = el.getAttribute('data-spare-key');
+  if(!key) return;
+  setSpareOverride(key, el.value.trim());
 }
 

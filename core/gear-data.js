@@ -2,6 +2,61 @@
 // Single source of truth for gear list calculations.
 // Consumed by: gear tab (nav/gear.js), PDF export, and email export (export/pdf.js)
 
+// ==================== SPARE QUANTITY OVERRIDES ====================
+// Spares are auto-calculated (panels 10%, cables/rigging 40%) but every line is
+// editable in the Combined view gear list. Overrides live with the project — they
+// are written into the .blinkled by config/save-load.js and applied below inside
+// buildGearListData(), so every consumer (gear .txt, email body, PDF) inherits them.
+// Keys: 'panel:<Brand Name>', 'cat6:<len>', or the spares field name itself.
+
+let projectSpareOverrides = {};
+
+const SPARE_OVERRIDE_MAX = 9999;
+
+function validateSpareOverrides(parsed) {
+  if(!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+  const safe = {};
+  Object.keys(parsed).forEach(key => {
+    if(typeof key !== 'string' || key.length > 200 || !isSafeKey(key)) return;
+    const num = Number(parsed[key]);
+    if(!isFinite(num) || num < 0) return;
+    safe[key] = Math.min(Math.floor(num), SPARE_OVERRIDE_MAX);
+  });
+  return safe;
+}
+
+// Store an override. An empty/invalid value clears it, restoring the calculated quantity.
+function setSpareOverride(key, value) {
+  if(typeof key !== 'string' || !isSafeKey(key)) return;
+  const num = Number(value);
+  if(value === '' || value === null || value === undefined || !isFinite(num) || num < 0) {
+    delete projectSpareOverrides[key];
+    return;
+  }
+  projectSpareOverrides[key] = Math.min(Math.floor(num), SPARE_OVERRIDE_MAX);
+}
+
+// Returns the stored override for this key, or undefined when none is set.
+function getSpareOverride(key) {
+  return Object.prototype.hasOwnProperty.call(projectSpareOverrides, key)
+    ? projectSpareOverrides[key]
+    : undefined;
+}
+
+function resolveSpareOverride(key, calculated) {
+  const override = getSpareOverride(key);
+  return override === undefined ? calculated : override;
+}
+
+function getSpareOverridesForSave() {
+  if(Object.keys(projectSpareOverrides).length === 0) return undefined;
+  return projectSpareOverrides;
+}
+
+function loadProjectSpareOverrides(overrides) {
+  projectSpareOverrides = validateSpareOverrides(overrides || {});
+}
+
 // Serpentine column-crossing count for data cabling.
 // Panels with cables attached to them join columns with Cat5 couplers (one per crossing);
 // panels without attached cables need a cross jumper at BOTH the top and the bottom of
@@ -445,6 +500,7 @@ function buildGearListData(screenIds) {
 
   // === COMBINED SPARES (panels 10%, cables/rigging 40%) ===
   let combinedSpares = null;
+  let combinedSparesAuto = null;
   if(screenDataList.length > 0) {
     const sparePanel = (count) => count > 0 ? Math.ceil(count * 0.1) : 0;
     const spareCable = (count) => count > 0 ? Math.ceil(count * 0.4) : 0;
@@ -481,30 +537,60 @@ function buildGearListData(screenIds) {
       totTrue1Twofer += sd.powerCables.true1Twofer || 0;
     });
 
-    const sparePanelsByType = {};
+    // Auto-calculated quantities, before any user override. Returned alongside the
+    // resolved spares so the Combined view can show them as input placeholders.
+    const autoPanelsByType = {};
     Object.entries(panelsByType).forEach(([name, count]) => {
       const spare = sparePanel(count);
-      if(spare > 0) sparePanelsByType[name] = spare;
+      if(spare > 0) autoPanelsByType[name] = spare;
     });
 
-    const spareCat6 = {};
+    const autoCat6 = {};
     Object.entries(totCat6).forEach(([len, count]) => {
-      spareCat6[len] = spareCable(count);
+      autoCat6[len] = spareCable(count);
     });
 
-    combinedSpares = {
-      panelsByType: sparePanelsByType,
+    combinedSparesAuto = {
+      panelsByType: autoPanelsByType,
       shackles: spareCable(totShackles),
       cheeseyes: spareCable(totCheeseyes),
       crossJumpers: spareCable(totCrossJumpers),
       crossJumperLen: crossJumperLen,
       cat5Couplers: spareCable(totCat5Couplers),
-      cat6ByLength: spareCat6,
+      cat6ByLength: autoCat6,
       socaSplays: spareCable(totSocaSplays),
       true1_25: spareCable(totTrue1_25),
       true1_10: spareCable(totTrue1_10),
       true1_5: spareCable(totTrue1_5),
       true1Twofer: spareCable(totTrue1Twofer)
+    };
+
+    // Apply per-item overrides. A resolved 0 drops the line from every export,
+    // matching the `> 0` filters the export renderers already apply.
+    const sparePanelsByType = {};
+    Object.entries(autoPanelsByType).forEach(([name, spare]) => {
+      const resolved = resolveSpareOverride('panel:' + name, spare);
+      if(resolved > 0) sparePanelsByType[name] = resolved;
+    });
+
+    const spareCat6 = {};
+    Object.entries(autoCat6).forEach(([len, spare]) => {
+      spareCat6[len] = resolveSpareOverride('cat6:' + len, spare);
+    });
+
+    combinedSpares = {
+      panelsByType: sparePanelsByType,
+      shackles: resolveSpareOverride('shackles', combinedSparesAuto.shackles),
+      cheeseyes: resolveSpareOverride('cheeseyes', combinedSparesAuto.cheeseyes),
+      crossJumpers: resolveSpareOverride('crossJumpers', combinedSparesAuto.crossJumpers),
+      crossJumperLen: crossJumperLen,
+      cat5Couplers: resolveSpareOverride('cat5Couplers', combinedSparesAuto.cat5Couplers),
+      cat6ByLength: spareCat6,
+      socaSplays: resolveSpareOverride('socaSplays', combinedSparesAuto.socaSplays),
+      true1_25: resolveSpareOverride('true1_25', combinedSparesAuto.true1_25),
+      true1_10: resolveSpareOverride('true1_10', combinedSparesAuto.true1_10),
+      true1_5: resolveSpareOverride('true1_5', combinedSparesAuto.true1_5),
+      true1Twofer: resolveSpareOverride('true1Twofer', combinedSparesAuto.true1Twofer)
     };
   }
 
@@ -514,6 +600,7 @@ function buildGearListData(screenIds) {
     screens: screenDataList,
     signalCables: signalCables,
     utility: utility,
-    spares: combinedSpares
+    spares: combinedSpares,
+    sparesAuto: combinedSparesAuto
   };
 }

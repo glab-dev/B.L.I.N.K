@@ -1329,6 +1329,60 @@ canvas:focus {
   cursor: not-allowed;
 }
 
+/* Quick per-view PDF export button — tucked inside the container's top-right
+   corner. Unlike the comic title tag it does not straddle the border. Absolutely
+   positioned so it adds no height to .layout-title and cannot disturb existing
+   header rows. */
+.view-export-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 30px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 8px;
+  margin: 0;
+  margin-bottom: 0;
+  background: #1a1a1a;
+  border: 1px solid var(--primary);
+  border-radius: 0;
+  box-shadow: none;
+  text-shadow: none;
+  font-family: 'Roboto Condensed', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--primary);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.view-export-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.view-export-btn:hover {
+  background: var(--primary);
+  color: #000;
+}
+
+.view-export-btn:active {
+  transform: translate(1px, 1px);
+}
+
+.view-export-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Collapse/Expand button for layout containers */
 .layout-collapse-btn {
   position: absolute;
@@ -5038,6 +5092,13 @@ canvas:focus {
   .raster-action-btn {
     padding: 0 6px !important;
   }
+  /* Beat the global mobile `button { min-height: 39px !important }` rule */
+  .view-export-btn {
+    min-height: 28px !important;
+    height: 28px !important;
+    font-size: 12px !important;
+    padding: 0 8px !important;
+  }
   .raster-add-btn {
     min-height: auto !important;
     font-size: 16px !important;
@@ -6973,6 +7034,49 @@ canvas:focus {
   line-height: 1.8;
   padding-right: 5px;
   padding-bottom: 5px;
+}
+
+/* Editable spare quantities — combined gear list only.
+   Scoped to unique .spare-* names so nothing else can pick these up. */
+.spare-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  line-height: 1.4;
+}
+
+.spare-row-label {
+  color: #fff;
+}
+
+.spare-hint {
+  margin-left: 12px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+/* Must out-specify the mobile block's `input[type="number"] { height: 39px !important }`
+   (0,1,1) — a bare .spare-qty-input (0,1,0) loses to it. Keeps the row identical at
+   every width. */
+input[type="number"].spare-qty-input {
+  width: 48px !important;
+  min-width: 48px !important;
+  flex: 0 0 auto;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 4px !important;
+  font-size: 13px !important;
+  margin: 0 !important;
+  text-align: center;
+  box-shadow: 1px 1px 0px 0px rgba(0,0,0,1);
+}
+
+input[type="number"].spare-qty-input::placeholder {
+  color: #6b7280;
+  opacity: 1;
 }
 
 /* Combined container (non-display props) */

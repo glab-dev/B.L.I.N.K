@@ -1,5 +1,5 @@
 {
-  "version": "2.11.170",
-  "updated": "2026-08-24",
-  "changelog": "Update help modal and README for SOCA, data ports, Select Mode and exports"
+  "version": "2.11.171",
+  "updated": "2026-08-25",
+  "changelog": "Add per-view PDF exports, editable spares, and screen-scoped gear list export"
 }

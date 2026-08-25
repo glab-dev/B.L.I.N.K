@@ -1139,8 +1139,31 @@ function _getSectionOnlyPdfBlob(opts, callback) {
     // sections actually render them. Specs-only and gear-only PDFs don't, so
     // skip the heavy capture entirely — big memory win, zero output change.
     var needsLayoutImages = !!(opts && (opts.standard || opts.power || opts.data || opts.structure || opts.cabling));
-    var canvasCache = (needsLayoutImages && typeof pdfCaptureCanvases === 'function') ? pdfCaptureCanvases() : {};
+    var canvasCache = (needsLayoutImages && typeof pdfCaptureCanvases === 'function')
+      ? pdfCaptureCanvases(_sectionCaptureOpts(opts)) : {};
 
+    // The combined layouts have their own capture pass — it re-renders the
+    // combined view rather than switching screens, so it can't share the loop above.
+    var needsCombinedImages = !!(opts && (opts.combinedStandard || opts.combinedPower ||
+      opts.combinedData || opts.combinedStructure || opts.combinedCabling));
+    if (needsCombinedImages && typeof pdfCaptureCombinedCanvases === 'function') {
+      pdfCaptureCombinedCanvases(function(combinedCache) {
+        Object.keys(combinedCache || {}).forEach(function(k) { canvasCache[k] = combinedCache[k]; });
+        _finishSectionOnlyPdf(opts, canvasCache, callback);
+      });
+      return;
+    }
+
+    _finishSectionOnlyPdf(opts, canvasCache, callback);
+  } catch(e) {
+    console.error('_getSectionOnlyPdfBlob error:', e);
+    callback(null);
+  }
+}
+
+// Restore the on-screen layouts the capture pass disturbed, then build the doc.
+function _finishSectionOnlyPdf(opts, canvasCache, callback) {
+  try {
     if (typeof ecoPrintMode !== 'undefined') ecoPrintMode = false;
     if (typeof greyscalePrintMode !== 'undefined') greyscalePrintMode = false;
     try { if (typeof generateLayout === 'function') { generateLayout('standard'); generateLayout('power'); generateLayout('data'); } } catch(e) {}
@@ -1152,9 +1175,25 @@ function _getSectionOnlyPdfBlob(opts, callback) {
     var docDef = buildComplexPdf(opts, canvasCache);
     pdfMake.createPdf(docDef).getBlob(function(blob) { callback(blob); });
   } catch(e) {
-    console.error('_getSectionOnlyPdfBlob error:', e);
+    console.error('_finishSectionOnlyPdf error:', e);
     callback(null);
   }
+}
+
+// Narrow the (expensive) capture pass to only the screens and canvases the
+// requested sections actually render. Returns undefined for a full capture.
+function _sectionCaptureOpts(opts) {
+  if (!opts) return undefined;
+  var canvasIds = [];
+  if (opts.standard)  canvasIds.push('standardCanvas');
+  if (opts.power)     canvasIds.push('powerCanvas');
+  if (opts.data)      canvasIds.push('dataCanvas');
+  if (opts.structure) canvasIds.push('structureCanvas');
+  if (opts.cabling)   canvasIds.push('cableDiagramCanvas');
+  var out = {};
+  if (canvasIds.length) out.canvasIds = canvasIds;
+  if (opts.screenIds && opts.screenIds.length) out.screenIds = opts.screenIds;
+  return out;
 }
 
 // buildComplexPdf only emits the project summary page for multi-screen projects,
@@ -1185,6 +1224,34 @@ function getGearListPdfPagePngBlobs(callback) {
   });
 }
 
+// Hand a finished blob to the user: native share sheet on mobile (so it can be
+// saved to Files), a hidden <a download> everywhere else.
+function _downloadBlobFile(blob, filename, mimeType) {
+  mimeType = mimeType || 'application/octet-stream';
+
+  var isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
+                       (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+  if(isMobileDevice && navigator.canShare) {
+    var file = new File([blob], filename, { type: mimeType });
+    if(navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file] }).catch(function() {});
+      return;
+    }
+  }
+
+  var url = URL.createObjectURL(blob);
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(function() {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 100);
+}
+
 function _downloadCanvasBlob(canvas, filename, mimeType) {
   mimeType = mimeType || 'image/png';
   var quality = mimeType === 'image/jpeg' ? 0.92 : undefined;
@@ -1193,28 +1260,7 @@ function _downloadCanvasBlob(canvas, filename, mimeType) {
       showAlert('Failed to create image. Please try again.');
       return;
     }
-
-    var isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
-                         (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-    if(isMobileDevice && navigator.canShare) {
-      var file = new File([blob], filename, { type: mimeType });
-      if(navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file] }).catch(function() {});
-        return;
-      }
-    }
-
-    var url = URL.createObjectURL(blob);
-    var link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(function() {
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }, 100);
+    _downloadBlobFile(blob, filename, mimeType);
   }, mimeType, quality);
 }
 

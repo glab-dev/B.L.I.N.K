@@ -664,6 +664,16 @@ Generate a professional multi-page PDF report containing:
 
 The preview *is* the PDF — what you see in the preview is byte-for-byte what exports.
 
+### Per-View PDF Export
+Every layout, the specs, and the gear list carry a small share button in the top-right of their box. Tapping it produces a single-page PDF of just that view, through the same pdfmake pipeline the full report uses.
+
+- **Screen views** — Standard, Power, Data, Structure, Cabling, and Gear List export for the screen you are currently on
+- **Combined views** — Combined Standard, Power, Data, Structure, Cabling, Specs, and Gear List cover every selected screen, and need at least two screens selected
+- **Matches the full report** — the page you get is the page the full report would have contained for that view
+- **Filename** — config name, screen name, view name, and date
+- Eco Friendly and Greyscale apply to the full report only
+- On mobile, the file goes to the native share sheet
+
 ### PNG/JPEG Export
 Export the canvas view as an image file at full resolution, or each screen at its native resolution. On mobile, uses the native share sheet.
 

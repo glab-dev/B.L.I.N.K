@@ -102,6 +102,7 @@ function setCombinedPowerType(type) {
   document.getElementById('combinedPowerAvgBtn').classList.toggle('active', type === 'avg');
   renderCombinedSpecs(Array.from(combinedSelectedScreens));
   renderCombinedPhaseBalance(Array.from(combinedSelectedScreens));
+  renderCombinedSocaCircuitTable(Array.from(combinedSelectedScreens));
 }
 
 function setCombinedPhase(phase) {
@@ -2255,6 +2256,8 @@ function renderCombinedView() {
   renderCombinedSpecs(selectedScreenIds);
   renderCombinedGearList(selectedScreenIds);
   renderCombinedPhaseBalance(selectedScreenIds);
+  renderCombinedSocaCircuitTable(selectedScreenIds);
+  renderCombinedStructureInfo(selectedScreenIds);
 }
 
 // Render combined standard layout
@@ -3239,6 +3242,163 @@ function renderCombinedDataLineMap(sections) {
     block.appendChild(grid);
     host.appendChild(block);
   });
+}
+
+// One titled block per screen inside a combined info section. Mirrors the block
+// structure renderCombinedDataLineMap() builds, so the three sections below the
+// combined canvases all read the same way.
+function _combinedInfoBlock(host, screenName) {
+  const block = document.createElement('div');
+  block.className = 'combined-info-block';
+
+  const heading = document.createElement('div');
+  heading.className = 'combined-info-screen';
+  heading.textContent = screenName;
+  block.appendChild(heading);
+
+  host.appendChild(block);
+  return block;
+}
+
+// Per-screen SOCA circuit cards below the combined power canvas — the combined
+// counterpart of renderSocaCircuitTable(). Labels come from
+// sharedDistroSocaLabelMap(), the same source the combined canvas draws with, so
+// the table and the layout can't disagree under Share Distro.
+function renderCombinedSocaCircuitTable(selectedScreenIds) {
+  const host = document.getElementById('combinedSocaCircuitTable');
+  if(!host) return;
+  host.textContent = '';
+
+  const ids = selectedScreenIds || [];
+  let any = false;
+
+  ids.forEach(screenId => {
+    const screen = screens[screenId];
+    const cd = screen && screen.calculatedData;
+    const sb = (cd && Array.isArray(cd.socaBreakdown)) ? cd.socaBreakdown : null;
+    if(!sb || !sb.length) return;
+
+    const labelMap = (typeof sharedDistroSocaLabelMap === 'function')
+      ? sharedDistroSocaLabelMap(screenId) : null;
+    const labelIdx = idx => (labelMap && labelMap.has(idx)) ? labelMap.get(idx) : idx;
+
+    const block = _combinedInfoBlock(host, screen.name);
+    const grid = document.createElement('div');
+    grid.className = 'soca-circuit-table';
+
+    sb.forEach(soca => {
+      const label = (typeof formatSocaLabel === 'function')
+        ? formatSocaLabel(labelIdx(soca.socaIdx)) : (labelIdx(soca.socaIdx) + 1);
+      const box = document.createElement('div');
+      box.className = 'structure-info-box soca-load';
+      const rows = soca.circuits.map(c =>
+        `<div class="weight-row"><span class="weight-label">${label}.${(c.circuit % 6) + 1}</span><span class="weight-value">${c.amps.toFixed(1)} A</span></div>`
+      ).join('');
+      box.innerHTML =
+        `<div class="structure-info-title soca-load">SOCA ${label}</div>` + rows +
+        `<div class="weight-row soca-total"><span class="weight-label">Total</span><span class="weight-value">${soca.totalAmps.toFixed(1)} A</span></div>`;
+      grid.appendChild(box);
+    });
+
+    block.appendChild(grid);
+    any = true;
+  });
+
+  host.style.display = any ? 'block' : 'none';
+}
+
+// Structure info for a screen that isn't the open one. buildStructureInfoLines()
+// takes a screenId, but its helpers read the live panelType / bumperDistribution
+// inputs and the global bumpers array — all of which only ever describe the open
+// screen. loadScreenData() is the app's own state loader and renders nothing, so
+// it can stand the globals up for one screen and put them straight back.
+function structureInfoLinesForScreen(screenId) {
+  if(typeof buildStructureInfoLines !== 'function') return [];
+  if(screenId === currentScreenId) return buildStructureInfoLines(screenId);
+
+  const prev = currentScreenId;
+  try {
+    loadScreenData(screenId);
+    return buildStructureInfoLines(screenId);
+  } catch(e) {
+    console.error('structureInfoLinesForScreen failed for ' + screenId + ':', e);
+    return [];
+  } finally {
+    try { loadScreenData(prev); } catch(e) { console.error('structureInfoLinesForScreen restore failed:', e); }
+  }
+}
+
+// Per-screen structure info cards below the combined structure canvas. The flat
+// line list buildStructureInfoLines() returns is split into a card at each header,
+// which is the same shape buildStructureInfoPdf() renders for the PDF.
+function renderCombinedStructureInfo(selectedScreenIds) {
+  const host = document.getElementById('combinedStructureInfo');
+  if(!host) return;
+  host.textContent = '';
+
+  const ids = selectedScreenIds || [];
+  let any = false;
+
+  // Card accent classes, matched to the single-screen structure panel by title.
+  const toneFor = function(title) {
+    const t = title.toLowerCase();
+    if(t.indexOf('pickup') === 0) return 'weights';
+    if(t.indexOf('connecting') === 0) return 'plates';
+    if(t.indexOf('ground') === 0) return 'ground-support';
+    if(t.indexOf('floor') === 0) return 'floor-frames';
+    return 'total-weight';
+  };
+
+  ids.forEach(screenId => {
+    const screen = screens[screenId];
+    if(!screen) return;
+    const lines = structureInfoLinesForScreen(screenId);
+    if(!lines || !lines.length) return;
+
+    // Split the flat list into {title, items} at each header line.
+    const tables = [];
+    let current = null;
+    lines.forEach(l => {
+      if(l.header) { if(current) tables.push(current); current = { title: l.text, items: [] }; }
+      else if(current && l.text) current.items.push(l);
+    });
+    if(current) tables.push(current);
+    if(!tables.length) return;
+
+    const block = _combinedInfoBlock(host, screen.name);
+    const grid = document.createElement('div');
+    grid.className = 'combined-structure-info-grid';
+
+    tables.forEach(table => {
+      const tone = toneFor(table.title);
+      const box = document.createElement('div');
+      box.className = 'structure-info-box ' + tone;
+      const rows = table.items.map(item => {
+        // Lines arrive as "  Label: value" (or a bare count); split on the last colon.
+        const text = item.text.trim();
+        const i = text.lastIndexOf(':');
+        const label = i === -1 ? text : text.slice(0, i);
+        const value = i === -1 ? '' : text.slice(i + 1).trim();
+        const cls = item.bold ? 'weight-row combined-info-total' : 'weight-row';
+        return `<div class="${cls}"><span class="weight-label"></span><span class="weight-value"></span></div>`
+          .replace('<span class="weight-label"></span>', '<span class="weight-label">' + _combinedEsc(label) + '</span>')
+          .replace('<span class="weight-value"></span>', '<span class="weight-value">' + _combinedEsc(value) + '</span>');
+      }).join('');
+      box.innerHTML = '<div class="structure-info-title ' + tone + '">' + _combinedEsc(table.title) + '</div>' + rows;
+      grid.appendChild(box);
+    });
+
+    block.appendChild(grid);
+    any = true;
+  });
+
+  host.style.display = any ? 'block' : 'none';
+}
+
+function _combinedEsc(str) {
+  const d = document.createElement('span');
+  d.textContent = str == null ? '' : String(str);
+  return d.innerHTML;
 }
 
 // Render combined structure layout

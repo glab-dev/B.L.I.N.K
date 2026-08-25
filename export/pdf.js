@@ -1217,6 +1217,10 @@ function buildGearSection(title, items, bodyColumns) {
 function _structureInfoLinesFor(screenId, canvasCache) {
   const cached = canvasCache && canvasCache[screenId + '_structureInfo'];
   if (cached) return cached;
+  // No capture pass filled the cache — the combined pages are built from the
+  // combined canvas cache, which holds images only. Stand the globals up for the
+  // screen instead of reading whichever one happens to be open.
+  if (typeof structureInfoLinesForScreen === 'function') return structureInfoLinesForScreen(screenId);
   if (typeof buildStructureInfoLines !== 'function') return null;
   return buildStructureInfoLines(screenId);
 }
@@ -2127,11 +2131,34 @@ function buildComplexPdf(opts, canvasCache) {
   // ===== COMBINED-VIEW LAYOUT PAGES =====
   // Opt-in only (=== true, not !== false): every existing caller leaves these
   // undefined, so the report they get today is unchanged.
+
+  // The per-screen tables the combined view shows below its canvas in the app.
+  // Each screen contributes a name heading plus its own card table, reusing the
+  // same builders the per-screen layout pages use — so a screen's SOCA card reads
+  // identically whether you find it on its own page or on the combined one.
+  function combinedInfoStack(kind, sids) {
+    const stack = [];
+    let est = 0;
+    sids.forEach(function(sid) {
+      let node = null, h = 0;
+      if (kind === 'data')           { node = buildDataLineMapTable(sid);            h = estDataMapHeight(sid); }
+      else if (kind === 'power')     { node = buildSocaCircuitTable(sid);             h = estSocaTableHeight(sid); }
+      else if (kind === 'structure') { node = buildStructureInfoPdf(sid, canvasCache); h = estStructureInfoHeight(sid, canvasCache); }
+      if (!node) return;
+      const sc = screens[sid];
+      stack.push({ text: ((sc && sc.name) ? sc.name : sid).toUpperCase(),
+                   fontSize: 8, bold: true, color: tc.textMuted, margin: [0, 6, 0, 2] });
+      stack.push(node);
+      est += h + 16; // + heading and its margins
+    });
+    return stack.length ? { stack: stack, est: est } : null;
+  }
+
   [
     { flag: opts.combinedStandard,  key: 'combined_standard',  title: 'Standard Layout (Combined)' },
-    { flag: opts.combinedPower,     key: 'combined_power',     title: 'Power Layout (Combined)' },
-    { flag: opts.combinedData,      key: 'combined_data',      title: 'Data Layout (Combined)' },
-    { flag: opts.combinedStructure, key: 'combined_structure', title: 'Structure Layout (Combined)' },
+    { flag: opts.combinedPower,     key: 'combined_power',     title: 'Power Layout (Combined)',     tables: 'power' },
+    { flag: opts.combinedData,      key: 'combined_data',      title: 'Data Layout (Combined)',      tables: 'data' },
+    { flag: opts.combinedStructure, key: 'combined_structure', title: 'Structure Layout (Combined)', tables: 'structure' },
     { flag: opts.combinedCabling,   key: 'combined_cabling',   title: 'Cabling Layout (Combined)' }
   ].filter(function(cp) { return cp.flag === true; }).forEach(function(cp) {
     const img = canvasCache && canvasCache[cp.key];
@@ -2141,10 +2168,16 @@ function buildComplexPdf(opts, canvasCache) {
     content.push(buildPdfHeader(configName, dateStr, logoData));
     content.push(sectionLabel(cp.title));
 
+    const info = cp.tables ? combinedInfoStack(cp.tables, screenIds) : null;
+
     // Fill the page width, then shrink to fit whatever height is left under the
-    // report header and the section label.
+    // report header and the section label. When the page also carries tables, give
+    // them room — but never more than half the page, or a project with many screens
+    // would squeeze the layout down to a stripe. Whatever doesn't fit moves to a
+    // second page of its own below.
     const overhead = m.headerBarH + m.afterHeaderGap + m.sectionLabelH + m.afterLabelGap + 12;
-    const maxH = uh - overhead;
+    const tablesH = info ? info.est : 0;
+    const maxH = uh - overhead - Math.min(tablesH, Math.round(uh * 0.5));
     const aspect = img.aspectRatio || 1;
     let renderWidth = cw;
     let renderHeight = Math.round(renderWidth * aspect);
@@ -2158,6 +2191,18 @@ function buildComplexPdf(opts, canvasCache) {
       alignment: 'center',
       margin: [0, 0, 0, 4]
     });
+
+    if (info) {
+      // Break explicitly when the tables can't share the page. Letting pdfmake
+      // break here instead would produce a page with no report header, because
+      // headers are pushed into the content per page.
+      if (overhead + renderHeight + tablesH > uh) {
+        content.push({ text: '', pageBreak: 'before' });
+        content.push(buildPdfHeader(configName, dateStr, logoData));
+        content.push(sectionLabel(cp.title));
+      }
+      content.push({ stack: info.stack });
+    }
   });
 
   return {

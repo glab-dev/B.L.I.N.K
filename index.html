@@ -3321,6 +3321,7 @@
           <canvas id="combinedPowerCanvas"></canvas>
         </div>
         <div id="combinedPhaseBalanceLegend" class="phase-balance-legend" style="display:none;"></div>
+        <div id="combinedSocaCircuitTable" class="combined-info-section"></div>
       </div>
     </div>
 
@@ -3381,6 +3382,7 @@
         <div id="combinedStructureCanvasWrapper" class="overflow-x-auto">
           <canvas id="combinedStructureCanvas"></canvas>
         </div>
+        <div id="combinedStructureInfo" class="combined-info-section"></div>
       </div>
     </div>
   </div>
@@ -3850,8 +3852,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.175';
-const APP_CHANGELOG = 'Fix per-screen structure tables showing the open screen pickup weights';
+const APP_VERSION = '2.11.176';
+const APP_CHANGELOG = 'Add per-screen SOCA and structure tables to the combined views and PDFs';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

@@ -4114,6 +4114,55 @@ canvas:focus {
   text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
 }
 
+/* Combined power / structure info sections — one titled block per screen below the
+   canvas, mirroring the combined data map above. Scoped to the two new IDs so the
+   single-screen #socaCircuitTable and #structureInfoPanel keep their own layout. */
+#combinedSocaCircuitTable,
+#combinedStructureInfo { padding: 0 5px 5px; }
+#combinedSocaCircuitTable:empty,
+#combinedStructureInfo:empty { padding: 0; }
+
+.combined-info-screen {
+  font-family: 'Bangers', cursive;
+  font-size: 15px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #fff;
+  margin: 14px 0 -8px 2px;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
+#combinedSocaCircuitTable .soca-circuit-table { padding-top: 12px; }
+
+/* Structure cards flow across the width rather than the fixed two columns the
+   single-screen panel uses — a combined view can carry many screens. */
+.combined-structure-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  align-items: start;
+  padding: 12px 0 5px;
+}
+
+/* .weights / .plates / .ground-support / .floor-frames / .total-weight each pin
+   themselves to grid-column 1 or 2 for the single-screen panel. Release that here
+   or grid-column: 2 conjures a phantom second column — the same trap the
+   .mains / .backups cards hit inside .data-line-map on mobile. */
+.combined-structure-info-grid .structure-info-box { grid-column: auto; }
+
+/* Bold summary rows (the "Total" line of each card) get the same separator the
+   SOCA cards use, without borrowing .soca-total's orange value colour. */
+.combined-structure-info-grid .weight-row.combined-info-total {
+  border-top: 1px solid #3a3a3a;
+  border-bottom: none;
+  margin-top: 4px;
+  padding-top: 6px;
+}
+
+@media (max-width: 768px) {
+  .combined-structure-info-grid { grid-template-columns: 1fr; }
+}
+
 /* Mobile: stack the two cards. Side by side, each one is narrower than the 180px of
    fixed tracks a .dlm-row needs, so the Port column spilled off the right of the card. */
 @media (max-width: 768px) {

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.175",
+  "version": "2.11.176",
   "updated": "2026-08-25",
-  "changelog": "Fix per-screen structure tables showing the open screen pickup weights"
+  "changelog": "Add per-screen SOCA and structure tables to the combined views and PDFs"
 }

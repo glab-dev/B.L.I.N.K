@@ -2137,12 +2137,12 @@ function buildComplexPdf(opts, canvasCache) {
   // same builders the per-screen layout pages use — so a screen's SOCA card reads
   // identically whether you find it on its own page or on the combined one.
   function combinedInfoStack(kind, sids) {
-    // Power and structure run three screens across, with each screen's cards
-    // stacked inside its own block — a card at a third of the page is still wide
-    // enough for "2W #1: 265 lbs", and three screens to a row costs a third of the
-    // height that stacking them did. The data map keeps one screen per row: its
-    // Mains/Backups pair is already two cards wide.
-    const perRow = (kind === 'data') ? 1 : 3;
+    // Power and structure run four screens across, with each screen's cards stacked
+    // inside its own block — a card at a quarter of the page still holds
+    // "2W #1: 265 lbs" on one line, and a row of four costs the height one screen
+    // used to. The data map keeps one screen per row: its Mains/Backups pair is
+    // already two cards wide.
+    const perRow = (kind === 'data') ? 1 : 4;
 
     const blocks = [];
     sids.forEach(function(sid) {

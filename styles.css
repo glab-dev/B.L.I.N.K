@@ -4120,7 +4120,7 @@ canvas:focus {
 #combinedSocaCircuitTable,
 #combinedStructureInfo {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px 20px;
   align-items: start;
   padding: 0 5px 5px;
@@ -4175,7 +4175,15 @@ canvas:focus {
   padding-top: 6px;
 }
 
-/* One screen block per row on phones — three columns of cards is unreadable there. */
+/* Four across needs roughly 240px a column: .structure-info-title is an
+   absolutely-positioned tab sized for one line, and "Total Structure Weight"
+   wraps below that, covering the first row of its card. Step down instead. */
+@media (max-width: 1199px) {
+  #combinedSocaCircuitTable,
+  #combinedStructureInfo { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* One screen block per row on phones. */
 @media (max-width: 768px) {
   #combinedSocaCircuitTable,
   #combinedStructureInfo { grid-template-columns: 1fr; }

@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.179', date: '2026-08-25', notes: 'Run combined power and structure tables four screens across' },
   { version: '2.11.178', date: '2026-08-25', notes: 'Run combined power and structure tables three screens across' },
   { version: '2.11.177', date: '2026-08-25', notes: 'Pack combined power and structure tables two across and fit them on one page' },
   { version: '2.11.176', date: '2026-08-25', notes: 'Add per-screen SOCA and structure tables to the combined views and PDFs' },

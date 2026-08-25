@@ -1,5 +1,5 @@
 {
-  "version": "2.11.174",
+  "version": "2.11.175",
   "updated": "2026-08-25",
-  "changelog": "Unify all app hints onto one compact green box style"
+  "changelog": "Fix per-screen structure tables showing the open screen pickup weights"
 }

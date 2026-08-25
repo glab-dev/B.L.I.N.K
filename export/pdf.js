@@ -1210,15 +1210,25 @@ function buildGearSection(title, items, bodyColumns) {
   };
 }
 
+// Structure info lines for a screen. pdfCaptureCanvases() collects these per
+// screen while that screen is open; prefer those. The live call is the fallback
+// for paths that build a PDF without a capture pass, where the only screen that
+// can be described is the open one anyway.
+function _structureInfoLinesFor(screenId, canvasCache) {
+  const cached = canvasCache && canvasCache[screenId + '_structureInfo'];
+  if (cached) return cached;
+  if (typeof buildStructureInfoLines !== 'function') return null;
+  return buildStructureInfoLines(screenId);
+}
+
 /**
  * Converts structure info lines (from buildStructureInfoLines) into a 4-column card layout
  * matching the hero page summary bar style. Each section (Pickup Weights, Connecting Plates,
  * Ground Support Hardware, Total Structure Weight) becomes one equal-width column card.
  * Handles any number of tables dynamically — wraps to additional rows if > 4.
  */
-function buildStructureInfoPdf(screenId) {
-  if (typeof buildStructureInfoLines !== 'function') return null;
-  const lines = buildStructureInfoLines(screenId);
+function buildStructureInfoPdf(screenId, canvasCache) {
+  const lines = _structureInfoLinesFor(screenId, canvasCache);
   if (!lines || lines.length === 0) return null;
 
   const tc = PDF_TOKENS.colors;
@@ -1794,7 +1804,7 @@ function buildComplexPdf(opts, canvasCache) {
       const lblH = m.sectionLabelH + m.afterLabelGap;
       const estSocaH    = estSocaTableHeight(screenId);
       const estDataMapH = estDataMapHeight(screenId);
-      const estStructH  = estStructureInfoHeight(screenId);
+      const estStructH  = estStructureInfoHeight(screenId, canvasCache);
 
       // One-per-page image cap: fill the page minus the section label and the layout's own
       // table. The reserve covers the image's own 4pt bottom margin plus slack for rounding
@@ -1841,7 +1851,7 @@ function buildComplexPdf(opts, canvasCache) {
           const structBaseH = fillImgH(estStructH);
           const img = gridImage(screenId + '_structure', pw, ph, structBaseH);
           if (img) content.push(img);
-          const structInfo = buildStructureInfoPdf(screenId, cw);
+          const structInfo = buildStructureInfoPdf(screenId, canvasCache);
           if (structInfo) content.push(structInfo);
         }
 
@@ -2546,9 +2556,8 @@ function estDataMapHeight(screenId) {
 
 // Height (pt) of the structure info cards. Mirrors buildStructureInfoPdf: the flat
 // line list is split into tables at each header, packed N per row, one row table each.
-function estStructureInfoHeight(screenId) {
-  if (typeof buildStructureInfoLines !== 'function') return 0;
-  const lines = buildStructureInfoLines(screenId);
+function estStructureInfoHeight(screenId, canvasCache) {
+  const lines = _structureInfoLinesFor(screenId, canvasCache);
   if (!lines || !lines.length) return 0;
   const tables = [];
   let current = null;
@@ -2821,6 +2830,15 @@ function pdfCaptureCanvases(captureOpts) {
         }
       }
     });
+    // Structure info has to be collected HERE, inside the per-screen switch.
+    // buildStructureInfoLines() takes a screenId but its helpers read the live
+    // panelType/bumperDistribution inputs and the global bumpers array, all of
+    // which only ever describe the screen that is currently open — so calling it
+    // later, at build time, returns the open screen's weights for every screen.
+    if (typeof buildStructureInfoLines === 'function') {
+      cache[screenId + '_structureInfo'] = buildStructureInfoLines(screenId);
+    }
+
     // Store SOCA bar fraction for power image so pdf.js can equalize grid height with data
     if (typeof _pdfPowerSocaFraction !== 'undefined' && cache[screenId + '_power']) {
       cache[screenId + '_power'].socaBarFraction = _pdfPowerSocaFraction;

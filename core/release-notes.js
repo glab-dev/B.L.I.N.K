@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.177', date: '2026-08-25', notes: 'Pack combined power and structure tables two across and fit them on one page' },
   { version: '2.11.176', date: '2026-08-25', notes: 'Add per-screen SOCA and structure tables to the combined views and PDFs' },
   { version: '2.11.175', date: '2026-08-25', notes: 'Fix per-screen structure tables showing the open screen pickup weights' },
   { version: '2.11.174', date: '2026-08-25', notes: 'Unify all app hints onto one compact green box style' },

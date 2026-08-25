@@ -1,5 +1,5 @@
 {
-  "version": "2.11.176",
+  "version": "2.11.177",
   "updated": "2026-08-25",
-  "changelog": "Add per-screen SOCA and structure tables to the combined views and PDFs"
+  "changelog": "Pack combined power and structure tables two across and fit them on one page"
 }

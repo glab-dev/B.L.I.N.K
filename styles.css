@@ -4132,13 +4132,22 @@ canvas:focus {
   text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
 }
 
-#combinedSocaCircuitTable .soca-circuit-table { padding-top: 12px; }
+/* Two across, matching the structure cards below the combined structure canvas.
+   Scoped to the combined section so the single-screen #socaCircuitTable keeps its
+   own flex-wrap packing. */
+#combinedSocaCircuitTable .soca-circuit-table {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  align-items: start;
+  padding-top: 12px;
+}
 
 /* Structure cards flow across the width rather than the fixed two columns the
    single-screen panel uses — a combined view can carry many screens. */
 .combined-structure-info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   align-items: start;
   padding: 12px 0 5px;
@@ -4160,7 +4169,8 @@ canvas:focus {
 }
 
 @media (max-width: 768px) {
-  .combined-structure-info-grid { grid-template-columns: 1fr; }
+  .combined-structure-info-grid,
+  #combinedSocaCircuitTable .soca-circuit-table { grid-template-columns: 1fr; }
 }
 
 /* Mobile: stack the two cards. Side by side, each one is narrower than the 180px of

@@ -1231,7 +1231,7 @@ function _structureInfoLinesFor(screenId, canvasCache) {
  * Ground Support Hardware, Total Structure Weight) becomes one equal-width column card.
  * Handles any number of tables dynamically — wraps to additional rows if > 4.
  */
-function buildStructureInfoPdf(screenId, canvasCache) {
+function buildStructureInfoPdf(screenId, canvasCache, perRowOverride) {
   const lines = _structureInfoLinesFor(screenId, canvasCache);
   if (!lines || lines.length === 0) return null;
 
@@ -1270,7 +1270,7 @@ function buildStructureInfoPdf(screenId, canvasCache) {
   }
 
   // Wrap up to N table cards in a summary-bar-style row
-  const perRow = pdfCurrentCardsPerRow();
+  const perRow = perRowOverride || pdfCurrentCardsPerRow();
   function buildRow(rowTables) {
     const padded = rowTables.slice();
     while (padded.length < perRow) padded.push(null);
@@ -2141,9 +2141,11 @@ function buildComplexPdf(opts, canvasCache) {
     let est = 0;
     sids.forEach(function(sid) {
       let node = null, h = 0;
-      if (kind === 'data')           { node = buildDataLineMapTable(sid);            h = estDataMapHeight(sid); }
-      else if (kind === 'power')     { node = buildSocaCircuitTable(sid);             h = estSocaTableHeight(sid); }
-      else if (kind === 'structure') { node = buildStructureInfoPdf(sid, canvasCache); h = estStructureInfoHeight(sid, canvasCache); }
+      // Two cards across: a combined page stacks a block per screen, and the
+      // 4-up packing the single-screen pages use left half of every row empty.
+      if (kind === 'data')           { node = buildDataLineMapTable(sid);               h = estDataMapHeight(sid); }
+      else if (kind === 'power')     { node = buildSocaCircuitTable(sid, 2);            h = estSocaTableHeight(sid, 2); }
+      else if (kind === 'structure') { node = buildStructureInfoPdf(sid, canvasCache, 2); h = estStructureInfoHeight(sid, canvasCache, 2); }
       if (!node) return;
       const sc = screens[sid];
       stack.push({ text: ((sc && sc.name) ? sc.name : sid).toUpperCase(),
@@ -2171,13 +2173,15 @@ function buildComplexPdf(opts, canvasCache) {
     const info = cp.tables ? combinedInfoStack(cp.tables, screenIds) : null;
 
     // Fill the page width, then shrink to fit whatever height is left under the
-    // report header and the section label. When the page also carries tables, give
-    // them room — but never more than half the page, or a project with many screens
-    // would squeeze the layout down to a stripe. Whatever doesn't fit moves to a
-    // second page of its own below.
+    // report header and the section label. A page carrying tables hands them exactly
+    // the height they need and keeps the rest for the layout, so the whole view fits
+    // on one page. MIN_LAYOUT_H is the floor — past it the layout stops being
+    // readable, and the tables spill to a second page below rather than shrink it
+    // further.
     const overhead = m.headerBarH + m.afterHeaderGap + m.sectionLabelH + m.afterLabelGap + 12;
     const tablesH = info ? info.est : 0;
-    const maxH = uh - overhead - Math.min(tablesH, Math.round(uh * 0.5));
+    const MIN_LAYOUT_H = 150;
+    const maxH = Math.max(MIN_LAYOUT_H, uh - overhead - tablesH);
     const aspect = img.aspectRatio || 1;
     let renderWidth = cw;
     let renderHeight = Math.round(renderWidth * aspect);
@@ -2473,7 +2477,7 @@ function buildDataLineMapTable(screenId) {
 // buildDataLineMapTable / the structure info cards: one grey boxed card per SOCA
 // listing each circuit's amps and the SOCA total, packed 4 cards per row. Reads
 // the per-screen breakdown stashed in calculatedData by calculate().
-function buildSocaCircuitTable(screenId) {
+function buildSocaCircuitTable(screenId, perRowOverride) {
   const screen = screens[screenId];
   const cd = screen && screen.calculatedData;
   const sb = cd && cd.socaBreakdown;
@@ -2514,8 +2518,9 @@ function buildSocaCircuitTable(screenId) {
   }
 
   // Pack N cards per row (width-aware, so a card is the same size in landscape as in
-  // portrait); pad the last row with blanks to keep equal widths.
-  const perRow = pdfCurrentCardsPerRow();
+  // portrait); pad the last row with blanks to keep equal widths. perRowOverride lets
+  // the combined page pack 2 across instead of leaving half a row of empty cells.
+  const perRow = perRowOverride || pdfCurrentCardsPerRow();
   const body = [];
   for (let r = 0; r < sb.length; r += perRow) {
     const row = [];
@@ -2578,11 +2583,11 @@ function pdfCurrentCardsPerRow() {
 }
 
 // Height (pt) of the SOCA circuit table — used to decide PDF page layout.
-function estSocaTableHeight(screenId) {
+function estSocaTableHeight(screenId, perRowOverride) {
   const cd = screens[screenId] && screens[screenId].calculatedData;
   const sb = cd && cd.socaBreakdown;
   if (!sb || !sb.length) return 0;
-  const rows = Math.ceil(sb.length / pdfCurrentCardsPerRow());
+  const rows = Math.ceil(sb.length / (perRowOverride || pdfCurrentCardsPerRow()));
   const maxCircuits = sb.reduce((mx, s) => Math.max(mx, (s.circuits || []).length), 0);
   // +1 line for the bold "Total" row, +2 for its top margin.
   const cardH = estCardHeight(maxCircuits + 1) + 2;
@@ -2601,7 +2606,7 @@ function estDataMapHeight(screenId) {
 
 // Height (pt) of the structure info cards. Mirrors buildStructureInfoPdf: the flat
 // line list is split into tables at each header, packed N per row, one row table each.
-function estStructureInfoHeight(screenId, canvasCache) {
+function estStructureInfoHeight(screenId, canvasCache, perRowOverride) {
   const lines = _structureInfoLinesFor(screenId, canvasCache);
   if (!lines || !lines.length) return 0;
   const tables = [];
@@ -2613,7 +2618,7 @@ function estStructureInfoHeight(screenId, canvasCache) {
   if (current) tables.push(current);
   if (!tables.length) return 0;
   let h = 0;
-  const perRow = pdfCurrentCardsPerRow();
+  const perRow = perRowOverride || pdfCurrentCardsPerRow();
   for (let i = 0; i < tables.length; i += perRow) {
     const row = tables.slice(i, i + perRow);
     // Row height is the tallest card in it; bold items carry an extra 4pt top margin.

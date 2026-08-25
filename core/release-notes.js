@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.174', date: '2026-08-25', notes: 'Unify all app hints onto one compact green box style' },
   { version: '2.11.173', date: '2026-08-25', notes: 'Export layout views as PDF pages per screen instead of PNGs' },
   { version: '2.11.172', date: '2026-08-25', notes: 'Document editable spares, gear list quantities and screen-scoped gear exports' },
   { version: '2.11.171', date: '2026-08-25', notes: 'Add per-view PDF exports, editable spares, and screen-scoped gear list export' },

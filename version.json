@@ -1,5 +1,5 @@
 {
-  "version": "2.11.173",
+  "version": "2.11.174",
   "updated": "2026-08-25",
-  "changelog": "Export layout views as PDF pages per screen instead of PNGs"
+  "changelog": "Unify all app hints onto one compact green box style"
 }

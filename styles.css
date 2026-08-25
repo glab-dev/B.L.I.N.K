@@ -1510,12 +1510,6 @@ canvas:focus {
   margin-top: 12px;
 }
 
-.hint {
-  font-size: 11px;
-  color: #888;
-  margin-top: 4px;
-}
-
 .secondary-button {
   width: 100%;
   padding: 10px;
@@ -1616,19 +1610,10 @@ canvas:focus {
 }
 
 .structure-mode-hint {
-  font-size: 12px;
-  color: #888;
   margin-left: auto;
 }
 
 .structure-selection-info {
-  padding: 8px 12px;
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: 4px;
-  margin-bottom: 12px;
-  font-size: 12px;
-  color: #10b981;
   display: none;
 }
 
@@ -3567,13 +3552,6 @@ canvas:focus {
 /* Landscape orientation hint */
 .orientation-hint {
   display: none;
-  padding: 12px 16px;
-  background: rgba(16, 185, 129, 0.15);
-  border: 2px solid var(--primary);
-  border-radius: 2px;
-  margin-bottom: 12px;
-  font-size: 13px;
-  color: var(--primary);
 }
 
 @media (orientation: portrait) {
@@ -3641,13 +3619,6 @@ canvas:focus {
 /* Mobile hint text */
 .mobile-hint {
   display: block;
-  padding: 10px 16px;
-  background: rgba(16, 185, 129, 0.15);
-  border: 2px solid var(--primary);
-  border-radius: 0; /* Removed to fix diagonal line artifacts on Windows */
-  margin-bottom: 12px;
-  font-size: 12px;
-  color: var(--primary);
 }
 
 /* Hide desktop hints, show mobile hints */
@@ -7052,10 +7023,6 @@ canvas:focus {
 
 .spare-hint {
   margin-left: 12px;
-  margin-bottom: 6px;
-  font-size: 11px;
-  color: #9ca3af;
-  line-height: 1.4;
 }
 
 /* Must out-specify the mobile block's `input[type="number"] { height: 39px !important }`
@@ -7088,13 +7055,6 @@ input[type="number"].spare-qty-input::placeholder {
 
 /* Combined hint box */
 .combined-hint-box {
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 11px;
-  color: #10b981;
-  margin-bottom: 16px;
   display: inline-block;
 }
 
@@ -7112,18 +7072,6 @@ input[type="number"].spare-qty-input::placeholder {
   margin-bottom: 20px;
   padding-right: 5px;
   padding-bottom: 5px;
-}
-
-/* Combined interaction hints */
-.combined-interaction-hints {
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: 6px;
-  padding: 6px 10px;
-  margin-bottom: 10px;
-  font-size: 10px;
-  color: #10b981;
-  line-height: 1.5;
 }
 
 /* Combined layouts: the toggle rows line up with the hint box, position controls and
@@ -7265,9 +7213,7 @@ input[type="number"].spare-qty-input::placeholder {
 
 /* Canvas hint / info text */
 .canvas-hint-text {
-  color: #888;
   margin-top: 8px;
-  font-size: 11px;
 }
 .canvas-info-text {
   color: #ccc;
@@ -7673,3 +7619,41 @@ input[type="number"].spare-qty-input::placeholder {
   }
 }
 
+/* ==================== CANONICAL HINT STYLE ====================
+   Every instructional hint in the app UI renders as a green box with green
+   text. Declared last so it wins the equal-specificity ordering against the
+   structural leftovers above (display / margin-left), which it deliberately
+   does not set. Modal helper text (.modal-hint, .distro-wiring-hint,
+   .modal-input-group .hint), the amber #dataPortAssignModal .hint.dp-warn
+   and the inline #arHint are NOT hints in this sense and stay excluded. */
+.hint,
+.mobile-hint,
+.structure-mode-hint,
+.structure-selection-info,
+.orientation-hint,
+.spare-hint,
+.canvas-hint-text,
+.combined-hint-box,
+.combined-interaction-hints {
+  /* fit-content rather than display:inline-block — several of these rely on
+     display being toggled (none/block/inline-block) by CSS or JS, and this rule
+     is last, so setting display here would override every one of those. */
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px 9px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 2px solid var(--primary);
+  border-radius: 0; /* Removed to fix diagonal line artifacts on Windows */
+  margin-bottom: 10px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--primary);
+}
+
+/* Structural exceptions — must come after the canonical rule to win on source
+   order, since they share its (0,1,0) specificity. */
+.structure-mode-hint {
+  /* Flex item in a centre-aligned row; a bottom margin lifts it off the
+     button's centreline. */
+  margin-bottom: 0;
+}

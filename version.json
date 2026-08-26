@@ -1,5 +1,5 @@
 {
-  "version": "2.11.181",
-  "updated": "2026-08-25",
-  "changelog": "Add per-length cable spares with overrides and rework the gear and specs display"
+  "version": "2.11.182",
+  "updated": "2026-08-26",
+  "changelog": "Document Export All zip layout, combined per-screen tables and spare cable lengths"
 }

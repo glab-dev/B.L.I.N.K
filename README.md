@@ -398,6 +398,7 @@ A SOCA groups circuits onto one multi-circuit cable run. Controls sit above the 
 
 ### Data Lines & Ports (Complex Mode)
 - **Data Line Map** — Table below the Data layout with Line, Panel, Unit, and Port columns
+- **Consistent numbering** — A line is named by the processor port it lands on, and the data layout, cable diagram, and gear list all call it the same thing
 - **Assign Data Port** — Select panels and use the panel menu to set the processor, distribution box, and port for a line. Processor and box accept a letter or a number; Auto leaves the app to pick.
 - The app warns before taking a port another line already holds, and manual assignments drive gear list counts
 - With Data Redundancy on, the map also shows each line's backup destination, and those loop-back ports appear in the PDF
@@ -623,7 +624,8 @@ Every row is a number box:
 - Type a number to override it
 - Spares default to **10% for panels** and **40% for cables and rigging**
 - Rows render even at zero, so a line you zeroed can be restored
-- Cat6 and Soca rows list every stocked length (25' through 300'), not just the ones this rig runs, so an unused length can still be spared
+- Spare rows cover every stocked length, not just the ones this rig runs, so an unused length can still be spared — Cat6 at 10', 25', 50', 75', 100', 200', 300', and Soca at 25', 50', 75', 100'
+- These spare lengths are deliberately separate from the lengths real cable runs are rounded up to
 
 Overrides are saved with the project file and are read live by every export, so the PDF and gear list exports reflect your edits.
 
@@ -632,6 +634,9 @@ Overrides are saved with the project file and are read live by every export, so 
 - **Data Layout** — Combined data routing view, labelled per screen by processor or distribution box
 - **Structure Layout** — Combined structure/bumper view
 - **Cable Layout** — Combined cable diagram and cable list
+
+### Per-Screen Tables
+The SOCA circuit table, data line map, and structure pickup weights appear beneath their combined layout, one block per screen. Blocks are packed several screens across so they fit on one page, and they carry into the PDF the same way.
 
 ---
 
@@ -666,7 +671,7 @@ The header Export icon opens a menu with:
 - **Canvas** — PNG, native resolution, outline, title block, or Resolume
 - **Test Pattern** — PNG image or MP4 video
 - **Gear List** — Text file or Send to Jared
-- **Export All** — Every format at once, zipped
+- **Export All** — Every format at once, as a foldered zip
 
 ### PDF Export
 Generate a professional multi-page PDF report containing:
@@ -680,6 +685,19 @@ Generate a professional multi-page PDF report containing:
 - **Print colours:** Eco Friendly (lighter colors) or Greyscale
 
 The preview *is* the PDF — what you see in the preview is byte-for-byte what exports.
+
+### Export All
+Builds a zip with a folder per view. Layout views come out as **PDF pages, one per screen**, rather than screenshots:
+
+- `specs/`, `power/`, `data/`, `structure/`, `cable/` — one PDF page per screen per view
+- `data/` also carries an unlabelled copy of each screen's data layout
+- `combined/` — combined standard, power, data, structure, and cable pages across the selection
+- `gear/` — the gear list as both PDF and text
+- `canvas/` and `screens/` — the canvas image and each screen at native resolution
+- `title block/`, `resolume/`, `test pattern/` — the title block image, Resolume XML, and any test pattern PNG/MP4
+- The full report PDF sits at the top level
+
+Every layout page is the same page the full report would have contained for that view.
 
 ### Per-View PDF Export
 Every layout, the specs, and the gear list carry a small share button in the top-right of their box. Tapping it produces a single-page PDF of just that view, through the same pdfmake pipeline the full report uses.

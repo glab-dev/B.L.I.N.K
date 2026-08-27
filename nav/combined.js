@@ -3333,11 +3333,15 @@ function renderCombinedSocaCircuitTable(selectedScreenIds) {
 // inputs and the global bumpers array — all of which only ever describe the open
 // screen. loadScreenData() is the app's own state loader and renders nothing, so
 // it can stand the globals up for one screen and put them straight back.
+// isBorrowingScreenData tells loadScreenData this is a borrow rather than a screen
+// switch, so it leaves the layout canvases and the specs readout alone — nothing
+// repaints them here, and wiping them blanked the open screen after a project load.
 function structureInfoLinesForScreen(screenId) {
   if(typeof buildStructureInfoLines !== 'function') return [];
   if(screenId === currentScreenId) return buildStructureInfoLines(screenId);
 
   const prev = currentScreenId;
+  isBorrowingScreenData = true;
   try {
     loadScreenData(screenId);
     return buildStructureInfoLines(screenId);
@@ -3346,6 +3350,7 @@ function structureInfoLinesForScreen(screenId) {
     return [];
   } finally {
     try { loadScreenData(prev); } catch(e) { console.error('structureInfoLinesForScreen restore failed:', e); }
+    isBorrowingScreenData = false;
   }
 }
 

@@ -278,6 +278,49 @@ async function quickSaveToApp() {
   }
 }
 
+// Open a project. Where the File System Access API exists (Chrome/Edge desktop)
+// this uses the native picker so we keep a handle to the chosen file, which lets
+// every later export open its Save As dialog in that project's own folder.
+// Everywhere else it falls back to the hidden file input below, unchanged.
+async function openConfiguration() {
+  if(!window.showOpenFilePicker) {
+    document.getElementById('loadConfigInput').click();
+    return;
+  }
+  let handle;
+  try {
+    const picked = await window.showOpenFilePicker({
+      id: BLINK_SAVE_PICKER_ID,
+      multiple: false,
+      types: [{
+        description: 'LED Config Files',
+        accept: { 'application/json': ['.blinkled', '.led', '.ledconfig'] }
+      }]
+    });
+    handle = picked[0];
+  } catch(e) {
+    if(e.name !== 'AbortError') document.getElementById('loadConfigInput').click();
+    return;
+  }
+
+  const file = await handle.getFile();
+  if(file.size > 10 * 1024 * 1024) {
+    showAlert('Configuration file is too large (max 10MB).');
+    return;
+  }
+  const fileBaseName = file.name.replace(/\.(blinkled|led|ledconfig)$/i, '');
+  try {
+    applyConfiguration(JSON.parse(await file.text()), fileBaseName);
+    // Exports now default to the folder this project came from.
+    rememberSaveLocation(handle);
+    // The hidden input's onchange does this on the fallback path.
+    if(typeof closeMobileMenu === 'function') closeMobileMenu();
+  } catch(err) {
+    showAlert('Error loading configuration: ' + err.message);
+    console.error('Load error:', err);
+  }
+}
+
 function loadConfiguration(event) {
   const file = event.target.files[0];
   if(!file) return;

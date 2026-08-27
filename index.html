@@ -2503,7 +2503,7 @@
     <div class="config-buttons">
       <button class="config-btn save" onclick="quickSaveToApp()">Quick Save</button>
       <button class="config-btn save" onclick="saveConfiguration()">💾 Save</button>
-      <button class="config-btn load" onclick="document.getElementById('loadConfigInput').click()">📂 Load</button>
+      <button class="config-btn load" onclick="openConfiguration()">📂 Load</button>
     </div>
   </div>
 </div>
@@ -3859,8 +3859,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.184';
-const APP_CHANGELOG = 'Add New Project to the menu and reorder the Configuration buttons';
+const APP_VERSION = '2.11.185';
+const APP_CHANGELOG = 'Open projects through a file picker and keep borrowed screen data from blanking the view';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -4022,6 +4022,7 @@ let screens = {};
 let currentScreenId = 'screen_1';
 let screenIdCounter = 1;
 let isLoadingScreenData = false; // Flag to prevent resetCalculator during screen loading
+let isBorrowingScreenData = false; // Flag: loadScreenData is standing up another screen's state, not switching to it
 
 
 </script>

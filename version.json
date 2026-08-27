@@ -1,5 +1,5 @@
 {
-  "version": "2.11.184",
+  "version": "2.11.185",
   "updated": "2026-08-27",
-  "changelog": "Add New Project to the menu and reorder the Configuration buttons"
+  "changelog": "Open projects through a file picker and keep borrowed screen data from blanking the view"
 }

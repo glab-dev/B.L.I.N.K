@@ -591,19 +591,23 @@ function loadScreenData(screenId) {
   // Update undo/redo button states
   updateUndoRedoButtons();
   
-  // Clear all canvases when switching screens
-  const canvases = ['standardCanvas', 'structureCanvas', 'powerCanvas', 'dataCanvas', 'canvasViewCanvas'];
-  canvases.forEach(canvasId => {
-    const canvas = document.getElementById(canvasId);
-    if(canvas) {
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-  });
-  
-  // Clear results display
-  const resultsEl = document.getElementById('results');
-  if(resultsEl) resultsEl.innerText = '';
+  // Clear all canvases when switching screens. Skipped when this screen's state is only
+  // being borrowed (isBorrowingScreenData) - nothing calls calculate() to repaint after
+  // that, so clearing would leave the open screen's layouts and specs blank.
+  if(!isBorrowingScreenData) {
+    const canvases = ['standardCanvas', 'structureCanvas', 'powerCanvas', 'dataCanvas', 'canvasViewCanvas'];
+    canvases.forEach(canvasId => {
+      const canvas = document.getElementById(canvasId);
+      if(canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    });
+
+    // Clear results display
+    const resultsEl = document.getElementById('results');
+    if(resultsEl) resultsEl.innerText = '';
+  }
   
   // Update CB5 half panel toggle visibility (panelType and isCB5 already declared above)
   const cb5HalfPanelToggle = document.getElementById('cb5HalfPanelToggle');

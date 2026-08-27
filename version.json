@@ -1,5 +1,5 @@
 {
-  "version": "2.11.189",
+  "version": "2.11.190",
   "updated": "2026-08-27",
-  "changelog": "Recalculate every screen a combined edit touches and batch multi-panel deletes"
+  "changelog": "Clear every combined table when no screens are selected and follow tab order"
 }

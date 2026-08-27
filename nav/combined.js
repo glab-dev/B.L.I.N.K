@@ -26,6 +26,15 @@ function activateCombinedView() {
 // Track which screens are selected for combined view
 let combinedSelectedScreens = new Set();
 
+// The selected screens in screen-tab order. Which screens appear in the Combined view is the
+// selection's business; the order they appear in is the tabs' — so dragging a screen tab
+// moves that screen in the Combined view too, instead of the view staying stuck in the order
+// the screens happened to be clicked in.
+function combinedSelectedScreenIdsInOrder() {
+  const ids = (typeof getScreenIdsInOrder === 'function') ? getScreenIdsInOrder() : Object.keys(screens);
+  return ids.filter(id => combinedSelectedScreens.has(id));
+}
+
 // Combined specs power/phase toggle state
 let combinedPowerType = 'max';
 let combinedPhase = 3;
@@ -100,16 +109,16 @@ function setCombinedPowerType(type) {
   combinedPowerType = type;
   document.getElementById('combinedPowerMaxBtn').classList.toggle('active', type === 'max');
   document.getElementById('combinedPowerAvgBtn').classList.toggle('active', type === 'avg');
-  renderCombinedSpecs(Array.from(combinedSelectedScreens));
-  renderCombinedPhaseBalance(Array.from(combinedSelectedScreens));
-  renderCombinedSocaCircuitTable(Array.from(combinedSelectedScreens));
+  renderCombinedSpecs(combinedSelectedScreenIdsInOrder());
+  renderCombinedPhaseBalance(combinedSelectedScreenIdsInOrder());
+  renderCombinedSocaCircuitTable(combinedSelectedScreenIdsInOrder());
 }
 
 function setCombinedPhase(phase) {
   combinedPhase = phase;
   document.getElementById('combinedPhase3Btn').classList.toggle('active', phase === 3);
   document.getElementById('combinedPhase1Btn').classList.toggle('active', phase === 1);
-  renderCombinedSpecs(Array.from(combinedSelectedScreens));
+  renderCombinedSpecs(combinedSelectedScreenIdsInOrder());
 }
 
 // Store screen dimensions for click handling in Combined view
@@ -437,7 +446,7 @@ function getCombinedArrangementPanelSize() {
 
 // Returns { items, panelSize, gapUnits } with geometry in panel units (1 unit = one panel
 // width), which makes it independent of zoom and of the container width. Selected screens
-// come first in combinedSelectedScreens order — the app's left-to-right order — carrying
+// come first in screen-tab order — the app's left-to-right order — carrying
 // their manual drag offsets. Screens not in the Combined view are appended in tab order to
 // the right of that arrangement. Returns null when there is nothing to draw.
 function getCombinedArrangement() {
@@ -472,7 +481,7 @@ function getCombinedArrangement() {
   // manual drag offset is then applied on top exactly as the canvas renderer does.
   let rowX = 0;
   let placed = 0;
-  Array.from(combinedSelectedScreens).forEach(screenId => {
+  combinedSelectedScreenIdsInOrder().forEach(screenId => {
     if(!screens[screenId]) return;
     const box = boxUnits(screenId);
     if(box.pw <= 0 || box.ph <= 0) return;
@@ -2093,8 +2102,8 @@ function initCombinedView() {
   // Clear existing toggles
   togglesContainer.innerHTML = '';
 
-  // Create a toggle button for each screen (compact for mobile)
-  Object.keys(screens).forEach(screenId => {
+  // Create a toggle button for each screen (compact for mobile), in screen-tab order
+  getScreenIdsInOrder().forEach(screenId => {
     const screen = screens[screenId];
     const btn = document.createElement('button');
     btn.className = 'slider-toggle-btn';
@@ -2150,8 +2159,27 @@ function showCombinedPlaceholder() {
   if(specsContent) specsContent.innerHTML = '';
   if(gearContent) gearContent.innerHTML = '';
 
+  // The tables under the canvases each live in their own host and are only ever written by
+  // their render function, which never runs with nothing selected — so they have to be
+  // cleared here too, or the last screen deselected leaves its cards on screen.
+  const phaseLegend = document.getElementById('combinedPhaseBalanceLegend');
+  const socaTable = document.getElementById('combinedSocaCircuitTable');
+  const structureInfo = document.getElementById('combinedStructureInfo');
+  const dataLineMap = document.getElementById('combinedDataLineMap');
+  const processorList = document.getElementById('combinedDataProcessorList');
+  if(phaseLegend) { phaseLegend.innerHTML = ''; phaseLegend.style.display = 'none'; }
+  if(socaTable) { socaTable.innerHTML = ''; socaTable.style.display = 'none'; }
+  if(structureInfo) { structureInfo.innerHTML = ''; structureInfo.style.display = 'none'; }
+  if(dataLineMap) dataLineMap.innerHTML = '';
+  if(processorList) processorList.innerHTML = '';
+
+  // The cabling canvas is stretched to its diagram size by an inline width/height and the
+  // wrapper's has-diagram class, so resetting the bitmap alone leaves a giant empty box —
+  // its own renderer already owns the full empty-state reset.
+  if(typeof renderCombinedCableDiagram === 'function') renderCombinedCableDiagram([], []);
+
   // Clear canvases
-  ['combinedStandardCanvas', 'combinedPowerCanvas', 'combinedDataCanvas', 'combinedStructureCanvas', 'combinedCableDiagramCanvas'].forEach(canvasId => {
+  ['combinedStandardCanvas', 'combinedPowerCanvas', 'combinedDataCanvas', 'combinedStructureCanvas'].forEach(canvasId => {
     const canvas = document.getElementById(canvasId);
     if(canvas) {
       canvas.width = 100;
@@ -2209,7 +2237,7 @@ function renderCombinedView() {
   }
 
   const allPanels = getAllPanels();
-  const selectedScreenIds = Array.from(combinedSelectedScreens);
+  const selectedScreenIds = combinedSelectedScreenIdsInOrder();
 
   // Get available width from the container
   const container = document.getElementById('combinedStandardCanvasWrapper');

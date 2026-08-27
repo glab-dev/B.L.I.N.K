@@ -8,7 +8,7 @@ var tpDisplayW = 1920;
 var tpDisplayH = 1080;
 var tpDisplaysWide = 1;
 var tpDisplaysHigh = 1;
-var tpGridSizePct = 50;
+var tpGridSizePct = 0;
 var tpGridWidthPct = 50;
 var tpGridColor = '#d23de6';
 var tpTextColor = '#ffffff';
@@ -22,7 +22,7 @@ var tpTextSizePct = 50;
 var tpShowName = true;
 var tpShowPixelSize = true;
 var tpShowAspectRatio = true;
-var tpShowSquareCount = true;
+var tpShowSquareCount = false;
 var tpLogoOn = false;
 var tpLogoImage = null;
 var tpLogoSizePct = 50;
@@ -54,8 +54,8 @@ var tpCheckerOpacity = 100;
 var tpBorderOpacity = 100;
 var tpProcessorLinesOn = false;
 var tpProcessorLineColor = '#ff0000';
-var tpCheckerOn = false;
-var tpCheckerSizePct = 50;
+var tpCheckerOn = true;
+var tpCheckerSizePct = 20;
 var tpCheckerBorderOn = false;
 var tpBorderSizePct = 50;
 var tpBorderColor1 = '#ffffff';
@@ -660,6 +660,14 @@ function _tpApplyRaster(raster) {
   }
   tpSaveState();
   tpRaster = raster;
+  // A raster is a set of separate walls, so each gets its own pattern
+  tpRasterMode = 'perScreen';
+  // Snap back to the raster look: checker instead of grid, and no square count
+  // (the grid it counts is off)
+  tpCheckerOn = true;
+  tpCheckerSizePct = 20;
+  tpGridSizePct = 0;
+  tpShowSquareCount = false;
   // Canvas dimensions changed — reseed the size-dependent animations
   _tpScrollOffsetX = 0;
   _tpScrollOffsetY = 0;
@@ -1174,15 +1182,15 @@ function resetTestPattern() {
   tpImageName = 'Name your testpattern';
   tpDisplayW = 1920; tpDisplayH = 1080;
   tpDisplaysWide = 1; tpDisplaysHigh = 1;
-  tpGridSizePct = 50; tpGridWidthPct = 50;
+  tpGridSizePct = 0; tpGridWidthPct = 50;
   tpGridColor = '#d23de6'; tpTextColor = '#ffffff';
   tpCrossColor = '#00ff7b'; tpBgColor = '#000000';
   tpBoundaryColor = '#249be5';
   tpCirclesOn = true; tpColorBarsOn = true; tpColorBarsMode = 'default'; tpCircleSpinMode = 'static'; tpCircleRevMode = 'none'; tpCircleSpinSpeed = 50;
   tpTextSizePct = 50;
   tpShowName = true; tpShowPixelSize = true;
-  tpShowAspectRatio = true; tpShowSquareCount = true;
-  tpCheckerOn = false; tpCheckerSizePct = 50; tpCheckerBorderOn = false; tpBorderSizePct = 50;
+  tpShowAspectRatio = true; tpShowSquareCount = false;
+  tpCheckerOn = true; tpCheckerSizePct = 20; tpCheckerBorderOn = false; tpBorderSizePct = 50;
   tpBorderColor1 = '#ffffff'; tpBorderColor2 = '#000000';
   tpCheckerColor1 = '#000000'; tpCheckerColor2 = '#1a1a1a';
   tpLogoOn = false; tpLogoImage = null; tpLogoSizePct = 50; tpLogoMode = 'default'; tpLogoStatic = false;
@@ -1215,8 +1223,8 @@ function resetTestPattern() {
   document.getElementById('tpDisplayH').value = 1080;
   document.getElementById('tpDisplaysWide').value = 1;
   document.getElementById('tpDisplaysHigh').value = 1;
-  document.getElementById('tpGridSize').value = 50;
-  document.getElementById('tpGridSizeVal').textContent = '50%';
+  document.getElementById('tpGridSize').value = 0;
+  document.getElementById('tpGridSizeVal').textContent = '0%';
   document.getElementById('tpGridWidth').value = 50;
   document.getElementById('tpGridWidthVal').textContent = '50%';
   document.getElementById('tpTextSize').value = 50;
@@ -1228,9 +1236,9 @@ function resetTestPattern() {
   document.getElementById('tpBgColor').value = '#000000';
   document.getElementById('tpCheckerColor1').value = '#000000';
   document.getElementById('tpCheckerColor2').value = '#1a1a1a';
-  document.getElementById('tpChecker').checked = false;
-  document.getElementById('tpCheckerSize').value = 50;
-  document.getElementById('tpCheckerSizeVal').textContent = '50%';
+  document.getElementById('tpChecker').checked = true;
+  document.getElementById('tpCheckerSize').value = 20;
+  document.getElementById('tpCheckerSizeVal').textContent = '20%';
   document.getElementById('tpCheckerBorder').checked = false;
   document.getElementById('tpBorderSize').value = 50;
   document.getElementById('tpBorderSizeVal').textContent = '50%';
@@ -1248,7 +1256,7 @@ function resetTestPattern() {
   document.getElementById('tpShowName').checked = true;
   document.getElementById('tpShowPixelSize').checked = true;
   document.getElementById('tpShowAspectRatio').checked = true;
-  document.getElementById('tpShowSquareCount').checked = true;
+  document.getElementById('tpShowSquareCount').checked = false;
   document.getElementById('tpLogoToggle').checked = false;
   document.getElementById('tpLogoMode').value = 'default';
   document.getElementById('tpLogoStatic').checked = false;
@@ -1311,8 +1319,8 @@ function _tpApplyDefaultContent() {
   tpColorBarsOn = true;
   tpColorBarsMode = 'default';
   tpCirclesOn = true;
-  tpGridSizePct = 50;
-  tpCheckerOn = false;
+  tpGridSizePct = 0;
+  tpCheckerOn = true;
   tpSolidOn = false;
   tpGradientOn = false;
   tpSmpteOn = false;
@@ -2991,14 +2999,32 @@ function drawTPColorBarsInCircle(ctx, cx, cy, radius, angle) {
   ctx.restore();
 }
 
+// Placement of the default centred colour bars. Width drives the size and the
+// height follows a fixed aspect, so the bars keep one shape on every canvas
+// instead of stretching and squashing with its proportions — on a raster that
+// means every screen shows the same bars, not a squished or flattened variant.
+// TP_BARS_ASPECT is exactly what the old (w * 0.5) / (h * 0.17) rule produced
+// at 16:9, so 16:9 canvases render as before.
+var TP_BARS_ASPECT = (16 * 0.5) / (9 * 0.17);
+
+function _tpBarsRect(w, h) {
+  var barsW = w * 0.5;
+  var barsH = barsW / TP_BARS_ASPECT;
+  // Very wide, short canvases would push the bars off the bottom — shrink them
+  // rather than let the aspect drift
+  var maxH = h * 0.42;
+  if(barsH > maxH) {
+    barsH = maxH;
+    barsW = barsH * TP_BARS_ASPECT;
+  }
+  return { x: (w - barsW) / 2, y: h * 0.54, w: barsW, h: barsH };
+}
+
 function drawTPColorBars(ctx, w, h) {
   if(tpColorBarsMode === 'default') {
     // Original centered positioning
-    var barsTop = h * 0.54;
-    var totalBarsW = w * 0.5;
-    var barsX = (w - totalBarsW) / 2;
-    var totalBarsH = h * 0.17;
-    drawTPColorBarsAt(ctx, barsX, barsTop, totalBarsW, totalBarsH);
+    var bars = _tpBarsRect(w, h);
+    drawTPColorBarsAt(ctx, bars.x, bars.y, bars.w, bars.h);
   } else {
     // Circle positions must match drawTPCircles exactly
     var centerX = w / 2;
@@ -3026,11 +3052,8 @@ function drawTPColorBars(ctx, w, h) {
 
     if(tpColorBarsMode === 'corners-center') {
       // Default bar in center + color bars in corner circles
-      var barsTop = h * 0.54;
-      var totalBarsW = w * 0.5;
-      var barsX = (w - totalBarsW) / 2;
-      var totalBarsH = h * 0.17;
-      drawTPColorBarsAt(ctx, barsX, barsTop, totalBarsW, totalBarsH);
+      var centerBars = _tpBarsRect(w, h);
+      drawTPColorBarsAt(ctx, centerBars.x, centerBars.y, centerBars.w, centerBars.h);
       for(var i = 0; i < corners.length; i++) {
         drawTPColorBarsInCircle(ctx, corners[i][0], corners[i][1], smallRadius, cornerAngle);
       }
@@ -3640,6 +3663,12 @@ async function exportTestPatternVideo() {
   var duration = tpSweepDuration;
   var totalFrames = Math.round(fps * duration);
   var hasSpinning = _tpNeedsAnimation();
+  // The static-background fast path caches a sweep-less frame and paints the
+  // sweep straight onto the full canvas, bypassing _tpComposeFrame. With a
+  // raster loaded that would draw one canvas-wide sweep instead of the
+  // per-screen (and screen-clipped) sweep the preview shows, so the export has
+  // to compose every frame in full.
+  var canCacheBackground = !hasSpinning && !tpRaster;
 
   _tpStopAnimation();
   canvas.width = totalW;
@@ -3665,8 +3694,8 @@ async function exportTestPatternVideo() {
     var ctx = canvas.getContext('2d');
     var bgImageData = null;
 
-    // Optimize: if no spinning, pre-render static background
-    if(!hasSpinning) {
+    // Optimize: when nothing but the sweep moves, pre-render a static background
+    if(canCacheBackground) {
       var savedSweepOn = tpSweepOn;
       tpSweepOn = false;
       renderTestPattern(true);
@@ -3716,13 +3745,14 @@ async function exportTestPatternVideo() {
       var t = i / totalFrames;
       var frameTime = (i / fps);
 
-      if(hasSpinning) {
-        // Full render per frame — circle angle changes each frame
-        _tpCircleAngle = frameTime * (2 * Math.PI / 5) * (tpCircleSpinSpeed / 100);
-        if(tpSweepOn) {
-          _tpSweepProgress = t;
+      if(!canCacheBackground) {
+        // Full render per frame — composes exactly what the preview shows,
+        // including per-screen sweeps when a raster is loaded
+        if(hasSpinning) {
+          _tpCircleAngle = frameTime * (2 * Math.PI / 5) * (tpCircleSpinSpeed / 100);
+          _tpAdvanceExportExtras(frameTime, fps);
         }
-        _tpAdvanceExportExtras(frameTime, fps);
+        if(tpSweepOn) _tpSweepProgress = t;
         renderTestPattern(true);
       } else {
         // Static bg + sweep overlay only
@@ -3972,6 +4002,12 @@ async function getTestPatternMp4Blob(callback) {
   var duration = tpSweepDuration;
   var totalFrames = Math.round(fps * duration);
   var hasSpinning = _tpNeedsAnimation();
+  // The static-background fast path caches a sweep-less frame and paints the
+  // sweep straight onto the full canvas, bypassing _tpComposeFrame. With a
+  // raster loaded that would draw one canvas-wide sweep instead of the
+  // per-screen (and screen-clipped) sweep the preview shows, so the export has
+  // to compose every frame in full.
+  var canCacheBackground = !hasSpinning && !tpRaster;
 
   _tpStopAnimation();
   canvas.width = totalW;
@@ -3990,7 +4026,7 @@ async function getTestPatternMp4Blob(callback) {
     var ctx = canvas.getContext('2d');
     var bgImageData = null;
 
-    if(!hasSpinning) {
+    if(canCacheBackground) {
       var savedSweepOn = tpSweepOn;
       tpSweepOn = false;
       renderTestPattern(true);
@@ -4024,10 +4060,12 @@ async function getTestPatternMp4Blob(callback) {
       if(encodeError) throw encodeError;
       var t = i / totalFrames;
       var frameTime = i / fps;
-      if(hasSpinning) {
-        _tpCircleAngle = frameTime * (2 * Math.PI / 5) * (tpCircleSpinSpeed / 100);
+      if(!canCacheBackground) {
+        if(hasSpinning) {
+          _tpCircleAngle = frameTime * (2 * Math.PI / 5) * (tpCircleSpinSpeed / 100);
+          _tpAdvanceExportExtras(frameTime, fps);
+        }
         if(tpSweepOn) _tpSweepProgress = t;
-        _tpAdvanceExportExtras(frameTime, fps);
         renderTestPattern(true);
       } else {
         ctx.putImageData(bgImageData, 0, 0);

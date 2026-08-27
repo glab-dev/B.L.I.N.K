@@ -1,5 +1,5 @@
 {
-  "version": "2.11.192",
+  "version": "2.11.193",
   "updated": "2026-08-27",
-  "changelog": "Export one MP4 per raster screen and share a single codec probe"
+  "changelog": "Default rasters to per-screen and keep colour bars one shape on every screen"
 }

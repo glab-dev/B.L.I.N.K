@@ -500,7 +500,7 @@
         <div class="tp-toggle-row">
           <span class="tp-label">Squares</span>
           <label class="cp-mini-toggle">
-            <input type="checkbox" id="tpShowSquareCount" checked>
+            <input type="checkbox" id="tpShowSquareCount">
             <span class="cp-mini-toggle-slider"></span>
           </label>
         </div>
@@ -597,8 +597,8 @@
       </div>
 
       <div class="tp-slider-row">
-        <label class="tp-label">Grid size: <span id="tpGridSizeVal">50%</span></label>
-        <input type="range" id="tpGridSize" class="tp-range" min="0" max="100" value="50">
+        <label class="tp-label">Grid size: <span id="tpGridSizeVal">0%</span></label>
+        <input type="range" id="tpGridSize" class="tp-range" min="0" max="100" value="0">
       </div>
 
       <div class="tp-slider-row">
@@ -614,7 +614,7 @@
         <div class="tp-toggle-row">
           <span class="tp-label">Checkered</span>
           <label class="cp-mini-toggle">
-            <input type="checkbox" id="tpChecker">
+            <input type="checkbox" id="tpChecker" checked>
             <span class="cp-mini-toggle-slider"></span>
           </label>
         </div>
@@ -630,8 +630,8 @@
 
       <div class="tp-logo-controls" id="tpCheckerControls">
         <div class="tp-slider-row">
-          <label class="tp-label">Checker size: <span id="tpCheckerSizeVal">50%</span></label>
-          <input type="range" id="tpCheckerSize" class="tp-range" min="0" max="100" value="50">
+          <label class="tp-label">Checker size: <span id="tpCheckerSizeVal">20%</span></label>
+          <input type="range" id="tpCheckerSize" class="tp-range" min="0" max="100" value="20">
         </div>
         <div class="tp-slider-row">
           <label class="tp-label">Checker opacity: <span id="tpCheckerOpacityVal">100%</span></label>
@@ -3915,8 +3915,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.192';
-const APP_CHANGELOG = 'Export one MP4 per raster screen and share a single codec probe';
+const APP_VERSION = '2.11.193';
+const APP_CHANGELOG = 'Default rasters to per-screen and keep colour bars one shape on every screen';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

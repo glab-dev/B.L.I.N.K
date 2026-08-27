@@ -2547,10 +2547,27 @@ function buildSocaCircuitTable(screenId, perRowOverride) {
   // One card = underlined "SOCA N" title + circuit "N.x  amps" lines + a bold total.
   function buildCard(soca) {
     const label = fmtLabel(socaLabelIdx(soca.socaIdx));
+    // Resistor bands beside the title, matching the tape the crew puts on the cable.
+    // Rendered in true colour even under the eco/greyscale print modes: these bands
+    // exist to be colour-matched against physical tape, so greying them out would
+    // leave a swatch that reads as a colour but names the wrong one.
+    const bands = socaCardBands(socaLabelIdx(soca.socaIdx));
     const titleEl = {
-      text: 'SOCA ' + label,
-      fontSize: 9, bold: true, color: '#000000',
-      decoration: 'underline', decorationColor: '#000000',
+      columns: [
+        {
+          text: 'SOCA ' + label, width: 'auto',
+          fontSize: 9, bold: true, color: '#000000',
+          decoration: 'underline', decorationColor: '#000000'
+        },
+        {
+          canvas: bands.map(function(c, k) {
+            return { type: 'rect', x: k * 8, y: 0, w: 6, h: 6,
+                     color: c, lineWidth: 0.4, lineColor: '#000000' };
+          }),
+          width: 'auto', margin: [5, 2, 0, 0]
+        }
+      ],
+      columnGap: 0,
       margin: [0, 0, 0, 4]
     };
     const circuitEls = soca.circuits.map(function(c) {

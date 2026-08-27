@@ -440,13 +440,24 @@ function colorForIndex(i){
   return { fill: hexToRgba(base, alpha), text: getContrastColor(base), solid: base };
 }
 
-// Outline colour for a SOCA circuit-load card, by resistor code: 1/A brown through
-// 9/I white, 0/J black. resistorColors[9] is #333333 -- a lifted black picked so the
-// band stays legible as a panel fill -- but on a card outline that reads as a second
-// grey beside 8/H, so the card takes true black instead.
-function socaCardColor(i){
-  const band = i % 10;
-  return band === 9 ? '#000000' : resistorColors[band];
+// Resistor colour code for one digit: 0 black, 1 brown, 2 red, 3 orange, 4 yellow,
+// 5 green, 6 blue, 7 violet, 8 grey, 9 white. resistorColors is offset by one -- it
+// opens on brown and closes with the lifted #333333 black that keeps the band legible
+// as a panel fill -- so a digit indexes it minus one, and zero takes true black. A
+// taped cable and a card outline both want the real colour, not the lifted one.
+function resistorDigitColor(d){
+  return d === 0 ? '#000000' : resistorColors[d - 1];
+}
+
+// Resistor bands for a SOCA card, keyed on the SOCA number rather than a 10-colour
+// cycle. 1-9 are a single band; 10 and up spell the number out digit by digit the way
+// the crew tapes it -- 10 brown/black, 11 brown/brown, 12 brown/red. Wrapping at 10
+// instead would print SOCA 11 the same brown as SOCA 1, and give SOCA 10 a bare black
+// band, which reads as zero. i is the 0-based label index.
+function socaCardBands(i){
+  const n = i + 1;
+  if (n < 10) return [resistorDigitColor(n)];
+  return String(n).split('').map(function(d){ return resistorDigitColor(Number(d)); });
 }
 
 // ==================== MAILTO HELPER ====================

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.187",
+  "version": "2.11.188",
   "updated": "2026-08-27",
-  "changelog": "Colour SOCA circuit cards by resistor code instead of fixed orange"
+  "changelog": "Spell SOCA numbers in two-digit resistor bands and fix stale combined table"
 }

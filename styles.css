@@ -4118,15 +4118,28 @@ body.tab-reordering {
    colour (1/A brown, 2/B red, 3/C orange, ...). The two renderers set --soca-color
    and its dimmed --soca-color-dim per card; the old orange stays as the fallback. */
 .soca-circuit-table { display: flex; flex-wrap: wrap; gap: 16px; padding-top: 10px; }
-.structure-info-box.soca-load { border-color: var(--soca-color, #ff9f43); min-width: 150px; }
+/* Two digits, two surfaces: the chip carries the first (never black -- no SOCA starts
+   at zero), the card frame carries the second, so SOCA 12 reads brown-headed with a red
+   frame and can't be mistaken for the rest of the teens. Single-digit SOCAs set both to
+   the same colour, so 1-9 look exactly as they always have. The total value stays on the
+   chip colour rather than the frame's: a black frame is merely invisible, but a black
+   total would be unreadable. */
+.structure-info-box.soca-load { border-color: var(--soca-color-2, var(--soca-color, #ff9f43)); min-width: 150px; }
 .structure-info-title.soca-load { color: var(--soca-color, #ff9f43); border: 1px solid var(--soca-color, #ff9f43); }
 .soca-load .weight-row.soca-total { border-top: 1px solid var(--soca-color-dim, #5a4326); border-bottom: none; margin-top: 4px; padding-top: 6px; }
 .soca-load .weight-row.soca-total .weight-value { color: var(--soca-color, #ff9f43); }
-/* 0/J is true black, so its title and total would be black-on-black. Invert the chip
-   the way the black band reads on the component itself -- black on white -- and lift
-   the total value off the dark row. Scoped to .soca-band-black, set only on that card. */
-.soca-band-black .structure-info-title.soca-load { background: #fff; color: #000; text-shadow: none; }
-.soca-band-black .weight-row.soca-total .weight-value { color: #e8e8e8; }
+/* Resistor bands on the chip. The light ring is what lets the black band read as a
+   black square rather than a hole in the card -- without it SOCA 10 (brown/black)
+   would look identical to SOCA 1 (brown). Band count is the other half of that: one
+   swatch for 1-9, two from 10 up, so 1 and 11 can never be confused. */
+.soca-load .soca-bands { display: inline-flex; gap: 3px; margin-left: 7px; vertical-align: middle; }
+.soca-load .soca-band {
+  display: block;
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(232, 232, 232, 0.6);
+  border-radius: 1px;
+}
 
 /* Distro Wiring modal table */
 .distro-wiring-hint { font-size: 12px; line-height: 1.4; color: #bdbdbd; margin: 0 0 12px; }

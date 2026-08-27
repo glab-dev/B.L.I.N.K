@@ -1579,6 +1579,42 @@ function toCombinedSocaMap(value) {
 // Assign a SOCA # to a block of panels in one screen. Mirrors showAssignSocaPrompt() in
 // interact/standard-canvas.js — same row-banded column bundling into circuits and the same guard —
 // but writes into screens[screenId].data instead of the current screen's globals.
+// calculate() only ever rebuilds screens[currentScreenId].calculatedData, but the combined
+// SOCA table reads calculatedData.socaBreakdown for EVERY selected screen. Editing a screen
+// that isn't the open one leaves its cached breakdown behind, so the table keeps drawing the
+// old SOCAs -- and their old resistor colours -- until that screen next becomes current. The
+// power canvas never shows this because it recomputes from screen.data on every render.
+// Borrow the edited screen the way structureInfoLinesForScreen() does so its cache is rebuilt,
+// then calculate() once more to put the open screen back. Must not be called from inside a
+// render: calculate() calls renderCombinedView(), which would recurse.
+function recalculateCombinedScreen(screenId) {
+  if(typeof calculate !== 'function') return;
+  if(screenId === currentScreenId) { calculate(); return; }
+
+  // Same save / point currentScreenId / load / calculate cycle the project loader runs in
+  // config/save-load.js to populate every screen's calculatedData. currentScreenId has to
+  // move: loadScreenData() only fills the globals, so calculate() would otherwise write the
+  // borrowed screen's numbers into the open screen's calculatedData.
+  const prev = currentScreenId;
+  try {
+    saveCurrentScreenData();
+    currentScreenId = screenId;
+    loadScreenData(screenId);
+    calculate();
+  } catch(e) {
+    console.error('recalculateCombinedScreen failed for ' + screenId + ':', e);
+  } finally {
+    try {
+      saveCurrentScreenData();
+      currentScreenId = prev;
+      loadScreenData(prev);
+      calculate();
+    } catch(e) {
+      console.error('recalculateCombinedScreen restore failed:', e);
+    }
+  }
+}
+
 async function promptAssignCombinedSoca(screenId, keys) {
   const screen = screens[screenId];
   if(!screen || !screen.data || !keys || keys.length === 0) return;
@@ -1637,8 +1673,9 @@ async function promptAssignCombinedSoca(screenId, keys) {
   // shared-distro label map in its calculatedData, and sharedDistroSocaLabelMap() prefers that
   // cache over the live plan. Changing any group member's SOCAs invalidates it, so skipping
   // this leaves the current screen labelled from a stale plan while every other screen uses
-  // the fresh one — which shows up as two screens sharing a SOCA label.
-  if(typeof calculate === 'function') calculate();
+  // the fresh one — which shows up as two screens sharing a SOCA label. The edited screen
+  // needs the same treatment for its own socaBreakdown; see recalculateCombinedScreen().
+  recalculateCombinedScreen(screenId);
 
   combinedSelectedPanels.clear();
   combinedSelectedPanel = null;
@@ -3307,16 +3344,20 @@ function renderCombinedSocaCircuitTable(selectedScreenIds) {
     sb.forEach(soca => {
       const label = (typeof formatSocaLabel === 'function')
         ? formatSocaLabel(labelIdx(soca.socaIdx)) : (labelIdx(soca.socaIdx) + 1);
-      const socaColor = socaCardColor(labelIdx(soca.socaIdx));
+      const bands = socaCardBands(labelIdx(soca.socaIdx));
+      const socaColor = bands[0];
       const box = document.createElement('div');
-      box.className = 'structure-info-box soca-load' + ((socaColor === '#000000') ? ' soca-band-black' : '');
+      box.className = 'structure-info-box soca-load';
       box.style.setProperty('--soca-color', socaColor);
+      box.style.setProperty('--soca-color-2', bands[bands.length - 1]);
       box.style.setProperty('--soca-color-dim', hexToRgba(socaColor, 0.45));
       const rows = soca.circuits.map(c =>
         `<div class="weight-row"><span class="weight-label">${label}.${(c.circuit % 6) + 1}</span><span class="weight-value">${c.amps.toFixed(1)} A</span></div>`
       ).join('');
       box.innerHTML =
-        `<div class="structure-info-title soca-load">SOCA ${label}</div>` + rows +
+        `<div class="structure-info-title soca-load">SOCA ${label}<span class="soca-bands">` +
+        bands.map(c => `<span class="soca-band" style="background:${c}"></span>`).join('') +
+        `</span></div>` + rows +
         `<div class="weight-row soca-total"><span class="weight-label">Total</span><span class="weight-value">${soca.totalAmps.toFixed(1)} A</span></div>`;
       grid.appendChild(box);
     });

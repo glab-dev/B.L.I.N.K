@@ -4114,12 +4114,19 @@ body.tab-reordering {
 .phase-load-rec { margin-top: 8px; font-size: 11px; line-height: 1.35; color: #aaa; }
 .phase-load .weight-row.phase-balance-status { font-size: 12px; }
 
-/* Per-SOCA circuit-amps cards — orange tone (unused by the other tables). */
+/* Per-SOCA circuit-amps cards — each card is outlined in its SOCA's resistor-code
+   colour (1/A brown, 2/B red, 3/C orange, ...). The two renderers set --soca-color
+   and its dimmed --soca-color-dim per card; the old orange stays as the fallback. */
 .soca-circuit-table { display: flex; flex-wrap: wrap; gap: 16px; padding-top: 10px; }
-.structure-info-box.soca-load { border-color: #ff9f43; min-width: 150px; }
-.structure-info-title.soca-load { color: #ff9f43; border: 1px solid #ff9f43; }
-.soca-load .weight-row.soca-total { border-top: 1px solid #5a4326; border-bottom: none; margin-top: 4px; padding-top: 6px; }
-.soca-load .weight-row.soca-total .weight-value { color: #ff9f43; }
+.structure-info-box.soca-load { border-color: var(--soca-color, #ff9f43); min-width: 150px; }
+.structure-info-title.soca-load { color: var(--soca-color, #ff9f43); border: 1px solid var(--soca-color, #ff9f43); }
+.soca-load .weight-row.soca-total { border-top: 1px solid var(--soca-color-dim, #5a4326); border-bottom: none; margin-top: 4px; padding-top: 6px; }
+.soca-load .weight-row.soca-total .weight-value { color: var(--soca-color, #ff9f43); }
+/* 0/J is true black, so its title and total would be black-on-black. Invert the chip
+   the way the black band reads on the component itself -- black on white -- and lift
+   the total value off the dark row. Scoped to .soca-band-black, set only on that card. */
+.soca-band-black .structure-info-title.soca-load { background: #fff; color: #000; text-shadow: none; }
+.soca-band-black .weight-row.soca-total .weight-value { color: #e8e8e8; }
 
 /* Distro Wiring modal table */
 .distro-wiring-hint { font-size: 12px; line-height: 1.4; color: #bdbdbd; margin: 0 0 12px; }

@@ -440,6 +440,15 @@ function colorForIndex(i){
   return { fill: hexToRgba(base, alpha), text: getContrastColor(base), solid: base };
 }
 
+// Outline colour for a SOCA circuit-load card, by resistor code: 1/A brown through
+// 9/I white, 0/J black. resistorColors[9] is #333333 -- a lifted black picked so the
+// band stays legible as a panel fill -- but on a card outline that reads as a second
+// grey beside 8/H, so the card takes true black instead.
+function socaCardColor(i){
+  const band = i % 10;
+  return band === 9 ? '#000000' : resistorColors[band];
+}
+
 // ==================== MAILTO HELPER ====================
 function openMailtoLink(url) {
   var a = document.createElement('a');

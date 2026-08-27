@@ -586,7 +586,9 @@ function renderSocaCircuitTable(breakdown, usedBalanced) {
     const rows = soca.circuits.map(c =>
       `<div class="weight-row"><span class="weight-label">${label}.${(c.circuit % 6) + 1}</span><span class="weight-value">${c.amps.toFixed(1)} A</span></div>`
     ).join('');
-    return `<div class="structure-info-box soca-load">` +
+    const socaColor = socaCardColor(_socaLabelIdx(soca.socaIdx));
+    const socaBand = (socaColor === '#000000') ? ' soca-band-black' : '';
+    return `<div class="structure-info-box soca-load${socaBand}" style="--soca-color:${socaColor};--soca-color-dim:${hexToRgba(socaColor, 0.45)}">` +
              `<div class="structure-info-title soca-load">SOCA ${label}</div>` +
              rows +
              `<div class="weight-row soca-total"><span class="weight-label">Total</span><span class="weight-value">${soca.totalAmps.toFixed(1)} A</span></div>` +

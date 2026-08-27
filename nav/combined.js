@@ -3307,8 +3307,11 @@ function renderCombinedSocaCircuitTable(selectedScreenIds) {
     sb.forEach(soca => {
       const label = (typeof formatSocaLabel === 'function')
         ? formatSocaLabel(labelIdx(soca.socaIdx)) : (labelIdx(soca.socaIdx) + 1);
+      const socaColor = socaCardColor(labelIdx(soca.socaIdx));
       const box = document.createElement('div');
-      box.className = 'structure-info-box soca-load';
+      box.className = 'structure-info-box soca-load' + ((socaColor === '#000000') ? ' soca-band-black' : '');
+      box.style.setProperty('--soca-color', socaColor);
+      box.style.setProperty('--soca-color-dim', hexToRgba(socaColor, 0.45));
       const rows = soca.circuits.map(c =>
         `<div class="weight-row"><span class="weight-label">${label}.${(c.circuit % 6) + 1}</span><span class="weight-value">${c.amps.toFixed(1)} A</span></div>`
       ).join('');

@@ -109,6 +109,21 @@ var tpCrossOn = true;
 // Quick Patterns: currently-active exclusive base preset (or null)
 var _tpActiveBasePreset = null;
 
+// --- Imported Raster ---
+// null = classic uniform-grid mode (tpDisplayW/H repeated tpDisplaysWide/High).
+// When set, the pattern is composed onto a real project raster instead: screens
+// at their own pixel sizes and canvas offsets, clipped to their true LED shape.
+var tpRaster = null;
+var tpRasterMode = 'whole';        // 'whole' | 'perScreen'
+var _tpScreenNameOverride = null;  // per-screen name drawTPCenterText prefers while set
+
+// The dimensions the pattern is composed at — the imported raster when one is
+// loaded, otherwise the uniform display grid.
+function _tpTotalSize() {
+  if(tpRaster) return { w: tpRaster.width, h: tpRaster.height };
+  return { w: tpDisplayW * tpDisplaysWide, h: tpDisplayH * tpDisplaysHigh };
+}
+
 // --- Layer Order ---
 var _tpDefaultLayerOrder = [
   'solid', 'gradient', 'smpte', 'checker', 'bgImage', 'checkerBorder', 'grid', 'displayBoundaries',
@@ -152,9 +167,17 @@ var _tpLayerRegistry = {
     if(tpGridSizePct > 0 && tpGridWidthPct > 0) drawTPGrid(ctx, w, h, gs);
   }},
   displayBoundaries: { name: 'Display Boundaries', draw: function(ctx, w, h) {
+    if(tpRaster) {
+      // Per-screen mode already frames every screen via the outer border layer
+      if(tpRasterMode !== 'perScreen') drawTPRasterBoundaries(ctx);
+      return;
+    }
     if(tpDisplaysWide > 1 || tpDisplaysHigh > 1) drawTPDisplayBoundaries(ctx, w, h);
   }},
   processorLines: { name: 'Processor Lines', draw: function(ctx, w, h) {
+    // Processor boundaries snap to the uniform display grid, which an imported
+    // raster replaces — the control is disabled while a raster is loaded.
+    if(tpRaster) return;
     if(tpProcessorLinesOn) drawTPProcessorLines(ctx, w, h);
   }},
   circles: { name: 'Circles', draw: function(ctx, w, h) {
@@ -251,6 +274,8 @@ function _tpGetState() {
     tpStrobeOn: tpStrobeOn, tpStrobeColor1: tpStrobeColor1, tpStrobeColor2: tpStrobeColor2, tpStrobeSpeed: tpStrobeSpeed, tpStrobeIntensity: tpStrobeIntensity,
     tpScrollOn: tpScrollOn, tpScrollSpeed: tpScrollSpeed,
     tpBounceOn: tpBounceOn, tpBounceSpeed: tpBounceSpeed,
+    tpRaster: tpRaster ? JSON.parse(JSON.stringify(tpRaster)) : null,
+    tpRasterMode: tpRasterMode,
     tpLayerOrder: tpLayerOrder.slice()
   };
 }
@@ -286,6 +311,8 @@ function _tpApplyState(s) {
   tpStrobeOn = s.tpStrobeOn; tpStrobeColor1 = s.tpStrobeColor1; tpStrobeColor2 = s.tpStrobeColor2; tpStrobeSpeed = s.tpStrobeSpeed; tpStrobeIntensity = s.tpStrobeIntensity;
   tpScrollOn = s.tpScrollOn; tpScrollSpeed = s.tpScrollSpeed;
   tpBounceOn = s.tpBounceOn; tpBounceSpeed = s.tpBounceSpeed;
+  tpRaster = s.tpRaster || null;
+  tpRasterMode = (s.tpRasterMode === 'perScreen') ? 'perScreen' : 'whole';
   _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpBounceInit = false;
   tpLayerOrder = (s.tpLayerOrder ? s.tpLayerOrder.slice() : _tpDefaultLayerOrder.slice())
     .filter(function(k) { return _tpLayerRegistry[k]; });
@@ -378,6 +405,7 @@ function _tpSyncDOM() {
   document.getElementById('tpBounceSpeed').value = tpBounceSpeed;
   document.getElementById('tpBounceSpeedVal').textContent = tpBounceSpeed + '%';
   _tpSyncPresetButtons();
+  _tpSyncRasterUI();
 
   updateTotalSize();
   _tpRestartAnimationIfNeeded();
@@ -522,6 +550,352 @@ function tpLoadPatternFile(event) {
   reader.readAsText(file);
 }
 
+// --- Raster Import ---
+
+var _tpRecentCache = [];
+
+// Canvas resolution for a canvasSize preset — the same mapping showCanvasView()
+// uses, so an imported raster matches what the canvas view draws.
+function _tpCanvasDims(d) {
+  var size = d && d.canvasSize;
+  if(size === '4K_DCI') return { w: 4096, h: 2160 };
+  if(size === 'HD') return { w: 1920, h: 1080 };
+  if(size === 'custom') {
+    return {
+      w: parseInt(d.customCanvasWidth) || 1920,
+      h: parseInt(d.customCanvasHeight) || 1080
+    };
+  }
+  return { w: 3840, h: 2160 };
+}
+
+// Normalises any project-shaped source into the raster the pattern composes
+// onto. Geometry only — nothing here mutates live project state.
+//   screensObj  screens map (live screens{} or a parsed config's .screens)
+//   order       preferred screen id order, or null for object order
+//   canvasDims  { canvasSize, customCanvasWidth, customCanvasHeight }
+//   extraPanels custom panel specs embedded in the source (read, never installed)
+function _tpBuildRaster(screensObj, order, canvasDims, extraPanels, name, source) {
+  if(!screensObj || typeof screensObj !== 'object' || Array.isArray(screensObj)) return null;
+  var allPanels = Object.assign({}, getAllPanels(), extraPanels || {});
+
+  // Preferred order first, then anything the order list missed
+  var ids = (order || []).filter(function(id) { return screensObj[id]; });
+  Object.keys(screensObj).forEach(function(id) {
+    if(ids.indexOf(id) === -1) ids.push(id);
+  });
+
+  var out = [];
+  ids.forEach(function(id) {
+    if(!/^screen_\d+$/.test(id)) return;   // same allowlist applyConfiguration() uses
+    var screen = screensObj[id];
+    if(!screen || screen.visible === false) return;
+    var data = screen.data || screen;
+    var panel = allPanels[data.panelType || 'CB5_MKII'];
+    if(!panel) return;
+
+    // The exact lit shape — deleted panels leave real holes
+    var rects = buildScreenSliceRects(data, panel);
+    if(rects.length === 0) return;
+
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    rects.forEach(function(r) {
+      if(r.x < minX) minX = r.x;
+      if(r.y < minY) minY = r.y;
+      if(r.x + r.w > maxX) maxX = r.x + r.w;
+      if(r.y + r.h > maxY) maxY = r.y + r.h;
+    });
+
+    out.push({
+      name: String(screen.name || 'Screen').slice(0, 50),
+      x: minX, y: minY, w: maxX - minX, h: maxY - minY,
+      rects: rects
+    });
+  });
+
+  if(out.length === 0) return null;
+
+  // Start from the source's canvas size, then grow to cover every slice so a
+  // screen positioned past the canvas edge is never silently cut off — the
+  // same rule buildResolumeXml() applies.
+  var dims = _tpCanvasDims(canvasDims);
+  var width = dims.w, height = dims.h;
+  out.forEach(function(scr) {
+    scr.rects.forEach(function(r) {
+      if(r.x + r.w > width) width = r.x + r.w;
+      if(r.y + r.h > height) height = r.y + r.h;
+    });
+  });
+
+  return {
+    name: String(name || 'Raster').slice(0, 100),
+    source: source,
+    width: Math.round(width),
+    height: Math.round(height),
+    screens: out
+  };
+}
+
+// Pulls the raster out of a parsed .blinkled or .blinkrast config. The two
+// formats share the screens shape and differ only in where canvas size lives.
+function _tpRasterFromConfig(config, source, fallbackName) {
+  if(!config || typeof config !== 'object' || Array.isArray(config)) return null;
+
+  var canvasDims = config.canvasSettings || null;               // .blinkrast
+  if(!canvasDims && config.canvases) {                          // .blinkled
+    var canvasId = config.currentCanvasId;
+    if(!canvasId || !config.canvases[canvasId]) canvasId = Object.keys(config.canvases)[0];
+    if(canvasId && config.canvases[canvasId]) canvasDims = config.canvases[canvasId].data;
+  }
+
+  return _tpBuildRaster(config.screens, config.screenOrder || null, canvasDims,
+    config.customPanels, config.name || fallbackName, source);
+}
+
+// Commits a freshly built raster and refreshes the whole tool.
+function _tpApplyRaster(raster) {
+  if(!raster) {
+    showAlert('No screens with panels were found in that project.', 'Nothing to Import');
+    return;
+  }
+  tpSaveState();
+  tpRaster = raster;
+  // Canvas dimensions changed — reseed the size-dependent animations
+  _tpScrollOffsetX = 0;
+  _tpScrollOffsetY = 0;
+  _tpBounceInit = false;
+  if(!tpImageName || tpImageName === 'Name your testpattern') {
+    tpImageName = raster.name;
+  }
+  _tpSyncDOM();
+}
+
+function tpImportRasterFromCurrentProject() {
+  closeTpRasterImportModal();
+  if(typeof screens === 'undefined' || Object.keys(screens).length === 0) {
+    showAlert('No project is open. Load a project first, or import from a saved file.', 'Nothing to Import');
+    return;
+  }
+  // Standard flush prologue — pushes the open screen's inputs into screens{}
+  try {
+    if(typeof saveCurrentScreenData === 'function') saveCurrentScreenData();
+  } catch(e) { /* app DOM not initialised — the stored screen data is still valid */ }
+
+  var canvasDims = null;
+  if(typeof canvases !== 'undefined' && typeof currentCanvasId !== 'undefined'
+     && canvases[currentCanvasId]) {
+    canvasDims = canvases[currentCanvasId].data;
+  }
+  var order = (typeof getScreenIdsInOrder === 'function') ? getScreenIdsInOrder() : null;
+  var nameEl = document.getElementById('configName');
+  var name = (nameEl && nameEl.value.trim()) || 'Current Project';
+
+  _tpApplyRaster(_tpBuildRaster(screens, order, canvasDims,
+    (typeof customPanels !== 'undefined' ? customPanels : null), name, 'current'));
+}
+
+// Both project-file menu items share one input; the caller sets which
+// extensions the picker offers.
+function tpPickRasterFile(accept) {
+  closeTpRasterImportModal();
+  var input = document.getElementById('tpRasterFileInput');
+  if(!input) return;
+  input.accept = accept;
+  input.click();
+}
+
+function tpImportRasterFile(event) {
+  var file = event.target.files[0];
+  if(!file) return;
+
+  if(file.size > 10 * 1024 * 1024) {
+    showAlert('Project file is too large (max 10MB).');
+    event.target.value = '';
+    return;
+  }
+
+  var baseName = file.name.replace(/\.(blinkled|blinkrast|led|ledconfig)$/i, '');
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var raster = _tpRasterFromConfig(JSON.parse(e.target.result), 'file', baseName);
+      if(!raster) {
+        showAlert('That file does not contain a usable screen layout.', 'Invalid File');
+      } else {
+        _tpApplyRaster(raster);
+      }
+    } catch(err) {
+      showAlert('Error reading project: ' + err.message);
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// Recents picker. Deliberately does not reuse showRecentProjects() — its rows
+// call loadFromRecentByName(), which runs the destructive applyConfiguration().
+async function tpImportRasterFromRecents() {
+  var list = document.getElementById('tpRasterRecentList');
+  var sources = document.getElementById('tpRasterSourceList');
+  var title = document.getElementById('tpRasterImportTitle');
+  if(!list) return;
+
+  // Swap the modal body from the source list to the project list
+  if(sources) sources.style.display = 'none';
+  list.style.display = '';
+  if(title) title.textContent = 'Recent Projects';
+
+  list.innerHTML = '<p class="tp-raster-empty">Loading...</p>';
+
+  var projects = [];
+  try {
+    if(typeof getRecentProjects === 'function') projects = await getRecentProjects();
+  } catch(e) { projects = []; }
+  _tpRecentCache = projects || [];
+
+  if(_tpRecentCache.length === 0) {
+    list.innerHTML = '<p class="tp-raster-empty">No recent projects found.</p>';
+    return;
+  }
+
+  var html = '';
+  _tpRecentCache.forEach(function(project, i) {
+    var date = project.timestamp ? new Date(project.timestamp) : null;
+    var dateStr = date ? (date.toLocaleDateString() + ' ' +
+      date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) : '';
+    var count = project.screenCount || 0;
+    var screenLabel = count === 1 ? '1 screen' : count + ' screens';
+    html += '<button class="recent-project-item" data-tp-recent-index="' + i + '">'
+      + '<div class="recent-project-name">' + escapeHtml(project.name || 'Untitled') + '</div>'
+      + '<div class="recent-project-meta">' + escapeHtml(dateStr) + ' &middot; ' + escapeHtml(screenLabel) + '</div>'
+      + '</button>';
+  });
+  list.innerHTML = html;
+
+  list.querySelectorAll('[data-tp-recent-index]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      _tpLoadRasterFromRecent(parseInt(this.dataset.tpRecentIndex, 10));
+    });
+  });
+}
+
+function _tpLoadRasterFromRecent(index) {
+  var project = _tpRecentCache[index];
+  closeTpRasterImportModal();
+  if(!project || !project.configData) {
+    showAlert('That project has no saved layout data.', 'Nothing to Import');
+    return;
+  }
+  var raster = _tpRasterFromConfig(project.configData, 'recent', project.name);
+  if(!raster) {
+    showAlert('That project has no screens with panels.', 'Nothing to Import');
+    return;
+  }
+  _tpApplyRaster(raster);
+}
+
+// One modal with two views: the four import sources, then the recents list.
+// A modal rather than a dropdown because .tp-controls-col is overflow:hidden on
+// desktop, which would clip an absolutely-positioned popup inside the column.
+function openTpRasterImportModal() {
+  var modal = document.getElementById('tpRasterImportModal');
+  if(!modal) return;
+  var sources = document.getElementById('tpRasterSourceList');
+  var list = document.getElementById('tpRasterRecentList');
+  var title = document.getElementById('tpRasterImportTitle');
+  if(sources) sources.style.display = '';
+  if(list) { list.style.display = 'none'; list.innerHTML = ''; }
+  if(title) title.textContent = 'Import Raster';
+  modal.classList.add('active');
+  // .tp-page is position:fixed with its own scroll context, so hiding body
+  // overflow alone would leave it scrolling behind the modal
+  var page = document.getElementById('testPatternPage');
+  if(page) page.style.overflowY = 'hidden';
+}
+
+function closeTpRasterImportModal() {
+  var modal = document.getElementById('tpRasterImportModal');
+  if(modal) modal.classList.remove('active');
+  var page = document.getElementById('testPatternPage');
+  if(page) page.style.overflowY = '';
+  _tpRecentCache = [];
+}
+
+function tpClearRaster() {
+  if(!tpRaster) return;
+  tpSaveState();
+  tpRaster = null;
+  _tpScrollOffsetX = 0;
+  _tpScrollOffsetY = 0;
+  _tpBounceInit = false;
+  _tpSyncDOM();
+}
+
+function setTpRasterMode(mode) {
+  if(mode !== 'whole' && mode !== 'perScreen') return;
+  if(tpRasterMode === mode) return;
+  tpSaveState();
+  tpRasterMode = mode;
+  _tpSyncRasterUI();
+  scheduleTestPatternRedraw();
+}
+
+// Status line, mode buttons, and the controls an imported raster supersedes.
+function _tpSyncRasterUI() {
+  var loaded = !!tpRaster;
+
+  var status = document.getElementById('tpRasterStatus');
+  if(status) {
+    if(loaded) {
+      var count = tpRaster.screens.length;
+      status.textContent = tpRaster.name + ' \u2014 ' + tpRaster.width + '\u00d7' + tpRaster.height
+        + ' \u00b7 ' + count + (count === 1 ? ' screen' : ' screens');
+      status.style.display = '';
+    } else {
+      status.textContent = '';
+      status.style.display = 'none';
+    }
+  }
+
+  var clearBtn = document.getElementById('tpRasterClearBtn');
+  if(clearBtn) clearBtn.style.display = loaded ? '' : 'none';
+
+  var modeGroup = document.getElementById('tpRasterModeGroup');
+  if(modeGroup) {
+    modeGroup.style.display = loaded ? '' : 'none';
+    modeGroup.querySelectorAll('[data-raster-mode]').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.rasterMode === tpRasterMode);
+    });
+  }
+
+  // Per-screen export only means anything with a raster loaded
+  var perScreenPng = document.getElementById('tpExportPngPerScreen');
+  if(perScreenPng) perScreenPng.style.display = loaded ? '' : 'none';
+
+  // The uniform display grid and processor lines are superseded by the raster.
+  // Disable the controls for keyboard users and dim their containers.
+  ['tpDisplayW', 'tpDisplayH', 'tpDisplaysWide', 'tpDisplaysHigh',
+   'tpTotalW', 'tpTotalH', 'tpProcessorLinesToggle'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if(!el) return;
+    el.disabled = loaded;
+    // The stepper arrows are separate buttons that call adjustNumberInput()
+    var wrap = el.closest ? el.closest('.number-input-with-arrows') : null;
+    if(wrap) {
+      wrap.classList.toggle('tp-disabled', loaded);
+      wrap.querySelectorAll('button').forEach(function(b) { b.disabled = loaded; });
+    } else {
+      el.classList.toggle('tp-disabled', loaded);
+    }
+  });
+
+  var presets = document.querySelector('.tp-size-presets');
+  if(presets) {
+    presets.classList.toggle('tp-disabled', loaded);
+    presets.querySelectorAll('button').forEach(function(b) { b.disabled = loaded; });
+  }
+}
+
 // --- Live Out ---
 
 var _tpLiveOutWindowHTML =
@@ -580,24 +954,22 @@ function _tpCopyToLiveOut() {
     // Render full pattern once to offscreen canvas
     if(!_tpLiveOutOffscreen) _tpLiveOutOffscreen = document.createElement('canvas');
     renderTestPattern(true, _tpLiveOutOffscreen);
-    // Crop each display's region to its window
+    // Crop each output's region to its window
     for(var i = _tpLiveOutWindows.length - 1; i >= 0; i--) {
       var entry = _tpLiveOutWindows[i];
       if(entry.win.closed) { _tpLiveOutWindows.splice(i, 1); continue; }
       var eDst;
       try { eDst = entry.win.document.getElementById('liveCanvas'); } catch(e) { continue; }
       if(!eDst) continue;
-      // Resize if display dimensions changed
-      if(eDst.width !== tpDisplayW || eDst.height !== tpDisplayH) {
-        eDst.width = tpDisplayW;
-        eDst.height = tpDisplayH;
+      // Resize if the region's dimensions changed
+      if(eDst.width !== entry.sw || eDst.height !== entry.sh) {
+        eDst.width = entry.sw;
+        eDst.height = entry.sh;
       }
       var dstCtx = eDst.getContext('2d');
-      var srcX = entry.col * tpDisplayW;
-      var srcY = entry.row * tpDisplayH;
       dstCtx.drawImage(_tpLiveOutOffscreen,
-        srcX, srcY, tpDisplayW, tpDisplayH,
-        0, 0, tpDisplayW, tpDisplayH);
+        entry.sx, entry.sy, entry.sw, entry.sh,
+        0, 0, entry.sw, entry.sh);
     }
     if(_tpLiveOutWindows.length === 0) _tpCleanupLiveOut();
   }
@@ -638,8 +1010,8 @@ function _tpOpenFullOutput() {
   w.document.write(_tpLiveOutWindowHTML.replace('TITLE_PLACEHOLDER', 'B.L.I.N.K. \u2014 Live Output'));
   w.document.close();
 
-  var totalW = tpDisplayW * tpDisplaysWide;
-  var totalH = tpDisplayH * tpDisplaysHigh;
+  var totalW = _tpTotalSize().w;
+  var totalH = _tpTotalSize().h;
   var liveCanvas = w.document.getElementById('liveCanvas');
   if(liveCanvas) {
     liveCanvas.width = totalW;
@@ -662,33 +1034,58 @@ function _tpOpenFullOutput() {
   if(!_tpAnimId) scheduleTestPatternRedraw();
 }
 
+// One output region per screen when a raster is loaded, otherwise one per cell
+// of the uniform display grid.
+function _tpLiveOutRegions() {
+  var regions = [];
+  if(tpRaster) {
+    tpRaster.screens.forEach(function(scr, i) {
+      regions.push({
+        title: scr.name, name: 'blink_out_screen_' + i,
+        sx: scr.x, sy: scr.y, sw: scr.w, sh: scr.h
+      });
+    });
+    return regions;
+  }
+  for(var row = 0; row < tpDisplaysHigh; row++) {
+    for(var col = 0; col < tpDisplaysWide; col++) {
+      regions.push({
+        title: 'Output ' + (col + 1) + ',' + (row + 1),
+        name: 'blink_out_' + col + '_' + row,
+        sx: col * tpDisplayW, sy: row * tpDisplayH,
+        sw: tpDisplayW, sh: tpDisplayH
+      });
+    }
+  }
+  return regions;
+}
+
 function _tpOpenSplitOutputs() {
   _tpLiveOutWindows = [];
   _tpLiveOutMode = 'split';
   _tpLiveOutOffscreen = document.createElement('canvas');
   var blocked = false;
 
-  for(var row = 0; row < tpDisplaysHigh; row++) {
-    for(var col = 0; col < tpDisplaysWide; col++) {
-      var name = 'blink_out_' + col + '_' + row;
-      var title = 'B.L.I.N.K. \u2014 Output ' + (col + 1) + ',' + (row + 1);
-      var w = window.open('', name, 'width=960,height=540');
-      if(!w) { blocked = true; continue; }
+  _tpLiveOutRegions().forEach(function(region) {
+    var w = window.open('', region.name, 'width=960,height=540');
+    if(!w) { blocked = true; return; }
 
-      w.document.open();
-      w.document.write(_tpLiveOutWindowHTML.replace('TITLE_PLACEHOLDER', title));
-      w.document.close();
+    w.document.open();
+    w.document.write(_tpLiveOutWindowHTML.replace('TITLE_PLACEHOLDER',
+      'B.L.I.N.K. \u2014 ' + region.title));
+    w.document.close();
 
-      var liveCanvas = w.document.getElementById('liveCanvas');
-      if(liveCanvas) {
-        liveCanvas.width = tpDisplayW;
-        liveCanvas.height = tpDisplayH;
-      }
-
-      _tpSetupLiveOutWindow(w);
-      _tpLiveOutWindows.push({ win: w, col: col, row: row });
+    var liveCanvas = w.document.getElementById('liveCanvas');
+    if(liveCanvas) {
+      liveCanvas.width = region.sw;
+      liveCanvas.height = region.sh;
     }
-  }
+
+    _tpSetupLiveOutWindow(w);
+    _tpLiveOutWindows.push({
+      win: w, sx: region.sx, sy: region.sy, sw: region.sw, sh: region.sh
+    });
+  });
 
   if(blocked) {
     showAlert('Your browser blocked some output windows.\n\nChrome: Click the blocked popup icon in the address bar, or go to Settings \u2192 Privacy \u2192 Site Settings \u2192 Pop-ups \u2192 Allow this site.\n\nSafari: Preferences \u2192 Websites \u2192 Pop-up Windows \u2192 Allow.\n\nThis is a one-time setting. After allowing, click Live Out again.', 'Popups Blocked');
@@ -713,18 +1110,23 @@ function toggleLiveOut() {
     return;
   }
 
-  // Single display: open full output directly
-  if(tpDisplaysWide * tpDisplaysHigh <= 1) {
+  // Single output: open full output directly
+  var regions = _tpLiveOutRegions();
+  if(regions.length <= 1) {
     _tpOpenFullOutput();
     return;
   }
 
-  // Multiple displays: show popup menu
+  // Multiple outputs: show popup menu
   var popup = document.getElementById('tpLiveOutPopup');
   if(popup) {
-    // Update split label with current grid size
+    // Update split label with the current output count
     var splitBtn = document.getElementById('tpLiveOutSplit');
-    if(splitBtn) splitBtn.textContent = 'Split Outputs (' + tpDisplaysWide + '\u00d7' + tpDisplaysHigh + ')';
+    if(splitBtn) {
+      splitBtn.textContent = tpRaster
+        ? 'Split Outputs (' + regions.length + ' screens)'
+        : 'Split Outputs (' + tpDisplaysWide + '\u00d7' + tpDisplaysHigh + ')';
+    }
     popup.classList.toggle('open');
   }
 }
@@ -750,6 +1152,7 @@ function enterTestPatternMode() {
   document.body.style.overflow = '';
 
   initTestPatternControls();
+  _tpSyncRasterUI();
   updateTotalSize();
   _tpRestartAnimationIfNeeded();
   scheduleTestPatternRedraw();
@@ -786,6 +1189,7 @@ function resetTestPattern() {
   tpBgImageOn = false; tpBgImage = null;
   tpProcessorLinesOn = false; tpProcessorLineColor = '#ff0000';
   tpLayerOrder = _tpDefaultLayerOrder.slice();
+  tpRaster = null; tpRasterMode = 'whole';
   tpSweepOn = false; tpSweepStyle = 'default'; tpSweepColor = '#ffffff'; tpSweepColorV = '#ffffff';
   tpSweepDuration = 5; tpSweepWidthPct = 2;
   tpSweepFps = 60;
@@ -890,6 +1294,7 @@ function resetTestPattern() {
   document.getElementById('tpCrossToggle').checked = true;
   _tpSyncPresetButtons();
   syncTpDisplaySizeButtons();
+  _tpSyncRasterUI();
 
   updateTotalSize();
   scheduleTestPatternRedraw();
@@ -1542,6 +1947,11 @@ function initTestPatternControls() {
     exportTestPatternPng();
   });
 
+  document.getElementById('tpExportPngPerScreen').addEventListener('click', function() {
+    hamburgerMenu.classList.remove('open');
+    exportRasterScreensPng();
+  });
+
   document.getElementById('tpExportMp4').addEventListener('click', function() {
     hamburgerMenu.classList.remove('open');
     exportTestPatternVideo();
@@ -1559,6 +1969,10 @@ function initTestPatternControls() {
 
   document.getElementById('tpLoadPatternInput').addEventListener('change', function(e) {
     tpLoadPatternFile(e);
+  });
+
+  document.getElementById('tpRasterFileInput').addEventListener('change', function(e) {
+    tpImportRasterFile(e);
   });
 
   document.getElementById('tpResetBtn').addEventListener('click', function() {
@@ -1715,8 +2129,8 @@ function initTestPatternControls() {
 }
 
 function updateTotalSize() {
-  var totalW = tpDisplayW * tpDisplaysWide;
-  var totalH = tpDisplayH * tpDisplaysHigh;
+  var totalW = _tpTotalSize().w;
+  var totalH = _tpTotalSize().h;
   var totalWEl = document.getElementById('tpTotalW');
   var totalHEl = document.getElementById('tpTotalH');
   if(totalWEl) totalWEl.value = totalW;
@@ -1886,8 +2300,8 @@ function renderTestPattern(forExport, targetCanvas) {
   if(!canvas) return;
   var ctx = canvas.getContext('2d');
 
-  var totalW = tpDisplayW * tpDisplaysWide;
-  var totalH = tpDisplayH * tpDisplaysHigh;
+  var totalW = _tpTotalSize().w;
+  var totalH = _tpTotalSize().h;
 
   // For preview: cap resolution so grid lines don't alias away when downscaled
   // For export: use full resolution
@@ -1930,21 +2344,93 @@ function renderTestPattern(forExport, targetCanvas) {
 // Composite the full pattern (background + all layers + fixed top layers) into ctx
 // at full pattern dimensions. Caller applies any preview scaling to ctx beforehand.
 function _tpComposeFrame(ctx, totalW, totalH) {
+  if(tpRaster) {
+    _tpComposeRasterFrame(ctx, totalW, totalH);
+    return;
+  }
+  _tpDrawLayerStack(ctx, totalW, totalH);
+}
+
+// One complete pattern at the given size: background, the reorderable layers,
+// then the fixed top layers. Drawn once for the whole canvas in classic mode,
+// or once per screen in per-screen raster mode.
+function _tpDrawLayerStack(ctx, w, h) {
   // 1. Background (fixed — always first)
-  drawTPBackground(ctx, totalW, totalH);
+  drawTPBackground(ctx, w, h);
 
   // 2. Reorderable layers
-  var gridSpacing = calcGridSpacing(totalW, totalH);
+  var gridSpacing = calcGridSpacing(w, h);
   for(var i = 0; i < tpLayerOrder.length; i++) {
     var layer = _tpLayerRegistry[tpLayerOrder[i]];
-    if(layer) layer.draw(ctx, totalW, totalH, gridSpacing);
+    if(layer) layer.draw(ctx, w, h, gridSpacing);
   }
 
   // 3. Fixed top layers (always last)
   if(tpGridSizePct > 0) {
-    drawTPCoordinateLabels(ctx, totalW, totalH, gridSpacing);
+    drawTPCoordinateLabels(ctx, w, h, gridSpacing);
   }
-  drawTPCenterText(ctx, totalW, totalH, gridSpacing);
+  drawTPCenterText(ctx, w, h, gridSpacing);
+}
+
+// Every screen's slice rectangles, flattened — the exact lit LED area.
+function _tpRasterAllRects() {
+  var all = [];
+  if(!tpRaster) return all;
+  for(var i = 0; i < tpRaster.screens.length; i++) {
+    all = all.concat(tpRaster.screens[i].rects);
+  }
+  return all;
+}
+
+// Clip ctx to a list of rectangles in the current coordinate space. An empty
+// list is left alone so a malformed raster can never blank the whole frame.
+function _tpClipToRects(ctx, rects) {
+  if(!rects || rects.length === 0) return;
+  ctx.beginPath();
+  for(var i = 0; i < rects.length; i++) {
+    ctx.rect(rects[i].x, rects[i].y, rects[i].w, rects[i].h);
+  }
+  ctx.clip();
+}
+
+// Compose onto an imported raster. Both modes paint the background across the
+// whole canvas first, so the gaps between screens and any deleted-panel holes
+// stay background colour, then clip the pattern to the real LED shape.
+function _tpComposeRasterFrame(ctx, totalW, totalH) {
+  drawTPBackground(ctx, totalW, totalH);
+
+  if(tpRasterMode === 'perScreen') {
+    // Each screen gets its own self-contained pattern, named after the screen
+    for(var i = 0; i < tpRaster.screens.length; i++) {
+      var scr = tpRaster.screens[i];
+      ctx.save();
+      _tpClipToRects(ctx, scr.rects);   // clip in canvas space, before translating
+      ctx.translate(scr.x, scr.y);
+      _tpScreenNameOverride = scr.name;
+      _tpDrawLayerStack(ctx, scr.w, scr.h);
+      _tpScreenNameOverride = null;
+      ctx.restore();
+    }
+    return;
+  }
+
+  // Whole canvas: one continuous pattern, each screen a window onto it
+  ctx.save();
+  _tpClipToRects(ctx, _tpRasterAllRects());
+  _tpDrawLayerStack(ctx, totalW, totalH);
+  ctx.restore();
+}
+
+// Outline every screen's real LED shape in the boundary colour — the raster
+// stand-in for the uniform display grid.
+function drawTPRasterBoundaries(ctx) {
+  ctx.strokeStyle = tpBoundaryColor;
+  ctx.lineWidth = Math.max(2, Math.round(tpRaster.width / 400));
+  ctx.setLineDash([]);
+  var rects = _tpRasterAllRects();
+  for(var i = 0; i < rects.length; i++) {
+    ctx.strokeRect(rects[i].x, rects[i].y, rects[i].w, rects[i].h);
+  }
 }
 
 // --- Background Drawing ---
@@ -2246,7 +2732,7 @@ function drawTPCenterText(ctx, w, h, spacing) {
   var gridRowCount = Math.floor(h / spacing.y);
 
   var lines = [];
-  if(tpShowName) lines.push({ text: tpImageName, font: 'bold ' + nameFontSize + 'px "Roboto Condensed", sans-serif', size: nameFontSize, isName: true });
+  if(tpShowName) lines.push({ text: _tpScreenNameOverride || tpImageName, font: 'bold ' + nameFontSize + 'px "Roboto Condensed", sans-serif', size: nameFontSize, isName: true });
   if(tpShowPixelSize) lines.push({ text: totalW + 'px x ' + totalH + 'px', font: infoFontSize + 'px "Roboto Condensed", sans-serif', size: infoFontSize });
   if(tpShowAspectRatio) lines.push({ text: aspectValue + ':1', font: infoFontSize + 'px "Roboto Condensed", sans-serif', size: infoFontSize });
   if(tpShowSquareCount) lines.push({ text: gridColCount + ' x ' + gridRowCount + ' full squares', font: infoFontSize + 'px "Roboto Condensed", sans-serif', size: infoFontSize });
@@ -2651,15 +3137,15 @@ function _tpStrobePhaseAt(t) {
 }
 
 function _tpScrollPxPerSec() {
-  var totalW = tpDisplayW * tpDisplaysWide;
-  var totalH = tpDisplayH * tpDisplaysHigh;
+  var totalW = _tpTotalSize().w;
+  var totalH = _tpTotalSize().h;
   return (tpScrollSpeed / 100) * Math.min(totalW, totalH) * 0.5;
 }
 
 // Advance the bouncing logo by dt seconds, reflecting off the four edges.
 function _tpStepBounce(dt) {
-  var totalW = tpDisplayW * tpDisplaysWide;
-  var totalH = tpDisplayH * tpDisplaysHigh;
+  var totalW = _tpTotalSize().w;
+  var totalH = _tpTotalSize().h;
   var img = _tpBounceImg();
   if(!img || !img.width) return;
   var d = _tpBounceDims(img, totalW, totalH);
@@ -2762,6 +3248,65 @@ function exportTestPatternPng() {
 
   // Restore preview resolution
   renderTestPattern(false);
+}
+
+// --- Per-Screen PNG Export ---
+
+// Filename-safe screen names with the pixel size appended. Colliding names get
+// their screen number added, the convention export-all.js already uses.
+function _tpScreenFileNames() {
+  var used = {};
+  return tpRaster.screens.map(function(scr, i) {
+    var base = scr.name.replace(/[<>:"/\\|?*]/g, '_').trim() || 'Screen';
+    var key = base.toLowerCase();
+    if(used[key]) base = base + ' ' + (i + 1);
+    used[key] = true;
+    return base + '_' + scr.w + 'x' + scr.h + '.png';
+  });
+}
+
+// One PNG per screen at its native resolution, zipped. Composes the raster once
+// at full resolution into an offscreen canvas and crops each screen out of it —
+// the same crop the split Live Out windows use, so the two always agree.
+async function exportRasterScreensPng() {
+  if(!tpRaster) { showAlert('Import a raster first.'); return; }
+  if(typeof JSZip === 'undefined') {
+    showAlert('ZIP library not loaded. Check your connection and reload.');
+    return;
+  }
+
+  if(tpRaster.width * tpRaster.height > 67108864) {
+    showAlert('Warning: Very large raster (' + tpRaster.width + 'x' + tpRaster.height
+      + '). Export may be slow or fail on some devices.');
+  }
+
+  // targetCanvas keeps #tpCanvas at its preview size, so no restore is needed
+  var offscreen = document.createElement('canvas');
+  renderTestPattern(true, offscreen);
+
+  var names = _tpScreenFileNames();
+  var blobs = await Promise.all(tpRaster.screens.map(function(scr) {
+    var c = document.createElement('canvas');
+    c.width = scr.w;
+    c.height = scr.h;
+    c.getContext('2d').drawImage(offscreen, scr.x, scr.y, scr.w, scr.h, 0, 0, scr.w, scr.h);
+    return new Promise(function(resolve) { c.toBlob(resolve, 'image/png'); });
+  }));
+
+  var zip = new JSZip();
+  var added = 0;
+  blobs.forEach(function(blob, i) {
+    if(blob) { zip.file(names[i], blob); added++; }
+  });
+  if(added === 0) { showAlert('Failed to create images. Please try again.'); return; }
+
+  var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
+  var zipBlob = await zip.generateAsync({ type: 'blob' });
+  await saveBlobToDevice(zipBlob, safeName + '_screens.zip', {
+    mimeType: 'application/zip',
+    description: 'ZIP Archive',
+    accept: { 'application/zip': ['.zip'] }
+  });
 }
 
 // --- Sweep Drawing ---
@@ -3031,8 +3576,8 @@ async function exportTestPatternVideo() {
   var canvas = document.getElementById('tpCanvas');
   if(!canvas) return;
 
-  var totalW = tpDisplayW * tpDisplaysWide;
-  var totalH = tpDisplayH * tpDisplaysHigh;
+  var totalW = _tpTotalSize().w;
+  var totalH = _tpTotalSize().h;
   var fps = tpSweepFps;
   var duration = tpSweepDuration;
   var totalFrames = Math.round(fps * duration);
@@ -3276,8 +3821,8 @@ async function getTestPatternMp4Blob(callback) {
   var canvas = document.getElementById('tpCanvas');
   if(!canvas || canvas.width === 0) { callback(null); return; }
 
-  var totalW = tpDisplayW * tpDisplaysWide;
-  var totalH = tpDisplayH * tpDisplaysHigh;
+  var totalW = _tpTotalSize().w;
+  var totalH = _tpTotalSize().h;
   var fps = tpSweepFps;
   var duration = tpSweepDuration;
   var totalFrames = Math.round(fps * duration);

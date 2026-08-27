@@ -278,6 +278,7 @@
         </button>
         <div class="tp-hamburger-menu" id="tpHamburgerMenu">
           <button class="tp-menu-item" id="tpExportPng" title="Export as PNG image">Export PNG</button>
+          <button class="tp-menu-item" id="tpExportPngPerScreen" title="Export one PNG per screen, zipped" style="display: none;">Export PNG &mdash; Per Screen</button>
           <button class="tp-menu-item" id="tpExportMp4" title="Export as MP4 video">
             <span class="tp-menu-label">Export MP4</span>
           </button>
@@ -309,6 +310,7 @@
   </div>
 
   <input type="file" id="tpLoadPatternInput" class="tp-file-input-hidden" accept=".blinktp,.tp,.json">
+  <input type="file" id="tpRasterFileInput" class="tp-file-input-hidden" accept=".blinkled,.led,.ledconfig">
 
   <div class="tp-canvas-wrapper">
     <canvas id="tpCanvas"></canvas>
@@ -408,6 +410,22 @@
               <button type="button" onclick="adjustNumberInput('tpTotalH', -1)"><span class="material-symbols-outlined icon-14">keyboard_arrow_down</span></button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="tp-section-header">
+        <span class="tp-section-title">Raster</span>
+      </div>
+
+      <div class="tp-control-group">
+        <div class="tp-row tp-raster-actions">
+          <button type="button" class="toggle-btn tp-raster-btn" id="tpRasterImportBtn" onclick="openTpRasterImportModal()">Import Raster</button>
+          <button type="button" class="toggle-btn tp-raster-btn" id="tpRasterClearBtn" onclick="tpClearRaster()" style="display: none;">Clear</button>
+        </div>
+        <div class="tp-raster-status" id="tpRasterStatus" style="display: none;"></div>
+        <div class="toggle-group tp-raster-mode-group" id="tpRasterModeGroup" style="display: none;">
+          <button type="button" class="toggle-btn active" data-raster-mode="whole" onclick="setTpRasterMode('whole')">Whole Canvas</button>
+          <button type="button" class="toggle-btn" data-raster-mode="perScreen" onclick="setTpRasterMode('perScreen')">Per Screen</button>
         </div>
       </div>
 
@@ -1405,6 +1423,37 @@
     </div>
     <div class="modal-body">
       <div id="recentProjectsList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Test Pattern: Import Raster (sources, then the recent-projects list) -->
+<div id="tpRasterImportModal" class="modal-overlay">
+  <div class="modal-dialog modal-480 modal-scrollable">
+    <div class="modal-header">
+      <h2 class="modal-title" id="tpRasterImportTitle">Import Raster</h2>
+      <button class="modal-close" onclick="closeTpRasterImportModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="tpRasterSourceList">
+        <button type="button" class="recent-project-item" onclick="tpImportRasterFromCurrentProject()">
+          <div class="recent-project-name">Current Project</div>
+          <div class="recent-project-meta">The screens open in the app right now</div>
+        </button>
+        <button type="button" class="recent-project-item" onclick="tpImportRasterFromRecents()">
+          <div class="recent-project-name">Recent Projects&hellip;</div>
+          <div class="recent-project-meta">Pick a saved project without opening a file</div>
+        </button>
+        <button type="button" class="recent-project-item" onclick="tpPickRasterFile('.blinkled,.led,.ledconfig')">
+          <div class="recent-project-name">Project File</div>
+          <div class="recent-project-meta">.blinkled, .led or .ledconfig from this device</div>
+        </button>
+        <button type="button" class="recent-project-item" onclick="tpPickRasterFile('.blinkrast')">
+          <div class="recent-project-name">Raster File</div>
+          <div class="recent-project-meta">.blinkrast saved from the Raster view</div>
+        </button>
+      </div>
+      <div id="tpRasterRecentList" style="display: none;"></div>
     </div>
   </div>
 </div>
@@ -3863,8 +3912,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.190';
-const APP_CHANGELOG = 'Clear every combined table when no screens are selected and follow tab order';
+const APP_VERSION = '2.11.191';
+const APP_CHANGELOG = 'Import a project raster into the test pattern tool and slice it per screen';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

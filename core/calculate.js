@@ -347,9 +347,8 @@ function recalculateScreenData(screenId) {
 // renderScreenTabs sorts them) so the auto-numbering below runs in the order shown.
 function sharedDistroGroupIds() {
   if (typeof screens === 'undefined') return [];
-  return Object.keys(screens)
-    .filter(id => screens[id] && screens[id].data && screens[id].data.sharedDistro)
-    .sort((a, b) => (parseInt(a.split('_')[1]) || 0) - (parseInt(b.split('_')[1]) || 0));
+  return getScreenIdsInOrder()
+    .filter(id => screens[id] && screens[id].data && screens[id].data.sharedDistro);
 }
 
 // A screen's SOCAs from its saved data: { distinct: sorted indices, explicit: Set of the

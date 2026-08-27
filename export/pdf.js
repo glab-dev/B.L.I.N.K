@@ -941,9 +941,7 @@ function buildSimplePdf(canvasCache) {
   const uh          = dims.usableHeight;
   const m           = PDF_TOKENS.layout;
 
-  const screenIds   = Object.keys(screens).sort(function(a, b) {
-    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-  });
+  const screenIds   = getScreenIdsInOrder();
   const allPanels   = getAllPanels();
   const configName  = document.getElementById('configName')?.value?.trim() || 'LED Wall';
   const dateStr     = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
@@ -1332,9 +1330,7 @@ function buildStructureInfoPdf(screenId, canvasCache, perRowOverride) {
 // gear list columns all follow this one list. Falls back to tab order when the project has no
 // arrangement (see getCombinedArrangement in nav/combined.js).
 function pdfScreenOrder() {
-  const byTab = Object.keys(screens).sort(function(a, b) {
-    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-  });
+  const byTab = getScreenIdsInOrder();
   const arrangement = (typeof getCombinedArrangement === 'function') ? getCombinedArrangement() : null;
   if (!arrangement || !arrangement.items.length) return byTab;
 
@@ -2701,9 +2697,7 @@ function pdfCaptureCombinedCanvases(callback) {
   var restoreState = null;
   try {
     if (typeof screens === 'undefined') { callback({}); return; }
-    var screenIds = Object.keys(screens).sort(function(a, b) {
-      return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-    });
+    var screenIds = getScreenIdsInOrder();
     if (screenIds.length < 2) { callback({}); return; }
     if (typeof renderCombinedView !== 'function' || typeof combinedSelectedScreens === 'undefined') {
       callback({}); return;
@@ -2808,9 +2802,7 @@ function pdfCaptureCanvases(captureOpts) {
   const _pdfCaptureIsMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
     (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
   const originalScreenId = currentScreenId;
-  const allScreenIds = Object.keys(screens).sort((a, b) =>
-    parseInt(a.split('_')[1]) - parseInt(b.split('_')[1])
-  );
+  const allScreenIds = getScreenIdsInOrder();
   const screenIds = (captureOpts.screenIds && captureOpts.screenIds.length)
     ? allScreenIds.filter(id => captureOpts.screenIds.indexOf(id) !== -1)
     : allScreenIds;
@@ -2976,9 +2968,7 @@ function pdfCaptureCanvases(captureOpts) {
 
 function buildPdfDocDefinition(opts, canvasCache) {
   const colors = getPdfColors();
-  const screenIds = Object.keys(screens).sort((a, b) =>
-    parseInt(a.split('_')[1]) - parseInt(b.split('_')[1])
-  );
+  const screenIds = getScreenIdsInOrder();
   const gearData = buildGearListData(screenIds);
   const allPanelsData = getAllPanels();
 

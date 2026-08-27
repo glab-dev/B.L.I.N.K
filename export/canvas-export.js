@@ -199,9 +199,7 @@ function _renderScreenNativeCanvas(screenId) {
 // next, so peak memory stays at a single screen's canvas (avoids the mobile
 // out-of-memory tab kill that happened when all screens were held at once).
 function getScreenNativeResBlobs(callback) {
-  var screenIds = Object.keys(screens).sort(function(a, b) {
-    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-  }).filter(function(id) {
+  var screenIds = getScreenIdsInOrder().filter(function(id) {
     var s = screens[id];
     return s && s.visible;
   });
@@ -234,9 +232,7 @@ async function exportScreensNativeRes(format) {
     var ext = isJpeg ? '.jpg' : '.png';
     var mime = isJpeg ? 'image/jpeg' : 'image/png';
     var quality = isJpeg ? 0.92 : undefined;
-    var screenIds = Object.keys(screens).sort(function(a, b) {
-      return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-    });
+    var screenIds = getScreenIdsInOrder();
     // Determine valid screens up front via cheap resolution math (no canvas
     // allocation), so we can render/encode/free one screen at a time below
     // instead of holding every screen's full-res canvas in memory at once.
@@ -328,9 +324,7 @@ function showOutlineExportModal() {
   // Populate screen dropdown with visible screens
   var sel = document.getElementById('outlineScreenSelect');
   sel.innerHTML = '';
-  var screenIds = Object.keys(screens).sort(function(a, b) {
-    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-  });
+  var screenIds = getScreenIdsInOrder();
   screenIds.forEach(function(id) {
     var s = screens[id];
     if(!s.visible) return;
@@ -510,9 +504,7 @@ function updateOutlinePreview() {
   var allP = getAllPanels();
 
   if(_outlineMode === 'canvas') {
-    var screenIds = Object.keys(screens).sort(function(a, b) {
-      return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-    });
+    var screenIds = getScreenIdsInOrder();
     screenIds.forEach(function(id) {
       var s = screens[id];
       if(!s.visible) return;
@@ -582,9 +574,7 @@ function exportOutlinePNG() {
       }
       ctx.fillStyle = color;
 
-      var screenIds = Object.keys(screens).sort(function(a, b) {
-        return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-      });
+      var screenIds = getScreenIdsInOrder();
       screenIds.forEach(function(id) {
         var s = screens[id];
         if(!s.visible) return;
@@ -656,9 +646,7 @@ function getAllCanvasesExportBlobs(callback) {
       });
       return;
     }
-    var ids = Object.keys(canvases).sort(function(a, b) {
-      return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-    });
+    var ids = getCanvasIdsInOrder();
     if (ids.length === 0) { callback([]); return; }
 
     var originalId = currentCanvasId;

@@ -48,9 +48,7 @@ function _viewExportBaseMask() {
 // The screens a combined export covers. Mirrors the fallback in
 // pdfCaptureCombinedCanvases(): fewer than two selected means "all of them".
 function _viewExportCombinedScreenIds() {
-  const all = Object.keys(screens).sort(function(a, b) {
-    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-  });
+  const all = getScreenIdsInOrder();
   if (typeof combinedSelectedScreens === 'undefined' || combinedSelectedScreens.size < 2) return all;
   return all.filter(function(id) { return combinedSelectedScreens.has(id); });
 }

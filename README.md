@@ -165,6 +165,8 @@ The app works on both mobile and desktop devices. Both platforms support Simple 
 - **Multiple Screens** — Create and manage multiple LED wall screens in one project
 - **Add Screen (+)** — Click the + button to add a new screen
 - **Switch Screens** — Click on any screen tab to switch between screens
+- **Reorder** — Drag a tab sideways to move it. On desktop the drag starts after a few pixels of travel, so a plain click still just switches screens; on touch, press and hold for a moment first so the tab strip stays scrollable
+- **Order is saved** — Tab order persists in the project file and is the order screens appear in every export
 - **Edit Screen** — Click the pencil icon to rename, recolor, duplicate, or reset a screen
   - Set primary color (main panel color)
   - Set secondary color (alternating panel color for checkerboard effect)
@@ -536,6 +538,7 @@ The Canvas page shows the same spreadsheet-style table as Raster mode — a row 
 
 ### Canvas Tabs
 - **Add Canvas (+)** — Add more than one canvas when your screens don't all fit on one
+- **Reorder** — Drag canvas tabs the same way as screen tabs; the order saves with the project
 - Each canvas keeps its own size, positions, and visible screens
 
 ### Header/Footer Band

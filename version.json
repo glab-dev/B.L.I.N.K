@@ -1,5 +1,5 @@
 {
-  "version": "2.11.185",
+  "version": "2.11.186",
   "updated": "2026-08-27",
-  "changelog": "Open projects through a file picker and keep borrowed screen data from blanking the view"
+  "changelog": "Drag screen and canvas tabs to reorder them everywhere including exports"
 }

@@ -38,6 +38,7 @@ function activateCanvasView() {
 // Data structure for multiple canvases
 let canvases = {};
 let canvasIdCounter = 0;
+let canvasOrder = []; // User's drag-reordered canvas order; empty = fall back to numeric canvas_N order
 let currentCanvasId = null;
 
 // Initialize default canvas
@@ -241,22 +242,36 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
 
 }
 
+// Canvas tab order, same contract as getScreenIdsInOrder() in screens/multi-screen.js.
+function getCanvasIdsInOrder() {
+  if(typeof canvases === 'undefined') return [];
+  const numeric = Object.keys(canvases).sort((a, b) =>
+    (parseInt(a.split('_')[1]) || 0) - (parseInt(b.split('_')[1]) || 0));
+  if(typeof canvasOrder === 'undefined' || !Array.isArray(canvasOrder) || !canvasOrder.length) return numeric;
+
+  const seen = new Set();
+  const ordered = [];
+  canvasOrder.forEach(id => {
+    if(canvases[id] && !seen.has(id)) { seen.add(id); ordered.push(id); }
+  });
+  numeric.forEach(id => {
+    if(!seen.has(id)) { seen.add(id); ordered.push(id); }
+  });
+  return ordered;
+}
+
 function renderCanvasTabs() {
   const container = document.getElementById('canvasTabsContainer');
   if(!container) return;
 
-  const canvasIds = Object.keys(canvases).sort((a, b) => {
-    const numA = parseInt(a.split('_')[1]) || 0;
-    const numB = parseInt(b.split('_')[1]) || 0;
-    return numA - numB;
-  });
+  const canvasIds = getCanvasIdsInOrder();
 
   let html = '<div class="screen-tabs">';
   canvasIds.forEach(canvasId => {
     const canvas = canvases[canvasId];
     const isActive = canvasId === currentCanvasId;
     html += `
-      <div class="screen-tab ${isActive ? 'active' : ''}" onclick="switchToCanvas('${canvasId}')">
+      <div class="screen-tab ${isActive ? 'active' : ''}" data-canvas-id="${escapeHtml(canvasId)}" onclick="switchToCanvas('${canvasId}')">
         <span class="screen-tab-name">${escapeHtml(canvas.name)}</span>
         <button class="screen-tab-edit" onclick="event.stopPropagation(); openCanvasRenameModal('${canvasId}')" title="Edit canvas">✎</button>
         <button class="screen-tab-close" onclick="event.stopPropagation(); deleteCanvas('${canvasId}')" title="Delete canvas" style="${canvasIds.length <= 1 ? 'visibility: hidden;' : ''}">×</button>
@@ -1061,11 +1076,7 @@ function showCanvasView(){
   ctx.fillRect(0, 0, canvasResX, canvasResY);
   
   // Sort screen IDs numerically
-  const screenIds = Object.keys(screens).sort((a, b) => {
-    const numA = parseInt(a.split('_')[1]);
-    const numB = parseInt(b.split('_')[1]);
-    return numA - numB;
-  });
+  const screenIds = getScreenIdsInOrder();
   
   // Per-canvas data overlay toggles (independent per canvas tab)
   const _canvasData = (currentCanvasId && canvases[currentCanvasId] && canvases[currentCanvasId].data) || {};
@@ -1283,11 +1294,7 @@ function getScreenAtPosition(mouseX, mouseY) {
   const allPanels = getAllPanels();
 
   // Check screens in reverse order (top screen first)
-  const screenIds = Object.keys(screens).sort((a, b) => {
-    const numA = parseInt(a.split('_')[1]);
-    const numB = parseInt(b.split('_')[1]);
-    return numB - numA; // Reverse order
-  });
+  const screenIds = getScreenIdsInOrder().slice().reverse();
 
   for(const screenId of screenIds) {
     const screen = screens[screenId];
@@ -2856,11 +2863,7 @@ function updateCanvasScreenToggles() {
   let html = '<div style="margin-top: 16px; margin-bottom: 12px; display: inline-block; background: #1a1a1a; border: 1px solid var(--primary); padding: 4px 10px; font-family: Bangers, cursive; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; color: var(--primary); transform: rotate(-2deg);">Visible Screens</div>';
 
   // Sort screen IDs numerically
-  const screenIds = Object.keys(screens).sort((a, b) => {
-    const numA = parseInt(a.split('_')[1]);
-    const numB = parseInt(b.split('_')[1]);
-    return numA - numB;
-  });
+  const screenIds = getScreenIdsInOrder();
   screenIds.forEach(screenId => {
     const screen = screens[screenId];
     const showName = screen.showName !== false;

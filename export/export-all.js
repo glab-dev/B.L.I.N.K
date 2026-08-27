@@ -116,9 +116,7 @@ function _sectionPdfBlob(mask, screenIds, cache) {
 // then off — and every per-screen PDF is built from those, so the expensive
 // screen-switching render runs twice for the project instead of once per file.
 async function _addSectionPdfsToZip(zip, name) {
-  var screenIds = Object.keys(screens).sort(function(a, b) {
-    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-  });
+  var screenIds = getScreenIdsInOrder();
   if(screenIds.length === 0) return;
 
   if(typeof saveCurrentScreenData === 'function') saveCurrentScreenData();
@@ -270,9 +268,7 @@ async function exportAll() {
 
     // Gear list .txt → gear/ (plain-text email format — same as Send to Jared)
     try {
-      var screenIds = Object.keys(screens).sort(function(a, b) {
-        return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-      });
+      var screenIds = getScreenIdsInOrder();
       var gearData = buildGearListData(screenIds);
       var gearContent = buildGearListText(gearData);
       if(gearContent) zip.file('gear/' + name + '_gear.txt', new Blob([gearContent], { type: 'text/plain' }));

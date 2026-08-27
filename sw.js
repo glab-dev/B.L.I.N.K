@@ -2,7 +2,7 @@
 // Provides offline caching for the B.L.I.N.K. PWA.
 // SW_VERSION must match APP_VERSION in index.html and version.json.
 
-const SW_VERSION = '2.11.185';
+const SW_VERSION = '2.11.186';
 const CACHE_NAME = 'blink-v' + SW_VERSION;
 
 // Local app files to pre-cache on install
@@ -46,6 +46,7 @@ const LOCAL_ASSETS = [
   // interact
   '/interact/standard-canvas.js',
   '/interact/touch-gestures.js',
+  '/interact/tab-reorder.js',
   // nav
   '/nav/gear.js',
   '/nav/cable-diagram.js',

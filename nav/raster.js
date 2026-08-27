@@ -51,11 +51,7 @@ function renderRasterScreenTable() {
   const allPanels = getAllPanels();
 
   // Sort screen IDs numerically
-  const screenIds = Object.keys(screens).sort(function(a, b) {
-    var numA = parseInt(a.split('_')[1]);
-    var numB = parseInt(b.split('_')[1]);
-    return numA - numB;
-  });
+  const screenIds = getScreenIdsInOrder();
 
   var html = '<table class="raster-table"><thead><tr>';
   html += '<th>Name</th><th>Color 1</th><th>Color 2</th><th>Panel</th><th>Tile X</th><th>Tile Y</th>';
@@ -1133,6 +1129,9 @@ function applyRasterFile(config) {
   screenIdCounter = (typeof config.screenIdCounter === 'number' && config.screenIdCounter > 0)
     ? config.screenIdCounter : Object.keys(screens).length;
   currentScreenId = safeScreenIds[0];
+  // .blinkrast carries no tab order, and screen ids are reused across projects, so a
+  // leftover screenOrder would silently reorder the screens just loaded.
+  screenOrder = [];
 
   // --- Restore canvas settings ---
   if(config.canvasSettings && typeof config.canvasSettings === 'object') {
@@ -1176,6 +1175,7 @@ function applyRasterFile(config) {
         ? config.currentCanvasId : safeCanvasIds[0];
       canvasIdCounter = (typeof config.canvasIdCounter === 'number' && config.canvasIdCounter > 0)
         ? config.canvasIdCounter : safeCanvasIds.length;
+      canvasOrder = [];
     }
   }
 

@@ -202,9 +202,7 @@ async function _exportEnsureTpReady() {
 function runExportGearTxt() {
   // Same gear text the Export All zip and Send to Jared email use.
   try {
-    const screenIds = Object.keys(screens).sort(function(a, b) {
-      return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-    });
+    const screenIds = getScreenIdsInOrder();
     if(screenIds.length === 0) { showAlert('No screens to export.'); return; }
     const gearData = buildGearListData(screenIds);
     const gearContent = buildGearListText(gearData);

@@ -170,11 +170,7 @@ function captureAllCanvasImages(callback) {
   if (typeof saveCurrentScreenData === 'function') saveCurrentScreenData();
 
   const originalScreenId = currentScreenId;
-  const screenIds = Object.keys(screens).sort((a, b) => {
-    const numA = parseInt(a.split('_')[1]);
-    const numB = parseInt(b.split('_')[1]);
-    return numA - numB;
-  });
+  const screenIds = getScreenIdsInOrder();
 
   // Apply print modes for capture
   const opts = getPrintPreviewOptions();
@@ -370,9 +366,7 @@ function ppToggleSocaDiagonalLabel(checked) {
 function _ppRefreshPowerCache() {
   if (!_ppCanvasCache) return;
   const originalScreenId = currentScreenId;
-  const screenIds = Object.keys(screens).sort(function(a, b) {
-    return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-  });
+  const screenIds = getScreenIdsInOrder();
 
   const mainContainer = document.querySelector('.main-container');
   const mainWasHidden = mainContainer && mainContainer.style.display === 'none';

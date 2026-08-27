@@ -500,8 +500,7 @@ function getCombinedArrangement() {
   let tailX = 0;
   items.forEach(it => { tailX = Math.max(tailX, it.x + it.w + gapUnits); });
 
-  Object.keys(screens)
-    .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]))
+  getScreenIdsInOrder()
     .forEach(screenId => {
       if(used[screenId]) return;
       const box = boxUnits(screenId);
@@ -2957,9 +2956,7 @@ function renderCombinedProcessorPickers() {
   const grid = document.createElement('div');
   grid.className = 'cdp-grid';
 
-  const ordered = [...combinedSelectedScreens].sort(
-    (a, b) => (parseInt(a.split('_')[1]) || 0) - (parseInt(b.split('_')[1]) || 0)
-  );
+  const ordered = getScreenIdsInOrder().filter(id => combinedSelectedScreens.has(id));
 
   ordered.forEach(screenId => {
     const screen = screens[screenId];

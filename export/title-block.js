@@ -345,9 +345,7 @@ function getTitleBlockBlobsForCanvases(callback) {
       return;
     }
 
-    var ids = Object.keys(canvases).sort(function(a, b) {
-      return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
-    }).filter(function(id) {
+    var ids = getCanvasIdsInOrder().filter(function(id) {
       var d = canvases[id] && canvases[id].data;
       return d && d.titleBlock && d.titleBlock.enabled;
     });

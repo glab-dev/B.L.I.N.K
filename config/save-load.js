@@ -204,6 +204,10 @@ function buildCurrentConfig() {
     name: configName,
     currentScreenId: currentScreenId,
     screenIdCounter: screenIdCounter,
+    // Drag-reordered tab order. Absent in files saved before reordering existed, which
+    // is why getScreenIdsInOrder()/getCanvasIdsInOrder() fall back to numeric id order.
+    screenOrder: (typeof getScreenIdsInOrder === 'function') ? getScreenIdsInOrder() : [],
+    canvasOrder: (typeof getCanvasIdsInOrder === 'function') ? getCanvasIdsInOrder() : [],
     screens: screensData,
     // Multi-canvas tabs
     canvases: canvasesData,
@@ -363,9 +367,11 @@ function newProject() {
       // default canvas when canvases is empty — so clear it first.
       screens = {};
       screenIdCounter = 1;
+      screenOrder = [];
       currentScreenId = 'screen_1';
       canvases = {};
       canvasIdCounter = 0;
+      canvasOrder = [];
       currentCanvasId = null;
       initializeScreenSystem();
 
@@ -539,6 +545,12 @@ function applyConfiguration(config, fileNameOverride) {
       ? config.currentScreenId
       : 'screen_1';
 
+    // Restore the drag-reordered tab order. Ids that failed validation or no longer
+    // exist are dropped; anything missing falls back to numeric order in the helper.
+    screenOrder = Array.isArray(config.screenOrder)
+      ? config.screenOrder.filter(id => typeof id === 'string' && /^screen_\d+$/.test(id) && screens[id])
+      : [];
+
     // Restore canvases (multi-canvas tabs)
     let canvasesRestored = false;
     if(config.canvases && typeof config.canvases === 'object' && !Array.isArray(config.canvases)) {
@@ -572,6 +584,9 @@ function applyConfiguration(config, fileNameOverride) {
           ? config.currentCanvasId : safeCanvasIds[0];
         canvasIdCounter = (typeof config.canvasIdCounter === 'number' && config.canvasIdCounter > 0)
           ? config.canvasIdCounter : safeCanvasIds.length;
+        canvasOrder = Array.isArray(config.canvasOrder)
+          ? config.canvasOrder.filter(id => typeof id === 'string' && /^canvas_\d+$/.test(id) && canvases[id])
+          : [];
         canvasesRestored = true;
       }
     }
@@ -580,6 +595,7 @@ function applyConfiguration(config, fileNameOverride) {
     if(!canvasesRestored) {
       canvases = {};
       canvasIdCounter = 0;
+      canvasOrder = [];
       currentCanvasId = null;
       if(typeof initializeCanvases === 'function') initializeCanvases();
     }

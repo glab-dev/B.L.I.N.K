@@ -933,6 +933,8 @@
             <li><strong>Multiple Screens</strong> &mdash; create and manage multiple LED walls in one project</li>
             <li><strong>Add Screen (+)</strong> &mdash; click the + button to add a new screen</li>
             <li><strong>Switch Screens</strong> &mdash; click on any screen tab to switch between screens</li>
+            <li><strong>Reorder</strong> &mdash; drag a tab sideways to move it. On desktop the drag starts once you move a little, so a plain click still just switches screens; on a phone, press and hold a tab first so the strip stays scrollable</li>
+            <li>Tab order is saved with the project and is the order screens appear in every export</li>
             <li><strong>Edit Screen</strong> &mdash; click the pencil icon to rename and set primary/secondary panel colors</li>
             <li><strong>Duplicate Screen</strong> &mdash; copy a screen and all its settings from the edit dialog</li>
             <li><strong>Reset Screen</strong> &mdash; the &#x21bb; button in the edit dialog returns the screen to defaults</li>
@@ -1156,6 +1158,7 @@
             <li><strong>Export</strong> &mdash; PNG, JPEG, or Resolume XML with custom filename; export the whole canvas or each screen at native resolution</li>
             <li><strong>Resolume file</strong> &mdash; import in Resolume&rsquo;s advanced output section to create input and output screens based on canvas positions</li>
             <li><strong>Add Canvas</strong> &mdash; add more than one canvas if your screens don&rsquo;t all fit on one canvas</li>
+            <li><strong>Reorder Canvases</strong> &mdash; drag canvas tabs the same way as screen tabs</li>
           </ul>
 
           <h3 class="help-section-title">Exports</h3>
@@ -3822,6 +3825,7 @@
 
 <!-- Canvas Interactivity -->
 <script defer src="interact/standard-canvas.js"></script>
+<script defer src="interact/tab-reorder.js"></script>
 
 <!-- Navigation Views -->
 <script defer src="nav/gear.js"></script>
@@ -3859,8 +3863,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.185';
-const APP_CHANGELOG = 'Open projects through a file picker and keep borrowed screen data from blanking the view';
+const APP_VERSION = '2.11.186';
+const APP_CHANGELOG = 'Drag screen and canvas tabs to reorder them everywhere including exports';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -4021,6 +4025,7 @@ const bumperWeights = {
 let screens = {};
 let currentScreenId = 'screen_1';
 let screenIdCounter = 1;
+let screenOrder = []; // User's drag-reordered screen order; empty = fall back to numeric screen_N order
 let isLoadingScreenData = false; // Flag to prevent resetCalculator during screen loading
 let isBorrowingScreenData = false; // Flag: loadScreenData is standing up another screen's state, not switching to it
 

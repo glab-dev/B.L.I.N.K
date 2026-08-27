@@ -727,11 +727,7 @@ function initGearView() {
     gearActiveScreenId = currentScreenId;
   }
 
-  const screenIds = Object.keys(screens).sort((a, b) => {
-    const numA = parseInt(a.split('_')[1]);
-    const numB = parseInt(b.split('_')[1]);
-    return numA - numB;
-  });
+  const screenIds = getScreenIdsInOrder();
 
   // Build screen-tab style tabs (matching complex page screen tabs)
   let html = '';
@@ -774,11 +770,7 @@ function generateGearList() {
   if(!gearListContainer || !gearListContent) return;
 
   // Use active gear screen if on gear tab, otherwise show all
-  const allScreenIds = Object.keys(screens).sort((a, b) => {
-    const numA = parseInt(a.split('_')[1]);
-    const numB = parseInt(b.split('_')[1]);
-    return numA - numB;
-  });
+  const allScreenIds = getScreenIdsInOrder();
   const screenIds = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
     ? [gearActiveScreenId]
     : allScreenIds;

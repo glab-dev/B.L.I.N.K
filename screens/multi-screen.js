@@ -130,16 +130,33 @@ function initializeScreenSystem() {
   initializeCanvases();
 }
 
+// The one screen order the whole app walks: tab strip, raster table, gear list and
+// every export. screenOrder holds the user's drag-reordered ids; anything it doesn't
+// cover (new screens, projects saved before reordering existed) falls back to the
+// numeric screen_N order, so an empty screenOrder behaves exactly like the old sort.
+function getScreenIdsInOrder() {
+  if(typeof screens === 'undefined') return [];
+  const numeric = Object.keys(screens).sort((a, b) =>
+    (parseInt(a.split('_')[1]) || 0) - (parseInt(b.split('_')[1]) || 0));
+  if(typeof screenOrder === 'undefined' || !Array.isArray(screenOrder) || !screenOrder.length) return numeric;
+
+  const seen = new Set();
+  const ordered = [];
+  screenOrder.forEach(id => {
+    if(screens[id] && !seen.has(id)) { seen.add(id); ordered.push(id); }
+  });
+  numeric.forEach(id => {
+    if(!seen.has(id)) { seen.add(id); ordered.push(id); }
+  });
+  return ordered;
+}
+
 function renderScreenTabs() {
   const container = document.getElementById('screenTabsContainer');
   if(!container) return;
   
   // Sort screen IDs numerically (screen_1, screen_2, ..., screen_10, screen_11)
-  const screenIds = Object.keys(screens).sort((a, b) => {
-    const numA = parseInt(a.split('_')[1]);
-    const numB = parseInt(b.split('_')[1]);
-    return numA - numB;
-  });
+  const screenIds = getScreenIdsInOrder();
 
   let html = '';
   screenIds.forEach(screenId => {
@@ -147,6 +164,7 @@ function renderScreenTabs() {
     const isActive = screenId === currentScreenId;
     html += `
       <div class="screen-tab ${isActive ? 'active' : ''}"
+           data-screen-id="${escapeHtml(screenId)}"
            onclick="switchToScreen('${escapeJsString(screenId)}')">
         <span class="screen-tab-name">${escapeHtml(screen.name)}</span>
         <button class="screen-tab-edit" onclick="event.stopPropagation(); openScreenRenameModal('${escapeJsString(screenId)}')" title="Edit screen">✎</button>

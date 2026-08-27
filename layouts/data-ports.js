@@ -145,13 +145,11 @@ function screenDataLineDestinations(data) {
            processorId: inp.processorId, connectionMode: inp.connectionMode };
 }
 
-// Screen ids in tab order (numeric screen_N suffix), the same order renderScreenTabs
-// shows and sharedDistroGroupIds() walks.
+// Screen ids in tab order (getScreenIdsInOrder(), so it follows a drag-reorder), the
+// same order renderScreenTabs shows and sharedDistroGroupIds() walks.
 function dataPortScreenIds() {
   if(typeof screens === 'undefined') return [];
-  const all = Object.keys(screens).filter(id => screens[id] && screens[id].data);
-  const byTab = all.slice().sort((a, b) =>
-    (parseInt(a.split('_')[1]) || 0) - (parseInt(b.split('_')[1]) || 0));
+  const byTab = getScreenIdsInOrder().filter(id => screens[id] && screens[id].data);
 
   // Selection order in the combined view wins: the first screen you select gets
   // port 1. combinedSelectedScreens is a Set, so it already iterates in the order

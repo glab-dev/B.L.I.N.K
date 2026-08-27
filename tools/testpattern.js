@@ -869,8 +869,10 @@ function _tpSyncRasterUI() {
   }
 
   // Per-screen export only means anything with a raster loaded
-  var perScreenPng = document.getElementById('tpExportPngPerScreen');
-  if(perScreenPng) perScreenPng.style.display = loaded ? '' : 'none';
+  ['tpExportPngPerScreen', 'tpExportMp4PerScreen'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if(el) el.style.display = loaded ? '' : 'none';
+  });
 
   // The uniform display grid and processor lines are superseded by the raster.
   // Disable the controls for keyboard users and dim their containers.
@@ -1955,6 +1957,11 @@ function initTestPatternControls() {
   document.getElementById('tpExportMp4').addEventListener('click', function() {
     hamburgerMenu.classList.remove('open');
     exportTestPatternVideo();
+  });
+
+  document.getElementById('tpExportMp4PerScreen').addEventListener('click', function() {
+    hamburgerMenu.classList.remove('open');
+    exportRasterScreensMp4();
   });
 
   document.getElementById('tpSavePatternFile').addEventListener('click', function() {
@@ -3254,14 +3261,15 @@ function exportTestPatternPng() {
 
 // Filename-safe screen names with the pixel size appended. Colliding names get
 // their screen number added, the convention export-all.js already uses.
-function _tpScreenFileNames() {
+function _tpScreenFileNames(ext) {
   var used = {};
+  var suffix = '.' + (ext || 'png');
   return tpRaster.screens.map(function(scr, i) {
     var base = scr.name.replace(/[<>:"/\\|?*]/g, '_').trim() || 'Screen';
     var key = base.toLowerCase();
     if(used[key]) base = base + ' ' + (i + 1);
     used[key] = true;
-    return base + '_' + scr.w + 'x' + scr.h + '.png';
+    return base + '_' + scr.w + 'x' + scr.h + suffix;
   });
 }
 
@@ -3561,6 +3569,56 @@ function stopSweepPreview() {
 
 // --- Video Export (VideoEncoder + mp4-muxer) ---
 
+// Finds a VideoEncoder config the browser will actually accept at this size:
+// H.264 levels first (widest MP4 playback), then HEVC, then VP9, each tried
+// hardware- before software-accelerated. Returns null if nothing supports it.
+// Shared by every MP4 export path so they all negotiate identically.
+async function _tpPickVideoCodec(w, h, fps) {
+  var pixels = w * h;
+  var bitrate = Math.min(80000000, Math.max(40000000, Math.round(pixels / (1920 * 1080) * 40000000)));
+
+  async function tryCodec(codec, muxerCodec) {
+    var accels = ['prefer-hardware', 'prefer-software'];
+    for(var i = 0; i < accels.length; i++) {
+      var cfg = {
+        codec: codec, width: w, height: h,
+        bitrate: bitrate, framerate: fps, hardwareAcceleration: accels[i]
+      };
+      try {
+        var support = await VideoEncoder.isConfigSupported(cfg);
+        if(support.supported) return { config: support.config || cfg, muxerCodec: muxerCodec };
+      } catch(e) { /* not supported, try next */ }
+    }
+    return null;
+  }
+
+  // H.264 — most compatible MP4 playback. Only levels that cover this pixel count.
+  var h264Levels = [
+    { codec: 'avc1.640028', maxPixels: 2097152 },   // Level 4.0
+    { codec: 'avc1.640032', maxPixels: 8912896 },   // Level 5.0
+    { codec: 'avc1.640034', maxPixels: 8912896 },   // Level 5.2
+    { codec: 'avc1.64003C', maxPixels: 35651584 }   // Level 6.0
+  ];
+  var candidates = h264Levels.filter(function(l) { return l.maxPixels >= pixels; });
+  if(candidates.length === 0) candidates = [h264Levels[h264Levels.length - 1]];
+
+  var found = null;
+  for(var ci = 0; ci < candidates.length && !found; ci++) {
+    found = await tryCodec(candidates[ci].codec, 'avc');
+  }
+  // HEVC — QuickTime-compatible, handles high resolutions
+  var hevcCodecs = ['hvc1.1.6.L150.B0', 'hvc1.1.6.L153.B0', 'hvc1.1.6.L180.B0'];
+  for(var hi = 0; hi < hevcCodecs.length && !found; hi++) {
+    found = await tryCodec(hevcCodecs[hi], 'hevc');
+  }
+  // Last resort: VP9 (note: won't play in QuickTime)
+  var vp9Codecs = ['vp09.00.50.08', 'vp09.00.40.08', 'vp09.00.31.08'];
+  for(var vi = 0; vi < vp9Codecs.length && !found; vi++) {
+    found = await tryCodec(vp9Codecs[vi], 'vp9');
+  }
+  return found;
+}
+
 async function exportTestPatternVideo() {
   if(_tpIsRecording) return;
 
@@ -3617,95 +3675,12 @@ async function exportTestPatternVideo() {
     }
 
     // Probe browser for supported codec + hw/sw acceleration
-    var pixels = totalW * totalH;
-    var scaledBitrate = Math.min(80000000, Math.max(40000000, Math.round(pixels / (1920 * 1080) * 40000000)));
-    var encoderConfig = null;
-    var muxerCodec = 'avc';
-
-    // Try H.264 levels first (most compatible MP4 playback)
-    var h264Levels = [
-      { codec: 'avc1.640028', maxPixels: 2097152 },   // Level 4.0
-      { codec: 'avc1.640032', maxPixels: 8912896 },   // Level 5.0
-      { codec: 'avc1.640034', maxPixels: 8912896 },   // Level 5.2
-      { codec: 'avc1.64003C', maxPixels: 35651584 }   // Level 6.0
-    ];
-    var candidates = h264Levels.filter(function(l) { return l.maxPixels >= pixels; });
-    if (candidates.length === 0) candidates = [h264Levels[h264Levels.length - 1]];
-
-    for (var ci = 0; ci < candidates.length && !encoderConfig; ci++) {
-      var accels = ['prefer-hardware', 'prefer-software'];
-      for (var ai = 0; ai < accels.length && !encoderConfig; ai++) {
-        var testConfig = {
-          codec: candidates[ci].codec,
-          width: totalW,
-          height: totalH,
-          bitrate: scaledBitrate,
-          framerate: fps,
-          hardwareAcceleration: accels[ai]
-        };
-        try {
-          var support = await VideoEncoder.isConfigSupported(testConfig);
-          if (support.supported) {
-            encoderConfig = support.config || testConfig;
-          }
-        } catch(e) { /* not supported, try next */ }
-      }
-    }
-
-    // Fall back to HEVC then VP9 if H.264 can't handle this resolution
-    if (!encoderConfig) {
-      // HEVC: QuickTime-compatible, handles high resolutions
-      var hevcCodecs = ['hvc1.1.6.L150.B0', 'hvc1.1.6.L153.B0', 'hvc1.1.6.L180.B0'];
-      for (var hi = 0; hi < hevcCodecs.length && !encoderConfig; hi++) {
-        var accels2 = ['prefer-hardware', 'prefer-software'];
-        for (var ai2 = 0; ai2 < accels2.length && !encoderConfig; ai2++) {
-          var hevcConfig = {
-            codec: hevcCodecs[hi],
-            width: totalW,
-            height: totalH,
-            bitrate: scaledBitrate,
-            framerate: fps,
-            hardwareAcceleration: accels2[ai2]
-          };
-          try {
-            var hevcSupport = await VideoEncoder.isConfigSupported(hevcConfig);
-            if (hevcSupport.supported) {
-              encoderConfig = hevcSupport.config || hevcConfig;
-              muxerCodec = 'hevc';
-            }
-          } catch(e) { /* not supported, try next */ }
-        }
-      }
-    }
-
-    // Last resort: VP9 (note: won't play in QuickTime)
-    if (!encoderConfig) {
-      var vp9Codecs = ['vp09.00.50.08', 'vp09.00.40.08', 'vp09.00.31.08'];
-      for (var vi = 0; vi < vp9Codecs.length && !encoderConfig; vi++) {
-        var accels3 = ['prefer-hardware', 'prefer-software'];
-        for (var ai3 = 0; ai3 < accels3.length && !encoderConfig; ai3++) {
-          var vp9Config = {
-            codec: vp9Codecs[vi],
-            width: totalW,
-            height: totalH,
-            bitrate: scaledBitrate,
-            framerate: fps,
-            hardwareAcceleration: accels3[ai3]
-          };
-          try {
-            var vp9Support = await VideoEncoder.isConfigSupported(vp9Config);
-            if (vp9Support.supported) {
-              encoderConfig = vp9Support.config || vp9Config;
-              muxerCodec = 'vp9';
-            }
-          } catch(e) { /* not supported, try next */ }
-        }
-      }
-    }
-
-    if (!encoderConfig) {
+    var picked = await _tpPickVideoCodec(totalW, totalH, fps);
+    if(!picked) {
       throw new Error('Your browser does not support encoding at ' + totalW + 'x' + totalH + '. Try a smaller resolution.');
     }
+    var encoderConfig = picked.config;
+    var muxerCodec = picked.muxerCodec;
 
     // Create muxer with the supported codec
     var muxer = new Mp4Muxer.Muxer({
@@ -3802,6 +3777,176 @@ async function exportTestPatternVideo() {
   _tpRestartAnimationIfNeeded();
 }
 
+// One MP4 per screen at its native resolution, zipped. Composes the raster once
+// per frame and feeds every screen's encoder from that single pass, so the clips
+// stay frame-synced to one pattern timeline. Unlike the whole-canvas export
+// there is no static-background fast path: in raster mode the sweep is drawn
+// inside the per-screen clip, so every frame needs a real composition pass.
+async function exportRasterScreensMp4() {
+  if(_tpIsRecording) return;
+  if(!tpRaster) { showAlert('Import a raster first.'); return; }
+  if(typeof VideoEncoder === 'undefined') {
+    showAlert('Video export requires Chrome 94+, Edge 94+, or a modern browser with WebCodecs support.');
+    return;
+  }
+  if(typeof Mp4Muxer === 'undefined') {
+    showAlert('Video muxer library failed to load. Please check your internet connection and reload.');
+    return;
+  }
+  if(typeof JSZip === 'undefined') {
+    showAlert('ZIP library not loaded. Check your connection and reload.');
+    return;
+  }
+
+  var list = tpRaster.screens;
+  var fps = tpSweepFps;
+  var totalFrames = Math.round(fps * tpSweepDuration);
+  var totalW = tpRaster.width, totalH = tpRaster.height;
+  var hasSpinning = _tpNeedsAnimation();
+
+  // Every screen gets its own encoder running concurrently — confirm before
+  // committing to that much memory.
+  var screenPixels = list.reduce(function(a, s) { return a + s.w * s.h; }, 0);
+  if(list.length > 8 || screenPixels > 33177600) {
+    var go = await showConfirm('Encoding ' + list.length + ' videos at once is memory-heavy and may take a while.\n\nContinue?', 'Large Export');
+    if(!go) return;
+  }
+
+  _tpStopAnimation();
+  _tpIsRecording = true;
+  var btn = document.getElementById('tpExportMp4PerScreen');
+  if(btn) btn.disabled = true;
+  var label = btn ? (btn.querySelector('.tp-menu-label') || btn) : null;
+  var labelText = label ? label.textContent : '';
+  if(label) label.textContent = 'Encoding...';
+
+  // Save animation state, then start from a clean one for a reproducible loop
+  var savedSweepProgress = _tpSweepProgress;
+  var savedCircleAngle = _tpCircleAngle;
+  var savedStrobePhase = _tpStrobePhase;
+  var savedScrollX = _tpScrollOffsetX, savedScrollY = _tpScrollOffsetY;
+  var savedBounceX = _tpBounceX, savedBounceY = _tpBounceY;
+  var savedBounceVX = _tpBounceVX, savedBounceVY = _tpBounceVY, savedBounceInit = _tpBounceInit;
+  _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpBounceInit = false;
+
+  var outs = [];
+  try {
+    // One encoder + muxer per screen, each negotiated at that screen's size
+    for(var si = 0; si < list.length; si++) {
+      var scr = list[si];
+      var picked = await _tpPickVideoCodec(scr.w, scr.h, fps);
+      if(!picked) {
+        throw new Error('Your browser does not support encoding "' + scr.name + '" at '
+          + scr.w + 'x' + scr.h + '.');
+      }
+      var muxer = new Mp4Muxer.Muxer({
+        target: new Mp4Muxer.ArrayBufferTarget(),
+        video: { codec: picked.muxerCodec, width: scr.w, height: scr.h },
+        fastStart: 'in-memory'
+      });
+      var out = { screen: scr, muxer: muxer, error: null, closed: false };
+      out.encoder = new VideoEncoder({
+        output: (function(m) {
+          return function(chunk, meta) { m.addVideoChunk(chunk, meta); };
+        })(muxer),
+        error: (function(o) {
+          return function(e) { o.error = e; };
+        })(out)
+      });
+      picked.config.latencyMode = 'quality';
+      out.encoder.configure(picked.config);
+      out.canvas = document.createElement('canvas');
+      out.canvas.width = scr.w;
+      out.canvas.height = scr.h;
+      out.ctx = out.canvas.getContext('2d');
+      outs.push(out);
+    }
+
+    var frame = document.createElement('canvas');
+    var frameDurationUs = Math.round((1 / fps) * 1000000);
+    var keyFrameInterval = Math.max(1, Math.round(fps));
+
+    for(var i = 0; i < totalFrames; i++) {
+      var t = i / totalFrames;
+      var frameTime = i / fps;
+
+      if(hasSpinning) {
+        _tpCircleAngle = frameTime * (2 * Math.PI / 5) * (tpCircleSpinSpeed / 100);
+        _tpAdvanceExportExtras(frameTime, fps);
+      }
+      if(tpSweepOn) _tpSweepProgress = t;
+
+      // One composition pass at raster resolution, cropped to every screen
+      renderTestPattern(true, frame);
+
+      for(var oi = 0; oi < outs.length; oi++) {
+        var o = outs[oi];
+        if(o.error) throw o.error;
+        var s0 = o.screen;
+        o.ctx.drawImage(frame, s0.x, s0.y, s0.w, s0.h, 0, 0, s0.w, s0.h);
+        var vf = new VideoFrame(o.canvas, {
+          timestamp: i * frameDurationUs,
+          duration: frameDurationUs
+        });
+        o.encoder.encode(vf, { keyFrame: i % keyFrameInterval === 0 });
+        vf.close();
+      }
+
+      // Backpressure: hold until every encoder has drained
+      while(outs.some(function(o2) { return o2.encoder.encodeQueueSize > 5; })) {
+        await new Promise(function(r) { setTimeout(r, 1); });
+      }
+
+      if(i % 5 === 0) {
+        if(label) label.textContent = 'Encoding ' + Math.round((i / totalFrames) * 100) + '%';
+        await new Promise(function(r) { setTimeout(r, 0); });
+      }
+    }
+
+    if(label) label.textContent = 'Zipping...';
+    var names = _tpScreenFileNames('mp4');
+    var zip = new JSZip();
+    for(var fi = 0; fi < outs.length; fi++) {
+      var of = outs[fi];
+      await of.encoder.flush();
+      of.encoder.close();
+      of.closed = true;
+      of.muxer.finalize();
+      zip.file(names[fi], new Blob([of.muxer.target.buffer], { type: 'video/mp4' }));
+    }
+
+    var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
+    var zipBlob = await zip.generateAsync({ type: 'blob' });
+    await saveBlobToDevice(zipBlob, safeName + '_screens_mp4.zip', {
+      mimeType: 'application/zip',
+      description: 'ZIP Archive',
+      accept: { 'application/zip': ['.zip'] }
+    });
+
+  } catch(err) {
+    showAlert('Video export failed: ' + err.message);
+    console.error('Per-screen export error:', err);
+  } finally {
+    // Release any encoder the loop did not get to close
+    outs.forEach(function(o) {
+      if(o.closed || !o.encoder) return;
+      try { o.encoder.close(); } catch(e) { /* already closed by the error path */ }
+    });
+
+    _tpSweepProgress = savedSweepProgress;
+    _tpCircleAngle = savedCircleAngle;
+    _tpStrobePhase = savedStrobePhase;
+    _tpScrollOffsetX = savedScrollX; _tpScrollOffsetY = savedScrollY;
+    _tpBounceX = savedBounceX; _tpBounceY = savedBounceY;
+    _tpBounceVX = savedBounceVX; _tpBounceVY = savedBounceVY; _tpBounceInit = savedBounceInit;
+    _tpIsRecording = false;
+    if(label) label.textContent = labelText || 'Export MP4 — Per Screen';
+    if(btn) btn.disabled = false;
+    renderTestPattern(false);
+    _tpRestartAnimationIfNeeded();
+  }
+}
+
 // Returns test pattern PNG as a Blob (for Export All), or calls callback(null) if not initialized.
 function getTestPatternPngBlob(callback) {
   if(typeof _tpInitialized === 'undefined' || !_tpInitialized) { callback(null); return; }
@@ -3853,51 +3998,10 @@ async function getTestPatternMp4Blob(callback) {
       bgImageData = ctx.getImageData(0, 0, totalW, totalH);
     }
 
-    var pixels = totalW * totalH;
-    var scaledBitrate = Math.min(80000000, Math.max(40000000, Math.round(pixels / (1920 * 1080) * 40000000)));
-    var encoderConfig = null;
-    var muxerCodec = 'avc';
-
-    var h264Levels = [
-      { codec: 'avc1.640028', maxPixels: 2097152 },
-      { codec: 'avc1.640032', maxPixels: 8912896 },
-      { codec: 'avc1.640034', maxPixels: 8912896 },
-      { codec: 'avc1.64003C', maxPixels: 35651584 }
-    ];
-    var candidates = h264Levels.filter(function(l) { return l.maxPixels >= pixels; });
-    if(candidates.length === 0) candidates = [h264Levels[h264Levels.length - 1]];
-
-    for(var ci = 0; ci < candidates.length && !encoderConfig; ci++) {
-      var accels = ['prefer-hardware', 'prefer-software'];
-      for(var ai = 0; ai < accels.length && !encoderConfig; ai++) {
-        var testConfig = { codec: candidates[ci].codec, width: totalW, height: totalH, bitrate: scaledBitrate, framerate: fps, hardwareAcceleration: accels[ai] };
-        try { var support = await VideoEncoder.isConfigSupported(testConfig); if(support.supported) encoderConfig = support.config || testConfig; } catch(e) {}
-      }
-    }
-
-    if(!encoderConfig) {
-      var hevcCodecs = ['hvc1.1.6.L150.B0', 'hvc1.1.6.L153.B0', 'hvc1.1.6.L180.B0'];
-      for(var hi = 0; hi < hevcCodecs.length && !encoderConfig; hi++) {
-        var accels2 = ['prefer-hardware', 'prefer-software'];
-        for(var ai2 = 0; ai2 < accels2.length && !encoderConfig; ai2++) {
-          var hevcConfig = { codec: hevcCodecs[hi], width: totalW, height: totalH, bitrate: scaledBitrate, framerate: fps, hardwareAcceleration: accels2[ai2] };
-          try { var hevcSupport = await VideoEncoder.isConfigSupported(hevcConfig); if(hevcSupport.supported) { encoderConfig = hevcSupport.config || hevcConfig; muxerCodec = 'hevc'; } } catch(e) {}
-        }
-      }
-    }
-
-    if(!encoderConfig) {
-      var vp9Codecs = ['vp09.00.50.08', 'vp09.00.40.08', 'vp09.00.31.08'];
-      for(var vi = 0; vi < vp9Codecs.length && !encoderConfig; vi++) {
-        var accels3 = ['prefer-hardware', 'prefer-software'];
-        for(var ai3 = 0; ai3 < accels3.length && !encoderConfig; ai3++) {
-          var vp9Config = { codec: vp9Codecs[vi], width: totalW, height: totalH, bitrate: scaledBitrate, framerate: fps, hardwareAcceleration: accels3[ai3] };
-          try { var vp9Support = await VideoEncoder.isConfigSupported(vp9Config); if(vp9Support.supported) { encoderConfig = vp9Support.config || vp9Config; muxerCodec = 'vp9'; } } catch(e) {}
-        }
-      }
-    }
-
-    if(!encoderConfig) throw new Error('Browser does not support encoding at ' + totalW + 'x' + totalH);
+    var picked = await _tpPickVideoCodec(totalW, totalH, fps);
+    if(!picked) throw new Error('Browser does not support encoding at ' + totalW + 'x' + totalH);
+    var encoderConfig = picked.config;
+    var muxerCodec = picked.muxerCodec;
 
     var muxer = new Mp4Muxer.Muxer({
       target: new Mp4Muxer.ArrayBufferTarget(),

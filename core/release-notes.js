@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.192', date: '2026-08-27', notes: 'Export one MP4 per raster screen and share a single codec probe' },
   { version: '2.11.191', date: '2026-08-27', notes: 'Import a project raster into the test pattern tool and slice it per screen' },
   { version: '2.11.190', date: '2026-08-27', notes: 'Clear every combined table when no screens are selected and follow tab order' },
   { version: '2.11.189', date: '2026-08-27', notes: 'Recalculate every screen a combined edit touches and batch multi-panel deletes' },

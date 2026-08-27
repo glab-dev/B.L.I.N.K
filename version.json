@@ -1,5 +1,5 @@
 {
-  "version": "2.11.191",
+  "version": "2.11.192",
   "updated": "2026-08-27",
-  "changelog": "Import a project raster into the test pattern tool and slice it per screen"
+  "changelog": "Export one MP4 per raster screen and share a single codec probe"
 }

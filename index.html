@@ -282,6 +282,9 @@
           <button class="tp-menu-item" id="tpExportMp4" title="Export as MP4 video">
             <span class="tp-menu-label">Export MP4</span>
           </button>
+          <button class="tp-menu-item" id="tpExportMp4PerScreen" title="Export one MP4 per screen, zipped" style="display: none;">
+            <span class="tp-menu-label">Export MP4 &mdash; Per Screen</span>
+          </button>
           <div class="tp-menu-item tp-menu-fps">
             <span>Framerate</span>
             <select id="tpSweepFps" class="tp-select tp-menu-select">
@@ -3912,8 +3915,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.191';
-const APP_CHANGELOG = 'Import a project raster into the test pattern tool and slice it per screen';
+const APP_VERSION = '2.11.192';
+const APP_CHANGELOG = 'Export one MP4 per raster screen and share a single codec probe';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

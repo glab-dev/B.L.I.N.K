@@ -1,5 +1,5 @@
 {
-  "version": "2.11.188",
+  "version": "2.11.189",
   "updated": "2026-08-27",
-  "changelog": "Spell SOCA numbers in two-digit resistor bands and fix stale combined table"
+  "changelog": "Recalculate every screen a combined edit touches and batch multi-panel deletes"
 }

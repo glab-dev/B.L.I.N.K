@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.189', date: '2026-08-27', notes: 'Recalculate every screen a combined edit touches and batch multi-panel deletes' },
   { version: '2.11.188', date: '2026-08-27', notes: 'Spell SOCA numbers in two-digit resistor bands and fix stale combined table' },
   { version: '2.11.187', date: '2026-08-27', notes: 'Colour SOCA circuit cards by resistor code instead of fixed orange' },
   { version: '2.11.186', date: '2026-08-27', notes: 'Drag screen and canvas tabs to reorder them everywhere including exports' },

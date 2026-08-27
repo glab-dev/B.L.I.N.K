@@ -997,9 +997,12 @@ function getCombinedPanelsInRect(canvas, x1, y1, x2, y2) {
 }
 
 // Toggle panel deletion in Combined view (syncs to Complex tab)
-function toggleCombinedPanelDelete(screenId, panelKey) {
+// Toggles one panel's deleted state and nothing else — no recalc, no render. Split out so a
+// multi-panel delete can mutate the whole selection first and pay for one refresh, instead of
+// a full calculate() + renderCombinedView() per panel.
+function applyCombinedPanelDelete(screenId, panelKey) {
   const screen = screens[screenId];
-  if(!screen || !screen.data) return;
+  if(!screen || !screen.data) return false;
 
   // Ensure deletedPanels is a Set
   if(!(screen.data.deletedPanels instanceof Set)) {
@@ -1020,11 +1023,27 @@ function toggleCombinedPanelDelete(screenId, panelKey) {
   // If this is the current screen, sync to global deletedPanels
   if(screenId === currentScreenId) {
     deletedPanels = new Set(screen.data.deletedPanels);
-    // Recalculate for current screen
-    calculate();
   }
+  return true;
+}
 
-  // Re-render combined view
+function toggleCombinedPanelDelete(screenId, panelKey) {
+  if(!applyCombinedPanelDelete(screenId, panelKey)) return;
+  recalculateCombinedScreens([screenId]);
+  renderCombinedView();
+}
+
+// Batch delete/restore for a whole selection. Recalculates each screen the selection touched
+// exactly once, however many of its panels were involved. Deleting a panel on a screen that
+// isn't the open one used to leave its calculatedData behind, so the combined specs bar kept
+// reporting the pre-delete panel count.
+function toggleCombinedPanelsDelete(entries) {
+  const touched = new Set();
+  entries.forEach(function(e) {
+    if(applyCombinedPanelDelete(e[0], e[1])) touched.add(e[0]);
+  });
+  if(touched.size === 0) return;
+  recalculateCombinedScreens(Array.from(touched));
   renderCombinedView();
 }
 
@@ -1164,10 +1183,9 @@ function showCombinedPanelContextMenu(x, y, panelInfo, layoutKind) {
       isDeleted ? '#2a6a2a' : '#6a2a2a',
       function() {
         if(combinedSelectedPanels.size > 0) {
-          combinedSelectedPanels.forEach(pkey => {
-            const [sid, pk] = pkey.split(':');
-            toggleCombinedPanelDelete(sid, pk);
-          });
+          toggleCombinedPanelsDelete(
+            Array.from(combinedSelectedPanels).map(pkey => pkey.split(':'))
+          );
           combinedSelectedPanels.clear();
         } else {
           toggleCombinedPanelDelete(screenId, key);
@@ -1319,8 +1337,10 @@ async function promptAssignCombinedCircuit() {
   });
 
   // Always recalculate — the current screen caches the shared-distro label map in its
-  // calculatedData, and changing any group member's SOCAs invalidates it.
-  if(typeof calculate === 'function') calculate();
+  // calculatedData, and changing any group member's SOCAs invalidates it. Every screen the
+  // selection touched needs its own calculatedData rebuilt too, or the combined SOCA table
+  // keeps drawing that screen's old SOCAs; see recalculateCombinedScreens().
+  recalculateCombinedScreens(Object.keys(panelsByScreen));
 
   // Clear selection and re-render
   combinedSelectedPanels.clear();
@@ -1428,8 +1448,9 @@ async function promptAssignCombinedDataLine() {
 
   // Always recalculate: the port plan spans every screen, so a change on one wall
   // can move another wall's ports. The same trap promptAssignCombinedSoca() hits
-  // with its cached label map.
-  calculate();
+  // with its cached label map — and each edited screen needs its own calculatedData
+  // rebuilt, not just the open one.
+  recalculateCombinedScreens(screenIds);
 
   // Clear selection and re-render
   combinedSelectedPanels.clear();
@@ -1587,22 +1608,27 @@ function toCombinedSocaMap(value) {
 // Borrow the edited screen the way structureInfoLinesForScreen() does so its cache is rebuilt,
 // then calculate() once more to put the open screen back. Must not be called from inside a
 // render: calculate() calls renderCombinedView(), which would recurse.
-function recalculateCombinedScreen(screenId) {
+function recalculateCombinedScreens(screenIds) {
   if(typeof calculate !== 'function') return;
-  if(screenId === currentScreenId) { calculate(); return; }
+  const ids = (Array.isArray(screenIds) ? screenIds : [screenIds]).filter(id => screens[id]);
+  const others = ids.filter(id => id !== currentScreenId);
+  if(others.length === 0) { calculate(); return; }
 
   // Same save / point currentScreenId / load / calculate cycle the project loader runs in
   // config/save-load.js to populate every screen's calculatedData. currentScreenId has to
   // move: loadScreenData() only fills the globals, so calculate() would otherwise write the
-  // borrowed screen's numbers into the open screen's calculatedData.
+  // borrowed screen's numbers into the open screen's calculatedData. One restore covers the
+  // whole list -- an edit can span several screens, and each round trip is a full recalc.
   const prev = currentScreenId;
   try {
-    saveCurrentScreenData();
-    currentScreenId = screenId;
-    loadScreenData(screenId);
-    calculate();
+    others.forEach(id => {
+      saveCurrentScreenData();
+      currentScreenId = id;
+      loadScreenData(id);
+      calculate();
+    });
   } catch(e) {
-    console.error('recalculateCombinedScreen failed for ' + screenId + ':', e);
+    console.error('recalculateCombinedScreens failed for ' + others.join(', ') + ':', e);
   } finally {
     try {
       saveCurrentScreenData();
@@ -1610,7 +1636,7 @@ function recalculateCombinedScreen(screenId) {
       loadScreenData(prev);
       calculate();
     } catch(e) {
-      console.error('recalculateCombinedScreen restore failed:', e);
+      console.error('recalculateCombinedScreens restore failed:', e);
     }
   }
 }
@@ -1675,7 +1701,7 @@ async function promptAssignCombinedSoca(screenId, keys) {
   // this leaves the current screen labelled from a stale plan while every other screen uses
   // the fresh one — which shows up as two screens sharing a SOCA label. The edited screen
   // needs the same treatment for its own socaBreakdown; see recalculateCombinedScreen().
-  recalculateCombinedScreen(screenId);
+  recalculateCombinedScreens([screenId]);
 
   combinedSelectedPanels.clear();
   combinedSelectedPanel = null;
@@ -1874,10 +1900,9 @@ function setupCombinedCanvasHandlersFor(canvasId, layoutKind) {
       useCombinedSelection(canvasId);
       // Delete all selected panels
       if(combinedSelectedPanels.size > 0) {
-        combinedSelectedPanels.forEach(key => {
-          const [screenId, panelKey] = key.split(':');
-          toggleCombinedPanelDelete(screenId, panelKey);
-        });
+        toggleCombinedPanelsDelete(
+          Array.from(combinedSelectedPanels).map(key => key.split(':'))
+        );
         combinedSelectedPanels.clear();
       } else {
         const panelInfo = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);

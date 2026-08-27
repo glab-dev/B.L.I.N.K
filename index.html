@@ -1179,6 +1179,7 @@
           </div>
           <p class="help-text"><strong>PDF preview</strong> &mdash; the left panel chooses which sections are included, then Page Size (A4 or Letter), Orientation (Portrait or Landscape), SOCA Outlines, SOCA Label, and a logo upload. <strong>Eco Friendly</strong> and <strong>Greyscale</strong> are print-saving colour modes. The preview is the PDF &mdash; what you see is exactly what exports.</p>
           <p class="help-text"><strong>Export All</strong> &mdash; builds a zip with a folder per view. Each layout comes out as a PDF page per screen (<em>specs</em>, <em>power</em>, <em>data</em>, <em>structure</em>, <em>cable</em>), with a second unlabelled copy of the data layout, plus <em>combined</em> pages across the selection, the <em>gear</em> list as both PDF and text, the <em>canvas</em> and per-screen <em>screens</em> images, the <em>title block</em>, <em>resolume</em> XML, any <em>test pattern</em>, and the full report at the top level. Every layout page is the same page the full report would have contained.</p>
+          <p class="help-text"><strong>Choosing where to save</strong> &mdash; exports open a Save dialog so you can pick the folder, instead of dropping straight into Downloads. The dialog opens in the folder your project came from, and otherwise remembers wherever you saved last, even between sessions. Cancelling the dialog cancels the export before any work is done. Browsers without this feature simply download as before.</p>
           <p class="help-text">On mobile, exports use the native share sheet.</p>
 
           <div class="help-complex-section" style="display: none;">
@@ -3855,8 +3856,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.182';
-const APP_CHANGELOG = 'Document Export All zip layout, combined per-screen tables and spare cable lengths';
+const APP_VERSION = '2.11.183';
+const APP_CHANGELOG = 'Route every export through one Save As picker with share and download fallbacks';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

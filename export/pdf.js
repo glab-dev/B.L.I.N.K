@@ -98,14 +98,11 @@ function confirmEmailSendGmail() {
 function _downloadRpFile(p) {
   if(!p || !p.inventoryContent) return;
   var blob = new Blob([p.inventoryContent], { type: 'text/plain' });
-  var url = URL.createObjectURL(blob);
-  var dl = document.createElement('a');
-  dl.href = url;
-  dl.download = p.fileName || 'inventory.txt';
-  document.body.appendChild(dl);
-  dl.click();
-  document.body.removeChild(dl);
-  URL.revokeObjectURL(url);
+  saveBlobToDevice(blob, p.fileName || 'inventory.txt', {
+    mimeType: 'text/plain',
+    description: 'Text File',
+    accept: { 'text/plain': ['.txt'] }
+  });
 }
 
 function confirmSendToJared() {
@@ -3398,20 +3395,13 @@ function exportComplexMobileDirect() {
   const dateStr = new Date().toISOString().slice(0, 10);
   const filename = `${configName}_LED_Report_${dateStr}.pdf`;
 
-  if (navigator.share && navigator.canShare) {
-    pdfMake.createPdf(docDef).getBlob(function(blob) {
-      const file = new File([blob], filename, { type: 'application/pdf' });
-      if (navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file] }).then(removeOverlay).catch(function() {
-          pdfMake.createPdf(docDef).download(filename, removeOverlay);
-        });
-      } else {
-        pdfMake.createPdf(docDef).download(filename, removeOverlay);
-      }
-    });
-  } else {
-    pdfMake.createPdf(docDef).download(filename, removeOverlay);
-  }
+  pdfMake.createPdf(docDef).getBlob(function(blob) {
+    saveBlobToDevice(blob, filename, {
+      mimeType: 'application/pdf',
+      description: 'PDF Document',
+      accept: { 'application/pdf': ['.pdf'] }
+    }).then(removeOverlay, removeOverlay);
+  });
 }
 
 function exportPDF() {
@@ -3493,25 +3483,15 @@ function exportPDF() {
     const cfgName = (document.getElementById('configName')?.value?.trim() || 'LED_Wall').replace(/[<>:"/\\|?*]/g, '_');
     const filename = `${cfgName}_${dateStr}.pdf`;
 
-    const isMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
-      (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent));
-
     updateProgress('Saving...', 95);
 
-    if (isMobile && navigator.share && navigator.canShare) {
-      pdfMake.createPdf(docDef).getBlob(function(blob) {
-        const file = new File([blob], filename, { type: 'application/pdf' });
-        if (navigator.canShare({ files: [file] })) {
-          navigator.share({ files: [file] }).then(removeOverlay).catch(() => {
-            pdfMake.createPdf(docDef).download(filename, removeOverlay);
-          });
-        } else {
-          pdfMake.createPdf(docDef).download(filename, removeOverlay);
-        }
-      });
-    } else {
-      pdfMake.createPdf(docDef).download(filename, removeOverlay);
-    }
+    pdfMake.createPdf(docDef).getBlob(function(blob) {
+      saveBlobToDevice(blob, filename, {
+        mimeType: 'application/pdf',
+        description: 'PDF Document',
+        accept: { 'application/pdf': ['.pdf'] }
+      }).then(removeOverlay, removeOverlay);
+    });
 
   } catch (err) {
     console.error('PDF export error:', err);

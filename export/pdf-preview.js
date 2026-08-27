@@ -802,7 +802,7 @@ function buildStructureInfoLines(screenId) {
 
 // ==================== EXPORT FROM PREVIEW ====================
 
-function exportFromPreview() {
+async function exportFromPreview() {
   if (!window.pdfMake) {
     showAlert('PDF library not loaded. Please check your connection and refresh.');
     return;
@@ -810,6 +810,20 @@ function exportFromPreview() {
 
   const opts = getPrintPreviewOptions();
   const isSimple = (typeof currentAppMode !== 'undefined' && currentAppMode === 'simple');
+
+  const configName = document.getElementById('configName')?.value?.trim() || 'LED Wall';
+  const dateStr    = new Date().toISOString().slice(0, 10);
+  const filename   = configName.replace(/[^a-z0-9]/gi, '_') + '_LED_Report_' + dateStr + '.pdf';
+
+  // Ask where to save before capturing layouts and building the document: that
+  // work far outlasts the click's transient user activation, and
+  // showSaveFilePicker throws once it expires. Cancelling here costs nothing.
+  const target = await pickSaveTarget(filename, {
+    mimeType: 'application/pdf',
+    description: 'PDF Document',
+    accept: { 'application/pdf': ['.pdf'] }
+  });
+  if (!target) return;
 
   // Loading overlay
   const overlay = document.createElement('div');
@@ -859,37 +873,10 @@ function exportFromPreview() {
 
   setStatus('Saving\u2026');
 
-  const configName = document.getElementById('configName')?.value?.trim() || 'LED Wall';
-  const dateStr    = new Date().toISOString().slice(0, 10);
-  const filename   = configName.replace(/[^a-z0-9]/gi, '_') + '_LED_Report_' + dateStr + '.pdf';
-
-  const isMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
-    (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent));
-
-  if (isMobile && navigator.share && navigator.canShare) {
-    pdfMake.createPdf(docDef).getBlob(function(blob) {
-      const file = new File([blob], filename, { type: 'application/pdf' });
-      if (navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file] }).then(function() {
-          removeOverlay();
-          closePrintPreview();
-        }).catch(function() {
-          pdfMake.createPdf(docDef).download(filename, function() {
-            removeOverlay();
-            closePrintPreview();
-          });
-        });
-      } else {
-        pdfMake.createPdf(docDef).download(filename, function() {
-          removeOverlay();
-          closePrintPreview();
-        });
-      }
-    });
-  } else {
-    pdfMake.createPdf(docDef).download(filename, function() {
+  pdfMake.createPdf(docDef).getBlob(function(blob) {
+    writeSaveTarget(target, blob, filename, 'application/pdf').then(function() {
       removeOverlay();
       closePrintPreview();
     });
-  }
+  });
 }

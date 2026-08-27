@@ -506,3 +506,117 @@ function orderDataLineFlow(panels, startDir) {
   return out;
 }
 
+// ==================== FILE SAVE HELPERS ====================
+// One 3-tier save ladder for every export: File System Access "Save As" dialog
+// (Chrome/Edge desktop) -> Web Share sheet, i.e. "Save to Files" (mobile) ->
+// anchor download (Safari/Firefox desktop, which have no location-prompt API).
+//
+// Sharing one picker id lets Chrome remember a single folder for all BLINK
+// exports across sessions; startIn reopens the last-used folder within a
+// session, so exports land beside the project the user saved.
+const BLINK_SAVE_PICKER_ID = 'blinkExport';
+let _blinkLastSaveHandle = null;
+
+function _blinkIsMobileDevice() {
+  return (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
+    (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+}
+
+function _blinkDownloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(function() {
+    if(link.parentNode) document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 100);
+}
+
+// Phase 1. MUST run while user activation is still live (directly in the click
+// handler): showSaveFilePicker throws SecurityError once transient activation
+// expires, which is why long exports pick the target BEFORE generating the file.
+// Returns null when the user cancels, so callers can abort before doing work.
+async function pickSaveTarget(fileName, opts) {
+  opts = opts || {};
+  if(!window.showSaveFilePicker) {
+    return { kind: _blinkIsMobileDevice() ? 'share' : 'download' };
+  }
+  let accept = opts.accept;
+  if(!accept) {
+    accept = {};
+    accept[opts.mimeType || 'application/octet-stream'] = ['.' + (String(fileName).split('.').pop() || 'bin')];
+  }
+  // `id` and `startIn` are mutually exclusive here on purpose: a directory the
+  // browser remembered for an id takes precedence over startIn, so passing both
+  // would let a stale remembered folder beat the project the user just opened.
+  // A known location this session wins; otherwise fall back to the id, which is
+  // what carries the last-used folder across sessions.
+  // A stale handle can also make startIn throw, so the second attempt drops it.
+  const attempts = _blinkLastSaveHandle ? [true, false] : [false];
+  for(const useStartIn of attempts) {
+    const pickerOpts = {
+      suggestedName: fileName,
+      types: [{ description: opts.description || 'File', accept: accept }]
+    };
+    if(useStartIn) pickerOpts.startIn = _blinkLastSaveHandle;
+    else pickerOpts.id = BLINK_SAVE_PICKER_ID;
+    try {
+      const handle = await window.showSaveFilePicker(pickerOpts);
+      return { kind: 'handle', handle: handle };
+    } catch(e) {
+      if(e.name === 'AbortError') return null;
+      _blinkLastSaveHandle = null;
+    }
+  }
+  return { kind: 'download' };
+}
+
+// Remember the folder a project lives in, so the next export's Save As dialog
+// opens there instead of wherever the user last happened to save. Set when a
+// project is opened from disk and after every successful save.
+function rememberSaveLocation(handle) {
+  if(handle) _blinkLastSaveHandle = handle;
+}
+
+// Phase 2. Safe after long async work — writing to an already-granted handle
+// needs no user activation.
+async function writeSaveTarget(target, blob, fileName, mimeType) {
+  if(!target) return false;
+  mimeType = mimeType || blob.type || 'application/octet-stream';
+  if(target.kind === 'handle') {
+    try {
+      const writable = await target.handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      _blinkLastSaveHandle = target.handle;
+      return true;
+    } catch(e) {
+      if(e.name !== 'AbortError') showAlert('Save failed: ' + e.message);
+      return false;
+    }
+  }
+  if(target.kind === 'share') {
+    try {
+      const file = new File([blob], fileName, { type: mimeType });
+      if(navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        return true;
+      }
+    } catch(e) {
+      if(e.name === 'AbortError') return false;
+    }
+  }
+  _blinkDownloadBlob(blob, fileName);
+  return true;
+}
+
+// One-shot for cheap exports where the blob is already in hand.
+async function saveBlobToDevice(blob, fileName, opts) {
+  const target = await pickSaveTarget(fileName, opts);
+  if(!target) return false;
+  return writeSaveTarget(target, blob, fileName, (opts && opts.mimeType) || blob.type);
+}

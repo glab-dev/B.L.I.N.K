@@ -485,36 +485,11 @@ async function tpSavePatternFile() {
   var fileName = safeName + '.blinktp';
   var blob = new Blob([json], { type: 'application/json' });
 
-  if(window.showSaveFilePicker) {
-    try {
-      var handle = await window.showSaveFilePicker({
-        suggestedName: fileName,
-        types: [{ description: 'BLINK Test Pattern', accept: { 'application/json': ['.blinktp'] } }]
-      });
-      var writable = await handle.createWritable();
-      await writable.write(json);
-      await writable.close();
-    } catch(e) {
-      if(e.name !== 'AbortError') showAlert('Save failed: ' + e.message);
-    }
-  } else if(navigator.canShare && navigator.canShare({ files: [new File([blob], fileName)] })) {
-    try {
-      await navigator.share({ files: [new File([blob], fileName, { type: 'application/json' })] });
-    } catch(e) {
-      if(e.name !== 'AbortError') showAlert('Save failed: ' + e.message);
-    }
-  } else {
-    var url = URL.createObjectURL(blob);
-    var link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(function() {
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }, 100);
-  }
+  await saveBlobToDevice(blob, fileName, {
+    mimeType: 'application/json',
+    description: 'BLINK Test Pattern',
+    accept: { 'application/json': ['.blinktp'] }
+  });
 }
 
 function tpLoadPatternFile(event) {
@@ -2725,27 +2700,18 @@ function _tpUpdateExportBtn() {
 
 // --- Native Share ---
 
-function _tpDownloadBlob(blob, filename) {
-  var url = URL.createObjectURL(blob);
-  var link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-  setTimeout(function() { document.body.removeChild(link); URL.revokeObjectURL(url); }, 100);
-}
-
+// Quick Share is explicitly a share action, so it still reaches for the share
+// sheet first; when that is unavailable it falls back to the shared save ladder.
 function _tpNativeShare(blob, filename, mimeType) {
   var file = new File([blob], filename, { type: mimeType });
   if(navigator.canShare && navigator.canShare({ files: [file] })) {
     navigator.share({ files: [file] }).catch(function() {
-      // Share failed (e.g., user gesture expired after async rendering) — download instead
-      _tpDownloadBlob(blob, filename);
+      // Share failed (e.g., user gesture expired after async rendering) — save instead
+      saveBlobToDevice(blob, filename, { mimeType: mimeType });
     });
     return;
   }
-  _tpDownloadBlob(blob, filename);
+  saveBlobToDevice(blob, filename, { mimeType: mimeType });
 }
 
 function tpQuickSharePng() {
@@ -2791,30 +2757,7 @@ function exportTestPatternPng() {
       return;
     }
 
-    // Mobile: use share API
-    var isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
-                         (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-    if(isMobileDevice && navigator.canShare) {
-      var file = new File([blob], filename, { type: 'image/png' });
-      if(navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file] }).catch(function() {});
-        return;
-      }
-    }
-
-    // Desktop: download link
-    var url = URL.createObjectURL(blob);
-    var link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-
-    setTimeout(function() {
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }, 100);
+    saveBlobToDevice(blob, filename, { mimeType: 'image/png', description: 'PNG Image' });
   }, 'image/png');
 
   // Restore preview resolution
@@ -3478,28 +3421,5 @@ function downloadVideoBlob(blob, filename, mimeType) {
     return;
   }
 
-  // Mobile: use share API
-  var isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
-                       (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-  if(isMobileDevice && navigator.canShare) {
-    var file = new File([blob], filename, { type: mimeType });
-    if(navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file] }).catch(function() {});
-      return;
-    }
-  }
-
-  // Desktop: download link
-  var url = URL.createObjectURL(blob);
-  var link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-
-  setTimeout(function() {
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, 100);
+  saveBlobToDevice(blob, filename, { mimeType: mimeType, description: 'Video' });
 }

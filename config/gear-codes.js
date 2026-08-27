@@ -553,14 +553,11 @@ function exportGearCodes() {
     }
   });
   var blob = new Blob([lines.join('\n')], { type: 'text/plain' });
-  var url = URL.createObjectURL(blob);
-  var dl = document.createElement('a');
-  dl.href = url;
-  dl.download = 'gear-codes.txt';
-  document.body.appendChild(dl);
-  dl.click();
-  document.body.removeChild(dl);
-  URL.revokeObjectURL(url);
+  saveBlobToDevice(blob, 'gear-codes.txt', {
+    mimeType: 'text/plain',
+    description: 'Text File',
+    accept: { 'text/plain': ['.txt'] }
+  });
 }
 
 function importGearCodesJson(event) {

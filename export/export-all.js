@@ -198,16 +198,33 @@ async function exportAll() {
     return;
   }
 
-  // Prompt user for the export name — defaults to current config name
-  var defaultName = ((document.getElementById('configName') || {}).value || '').trim() || 'BLINK_Export';
-  var inputName = await showPrompt('Name your export files:', defaultName, 'Export All');
-  if(inputName === null) return; // user cancelled
-  var displayName = inputName.trim() || 'BLINK_Export';
+  // Where a Save As dialog exists it is the one place the user names the export.
+  // Browsers without it (desktop Safari/Firefox) would otherwise drop the zip in
+  // Downloads under a name the user never got to choose, so those keep the prompt.
+  var displayName = ((document.getElementById('configName') || {}).value || '').trim() || 'BLINK_Export';
+  if(!window.showSaveFilePicker) {
+    var inputName = await showPrompt('Name your export files:', displayName, 'Export All');
+    if(inputName === null) return; // user cancelled
+    displayName = inputName.trim() || 'BLINK_Export';
+  }
   var name = displayName.replace(/[<>:"/\\|?*]/g, '_');
   var dateStr = new Date().toISOString().slice(0, 10);
+  var zipName = name + '_' + dateStr + '.zip';
 
-  // Apply the typed name to the project-name field so it labels the PDF headers,
-  // specs/gear pages, and gear text. Restored in the finally block below.
+  // Ask where to save now, while the button click still counts as user
+  // activation — building the package takes far longer than activation lasts,
+  // so showSaveFilePicker would throw if we waited until the ZIP was ready.
+  // Cancelling here also skips the whole build instead of wasting it.
+  var zipTarget = await pickSaveTarget(zipName, {
+    mimeType: 'application/zip',
+    description: 'ZIP Archive',
+    accept: { 'application/zip': ['.zip'] }
+  });
+  if(!zipTarget) return;
+
+  // Normalise the project-name field (trimmed, or BLINK_Export when blank) so it
+  // labels the PDF headers, specs/gear pages, and gear text consistently with the
+  // zip name. Restored in the finally block below.
   var cfgEl = document.getElementById('configName');
   var prevCfgName = cfgEl ? cfgEl.value : null;
   if(cfgEl) cfgEl.value = displayName;
@@ -298,13 +315,7 @@ async function exportAll() {
     }
 
     var zipBlob = await zip.generateAsync({ type: 'blob' });
-    var url = URL.createObjectURL(zipBlob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = name + '_' + dateStr + '.zip';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    await writeSaveTarget(zipTarget, zipBlob, zipName, 'application/zip');
 
   } catch(err) {
     showAlert('Export failed: ' + err.message);

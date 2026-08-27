@@ -1,5 +1,5 @@
 {
-  "version": "2.11.182",
-  "updated": "2026-08-26",
-  "changelog": "Document Export All zip layout, combined per-screen tables and spare cable lengths"
+  "version": "2.11.183",
+  "updated": "2026-08-27",
+  "changelog": "Route every export through one Save As picker with share and download fallbacks"
 }

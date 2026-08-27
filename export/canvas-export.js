@@ -84,7 +84,7 @@ async function exportCanvas(imgFormat){
 
     // Handle per-screen native-resolution export (PNG or JPEG)
     if(format === 'screens') {
-      exportScreensNativeRes(imgFormat);
+      await exportScreensNativeRes(imgFormat);
       return;
     }
 
@@ -99,38 +99,22 @@ async function exportCanvas(imgFormat){
     const extension = format === 'jpeg' ? '.jpg' : '.png';
     const quality = format === 'jpeg' ? 0.95 : undefined;
 
+    const fullFilename = filename + extension;
+
+    // Ask where to save while the click's user activation is still live: encoding
+    // a large canvas can outlast it, and showSaveFilePicker then throws.
+    const target = await pickSaveTarget(fullFilename, {
+      mimeType: mimeType,
+      description: format === 'jpeg' ? 'JPEG Image' : 'PNG Image'
+    });
+    if(!target) return;
+
     exportCanvas.toBlob(function(blob) {
       if(!blob) {
         showAlert('Failed to create image. Please try again.');
         return;
       }
-
-      const fullFilename = filename + extension;
-
-      // Mobile: use share API for native "Save to Files" option
-      var isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
-                           (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-      if(isMobileDevice && navigator.canShare) {
-        const file = new File([blob], fullFilename, { type: mimeType });
-        if(navigator.canShare({ files: [file] })) {
-          navigator.share({ files: [file] }).catch(function() {});
-          return;
-        }
-      }
-
-      // Fallback: direct download
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fullFilename;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-
-      setTimeout(function() {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }, 100);
+      writeSaveTarget(target, blob, fullFilename, mimeType);
     }, mimeType, quality);
   } catch(err) {
     showAlert('Error exporting canvas: ' + err.message);
@@ -244,7 +228,7 @@ function getScreenNativeResBlobs(callback) {
 
 // Dropdown handler: export each visible screen at native resolution.
 // File naming: "{ScreenName}_{w}x{h}.png". 1 screen → direct PNG; >1 → ZIP.
-function exportScreensNativeRes(format) {
+async function exportScreensNativeRes(format) {
   try {
     var isJpeg = (format === 'jpeg');
     var ext = isJpeg ? '.jpg' : '.png';
@@ -262,7 +246,7 @@ function exportScreensNativeRes(format) {
       if(!s || !s.visible) return;
       var res = _getScreenResolution(id);
       if(!res.w || !res.h) return;
-      valid.push({ id: id, name: (s.name || id).replace(/[<>:"/\\|?*]/g, '_') });
+      valid.push({ id: id, name: (s.name || id).replace(/[<>:"/\\|?*]/g, '_'), w: res.w, h: res.h });
     });
 
     if(valid.length === 0) {
@@ -271,12 +255,23 @@ function exportScreensNativeRes(format) {
     }
 
     if(valid.length === 1) {
+      var singleName = valid[0].name + '_' + valid[0].w + 'x' + valid[0].h + ext;
+      // Pick the destination before rendering — encoding a native-res screen can
+      // outlast the click's transient user activation.
+      var singleTarget = await pickSaveTarget(singleName, {
+        mimeType: mime,
+        description: isJpeg ? 'JPEG Image' : 'PNG Image'
+      });
+      if(!singleTarget) return;
       var rendered = _renderScreenNativeCanvas(valid[0].id);
       if(!rendered) {
         showAlert('No screens with valid dimensions to export. Generate a screen first.');
         return;
       }
-      _downloadCanvasBlob(rendered.canvas, valid[0].name + '_' + rendered.w + 'x' + rendered.h + ext, mime);
+      rendered.canvas.toBlob(function(blob) {
+        if(!blob) { showAlert('Failed to create image. Please try again.'); return; }
+        writeSaveTarget(singleTarget, blob, singleName, mime);
+      }, mime, quality);
       return;
     }
 
@@ -286,21 +281,25 @@ function exportScreensNativeRes(format) {
       showAlert('ZIP library not available. Please reload and try again.');
       return;
     }
+
+    var zipFilenameInput = document.getElementById('canvasExportFilename') || document.getElementById('rasterToolbarFilename');
+    var zipBase = zipFilenameInput ? zipFilenameInput.value.trim() : '';
+    zipBase = (zipBase || 'Screens').replace(/[<>:"/\\|?*]/g, '_');
+    var zipName = zipBase + '_Native_Res.zip';
+    // Same reason as above: rendering every screen far outlasts user activation.
+    var zipTarget = await pickSaveTarget(zipName, {
+      mimeType: 'application/zip',
+      description: 'ZIP Archive',
+      accept: { 'application/zip': ['.zip'] }
+    });
+    if(!zipTarget) return;
+
     var zip = new JSZip();
 
     function next(i) {
       if(i >= valid.length) {
-        var filenameInput = document.getElementById('canvasExportFilename') || document.getElementById('rasterToolbarFilename');
-        var base = filenameInput ? filenameInput.value.trim() : '';
-        base = (base || 'Screens').replace(/[<>:"/\\|?*]/g, '_');
         zip.generateAsync({ type: 'blob' }).then(function(content) {
-          var url = URL.createObjectURL(content);
-          var a = document.createElement('a');
-          a.href = url;
-          a.download = base + '_Native_Res.zip';
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+          writeSaveTarget(zipTarget, content, zipName, 'application/zip');
         });
         return;
       }
@@ -862,32 +861,10 @@ function _sectionCaptureOpts(opts) {
   return out;
 }
 
-// Hand a finished blob to the user: native share sheet on mobile (so it can be
-// saved to Files), a hidden <a download> everywhere else.
+// Hand a finished blob to the user through the shared save ladder in core/utils.js
+// (Save As dialog -> share sheet -> download).
 function _downloadBlobFile(blob, filename, mimeType) {
-  mimeType = mimeType || 'application/octet-stream';
-
-  var isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
-                       (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-  if(isMobileDevice && navigator.canShare) {
-    var file = new File([blob], filename, { type: mimeType });
-    if(navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file] }).catch(function() {});
-      return;
-    }
-  }
-
-  var url = URL.createObjectURL(blob);
-  var link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-  setTimeout(function() {
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, 100);
+  return saveBlobToDevice(blob, filename, { mimeType: mimeType || 'application/octet-stream' });
 }
 
 function _downloadCanvasBlob(canvas, filename, mimeType) {

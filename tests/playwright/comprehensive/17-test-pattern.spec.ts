@@ -364,6 +364,8 @@ test.describe('Test Pattern - Export & Save/Load @comprehensive @desktop', () =>
 
   test('should export PNG via hamburger menu @critical', async ({ page, testPattern, browserName, isMobile }) => {
     test.skip(browserName !== 'chromium' || !!isMobile, 'Download tests only work on Chromium desktop');
+    // Disable showSaveFilePicker so it falls through to blob download
+    await page.evaluate(() => { (window as any).showSaveFilePicker = undefined; });
     const downloadPromise = page.waitForEvent('download');
     await testPattern.openHamburgerMenu();
     await testPattern.menuExportPng.click();

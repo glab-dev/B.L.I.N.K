@@ -213,15 +213,11 @@ function runExportGearTxt() {
     let base = (nameEl && nameEl.value.trim()) ? nameEl.value.trim() : 'LED_Gear_List';
     base = base.replace(/[<>:"/\\|?*]/g, '_');
     const blob = new Blob([gearContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = base + '_gear.txt';
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    saveBlobToDevice(blob, base + '_gear.txt', {
+      mimeType: 'text/plain',
+      description: 'Text File',
+      accept: { 'text/plain': ['.txt'] }
+    });
   } catch(e) {
     showAlert('Failed to export gear list.');
   }

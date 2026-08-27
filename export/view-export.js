@@ -85,7 +85,7 @@ function _viewExportRemoveOverlay() {
 // specific screen's box. The gear tab tracks its own active screen (gearActiveScreenId)
 // separately from currentScreenId, so without it a gear list button can export a
 // different screen than the one it sits in.
-function exportViewPdf(view, screenIdOverride) {
+async function exportViewPdf(view, screenIdOverride) {
   const spec = VIEW_EXPORT_SPECS[view];
   if (!spec) { console.error('exportViewPdf: unknown view', view); return; }
 
@@ -113,6 +113,17 @@ function exportViewPdf(view, screenIdOverride) {
     opts.screenIds = [screenId];
   }
 
+  const fileName = _viewExportFilename(view, spec, screenId);
+
+  // Capturing the layouts and building the document outlast the click's
+  // transient user activation, so choose the destination before that starts.
+  const target = await pickSaveTarget(fileName, {
+    mimeType: 'application/pdf',
+    description: 'PDF Document',
+    accept: { 'application/pdf': ['.pdf'] }
+  });
+  if (!target) return;
+
   _viewExportShowOverlay(spec.label.replace(/_/g, ' '));
 
   // Let the overlay paint before the synchronous capture work starts.
@@ -124,7 +135,7 @@ function exportViewPdf(view, screenIdOverride) {
           showAlert('Could not build the PDF for this view. Please try again.');
           return;
         }
-        _downloadBlobFile(blob, _viewExportFilename(view, spec, screenId), 'application/pdf');
+        writeSaveTarget(target, blob, fileName, 'application/pdf');
       });
     } catch (e) {
       _viewExportRemoveOverlay();

@@ -1020,42 +1020,12 @@ async function saveRasterFile() {
   var fileName = baseName + '.blinkrast';
   var blob = new Blob([json], { type: 'application/json' });
 
-  // 3-tier download: File System Access API → Web Share → blob download
-  if(window.showSaveFilePicker) {
-    try {
-      var handle = await window.showSaveFilePicker({
-        suggestedName: fileName,
-        types: [{ description: 'Raster Layout Files', accept: { 'application/json': ['.blinkrast', '.raster'] } }]
-      });
-      var writable = await handle.createWritable();
-      await writable.write(json);
-      await writable.close();
-      await showAlert('Raster layout "' + baseName + '" saved successfully!');
-    } catch(e) {
-      if(e.name !== 'AbortError') {
-        await showAlert('Save failed: ' + e.message);
-      }
-    }
-  } else if(navigator.canShare && navigator.canShare({ files: [new File([blob], fileName)] })) {
-    try {
-      await navigator.share({ files: [new File([blob], fileName, { type: 'application/json' })] });
-      await showAlert('Raster layout "' + baseName + '" saved successfully!');
-    } catch(e) {
-      if(e.name !== 'AbortError') {
-        await showAlert('Save failed: ' + e.message);
-      }
-    }
-  } else {
-    var url = URL.createObjectURL(blob);
-    var link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    await showAlert('Raster layout "' + baseName + '" saved successfully!');
-  }
+  var saved = await saveBlobToDevice(blob, fileName, {
+    mimeType: 'application/json',
+    description: 'Raster Layout Files',
+    accept: { 'application/json': ['.blinkrast', '.raster'] }
+  });
+  if(saved) await showAlert('Raster layout "' + baseName + '" saved successfully!');
 }
 
 function loadRasterFile(event) {

@@ -243,49 +243,12 @@ async function saveConfiguration() {
 
   const blob = new Blob([json], { type: 'application/json' });
 
-  if(window.showSaveFilePicker) {
-    // Desktop: native Save As dialog
-    try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: fileName,
-        types: [{
-          description: 'LED Config Files',
-          accept: { 'application/json': ['.blinkled', '.led', '.ledconfig'] }
-        }]
-      });
-      const writable = await handle.createWritable();
-      await writable.write(json);
-      await writable.close();
-      showAlert(`Configuration "${configName}" saved successfully!`);
-    } catch(e) {
-      if(e.name !== 'AbortError') {
-        showAlert('Save failed: ' + e.message);
-      }
-    }
-  } else if(navigator.canShare && navigator.canShare({ files: [new File([blob], fileName)] })) {
-    // Mobile (iOS/Android): native share sheet with "Save to Files" option
-    try {
-      await navigator.share({
-        files: [new File([blob], fileName, { type: 'application/json' })]
-      });
-      showAlert(`Configuration "${configName}" saved successfully!`);
-    } catch(e) {
-      if(e.name !== 'AbortError') {
-        showAlert('Save failed: ' + e.message);
-      }
-    }
-  } else {
-    // Fallback: direct download
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    showAlert(`Configuration "${configName}" saved successfully!`);
-  }
+  const saved = await saveBlobToDevice(blob, fileName, {
+    mimeType: 'application/json',
+    description: 'LED Config Files',
+    accept: { 'application/json': ['.blinkled', '.led', '.ledconfig'] }
+  });
+  if(saved) showAlert(`Configuration "${configName}" saved successfully!`);
 }
 
 // Quick Save: save the project into the app (localStorage + cloud when signed in)

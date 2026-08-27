@@ -670,6 +670,14 @@ The header Export icon opens a menu with:
 - **PDF Report** — Opens the print preview
 - **Canvas** — PNG, native resolution, outline, title block, or Resolume
 - **Test Pattern** — PNG image or MP4 video
+### Choosing Where to Save
+Exports open a Save dialog so you can pick the destination folder, instead of going straight to Downloads.
+
+- The dialog opens in the folder your project was loaded from
+- Otherwise it reopens wherever you last saved, including across sessions
+- Cancelling the dialog cancels the export before any work is done
+- Browsers without the File System Access API fall back to a normal download; mobile uses the share sheet
+
 - **Gear List** — Text file or Send to Jared
 - **Export All** — Every format at once, as a foldered zip
 

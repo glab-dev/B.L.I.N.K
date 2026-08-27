@@ -220,30 +220,11 @@ function exportResolumeXML(filename) {
     const blob = new Blob([xml], { type: 'application/xml' });
     const xmlFilename = String(filename).replace(/[<>:"/\\|?*]/g, '_') + '.xml';
 
-    // Mobile: use share API for native "Save to Files" option
-    var isMobileDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) &&
-                         (window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-    if(isMobileDevice && navigator.canShare) {
-      const file = new File([blob], xmlFilename, { type: 'application/xml' });
-      if(navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file] }).catch(function() {});
-        return;
-      }
-    }
-
-    // Fallback: direct download
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = xmlFilename;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-
-    setTimeout(function() {
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }, 100);
+    saveBlobToDevice(blob, xmlFilename, {
+      mimeType: 'application/xml',
+      description: 'Resolume XML',
+      accept: { 'application/xml': ['.xml'] }
+    });
 
   } catch(err) {
     showAlert('Error exporting Resolume XML: ' + err.message);

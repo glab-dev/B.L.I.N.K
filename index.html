@@ -1184,6 +1184,7 @@
           <div class="help-complex-section" style="display: none;">
             <h3 class="help-section-title">Per-View PDF Export</h3>
             <p class="help-text">Every layout, the specs, and the gear list carry a small share button in the top-right of their box. Tap it for a one-page PDF of just that view, without opening the full report.</p>
+          <p class="help-text"><strong>Choosing where to save</strong> &mdash; exports open a Save dialog so you can pick the folder, instead of dropping straight into Downloads. The dialog opens in the folder your project came from, and otherwise remembers wherever you saved last, even between sessions. Cancelling the dialog cancels the export before any work is done. Browsers without this feature simply download as before.</p>
             <ul class="help-list">
               <li><strong>Screen views</strong> &mdash; Standard, Power, Data, Structure, and Cabling export for the screen you are currently on</li>
               <li><strong>Gear List</strong> &mdash; each screen&rsquo;s gear box has its own button, and exports that screen rather than the one you are on</li>
@@ -3855,8 +3856,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.182';
-const APP_CHANGELOG = 'Document Export All zip layout, combined per-screen tables and spare cable lengths';
+const APP_VERSION = '2.11.183';
+const APP_CHANGELOG = 'Route every export through one Save As picker with share and download fallbacks';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

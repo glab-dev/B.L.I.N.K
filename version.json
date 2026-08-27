@@ -1,5 +1,5 @@
 {
-  "version": "2.11.195",
+  "version": "2.11.196",
   "updated": "2026-08-27",
-  "changelog": "Prompt for a save location on test pattern exports instead of dropping to Downloads"
+  "changelog": "Make the bouncing logo and diagonal scroll follow per-screen mode"
 }

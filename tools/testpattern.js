@@ -92,18 +92,13 @@ var _tpStrobePhase = 0;      // runtime: 0 or 1 (which color is showing)
 // Diagonal whole-pattern scroll (wrapper, not a layer)
 var tpScrollOn = false;
 var tpScrollSpeed = 50;       // 1-100
-var _tpScrollOffsetX = 0;     // runtime px offset
-var _tpScrollOffsetY = 0;
-var _tpScrollBuffer = null;   // offscreen canvas, lazily created
+var _tpScrollTime = 0;        // runtime seconds elapsed
+var _tpScrollBuffers = {};    // offscreen canvases, one per composed target
 // DVD-style bouncing logo (animated) — shares the Logo Options image + size
 var tpBounceOn = false;
 var _tpBounceDefaultImg = null; // lazily-loaded icons/icon-512.png (fallback when no logo uploaded)
 var tpBounceSpeed = 50;
-var _tpBounceX = 0;           // runtime top-left position
-var _tpBounceY = 0;
-var _tpBounceVX = 1;          // runtime velocity sign
-var _tpBounceVY = 1;
-var _tpBounceInit = false;    // seeded position for current total size
+var _tpBounceTime = 0;        // runtime seconds elapsed
 // Green cross outline (crosshair + outer border) toggle
 var tpCrossOn = true;
 // Quick Patterns: currently-active exclusive base preset (or null)
@@ -313,7 +308,7 @@ function _tpApplyState(s) {
   tpBounceOn = s.tpBounceOn; tpBounceSpeed = s.tpBounceSpeed;
   tpRaster = s.tpRaster || null;
   tpRasterMode = (s.tpRasterMode === 'perScreen') ? 'perScreen' : 'whole';
-  _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpBounceInit = false;
+  _tpScrollTime = 0; _tpBounceTime = 0;
   tpLayerOrder = (s.tpLayerOrder ? s.tpLayerOrder.slice() : _tpDefaultLayerOrder.slice())
     .filter(function(k) { return _tpLayerRegistry[k]; });
   _tpSyncDOM();
@@ -669,9 +664,8 @@ function _tpApplyRaster(raster) {
   tpGridSizePct = 0;
   tpShowSquareCount = false;
   // Canvas dimensions changed — reseed the size-dependent animations
-  _tpScrollOffsetX = 0;
-  _tpScrollOffsetY = 0;
-  _tpBounceInit = false;
+  _tpScrollTime = 0;
+  _tpBounceTime = 0;
   if(!tpImageName || tpImageName === 'Name your testpattern') {
     tpImageName = raster.name;
   }
@@ -833,9 +827,8 @@ function tpClearRaster() {
   if(!tpRaster) return;
   tpSaveState();
   tpRaster = null;
-  _tpScrollOffsetX = 0;
-  _tpScrollOffsetY = 0;
-  _tpBounceInit = false;
+  _tpScrollTime = 0;
+  _tpBounceTime = 0;
   _tpSyncDOM();
 }
 
@@ -1214,8 +1207,7 @@ function resetTestPattern() {
   _tpStopAnimation();
   _tpCircleAngle = 0;
   _tpStrobePhase = 0;
-  _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpScrollBuffer = null;
-  _tpBounceInit = false; _tpBounceVX = 1; _tpBounceVY = 1;
+  _tpScrollTime = 0; _tpBounceTime = 0; _tpScrollBuffers = {};
 
   // Sync DOM inputs
   document.getElementById('tpImageName').value = '';
@@ -1900,9 +1892,8 @@ function initTestPatternControls() {
   // Diagonal scroll (animated)
   document.getElementById('tpScrollToggle').addEventListener('change', function() {
     tpScrollOn = this.checked;
-    _tpScrollOffsetX = 0;
-    _tpScrollOffsetY = 0;
-    if(!this.checked) _tpScrollBuffer = null;
+    _tpScrollTime = 0;
+    if(!this.checked) _tpScrollBuffers = {};
     _tpRestartAnimationIfNeeded();
   });
   document.getElementById('tpScrollSpeed').addEventListener('input', function() {
@@ -1914,7 +1905,7 @@ function initTestPatternControls() {
   document.getElementById('tpBounceToggle').addEventListener('change', function() {
     tpBounceOn = this.checked;
     if(this.checked) {
-      _tpBounceInit = false;
+      _tpBounceTime = 0;
       _tpEnsureBounceDefault(function() { _tpRestartAnimationIfNeeded(); });
     } else {
       _tpRestartAnimationIfNeeded();
@@ -2217,7 +2208,7 @@ function handleLogoImport(event) {
     var img = new Image();
     img.onload = function() {
       tpLogoImage = img;
-      _tpBounceInit = false; // re-seed the bounce with the new logo's aspect ratio
+      _tpBounceTime = 0; // restart the bounce with the new logo's aspect ratio
       scheduleTestPatternRedraw();
     };
     img.onerror = function() {
@@ -2234,6 +2225,33 @@ function _tpBounceImg() {
   return tpLogoImage || _tpBounceDefaultImg;
 }
 
+// The scroll and the bounce both derive their motion from elapsed time and the
+// size of whatever they are drawn into, so in a per-screen raster each screen
+// moves within its own bounds instead of sharing one canvas-wide position.
+
+function _tpScrollOffset(w, h) {
+  var px = _tpScrollTime * (tpScrollSpeed / 100) * Math.min(w, h) * 0.5;
+  return { x: ((px % w) + w) % w, y: ((px % h) + h) % h };
+}
+
+// Position of a box bouncing inside `range`, reflecting off both ends. A
+// triangle wave is exactly a constant-speed bounce, so this is a pure function
+// of distance travelled — no per-frame state to drift, and an MP4 export lands
+// on identical frames every run. Offset by range/2 so it starts centred, where
+// the old incremental bounce was seeded.
+function _tpBounceAxis(dist, range) {
+  if(range <= 0) return 0;
+  var period = 2 * range;
+  var d = ((dist + range / 2) % period + period) % period;
+  return range - Math.abs(d - range);
+}
+
+function _tpBouncePos(img, w, h) {
+  var d = _tpBounceDims(img, w, h);
+  var dist = _tpBounceTime * (tpBounceSpeed / 100) * Math.min(w, h) * 0.4;
+  return { x: _tpBounceAxis(dist, w - d.w), y: _tpBounceAxis(dist, h - d.h), w: d.w, h: d.h };
+}
+
 function _tpBounceDims(img, totalW, totalH) {
   var minDim = Math.min(totalW, totalH);
   var logoH = minDim * (0.05 + (tpLogoSizePct / 100) * 0.30);
@@ -2244,8 +2262,8 @@ function _tpBounceDims(img, totalW, totalH) {
 function drawTPBounceLogo(ctx, w, h) {
   var img = _tpBounceImg();
   if(!img || !img.width) return;
-  var d = _tpBounceDims(img, w, h);
-  ctx.drawImage(img, _tpBounceX, _tpBounceY, d.w, d.h);
+  var p = _tpBouncePos(img, w, h);
+  ctx.drawImage(img, p.x, p.y, p.w, p.h);
 }
 
 // Lazy-load the bundled BLINK icon as the default bounce logo (same-origin).
@@ -2333,29 +2351,7 @@ function renderTestPattern(forExport, targetCanvas) {
     ctx.scale(previewScale, previewScale);
   }
 
-  if(!tpScrollOn) {
-    _tpComposeFrame(ctx, totalW, totalH);
-    return;
-  }
-
-  // Diagonal scroll: compose once to a full-res offscreen buffer, then tile-blit it
-  // across a 2x2 neighborhood at the animated offset so the wrap seam is always covered.
-  if(!_tpScrollBuffer) _tpScrollBuffer = document.createElement('canvas');
-  if(_tpScrollBuffer.width !== totalW || _tpScrollBuffer.height !== totalH) {
-    _tpScrollBuffer.width = totalW;
-    _tpScrollBuffer.height = totalH;
-  }
-  var bctx = _tpScrollBuffer.getContext('2d');
-  bctx.setTransform(1, 0, 0, 1, 0, 0);
-  _tpComposeFrame(bctx, totalW, totalH);
-
-  var ox = ((_tpScrollOffsetX % totalW) + totalW) % totalW;
-  var oy = ((_tpScrollOffsetY % totalH) + totalH) % totalH;
-  for(var dx = -1; dx <= 0; dx++) {
-    for(var dy = -1; dy <= 0; dy++) {
-      ctx.drawImage(_tpScrollBuffer, ox + dx * totalW, oy + dy * totalH);
-    }
-  }
+  _tpComposeFrame(ctx, totalW, totalH);
 }
 
 // Composite the full pattern (background + all layers + fixed top layers) into ctx
@@ -2365,7 +2361,44 @@ function _tpComposeFrame(ctx, totalW, totalH) {
     _tpComposeRasterFrame(ctx, totalW, totalH);
     return;
   }
-  _tpDrawLayerStack(ctx, totalW, totalH);
+  _tpDrawScrollingStack(ctx, totalW, totalH, 'canvas');
+}
+
+function _tpScrollBufferFor(key, w, h) {
+  var buf = _tpScrollBuffers[key];
+  if(!buf) {
+    buf = document.createElement('canvas');
+    _tpScrollBuffers[key] = buf;
+  }
+  if(buf.width !== w || buf.height !== h) {
+    buf.width = w;
+    buf.height = h;
+  }
+  return buf;
+}
+
+// One complete pattern at the given size, with the diagonal scroll wrap applied
+// when it is on: compose to an offscreen buffer, then tile-blit a 2x2
+// neighbourhood at the offset so the wrap seam is always covered. Each target
+// keeps its own buffer, so a per-screen raster scrolls every screen within
+// itself rather than sliding one image across the whole canvas.
+function _tpDrawScrollingStack(ctx, w, h, key) {
+  if(!tpScrollOn) {
+    _tpDrawLayerStack(ctx, w, h);
+    return;
+  }
+  var buf = _tpScrollBufferFor(key, w, h);
+  var bctx = buf.getContext('2d');
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  bctx.clearRect(0, 0, w, h);
+  _tpDrawLayerStack(bctx, w, h);
+
+  var off = _tpScrollOffset(w, h);
+  for(var dx = -1; dx <= 0; dx++) {
+    for(var dy = -1; dy <= 0; dy++) {
+      ctx.drawImage(buf, off.x + dx * w, off.y + dy * h);
+    }
+  }
 }
 
 // One complete pattern at the given size: background, the reorderable layers,
@@ -2424,7 +2457,7 @@ function _tpComposeRasterFrame(ctx, totalW, totalH) {
       _tpClipToRects(ctx, scr.rects);   // clip in canvas space, before translating
       ctx.translate(scr.x, scr.y);
       _tpScreenNameOverride = scr.name;
-      _tpDrawLayerStack(ctx, scr.w, scr.h);
+      _tpDrawScrollingStack(ctx, scr.w, scr.h, 'screen' + i);
       _tpScreenNameOverride = null;
       ctx.restore();
     }
@@ -2434,7 +2467,7 @@ function _tpComposeRasterFrame(ctx, totalW, totalH) {
   // Whole canvas: one continuous pattern, each screen a window onto it
   ctx.save();
   _tpClipToRects(ctx, _tpRasterAllRects());
-  _tpDrawLayerStack(ctx, totalW, totalH);
+  _tpDrawScrollingStack(ctx, totalW, totalH, 'canvas');
   ctx.restore();
 }
 
@@ -3168,44 +3201,12 @@ function _tpStrobePhaseAt(t) {
   return phasePos < 0.5 ? 1 : 0;
 }
 
-function _tpScrollPxPerSec() {
-  var totalW = _tpTotalSize().w;
-  var totalH = _tpTotalSize().h;
-  return (tpScrollSpeed / 100) * Math.min(totalW, totalH) * 0.5;
-}
-
-// Advance the bouncing logo by dt seconds, reflecting off the four edges.
-function _tpStepBounce(dt) {
-  var totalW = _tpTotalSize().w;
-  var totalH = _tpTotalSize().h;
-  var img = _tpBounceImg();
-  if(!img || !img.width) return;
-  var d = _tpBounceDims(img, totalW, totalH);
-  if(!_tpBounceInit) {
-    _tpBounceX = (totalW - d.w) / 2;
-    _tpBounceY = (totalH - d.h) / 2;
-    if(_tpBounceVX === 0) _tpBounceVX = 1;
-    if(_tpBounceVY === 0) _tpBounceVY = 1;
-    _tpBounceInit = true;
-  }
-  var spd = (tpBounceSpeed / 100) * Math.min(totalW, totalH) * 0.4; // px/sec
-  _tpBounceX += dt * spd * _tpBounceVX;
-  _tpBounceY += dt * spd * _tpBounceVY;
-  if(_tpBounceX <= 0) { _tpBounceX = 0; _tpBounceVX = 1; }
-  else if(_tpBounceX + d.w >= totalW) { _tpBounceX = totalW - d.w; _tpBounceVX = -1; }
-  if(_tpBounceY <= 0) { _tpBounceY = 0; _tpBounceVY = 1; }
-  else if(_tpBounceY + d.h >= totalH) { _tpBounceY = totalH - d.h; _tpBounceVY = -1; }
-}
-
 // Advance strobe/scroll/bounce deterministically for an MP4 export frame.
 function _tpAdvanceExportExtras(frameTime, fps) {
   if(tpStrobeOn) _tpStrobePhase = _tpStrobePhaseAt(frameTime);
-  if(tpScrollOn) {
-    var sp = _tpScrollPxPerSec();
-    _tpScrollOffsetX = frameTime * sp;
-    _tpScrollOffsetY = frameTime * sp;
-  }
-  if(tpBounceOn) _tpStepBounce(1 / fps);
+  // Absolute time, not an accumulation, so every exported frame is reproducible
+  if(tpScrollOn) _tpScrollTime = frameTime;
+  if(tpBounceOn) _tpBounceTime = frameTime;
 }
 
 function _tpNeedsVideoExport() {
@@ -3609,13 +3610,11 @@ function _tpStartAnimation() {
     }
 
     if(tpScrollOn) {
-      var scrollSp = _tpScrollPxPerSec();
-      _tpScrollOffsetX += dt * scrollSp;
-      _tpScrollOffsetY += dt * scrollSp;
+      _tpScrollTime += dt;
     }
 
     if(tpBounceOn) {
-      _tpStepBounce(dt);
+      _tpBounceTime += dt;
     }
 
     renderTestPattern(false);
@@ -3764,11 +3763,10 @@ async function exportTestPatternVideo() {
   var savedSweepProgress = _tpSweepProgress;
   var savedCircleAngle = _tpCircleAngle;
   var savedStrobePhase = _tpStrobePhase;
-  var savedScrollX = _tpScrollOffsetX, savedScrollY = _tpScrollOffsetY;
-  var savedBounceX = _tpBounceX, savedBounceY = _tpBounceY;
-  var savedBounceVX = _tpBounceVX, savedBounceVY = _tpBounceVY, savedBounceInit = _tpBounceInit;
+  var savedScrollTime = _tpScrollTime;
+  var savedBounceTime = _tpBounceTime;
   // Start animated extras from a clean state for a reproducible export loop
-  _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpBounceInit = false;
+  _tpScrollTime = 0; _tpBounceTime = 0;
 
   try {
     var ctx = canvas.getContext('2d');
@@ -3875,9 +3873,8 @@ async function exportTestPatternVideo() {
   _tpSweepProgress = savedSweepProgress;
   _tpCircleAngle = savedCircleAngle;
   _tpStrobePhase = savedStrobePhase;
-  _tpScrollOffsetX = savedScrollX; _tpScrollOffsetY = savedScrollY;
-  _tpBounceX = savedBounceX; _tpBounceY = savedBounceY;
-  _tpBounceVX = savedBounceVX; _tpBounceVY = savedBounceVY; _tpBounceInit = savedBounceInit;
+  _tpScrollTime = savedScrollTime;
+  _tpBounceTime = savedBounceTime;
   _tpIsRecording = false;
   mp4Label.textContent = 'Export MP4';
   mp4Btn.disabled = false;
@@ -3946,10 +3943,9 @@ async function exportRasterScreensMp4() {
   var savedSweepProgress = _tpSweepProgress;
   var savedCircleAngle = _tpCircleAngle;
   var savedStrobePhase = _tpStrobePhase;
-  var savedScrollX = _tpScrollOffsetX, savedScrollY = _tpScrollOffsetY;
-  var savedBounceX = _tpBounceX, savedBounceY = _tpBounceY;
-  var savedBounceVX = _tpBounceVX, savedBounceVY = _tpBounceVY, savedBounceInit = _tpBounceInit;
-  _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpBounceInit = false;
+  var savedScrollTime = _tpScrollTime;
+  var savedBounceTime = _tpBounceTime;
+  _tpScrollTime = 0; _tpBounceTime = 0;
 
   var names = _tpScreenFileNames('mp4');
   // Each screen crops out of the composed frame; the whole canvas is the frame
@@ -4069,9 +4065,8 @@ async function exportRasterScreensMp4() {
     _tpSweepProgress = savedSweepProgress;
     _tpCircleAngle = savedCircleAngle;
     _tpStrobePhase = savedStrobePhase;
-    _tpScrollOffsetX = savedScrollX; _tpScrollOffsetY = savedScrollY;
-    _tpBounceX = savedBounceX; _tpBounceY = savedBounceY;
-    _tpBounceVX = savedBounceVX; _tpBounceVY = savedBounceVY; _tpBounceInit = savedBounceInit;
+    _tpScrollTime = savedScrollTime;
+    _tpBounceTime = savedBounceTime;
     _tpIsRecording = false;
     if(label) label.textContent = labelText || 'Export MP4 — Per Screen';
     if(btn) btn.disabled = false;
@@ -4120,10 +4115,9 @@ async function getTestPatternMp4Blob(callback) {
   var savedSweepProgress = _tpSweepProgress;
   var savedCircleAngle = _tpCircleAngle;
   var savedStrobePhase = _tpStrobePhase;
-  var savedScrollX = _tpScrollOffsetX, savedScrollY = _tpScrollOffsetY;
-  var savedBounceX = _tpBounceX, savedBounceY = _tpBounceY;
-  var savedBounceVX = _tpBounceVX, savedBounceVY = _tpBounceVY, savedBounceInit = _tpBounceInit;
-  _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpBounceInit = false;
+  var savedScrollTime = _tpScrollTime;
+  var savedBounceTime = _tpBounceTime;
+  _tpScrollTime = 0; _tpBounceTime = 0;
 
   try {
     var ctx = canvas.getContext('2d');
@@ -4195,9 +4189,8 @@ async function getTestPatternMp4Blob(callback) {
   _tpSweepProgress = savedSweepProgress;
   _tpCircleAngle = savedCircleAngle;
   _tpStrobePhase = savedStrobePhase;
-  _tpScrollOffsetX = savedScrollX; _tpScrollOffsetY = savedScrollY;
-  _tpBounceX = savedBounceX; _tpBounceY = savedBounceY;
-  _tpBounceVX = savedBounceVX; _tpBounceVY = savedBounceVY; _tpBounceInit = savedBounceInit;
+  _tpScrollTime = savedScrollTime;
+  _tpBounceTime = savedBounceTime;
   _tpIsRecording = false;
   renderTestPattern(false);
   _tpRestartAnimationIfNeeded();

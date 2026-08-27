@@ -149,7 +149,9 @@ The app works on both mobile and desktop devices. Both platforms support Simple 
 - **Menu** — Access settings, custom items, exports, and app info
 
 ### Menu Sections
-- **Configuration** — Save, Save As, Load, Recent, Export, Send to Jared
+- **Configuration** — New, Recent, Export, Save, Save As, Load, Send to Jared
+- **New** — Starts a fresh project, back to a single blank screen. Asks for confirmation first, since unsaved changes are lost. Clears the config name, logo, gear code overrides, spare overrides, and returns units to Imperial
+- **Load** — Opens a file picker so you can browse to the project file, rather than only the downloads folder
 - **Custom Items** — Add Panel, Add Processor, Manage Items, Requests
 - **Inventory** — Gear Code Mapping, to map gear to your own inventory codes
 - **Power** — Distro Wiring, to set which leg (X / Y / Z) each SOCA circuit is wired to

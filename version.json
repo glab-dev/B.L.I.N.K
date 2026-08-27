@@ -1,5 +1,5 @@
 {
-  "version": "2.11.183",
+  "version": "2.11.184",
   "updated": "2026-08-27",
-  "changelog": "Route every export through one Save As picker with share and download fallbacks"
+  "changelog": "Add New Project to the menu and reorder the Configuration buttons"
 }

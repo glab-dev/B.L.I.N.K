@@ -945,7 +945,9 @@
             <li><strong>Recents</strong> &mdash; reopen a recent project; loaded files keep their saved file name</li>
             <li><strong>Quick Save</strong> &mdash; save over the current project without a dialog</li>
             <li><strong>Export</strong> &mdash; opens the export menu (PDF, Canvas, Test Pattern, Gear List)</li>
-            <li><strong>Menu &rarr; Configuration</strong> &mdash; Save, Save As, Load, Recent, Export, Send to Jared</li>
+            <li><strong>Menu &rarr; Configuration</strong> &mdash; New, Recent, Export, Save, Save As, Load, Send to Jared</li>
+            <li><strong>New</strong> &mdash; starts a fresh project, back to a single blank screen. It asks first, because unsaved changes are lost</li>
+            <li><strong>Load</strong> &mdash; opens a file picker so you can browse to the project, rather than only the downloads folder</li>
             <li><strong>Menu &rarr; Custom Items</strong> &mdash; Add Panel, Add Processor, Manage Items, Requests</li>
             <li><strong>Menu &rarr; Inventory</strong> &mdash; Gear Code Mapping, to map gear to your own inventory codes</li>
             <li><strong>Menu &rarr; Power</strong> &mdash; Distro Wiring, to set which leg (X / Y / Z) each SOCA circuit is wired to</li>
@@ -2445,14 +2447,15 @@
         <div class="mobile-menu-label">Configuration</div>
         <input type="text" id="configName" placeholder="Config name..." class="mb-12">
         <div class="mobile-menu-btn-row">
-          <button class="mobile-menu-btn accent" onclick="quickSaveToApp(); closeMobileMenu();">Save</button>
-          <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save As</button>
-          <button class="mobile-menu-btn" onclick="document.getElementById('loadConfigInput').click()">Load</button>
-          <input type="file" id="loadConfigInput" accept=".blinkled,.led,.ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
-        </div>
-        <div class="mobile-menu-btn-row">
+          <button class="mobile-menu-btn" onclick="newProject()">New</button>
           <button class="mobile-menu-btn" onclick="modalOpenedFromMenu = true; showRecentProjects()">Recent</button>
           <button class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; openExportModal(); closeMobileMenu();">Export</button>
+        </div>
+        <div class="mobile-menu-btn-row">
+          <button class="mobile-menu-btn accent" onclick="quickSaveToApp(); closeMobileMenu();">Save</button>
+          <button class="mobile-menu-btn" onclick="saveConfiguration(); closeMobileMenu();">Save As</button>
+          <button class="mobile-menu-btn" onclick="openConfiguration()">Load</button>
+          <input type="file" id="loadConfigInput" accept=".blinkled,.led,.ledconfig" style="display: none;" onchange="loadConfiguration(event); closeMobileMenu();">
         </div>
         <div class="mobile-menu-btn-row" style="display:none;">
           <button id="btnExportPDF" class="mobile-menu-btn accent" onclick="modalOpenedFromMenu = true; closeMobileMenu();">Export PDF</button>
@@ -3856,8 +3859,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.183';
-const APP_CHANGELOG = 'Route every export through one Save As picker with share and download fallbacks';
+const APP_VERSION = '2.11.184';
+const APP_CHANGELOG = 'Add New Project to the menu and reorder the Configuration buttons';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

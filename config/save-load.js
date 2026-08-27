@@ -306,6 +306,63 @@ function loadConfiguration(event) {
   reader.readAsText(file);
 }
 
+// Start a fresh project without reloading the app. Clears the current project back to a
+// single blank Screen 1; the hamburger menu's refresh button is an app-update mechanism
+// and is deliberately not reused here.
+function newProject() {
+  showConfirm('Start a new project? Any unsaved changes will be lost.', 'New Project', 'Start New')
+    .then(function(confirmed) {
+      if(!confirmed) return;
+      closeMobileMenu();
+
+      // Empty the project containers, then rebuild the single default screen.
+      // initializeScreenSystem() calls initializeCanvases(), which only builds a
+      // default canvas when canvases is empty — so clear it first.
+      screens = {};
+      screenIdCounter = 1;
+      currentScreenId = 'screen_1';
+      canvases = {};
+      canvasIdCounter = 0;
+      currentCanvasId = null;
+      initializeScreenSystem();
+
+      // Sync the form and every per-screen global from the fresh defaults. This is the
+      // only step that resets customSocaAssignments — resetCalculator() misses it.
+      loadScreenData('screen_1');
+
+      // Blanket-reset the form plus the structure/bumper/undo globals that
+      // loadScreenData doesn't own.
+      resetCalculator();
+
+      // Project-level state
+      document.getElementById('configName').value = '';
+      if(typeof projectLogo !== 'undefined') projectLogo = null;
+      if(typeof loadProjectGearCodeOverrides === 'function') loadProjectGearCodeOverrides({});
+      if(typeof loadProjectSpareOverrides === 'function') loadProjectSpareOverrides({});
+      displayLengthUnit = 'ft';
+      displayWeightUnit = 'lbs';
+      document.getElementById('unitImperial')?.classList.toggle('active', true);
+      document.getElementById('unitMetric')?.classList.toggle('active', false);
+
+      // Clear histories
+      undoHistory = [];
+      redoHistory = [];
+      canvasMoveHistory = [];
+      canvasMoveHistoryIndex = -1;
+
+      // Clear the Combined arrangement (resetCombinedPositions also clears the
+      // ledcalc_combined_positions localStorage key)
+      if(typeof combinedSelectedScreens !== 'undefined') combinedSelectedScreens.clear();
+      if(typeof resetCombinedPositions === 'function') resetCombinedPositions();
+      if(typeof initCombinedView === 'function') initCombinedView();
+      if(typeof initGearView === 'function') initGearView();
+
+      // Land on a blank calculator in an input-capable mode
+      switchAppMode(currentAppMode === 'simple' ? 'simple' : 'complex');
+      if(typeof renderRasterScreenTable === 'function') renderRasterScreenTable();
+    });
+}
+
 function applyConfiguration(config, fileNameOverride) {
   // Verify version
   if(!config.version) {

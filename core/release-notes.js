@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.184', date: '2026-08-27', notes: 'Add New Project to the menu and reorder the Configuration buttons' },
   { version: '2.11.183', date: '2026-08-27', notes: 'Route every export through one Save As picker with share and download fallbacks' },
   { version: '2.11.182', date: '2026-08-26', notes: 'Document Export All zip layout, combined per-screen tables and spare cable lengths' },
   { version: '2.11.181', date: '2026-08-25', notes: 'Add per-length cable spares with overrides and rework the gear and specs display' },

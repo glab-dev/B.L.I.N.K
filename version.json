@@ -1,5 +1,5 @@
 {
-  "version": "2.11.194",
+  "version": "2.11.195",
   "updated": "2026-08-27",
-  "changelog": "Bundle the whole-canvas PNG and MP4 into the per-screen export zips"
+  "changelog": "Prompt for a save location on test pattern exports instead of dropping to Downloads"
 }

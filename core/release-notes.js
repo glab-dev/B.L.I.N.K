@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.195', date: '2026-08-27', notes: 'Prompt for a save location on test pattern exports instead of dropping to Downloads' },
   { version: '2.11.194', date: '2026-08-27', notes: 'Bundle the whole-canvas PNG and MP4 into the per-screen export zips' },
   { version: '2.11.193', date: '2026-08-27', notes: 'Default rasters to per-screen and keep colour bars one shape on every screen' },
   { version: '2.11.192', date: '2026-08-27', notes: 'Export one MP4 per raster screen and share a single codec probe' },

@@ -2034,7 +2034,9 @@ function initTestPatternControls() {
 
   document.getElementById('tpShareMp4').addEventListener('click', function() {
     sharePopup.classList.remove('open');
-    _tpForceShare = true;
+    // Only force the share sheet where files can actually be shared; elsewhere
+    // the normal export path prompts for a save location first
+    _tpForceShare = _tpCanShareFiles();
     exportTestPatternVideo();
   });
 
@@ -3230,23 +3232,71 @@ function _tpNativeShare(blob, filename, mimeType) {
   saveBlobToDevice(blob, filename, { mimeType: mimeType });
 }
 
-function tpQuickSharePng() {
+// Whether this platform can actually share files — on mobile the share sheet
+// is how a file gets saved ("Save to Files"). Probed with a dummy file so the
+// answer is known up front, before a render burns the click's user activation.
+function _tpCanShareFiles() {
+  if(!navigator.share || !navigator.canShare) return false;
+  try {
+    return navigator.canShare({
+      files: [new File([new Uint8Array(1)], 'probe.png', { type: 'image/png' })]
+    });
+  } catch(e) {
+    return false;
+  }
+}
+
+async function tpQuickSharePng() {
+  var totalW = _tpTotalSize().w;
+  var totalH = _tpTotalSize().h;
+  if(!totalW || !totalH) { showAlert('No test pattern to export.'); return; }
+  var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
+  var filename = safeName + '_' + totalW + 'x' + totalH + '.png';
+
+  // Where the share sheet exists it is the save mechanism; where it does not
+  // (desktop) prompt for a location instead — and pick before rendering, since
+  // showSaveFilePicker needs the click's user activation.
+  var target = null;
+  if(!_tpCanShareFiles()) {
+    target = await pickSaveTarget(filename, { mimeType: 'image/png', description: 'PNG Image' });
+    if(!target) return;
+  }
+
   renderTestPattern(true);
   var canvas = document.getElementById('tpCanvas');
   if(!canvas || canvas.width === 0) { showAlert('No test pattern to export.'); return; }
-  var totalW = canvas.width, totalH = canvas.height;
-  var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
-  var filename = safeName + '_' + totalW + 'x' + totalH + '.png';
   canvas.toBlob(function(blob) {
     if(!blob) { showAlert('Failed to create image.'); return; }
-    _tpNativeShare(blob, filename, 'image/png');
+    if(target) writeSaveTarget(target, blob, filename, 'image/png');
+    else _tpNativeShare(blob, filename, 'image/png');
   }, 'image/png');
   renderTestPattern(false);
 }
 
 // --- PNG Export ---
 
-function exportTestPatternPng() {
+async function exportTestPatternPng() {
+  var totalW = _tpTotalSize().w;
+  var totalH = _tpTotalSize().h;
+  if(!totalW || !totalH) {
+    showAlert('No test pattern to export.');
+    return;
+  }
+
+  var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
+  var filename = safeName + '_' + totalW + 'x' + totalH + '.png';
+
+  // Ask where to save first: showSaveFilePicker only works while the click's
+  // user activation is live, and a full-resolution render outlives it. Picking
+  // up front also means a cancel costs no work.
+  var target = await pickSaveTarget(filename, { mimeType: 'image/png', description: 'PNG Image' });
+  if(!target) return;
+
+  // Large canvas warning
+  if(totalW * totalH > 67108864) {
+    showAlert('Warning: Very large image (' + totalW + 'x' + totalH + '). Export may be slow or fail on some devices.');
+  }
+
   // Render at full resolution for export
   renderTestPattern(true);
 
@@ -3256,24 +3306,13 @@ function exportTestPatternPng() {
     return;
   }
 
-  var totalW = canvas.width;
-  var totalH = canvas.height;
-
-  // Large canvas warning
-  if(totalW * totalH > 67108864) {
-    showAlert('Warning: Very large image (' + totalW + 'x' + totalH + '). Export may be slow or fail on some devices.');
-  }
-
-  var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
-  var filename = safeName + '_' + totalW + 'x' + totalH + '.png';
-
   canvas.toBlob(function(blob) {
     if(!blob) {
       showAlert('Failed to create image. Please try again.');
       return;
     }
 
-    saveBlobToDevice(blob, filename, { mimeType: 'image/png', description: 'PNG Image' });
+    writeSaveTarget(target, blob, filename, 'image/png');
   }, 'image/png');
 
   // Restore preview resolution
@@ -3318,6 +3357,18 @@ async function exportRasterScreensPng() {
     return;
   }
 
+  var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
+  var zipName = safeName + '_screens.zip';
+
+  // Pick the destination while the click's user activation is still live —
+  // composing and zipping every screen would outlive it
+  var target = await pickSaveTarget(zipName, {
+    mimeType: 'application/zip',
+    description: 'ZIP Archive',
+    accept: { 'application/zip': ['.zip'] }
+  });
+  if(!target) return;
+
   if(tpRaster.width * tpRaster.height > 67108864) {
     showAlert('Warning: Very large raster (' + tpRaster.width + 'x' + tpRaster.height
       + '). Export may be slow or fail on some devices.');
@@ -3350,13 +3401,8 @@ async function exportRasterScreensPng() {
   });
   if(added === 0) { showAlert('Failed to create images. Please try again.'); return; }
 
-  var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
   var zipBlob = await zip.generateAsync({ type: 'blob' });
-  await saveBlobToDevice(zipBlob, safeName + '_screens.zip', {
-    mimeType: 'application/zip',
-    description: 'ZIP Archive',
-    accept: { 'application/zip': ['.zip'] }
-  });
+  await writeSaveTarget(target, zipBlob, zipName, 'application/zip');
 }
 
 // --- Sweep Drawing ---
@@ -3681,6 +3727,21 @@ async function exportTestPatternVideo() {
   var fps = tpSweepFps;
   var duration = tpSweepDuration;
   var totalFrames = Math.round(fps * duration);
+
+  var exportSafeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
+  var exportFilename = exportSafeName + '_' + totalW + 'x' + totalH + '.mp4';
+
+  // Ask where to save before encoding starts. showSaveFilePicker needs the
+  // click's user activation, and an encode always outlives it — without this
+  // the picker throws and the file drops straight into Downloads. Quick Share
+  // is deliberately exempt: it goes to the share sheet instead.
+  var exportTarget = null;
+  if(!_tpForceShare) {
+    exportTarget = await pickSaveTarget(exportFilename, {
+      mimeType: 'video/mp4', description: 'Video', accept: { 'video/mp4': ['.mp4'] }
+    });
+    if(!exportTarget) return;
+  }
   var hasSpinning = _tpNeedsAnimation();
   // The static-background fast path caches a sweep-less frame and paints the
   // sweep straight onto the full canvas, bypassing _tpComposeFrame. With a
@@ -3803,9 +3864,7 @@ async function exportTestPatternVideo() {
     muxer.finalize();
 
     var blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
-    var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
-    var filename = safeName + '_' + totalW + 'x' + totalH + '.mp4';
-    downloadVideoBlob(blob, filename, 'video/mp4');
+    downloadVideoBlob(blob, exportFilename, 'video/mp4', exportTarget);
 
   } catch(err) {
     showAlert('Video export failed: ' + err.message);
@@ -3862,6 +3921,18 @@ async function exportRasterScreensMp4() {
     var go = await showConfirm('Encoding ' + encoderCount + ' videos at once is memory-heavy and may take a while.\n\nContinue?', 'Large Export');
     if(!go) return;
   }
+
+  var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
+  var zipName = safeName + '_screens_mp4.zip';
+
+  // Pick the destination before any encoding — the picker needs live user
+  // activation and N concurrent encodes will outlast it
+  var target = await pickSaveTarget(zipName, {
+    mimeType: 'application/zip',
+    description: 'ZIP Archive',
+    accept: { 'application/zip': ['.zip'] }
+  });
+  if(!target) return;
 
   _tpStopAnimation();
   _tpIsRecording = true;
@@ -3982,13 +4053,8 @@ async function exportRasterScreensMp4() {
       zip.file(of.target.name, new Blob([of.muxer.target.buffer], { type: 'video/mp4' }));
     }
 
-    var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
     var zipBlob = await zip.generateAsync({ type: 'blob' });
-    await saveBlobToDevice(zipBlob, safeName + '_screens_mp4.zip', {
-      mimeType: 'application/zip',
-      description: 'ZIP Archive',
-      accept: { 'application/zip': ['.zip'] }
-    });
+    await writeSaveTarget(target, zipBlob, zipName, 'application/zip');
 
   } catch(err) {
     showAlert('Video export failed: ' + err.message);
@@ -4137,7 +4203,10 @@ async function getTestPatternMp4Blob(callback) {
   _tpRestartAnimationIfNeeded();
 }
 
-function downloadVideoBlob(blob, filename, mimeType) {
+// `target` is the destination chosen before encoding began (see
+// exportTestPatternVideo). Writing to an already-granted handle needs no user
+// activation, so it still works after a long encode.
+function downloadVideoBlob(blob, filename, mimeType, target) {
   // Quick share: always use native share sheet
   if(_tpForceShare) {
     _tpForceShare = false;
@@ -4145,5 +4214,9 @@ function downloadVideoBlob(blob, filename, mimeType) {
     return;
   }
 
+  if(target) {
+    writeSaveTarget(target, blob, filename, mimeType);
+    return;
+  }
   saveBlobToDevice(blob, filename, { mimeType: mimeType, description: 'Video' });
 }

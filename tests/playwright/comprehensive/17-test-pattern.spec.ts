@@ -83,11 +83,12 @@ test.describe('Test Pattern - Text Options @comprehensive @desktop', () => {
     await testPattern.enterTestPatternMode();
   });
 
-  test('should have all text checkboxes checked by default', async ({ testPattern }) => {
+  test('should have the default text checkboxes checked', async ({ testPattern }) => {
     await expect(testPattern.showNameCheckbox).toBeChecked();
     await expect(testPattern.showPixelSizeCheckbox).toBeChecked();
     await expect(testPattern.showAspectRatioCheckbox).toBeChecked();
-    await expect(testPattern.showSquareCountCheckbox).toBeChecked();
+    // Squares counts grid cells and the grid defaults to 0% (v2.11.193)
+    await expect(testPattern.showSquareCountCheckbox).not.toBeChecked();
   });
 
   test('should toggle show name checkbox', async ({ testPattern }) => {
@@ -153,8 +154,10 @@ test.describe('Test Pattern - Checker & Border @comprehensive @desktop', () => {
     await testPattern.enterTestPatternMode();
   });
 
-  test('should have checker off by default', async ({ testPattern }) => {
-    await expect(testPattern.checkerCheckbox).not.toBeChecked();
+  test('should have checker on at 20% by default', async ({ page, testPattern }) => {
+    await expect(testPattern.checkerCheckbox).toBeChecked();
+    await expect(page.locator('#tpCheckerSize')).toHaveValue('20');
+    await expect(page.locator('#tpGridSize')).toHaveValue('0');
   });
 
   test('should toggle checker on', async ({ testPattern }) => {

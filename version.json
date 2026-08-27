@@ -1,5 +1,5 @@
 {
-  "version": "2.11.193",
+  "version": "2.11.194",
   "updated": "2026-08-27",
-  "changelog": "Default rasters to per-screen and keep colour bars one shape on every screen"
+  "changelog": "Bundle the whole-canvas PNG and MP4 into the per-screen export zips"
 }

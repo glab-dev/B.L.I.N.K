@@ -3296,7 +3296,19 @@ function _tpScreenFileNames(ext) {
   });
 }
 
-// One PNG per screen at its native resolution, zipped. Composes the raster once
+// Name for the whole-canvas file bundled alongside the per-screen ones. Matches
+// exactly what the standalone Export PNG/MP4 writes, so the same render always
+// carries the same name. Falls back if a screen already claimed that filename.
+function _tpWholeCanvasFileName(screenNames, ext) {
+  var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';
+  var stem = safeName + '_' + tpRaster.width + 'x' + tpRaster.height;
+  var taken = screenNames.map(function(n) { return n.toLowerCase(); });
+  var name = stem + '.' + ext;
+  if(taken.indexOf(name.toLowerCase()) !== -1) name = stem + ' (canvas).' + ext;
+  return name;
+}
+
+// One PNG per screen at its native resolution plus the whole canvas, zipped. Composes the raster once
 // at full resolution into an offscreen canvas and crops each screen out of it —
 // the same crop the split Live Out windows use, so the two always agree.
 async function exportRasterScreensPng() {
@@ -3316,11 +3328,18 @@ async function exportRasterScreensPng() {
   renderTestPattern(true, offscreen);
 
   var names = _tpScreenFileNames();
-  var blobs = await Promise.all(tpRaster.screens.map(function(scr) {
+  var canvases = tpRaster.screens.map(function(scr) {
     var c = document.createElement('canvas');
     c.width = scr.w;
     c.height = scr.h;
     c.getContext('2d').drawImage(offscreen, scr.x, scr.y, scr.w, scr.h, 0, 0, scr.w, scr.h);
+    return c;
+  });
+  // The whole canvas rides along, straight from the same composition
+  names.push(_tpWholeCanvasFileName(names, 'png'));
+  canvases.push(offscreen);
+
+  var blobs = await Promise.all(canvases.map(function(c) {
     return new Promise(function(resolve) { c.toBlob(resolve, 'image/png'); });
   }));
 
@@ -3807,9 +3826,10 @@ async function exportTestPatternVideo() {
   _tpRestartAnimationIfNeeded();
 }
 
-// One MP4 per screen at its native resolution, zipped. Composes the raster once
-// per frame and feeds every screen's encoder from that single pass, so the clips
-// stay frame-synced to one pattern timeline. Unlike the whole-canvas export
+// One MP4 per screen at its native resolution plus the whole canvas, zipped.
+// Composes the raster once per frame and feeds every encoder from that single
+// pass, so all the clips — screens and canvas alike — stay frame-synced to one
+// pattern timeline. Unlike the whole-canvas export
 // there is no static-background fast path: in raster mode the sweep is drawn
 // inside the per-screen clip, so every frame needs a real composition pass.
 async function exportRasterScreensMp4() {
@@ -3834,11 +3854,12 @@ async function exportRasterScreensMp4() {
   var totalW = tpRaster.width, totalH = tpRaster.height;
   var hasSpinning = _tpNeedsAnimation();
 
-  // Every screen gets its own encoder running concurrently — confirm before
-  // committing to that much memory.
-  var screenPixels = list.reduce(function(a, s) { return a + s.w * s.h; }, 0);
-  if(list.length > 8 || screenPixels > 33177600) {
-    var go = await showConfirm('Encoding ' + list.length + ' videos at once is memory-heavy and may take a while.\n\nContinue?', 'Large Export');
+  // Every screen gets its own encoder, plus one for the whole canvas, all
+  // running concurrently — confirm before committing to that much memory.
+  var encoderCount = list.length + 1;
+  var encodedPixels = list.reduce(function(a, s) { return a + s.w * s.h; }, 0) + totalW * totalH;
+  if(encoderCount > 8 || encodedPixels > 33177600) {
+    var go = await showConfirm('Encoding ' + encoderCount + ' videos at once is memory-heavy and may take a while.\n\nContinue?', 'Large Export');
     if(!go) return;
   }
 
@@ -3859,22 +3880,33 @@ async function exportRasterScreensMp4() {
   var savedBounceVX = _tpBounceVX, savedBounceVY = _tpBounceVY, savedBounceInit = _tpBounceInit;
   _tpScrollOffsetX = 0; _tpScrollOffsetY = 0; _tpBounceInit = false;
 
+  var names = _tpScreenFileNames('mp4');
+  // Each screen crops out of the composed frame; the whole canvas is the frame
+  // itself, so it needs no crop and no scratch canvas of its own.
+  var targets = list.map(function(scr, i) {
+    return { label: scr.name, name: names[i], w: scr.w, h: scr.h, crop: scr };
+  });
+  targets.push({
+    label: 'Whole Canvas', name: _tpWholeCanvasFileName(names, 'mp4'),
+    w: totalW, h: totalH, crop: null
+  });
+
   var outs = [];
   try {
-    // One encoder + muxer per screen, each negotiated at that screen's size
-    for(var si = 0; si < list.length; si++) {
-      var scr = list[si];
-      var picked = await _tpPickVideoCodec(scr.w, scr.h, fps);
+    // One encoder + muxer per target, each negotiated at its own size
+    for(var si = 0; si < targets.length; si++) {
+      var tgt = targets[si];
+      var picked = await _tpPickVideoCodec(tgt.w, tgt.h, fps);
       if(!picked) {
-        throw new Error('Your browser does not support encoding "' + scr.name + '" at '
-          + scr.w + 'x' + scr.h + '.');
+        throw new Error('Your browser does not support encoding "' + tgt.label + '" at '
+          + tgt.w + 'x' + tgt.h + '.');
       }
       var muxer = new Mp4Muxer.Muxer({
         target: new Mp4Muxer.ArrayBufferTarget(),
-        video: { codec: picked.muxerCodec, width: scr.w, height: scr.h },
+        video: { codec: picked.muxerCodec, width: tgt.w, height: tgt.h },
         fastStart: 'in-memory'
       });
-      var out = { screen: scr, muxer: muxer, error: null, closed: false };
+      var out = { target: tgt, muxer: muxer, error: null, closed: false };
       out.encoder = new VideoEncoder({
         output: (function(m) {
           return function(chunk, meta) { m.addVideoChunk(chunk, meta); };
@@ -3885,10 +3917,12 @@ async function exportRasterScreensMp4() {
       });
       picked.config.latencyMode = 'quality';
       out.encoder.configure(picked.config);
-      out.canvas = document.createElement('canvas');
-      out.canvas.width = scr.w;
-      out.canvas.height = scr.h;
-      out.ctx = out.canvas.getContext('2d');
+      if(tgt.crop) {
+        out.canvas = document.createElement('canvas');
+        out.canvas.width = tgt.w;
+        out.canvas.height = tgt.h;
+        out.ctx = out.canvas.getContext('2d');
+      }
       outs.push(out);
     }
 
@@ -3912,9 +3946,13 @@ async function exportRasterScreensMp4() {
       for(var oi = 0; oi < outs.length; oi++) {
         var o = outs[oi];
         if(o.error) throw o.error;
-        var s0 = o.screen;
-        o.ctx.drawImage(frame, s0.x, s0.y, s0.w, s0.h, 0, 0, s0.w, s0.h);
-        var vf = new VideoFrame(o.canvas, {
+        var src = frame;
+        var crop = o.target.crop;
+        if(crop) {
+          o.ctx.drawImage(frame, crop.x, crop.y, crop.w, crop.h, 0, 0, o.target.w, o.target.h);
+          src = o.canvas;
+        }
+        var vf = new VideoFrame(src, {
           timestamp: i * frameDurationUs,
           duration: frameDurationUs
         });
@@ -3934,7 +3972,6 @@ async function exportRasterScreensMp4() {
     }
 
     if(label) label.textContent = 'Zipping...';
-    var names = _tpScreenFileNames('mp4');
     var zip = new JSZip();
     for(var fi = 0; fi < outs.length; fi++) {
       var of = outs[fi];
@@ -3942,7 +3979,7 @@ async function exportRasterScreensMp4() {
       of.encoder.close();
       of.closed = true;
       of.muxer.finalize();
-      zip.file(names[fi], new Blob([of.muxer.target.buffer], { type: 'video/mp4' }));
+      zip.file(of.target.name, new Blob([of.muxer.target.buffer], { type: 'video/mp4' }));
     }
 
     var safeName = tpImageName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'testpattern';

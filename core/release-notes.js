@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.197', date: '2026-08-27', notes: 'Keep a raster imported from the current project linked so it tracks screen moves' },
   { version: '2.11.196', date: '2026-08-27', notes: 'Make the bouncing logo and diagonal scroll follow per-screen mode' },
   { version: '2.11.195', date: '2026-08-27', notes: 'Prompt for a save location on test pattern exports instead of dropping to Downloads' },
   { version: '2.11.194', date: '2026-08-27', notes: 'Bundle the whole-canvas PNG and MP4 into the per-screen export zips' },

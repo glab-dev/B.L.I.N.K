@@ -455,6 +455,10 @@ function _tpGetSerializableState() {
   var s = _tpGetState();
   s.tpLogoImage = _tpImageToDataURL(s.tpLogoImage);
   s.tpBgImage = _tpImageToDataURL(s.tpBgImage);
+  // A saved file is a snapshot: it must come back as the raster it was saved
+  // with, not re-read whichever project happens to be open. _tpGetState() keeps
+  // the flag, so undo/redo still preserves the link.
+  if(s.tpRaster) s.tpRaster.linked = false;
   return s;
 }
 
@@ -625,6 +629,9 @@ function _tpBuildRaster(screensObj, order, canvasDims, extraPanels, name, source
   return {
     name: String(name || 'Raster').slice(0, 100),
     source: source,
+    // Only the live project can change under us, so only it stays linked;
+    // file and Recents imports are snapshots by nature.
+    linked: source === 'current',
     width: Math.round(width),
     height: Math.round(height),
     screens: out
@@ -672,6 +679,57 @@ function _tpApplyRaster(raster) {
   _tpSyncDOM();
 }
 
+// Reads the live project's geometry. Shared by the Current Project import and
+// the linked-raster refresh so the two can never drift apart.
+function _tpBuildRasterFromCurrentProject() {
+  var canvasDims = null;
+  if(typeof canvases !== 'undefined' && typeof currentCanvasId !== 'undefined'
+     && canvases[currentCanvasId]) {
+    canvasDims = canvases[currentCanvasId].data;
+  }
+  var order = (typeof getScreenIdsInOrder === 'function') ? getScreenIdsInOrder() : null;
+  var nameEl = document.getElementById('configName');
+  return _tpBuildRaster(screens, order, canvasDims,
+    (typeof customPanels !== 'undefined' ? customPanels : null),
+    (nameEl && nameEl.value.trim()) || 'Current Project', 'current');
+}
+
+// Geometry only — what has to match for the pattern to still be accurate.
+// Names are included so a renamed screen relabels itself in per-screen mode.
+function _tpRasterSignature(r) {
+  return JSON.stringify([r.width, r.height, r.screens.map(function(s) {
+    return [s.name, s.x, s.y, s.w, s.h, s.rects];
+  })]);
+}
+
+// A raster imported from the current project stays linked to it. The tool is a
+// full-screen overlay and closes its Live Out windows on exit, so the raster
+// can only change while the tool is shut — re-deriving on the way back in
+// catches every edit without hooking the app's many canvasX/canvasY writers.
+//
+// Deliberately not a re-import: geometry is replaced, but the mode, the pattern
+// name and every look setting are left exactly as the user left them, and no
+// undo entry is pushed because this is not a user edit.
+function _tpRefreshLinkedRaster() {
+  if(!tpRaster || !tpRaster.linked) return false;
+  if(typeof screens === 'undefined' || Object.keys(screens).length === 0) return false;
+
+  // Standard flush prologue — pushes the open screen's inputs into screens{}
+  try {
+    if(typeof saveCurrentScreenData === 'function') saveCurrentScreenData();
+  } catch(e) { /* app DOM not initialised — the stored screen data is still valid */ }
+
+  var fresh = _tpBuildRasterFromCurrentProject();
+  // Hold the last good geometry rather than blanking the pattern when the
+  // project has no usable screens (straight after New Project, say)
+  if(!fresh) return false;
+  if(_tpRasterSignature(fresh) === _tpRasterSignature(tpRaster)) return false;
+
+  tpRaster = fresh;
+  _tpScrollBuffers = {};   // keyed 'screen<i>' and sized to the screens that just changed
+  return true;
+}
+
 function tpImportRasterFromCurrentProject() {
   closeTpRasterImportModal();
   if(typeof screens === 'undefined' || Object.keys(screens).length === 0) {
@@ -683,17 +741,7 @@ function tpImportRasterFromCurrentProject() {
     if(typeof saveCurrentScreenData === 'function') saveCurrentScreenData();
   } catch(e) { /* app DOM not initialised — the stored screen data is still valid */ }
 
-  var canvasDims = null;
-  if(typeof canvases !== 'undefined' && typeof currentCanvasId !== 'undefined'
-     && canvases[currentCanvasId]) {
-    canvasDims = canvases[currentCanvasId].data;
-  }
-  var order = (typeof getScreenIdsInOrder === 'function') ? getScreenIdsInOrder() : null;
-  var nameEl = document.getElementById('configName');
-  var name = (nameEl && nameEl.value.trim()) || 'Current Project';
-
-  _tpApplyRaster(_tpBuildRaster(screens, order, canvasDims,
-    (typeof customPanels !== 'undefined' ? customPanels : null), name, 'current'));
+  _tpApplyRaster(_tpBuildRasterFromCurrentProject());
 }
 
 // Both project-file menu items share one input; the caller sets which
@@ -850,7 +898,8 @@ function _tpSyncRasterUI() {
     if(loaded) {
       var count = tpRaster.screens.length;
       status.textContent = tpRaster.name + ' \u2014 ' + tpRaster.width + '\u00d7' + tpRaster.height
-        + ' \u00b7 ' + count + (count === 1 ? ' screen' : ' screens');
+        + ' \u00b7 ' + count + (count === 1 ? ' screen' : ' screens')
+        + (tpRaster.linked ? ' \u00b7 linked' : '');
       status.style.display = '';
     } else {
       status.textContent = '';
@@ -1155,6 +1204,7 @@ function enterTestPatternMode() {
   document.body.style.overflow = '';
 
   initTestPatternControls();
+  _tpRefreshLinkedRaster();
   _tpSyncRasterUI();
   updateTotalSize();
   _tpRestartAnimationIfNeeded();

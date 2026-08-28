@@ -1,5 +1,5 @@
 {
-  "version": "2.11.196",
+  "version": "2.11.197",
   "updated": "2026-08-27",
-  "changelog": "Make the bouncing logo and diagonal scroll follow per-screen mode"
+  "changelog": "Keep a raster imported from the current project linked so it tracks screen moves"
 }

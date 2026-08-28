@@ -2,79 +2,68 @@
 // syncFromPanels, syncFromSize, calculate(), resetCalculator,
 // generateLayout dispatcher, and related helpers.
 
-function syncFromPanels(){
+// Panel counts are the single source of truth for the grid. Wall size and pixel dimensions are
+// entry-and-display representations derived from them - they can never reshape the wall. Editing
+// a size or pixel value snaps to the nearest whole panel and writes the panel count; the typed
+// value stays in the field and the snapped reality is shown beneath it.
+
+// Half of the 2dp precision the wall size fields display - anything smaller is a rounding artifact
+// of the round trip, not a real difference the user should see flagged.
+const DIM_EPSILON = 0.005;
+
+// Panels -> wall size. Leaves the pixel fields alone (a pixel edit may be in progress).
+function syncWallSizeFromPanels(){
   const allPanels = getAllPanels();
   const p=allPanels[document.getElementById('panelType').value];
   if(!p) return;
   const units = displayLengthUnit; // Use global unit setting
-  const pwInput = document.getElementById('panelsWide').value;
-  const phInput = document.getElementById('panelsHigh').value;
+  const pw = parseInt(document.getElementById('panelsWide').value) || 0;
+  const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
   const wallWidthEl = document.getElementById('wallWidth');
   const wallHeightEl = document.getElementById('wallHeight');
-  
-  // If either panel value is empty, clear the corresponding wall dimension
-  if(!pwInput && wallWidthEl) {
-    wallWidthEl.value = '';
-  }
-  if(!phInput && wallHeightEl) {
-    wallHeightEl.value = '';
-  }
-  
-  // Only sync if both panel values are actually entered
-  if(!pwInput || !phInput) return;
-  
-  const pw=Math.max(1,parseInt(pwInput)||1);
-  const ph=Math.max(1,parseInt(phInput)||1);
-  if(!p.width_m || !p.height_m){ return; }
-  const wM=pw*p.width_m, hM=ph*p.height_m;
-  if(wallWidthEl) wallWidthEl.value = fromMeters(wM, units).toFixed(2);
-  if(wallHeightEl) wallHeightEl.value = fromMeters(hM, units).toFixed(2);
+  if(wallWidthEl)  wallWidthEl.value  = (pw > 0 && p.width_m)  ? fromMeters(pw * p.width_m, units).toFixed(2) : '';
+  if(wallHeightEl) wallHeightEl.value = (ph > 0 && p.height_m) ? fromMeters(ph * p.height_m, units).toFixed(2) : '';
 }
 
-function syncFromSize(){
-  const allPanels = getAllPanels();
-  const p=allPanels[document.getElementById('panelType').value];
-  if(!p) return;
-  const units = displayLengthUnit; // Use global unit setting
-  const wallWidthEl = document.getElementById('wallWidth');
-  const wallHeightEl = document.getElementById('wallHeight');
-  const wInput = wallWidthEl ? wallWidthEl.value : '';
-  const hInput = wallHeightEl ? wallHeightEl.value : '';
-  const panelsWideEl = document.getElementById('panelsWide');
-  const panelsHighEl = document.getElementById('panelsHigh');
-  
-  // If either wall dimension is empty, clear the corresponding panel count
-  if(!wInput && panelsWideEl) {
-    panelsWideEl.value = '';
-  }
-  if(!hInput && panelsHighEl) {
-    panelsHighEl.value = '';
-  }
-  
-  // Only sync if both wall dimensions are actually entered
-  if(!wInput || !hInput) return;
-  
-  const w = parseFloat(wInput);
-  const h = parseFloat(hInput);
-  if(!p.width_m || !p.height_m || w <= 0 || h <= 0){ return; }
-  const wM = toMeters(w, units);
-  const hM = toMeters(h, units);
-  const pw = Math.max(1, Math.round(wM / p.width_m));
-  const ph = Math.max(1, Math.round(hM / p.height_m));
-  if(panelsWideEl) panelsWideEl.value = pw;
-  if(panelsHighEl) panelsHighEl.value = ph;
-}
-
+// Panels -> pixels. Leaves the wall size alone (a size edit may be in progress).
 function syncPixelsFromPanels(){
   const allPanels = getAllPanels();
   const p=allPanels[document.getElementById('panelType').value];
   if(!p || !p.res_x || !p.res_y) return;
-  const pwInput = document.getElementById('panelsWide').value;
-  const phInput = document.getElementById('panelsHigh').value;
+  const pw = parseInt(document.getElementById('panelsWide').value) || 0;
+  const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
   const pixelsWideEl = document.getElementById('pixelsWide');
   const pixelsHighEl = document.getElementById('pixelsHigh');
-  if(pixelsWideEl) pixelsWideEl.value = pwInput ? Math.max(1,parseInt(pwInput)||1) * p.res_x : '';
-  if(pixelsHighEl) pixelsHighEl.value = phInput ? Math.max(1,parseInt(phInput)||1) * p.res_y : '';
+  if(pixelsWideEl) pixelsWideEl.value = pw > 0 ? pw * p.res_x : '';
+  if(pixelsHighEl) pixelsHighEl.value = ph > 0 ? ph * p.res_y : '';
+}
+
+// The one "re-derive everything from the source of truth" call: rewrites both the wall size and
+// the pixel fields to the exact values for the current panel counts, which clears both hints.
+function syncFromPanels(){
+  syncWallSizeFromPanels();
+  syncPixelsFromPanels();
+  updateDimensionHints();
+}
+
+// Wall size -> panels, snapped to the nearest whole panel. The typed size deliberately stays in
+// the field - it is the size the user is designing to - and updateDimensionHints() shows what
+// will actually be built. An empty field means "not specified", so it never clears a panel count.
+function syncFromSize(){
+  const allPanels = getAllPanels();
+  const p=allPanels[document.getElementById('panelType').value];
+  if(!p || !p.width_m || !p.height_m) return;
+  const units = displayLengthUnit; // Use global unit setting
+  const w = parseFloat(document.getElementById('wallWidth').value) || 0;
+  const h = parseFloat(document.getElementById('wallHeight').value) || 0;
+  const panelsWideEl = document.getElementById('panelsWide');
+  const panelsHighEl = document.getElementById('panelsHigh');
+
+  if(w > 0 && panelsWideEl) panelsWideEl.value = Math.max(1, Math.round(toMeters(w, units) / p.width_m));
+  if(h > 0 && panelsHighEl) panelsHighEl.value = Math.max(1, Math.round(toMeters(h, units) / p.height_m));
+
+  syncPixelsFromPanels();
+  updateDimensionHints();
 }
 
 // Convert pixel inputs -> nearest whole panels. driver ('width'|'height') drives the
@@ -100,38 +89,73 @@ function applyPixelInput(driver){
     }
   }
 
-  // Convert both pixel fields -> nearest whole panel count (empty px -> empty panel field)
+  // Snap to whole panels. As with the wall size, the typed pixel value stays put.
   const pxW = parseFloat(pixelsWideEl.value)||0;
   const pxH = parseFloat(pixelsHighEl.value)||0;
-  if(panelsWideEl) panelsWideEl.value = pxW>0 ? Math.max(1, Math.round(pxW / p.res_x)) : '';
-  if(panelsHighEl) panelsHighEl.value = pxH>0 ? Math.max(1, Math.round(pxH / p.res_y)) : '';
+  if(pxW>0 && panelsWideEl) panelsWideEl.value = Math.max(1, Math.round(pxW / p.res_x));
+  if(pxH>0 && panelsHighEl) panelsHighEl.value = Math.max(1, Math.round(pxH / p.res_y));
 
-  syncFromPanels();
+  syncWallSizeFromPanels();
+  updateDimensionHints();
   initializeBumpers();
   updateWeightDisplay();
   saveCurrentScreenData();
   calculate();
 }
 
+// "= 19.69 x 13.12 ft actual" under a row whose typed value does not land on a whole panel.
+// Always measured against the current panel counts, so it stays right however they were reached.
+function updateDimensionHints(){
+  const allPanels = getAllPanels();
+  const p=allPanels[document.getElementById('panelType').value];
+  const units = displayLengthUnit;
+  const pw = parseInt(document.getElementById('panelsWide').value) || 0;
+  const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
+
+  const sizeHint = document.getElementById('wallSizeActual');
+  if(sizeHint){
+    let text = '';
+    if(p && p.width_m && p.height_m && pw > 0 && ph > 0){
+      const actualW = fromMeters(pw * p.width_m, units);
+      const actualH = fromMeters(ph * p.height_m, units);
+      const typedW = parseFloat(document.getElementById('wallWidth').value) || 0;
+      const typedH = parseFloat(document.getElementById('wallHeight').value) || 0;
+      if(Math.abs(typedW - actualW) > DIM_EPSILON || Math.abs(typedH - actualH) > DIM_EPSILON){
+        text = '= ' + actualW.toFixed(2) + ' × ' + actualH.toFixed(2) + ' ' + units + ' actual';
+      }
+    }
+    sizeHint.textContent = text;
+    sizeHint.style.display = text ? 'block' : 'none';
+  }
+
+  const pixelHint = document.getElementById('pixelsActual');
+  if(pixelHint){
+    let text = '';
+    if(p && p.res_x && p.res_y && pw > 0 && ph > 0){
+      const actualX = pw * p.res_x, actualY = ph * p.res_y;
+      const typedX = parseInt(document.getElementById('pixelsWide').value) || 0;
+      const typedY = parseInt(document.getElementById('pixelsHigh').value) || 0;
+      if(typedX !== actualX || typedY !== actualY){
+        text = '= ' + actualX + ' × ' + actualY + ' px actual';
+      }
+    }
+    pixelHint.textContent = text;
+    pixelHint.style.display = text ? 'block' : 'none';
+  }
+}
+
+// The grid every layout, structure, weight, bumper, canvas and PDF path draws from. Panel counts
+// are the only source of truth here. Letting the wall size win - as this used to - reshaped the
+// wall behind the inputs whenever the two could disagree (a unit toggle, a panel type change, a
+// project saved in the other unit), and reconcileBumpersToWidth() then deleted every bumper that
+// no longer fit the phantom width.
 function getEffectivePanelCounts(){
   const allPanels = getAllPanels();
   const p=allPanels[document.getElementById('panelType').value];
-  if(!p) return {pw:0, ph:0, entered:{wM:0,hM:0}, snapped:{wM:0,hM:0}};
-  const units = displayLengthUnit; // Use global unit setting
-  const wallWidthEl = document.getElementById('wallWidth');
-  const wallHeightEl = document.getElementById('wallHeight');
-  const w = wallWidthEl ? (parseFloat(wallWidthEl.value)||0) : 0;
-  const h = wallHeightEl ? (parseFloat(wallHeightEl.value)||0) : 0;
-  if(w>0 && h>0 && p.width_m && p.height_m){
-    const wM=toMeters(w, units), hM=toMeters(h, units);
-    const pw=Math.max(1, Math.round(wM / p.width_m));
-    const ph=Math.max(1, Math.round(hM / p.height_m));
-    return {pw, ph, entered:{w, h, units}, snapped:{wM:pw*p.width_m, hM:ph*p.height_m}};
-  }else{
-    const pw=Math.max(1,parseInt(document.getElementById('panelsWide').value)||1);
-    const ph=Math.max(1,parseInt(document.getElementById('panelsHigh').value)||1);
-    return {pw, ph, entered:null, snapped:{wM:p.width_m?pw*p.width_m:0, hM:p.height_m?ph*p.height_m:0}};
-  }
+  if(!p) return {pw:0, ph:0, entered:null, snapped:{wM:0,hM:0}};
+  const pw=Math.max(1,parseInt(document.getElementById('panelsWide').value)||1);
+  const ph=Math.max(1,parseInt(document.getElementById('panelsHigh').value)||1);
+  return {pw, ph, entered:null, snapped:{wM:p.width_m?pw*p.width_m:0, hM:p.height_m?ph*p.height_m:0}};
 }
 
 // Resolves how many panels fit on one data line for a screen: the processor's
@@ -320,6 +344,9 @@ function resetCalculator() {
   document.getElementById('panelsHigh').value = '';
   document.getElementById('wallWidth').value = '';
   document.getElementById('wallHeight').value = '';
+  document.getElementById('pixelsWide').value = '';
+  document.getElementById('pixelsHigh').value = '';
+  updateDimensionHints();
   
   // Reset units to defaults (Imperial)
   displayLengthUnit = 'ft';
@@ -358,11 +385,6 @@ function resetCalculator() {
   connectionMethod = 'airframe';
   document.getElementById('connectionAirframeBtn')?.classList.add('active');
   document.getElementById('connectionPlatesBtn')?.classList.remove('active');
-  
-  // Reset dimension mode
-  currentDimensionMode = 'panels';
-  document.getElementById('dimModePanelsBtn')?.classList.add('active');
-  document.getElementById('dimModeSizeBtn')?.classList.remove('active');
   
   // Reset bumper distribution to auto
   const bumperDist = document.getElementById('bumperDistribution');
@@ -861,7 +883,19 @@ function calculate(){
             const _pc = _planned(sid, inp.perPanelW, inp.voltage, inp.wiring)
               || screenCircuitContributions(inp.pw, inp.ph, inp.panelsPerCircuit, inp.deletedPanels, inp.customCircuit, inp.customSoca, inp.perPanelW, inp.voltage, inp.wiring).perCircuit;
             _pc.forEach(addCircuit);
-            comboWatts += Math.max(0, inp.pw * inp.ph - inp.deletedPanels.size) * inp.perPanelW; comboScreens++;
+            // The current screen's totalPowerW above already counts its CB5 half-panel row,
+            // so the other screens have to count theirs too or the distro total under-reports
+            // every half-row wall that isn't the open one.
+            let _screenW = Math.max(0, inp.pw * inp.ph - inp.deletedPanels.size) * inp.perPanelW;
+            if(sd.addCB5HalfRow && (sd.panelType || 'CB5_MKII') === 'CB5_MKII') {
+              const _halfP = (typeof getAllPanels === 'function') ? getAllPanels()['CB5_MKII_HALF'] : null;
+              if(_halfP) {
+                _screenW += inp.pw * ((sd.powerType || 'max') === 'max'
+                  ? (_halfP.power_max_w || 0)
+                  : (_halfP.power_avg_w || _halfP.power_max_w * 0.5 || 0));
+              }
+            }
+            comboWatts += _screenW; comboScreens++;
           }
         });
         const phasor = legAmpsFromPairWatts(pairW, 1);

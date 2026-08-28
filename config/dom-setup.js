@@ -75,14 +75,6 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
 
-    // Listen for dimension mode changes
-    const dimModeRadios = document.querySelectorAll('input[name="dimensionMode"]');
-    dimModeRadios.forEach(radio => {
-      radio.addEventListener('change', () => {
-        calculate();
-      });
-    });
-
     // Listen for power-related field changes to update circuit limit placeholder
     const powerRelatedFields = ['voltage', 'breaker', 'powerType'];
     powerRelatedFields.forEach(id => {
@@ -143,27 +135,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     setupLive();
-
-    const dimModePanels = document.getElementById('dimModePanels');
-    const dimModeSize = document.getElementById('dimModeSize');
-
-    if(dimModePanels) {
-      dimModePanels.addEventListener('change', function() {
-        if(this.checked) {
-          document.getElementById('panelCountInputs').style.display = 'block';
-          document.getElementById('wallSizeInputs').style.display = 'none';
-        }
-      });
-    }
-
-    if(dimModeSize) {
-      dimModeSize.addEventListener('change', function() {
-        if(this.checked) {
-          document.getElementById('panelCountInputs').style.display = 'none';
-          document.getElementById('wallSizeInputs').style.display = 'block';
-        }
-      });
-    }
 
     const canvasSizeSelect = document.getElementById('canvasSize');
     if(canvasSizeSelect) {
@@ -334,17 +305,9 @@ document.addEventListener('DOMContentLoaded', function() {
       panelTypeSelect.addEventListener('change', function() {
         if(isLoadingScreenData || this.value === '__ADD_CUSTOM__') return;
 
-        // The panel count / wall size / pixel fields are derived from each other through the
-        // OLD panel's dimensions, so re-derive them from the active mode's anchor. Without
-        // this the wall size still describes the old panel and getEffectivePanelCounts()
-        // (which prefers the wall size) reshapes the wall behind the inputs - a 6x6 CB5
-        // wall came out 4x7 on AMT while the panel count fields still read 6x6.
-        if(currentDimensionMode === 'size') {
-          syncFromSize();   // wall size is the anchor -> re-derive the panel counts
-        } else {
-          syncFromPanels(); // panel counts are the anchor -> re-derive the wall size
-          syncPixelsFromPanels();
-        }
+        // The wall size and pixel fields describe the OLD panel, so re-derive both from the
+        // panel counts, which are the source of truth and stay exactly as the user left them.
+        syncFromPanels();
 
         // The standard/power/data edits were made against the old panel's grid and its
         // circuit/data limits, so they can't carry over to a different panel.
@@ -428,27 +391,29 @@ document.addEventListener('DOMContentLoaded', function() {
       panelsWideInput.addEventListener('input', function() {
         lastDimensionDriver = 'width'; // Anchor the aspect ratio lock on this field
         applyAspectRatioLock('width'); // Apply aspect ratio lock
-        syncFromPanels(); // Panel counts -> wall size (empty wall fields blank the wall on mode switch)
+        syncFromPanels(); // Panel counts -> wall size + pixels (they are derived, never the reverse)
         initializeBumpers(); // Reinitialize when width changes
         updateWeightDisplay();
         saveCurrentScreenData(); // Re-save with the synced wall size
+        calculate();
       });
     }
     if(panelsHighInput) {
       panelsHighInput.addEventListener('input', function() {
         lastDimensionDriver = 'height'; // Anchor the aspect ratio lock on this field
         applyAspectRatioLock('height'); // Apply aspect ratio lock
-        syncFromPanels(); // Panel counts -> wall size (empty wall fields blank the wall on mode switch)
+        syncFromPanels(); // Panel counts -> wall size + pixels (they are derived, never the reverse)
         initializeBumpers(); // Reinitialize when height changes
         updateWeightDisplay();
         saveCurrentScreenData(); // Re-save with the synced wall size
+        calculate();
       });
     }
     if(wallWidthInput) {
       wallWidthInput.addEventListener('input', function() {
         lastDimensionDriver = 'width'; // Anchor the aspect ratio lock on this field
-        applyAspectRatioLock('width'); // Apply aspect ratio lock
-        syncFromSize(); // Wall size -> panel counts (bumpers and screen data read these)
+        syncFromSize(); // Wall size -> panel counts, snapped; the typed size stays in the field
+        applyAspectRatioLock('width'); // Then lock the ratio onto those counts (no-op when off)
         initializeBumpers(); // Reinitialize when width changes
         updateWeightDisplay();
         saveCurrentScreenData(); // Re-save with the synced panel counts
@@ -458,8 +423,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if(wallHeightInput) {
       wallHeightInput.addEventListener('input', function() {
         lastDimensionDriver = 'height'; // Anchor the aspect ratio lock on this field
-        applyAspectRatioLock('height'); // Apply aspect ratio lock
-        syncFromSize(); // Wall size -> panel counts (bumpers and screen data read these)
+        syncFromSize(); // Wall size -> panel counts, snapped; the typed size stays in the field
+        applyAspectRatioLock('height'); // Then lock the ratio onto those counts (no-op when off)
         initializeBumpers(); // Reinitialize when height changes
         updateWeightDisplay();
         saveCurrentScreenData(); // Re-save with the synced panel counts
@@ -526,6 +491,7 @@ document.addEventListener('DOMContentLoaded', function() {
         el.addEventListener('change', updateCabling);
       }
     });
+    updateWallSizeUnitLabels();
     syncFromPanels();
     updateSuggestedDataLimit();
     showSpecWarningIfNeeded();

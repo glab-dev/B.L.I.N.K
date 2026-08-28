@@ -7101,6 +7101,40 @@ body.tab-reordering {
   margin-top: 6px;
 }
 
+/* Dimension field groups - Panels, Wall Size and Pixels all render together, so each
+   group needs its own breathing room. */
+/* The Dimensions rows carry a unit suffix ("Wall Width (ft)"), which does not fit the 200px
+   the other paired inputs use - every label has to sit on one line so the three rows align. */
+.dim-inputs {
+  max-width: 240px;
+}
+
+/* The unit suffix inside a dimension label. label span is display:block (styles.css ~561),
+   which a nested span inherits - without this the "(ft)" drops onto its own line and the Wall
+   Size row sits one line taller than the Panels and Pixels rows beside it. */
+.dim-unit {
+  display: inline;
+  margin: 0;
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.dim-group + .dim-group {
+  margin-top: 12px;
+}
+
+/* "= 19.69 x 13.12 ft actual" under a size or pixel row that does not land on a whole panel.
+   NOT named .hint - the top-level .hint:not(.mobile-hint){display:none} rule would hide it. */
+.dim-actual {
+  display: none;
+  margin-top: 4px;
+  font-family: 'Roboto Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #10b981;
+  letter-spacing: 0.3px;
+}
+
 /* Dimension toggles row */
 .dimension-toggles-row {
   display: flex;

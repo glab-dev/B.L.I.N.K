@@ -234,7 +234,7 @@ function saveCurrentScreenData() {
   data.wallHeight = document.getElementById('wallHeight').value;
   data.lengthUnit = displayLengthUnit;
   data.weightUnit = displayWeightUnit;
-  data.dimensionMode = currentDimensionMode || 'panels';
+  data.dimensionMode = 'panels'; // no longer a mode - kept so files round-trip through older builds
   
   // Panel Type
   data.panelType = document.getElementById('panelType').value;
@@ -374,21 +374,15 @@ function loadScreenData(screenId) {
   document.getElementById('unitImperial')?.classList.toggle('active', isImperialScreen);
   document.getElementById('unitMetric')?.classList.toggle('active', !isImperialScreen);
   
-  // Set dimension mode
-  currentDimensionMode = data.dimensionMode || 'panels';
-  document.getElementById('dimModePanelsBtn')?.classList.toggle('active', currentDimensionMode === 'panels');
-  document.getElementById('dimModeSizeBtn')?.classList.toggle('active', currentDimensionMode === 'size');
-  document.getElementById('dimModePixelsBtn')?.classList.toggle('active', currentDimensionMode === 'pixels');
-
-  // Show/hide appropriate inputs
-  document.getElementById('panelCountInputs').style.display = currentDimensionMode === 'panels' ? 'block' : 'none';
-  document.getElementById('wallSizeInputs').style.display = currentDimensionMode === 'size' ? 'block' : 'none';
-  document.getElementById('pixelInputs').style.display = currentDimensionMode === 'pixels' ? 'block' : 'none';
+  updateWallSizeUnitLabels();
 
   // Panel Type
   document.getElementById('panelType').value = data.panelType || 'BP2_V2';
-  // Prefill pixel fields from restored panel counts when in pixel mode
-  if(currentDimensionMode === 'pixels') syncPixelsFromPanels();
+
+  // Re-derive the wall size and pixel fields from this screen's own panel counts, panel type
+  // and unit. The stored strings were written under whatever unit and panel were active when
+  // the screen was last saved, and a stale one used to reshape the grid on open.
+  syncFromPanels();
   
   // Power
   document.getElementById('voltage').value = data.voltage || 208;
@@ -663,9 +657,14 @@ function loadScreenData(screenId) {
   document.getElementById('connectionAirframeBtn')?.classList.toggle('active', connectionMethod === 'airframe');
   document.getElementById('connectionPlatesBtn')?.classList.toggle('active', connectionMethod === 'plates');
   
-  // Reset bumper globals based on structure type - this ensures structure view shows correct bumpers
+  // Reset bumper globals based on structure type - this ensures structure view shows correct bumpers.
+  // Gated on useBumpers: a screen saved with bumpers off would otherwise reload with a band
+  // reserved on the structure canvas and nothing in it, which reads as "bumpers missing".
   const structureType = data.structureType || 'hanging';
-  if(structureType === 'hanging') {
+  if(!useBumpers) {
+    showTopBumper = false;
+    showBottomBumper = false;
+  } else if(structureType === 'hanging') {
     showTopBumper = true;
     showBottomBumper = false;
   } else { // ground
@@ -674,8 +673,12 @@ function loadScreenData(screenId) {
   }
   
   // Only initialize bumpers if they haven't been customized/saved yet for this screen
-  // If bumpersInitialized is true, the bumpers array (even if empty) reflects user's choices
-  if(!data.bumpersInitialized && (showTopBumper || showBottomBumper) && data.panelsWide > 0) {
+  // If bumpersInitialized is true, the bumpers array (even if empty) reflects user's choices -
+  // unless it is empty, which no longer reflects anything. saveCurrentScreenData() stamps
+  // bumpersInitialized unconditionally, so a transient empty array that coincided with a save
+  // used to bake a permanently bumperless screen into the file with no way back.
+  const bumpersLostNotCleared = data.bumpersInitialized && bumpers.length === 0;
+  if((!data.bumpersInitialized || bumpersLostNotCleared) && (showTopBumper || showBottomBumper) && data.panelsWide > 0) {
     initializeBumpers();
   }
   

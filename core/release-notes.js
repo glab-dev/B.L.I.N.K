@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.199', date: '2026-08-28', notes: 'Make panel counts the source of truth and show size and pixels together' },
   { version: '2.11.198', date: '2026-08-28', notes: 'Make phase balance drive the shared distro total, SOCA amps and every screen tab' },
   { version: '2.11.197', date: '2026-08-27', notes: 'Keep a raster imported from the current project linked so it tracks screen moves' },
   { version: '2.11.196', date: '2026-08-27', notes: 'Make the bouncing logo and diagonal scroll follow per-screen mode' },

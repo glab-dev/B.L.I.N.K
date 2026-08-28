@@ -12,6 +12,7 @@ const KG_TO_LBS = 2.20462;
 
 // Unit system toggle function (Imperial = ft/lbs, Metric = m/kg)
 function setUnitSystem(system) {
+  const previousLengthUnit = displayLengthUnit;
   if(system === 'imperial') {
     displayLengthUnit = 'ft';
     displayWeightUnit = 'lbs';
@@ -23,6 +24,21 @@ function setUnitSystem(system) {
   // Update button states
   document.getElementById('unitImperial').classList.toggle('active', system === 'imperial');
   document.getElementById('unitMetric').classList.toggle('active', system === 'metric');
+
+  // Re-express the wall size in the new unit so it keeps describing the same physical wall.
+  // Without this the number stays put and changes meaning - 5 metres becomes 5 feet - which is
+  // how a unit tap used to shrink the grid and take the bumpers that no longer fit with it.
+  if(displayLengthUnit !== previousLengthUnit) {
+    ['wallWidth', 'wallHeight'].forEach(function(id) {
+      const el = document.getElementById(id);
+      if(!el || !el.value) return;
+      const v = parseFloat(el.value);
+      if(!(v > 0)) return;
+      el.value = fromMeters(toMeters(v, previousLengthUnit), displayLengthUnit).toFixed(2);
+    });
+    updateWallSizeUnitLabels();
+    updateDimensionHints();
+  }
 
   // Recalculate to update all displays
   calculate();
@@ -113,34 +129,18 @@ function getLengthUnitLabel() {
   return displayLengthUnit;
 }
 
-// Dimension mode toggle
+// Kept only so project files keep round-tripping through builds that still read it. The
+// Panels/Size/Pixels mode toggle is gone - all three field pairs are always visible, and the
+// panel counts are always the source of truth.
 let currentDimensionMode = 'panels';
-function setDimensionMode(mode) {
-  currentDimensionMode = mode;
-  document.getElementById('dimModePanelsBtn').classList.toggle('active', mode === 'panels');
-  document.getElementById('dimModeSizeBtn').classList.toggle('active', mode === 'size');
-  document.getElementById('dimModePixelsBtn').classList.toggle('active', mode === 'pixels');
 
-  document.getElementById('panelCountInputs').style.display = mode === 'panels' ? 'block' : 'none';
-  document.getElementById('wallSizeInputs').style.display = mode === 'size' ? 'block' : 'none';
-  document.getElementById('pixelInputs').style.display = mode === 'pixels' ? 'block' : 'none';
-
-  if(mode === 'panels') {
-    syncFromPanels();
-  } else if(mode === 'pixels') {
-    syncPixelsFromPanels();
-  } else {
-    // The wall fields can arrive empty (pixels mode, or a config saved before they were
-    // kept in sync). Fill them from the panel counts first - syncFromSize treats an empty
-    // wall dimension as "cleared" and would blank the panel counts along with it.
-    const wallWidthEl = document.getElementById('wallWidth');
-    const wallHeightEl = document.getElementById('wallHeight');
-    if(!wallWidthEl.value || !wallHeightEl.value) {
-      syncFromPanels();
-    }
-    syncFromSize();
-  }
-  calculate();
+// Rewrites the "(ft)" / "(m)" suffix on the wall size labels to match the current unit.
+function updateWallSizeUnitLabels() {
+  const label = '(' + displayLengthUnit + ')';
+  ['wallWidthUnit', 'wallHeightUnit'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if(el) el.textContent = label;
+  });
 }
 
 // Aspect Ratio Lock
@@ -153,10 +153,10 @@ let lastDimensionDriver = 'width';
 
 // Resolve which field should drive the lock: the field the user last typed in, unless
 // it is empty and the other one has a value. Returns null when nothing is entered.
+// Always read off the panel counts - they are the source of truth the lock writes into,
+// whichever row the user actually typed in.
 function getAspectRatioDriver() {
-  const ids = currentDimensionMode === 'panels' ? ['panelsWide', 'panelsHigh']
-            : currentDimensionMode === 'pixels' ? ['pixelsWide', 'pixelsHigh']
-            : ['wallWidth', 'wallHeight'];
+  const ids = ['panelsWide', 'panelsHigh'];
   const anchor = lastDimensionDriver === 'height' ? 1 : 0;
   if((parseFloat(document.getElementById(ids[anchor]).value) || 0) > 0) return lastDimensionDriver;
   if((parseFloat(document.getElementById(ids[1 - anchor]).value) || 0) > 0) {
@@ -209,75 +209,42 @@ function getAspectRatioValue() {
 
 // Apply the aspect ratio lock. driver ('width'|'height') is the field the user is
 // editing - the OTHER field is recalculated, never the one being typed in.
+// The ratio is always applied in pixel space and lands on whole panel counts; the wall size
+// and pixel fields are then re-derived from those counts, so the lock can never leave a
+// fractional wall behind or disagree with the grid that gets built.
 function applyAspectRatioLock(driver) {
   const aspectRatio = getAspectRatioValue();
   if(!aspectRatio) return; // No aspect ratio lock
-
-  // Pixels mode already has a correct bidirectional implementation
-  if(currentDimensionMode === 'pixels') {
-    applyPixelInput(driver);
-    return;
-  }
 
   const allPanels = getAllPanels();
   const p = allPanels[document.getElementById('panelType').value];
   if(!p || !p.res_x || !p.res_y) return;
 
-  if(currentDimensionMode === 'panels') {
-    // Panels mode: apply the ratio in pixel space, then round to whole panels
-    const wideEl = document.getElementById('panelsWide');
-    const highEl = document.getElementById('panelsHigh');
+  const wideEl = document.getElementById('panelsWide');
+  const highEl = document.getElementById('panelsHigh');
 
-    if(driver === 'width') {
-      // If width is empty, clear height too
-      if(wideEl.value === '' || wideEl.value === null) {
-        highEl.value = '';
-        syncFromPanels();
-        return;
-      }
-      const pw = parseInt(wideEl.value) || 0;
-      if(pw <= 0) return;
-      highEl.value = Math.max(1, Math.round((pw * p.res_x / aspectRatio) / p.res_y));
-    } else {
-      // If height is empty, clear width too
-      if(highEl.value === '' || highEl.value === null) {
-        wideEl.value = '';
-        syncFromPanels();
-        return;
-      }
-      const ph = parseInt(highEl.value) || 0;
-      if(ph <= 0) return;
-      wideEl.value = Math.max(1, Math.round((ph * p.res_y * aspectRatio) / p.res_x));
+  if(driver === 'width') {
+    // If width is empty, clear height too
+    if(wideEl.value === '' || wideEl.value === null) {
+      highEl.value = '';
+      syncFromPanels();
+      return;
     }
-    syncFromPanels();
+    const pw = parseInt(wideEl.value) || 0;
+    if(pw <= 0) return;
+    highEl.value = Math.max(1, Math.round((pw * p.res_x / aspectRatio) / p.res_y));
   } else {
-    // Size mode: apply the ratio directly to the wall dimensions
-    const wEl = document.getElementById('wallWidth');
-    const hEl = document.getElementById('wallHeight');
-
-    if(driver === 'width') {
-      // If width is empty, clear height too
-      if(wEl.value === '' || wEl.value === null) {
-        hEl.value = '';
-        syncFromSize();
-        return;
-      }
-      const wallWidth = parseFloat(wEl.value) || 0;
-      if(wallWidth <= 0) return;
-      hEl.value = (wallWidth / aspectRatio).toFixed(2);
-    } else {
-      // If height is empty, clear width too
-      if(hEl.value === '' || hEl.value === null) {
-        wEl.value = '';
-        syncFromSize();
-        return;
-      }
-      const wallHeight = parseFloat(hEl.value) || 0;
-      if(wallHeight <= 0) return;
-      wEl.value = (wallHeight * aspectRatio).toFixed(2);
+    // If height is empty, clear width too
+    if(highEl.value === '' || highEl.value === null) {
+      wideEl.value = '';
+      syncFromPanels();
+      return;
     }
-    syncFromSize();
+    const ph = parseInt(highEl.value) || 0;
+    if(ph <= 0) return;
+    wideEl.value = Math.max(1, Math.round((ph * p.res_y * aspectRatio) / p.res_x));
   }
+  syncFromPanels();
 
   saveCurrentScreenData(); // Save to screen data before calculate
   calculate(); // Trigger calculation to populate wall on canvas

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.198",
+  "version": "2.11.199",
   "updated": "2026-08-28",
-  "changelog": "Make phase balance drive the shared distro total, SOCA amps and every screen tab"
+  "changelog": "Make panel counts the source of truth and show size and pixels together"
 }

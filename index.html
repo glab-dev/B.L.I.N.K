@@ -2672,11 +2672,6 @@
 
           <div class="dimension-toggles-row">
             <div class="slider-toggle">
-              <button type="button" class="slider-toggle-btn active" id="dimModePanelsBtn" onclick="setDimensionMode('panels')">Panels</button>
-              <button type="button" class="slider-toggle-btn" id="dimModeSizeBtn" onclick="setDimensionMode('size')">Size</button>
-              <button type="button" class="slider-toggle-btn" id="dimModePixelsBtn" onclick="setDimensionMode('pixels')">Pixels</button>
-            </div>
-            <div class="slider-toggle">
               <button type="button" class="slider-toggle-btn active" id="unitImperial" onclick="setUnitSystem('imperial')">Imperial</button>
               <button type="button" class="slider-toggle-btn" id="unitMetric" onclick="setUnitSystem('metric')">Metric</button>
             </div>
@@ -2706,8 +2701,8 @@
             </div>
           </div>
 
-          <div id="panelCountInputs">
-            <div class="two-inputs max-w-200">
+          <div id="panelCountInputs" class="dim-group">
+            <div class="two-inputs dim-inputs">
               <label>
                 <span>Panels Wide</span>
                 <input type="number" id="panelsWide" min="1">
@@ -2719,21 +2714,22 @@
             </div>
           </div>
 
-          <div id="wallSizeInputs" style="display: none;">
-            <div class="two-inputs max-w-200">
+          <div id="wallSizeInputs" class="dim-group">
+            <div class="two-inputs dim-inputs">
               <label>
-                <span>Wall Width</span>
+                <span>Wall Width <span class="dim-unit" id="wallWidthUnit">(ft)</span></span>
                 <input type="number" id="wallWidth" min="0.1" step="0.01">
               </label>
               <label>
-                <span>Wall Height</span>
+                <span>Wall Height <span class="dim-unit" id="wallHeightUnit">(ft)</span></span>
                 <input type="number" id="wallHeight" min="0.1" step="0.01">
               </label>
             </div>
+            <div id="wallSizeActual" class="dim-actual"></div>
           </div>
 
-          <div id="pixelInputs" style="display: none;">
-            <div class="two-inputs max-w-200">
+          <div id="pixelInputs" class="dim-group">
+            <div class="two-inputs dim-inputs">
               <label>
                 <span>Pixels Wide</span>
                 <input type="number" id="pixelsWide" min="1">
@@ -2743,6 +2739,7 @@
                 <input type="number" id="pixelsHigh" min="1">
               </label>
             </div>
+            <div id="pixelsActual" class="dim-actual"></div>
           </div>
         </div>
 
@@ -3915,8 +3912,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.198';
-const APP_CHANGELOG = 'Make phase balance drive the shared distro total, SOCA amps and every screen tab';
+const APP_VERSION = '2.11.199';
+const APP_CHANGELOG = 'Make panel counts the source of truth and show size and pixels together';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

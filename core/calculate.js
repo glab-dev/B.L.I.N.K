@@ -46,28 +46,59 @@ function syncFromPanels(){
   updateDimensionHints();
 }
 
+// With the lock on, fill the field the user is NOT typing in - in that row's own terms, so the
+// value being typed is never rewritten underneath them. applyAspectRatioLock() does the same job
+// for the Panels row, but it works in panel counts and re-derives everything from them, which
+// would clobber the wall size or pixel value mid-keystroke.
+function applyAspectToRow(row, driver){
+  const aspect = getAspectRatioValue(); // width/height, or null when the lock is off
+  if(!aspect) return;
+  const ids = row === 'size' ? ['wallWidth', 'wallHeight'] : ['pixelsWide', 'pixelsHigh'];
+  const di = driver === 'height' ? 1 : 0;
+  const drivenEl = document.getElementById(ids[di]);
+  const otherEl = document.getElementById(ids[1 - di]);
+  if(!drivenEl || !otherEl) return;
+
+  // Under the lock the pair is a single entry, so emptying one empties the other - the same way
+  // clearing Panels Wide clears Panels High.
+  if(drivenEl.value === ''){ otherEl.value = ''; return; }
+
+  const v = parseFloat(drivenEl.value) || 0;
+  if(v <= 0) return;
+  const other = driver === 'width' ? v / aspect : v * aspect;
+  otherEl.value = row === 'size' ? other.toFixed(2) : Math.max(1, Math.round(other));
+}
+
 // Wall size -> panels, snapped to the nearest whole panel. The typed size deliberately stays in
 // the field - it is the size the user is designing to - and updateDimensionHints() shows what
-// will actually be built. An empty field means "not specified", so it never clears a panel count.
+// will actually be built. Clearing a size field clears the panel count it drives, so emptying
+// the row empties the wall.
 function syncFromSize(){
   const allPanels = getAllPanels();
   const p=allPanels[document.getElementById('panelType').value];
   if(!p || !p.width_m || !p.height_m) return;
   const units = displayLengthUnit; // Use global unit setting
-  const w = parseFloat(document.getElementById('wallWidth').value) || 0;
-  const h = parseFloat(document.getElementById('wallHeight').value) || 0;
+  const wRaw = document.getElementById('wallWidth').value;
+  const hRaw = document.getElementById('wallHeight').value;
   const panelsWideEl = document.getElementById('panelsWide');
   const panelsHighEl = document.getElementById('panelsHigh');
 
-  if(w > 0 && panelsWideEl) panelsWideEl.value = Math.max(1, Math.round(toMeters(w, units) / p.width_m));
-  if(h > 0 && panelsHighEl) panelsHighEl.value = Math.max(1, Math.round(toMeters(h, units) / p.height_m));
+  const w = parseFloat(wRaw) || 0;
+  const h = parseFloat(hRaw) || 0;
+  if(panelsWideEl && (wRaw === '' || w > 0)) {
+    panelsWideEl.value = wRaw === '' ? '' : Math.max(1, Math.round(toMeters(w, units) / p.width_m));
+  }
+  if(panelsHighEl && (hRaw === '' || h > 0)) {
+    panelsHighEl.value = hRaw === '' ? '' : Math.max(1, Math.round(toMeters(h, units) / p.height_m));
+  }
 
   syncPixelsFromPanels();
   updateDimensionHints();
 }
 
-// Convert pixel inputs -> nearest whole panels. driver ('width'|'height') drives the
-// aspect-ratio auto-fill of the OTHER pixel field (never overwrites the field being typed).
+// Convert pixel inputs -> nearest whole panels. driver ('width'|'height') is the field the user
+// is typing in; the aspect lock fills the other one. Clearing a pixel field clears the panel
+// count it drives, so emptying the row empties the wall.
 function applyPixelInput(driver){
   const allPanels = getAllPanels();
   const p=allPanels[document.getElementById('panelType').value];
@@ -76,24 +107,19 @@ function applyPixelInput(driver){
   const pixelsHighEl = document.getElementById('pixelsHigh');
   const panelsWideEl = document.getElementById('panelsWide');
   const panelsHighEl = document.getElementById('panelsHigh');
-  const aspect = getAspectRatioValue(); // width/height, or null when no lock
 
-  // Aspect lock: auto-fill the field the user is NOT typing (bidirectional)
-  if(aspect){
-    if(driver === 'width'){
-      const w = parseFloat(pixelsWideEl.value)||0;
-      if(w>0) pixelsHighEl.value = Math.round(w / aspect);
-    } else {
-      const h = parseFloat(pixelsHighEl.value)||0;
-      if(h>0) pixelsWideEl.value = Math.round(h * aspect);
-    }
+  applyAspectToRow('pixels', driver);
+
+  const pxWRaw = pixelsWideEl.value;
+  const pxHRaw = pixelsHighEl.value;
+  const pxW = parseFloat(pxWRaw)||0;
+  const pxH = parseFloat(pxHRaw)||0;
+  if(panelsWideEl && (pxWRaw === '' || pxW > 0)) {
+    panelsWideEl.value = pxWRaw === '' ? '' : Math.max(1, Math.round(pxW / p.res_x));
   }
-
-  // Snap to whole panels. As with the wall size, the typed pixel value stays put.
-  const pxW = parseFloat(pixelsWideEl.value)||0;
-  const pxH = parseFloat(pixelsHighEl.value)||0;
-  if(pxW>0 && panelsWideEl) panelsWideEl.value = Math.max(1, Math.round(pxW / p.res_x));
-  if(pxH>0 && panelsHighEl) panelsHighEl.value = Math.max(1, Math.round(pxH / p.res_y));
+  if(panelsHighEl && (pxHRaw === '' || pxH > 0)) {
+    panelsHighEl.value = pxHRaw === '' ? '' : Math.max(1, Math.round(pxH / p.res_y));
+  }
 
   syncWallSizeFromPanels();
   updateDimensionHints();

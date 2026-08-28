@@ -412,8 +412,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if(wallWidthInput) {
       wallWidthInput.addEventListener('input', function() {
         lastDimensionDriver = 'width'; // Anchor the aspect ratio lock on this field
+        applyAspectToRow('size', 'width'); // Lock fills the other wall field, in feet/metres
         syncFromSize(); // Wall size -> panel counts, snapped; the typed size stays in the field
-        applyAspectRatioLock('width'); // Then lock the ratio onto those counts (no-op when off)
         initializeBumpers(); // Reinitialize when width changes
         updateWeightDisplay();
         saveCurrentScreenData(); // Re-save with the synced panel counts
@@ -423,8 +423,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if(wallHeightInput) {
       wallHeightInput.addEventListener('input', function() {
         lastDimensionDriver = 'height'; // Anchor the aspect ratio lock on this field
+        applyAspectToRow('size', 'height'); // Lock fills the other wall field, in feet/metres
         syncFromSize(); // Wall size -> panel counts, snapped; the typed size stays in the field
-        applyAspectRatioLock('height'); // Then lock the ratio onto those counts (no-op when off)
         initializeBumpers(); // Reinitialize when height changes
         updateWeightDisplay();
         saveCurrentScreenData(); // Re-save with the synced panel counts

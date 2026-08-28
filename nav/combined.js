@@ -87,22 +87,44 @@ function syncComplexPowerToggles() {
   }
 }
 
-function toggleCombinedShareDistro() {
-  combinedShareDistroOn = !combinedShareDistroOn;
-  applyCombinedScreenFlag('sharedDistro', combinedShareDistroOn);
+// Screens whose calculatedData can move when one of the two power-group flags changes:
+// everything on the shared distro or being phase balanced (the distro is solved as a whole,
+// so one member's toggle re-circuits the others), plus every screen the combined selection
+// just wrote the flag to, plus the open screen. calculate() only ever rebuilds the current
+// screen's cache, and the combined SOCA table, the per-screen tabs, the gear list and the
+// PDF all read that cache — so anything in this set has to be recalculated by hand.
+function combinedPowerFlagScreenIds() {
+  const ids = new Set();
+  Object.keys(screens).forEach(id => {
+    const d = screens[id] && screens[id].data;
+    if(d && (d.sharedDistro || d.phaseBalance)) ids.add(id);
+  });
+  combinedSelectedScreens.forEach(id => { if(screens[id]) ids.add(id); });
+  if(screens[currentScreenId]) ids.add(currentScreenId);
+  return ids;
+}
+
+// Apply a power-group flag and rebuild every screen it could have moved. Snapshots the
+// affected set BEFORE and AFTER the change so a screen that just lost the flag — and whose
+// cached shared-distro totals are now wrong — is rebuilt as well.
+function applyCombinedPowerFlag(flag, on) {
+  const affected = combinedPowerFlagScreenIds();
+  applyCombinedScreenFlag(flag, on);
+  combinedPowerFlagScreenIds().forEach(id => affected.add(id));
   syncComplexPowerToggles();
   updateCombinedPowerToggleButtons();
-  if(typeof calculate === 'function') calculate();
+  recalculateCombinedScreens([...affected]);
   renderCombinedView();
+}
+
+function toggleCombinedShareDistro() {
+  combinedShareDistroOn = !combinedShareDistroOn;
+  applyCombinedPowerFlag('sharedDistro', combinedShareDistroOn);
 }
 
 function toggleCombinedPhaseBalance() {
   combinedPhaseBalanceOn = !combinedPhaseBalanceOn;
-  applyCombinedScreenFlag('phaseBalance', combinedPhaseBalanceOn);
-  syncComplexPowerToggles();
-  updateCombinedPowerToggleButtons();
-  if(typeof calculate === 'function') calculate();
-  renderCombinedView();
+  applyCombinedPowerFlag('phaseBalance', combinedPhaseBalanceOn);
 }
 
 function setCombinedPowerType(type) {
@@ -2214,12 +2236,16 @@ function toggleCombinedScreen(screenId) {
   }
 
   // Re-apply the active power toggles to the new selection: a screen toggled off leaves the
-  // distro group / stops being balanced, and a screen toggled on joins.
-  if(combinedShareDistroOn) applyCombinedScreenFlag('sharedDistro', true);
-  if(combinedPhaseBalanceOn) applyCombinedScreenFlag('phaseBalance', true);
+  // distro group / stops being balanced, and a screen toggled on joins. Either way the whole
+  // group's load moves, so every member's cached numbers have to be rebuilt — see
+  // combinedPowerFlagScreenIds().
   if(combinedShareDistroOn || combinedPhaseBalanceOn) {
+    const affected = combinedPowerFlagScreenIds();
+    if(combinedShareDistroOn) applyCombinedScreenFlag('sharedDistro', true);
+    if(combinedPhaseBalanceOn) applyCombinedScreenFlag('phaseBalance', true);
+    combinedPowerFlagScreenIds().forEach(id => affected.add(id));
     syncComplexPowerToggles();
-    if(typeof calculate === 'function') calculate();
+    recalculateCombinedScreens([...affected]);
   }
 
   // Re-initialize to update button states and render

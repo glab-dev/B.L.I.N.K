@@ -259,6 +259,24 @@ function toggleSocaDiagonalLabel() {
 // (saved/loaded by multi-screen.js), like cb5HalfRowEnabled. Default off.
 let shareDistroEnabled = false;
 
+// Rebuilds calculatedData for every screen on the shared distro, plus the current one.
+// The group's combined load, its SOCA numbering and each member's own circuits all depend
+// on what the OTHER members are doing, but calculate() only ever writes
+// screens[currentScreenId].calculatedData — so flipping Share Distro or Phase Balance here
+// would leave every other screen's tab (and the gear list and PDF, which read the cache)
+// showing the numbers from before the toggle until that screen next became current.
+// Falls back to a plain calculate() when this screen is the only one affected.
+function recalculateSharedDistroGroup() {
+  const ids = (typeof sharedDistroGroupIds === 'function') ? sharedDistroGroupIds() : [];
+  // currentScreenId is included even when it just left the group: it needs the recalc too.
+  const affected = ids.indexOf(currentScreenId) === -1 ? ids.concat([currentScreenId]) : ids;
+  if (affected.length > 1 && typeof recalculateCombinedScreens === 'function') {
+    recalculateCombinedScreens(affected);
+  } else if (typeof calculate === 'function') {
+    calculate();
+  }
+}
+
 function toggleShareDistro() {
   shareDistroEnabled = !shareDistroEnabled;
   const btn = document.getElementById('shareDistroBtn');
@@ -266,7 +284,7 @@ function toggleShareDistro() {
   if (typeof screens !== 'undefined' && screens[currentScreenId] && screens[currentScreenId].data) {
     screens[currentScreenId].data.sharedDistro = shareDistroEnabled; // keep live so the group calc sees it
   }
-  if (typeof calculate === 'function') calculate();
+  recalculateSharedDistroGroup();
   if (typeof renderCombinedView === 'function') renderCombinedView();
 }
 
@@ -299,7 +317,7 @@ function setPhaseBalanceMode(mode) {
   if (typeof screens !== 'undefined' && screens[currentScreenId] && screens[currentScreenId].data) {
     screens[currentScreenId].data.phaseBalance = (phaseBalanceMode === 'balanced'); // keep live so the combined view sees it
   }
-  if (typeof calculate === 'function') calculate();
+  recalculateSharedDistroGroup();
   if (typeof renderCombinedView === 'function') renderCombinedView();
 }
 

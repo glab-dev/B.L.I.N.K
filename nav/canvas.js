@@ -1216,14 +1216,31 @@ function updateCanvasInfoDisplay() {
   const canvasResX = canvas ? canvas.width : 0;
   const canvasResY = canvas ? canvas.height : 0;
 
-  // Count visible screens and panels
+  // Count visible screens and panels. Counts the panels that are actually in the rig —
+  // the raw grid minus the deleted ones, plus the CB5 half-panel row — so this matches the
+  // Panel count in the specs and the Total Panels in the Combined view. Read straight from
+  // screen.data rather than calculatedData, which only ever holds the current screen's
+  // freshly computed numbers.
   let totalWalls = 0;
   let totalPanels = 0;
   Object.keys(screens).forEach(screenId => {
     const screen = screens[screenId];
-    if(screen.visible && screen.data.panelsWide > 0 && screen.data.panelsHigh > 0) {
+    const data = screen.data;
+    if(screen.visible && data.panelsWide > 0 && data.panelsHigh > 0) {
       totalWalls++;
-      totalPanels += screen.data.panelsWide * screen.data.panelsHigh;
+      const pw = data.panelsWide, ph = data.panelsHigh;
+      // deletedPanels is a Set live, an array after a JSON round-trip. Keys left over from
+      // a larger grid don't count — calculate() prunes them the same way.
+      const deleted = data.deletedPanels instanceof Set ? [...data.deletedPanels]
+        : (Array.isArray(data.deletedPanels) ? data.deletedPanels : []);
+      let deletedInGrid = 0;
+      deleted.forEach(key => {
+        const parts = String(key).split(',');
+        const c = parseInt(parts[0], 10), r = parseInt(parts[1], 10);
+        if(c >= 0 && c < pw && r >= 0 && r < ph) deletedInGrid++;
+      });
+      const halfRow = (data.addCB5HalfRow && (data.panelType || 'CB5_MKII') === 'CB5_MKII') ? pw : 0;
+      totalPanels += (pw * ph) - deletedInGrid + halfRow;
     }
   });
 

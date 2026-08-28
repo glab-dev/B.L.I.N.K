@@ -358,11 +358,10 @@ function renderPowerLayout(params) {
   const _groupPlan = (_sharedHere && typeof sharedDistroBalancedPlan === 'function') ? sharedDistroBalancedPlan() : null;
   const _groupEntry = (_groupPlan && _groupPlan.useBalanced) ? _groupPlan.byScreen.get(currentScreenId) : null;
 
-  let panelToCircuit, circuitCounts, _usedBalanced = false;
+  let panelToCircuit, circuitCounts;
   if (_groupEntry) {
     panelToCircuit = _groupEntry.panelToCircuit;
     circuitCounts = _groupEntry.circuitCounts;
-    _usedBalanced = true;
   } else if (_balancedView) {
     const _vEl = document.getElementById('voltage');
     const _voltage = parseFloat(_vEl && _vEl.value) || 208;
@@ -374,7 +373,6 @@ function renderPowerLayout(params) {
     const _res = resolveBalancedCircuits(pw, ph, panelsPerCircuit, deletedPanels, _wiring, customCircuitAssignments, customSocaAssignments, _ppw, _voltage);
     panelToCircuit = _res.panelToCircuit;
     circuitCounts = _res.circuitCounts;
-    _usedBalanced = _res.useBalanced;
   } else {
     ({ panelToCircuit, circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments));
   }
@@ -397,7 +395,7 @@ function renderPowerLayout(params) {
     const _perPanelW = _panel ? (_powerType === 'max' ? (_panel.power_max_w || 0) : (_panel.power_avg_w || 0)) : 0;
     const _voltageEl = document.getElementById('voltage');
     const _voltage = parseFloat(_voltageEl && _voltageEl.value) || 208;
-    renderSocaCircuitTable(computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, _perPanelW, _voltage), _usedBalanced);
+    renderSocaCircuitTable(computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, _perPanelW, _voltage));
   }
 
   // 3-phase leg-pair colouring (optional "Color by Leg" view). Reads the
@@ -536,8 +534,9 @@ function renderPhaseBalanceLegend() {
 
   // Phase Balance status: when the toggle is On, tell the user whether re-circuiting
   // actually lowered the imbalance or the wall was already optimal — otherwise the
-  // toggle looks dead on walls it can't improve. Hidden in shared-distro mode (that
-  // legend always shows the physical as-wired distro regardless of the toggle).
+  // toggle looks dead on walls it can't improve. Only this screen's own balance carries
+  // that status; the shared-distro legend reports the whole group's load, which is solved
+  // for the distro rather than for any one wall.
   let statusRow = '';
   if (pb.balanceMode && !pb.sharedDistro) {
     if (pb.balanceApplied) {
@@ -564,8 +563,9 @@ function renderPhaseBalanceLegend() {
 // Renders one card per SOCA below the power canvas, listing each circuit's amps
 // and the SOCA total. Accepts a freshly-computed breakdown (passed by the power
 // renderer so the table always matches the canvas); falls back to the breakdown
-// stored in core/calculate.js. Hidden when there is no data.
-function renderSocaCircuitTable(breakdown, usedBalanced) {
+// stored in core/calculate.js, which is built from the same resolved circuits.
+// Hidden when there is no data.
+function renderSocaCircuitTable(breakdown) {
   const el = document.getElementById('socaCircuitTable');
   if (!el) return;
   let sb = Array.isArray(breakdown) ? breakdown : null;
@@ -575,10 +575,10 @@ function renderSocaCircuitTable(breakdown, usedBalanced) {
   }
   if (!sb || !sb.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
-  // Share Distro: group SOCA numbering (calculatedData.socaLabelMap). Gated on !usedBalanced
-  // to match the canvas, which skips the relabel because balanced mode redefines SOCAs.
+  // Share Distro: group SOCA numbering (calculatedData.socaLabelMap). Applied unconditionally
+  // to match the canvas — balancing keeps each SOCA's identity, only its slots move.
   const _cd = (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].calculatedData : null;
-  const _labelMap = (!usedBalanced && _cd && Array.isArray(_cd.socaLabelMap)) ? new Map(_cd.socaLabelMap) : null;
+  const _labelMap = (_cd && Array.isArray(_cd.socaLabelMap)) ? new Map(_cd.socaLabelMap) : null;
   const _socaLabelIdx = idx => (_labelMap && _labelMap.has(idx)) ? _labelMap.get(idx) : idx;
 
   el.innerHTML = sb.map(soca => {

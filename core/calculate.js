@@ -778,12 +778,17 @@ function calculate(){
   if(typeof assignCircuits === 'function') {
     const { panelToCircuit, circuitCounts } = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments);
     const panelToSoca = (typeof assignSocas === 'function') ? assignSocas(panelToCircuit, customSocaAssignments) : null;
-    if(panelToSoca && typeof computeSocaBreakdown === 'function') {
-      socaBreakdown = computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, perPanelW, voltage);
-    }
     if(panelToSoca && typeof computeSocaSpans === 'function') {
       socaSpans = computeSocaSpans(panelToCircuit, panelToSoca);
     }
+    // Circuits the per-SOCA amps table is built from. Phase Balance re-numbers the circuits
+    // inside a SOCA (soca*6 + slot), so the breakdown has to follow whichever layout is
+    // actually in use — resolved in the 3-phase block below — or every consumer of
+    // calculatedData.socaBreakdown (power tab, combined view, PDF) keeps printing as-wired
+    // amps while the canvas draws the balanced ones. socaSpans stays as-wired on purpose:
+    // it is the cable/gear paths' source of truth and balancing preserves SOCA membership.
+    let breakdownPanelToCircuit = panelToCircuit;
+    let breakdownCircuitCounts = circuitCounts;
     if(phase === 3 && typeof computePhaseBalance === 'function') {
       const pbMode = (typeof phaseBalanceMode !== 'undefined') ? phaseBalanceMode : 'aswired';
       const wiring = (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(voltage) : null;
@@ -800,6 +805,8 @@ function calculate(){
         phaseBalance.balanceApplied = true;
         phaseBalance.aswiredImbalancePct = _groupPlan.aswiredImbalancePct;
         phaseBalance.groupBalanced = true;
+        breakdownPanelToCircuit = _groupEntry.panelToCircuit;
+        breakdownCircuitCounts = _groupEntry.circuitCounts;
       } else if(pbMode === 'balanced' && typeof resolveBalancedCircuits === 'function') {
         // "Balanced" re-circuits panels onto the lighter legs, but only when that
         // actually lowers the imbalance — resolveBalancedCircuits falls back to as-wired
@@ -809,6 +816,10 @@ function calculate(){
         phaseBalance.balanceMode = true;
         phaseBalance.balanceApplied = _bal.useBalanced;
         phaseBalance.aswiredImbalancePct = _bal.aswiredImbalancePct;
+        if(_bal.useBalanced) {
+          breakdownPanelToCircuit = _bal.panelToCircuit;
+          breakdownCircuitCounts = _bal.circuitCounts;
+        }
       } else {
         phaseBalance = computePhaseBalance(circuitCounts, perPanelW, voltage, pbMode, wiring);
       }
@@ -816,8 +827,11 @@ function calculate(){
       // Share Distro: when this screen shares one physical 3-phase distro with other screens
       // (every screen with sharedDistro on), compute the COMBINED load of the whole group into
       // a SEPARATE sharedDistroTotal object. phaseBalance stays this screen's OWN load — the
-      // specs show own (main) + a "Shared Distro Total" section. As-wired currents (the
-      // physical distro), independent of balanced mode.
+      // specs show own (main) + a "Shared Distro Total" section.
+      // Phase Balance re-circuits members of the group onto different legs, which moves the
+      // load on the PHYSICAL distro — so when the group plan is in use every member's
+      // contribution has to come from that plan, not from its as-wired circuits, or the
+      // total would report the same legs whether the toggle is on or off.
       const _thisShared = !!(typeof screens !== 'undefined' && screens[currentScreenId] && screens[currentScreenId].data && screens[currentScreenId].data.sharedDistro);
       if(phaseBalance && _thisShared && typeof screenCircuitContributions === 'function'
          && typeof resolveScreenPowerInputs === 'function' && typeof legAmpsFromPairWatts === 'function') {
@@ -825,17 +839,28 @@ function calculate(){
         const singleW = { X: 0, Y: 0, Z: 0 };
         let comboWatts = 0, comboScreens = 0;
         const addCircuit = c => { if(pairW[c.pair] !== undefined) pairW[c.pair] += c.amps; else if(singleW[c.pair] !== undefined) singleW[c.pair] += c.amps; };
+        // Balanced circuits are numbered soca*6 + slot, so reading them back 'aswired' still
+        // lands each circuit on the leg it was moved to — the same trick groupLegImbalance()
+        // and the combined legend use.
+        const _planned = (sid, _perPanelW, _voltage, _wiring) => {
+          const e = (_groupPlan && _groupPlan.useBalanced) ? _groupPlan.byScreen.get(sid) : null;
+          return e ? computePhaseBalance(e.circuitCounts, _perPanelW, _voltage, 'aswired', _wiring).perCircuit : null;
+        };
         Object.keys(screens).forEach(sid => {
           const sd = screens[sid] && screens[sid].data;
           if(!sd || !sd.sharedDistro) return; // only shared-distro group members
           if(sid === currentScreenId) {
             // current screen: live values (its saved data can lag the DOM)
-            screenCircuitContributions(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments, customSocaAssignments, perPanelW, voltage, wiring).perCircuit.forEach(addCircuit);
+            const _pc = _planned(sid, perPanelW, voltage, wiring)
+              || screenCircuitContributions(pw, ph, panelsPerCircuit, deletedPanels, customCircuitAssignments, customSocaAssignments, perPanelW, voltage, wiring).perCircuit;
+            _pc.forEach(addCircuit);
             comboWatts += totalPowerW; comboScreens++;
           } else {
             const inp = resolveScreenPowerInputs(sd);
             if(!inp || inp.phase !== 3) return;
-            screenCircuitContributions(inp.pw, inp.ph, inp.panelsPerCircuit, inp.deletedPanels, inp.customCircuit, inp.customSoca, inp.perPanelW, inp.voltage, inp.wiring).perCircuit.forEach(addCircuit);
+            const _pc = _planned(sid, inp.perPanelW, inp.voltage, inp.wiring)
+              || screenCircuitContributions(inp.pw, inp.ph, inp.panelsPerCircuit, inp.deletedPanels, inp.customCircuit, inp.customSoca, inp.perPanelW, inp.voltage, inp.wiring).perCircuit;
+            _pc.forEach(addCircuit);
             comboWatts += Math.max(0, inp.pw * inp.ph - inp.deletedPanels.size) * inp.perPanelW; comboScreens++;
           }
         });
@@ -865,6 +890,16 @@ function calculate(){
           if(m) socaLabelMap = [...m.entries()];
         }
       }
+    }
+
+    // Built last, from whichever circuit layout won above, so the per-SOCA amps follow the
+    // Phase Balance toggle. Re-derives the SOCA grouping from those circuits the way the
+    // power canvas does; balancing keeps SOCA membership, only the slot inside it moves.
+    if(panelToSoca && typeof computeSocaBreakdown === 'function') {
+      const breakdownPanelToSoca = (breakdownPanelToCircuit === panelToCircuit)
+        ? panelToSoca
+        : ((typeof assignSocas === 'function') ? assignSocas(breakdownPanelToCircuit, customSocaAssignments) : panelToSoca);
+      socaBreakdown = computeSocaBreakdown(breakdownCircuitCounts, breakdownPanelToCircuit, breakdownPanelToSoca, perPanelW, voltage);
     }
   }
 

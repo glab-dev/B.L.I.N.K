@@ -3905,16 +3905,22 @@ function renderCombinedSpecs(selectedScreenIds) {
       }
     }
 
-    // Pixels - use stored value or calculate
-    totalPixels += calcData.totalPixels || (activePanels * panel.res_x * panel.res_y);
+    // Pixels - use stored value or calculate. activePanels already counts the half-panel row,
+    // so the fallback splits it back out rather than charging half panels a full panel's
+    // pixels and then adding the row a second time.
+    totalPixels += calcData.totalPixels
+      || (fullPanelCount * panel.res_x * panel.res_y)
+         + (halfPanelCount ? halfPanelCount * ((allPanels['CB5_MKII_HALF'] || {}).res_x || 0) * ((allPanels['CB5_MKII_HALF'] || {}).res_y || 0) : 0);
 
-    // Power - use combined toggle state
+    // Power - use combined toggle state. Same split: the half-panel row is inside
+    // activePanels, so it is billed at the half panel's watts once, not at the full
+    // panel's watts and then again at the half panel's.
     const powerPerPanel = combinedPowerType === 'max' ? (panel.power_max_w || 0) : (panel.power_avg_w || 0);
-    let screenPowerW = activePanels * powerPerPanel;
+    let screenPowerW = fullPanelCount * powerPerPanel;
     if(hasCB5HalfRow) {
       const halfPanel = allPanels['CB5_MKII_HALF'];
       if(halfPanel) {
-        screenPowerW += pw * (combinedPowerType === 'max' ? (halfPanel.power_max_w || 0) : (halfPanel.power_avg_w || 0));
+        screenPowerW += halfPanelCount * (combinedPowerType === 'max' ? (halfPanel.power_max_w || 0) : (halfPanel.power_avg_w || 0));
       }
     }
     totalPowerW += screenPowerW;
@@ -3939,11 +3945,12 @@ function renderCombinedSpecs(selectedScreenIds) {
       const floorFramesWeightKg = (calcData.floorFrames && calcData.floorFrames.totalWeightKg) || 0;
       totalWeight += panelWeightKg + bumperWeightKg + platesWeightKg + groundSupportWeightKg + floorFramesWeightKg;
     } else {
-      // Fallback: panel weight only
+      // Fallback: panel weight only. activePanels includes the half-panel row, so weigh the
+      // full panels and the half row separately instead of weighing the row twice.
       const screenUseConnectingPlates = (panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF') && data.connectionMethod === 'plates';
-      totalWeight += activePanels * getPanelWeight(panelType, screenUseConnectingPlates);
+      totalWeight += fullPanelCount * getPanelWeight(panelType, screenUseConnectingPlates);
       if(hasCB5HalfRow) {
-        totalWeight += pw * getPanelWeight('CB5_MKII_HALF', screenUseConnectingPlates);
+        totalWeight += halfPanelCount * getPanelWeight('CB5_MKII_HALF', screenUseConnectingPlates);
       }
     }
 
@@ -4063,6 +4070,11 @@ function renderCombinedGearList(selectedScreenIds) {
   let total1wBumpers = 0;
   let total2wBumpers = 0;
   let total4wBumpers = 0;
+  // A bumper is a panel-type property — a CB5 bumper doesn't fit an AMT wall — so a project
+  // mixing panel types can't order off one merged bumper total. Bucket the counts by the
+  // panel they hang, the way the jumper lengths above are bucketed by length.
+  const bumpersByPanel = {}; // panelLabel -> { b1w, b2w, b4w }
+  const screenPanelLabels = new Set(); // distinct main panel types across the selection
   let totalPlates2way = 0;
   let totalPlates4way = 0;
   let totalShackles = 0;
@@ -4139,11 +4151,19 @@ function renderCombinedGearList(selectedScreenIds) {
     const useBumpers = data.useBumpers !== false;
     let screenBumper1w = 0;
     let screenBumper2w = 0;
+    let screenBumper4w = 0;
     screenBumpers.forEach(b => {
       if(b.type === '1w') { total1wBumpers++; screenBumper1w++; }
       else if(b.type === '2w') { total2wBumpers++; screenBumper2w++; }
-      else if(b.type === '4w') total4wBumpers++;
+      else if(b.type === '4w') { total4wBumpers++; screenBumper4w++; }
     });
+    screenPanelLabels.add(panelLabel);
+    if(screenBumper1w > 0 || screenBumper2w > 0 || screenBumper4w > 0) {
+      if(!bumpersByPanel[panelLabel]) bumpersByPanel[panelLabel] = { b1w: 0, b2w: 0, b4w: 0 };
+      bumpersByPanel[panelLabel].b1w += screenBumper1w;
+      bumpersByPanel[panelLabel].b2w += screenBumper2w;
+      bumpersByPanel[panelLabel].b4w += screenBumper4w;
+    }
 
     // Estimate plates (only for panels that use connecting plates)
     if (shouldUseConnectingPlates(panelType)) {
@@ -4351,9 +4371,23 @@ function renderCombinedGearList(selectedScreenIds) {
                              totalPlates2way > 0 || totalPlates4way > 0 || totalShackles > 0 || totalCheeseye > 0;
   if(hasRiggingHardware) {
     colRigging += addGearHeader('Rigging Hardware');
-    colRigging += addGearLine('1W Bumpers:', total1wBumpers);
-    colRigging += addGearLine('2W Bumpers:', total2wBumpers);
-    colRigging += addGearLine('4W Bumpers:', total4wBumpers);
+    // One panel type in the rig -> the flat totals are unambiguous, so leave them alone.
+    // More than one -> list each type's bumpers under its own heading, matching how the
+    // Equipment column nests the panel counts.
+    const _bumperPanels = Object.keys(bumpersByPanel);
+    if(screenPanelLabels.size > 1 && _bumperPanels.length > 0) {
+      _bumperPanels.forEach(label => {
+        const bp = bumpersByPanel[label];
+        colRigging += `<div style="margin-left: 12px; color: #fff;">${escapeHtml(label)}:</div>`;
+        if(bp.b1w > 0) colRigging += `<div style="margin-left: 24px; color: #fff;">${bp.b1w} x 1W Bumpers</div>`;
+        if(bp.b2w > 0) colRigging += `<div style="margin-left: 24px; color: #fff;">${bp.b2w} x 2W Bumpers</div>`;
+        if(bp.b4w > 0) colRigging += `<div style="margin-left: 24px; color: #fff;">${bp.b4w} x 4W Bumpers</div>`;
+      });
+    } else {
+      colRigging += addGearLine('1W Bumpers:', total1wBumpers);
+      colRigging += addGearLine('2W Bumpers:', total2wBumpers);
+      colRigging += addGearLine('4W Bumpers:', total4wBumpers);
+    }
     colRigging += addGearLine('4W Connecting Plates:', totalPlates4way);
     colRigging += addGearLine('2W Connecting Plates:', totalPlates2way);
     colRigging += addGearLine('5/8" Shackles:', totalShackles);

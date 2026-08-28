@@ -1,5 +1,5 @@
 {
-  "version": "2.11.199",
+  "version": "2.11.200",
   "updated": "2026-08-28",
-  "changelog": "Make panel counts the source of truth and show size and pixels together"
+  "changelog": "Split combined gear bumpers by panel type and stop double-counting the CB5 half row"
 }

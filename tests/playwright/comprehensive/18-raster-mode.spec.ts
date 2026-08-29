@@ -25,11 +25,6 @@ test.describe('Raster Mode - Entry & Layout @comprehensive @desktop', () => {
     await expect(raster.screenTableContainer).toBeVisible();
   });
 
-  test('should hide canvas screen toggles in raster mode', async ({ page, raster }) => {
-    await raster.enterRasterMode();
-    await expect(page.locator('#canvasScreenToggles')).not.toBeVisible();
-  });
-
   test('should show raster toolbar', async ({ page, raster }) => {
     await raster.enterRasterMode();
     await expect(page.locator('#rasterCanvasToolbar')).toBeVisible();

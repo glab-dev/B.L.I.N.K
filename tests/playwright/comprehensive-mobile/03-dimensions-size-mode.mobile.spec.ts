@@ -16,10 +16,15 @@ test.describe('Dimensions -- Size Mode @comprehensive @mobile', () => {
     await expect(dimensions.wallHeightInput).toBeVisible();
   });
 
-  test('should hide panel count inputs in Size mode', async ({ page, dimensions }) => {
-    await dimensions.setDimensionMode('size');
-    await expect(dimensions.panelsWideInput).not.toBeVisible();
-    await expect(dimensions.panelsHighInput).not.toBeVisible();
+  test('should show panel, wall size and pixel inputs together', async ({ dimensions }) => {
+    // v2.11.199 removed the Panels / Size / Pixels mode toggle — all three groups render
+    // at once, so none of them is ever hidden.
+    await expect(dimensions.panelsWideInput).toBeVisible();
+    await expect(dimensions.panelsHighInput).toBeVisible();
+    await expect(dimensions.wallWidthInput).toBeVisible();
+    await expect(dimensions.wallHeightInput).toBeVisible();
+    await expect(dimensions.pixelsWideInput).toBeVisible();
+    await expect(dimensions.pixelsHighInput).toBeVisible();
   });
 
   test('should calculate panel count from wall dimensions', async ({ page, dimensions }) => {
@@ -34,12 +39,14 @@ test.describe('Dimensions -- Size Mode @comprehensive @mobile', () => {
     expect(results).toMatch(/\u00d7/);
   });
 
-  test('should switch back to Panels mode and show panel inputs', async ({ page, dimensions }) => {
-    await dimensions.setDimensionMode('size');
-    await dimensions.setDimensionMode('panels');
-    await expect(dimensions.panelsWideInput).toBeVisible();
-    await expect(dimensions.panelsHighInput).toBeVisible();
-    await expect(dimensions.wallWidthInput).not.toBeVisible();
+  test('should derive the panel counts from the wall size', async ({ page, dimensions }) => {
+    // Typing a wall size snaps the panel counts to whole panels (syncFromSize).
+    await dimensions.setWallSize(10, 8);
+    await page.waitForTimeout(300);
+    const wide = await dimensions.panelsWideInput.inputValue();
+    const high = await dimensions.panelsHighInput.inputValue();
+    expect(Number(wide)).toBeGreaterThan(0);
+    expect(Number(high)).toBeGreaterThan(0);
   });
 
   test('should show metric labels when metric selected', async ({ page, dimensions }) => {
@@ -69,6 +76,9 @@ test.describe('Dimensions -- Size Mode @comprehensive @mobile', () => {
   });
 
   test('should apply aspect ratio buttons in Panels mode', async ({ page, dimensions }) => {
+    // setPanelCount fills width then height, so HEIGHT is the last field typed and becomes
+    // the lock's anchor — the ratio re-derives the width and holds the height. (The desktop
+    // spec covers the mirror case, where width is typed last and the height re-derives.)
     await dimensions.setPanelCount(8, 4);
 
     // Scroll aspect ratio into view on mobile
@@ -77,15 +87,16 @@ test.describe('Dimensions -- Size Mode @comprehensive @mobile', () => {
     // Set 16:9
     await dimensions.setAspectRatio('16:9');
     await page.waitForTimeout(300);
-    const high169 = await dimensions.panelsHighInput.inputValue();
+    const wide169 = await dimensions.panelsWideInput.inputValue();
 
     // Set 4:3
     await dimensions.setAspectRatio('4:3');
     await page.waitForTimeout(300);
-    const high43 = await dimensions.panelsHighInput.inputValue();
+    const wide43 = await dimensions.panelsWideInput.inputValue();
 
-    // Different aspect ratios should yield different heights for same width
-    expect(high169).not.toBe(high43);
+    // Different aspect ratios should yield different widths for the same height
+    expect(wide169).not.toBe(wide43);
+    await expect(dimensions.panelsHighInput).toHaveValue('4');
   });
 
   test('should show custom aspect ratio inputs', async ({ page, dimensions }) => {

@@ -742,7 +742,6 @@ function applyConfiguration(config, fileNameOverride) {
 
     // Ensure visible screens toggles are updated after all screens are loaded
     setTimeout(function() {
-      updateCanvasScreenToggles();
       // Refresh Combined view if it's currently visible
       if(typeof initCombinedView === 'function') {
         // Restore the saved arrangement; files written before this existed simply

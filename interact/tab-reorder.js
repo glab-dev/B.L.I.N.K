@@ -237,7 +237,6 @@ function initTabReorderHandlers() {
 // runs after it changes the screen set.
 function applyScreenReorder() {
   renderScreenTabs();
-  if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
   if(typeof calculate === 'function') calculate();
   if(typeof showCanvasView === 'function') showCanvasView();
   if(typeof currentAppMode !== 'undefined' && currentAppMode === 'raster' &&

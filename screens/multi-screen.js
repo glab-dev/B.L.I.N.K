@@ -126,7 +126,6 @@ function initializeScreenSystem() {
   };
 
   renderScreenTabs();
-  updateCanvasScreenToggles();
   initializeCanvases();
 }
 
@@ -753,7 +752,6 @@ function addNewScreen() {
   });
 
   renderScreenTabs();
-  updateCanvasScreenToggles();
 
   // Switch to the new screen
   console.log('Switching to new screen...');
@@ -802,7 +800,6 @@ function deleteScreen(screenId) {
   }
 
   renderScreenTabs();
-  updateCanvasScreenToggles();
   calculate();
 
   // Explicitly redraw canvas to remove deleted screen
@@ -886,7 +883,6 @@ function saveScreenRename() {
     screens[screenToRename].color = document.getElementById('screenColorInput').value;
     screens[screenToRename].color2 = document.getElementById('screenColor2Input').value;
     renderScreenTabs();
-    updateCanvasScreenToggles();
     // Update all views to show the new name/color
     generateLayout('standard');
     generateStructureLayout();
@@ -961,7 +957,6 @@ function duplicateScreen() {
   });
 
   renderScreenTabs();
-  updateCanvasScreenToggles();
 
   closeScreenRenameModal();
 

@@ -21,9 +21,6 @@ function activateCanvasView() {
     initRasterToolbarListeners();
     rasterToolbarInitialized = true;
   }
-  // Hide the old compact visible-screens list (replaced by the screen table above)
-  const canvasToggles = document.getElementById('canvasScreenToggles');
-  if(canvasToggles) canvasToggles.style.display = 'none';
   const canvasInfo = document.getElementById('canvasInfo');
   if(canvasInfo) canvasInfo.style.display = '';
   // Populate the inline Header/Footer controls for the active canvas tab
@@ -402,8 +399,6 @@ function loadCanvasData(canvasId) {
       screens[screenId].visible = false;
     }
   });
-  // Update the screen toggles UI
-  updateCanvasScreenToggles();
   // Also update raster screen table if available (for raster mode)
   if(typeof renderRasterScreenTable === 'function') renderRasterScreenTable();
   // Sync raster toolbar values (canvas size may differ per canvas)
@@ -1111,17 +1106,6 @@ function showCanvasView(){
   ctx.lineWidth = 6;
   ctx.setLineDash([]);
   ctx.strokeRect(3, 3, canvasResX - 6, canvasResY - 6);
-
-  // Update info display
-  let totalWalls = 0;
-  let totalPanels = 0;
-  screenIds.forEach(screenId => {
-    const screen = screens[screenId];
-    if(screen.visible && screen.data.panelsWide > 0 && screen.data.panelsHigh > 0) {
-      totalWalls++;
-      totalPanels += screen.data.panelsWide * screen.data.panelsHigh;
-    }
-  });
 
   // Update canvas info display (includes selected screen coordinates if any)
   updateCanvasInfoDisplay();
@@ -2872,115 +2856,4 @@ function updateCanvasUndoRedoButtons() {
 }
 
 
-// ==================== CANVAS SCREEN TOGGLES ====================
-function updateCanvasScreenToggles() {
-  const container = document.getElementById('canvasScreenToggles');
-  if(!container) return;
-
-  let html = '<div style="margin-top: 16px; margin-bottom: 12px; display: inline-block; background: #1a1a1a; border: 1px solid var(--primary); padding: 4px 10px; font-family: Bangers, cursive; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; color: var(--primary); transform: rotate(-2deg);">Visible Screens</div>';
-
-  // Sort screen IDs numerically
-  const screenIds = getScreenIdsInOrder();
-  screenIds.forEach(screenId => {
-    const screen = screens[screenId];
-    const showName = screen.showName !== false;
-    const showCoords = screen.showCoordinates !== false;
-    const showPixels = screen.showPixelDimensions !== false;
-    const showCrosshair = screen.showCrosshair !== false;
-
-    const textOutline = 'text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;';
-    const safeScreenColor = safeColor(screen.color);
-    const safeScreenId = escapeJsString(screenId);
-    html += `
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; padding: 4px 6px; background: #2a2a2a; border-radius: 4px;">
-        <button type="button" class="toggle-btn ${screen.visible ? 'active' : ''}"
-                style="padding: 6px 10px; font-size: 12px; min-height: 32px; line-height: 1; display: inline-flex; align-items: center; gap: 4px; width: 120px; justify-content: flex-start; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${screen.visible ? textOutline : ''}"
-                onclick="toggleScreenVisibility('${safeScreenId}', ${!screen.visible})">
-          <span style="display: inline-block; width: 10px; height: 10px; background: ${safeScreenColor}; border: 1px solid #666; flex-shrink: 0;"></span>
-          ${escapeHtml(screen.name)}
-        </button>
-        <div style="display: flex; gap: 4px;">
-          <button type="button" class="toggle-btn ${showName ? 'active' : ''}"
-                  style="padding: 6px 8px; font-size: 12px; min-width: 44px; min-height: 32px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showName ? textOutline : ''}"
-                  onclick="toggleScreenName('${safeScreenId}')" title="Show screen name">Name</button>
-          <button type="button" class="toggle-btn ${showCoords ? 'active' : ''}"
-                  style="padding: 6px 8px; font-size: 12px; min-width: 32px; min-height: 32px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showCoords ? textOutline : ''}"
-                  onclick="toggleScreenCoordinates('${safeScreenId}')">X/Y</button>
-          <button type="button" class="toggle-btn ${showPixels ? 'active' : ''}"
-                  style="padding: 6px 8px; font-size: 12px; min-width: 42px; min-height: 32px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showPixels ? textOutline : ''}"
-                  onclick="toggleScreenPixelDimensions('${safeScreenId}')">Pixels</button>
-          <button type="button" class="toggle-btn ${showCrosshair ? 'active' : ''}"
-                  style="padding: 6px 8px; font-size: 12px; min-width: 28px; min-height: 32px; line-height: 1; border: 2px solid #000; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); ${showCrosshair ? textOutline : ''}"
-                  onclick="toggleScreenCrosshair('${safeScreenId}')" title="Show X crosshair">X</button>
-        </div>
-      </div>
-    `;
-  });
-
-  container.innerHTML = html;
-}
-
-function toggleScreenVisibility(screenId, visible) {
-  if(screens[screenId]) {
-    screens[screenId].visible = visible;
-    // Update current canvas's visibility tracking
-    if(currentCanvasId && canvases[currentCanvasId]) {
-      if(!canvases[currentCanvasId].data.screenVisibility) {
-        canvases[currentCanvasId].data.screenVisibility = {};
-      }
-      canvases[currentCanvasId].data.screenVisibility[screenId] = visible;
-
-      // If turning ON a screen, turn it OFF in all other canvases
-      if(visible) {
-        Object.keys(canvases).forEach(canvasId => {
-          if(canvasId !== currentCanvasId) {
-            if(!canvases[canvasId].data.screenVisibility) {
-              canvases[canvasId].data.screenVisibility = {};
-            }
-            canvases[canvasId].data.screenVisibility[screenId] = false;
-          }
-        });
-      }
-    }
-    // Update toggle button states and redraw canvas view
-    updateCanvasScreenToggles();
-    showCanvasView();
-  }
-}
-
-function toggleScreenCoordinates(screenId) {
-  if(screens[screenId]) {
-    // Toggle - default is true (shown), so undefined or true becomes false, false becomes true
-    screens[screenId].showCoordinates = screens[screenId].showCoordinates === false ? true : false;
-    updateCanvasScreenToggles();
-    showCanvasView();
-  }
-}
-
-function toggleScreenPixelDimensions(screenId) {
-  if(screens[screenId]) {
-    // Toggle - default is true (shown), so undefined or true becomes false, false becomes true
-    screens[screenId].showPixelDimensions = screens[screenId].showPixelDimensions === false ? true : false;
-    updateCanvasScreenToggles();
-    showCanvasView();
-  }
-}
-
-function toggleScreenCrosshair(screenId) {
-  if(screens[screenId]) {
-    // Toggle - default is true (shown), so undefined or true becomes false, false becomes true
-    screens[screenId].showCrosshair = screens[screenId].showCrosshair === false ? true : false;
-    updateCanvasScreenToggles();
-    showCanvasView();
-  }
-}
-
-function toggleScreenName(screenId) {
-  if(screens[screenId]) {
-    // Toggle - default is true (shown), so undefined or true becomes false, false becomes true
-    screens[screenId].showName = screens[screenId].showName === false ? true : false;
-    updateCanvasScreenToggles();
-    showCanvasView();
-  }
-}
 

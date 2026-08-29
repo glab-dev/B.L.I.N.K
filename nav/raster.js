@@ -24,10 +24,8 @@ function activateRasterView() {
     showCanvasView();
   }
 
-  // Hide screen toggles (redundant with the raster table), but keep the canvas
-  // info readout (resolution / visible screens / total panels) under the canvas
-  const canvasToggles = document.getElementById('canvasScreenToggles');
-  if(canvasToggles) canvasToggles.style.display = 'none';
+  // Keep the canvas info readout (resolution / visible screens / total panels)
+  // under the canvas
   const canvasInfo = document.getElementById('canvasInfo');
   if(canvasInfo) canvasInfo.style.display = '';
 
@@ -271,7 +269,6 @@ function updateRasterScreenName(screenId, value) {
     showCanvasView();
     if(typeof renderScreenTabs === 'function') renderScreenTabs();
     renderRasterScreenTable();
-    if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
   }, 500);
 }
 
@@ -432,7 +429,6 @@ function toggleRasterOverlay(screenId, property) {
   screens[screenId][property] = screens[screenId][property] === false ? true : false;
   renderRasterScreenTable();
   showCanvasView();
-  if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
 }
 
 // Toggle the CB5 half-panel row for a single screen (mirrors toggleCB5HalfRow,
@@ -484,7 +480,6 @@ function toggleRasterScreenVisible(screenId) {
 
   renderRasterScreenTable();
   showCanvasView();
-  if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
 }
 
 // ==================== ADD SCREEN ====================
@@ -568,7 +563,6 @@ function duplicateRasterScreen(screenId) {
   }
 
   if(typeof renderScreenTabs === 'function') renderScreenTabs();
-  if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
   renderRasterScreenTable();
 
   // Switch to the new screen
@@ -606,7 +600,6 @@ function updateRasterScreenColor(screenId, field, value) {
   clearTimeout(_rasterColorTimer);
   _rasterColorTimer = setTimeout(function() {
     if(typeof renderScreenTabs === 'function') renderScreenTabs();
-    if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
     if(typeof generateLayout === 'function') {
       generateLayout('standard');
       generateLayout('power');
@@ -1210,7 +1203,6 @@ function applyRasterFile(config) {
   renderRasterScreenTable();
   syncToolbarFromCanvasOptions();
   if(typeof showCanvasView === 'function') showCanvasView();
-  if(typeof updateCanvasScreenToggles === 'function') updateCanvasScreenToggles();
 
   showAlert('Raster layout "' + (config.name || 'Untitled') + '" loaded successfully! (' + Object.keys(screens).length + ' screens)');
 }

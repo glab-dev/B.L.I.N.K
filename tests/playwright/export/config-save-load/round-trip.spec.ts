@@ -59,8 +59,12 @@ test.describe('Config Save/Load Round-Trip', () => {
     });
 
     // Save using the header save icon button
+    // The header's own Save button sits in a `desktop-only` block that is hidden at this
+    // viewport; the menu's "Save As" is the path that works at any width.
+    await page.locator('button.mobile-header-btn[title="Menu"]').click();
+    await page.waitForTimeout(300);
     const downloadPromise = page.waitForEvent('download');
-    await page.locator('button.mobile-header-btn[title="Save Config"]').click();
+    await page.locator('button.mobile-menu-btn', { hasText: 'Save As' }).click();
     const download = await downloadPromise;
 
     // Save to temp file
@@ -176,8 +180,12 @@ test.describe('Config Save/Load Round-Trip', () => {
       const el = document.getElementById('configName') as HTMLInputElement;
       if (el) el.value = 'Multi_Screen_Test';
     });
+    // The header's own Save button sits in a `desktop-only` block that is hidden at this
+    // viewport; the menu's "Save As" is the path that works at any width.
+    await page.locator('button.mobile-header-btn[title="Menu"]').click();
+    await page.waitForTimeout(300);
     const downloadPromise = page.waitForEvent('download');
-    await page.locator('button.mobile-header-btn[title="Save Config"]').click();
+    await page.locator('button.mobile-menu-btn', { hasText: 'Save As' }).click();
     const download = await downloadPromise;
 
     const downloadPath = path.join(

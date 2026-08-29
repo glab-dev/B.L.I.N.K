@@ -39,14 +39,9 @@ test.describe('Structure Types', () => {
     const text = await results.textContent();
     expect(text).toContain('Bumper');
 
-    // Navigate to gear list
-    await navigation.switchToGear();
-    await page.waitForTimeout(500);
-
-    // Verify bumpers in gear list
-    const gearList = page.locator('#gearListContent');
-    const gearText = await gearList.textContent();
-    expect(gearText).toContain('Bumper');
+    // The per-screen Gear tab stopped listing rigging hardware in v2.9.17 (it lives in the
+    // Combined gear list and the PDF now), so the specs panel above is where the bumper
+    // count surfaces for a single screen.
   });
 
   test('should configure ground support structure @desktop', async ({
@@ -65,16 +60,9 @@ test.describe('Structure Types', () => {
     // Enable bumpers
     await structure.toggleBumpers(true);
 
-    // Navigate to gear list
-    await navigation.switchToGear();
-    await page.waitForTimeout(500);
-
-    // Verify ground support hardware in gear list
-    const gearList = page.locator('#gearListContent');
-    const gearText = await gearList.textContent();
-
-    // Ground support should include bumpers at bottom
-    expect(gearText).toContain('Bumper');
+    // Ground support still uses bumpers — the specs panel reports their weight.
+    const text = await page.locator('#results').textContent();
+    expect(text).toContain('Bumper');
   });
 
   test('should configure floor structure with frames @desktop', async ({
@@ -97,16 +85,20 @@ test.describe('Structure Types', () => {
     await structure.setStructureType('floor');
     await page.waitForTimeout(300);
 
-    // Navigate to gear list
-    await navigation.switchToGear();
-    await page.waitForTimeout(500);
-
-    // Verify floor frames in gear list
-    const gearList = page.locator('#gearListContent');
-    const gearText = await gearList.textContent();
-
-    // Should contain floor frames
-    expect(gearText).toContain('Frame');
+    // Floor hardware is not listed in the per-screen Gear tab (see v2.9.17), so assert the
+    // frames the app actually worked out for this wall.
+    // `screens` is a bare script-scope global, not a property of window, so evaluate it by
+    // expression rather than through a closure.
+    const frames: any = await page.evaluate(
+      'screens[currentScreenId].calculatedData.floorFrames'
+    );
+    expect(frames).toBeTruthy();
+    const frameTotal =
+      (frames.frame_1x1 || 0) +
+      (frames.frame_2x1 || 0) +
+      (frames.frame_2x2 || 0) +
+      (frames.frame_3x2 || 0);
+    expect(frameTotal).toBeGreaterThan(0);
   });
 
   test('should switch between hanging and ground structure @desktop', async ({
@@ -123,23 +115,15 @@ test.describe('Structure Types', () => {
     await structure.toggleBumpers(true);
     await page.waitForTimeout(300);
 
-    await navigation.switchToGear();
-    await page.waitForTimeout(500);
-
-    let gearText = await page.locator('#gearListContent').textContent();
-    expect(gearText).toContain('Bumper');
+    let text = await page.locator('#results').textContent();
+    expect(text).toContain('Bumper');
 
     // Switch to ground
-    await navigation.switchToComplex();
-    await page.waitForTimeout(300);
     await structure.setStructureType('ground');
     await page.waitForTimeout(300);
 
-    await navigation.switchToGear();
-    await page.waitForTimeout(500);
-
-    gearText = await page.locator('#gearListContent').textContent();
-    expect(gearText).toContain('Bumper'); // Ground also uses bumpers
+    text = await page.locator('#results').textContent();
+    expect(text).toContain('Bumper'); // Ground also uses bumpers
   });
 
   test('should toggle 4-way bumpers (CB5 only) @desktop', async ({

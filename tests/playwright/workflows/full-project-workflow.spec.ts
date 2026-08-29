@@ -86,8 +86,9 @@ test.describe('Full Project Workflow', () => {
     expect(gearText).toBeTruthy();
     expect(gearText!.length).toBeGreaterThan(0);
 
-    // Should contain bumpers (all 3 screens use hanging)
-    expect(gearText).toContain('Bumper');
+    // The per-screen Gear tab stopped listing rigging hardware in v2.9.17 — bumpers are in
+    // the Combined gear list and the PDF now — so just assert the panels made it in.
+    expect(gearText).toContain('Panels');
 
     // STEP 7: Verify Complex mode (all layouts visible)
     await navigation.switchToComplex();

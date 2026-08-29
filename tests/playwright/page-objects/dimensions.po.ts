@@ -2,18 +2,18 @@ import { Page, Locator } from '@playwright/test';
 
 /**
  * Page Object for Dimensions Section
- * Handles dimension mode, unit system, panel/wall size inputs, aspect ratio
+ * Handles unit system, panel/wall size inputs, aspect ratio
  */
 export class DimensionsSection {
   readonly page: Page;
-  readonly dimModePanelsBtn: Locator;
-  readonly dimModeSizeBtn: Locator;
   readonly unitImperialBtn: Locator;
   readonly unitMetricBtn: Locator;
   readonly panelsWideInput: Locator;
   readonly panelsHighInput: Locator;
   readonly wallWidthInput: Locator;
   readonly wallHeightInput: Locator;
+  readonly pixelsWideInput: Locator;
+  readonly pixelsHighInput: Locator;
   readonly aspectRatioNoneBtn: Locator;
   readonly aspectRatio169Btn: Locator;
   readonly aspectRatio43Btn: Locator;
@@ -24,14 +24,14 @@ export class DimensionsSection {
 
   constructor(page: Page) {
     this.page = page;
-    this.dimModePanelsBtn = page.locator('#dimModePanelsBtn');
-    this.dimModeSizeBtn = page.locator('#dimModeSizeBtn');
     this.unitImperialBtn = page.locator('#unitImperial');
     this.unitMetricBtn = page.locator('#unitMetric');
     this.panelsWideInput = page.locator('#panelsWide');
     this.panelsHighInput = page.locator('#panelsHigh');
     this.wallWidthInput = page.locator('#wallWidth');
     this.wallHeightInput = page.locator('#wallHeight');
+    this.pixelsWideInput = page.locator('#pixelsWide');
+    this.pixelsHighInput = page.locator('#pixelsHigh');
     this.aspectRatioNoneBtn = page.locator('#arNoneBtn');
     this.aspectRatio169Btn = page.locator('#ar169Btn');
     this.aspectRatio43Btn = page.locator('#ar43Btn');
@@ -41,13 +41,13 @@ export class DimensionsSection {
     this.panelTypeSelect = page.locator('#panelType');
   }
 
-  async setDimensionMode(mode: 'panels' | 'size') {
-    if (mode === 'panels') {
-      await this.dimModePanelsBtn.click();
-    } else {
-      await this.dimModeSizeBtn.click();
-    }
-    await this.page.waitForTimeout(100); // Allow UI to update
+  /**
+   * No-op. The Panels / Size / Pixels mode toggle was removed in v2.11.199 — all three
+   * input groups now render together. Kept so the many specs that called this as setup
+   * keep reading naturally; delete the calls if the concept is ever retired for good.
+   */
+  async setDimensionMode(_mode: 'panels' | 'size') {
+    // all dimension inputs are always visible
   }
 
   async setUnitSystem(system: 'imperial' | 'metric') {

@@ -16,10 +16,15 @@ test.describe('Dimensions — Size Mode @comprehensive @desktop', () => {
     await expect(dimensions.wallHeightInput).toBeVisible();
   });
 
-  test('should hide panel count inputs in Size mode', async ({ page, dimensions }) => {
-    await dimensions.setDimensionMode('size');
-    await expect(dimensions.panelsWideInput).not.toBeVisible();
-    await expect(dimensions.panelsHighInput).not.toBeVisible();
+  test('should show panel, wall size and pixel inputs together', async ({ dimensions }) => {
+    // v2.11.199 removed the Panels / Size / Pixels mode toggle — all three groups render
+    // at once, so none of them is ever hidden.
+    await expect(dimensions.panelsWideInput).toBeVisible();
+    await expect(dimensions.panelsHighInput).toBeVisible();
+    await expect(dimensions.wallWidthInput).toBeVisible();
+    await expect(dimensions.wallHeightInput).toBeVisible();
+    await expect(dimensions.pixelsWideInput).toBeVisible();
+    await expect(dimensions.pixelsHighInput).toBeVisible();
   });
 
   test('should calculate panel count from wall dimensions', async ({ page, dimensions }) => {
@@ -34,12 +39,14 @@ test.describe('Dimensions — Size Mode @comprehensive @desktop', () => {
     expect(results).toMatch(/×/);
   });
 
-  test('should switch back to Panels mode and show panel inputs', async ({ page, dimensions }) => {
-    await dimensions.setDimensionMode('size');
-    await dimensions.setDimensionMode('panels');
-    await expect(dimensions.panelsWideInput).toBeVisible();
-    await expect(dimensions.panelsHighInput).toBeVisible();
-    await expect(dimensions.wallWidthInput).not.toBeVisible();
+  test('should derive the panel counts from the wall size', async ({ page, dimensions }) => {
+    // Typing a wall size snaps the panel counts to whole panels (syncFromSize).
+    await dimensions.setWallSize(10, 8);
+    await page.waitForTimeout(300);
+    const wide = await dimensions.panelsWideInput.inputValue();
+    const high = await dimensions.panelsHighInput.inputValue();
+    expect(Number(wide)).toBeGreaterThan(0);
+    expect(Number(high)).toBeGreaterThan(0);
   });
 
   test('should show metric labels when metric selected', async ({ page, dimensions }) => {

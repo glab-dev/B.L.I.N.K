@@ -1,5 +1,5 @@
 {
-  "version": "2.11.201",
-  "updated": "2026-08-28",
-  "changelog": "Fix aspect ratio lock overwriting the wall size and pixel fields while typing"
+  "version": "2.11.202",
+  "updated": "2026-08-29",
+  "changelog": "Delete the unreachable visible-screens toggles and refresh stale Playwright specs"
 }

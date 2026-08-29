@@ -143,13 +143,4 @@ test.describe('Canvas View @comprehensive @mobile', () => {
     await expect(undoBtn).toBeVisible();
     await expect(redoBtn).toBeVisible();
   });
-
-  test('should show screen visibility toggles', async ({ page }) => {
-    const toggleContainer = page.locator('#canvasScreenToggles');
-    await expect(toggleContainer).toBeVisible();
-    // Should have at least one screen toggle button
-    const toggles = toggleContainer.locator('button');
-    const count = await toggles.count();
-    expect(count).toBeGreaterThanOrEqual(1);
-  });
 });

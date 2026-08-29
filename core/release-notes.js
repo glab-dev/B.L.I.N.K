@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.202', date: '2026-08-29', notes: 'Delete the unreachable visible-screens toggles and refresh stale Playwright specs' },
   { version: '2.11.201', date: '2026-08-28', notes: 'Fix aspect ratio lock overwriting the wall size and pixel fields while typing' },
   { version: '2.11.200', date: '2026-08-28', notes: 'Split combined gear bumpers by panel type and stop double-counting the CB5 half row' },
   { version: '2.11.199', date: '2026-08-28', notes: 'Make panel counts the source of truth and show size and pixels together' },

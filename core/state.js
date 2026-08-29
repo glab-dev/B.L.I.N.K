@@ -132,7 +132,6 @@ function getLengthUnitLabel() {
 // Kept only so project files keep round-tripping through builds that still read it. The
 // Panels/Size/Pixels mode toggle is gone - all three field pairs are always visible, and the
 // panel counts are always the source of truth.
-let currentDimensionMode = 'panels';
 
 // Rewrites the "(ft)" / "(m)" suffix on the wall size labels to match the current unit.
 function updateWallSizeUnitLabels() {

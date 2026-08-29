@@ -36,7 +36,9 @@ function reopenMenuIfNeeded() {
   }
 }
 
-// Hard refresh - tells waiting SW to activate, or clears caches and reloads
+// Applies a pending update: hands over to the new service worker as soon as it
+// has finished installing, so one tap is enough. Never deletes the offline
+// cache — the incoming worker clears the old one itself when it activates.
 function hardRefreshApp() {
   // Get the version we're updating to from the banner
   const banner = document.getElementById('updateBanner');
@@ -47,33 +49,93 @@ function hardRefreshApp() {
     localStorage.setItem('dismissedUpdateVersion', targetVersion);
   }
 
-  // If a new service worker is waiting, tell it to activate
-  // (controllerchange listener below will reload the page)
-  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-    navigator.serviceWorker.getRegistration().then(function(reg) {
-      if (reg && reg.waiting) {
-        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        return; // controllerchange listener will reload
-      }
-      // No waiting SW — do a traditional hard refresh
-      forceClearAndReload();
-    });
-  } else {
-    forceClearAndReload();
+  // Offline an update can only lose the cached app, never fetch a newer one
+  if (!navigator.onLine) {
+    showAlert('You are offline. The app will update the next time you have a connection.', 'No Connection');
+    return;
   }
+
+  if (!navigator.serviceWorker || !navigator.serviceWorker.controller) {
+    window.location.reload();
+    return;
+  }
+
+  navigator.serviceWorker.getRegistration().then(function(reg) {
+    if (!reg) {
+      window.location.reload();
+      return;
+    }
+
+    // Already downloaded and waiting — hand over straight away
+    if (reg.waiting) {
+      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      return; // controllerchange listener will reload
+    }
+
+    // Otherwise wait for the new worker to install, then hand over to it.
+    // reg.update() resolves before the worker reaches installing/waiting, so
+    // the updatefound listener has to be attached before update() is called.
+    var installStarted = false;
+    var handedOver = false;
+
+    function takeOver(worker) {
+      if (handedOver) return;
+      handedOver = true;
+      worker.postMessage({ type: 'SKIP_WAITING' });
+    }
+
+    reg.addEventListener('updatefound', function() {
+      var installing = reg.installing;
+      if (!installing) return;
+      installStarted = true;
+      installing.addEventListener('statechange', function() {
+        if (installing.state === 'installed') {
+          takeOver(installing);
+        } else if (installing.state === 'redundant') {
+          window.location.reload(); // install failed — stay on the current version
+        }
+      });
+    });
+
+    reg.update().then(function() {
+      if (reg.waiting) takeOver(reg.waiting);
+    }).catch(function() {
+      // Network hiccup — the safety net below reloads on the current version
+    });
+
+    // Safety net: if no new worker ever starts installing there is nothing to
+    // hand over to, so just reload. A slow install is left alone to finish.
+    setTimeout(function() {
+      if (!handedOver && !installStarted) window.location.reload();
+    }, 8000);
+  });
 }
 
-// Nuclear option: clear all caches and force reload from network
+// Reset the app: clear every cached file and re-download from the network.
+// Wired to the refresh button in the menu header.
 function forceClearAndReload() {
-  if ('caches' in window) {
-    caches.keys().then(function(names) {
-      return Promise.all(names.map(function(name) { return caches.delete(name); }));
-    }).then(function() {
-      window.location.reload(true);
-    });
-  } else {
-    window.location.reload(true);
+  // Offline this would delete the cached app with no way to fetch it back
+  if (!navigator.onLine) {
+    showAlert('You are offline. Connect to the internet before resetting the app.', 'No Connection');
+    return;
   }
+  var cleared = ('caches' in window)
+    ? caches.keys().then(function(names) {
+        return Promise.all(names.map(function(name) { return caches.delete(name); }));
+      })
+    : Promise.resolve();
+
+  // Unregister too, so the reload installs a fresh service worker. Clearing the
+  // cache alone leaves the current one active and it never re-runs its install,
+  // so pre-cached files nothing on the page requests would stay missing.
+  cleared.then(function() {
+    if (!navigator.serviceWorker) return;
+    return navigator.serviceWorker.getRegistration().then(function(reg) {
+      if (reg) return reg.unregister();
+    }).catch(function() {});
+  }).then(function() {
+    window.location.reload(true);
+  });
 }
 
 // Mobile View Switching

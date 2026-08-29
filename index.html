@@ -2482,7 +2482,7 @@
         <span>Settings</span>
         <span id="menuVersionNumber"></span>
       </div>
-      <button class="mobile-menu-refresh" onclick="hardRefreshApp();" title="Refresh App">&#x21bb;</button>
+      <button class="mobile-menu-refresh" onclick="forceClearAndReload();" title="Refresh App">&#x21bb;</button>
       <button class="mobile-menu-close" onclick="closeMobileMenu()">&times;</button>
     </div>
     <div class="mobile-menu-content">
@@ -3911,8 +3911,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.202';
-const APP_CHANGELOG = 'Delete the unreachable visible-screens toggles and refresh stale Playwright specs';
+const APP_VERSION = '2.11.203';
+const APP_CHANGELOG = 'Stop the refresh button wiping the offline cache and apply updates in one tap';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

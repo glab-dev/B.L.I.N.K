@@ -1,5 +1,5 @@
 {
-  "version": "2.11.202",
+  "version": "2.11.203",
   "updated": "2026-08-29",
-  "changelog": "Delete the unreachable visible-screens toggles and refresh stale Playwright specs"
+  "changelog": "Stop the refresh button wiping the offline cache and apply updates in one tap"
 }

@@ -102,14 +102,13 @@ test.describe('Cabling Section @comprehensive @mobile', () => {
   // -- Dist Box On Wall --
 
   test('should toggle dist box on wall', async ({ page, gearList }) => {
-    const distBoxLabel = page.locator('#distBoxOnWallLabel');
+    const distBoxLabel = page.locator('#xdPlacementWallBtn');
     await distBoxLabel.scrollIntoViewIfNeeded();
     // Click to enable dist box
     await distBoxLabel.click();
     await page.waitForTimeout(200);
-    // Check mark should appear
-    const checkText = await page.locator('#distBoxOnWallCheck').textContent();
-    expect(checkText).toContain('\u2713');
+    // The old checkbox + tick became a three-way At Proc / On Wall / Remote toggle
+    await expect(distBoxLabel).toHaveClass(/active/);
     // Position controls should become visible
     await gearList.distBoxPositionControls.scrollIntoViewIfNeeded();
     await expect(gearList.distBoxPositionControls).toBeVisible();
@@ -147,7 +146,7 @@ test.describe('Cabling Section @comprehensive @mobile', () => {
   });
 
   test('should set main dist box vertical position Top/Bot', async ({ page, gearList }) => {
-    const distBoxLabel = page.locator('#distBoxOnWallLabel');
+    const distBoxLabel = page.locator('#xdPlacementWallBtn');
     await distBoxLabel.scrollIntoViewIfNeeded();
     await distBoxLabel.click();
     await page.waitForTimeout(200);

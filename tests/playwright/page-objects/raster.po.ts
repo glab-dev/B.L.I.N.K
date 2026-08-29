@@ -186,8 +186,17 @@ export class RasterMode {
 
   // --- Canvas Toolbar ---
 
+  /**
+   * The canvas-size <select> is `display:none` — it only holds the value now, behind the
+   * UHD / DCI / HD / Custom preset buttons. Click those; `toolbarCanvasSize.inputValue()`
+   * still reads back the chosen size.
+   */
   async setCanvasSize(size: string) {
-    await this.toolbarCanvasSize.selectOption(size);
+    const preset = this.page.locator(
+      `[data-target="rasterToolbarCanvasSize"] button[data-size="${size}"]`
+    );
+    await preset.scrollIntoViewIfNeeded();
+    await preset.click();
     await this.page.waitForTimeout(300);
   }
 

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.203",
+  "version": "2.11.204",
   "updated": "2026-08-29",
-  "changelog": "Stop the refresh button wiping the offline cache and apply updates in one tap"
+  "changelog": "Repoint the Playwright specs at the controls that replaced the old canvas and cabling UI"
 }

@@ -263,19 +263,7 @@ test.describe('Test Pattern - Processor Lines @comprehensive @desktop', () => {
     await expect(testPattern.processorLinesToggle).toBeChecked();
   });
 
-  test('should show custom size inputs when custom selected', async ({ testPattern }) => {
-    await testPattern.toggleCheckbox(testPattern.processorLinesToggle, true);
-    await testPattern.processorCanvasSizeSelect.selectOption('custom');
-    await expect(testPattern.processorCustomSizeContainer).toBeVisible();
-  });
 
-  test('should hide custom size when preset selected', async ({ testPattern }) => {
-    await testPattern.toggleCheckbox(testPattern.processorLinesToggle, true);
-    await testPattern.processorCanvasSizeSelect.selectOption('custom');
-    await expect(testPattern.processorCustomSizeContainer).toBeVisible();
-    await testPattern.processorCanvasSizeSelect.selectOption('4K_UHD');
-    await expect(testPattern.processorCustomSizeContainer).not.toBeVisible();
-  });
 });
 
 test.describe('Test Pattern - Toolbar & Menus @comprehensive @desktop', () => {

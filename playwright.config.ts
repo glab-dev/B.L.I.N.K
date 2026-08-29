@@ -54,6 +54,9 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium-desktop',
+      // *.mobile.spec.ts assert mobile-only layout (containers hidden under the 768px
+      // breakpoint), so they belong to the mobile projects, not a 1920px desktop run.
+      testIgnore: /.*\.mobile\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1920, height: 1080 },
@@ -63,6 +66,9 @@ export default defineConfig({
 
     {
       name: 'firefox-desktop',
+      // *.mobile.spec.ts assert mobile-only layout (containers hidden under the 768px
+      // breakpoint), so they belong to the mobile projects, not a 1920px desktop run.
+      testIgnore: /.*\.mobile\.spec\.ts/,
       use: {
         ...devices['Desktop Firefox'],
         viewport: { width: 1920, height: 1080 },
@@ -71,6 +77,9 @@ export default defineConfig({
 
     {
       name: 'webkit-desktop',
+      // *.mobile.spec.ts assert mobile-only layout (containers hidden under the 768px
+      // breakpoint), so they belong to the mobile projects, not a 1920px desktop run.
+      testIgnore: /.*\.mobile\.spec\.ts/,
       use: {
         ...devices['Desktop Safari'],
         viewport: { width: 1920, height: 1080 },

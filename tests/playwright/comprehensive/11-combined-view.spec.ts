@@ -122,8 +122,9 @@ test.describe('Combined View @comprehensive @desktop', () => {
 
   test('should display combined cabling section', async ({ page }) => {
     await expect(page.locator('#combinedCablingContainer')).toBeVisible();
-    // Combined cabling inputs should be present
-    await expect(page.locator('#combinedCablingWallToFloor')).toBeVisible();
+    // The combined cabling view is read-only now — its own inputs were removed, cabling is
+    // edited per screen on the Cable tab — so assert the assembled content instead.
+    await expect(page.locator('#combinedCablingContent')).toBeVisible();
   });
 
   test('should display combined specs section', async ({ page }) => {

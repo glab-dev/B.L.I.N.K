@@ -57,19 +57,16 @@ test.describe('Canvas View @comprehensive @mobile', () => {
   });
 
   test('should set canvas size to 4K DCI', async ({ page, canvasView }) => {
-    await canvasView.canvasSizeSelect.scrollIntoViewIfNeeded();
     await canvasView.setCanvasSize('4K_DCI');
     await expect(canvasView.canvasSizeSelect).toHaveValue('4K_DCI');
   });
 
   test('should set canvas size to HD', async ({ page, canvasView }) => {
-    await canvasView.canvasSizeSelect.scrollIntoViewIfNeeded();
     await canvasView.setCanvasSize('HD');
     await expect(canvasView.canvasSizeSelect).toHaveValue('HD');
   });
 
   test('should set custom canvas size', async ({ page, canvasView }) => {
-    await canvasView.canvasSizeSelect.scrollIntoViewIfNeeded();
     await canvasView.setCustomCanvasSize(2000, 1000);
     await expect(canvasView.canvasSizeSelect).toHaveValue('custom');
     // Custom W/H wrapper divs should be visible
@@ -78,7 +75,6 @@ test.describe('Canvas View @comprehensive @mobile', () => {
   });
 
   test('should cycle through all canvas size options', async ({ page, canvasView }) => {
-    await canvasView.canvasSizeSelect.scrollIntoViewIfNeeded();
     const sizes = ['4K_UHD', '4K_DCI', 'HD', 'custom'];
     for (const size of sizes) {
       await canvasView.setCanvasSize(size);
@@ -118,24 +114,7 @@ test.describe('Canvas View @comprehensive @mobile', () => {
     await expect(canvasView.fineInput).toHaveValue('5');
   });
 
-  test('should set export filename', async ({ page, canvasView }) => {
-    await canvasView.filenameInput.scrollIntoViewIfNeeded();
-    await canvasView.filenameInput.fill('TestExport');
-    await expect(canvasView.filenameInput).toHaveValue('TestExport');
-  });
 
-  test('should select export format PNG/JPEG/Resolume', async ({ page, canvasView }) => {
-    await canvasView.formatSelect.scrollIntoViewIfNeeded();
-
-    await canvasView.formatSelect.selectOption('jpeg');
-    await expect(canvasView.formatSelect).toHaveValue('jpeg');
-
-    await canvasView.formatSelect.selectOption('resolume');
-    await expect(canvasView.formatSelect).toHaveValue('resolume');
-
-    await canvasView.formatSelect.selectOption('png');
-    await expect(canvasView.formatSelect).toHaveValue('png');
-  });
 
   test('should show canvas undo/redo buttons', async ({ page }) => {
     const undoBtn = page.locator('#canvasUndoBtn');

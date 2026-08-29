@@ -617,9 +617,9 @@ test.describe('Build 3-screen show with knockouts and custom circuits @desktop',
     // Set canvas position for C screen
     await navigation.switchToCanvas();
     await page.waitForTimeout(300);
-    await page.locator('#canvasX').fill('480');
-    await page.locator('#canvasY').fill('60');
-    await page.locator('#canvasY').blur();
+    await page.locator('#rasterToolbarX').fill('480');
+    await page.locator('#rasterToolbarY').fill('60');
+    await page.locator('#rasterToolbarY').blur();
     await page.waitForTimeout(300);
     await navigation.switchToComplex();
     await page.waitForTimeout(300);
@@ -681,9 +681,9 @@ test.describe('Build 3-screen show with knockouts and custom circuits @desktop',
     // Set canvas position for SL screen
     await navigation.switchToCanvas();
     await page.waitForTimeout(300);
-    await page.locator('#canvasX').fill('960');
-    await page.locator('#canvasY').fill('0');
-    await page.locator('#canvasY').blur();
+    await page.locator('#rasterToolbarX').fill('960');
+    await page.locator('#rasterToolbarY').fill('0');
+    await page.locator('#rasterToolbarY').blur();
     await page.waitForTimeout(300);
     await navigation.switchToComplex();
     await page.waitForTimeout(300);
@@ -719,7 +719,7 @@ test.describe('Build 3-screen show with knockouts and custom circuits @desktop',
     const gearText = await gearContent.textContent();
     expect(gearText!.length).toBeGreaterThan(0);
     // Should contain bumpers (all 3 screens use hanging with bumpers)
-    expect(gearText).toContain('Bumper');
+    expect(gearText).toContain('Panels'); // rigging left the per-screen Gear tab in v2.9.17
 
     // ── Return to Complex mode and scroll through layouts ──
     await navigation.switchToComplex();

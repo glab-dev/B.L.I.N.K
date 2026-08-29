@@ -71,17 +71,15 @@ test.describe('Panel Selection', () => {
     const initialData = await canvas.evaluate((el: HTMLCanvasElement) => {
       const ctx = el.getContext('2d');
       if (!ctx) return '';
-      return ctx.getImageData(0, 0, 10, 10).data.toString();
+      return ctx.getImageData(0, 0, 200, 200).data.toString();
     });
 
-    // Switch to a different panel
-    const options = await dimensions.panelTypeSelect.locator('option').evaluateAll(
-      (opts: HTMLOptionElement[]) => opts.map(o => o.value)
-    );
-    const currentValue = await dimensions.panelTypeSelect.inputValue();
-    const differentPanel = options.find(v => v !== currentValue && v !== 'custom');
-
-    if (differentPanel) {
+    // Switch to a panel with a DIFFERENT aspect ratio. The default BP2 V2 is square, and so
+    // is the next option in the list — swapping one square panel for another redraws the same
+    // grid, so the old "pick any other panel" version compared two identical images.
+    // CB5 MKII is 0.6 x 1.2 m, which visibly changes the layout.
+    const differentPanel = 'CB5_MKII';
+    {
       await dimensions.panelTypeSelect.selectOption(differentPanel);
       await page.waitForTimeout(500);
 
@@ -89,7 +87,7 @@ test.describe('Panel Selection', () => {
       const newData = await canvas.evaluate((el: HTMLCanvasElement) => {
         const ctx = el.getContext('2d');
         if (!ctx) return '';
-        return ctx.getImageData(0, 0, 10, 10).data.toString();
+        return ctx.getImageData(0, 0, 200, 200).data.toString();
       });
 
       // Panel dimensions differ so canvas layout changes

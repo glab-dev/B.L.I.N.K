@@ -105,24 +105,7 @@ test.describe('Canvas View @comprehensive @desktop', () => {
     await expect(canvasView.fineInput).toHaveValue('5');
   });
 
-  test('should set export filename', async ({ page, canvasView }) => {
-    await canvasView.filenameInput.scrollIntoViewIfNeeded();
-    await canvasView.filenameInput.fill('TestExport');
-    await expect(canvasView.filenameInput).toHaveValue('TestExport');
-  });
 
-  test('should select export format PNG/JPEG/Resolume', async ({ page, canvasView }) => {
-    await canvasView.formatSelect.scrollIntoViewIfNeeded();
-
-    await canvasView.formatSelect.selectOption('jpeg');
-    await expect(canvasView.formatSelect).toHaveValue('jpeg');
-
-    await canvasView.formatSelect.selectOption('resolume');
-    await expect(canvasView.formatSelect).toHaveValue('resolume');
-
-    await canvasView.formatSelect.selectOption('png');
-    await expect(canvasView.formatSelect).toHaveValue('png');
-  });
 
   test('should show canvas undo/redo buttons', async ({ page }) => {
     const undoBtn = page.locator('#canvasUndoBtn');

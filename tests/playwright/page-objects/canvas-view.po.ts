@@ -68,10 +68,21 @@ export class CanvasView {
     await this.page.waitForTimeout(100);
   }
 
+  /**
+   * The canvas-size <select> is now `display:none` — it survives only as the value holder
+   * behind the UHD / DCI / HD / Custom preset buttons, so drive those instead. Reading
+   * `canvasSizeSelect.inputValue()` afterwards still works and is what the specs assert.
+   */
   async setCanvasSize(size: string) {
-    await this.canvasSizeSelect.scrollIntoViewIfNeeded();
-    await this.canvasSizeSelect.selectOption(size);
+    await this.canvasSizePreset(size).scrollIntoViewIfNeeded();
+    await this.canvasSizePreset(size).click();
     await this.page.waitForTimeout(200);
+  }
+
+  canvasSizePreset(size: string): Locator {
+    return this.page.locator(
+      `[data-target="rasterToolbarCanvasSize"] button[data-size="${size}"]`
+    );
   }
 
   async setCustomCanvasSize(width: number, height: number) {

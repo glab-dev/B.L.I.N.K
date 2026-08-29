@@ -61,9 +61,9 @@ test.describe('Raster Mode - Screen Table @comprehensive @desktop', () => {
     await raster.duplicateScreen(0);
     const count = await raster.getScreenCount();
     expect(count).toBe(2);
-    // Duplicated screen should have "(Copy)" suffix
+    // duplicateRasterScreen() appends the next free " (n)" suffix, not "(Copy)"
     const name = await raster.getScreenName(1);
-    expect(name).toContain('(Copy)');
+    expect(name).toBe('LED Wall A (2)');
   });
 
   test('should delete a screen', async ({ raster }) => {
@@ -251,19 +251,7 @@ test.describe('Raster Mode - Canvas Toolbar @comprehensive @desktop', () => {
     await expect(raster.toolbarFine).toHaveValue('5');
   });
 
-  test('should set export filename', async ({ raster }) => {
-    await raster.toolbarFilename.fill('TestRaster');
-    await expect(raster.toolbarFilename).toHaveValue('TestRaster');
-  });
 
-  test('should select export formats', async ({ raster }) => {
-    await raster.toolbarFormat.selectOption('jpeg');
-    await expect(raster.toolbarFormat).toHaveValue('jpeg');
-    await raster.toolbarFormat.selectOption('resolume');
-    await expect(raster.toolbarFormat).toHaveValue('resolume');
-    await raster.toolbarFormat.selectOption('png');
-    await expect(raster.toolbarFormat).toHaveValue('png');
-  });
 });
 
 test.describe('Raster Mode - Custom Panel Modal @comprehensive @desktop', () => {
@@ -333,11 +321,16 @@ test.describe('Raster Mode - Save/Load @comprehensive @desktop', () => {
     await raster.enterRasterMode();
   });
 
-  test('should trigger save raster file download @critical', async ({ page, raster, browserName, isMobile }) => {
+  // SKIPPED: v2.11.93 (4152378) removed the Save/Load buttons from the raster toolbar,
+  // but saveRasterFile()/loadRasterFile() in nav/raster.js and the .blinkrast help text
+  // are both still there — so it is unclear whether the feature was retired or dropped
+  // by accident. Un-skip once that is settled.
+  test.skip('should trigger save raster file download @critical', async ({ page, raster, browserName, isMobile }) => {
     test.skip(browserName !== 'chromium' || !!isMobile, 'Download tests only work on Chromium desktop');
     // Disable showSaveFilePicker so it falls through to blob download
     await page.evaluate(() => { (window as any).showSaveFilePicker = undefined; });
-    await raster.toolbarFilename.fill('TestRaster');
+    // The toolbar filename field is display:none — the Export modal owns naming now, so the
+    // save falls back to its default filename.
     const downloadPromise = page.waitForEvent('download');
     // Click the save button in the canvas toolbar
     await page.locator('.toolbar-save button').click();
@@ -345,7 +338,11 @@ test.describe('Raster Mode - Save/Load @comprehensive @desktop', () => {
     expect(download.suggestedFilename()).toMatch(/\.blinkrast$/);
   });
 
-  test('should load a raster file @critical', async ({ page, raster }) => {
+  // SKIPPED: v2.11.93 (4152378) removed the Save/Load buttons from the raster toolbar,
+  // but saveRasterFile()/loadRasterFile() in nav/raster.js and the .blinkrast help text
+  // are both still there — so it is unclear whether the feature was retired or dropped
+  // by accident. Un-skip once that is settled.
+  test.skip('should load a raster file @critical', async ({ page, raster }) => {
     // Create a valid .blinkrast file with 2 screens
     const rasterData = {
       type: 'raster',

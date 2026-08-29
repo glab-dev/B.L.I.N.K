@@ -89,19 +89,22 @@ test.describe('Cabling Section @comprehensive @desktop', () => {
   // ── Dist Box On Wall ──
 
   test('should toggle dist box on wall', async ({ page, gearList }) => {
-    // Click to enable dist box
-    await page.locator('#distBoxOnWallLabel').click();
+    // The old "Dist Box On Wall" checkbox is now a three-way At Proc / On Wall / Remote
+    // toggle; picking On Wall is what reveals the position controls.
+    await page.locator('#xdPlacementWallBtn').click();
     await page.waitForTimeout(200);
-    // Check mark should appear
-    const checkText = await page.locator('#distBoxOnWallCheck').textContent();
-    expect(checkText).toContain('✓');
-    // Position controls should become visible
+    await expect(page.locator('#xdPlacementWallBtn')).toHaveClass(/active/);
     await expect(gearList.distBoxPositionControls).toBeVisible();
+
+    // Back to At Proc hides them again
+    await page.locator('#xdPlacementProcBtn').click();
+    await page.waitForTimeout(200);
+    await expect(gearList.distBoxPositionControls).not.toBeVisible();
   });
 
   test('should set main dist box horizontal position SR/C/SL', async ({ page, gearList }) => {
-    // Enable dist box first
-    await page.locator('#distBoxOnWallLabel').click();
+    // Enable dist box first (On Wall reveals the position controls)
+    await page.locator('#xdPlacementWallBtn').click();
     await page.waitForTimeout(200);
 
     await gearList.setDistBoxMainHorizPosition('sr');
@@ -116,7 +119,7 @@ test.describe('Cabling Section @comprehensive @desktop', () => {
   });
 
   test('should set main dist box vertical position Top/Bot', async ({ page, gearList }) => {
-    await page.locator('#distBoxOnWallLabel').click();
+    await page.locator('#xdPlacementWallBtn').click();
     await page.waitForTimeout(200);
 
     await gearList.setDistBoxMainVertPosition('bottom');

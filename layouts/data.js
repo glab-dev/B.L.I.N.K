@@ -464,6 +464,16 @@ function drawDataOverlay(ctx, o) {
     } else {
       // For serpentine patterns, only draw arrows between ADJACENT panels in same data line
       // Build segments of continuous adjacent panels
+      // Top-most / bottom-most live row of each column — a serpentine turn happens
+      // at a column's effective end, which moves when edge panels are deleted.
+      const colTop = [], colBottom = [];
+      for(let c=0; c<pw; c++){
+        for(let r=0; r<ph; r++){
+          if(deletedPanels.has(`${c},${r}`)) continue;
+          if(colTop[c] === undefined) colTop[c] = r;
+          colBottom[c] = r;
+        }
+      }
       for(let gi=0; gi<groupPoints.length; gi++){
         const pts = groupPoints[gi];
         const grp = groups[gi];
@@ -486,7 +496,9 @@ function drawDataOverlay(ctx, o) {
           // at a column's effective bottom (e.g. a 2-row strip turning at row 1, where the
           // rows below are deleted), not just the full-grid top/bottom boundary.
           const isAdjacent = (colDiff === 0) || // same column
-                             (colDiff === 1 && (rowDiff === 0 || prev.r === 0 || prev.r === ph-1 || curr.r === 0 || curr.r === ph-1)); // adjacent column at turn
+                             (colDiff === 1 && (rowDiff === 0 || prev.r === 0 || prev.r === ph-1 || curr.r === 0 || curr.r === ph-1 ||
+                               (prev.r === colTop[prev.c] && curr.r === colTop[curr.c]) ||
+                               (prev.r === colBottom[prev.c] && curr.r === colBottom[curr.c]))); // adjacent column at turn
 
           if(isAdjacent) {
             currentSegment.push(pts[i]);

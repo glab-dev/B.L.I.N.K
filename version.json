@@ -1,5 +1,5 @@
 {
-  "version": "2.11.204",
-  "updated": "2026-08-29",
-  "changelog": "Repoint the Playwright specs at the controls that replaced the old canvas and cabling UI"
+  "version": "2.11.205",
+  "updated": "2026-10-15",
+  "changelog": "Make combined layouts follow the standard arrangement and fix serpentine data turns"
 }

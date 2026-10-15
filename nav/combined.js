@@ -2642,11 +2642,42 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
   drawCombinedSelectionOverlay(ctx, 'combinedStandardCanvas');
 }
 
+// Where a screen sits on the unzoomed power/data/structure canvases. Same placement as
+// renderCombinedStandardLayout() — mirrored Canvas positions or the manual drag offsets —
+// so every combined layout arranges the screens exactly like the standard one.
+function combinedScreenOrigin(dim, panelSize, topPadding) {
+  const leftPadding = 20;
+  if(combinedMirrorCanvas) {
+    const panelInfo = getAllPanels()[dim.data.panelType || 'CB5_MKII'];
+    const pixelWidth = panelInfo ? panelInfo.res_x : 176;
+    return {
+      x: leftPadding + ((dim.data.canvasX || 0) / pixelWidth) * panelSize,
+      y: topPadding + ((dim.data.canvasY || 0) / pixelWidth) * panelSize
+    };
+  }
+  const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
+  return { x: leftPadding + dim.x + customPos.x, y: topPadding + customPos.y };
+}
+
+// Canvas size that fits every screen at its combinedScreenOrigin(), never smaller than the
+// default side-by-side size.
+function combinedArrangedCanvasSize(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding) {
+  let width = canvasWidth;
+  let height = canvasHeight;
+  screenDimensions.forEach(dim => {
+    const origin = combinedScreenOrigin(dim, panelSize, topPadding);
+    width = Math.max(width, origin.x + dim.pw * panelSize + 20);
+    height = Math.max(height, origin.y + combinedRowGeometry(dim.data, panelSize).totalH + topPadding);
+  });
+  return { width, height };
+}
+
 // Render combined power layout
 function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding) {
   const canvas = document.getElementById('combinedPowerCanvas');
   if(!canvas) return;
 
+  ({ width: canvasWidth, height: canvasHeight } = combinedArrangedCanvasSize(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding));
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
   const ctx = canvas.getContext('2d');
@@ -2655,7 +2686,6 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
   ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#000';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  const leftPadding = 20;
 
   // Shared-distro group balancing is solved once for the whole distro, not per screen.
   const _groupPlan = (typeof sharedDistroBalancedPlan === 'function') ? sharedDistroBalancedPlan() : null;
@@ -2664,9 +2694,8 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
 
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x, screenId } = dim;
-    // Use the default x position from screenDimensions (no custom positioning)
-    const screenX = leftPadding + x;
-    const screenY = topPadding;
+    // Same arrangement as the standard layout (manual drags / mirrored Canvas positions)
+    const { x: screenX, y: screenY } = combinedScreenOrigin(dim, panelSize, topPadding);
 
     // Publish what this screen was drawn at, for hit detection + the selection overlay.
     // Note this canvas draws at the UNZOOMED panelSize, unlike the standard canvas.
@@ -3131,6 +3160,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
   const canvas = document.getElementById('combinedDataCanvas');
   if(!canvas) return;
 
+  ({ width: canvasWidth, height: canvasHeight } = combinedArrangedCanvasSize(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding));
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
   const ctx = canvas.getContext('2d');
@@ -3139,15 +3169,13 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
   ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#000';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  const leftPadding = 20;
   const mapSections = []; // per-screen Mains/Backups, built from the endpoints actually drawn
   const hitEntries = [];
 
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x, screenId } = dim;
-    // Use the default x position from screenDimensions (no custom positioning)
-    const screenX = leftPadding + x;
-    const screenY = topPadding;
+    // Same arrangement as the standard layout (manual drags / mirrored Canvas positions)
+    const { x: screenX, y: screenY } = combinedScreenOrigin(dim, panelSize, topPadding);
 
     // Publish what this screen was drawn at, for hit detection + the selection overlay.
     // Note this canvas draws at the UNZOOMED panelSize, unlike the standard canvas.
@@ -3554,20 +3582,57 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 
   // Add extra height for bumpers at top and bottom
   const bumperHeight = Math.max(25, panelSize * 0.7);
+  ({ width: canvasWidth, height: canvasHeight } = combinedArrangedCanvasSize(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding));
+
+  // Each screen here is drawn taller than in the standard layout — name label above, top
+  // bumpers pushing the panels down, bottom bumpers below — so a screen placed under another
+  // would run into it. Push such screens down until there's a clear gap, and lift the whole
+  // arrangement if a label would fall off the top edge.
+  const labelSpace = 30;
+  const stackGap = 15;
+  const structBoxes = screenDimensions.map(dim => {
+    const origin = combinedScreenOrigin(dim, panelSize, topPadding);
+    const bumpers = dim.data.bumpers || [];
+    const totalH = combinedRowGeometry(dim.data, panelSize).totalH;
+    return {
+      screenId: dim.screenId,
+      y: origin.y,
+      bottom: origin.y + totalH,
+      below: (bumpers.some(b => b.position === 'top') ? bumperHeight + 5 : 0) + totalH +
+             (bumpers.some(b => b.position === 'bottom') ? bumperHeight + 5 : 0),
+      shift: 0
+    };
+  }).sort((a, b) => a.y - b.y);
+  structBoxes.forEach((box, i) => {
+    for(let j = 0; j < i; j++) {
+      const above = structBoxes[j];
+      if(above.bottom > box.y) continue;
+      box.shift = Math.max(box.shift, above.y + above.shift + above.below + stackGap - (box.y - labelSpace));
+    }
+  });
+  const minStructTop = Math.min(...structBoxes.map(box => box.y + box.shift - labelSpace));
+  const structLift = Math.max(0, 10 - minStructTop);
+  const structTops = {};
+  let structBottom = 0;
+  structBoxes.forEach(box => {
+    structTops[box.screenId] = box.y + box.shift + structLift;
+    structBottom = Math.max(structBottom, structTops[box.screenId] + box.below);
+  });
+
   canvas.width = canvasWidth;
-  canvas.height = canvasHeight + bumperHeight * 2 + 20; // Extra space for bumpers
+  canvas.height = Math.max(canvasHeight + bumperHeight * 2 + 20, structBottom + 20); // Extra space for bumpers
   const ctx = canvas.getContext('2d');
 
   // Dark background (same as original structure layout)
   ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const leftPadding = 20;
 
   screenDimensions.forEach(dim => {
     const { screen, data, pw, ph, x, screenId } = dim;
-    // Use the default x position from screenDimensions (no custom positioning)
-    const screenX = leftPadding + x;
+    // Same arrangement as the standard layout (manual drags / mirrored Canvas positions)
+    const { x: screenX } = combinedScreenOrigin(dim, panelSize, topPadding);
+    const screenTop = structTops[screenId];
     const structureType = data.structureType || 'hanging';
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
@@ -3608,8 +3673,8 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     const hasTopBumpers = screenBumpers.some(b => b.position === 'top');
     const hasBottomBumpers = screenBumpers.some(b => b.position === 'bottom');
 
-    // Calculate panel Y position based on bumper placement (no custom positioning)
-    let panelYOffset = topPadding;
+    // Calculate panel Y position based on bumper placement
+    let panelYOffset = screenTop;
     if(hasTopBumpers) {
       panelYOffset += bumperHeight + 5;
     }
@@ -3665,7 +3730,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 
         if(bumper.position === 'top') {
           // Top bumpers
-          bumperY = topPadding;
+          bumperY = screenTop;
         } else {
           // Bottom bumpers - use total screen height which accounts for half panel row
           bumperY = panelYOffset + screenTotalHeight + 5;
@@ -3713,7 +3778,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     ctx.textAlign = 'center';
     let labelY;
     if(hasTopBumpers) {
-      labelY = topPadding - 15;
+      labelY = screenTop - 15;
     } else {
       labelY = panelYOffset - 15;
     }

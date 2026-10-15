@@ -149,6 +149,15 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     const headLen = Math.max(8, panelResX * 0.2);
+    // Top-most / bottom-most live row of each column (turns move when edge panels are deleted)
+    const colTop = [], colBottom = [];
+    for(let c = 0; c < pw; c++) {
+      for(let r = 0; r < effectivePh; r++) {
+        if(deletedSet.has(`${c},${r}`)) continue;
+        if(colTop[c] === undefined) colTop[c] = r;
+        colBottom[c] = r;
+      }
+    }
     sortedLines.forEach(ln => {
       const grp = ordering[ln];
       if(!grp || grp.length < 2) return;
@@ -159,7 +168,9 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
         const prev = grp[i - 1], curr = grp[i];
         const colDiff = Math.abs(curr.col - prev.col), rowDiff = Math.abs(curr.row - prev.row);
         const isAdjacent = (colDiff === 0) ||
-          (colDiff === 1 && (rowDiff === 0 || prev.row === 0 || prev.row === effectivePh - 1 || curr.row === 0 || curr.row === effectivePh - 1));
+          (colDiff === 1 && (rowDiff === 0 || prev.row === 0 || prev.row === effectivePh - 1 || curr.row === 0 || curr.row === effectivePh - 1 ||
+            (prev.row === colTop[prev.col] && curr.row === colTop[curr.col]) ||
+            (prev.row === colBottom[prev.col] && curr.row === colBottom[curr.col])));
         if(isAdjacent) seg.push(curr);
         else { if(seg.length >= 2) segments.push(seg); seg = [curr]; }
       }

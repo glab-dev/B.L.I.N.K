@@ -1,5 +1,5 @@
 {
-  "version": "2.11.211",
+  "version": "2.11.212",
   "updated": "2026-10-15",
-  "changelog": "Limit the auto-shown release notes popup to updates since the last seen version"
+  "changelog": "Line up the Cable tab Source lock hint with its input on mobile"
 }

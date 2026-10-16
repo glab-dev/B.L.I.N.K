@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.212', date: '2026-10-15', notes: 'Line up the Cable tab Source lock hint with its input on mobile' },
   { version: '2.11.211', date: '2026-10-15', notes: 'Limit the auto-shown release notes popup to updates since the last seen version' },
   { version: '2.11.210', date: '2026-10-15', notes: 'Ask whether overflow processors share a source and lock Cable tab feeds for multi-screen projects' },
   { version: '2.11.209', date: '2026-10-15', notes: 'Stop Source feed edits jumping the page and tidy the cable input layout' },

@@ -7416,6 +7416,16 @@ input[type="number"].spare-qty-input::placeholder {
     gap: 8px;
     align-items: end;
   }
+  /* Cable tab lock hint sits in the grid cell beside Source to Proc: match that input's
+     box (39px on mobile) and bottom-align it so both line up top and bottom */
+  #sourceFeedLockHint {
+    align-self: end;
+    margin: 0;
+    min-height: 39px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+  }
 }
 
 /* Combined screen toggles */

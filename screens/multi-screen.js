@@ -933,6 +933,8 @@ function duplicateScreen() {
   // Sets/Maps that don't survive a plain JSON clone).
   clonedData.undoHistory = [];
   clonedData.redoHistory = [];
+  // A split belongs to its screen's own canvases; the copy gets its own when it is drawn
+  delete clonedData.split;
 
   const _baseName = sourceScreen.name.replace(/ \(\d+\)$/, '');
   const _existingNames = Object.values(screens).map(s => s.name);

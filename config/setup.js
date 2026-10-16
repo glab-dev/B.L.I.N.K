@@ -33,10 +33,11 @@ function setupLive(){
     // Determine which screen to move - selected screen takes priority
     const screenToMove = selectedCanvasScreenId || currentScreenId;
 
-    if(screens[screenToMove]) {
-      // Update the screen's position
-      screens[screenToMove].data.canvasX = newX;
-      screens[screenToMove].data.canvasY = newY;
+    const moveItem = (typeof canvasItem === 'function') ? canvasItem(screenToMove) : screens[screenToMove];
+    if(moveItem) {
+      // Update the screen's (or split part's) position
+      moveItem.data.canvasX = newX;
+      moveItem.data.canvasY = newY;
 
       // If moving the current screen, also update global offset variables
       if(screenToMove === currentScreenId) {

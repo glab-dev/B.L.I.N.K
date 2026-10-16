@@ -314,6 +314,16 @@ function resetCalculator() {
     // Preserve canvas offsets — position is independent of panel configuration
     const savedCanvasX = screens[currentScreenId].data.canvasX || 0;
     const savedCanvasY = screens[currentScreenId].data.canvasY || 0;
+    // A split screen is switched on in each of its parts' canvases; the reset screen is
+    // whole again, so it stays only on the first part's canvas
+    const resetSplit = screens[currentScreenId].data.split;
+    if(resetSplit && typeof canvases !== 'undefined') {
+      resetSplit.parts.slice(1).forEach(part => {
+        const d = canvases[part.canvasId] && canvases[part.canvasId].data;
+        if(d && d.screenVisibility) d.screenVisibility[currentScreenId] = false;
+      });
+      screens[currentScreenId].visible = resetSplit.parts[0].canvasId === currentCanvasId;
+    }
     // Reset the screen data to defaults
     screens[currentScreenId].data = {
       panelsWide: '',

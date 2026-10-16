@@ -1,5 +1,5 @@
 {
-  "version": "2.11.213",
-  "updated": "2026-10-15",
-  "changelog": "Warn when a screen is too big for one processor input or canvas"
+  "version": "2.11.214",
+  "updated": "2026-10-16",
+  "changelog": "Split screens too big for one processor across seamless canvases with adjustable parts"
 }

@@ -123,6 +123,7 @@ function buildCurrentConfig() {
         cableRearView: data.cableRearView,
         canvasX: data.canvasX,
         canvasY: data.canvasY,
+        split: data.split || undefined,
         canvasSize: data.canvasSize,
         customCanvasWidth: data.customCanvasWidth,
         customCanvasHeight: data.customCanvasHeight,
@@ -605,6 +606,28 @@ function applyConfiguration(config, fileNameOverride) {
       currentCanvasId = null;
       if(typeof initializeCanvases === 'function') initializeCanvases();
     }
+
+    // Validate each screen's split (untrusted file input). Anything malformed, or pointing
+    // at a canvas that didn't come back, is dropped — the canvas view re-splits the screen
+    // if it still doesn't fit.
+    Object.keys(screens).forEach(sid => {
+      const split = screens[sid].data.split;
+      if(split === undefined) return;
+      const sizesOk = arr => Array.isArray(arr) && arr.length > 0 && arr.length <= 32 &&
+        arr.every(n => Number.isInteger(n) && n > 0);
+      const valid = split && typeof split === 'object' && sizesOk(split.cols) && sizesOk(split.rows) &&
+        Array.isArray(split.parts) && split.parts.length === split.cols.length * split.rows.length &&
+        split.parts.every(p => p && typeof p === 'object' && typeof p.canvasId === 'string' && canvases[p.canvasId] &&
+          typeof p.x === 'number' && isFinite(p.x) && typeof p.y === 'number' && isFinite(p.y));
+      if(valid) {
+        screens[sid].data.split = {
+          cols: split.cols.slice(), rows: split.rows.slice(),
+          parts: split.parts.map(p => ({ canvasId: p.canvasId, x: p.x, y: p.y }))
+        };
+      } else {
+        delete screens[sid].data.split;
+      }
+    });
 
     // Restore global settings with validation
     displayLengthUnit = (config.displayLengthUnit === 'ft' || config.displayLengthUnit === 'm') ? config.displayLengthUnit : 'ft';

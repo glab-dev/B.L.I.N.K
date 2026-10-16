@@ -618,19 +618,21 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
         // coordinate to the top-right corner (smaller) so the data line/label can
         // occupy the panel center.
         ctx.fillStyle = '#FFFFFF';
+        // A split part labels its panels by their place on the whole wall
+        const panelLabel = `${c + 1 + (screenData.splitColOffset || 0)}.${r + 1 + (screenData.splitRowOffset || 0)}`;
         if(dataOverlay && dataOverlay.active) {
           const cornerFont = Math.max(10, Math.min(panelResX, panelResY) / 6);
           ctx.font = `${cornerFont}px Arial`;
           ctx.textAlign = 'right';
           ctx.textBaseline = 'top';
           const pad = Math.max(3, panelResX * 0.05);
-          ctx.fillText(`${c+1}.${r+1}`, xBase + panelResX - pad, y + pad);
+          ctx.fillText(panelLabel, xBase + panelResX - pad, y + pad);
         } else {
           const fontSize = Math.max(12, Math.min(panelResX, panelResY) / 4);
           ctx.font = `${fontSize}px Arial`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(`${c+1}.${r+1}`, xBase + panelResX/2, y + panelResY/2);
+          ctx.fillText(panelLabel, xBase + panelResX/2, y + panelResY/2);
         }
       }
     }
@@ -934,6 +936,10 @@ function showCanvasView(){
   // Get all panels (built-in + custom) for use throughout this function
   const allPanels = getAllPanels();
 
+  // Split any screen that no longer fits one processor input / canvas (and undo splits
+  // that are no longer needed) before drawing
+  syncScreenSplits();
+
   // Clear any cached canvas image to ensure fresh render
   cachedCanvasImageData = null;
   cachedCanvasImageDataForExport = null;
@@ -1071,29 +1077,21 @@ function showCanvasView(){
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, canvasResX, canvasResY);
   
-  // Sort screen IDs numerically
-  const screenIds = getScreenIdsInOrder();
-  
   // Per-canvas data overlay toggles (independent per canvas tab)
   const _canvasData = (currentCanvasId && canvases[currentCanvasId] && canvases[currentCanvasId].data) || {};
   const _showDataLines = !!_canvasData.showDataLines;
   const _showDataLabels = !!_canvasData.showDataLabels;
   const _dataOverlaysActive = _showDataLines || _showDataLabels;
 
-  // Draw each visible screen
-  screenIds.forEach(screenId => {
-    const screen = screens[screenId];
-
-    // Skip invisible screens
-    if(!screen.visible) return;
-
+  // Draw each visible screen (or, for a split screen, its parts on this canvas)
+  canvasItemsOnCurrentCanvas().forEach(screen => {
     const screenData = screen.data;
 
     // Ensure canvas position is a valid number, default to 0
     const offsetX = (typeof screenData.canvasX === 'number' && !isNaN(screenData.canvasX)) ? screenData.canvasX : 0;
     const offsetY = (typeof screenData.canvasY === 'number' && !isNaN(screenData.canvasY)) ? screenData.canvasY : 0;
 
-    console.log(`showCanvasView rendering ${screenId}: offsetX=${offsetX}, offsetY=${offsetY}, screenData.canvasX=${screenData.canvasX}, screenData.canvasY=${screenData.canvasY}`);
+    console.log(`showCanvasView rendering ${canvasItemId(screen)}: offsetX=${offsetX}, offsetY=${offsetY}, screenData.canvasX=${screenData.canvasX}, screenData.canvasY=${screenData.canvasY}`);
 
     drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, canvasResX, canvasResY, { active: _dataOverlaysActive, showLines: _showDataLines, showLabels: _showDataLabels });
   });
@@ -1229,8 +1227,9 @@ function updateCanvasInfoDisplay() {
              `Total Panels: ${totalPanels}`;
 
   // Add selected screen info if one is selected
-  if(selectedCanvasScreenId && screens[selectedCanvasScreenId]) {
-    const screen = screens[selectedCanvasScreenId];
+  const selectedItem = canvasItem(selectedCanvasScreenId);
+  if(selectedItem) {
+    const screen = selectedItem;
     const x = screen.data.canvasX || 0;
     const y = screen.data.canvasY || 0;
     html += `<br><span style="color: var(--primary);">Selected: ${escapeHtml(screen.name)} (X: ${x}, Y: ${y})</span>`;
@@ -1277,25 +1276,49 @@ function screenCanvasFit(screenId) {
 
   const halfRows = getCB5HalfRows(data, data.panelType);
   const halfP = allPanels['CB5_MKII_HALF'];
+  const rowGeo = cb5RowGeometry(ph, halfRows, p.res_y, halfP ? halfP.res_y : p.res_y);
   const width = pw * p.res_x;
-  const height = ph * p.res_y + (halfRows.top + halfRows.bottom) * (halfP ? halfP.res_y : p.res_y);
+  const height = rowGeo.height;
 
   const topology = resolveProcessorTopology(data.processor || 'Brompton_SX40', data.mx40ConnectionMode || 'direct');
-  const canvasId = Object.keys(canvases).find(id =>
-    canvases[id].data && canvases[id].data.screenVisibility && canvases[id].data.screenVisibility[screenId]);
+  // A split screen measures against its first part's canvas; otherwise the canvas it is on
+  const canvasId = (screen && screen.data.split && canvases[screen.data.split.parts[0].canvasId])
+    ? screen.data.split.parts[0].canvasId
+    : Object.keys(canvases).find(id =>
+        canvases[id].data && canvases[id].data.screenVisibility && canvases[id].data.screenVisibility[screenId]);
   const canvas = canvasId ? canvasPixelSize(canvasId) : null;
 
   // The tighter of the two limits; 0 / missing means that side sets no limit
   const tighter = (procMax, canvasMax) => [procMax, canvasMax].filter(v => v > 0).reduce((a, b) => Math.min(a, b), Infinity);
   const limitW = tighter(topology.maxInputWidth, canvas ? canvas.width : 0);
   const limitH = tighter(topology.maxInputHeight, canvas ? canvas.height : 0);
-  const colsPerPart = isFinite(limitW) ? Math.max(1, Math.floor(limitW / p.res_x)) : pw;
-  const rowsPerPart = isFinite(limitH) ? Math.max(1, Math.floor(limitH / p.res_y)) : ph;
-  const partsX = width > limitW ? Math.ceil(pw / colsPerPart) : 1;
-  const partsY = height > limitH ? Math.ceil(height / (rowsPerPart * p.res_y)) : 1;
+
+  // Panel columns per part across: as many as fit, the last part takes the rest
+  const colSizes = [];
+  if(width > limitW) {
+    const colsPerPart = Math.max(1, Math.floor(limitW / p.res_x));
+    for(let left = pw; left > 0; left -= colsPerPart) colSizes.push(Math.min(colsPerPart, left));
+  } else {
+    colSizes.push(pw);
+  }
+  // Grid rows per part down (CB5 half rows included, at their own height), filled greedily
+  const rowSizes = [];
+  if(height > limitH) {
+    let count = 0, used = 0;
+    for(let r = 0; r < rowGeo.rows; r++) {
+      if(count > 0 && used + rowGeo.h(r) > limitH) { rowSizes.push(count); count = 0; used = 0; }
+      count++;
+      used += rowGeo.h(r);
+    }
+    rowSizes.push(count);
+  } else {
+    rowSizes.push(rowGeo.rows);
+  }
+  const partsX = colSizes.length;
+  const partsY = rowSizes.length;
 
   return {
-    width, height, limitW, limitH, partsX, partsY, parts: partsX * partsY,
+    width, height, limitW, limitH, partsX, partsY, parts: partsX * partsY, colSizes, rowSizes,
     processorName: topology.name,
     processorW: topology.maxInputWidth, processorH: topology.maxInputHeight,
     canvas: canvas,
@@ -1316,6 +1339,24 @@ function canvasFitWarningText(screenId) {
   let text = '⚠️ ' + screens[screenId].name + ' is ' + fit.width + ' × ' + fit.height + ' px — larger than one ' +
     limit + '. It needs ' + fit.parts + ' processors / canvases.';
   if(fit.fitsProcessorInput) text += ' It fits one ' + fit.processorName + ' on a larger canvas, e.g. 4K DCI.';
+
+  // Once split: where the parts went, and any part resized past one input
+  const split = screens[screenId].data.split;
+  if(split) {
+    const allPanels = getAllPanels();
+    const halfP = allPanels['CB5_MKII_HALF'];
+    const names = split.parts.map(p => (canvases[p.canvasId] && canvases[p.canvasId].name) || '?');
+    text += ' Split across ' + names.join(', ') + '.';
+    const oversized = split.parts.map((p, k) => {
+      const view = splitPartView(screenId, k);
+      const panel = allPanels[view.data.panelType];
+      const w = view.data.panelsWide * panel.res_x;
+      const h = cb5RowGeometry(view.data.panelsHigh, getCB5HalfRows(view.data, view.data.panelType),
+        panel.res_y, halfP ? halfP.res_y : panel.res_y).height;
+      return (w > fit.limitW || h > fit.limitH) ? (k + 1) + '/' + split.parts.length : null;
+    }).filter(Boolean);
+    if(oversized.length) text += ' Part ' + oversized.join(', ') + ' is still too big for one input.';
+  }
   return text;
 }
 
@@ -1325,16 +1366,241 @@ function updateCanvasFitWarning() {
   if(el) el.textContent = canvasFitWarningText(currentScreenId);
 }
 
+// ==================== SPLIT SCREENS ====================
+// A screen too big for one processor input / canvas is split on panel boundaries into
+// parts, each on its own canvas (and so its own processor input). Stored on the screen:
+//   data.split = { cols: [panel columns per part across],
+//                  rows: [grid rows per part down — CB5 half rows included],
+//                  parts: [{ canvasId, x, y }] }   (row-major: across, then down)
+// Screens that fit carry no split and behave exactly as before.
+
+// Column / grid-row range of part k
+function splitPartRange(split, k) {
+  const sum = arr => arr.reduce((a, b) => a + b, 0);
+  const ci = k % split.cols.length, ri = Math.floor(k / split.cols.length);
+  const c0 = sum(split.cols.slice(0, ci)), r0 = sum(split.rows.slice(0, ri));
+  return { ci, ri, c0, c1: c0 + split.cols[ci], r0, r1: r0 + split.rows[ri] };
+}
+
+// A stand-in screen for part k: the real screen seen through that part's columns and rows
+// with its own position, so the canvas drawing, hit-testing and dragging code treats it
+// like any other screen. Its data lines are worked out on the part alone, so they start
+// at 1 — each part is its own processor input. Writing canvasX / canvasY moves the part.
+function splitPartView(screenId, k) {
+  const screen = screens[screenId];
+  const base = (typeof liveScreenData === 'function' ? liveScreenData(screenId) : null) || screen.data;
+  const split = screen.data.split;
+  const part = split.parts[k];
+  const { c0, c1, r0, r1 } = splitPartRange(split, k);
+
+  const half = getCB5HalfRows(base, base.panelType);
+  const bottomStart = half.top + (base.panelsHigh || 0);
+  const top = Math.max(0, Math.min(r1, half.top) - r0);
+  const bottom = Math.max(0, r1 - Math.max(r0, bottomStart));
+
+  // Panel keys are "col,row" in grid rows; keep this part's and shift them to its origin
+  const rekey = key => {
+    const [c, r] = String(key).split(',').map(Number);
+    return (c >= c0 && c < c1 && r >= r0 && r < r1) ? `${c - c0},${r - r0}` : null;
+  };
+  const data = Object.create(base);
+  CB5_ROW_KEYED_FIELDS.forEach(field => {
+    const coll = base[field];
+    if(!coll) return;
+    // Maps arrive as Maps live, as [key, value] pairs after a file round-trip
+    const asMap = coll instanceof Map ? coll
+      : (Array.isArray(coll) && Array.isArray(coll[0])) ? new Map(coll)
+      : (!Array.isArray(coll) && !(coll instanceof Set) && typeof coll === 'object') ? new Map(Object.entries(coll))
+      : null;
+    if(asMap) {
+      const out = new Map();
+      asMap.forEach((v, key) => { const nk = rekey(key); if(nk) out.set(nk, v); });
+      data[field] = out;
+    } else {
+      const out = new Set();
+      coll.forEach(key => { const nk = rekey(key); if(nk) out.add(nk); });
+      data[field] = out;
+    }
+  });
+  data.panelsWide = c1 - c0;
+  data.panelsHigh = (r1 - r0) - top - bottom;
+  data.addCB5HalfRow = top + bottom > 0;
+  data.cb5HalfRowPosition = (top && bottom) ? 'both' : (top ? 'above' : 'below');
+  data.cb5HalfRowsAbove = top || 1;
+  data.cb5HalfRowsBelow = bottom || 1;
+  data.split = null;
+  data.splitColOffset = c0;
+  data.splitRowOffset = r0;
+  Object.defineProperty(data, 'canvasX', { get: () => part.x, set: v => { part.x = v; }, enumerable: true });
+  Object.defineProperty(data, 'canvasY', { get: () => part.y, set: v => { part.y = v; }, enumerable: true });
+
+  const view = Object.create(screen);
+  view.name = `${screen.name} · ${k + 1}/${split.parts.length}`;
+  view.data = data;
+  view.visible = true;
+  view.splitItemId = `${screenId}#${k}`;
+  return view;
+}
+
+// What the open canvas shows: every visible whole screen, plus the parts of split screens
+// that sit on this canvas.
+function canvasItemsOnCurrentCanvas() {
+  const items = [];
+  getScreenIdsInOrder().forEach(id => {
+    const screen = screens[id];
+    if(!screen || !screen.visible) return;
+    const split = screen.data.split;
+    if(split) {
+      split.parts.forEach((part, k) => { if(part.canvasId === currentCanvasId) items.push(splitPartView(id, k)); });
+    } else {
+      items.push(screen);
+    }
+  });
+  return items;
+}
+
+// Id a canvas item is selected / dragged by: the screen id, or "screenId#part"
+function canvasItemId(item) {
+  return item.splitItemId || item.id;
+}
+
+// The screen or part view behind a canvas item id
+function canvasItem(itemId) {
+  if(!itemId) return null;
+  const [screenId, k] = String(itemId).split('#');
+  const screen = screens[screenId];
+  if(!screen) return null;
+  if(k === undefined) return screen;
+  const split = screen.data.split;
+  return (split && split.parts[Number(k)]) ? splitPartView(screenId, Number(k)) : null;
+}
+
+// A new canvas for a part, matching the size of the canvas the split starts on
+function createSplitCanvas(sizeFromCanvasId) {
+  canvasIdCounter++;
+  const canvasId = `canvas_${canvasIdCounter}`;
+  const data = getDefaultCanvasData();
+  Object.keys(screens).forEach(sid => { data.screenVisibility[sid] = false; });
+  const from = canvases[sizeFromCanvasId];
+  if(from) {
+    const isOpen = sizeFromCanvasId === currentCanvasId;
+    data.canvasSize = isOpen ? (document.getElementById('canvasSize')?.value || from.data.canvasSize) : from.data.canvasSize;
+    data.customCanvasWidth = from.data.customCanvasWidth;
+    data.customCanvasHeight = from.data.customCanvasHeight;
+  }
+  canvases[canvasId] = { id: canvasId, name: `Canvas ${Object.keys(canvases).length + 1}`, data };
+  return canvasId;
+}
+
+// Place the parts so the screen reads as one seamless image across the canvases: along a
+// split axis the first part sits flush against the far edge of the input (the canvas, or
+// the processor's input when that is smaller) and later parts start at 0, so leaving
+// canvas 1 on the right is entering canvas 2 on the left. Along an axis that isn't split,
+// parts keep the screen's own position.
+function layoutSplitParts(screenId) {
+  const screen = screens[screenId];
+  const split = screen.data.split;
+  const allPanels = getAllPanels();
+  const p = allPanels[screen.data.panelType];
+  if(!p) return;
+  const fit = screenCanvasFit(screenId);
+  split.parts.forEach((part, k) => {
+    const { ci, ri } = splitPartRange(split, k);
+    const view = splitPartView(screenId, k);
+    const halfP = allPanels['CB5_MKII_HALF'];
+    const partW = view.data.panelsWide * p.res_x;
+    const partH = cb5RowGeometry(view.data.panelsHigh, getCB5HalfRows(view.data, view.data.panelType),
+      p.res_y, halfP ? halfP.res_y : p.res_y).height;
+    const size = canvasPixelSize(part.canvasId);
+    const edgeX = (fit && isFinite(fit.limitW)) ? Math.min(fit.limitW, size.width) : size.width;
+    const edgeY = (fit && isFinite(fit.limitH)) ? Math.min(fit.limitH, size.height) : size.height;
+    part.x = split.cols.length > 1 ? (ci === 0 ? Math.max(0, edgeX - partW) : 0) : (screen.data.canvasX || 0);
+    part.y = split.rows.length > 1 ? (ri === 0 ? Math.max(0, edgeY - partH) : 0) : (screen.data.canvasY || 0);
+  });
+}
+
+// A split screen is switched on in each of its parts' canvases (and nowhere else); it
+// counts as visible here when a part sits on the open canvas.
+function applySplitVisibility(screenId) {
+  const screen = screens[screenId];
+  const partCanvases = new Set(screen.data.split.parts.map(p => p.canvasId));
+  Object.keys(canvases).forEach(cid => {
+    const d = canvases[cid].data;
+    if(!d.screenVisibility) d.screenVisibility = {};
+    d.screenVisibility[screenId] = partCanvases.has(cid);
+  });
+  screen.visible = partCanvases.has(currentCanvasId);
+}
+
+// Bring one screen's split in line with what it needs: split it when it no longer fits,
+// re-split when its size or part count changed (user-edited part sizes survive otherwise),
+// and remove the split once it fits again. A screen switched off on every canvas is left
+// alone. Returns true when anything changed.
+function syncScreenSplit(screenId) {
+  const screen = screens[screenId];
+  if(!screen || !screen.data) return false;
+  const split = screen.data.split;
+  const fit = screenCanvasFit(screenId);
+
+  if(!fit || fit.parts < 2) {
+    if(!split) return false;
+    const home = split.parts[0].canvasId;
+    delete screen.data.split;
+    Object.keys(canvases).forEach(cid => {
+      const d = canvases[cid].data;
+      if(d.screenVisibility) d.screenVisibility[screenId] = cid === home;
+    });
+    screen.visible = home === currentCanvasId;
+    return true;
+  }
+
+  const sum = arr => arr.reduce((a, b) => a + b, 0);
+  if(split && split.cols.length === fit.colSizes.length && split.rows.length === fit.rowSizes.length &&
+     sum(split.cols) === sum(fit.colSizes) && sum(split.rows) === sum(fit.rowSizes) &&
+     split.parts.every(p => canvases[p.canvasId])) return false;
+
+  // Start from the first part's canvas (or the screen's own canvas) — or, if that canvas
+  // was deleted, the first canvas any part is still on
+  const home = (split ? split.parts.map(p => p.canvasId) : Object.keys(canvases).filter(cid =>
+    canvases[cid].data.screenVisibility && canvases[cid].data.screenVisibility[screenId])).find(cid => canvases[cid]);
+  if(!home) return false;
+
+  const previous = split ? split.parts : [];
+  const used = new Set([home]);
+  const parts = [];
+  for(let k = 0; k < fit.parts; k++) {
+    let canvasId = k === 0 ? home : (previous[k] && canvases[previous[k].canvasId] && !used.has(previous[k].canvasId))
+      ? previous[k].canvasId : createSplitCanvas(home);
+    used.add(canvasId);
+    parts.push({ canvasId, x: 0, y: 0 });
+  }
+  screen.data.split = { cols: fit.colSizes.slice(), rows: fit.rowSizes.slice(), parts };
+  layoutSplitParts(screenId);
+  applySplitVisibility(screenId);
+  return true;
+}
+
+// Every screen's split, then the tabs and table if any canvas or part changed
+function syncScreenSplits() {
+  let changed = false;
+  Object.keys(screens).forEach(id => { if(syncScreenSplit(id)) changed = true; });
+  if(changed) {
+    if(typeof renderCanvasTabs === 'function') renderCanvasTabs();
+    if(typeof renderRasterScreenTable === 'function') renderRasterScreenTable();
+  }
+  return changed;
+}
+
 // Draw selection highlight on canvas without full redraw
 function drawSelectionHighlight() {
-  if(!selectedCanvasScreenId || !screens[selectedCanvasScreenId]) return;
+  const selectedScreen = canvasItem(selectedCanvasScreenId);
+  if(!selectedScreen) return;
 
   const allPanels = getAllPanels();
   const canvas = document.getElementById('canvasView');
   if(!canvas) return;
   const ctx = canvas.getContext('2d');
 
-  const selectedScreen = screens[selectedCanvasScreenId];
   if(!selectedScreen.visible) return;
 
   const screenData = selectedScreen.data;
@@ -1377,13 +1643,10 @@ function drawSelectionHighlight() {
 function getScreenAtPosition(mouseX, mouseY) {
   const allPanels = getAllPanels();
 
-  // Check screens in reverse order (top screen first)
-  const screenIds = getScreenIdsInOrder().slice().reverse();
+  // Check screens (and split parts) in reverse order (top screen first)
+  const items = canvasItemsOnCurrentCanvas().reverse();
 
-  for(const screenId of screenIds) {
-    const screen = screens[screenId];
-
-    if(!screen.visible) continue;
+  for(const screen of items) {
 
     const screenData = screen.data;
     const panelType = screenData.panelType || 'CB5_MKII';
@@ -1417,7 +1680,7 @@ function getScreenAtPosition(mouseX, mouseY) {
     // Check if click is within this screen's bounds
     if(mouseX >= offsetX && mouseX <= offsetX + wallResX &&
        mouseY >= offsetY && mouseY <= offsetY + wallResY) {
-      return screenId;
+      return canvasItemId(screen);
     }
   }
   
@@ -1521,14 +1784,15 @@ function setupCanvasViewInteractivity() {
     
     // Determine which screen to move: selected screen or current screen
     const screenToMove = selectedCanvasScreenId || currentScreenId;
-    if(!screenToMove || !screens[screenToMove]) return;
+    const moveItem = canvasItem(screenToMove);
+    if(!moveItem) return;
     
     // Get increment value directly - this is the exact pixel amount to move
     const increment = parseInt(document.getElementById('arrowKeyIncrement').value) || 10;
     
     // Get current position from the screen data
-    let currentX = screens[screenToMove].data.canvasX || 0;
-    let currentY = screens[screenToMove].data.canvasY || 0;
+    let currentX = moveItem.data.canvasX || 0;
+    let currentY = moveItem.data.canvasY || 0;
     
     // Apply movement for each pressed key
     if(canvasViewKeyPressed.has('ArrowLeft')) {
@@ -1545,8 +1809,8 @@ function setupCanvasViewInteractivity() {
     }
     
     // Update the screen's position
-    screens[screenToMove].data.canvasX = currentX;
-    screens[screenToMove].data.canvasY = currentY;
+    moveItem.data.canvasX = currentX;
+    moveItem.data.canvasY = currentY;
     
     // Update the input values
     document.getElementById('canvasX').value = currentX;
@@ -1571,10 +1835,10 @@ function setupCanvasViewInteractivity() {
   }
   
   function drawCanvasPreviewWithGuides(newOffsetX, newOffsetY, snapMode) {
-    if(!draggedScreenId || !screens[draggedScreenId]) return;
+    const screen = canvasItem(draggedScreenId);
+    if(!screen) return;
 
     const allPanels = getAllPanels();
-    const screen = screens[draggedScreenId];
     const screenData = screen.data;
     const panelType = screenData.panelType || 'CB5_MKII';
     const p = allPanels[panelType];
@@ -1729,7 +1993,7 @@ function setupCanvasViewInteractivity() {
     const clickedScreenId = getScreenAtPosition(mouseX, mouseY);
     
     if(clickedScreenId) {
-      const screen = screens[clickedScreenId];
+      const screen = canvasItem(clickedScreenId);
       const offsetX = screen.data.canvasX || 0;
       const offsetY = screen.data.canvasY || 0;
       
@@ -1781,7 +2045,7 @@ function setupCanvasViewInteractivity() {
     if(!canvasViewDragging || !draggedScreenId) return;
 
     const allPanels = getAllPanels();
-    const screen = screens[draggedScreenId];
+    const screen = canvasItem(draggedScreenId);
     if(!screen) return;
 
     const screenData = screen.data;
@@ -2020,11 +2284,8 @@ function setupCanvasViewInteractivity() {
       let minScreenYDist = Infinity;
       
       // Check against all other visible screens
-      Object.keys(screens).forEach(otherScreenId => {
-        if(otherScreenId === draggedScreenId) return; // Skip self
-        
-        const otherScreen = screens[otherScreenId];
-        if(!otherScreen.visible) return; // Skip invisible screens
+      canvasItemsOnCurrentCanvas().forEach(otherScreen => {
+        if(canvasItemId(otherScreen) === draggedScreenId) return; // Skip self
         
         const otherData = otherScreen.data;
         const otherPanelType = otherData.panelType || 'CB5_MKII';
@@ -2144,9 +2405,10 @@ function setupCanvasViewInteractivity() {
     }
     
     // Update the dragged screen's canvas position
-    if(draggedScreenId && screens[draggedScreenId]) {
-      screens[draggedScreenId].data.canvasX = Math.round(newOffsetX);
-      screens[draggedScreenId].data.canvasY = Math.round(newOffsetY);
+    const draggedItem = canvasItem(draggedScreenId);
+    if(draggedItem) {
+      draggedItem.data.canvasX = Math.round(newOffsetX);
+      draggedItem.data.canvasY = Math.round(newOffsetY);
 
       // If this is the current screen, also update global variables
       if(draggedScreenId === currentScreenId) {
@@ -2260,7 +2522,7 @@ function setupCanvasViewInteractivity() {
     const clickedScreenId = getScreenAtPosition(touchX, touchY);
 
     if(clickedScreenId) {
-      const screen = screens[clickedScreenId];
+      const screen = canvasItem(clickedScreenId);
       const offsetX = screen.data.canvasX || 0;
       const offsetY = screen.data.canvasY || 0;
 
@@ -2318,7 +2580,7 @@ function setupCanvasViewInteractivity() {
         touchDragPending = false;
         if(!canvasViewDragging || !draggedScreenId) return;
 
-        const screen = screens[draggedScreenId];
+        const screen = canvasItem(draggedScreenId);
         if(!screen) return;
 
         const rect = canvas.getBoundingClientRect();
@@ -2364,10 +2626,8 @@ function setupCanvasViewInteractivity() {
             else if(Math.abs(wallCenterY - canvasH/2) < snapThreshold) newOffsetY = canvasH/2 - wallResY/2;
 
             // Screen-to-screen snapping
-            Object.keys(screens).forEach(otherId => {
-              if(otherId === draggedScreenId) return;
-              const otherScreen = screens[otherId];
-              if(!otherScreen.visible) return;
+            canvasItemsOnCurrentCanvas().forEach(otherScreen => {
+              if(canvasItemId(otherScreen) === draggedScreenId) return;
 
               const od = otherScreen.data;
               const opt = od.panelType || 'CB5_MKII';
@@ -2396,8 +2656,8 @@ function setupCanvasViewInteractivity() {
         }
 
         // Update position
-        screens[draggedScreenId].data.canvasX = newOffsetX;
-        screens[draggedScreenId].data.canvasY = newOffsetY;
+        screen.data.canvasX = newOffsetX;
+        screen.data.canvasY = newOffsetY;
 
         // If this is the current screen, also update global variables
         if(draggedScreenId === currentScreenId) {
@@ -2414,9 +2674,7 @@ function setupCanvasViewInteractivity() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Draw all screens at their positions
-        Object.keys(screens).forEach(id => {
-          const s = screens[id];
-          if(!s.visible) return;
+        canvasItemsOnCurrentCanvas().forEach(s => {
 
           const d = s.data;
           const pt = d.panelType || 'CB5_MKII';
@@ -2450,8 +2708,8 @@ function setupCanvasViewInteractivity() {
         });
 
         // Highlight selected screen
-        if(selectedCanvasScreenId && screens[selectedCanvasScreenId]) {
-          const sel = screens[selectedCanvasScreenId];
+        const sel = canvasItem(selectedCanvasScreenId);
+        if(sel) {
           const sd = sel.data;
           const spt = sd.panelType || 'CB5_MKII';
           const allPanelsSel = getAllPanels();
@@ -2796,13 +3054,15 @@ function saveCanvasMoveState() {
     screenPositions: {}
   };
   
-  // Store each screen's position
+  // Store each screen's position, plus each split part's
+  state.splitPositions = {};
   Object.keys(screens).forEach(screenId => {
     const screen = screens[screenId];
     state.screenPositions[screenId] = {
       x: screen.data.canvasX || 0,
       y: screen.data.canvasY || 0
     };
+    if(screen.data.split) state.splitPositions[screenId] = screen.data.split.parts.map(p => ({ x: p.x, y: p.y }));
   });
   
   // Also store which screen is selected
@@ -2842,6 +3102,13 @@ function undoCanvasMove() {
         screens[screenId].data.canvasY = previousState.screenPositions[screenId].y;
       }
     });
+    // Split parts, when the split still has the same parts it was saved with
+    Object.keys(previousState.splitPositions || {}).forEach(screenId => {
+      const split = screens[screenId] && screens[screenId].data.split;
+      const saved = previousState.splitPositions[screenId];
+      if(!split || split.parts.length !== saved.length) return;
+      split.parts.forEach((p, k) => { p.x = saved[k].x; p.y = saved[k].y; });
+    });
   } else {
     // Legacy format - single x/y (for backwards compatibility)
     if(selectedCanvasScreenId && screens[selectedCanvasScreenId]) {
@@ -2855,14 +3122,15 @@ function undoCanvasMove() {
   
   // Update X/Y inputs to show selected or current screen position
   const displayScreenId = selectedCanvasScreenId || currentScreenId;
-  if(screens[displayScreenId]) {
-    document.getElementById('canvasX').value = screens[displayScreenId].data.canvasX || 0;
-    document.getElementById('canvasY').value = screens[displayScreenId].data.canvasY || 0;
+  const displayItem = canvasItem(displayScreenId);
+  if(displayItem) {
+    document.getElementById('canvasX').value = displayItem.data.canvasX || 0;
+    document.getElementById('canvasY').value = displayItem.data.canvasY || 0;
     
     // Update global variables if it's the current screen
     if(displayScreenId === currentScreenId) {
-      canvasOffsetX = screens[displayScreenId].data.canvasX || 0;
-      canvasOffsetY = screens[displayScreenId].data.canvasY || 0;
+      canvasOffsetX = displayItem.data.canvasX || 0;
+      canvasOffsetY = displayItem.data.canvasY || 0;
     }
   }
   
@@ -2895,6 +3163,13 @@ function redoCanvasMove() {
         screens[screenId].data.canvasY = nextState.screenPositions[screenId].y;
       }
     });
+    // Split parts, when the split still has the same parts it was saved with
+    Object.keys(nextState.splitPositions || {}).forEach(screenId => {
+      const split = screens[screenId] && screens[screenId].data.split;
+      const saved = nextState.splitPositions[screenId];
+      if(!split || split.parts.length !== saved.length) return;
+      split.parts.forEach((p, k) => { p.x = saved[k].x; p.y = saved[k].y; });
+    });
   } else {
     // Legacy format - single x/y (for backwards compatibility)
     if(selectedCanvasScreenId && screens[selectedCanvasScreenId]) {
@@ -2908,14 +3183,15 @@ function redoCanvasMove() {
   
   // Update X/Y inputs to show selected or current screen position
   const displayScreenId = selectedCanvasScreenId || currentScreenId;
-  if(screens[displayScreenId]) {
-    document.getElementById('canvasX').value = screens[displayScreenId].data.canvasX || 0;
-    document.getElementById('canvasY').value = screens[displayScreenId].data.canvasY || 0;
+  const displayItem = canvasItem(displayScreenId);
+  if(displayItem) {
+    document.getElementById('canvasX').value = displayItem.data.canvasX || 0;
+    document.getElementById('canvasY').value = displayItem.data.canvasY || 0;
     
     // Update global variables if it's the current screen
     if(displayScreenId === currentScreenId) {
-      canvasOffsetX = screens[displayScreenId].data.canvasX || 0;
-      canvasOffsetY = screens[displayScreenId].data.canvasY || 0;
+      canvasOffsetX = displayItem.data.canvasX || 0;
+      canvasOffsetY = displayItem.data.canvasY || 0;
     }
   }
   

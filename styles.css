@@ -4742,6 +4742,18 @@ body.tab-reordering {
   background: rgba(16, 185, 129, 0.05);
 }
 
+/* Split screen part rows: one per canvas the screen is split across */
+.raster-table tr.raster-split-row {
+  background: rgba(16, 185, 129, 0.06);
+}
+.raster-table td.raster-split-name {
+  text-align: left;
+  white-space: nowrap;
+  padding-left: 12px;
+  color: var(--primary);
+  font-weight: 700;
+}
+
 /* Raster table inputs — match canvas-toolbar comic-book style */
 /* Uses .raster-table prefix to beat global input[type] specificity */
 .raster-table .raster-input {
@@ -5056,6 +5068,21 @@ body.tab-reordering {
     flex: 1;
     min-width: 0;
     width: 100%;
+  }
+  /* Split part rows: a smaller card tucked under its screen's card */
+  .raster-table tr.raster-split-row {
+    margin: -4px 0 10px 12px;
+    border-color: var(--primary);
+  }
+  .raster-table td.raster-split-name {
+    grid-column: 1 / -1;
+    padding-left: 0;
+  }
+  .raster-table td.raster-split-name::before {
+    content: none;
+  }
+  .raster-table td.raster-split-filler {
+    display: none;
   }
 }
 

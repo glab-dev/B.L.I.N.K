@@ -126,15 +126,19 @@ function renderRasterScreenTable() {
     html += '<td data-label="Rows"><input type="number" class="raster-input raster-num" ' + (rows ? 'value="' + rows + '"' : '') + ' placeholder="0" min="0" ' +
             'oninput="updateRasterScreenDim(\'' + safeId + '\', \'panelsHigh\', this.value)"></td>';
 
-    // Offset X
-    var ox = data.canvasX || 0;
-    html += '<td data-label="Offset X"><input type="number" class="raster-input raster-num" ' + (ox ? 'value="' + ox + '"' : '') + ' placeholder="0" ' +
-            'oninput="updateRasterScreenPos(\'' + safeId + '\', \'canvasX\', this.value)"></td>';
+    // Offset X / Y — a split screen has one per part, in its part rows below
+    if(data.split) {
+      html += '<td data-label="Offset X"><input type="text" class="raster-input raster-num" placeholder="—" readonly></td>';
+      html += '<td data-label="Offset Y"><input type="text" class="raster-input raster-num" placeholder="—" readonly></td>';
+    } else {
+      var ox = data.canvasX || 0;
+      html += '<td data-label="Offset X"><input type="number" class="raster-input raster-num" ' + (ox ? 'value="' + ox + '"' : '') + ' placeholder="0" ' +
+              'oninput="updateRasterScreenPos(\'' + safeId + '\', \'canvasX\', this.value)"></td>';
 
-    // Offset Y
-    var oy = data.canvasY || 0;
-    html += '<td data-label="Offset Y"><input type="number" class="raster-input raster-num" ' + (oy ? 'value="' + oy + '"' : '') + ' placeholder="0" ' +
-            'oninput="updateRasterScreenPos(\'' + safeId + '\', \'canvasY\', this.value)"></td>';
+      var oy = data.canvasY || 0;
+      html += '<td data-label="Offset Y"><input type="number" class="raster-input raster-num" ' + (oy ? 'value="' + oy + '"' : '') + ' placeholder="0" ' +
+              'oninput="updateRasterScreenPos(\'' + safeId + '\', \'canvasY\', this.value)"></td>';
+    }
 
     // Overlay toggles (Name, X/Y, Pixels, Crosshair)
     html += '<td data-label="Overlays"><div class="raster-overlays">' +
@@ -170,6 +174,35 @@ function renderRasterScreenTable() {
             '</div></td>';
 
     html += '</tr>';
+
+    // Split screen: one row per part — its canvas, its share of the columns / rows
+    // (editable when that axis is split) and its own position on that canvas
+    if(data.split) {
+      var split = data.split;
+      split.parts.forEach(function(part, k) {
+        var range = splitPartRange(split, k);
+        var canvasName = (canvases[part.canvasId] && canvases[part.canvasId].name) || '';
+        var sizeCell = function(label, axis, index) {
+          var value = split[axis][index];
+          if(split[axis].length < 2) {
+            return '<td data-label="' + label + '"><input type="number" class="raster-input raster-num" value="' + value + '" readonly></td>';
+          }
+          return '<td data-label="' + label + '"><input type="number" class="raster-input raster-num" value="' + value + '" min="1" ' +
+                 'oninput="updateRasterSplitSize(\'' + safeId + '\', \'' + axis + '\', ' + index + ', this.value)"></td>';
+        };
+        html += '<tr class="raster-split-row" data-screen-id="' + escapeHtml(screenId + '#' + k) + '">';
+        html += '<td data-label="Part" class="raster-split-name">↳ ' + (k + 1) + '/' + split.parts.length + ' · ' + escapeHtml(canvasName) + '</td>';
+        html += '<td class="raster-split-filler" colspan="5"></td>';
+        html += sizeCell('Cols', 'cols', range.ci);
+        html += sizeCell('Rows', 'rows', range.ri);
+        html += '<td data-label="Offset X"><input type="number" class="raster-input raster-num" value="' + (part.x || 0) + '" ' +
+                'oninput="updateRasterSplitPos(\'' + safeId + '\', ' + k + ', \'x\', this.value)"></td>';
+        html += '<td data-label="Offset Y"><input type="number" class="raster-input raster-num" value="' + (part.y || 0) + '" ' +
+                'oninput="updateRasterSplitPos(\'' + safeId + '\', ' + k + ', \'y\', this.value)"></td>';
+        html += '<td class="raster-split-filler" colspan="3"></td>';
+        html += '</tr>';
+      });
+    }
   });
 
   html += '</tbody></table>';
@@ -436,6 +469,33 @@ function updateRasterScreenPos(screenId, field, value) {
   showCanvasView();
 }
 
+// Resize one part of a split screen. The neighbouring part along the same axis gives or
+// takes the difference so the screen's total stays the same; every part keeps at least
+// one column / row. The parts then re-join seamlessly across their canvases.
+function updateRasterSplitSize(screenId, axis, index, value) {
+  var split = screens[screenId] && screens[screenId].data.split;
+  if(!split) return;
+  var sizes = split[axis];
+  var n = parseInt(value, 10);
+  if(isNaN(n) || sizes.length < 2) return;
+  var other = index < sizes.length - 1 ? index + 1 : index - 1;
+  var pair = sizes[index] + sizes[other];
+  sizes[index] = Math.max(1, Math.min(pair - 1, n));
+  sizes[other] = pair - sizes[index];
+  layoutSplitParts(screenId);
+  showCanvasView();
+  clearTimeout(_rasterDimTimer);
+  _rasterDimTimer = setTimeout(function() { renderRasterScreenTable(); }, 500);
+}
+
+// Move one part of a split screen on its own canvas
+function updateRasterSplitPos(screenId, k, field, value) {
+  var split = screens[screenId] && screens[screenId].data.split;
+  if(!split || !split.parts[k]) return;
+  split.parts[k][field] = parseInt(value, 10) || 0;
+  showCanvasView();
+}
+
 function toggleRasterOverlay(screenId, property) {
   if(!screens[screenId]) return;
   screens[screenId][property] = screens[screenId][property] === false ? true : false;
@@ -469,6 +529,26 @@ function toggleRasterHalfRow(screenId) {
 
 function toggleRasterScreenVisible(screenId) {
   if(!screens[screenId]) return;
+
+  // A split screen lives on all of its parts' canvases: switch them on or off together
+  var split = screens[screenId].data.split;
+  if(split) {
+    var turnOn = !split.parts.some(function(part) {
+      var d = canvases[part.canvasId] && canvases[part.canvasId].data;
+      return d && d.screenVisibility && d.screenVisibility[screenId];
+    });
+    split.parts.forEach(function(part) {
+      var d = canvases[part.canvasId] && canvases[part.canvasId].data;
+      if(!d) return;
+      if(!d.screenVisibility) d.screenVisibility = {};
+      d.screenVisibility[screenId] = turnOn;
+    });
+    screens[screenId].visible = turnOn && split.parts.some(function(part) { return part.canvasId === currentCanvasId; });
+    renderRasterScreenTable();
+    showCanvasView();
+    return;
+  }
+
   screens[screenId].visible = !screens[screenId].visible;
 
   // Update current canvas's visibility tracking
@@ -562,6 +642,9 @@ function duplicateRasterScreen(screenId) {
     visible: true,
     data: JSON.parse(JSON.stringify(sourceScreen.data))
   };
+
+  // A split belongs to its screen's own canvases; the copy gets its own when it is drawn
+  delete newScreen.data.split;
 
   screens[newScreenId] = newScreen;
 

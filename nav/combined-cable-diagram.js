@@ -193,29 +193,39 @@ function loadSourceFeedIntoCableTab(screenId) {
   if(hint) hint.style.display = locked ? '' : 'none';
 }
 
-// A screen whose data needs more than one main processor: ask once per extra processor
-// whether it takes the same source signal as the screen's first one. The answer is saved
-// on that processor's feed (asked, plus sameAs for "same"), so it is never asked again.
-// The alert modal is shared, so never open over another dialog — a later calculate()
-// asks instead.
+// A screen whose data needs more than one main processor: ask once whether its extra
+// processors take the same source signal as its first one. The one answer covers every
+// extra processor not yet asked about, and is saved on their feeds (asked, plus sameAs
+// for "same"), so the screen is never asked again — a screen needing five processors
+// asks once, not four times. The alert modal is shared, so never open over another
+// dialog — a later calculate() asks instead.
 function checkSourceFeedOverflow() {
   if(isLoadingScreenData || isWelcomePageVisible) return;
   const modal = document.getElementById('customAlertModal');
   if(!modal || modal.classList.contains('active')) return;
   const units = sourceFeedUnits();
   for(const screenId of getScreenIdsInOrder()) {
+    // A split screen's processors each take a different canvas — a different output of
+    // the source — so there is nothing to ask; each keeps its own feed
+    if(screens[screenId].data.split) continue;
     const reach = units.byScreen.get(screenId);
     if(!reach || reach.procUnitIds.size < 2) continue;
     const indices = screenSourceFeedIndices(screenId, units);
-    const extra = indices.slice(1).find(i => !(sourceFeeds.list[i] && sourceFeeds.list[i].asked));
-    if(extra === undefined) continue;
+    const extras = indices.slice(1).filter(i => !(sourceFeeds.list[i] && sourceFeeds.list[i].asked));
+    if(!extras.length) continue;
     const first = indices[0];
-    showConfirm('"' + screens[screenId].name + '" needs more than one processor (' + units.procs[first].label +
-      ' and ' + units.procs[extra].label + '). Do both processors get the same source signal?',
+    const labels = [first].concat(extras).map(i => units.procs[i].label);
+    const named = labels.length === 2 ? labels.join(' and ')
+      : labels.slice(0, -1).join(', ') + ' and ' + labels[labels.length - 1];
+    const question = labels.length === 2 ? 'Do both processors get the same source signal?'
+      : 'Do all ' + labels.length + ' processors get the same source signal?';
+    showConfirm('"' + screens[screenId].name + '" needs more than one processor (' + named + '). ' + question,
       'Source Signal', 'Same Signal', 'Different Signals')
       .then(same => {
-        setSourceFeedField(extra, 'asked', true);
-        if(same) setSourceFeedField(extra, 'sameAs', first);
+        extras.forEach(i => {
+          setSourceFeedField(i, 'asked', true);
+          if(same) setSourceFeedField(i, 'sameAs', first);
+        });
         calculate();
       });
     return;
@@ -512,20 +522,20 @@ function calculateCombinedCabling(selectedScreenIds, config) {
       userMax: parseInt(data.maxPanelsPerData)
     });
     const dataLines = typeof calculateActualDataLines === 'function'
-      ? calculateActualDataLines(pw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments)
+      ? calculateActualDataLines(pw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split)
       : Math.ceil((pw * effectivePh) / panelsPerDataLine);
 
     totalDataLines += dataLines;
 
     // Entry/exit points
     const entryPoints = typeof getDataLineEntryPoints === 'function'
-      ? getDataLineEntryPoints(pw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments)
+      ? getDataLineEntryPoints(pw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split)
       : {};
 
     // Exit points (last panel per data line — for backup/redundancy cables)
     let exitPoints = {};
     if (typeof getDataLinePanelOrdering === 'function') {
-      const ordering = getDataLinePanelOrdering(pw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments);
+      const ordering = getDataLinePanelOrdering(pw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split);
       for (const dlIndex of Object.keys(ordering)) {
         const panelList = ordering[dlIndex];
         if (panelList.length > 0) exitPoints[dlIndex] = panelList[panelList.length - 1];

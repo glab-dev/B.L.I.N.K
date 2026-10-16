@@ -114,7 +114,8 @@ function screenDataLineDestinations(data) {
     panelsPerDataLine: inp.panelsPerDataLine,
     startDir: inp.startDir,
     deletedPanels: inp.deletedPanels,
-    customDataLineAssignments: inp.customDataLines
+    customDataLineAssignments: inp.customDataLines,
+    split: data.split
   });
 
   const lines = (built.sortedDataLines || []).map(ln => ln + 1);
@@ -142,7 +143,21 @@ function screenDataLineDestinations(data) {
     });
   });
 
-  return { lines: lines, explicit: explicit, portFixed: portFixed,
+  // A split screen's lines each belong to one part (its own processor input), found from
+  // the part holding the line's first panel
+  let partOf = null;
+  if(data.split && typeof splitDataParts === 'function') {
+    partOf = new Map();
+    const parts = splitDataParts(data.split);
+    (built.sortedDataLines || []).forEach((ln, gi) => {
+      const first = (built.groups[gi] || [])[0];
+      if(!first) return;
+      const part = parts.find(pt => first.c >= pt.c0 && first.c < pt.c0 + pt.pw && first.r >= pt.r0 && first.r < pt.r0 + pt.ph);
+      if(part) partOf.set(ln + 1, part.k);
+    });
+  }
+
+  return { lines: lines, explicit: explicit, portFixed: portFixed, partOf: partOf,
            processorId: inp.processorId, connectionMode: inp.connectionMode };
 }
 
@@ -325,8 +340,19 @@ function buildDataPortPlan(liveOverride) {
         curProc++;
       }
     }
+    // Processors taken by a later part of a split screen belong to that part's canvas
+    // alone: other lines skip them. While a part is being placed, the processors it fills
+    // are added here and it may use them.
+    const partProcs = new Set();
+    let inPart = false;
     function nextUnitWithRoom() {
       for(let guard = 0; guard < 100000; guard++) {
+        if(!inPart && partProcs.has(curProc)) {
+          curProc++;
+          if(usesDistBox) curBox = 1;
+          continue;
+        }
+        if(inPart) partProcs.add(curProc);
         if(portsOn(curProc, curBox).size < capacity) {
           return { proc: curProc, box: curBox };
         }
@@ -335,9 +361,31 @@ function buildDataPortPlan(liveOverride) {
       return { proc: curProc, box: curBox };
     }
 
+    // Highest processor any line holds so far — a split part starts on the one after it
+    function highestProcInUse() {
+      let max = 0;
+      occupancy.forEach((usedSet, k) => { if(usedSet.size) max = Math.max(max, parseInt(k.split('|')[0]) || 0); });
+      return max;
+    }
+
     bucket.entries.forEach(entry => {
       const lineMap = new Map();
+      const partOf = entry.info.partOf || null;
+      let lastPart = null;
+      let afterFirstPart = null;
       entry.info.lines.forEach(line => {
+        // Each part of a split screen is its own processor input: the first part carries
+        // on from the shared cursor, every later part starts on a fresh processor
+        if(partOf && partOf.has(line)) {
+          const part = partOf.get(line);
+          if(lastPart !== null && part !== lastPart) {
+            if(!afterFirstPart) afterFirstPart = { proc: curProc, box: curBox };
+            curProc = highestProcInUse() + 1;
+            if(usesDistBox) curBox = 1;
+            inPart = true;
+          }
+          lastPart = part;
+        }
         const claimed = claimedPorts.get(entry.screenId + '|' + line);
         if(claimed) {
           lineMap.set(line, { procType: procType, groupKey: bucketKey, proc: claimed.proc, box: claimed.box,
@@ -355,6 +403,13 @@ function buildDataPortPlan(liveOverride) {
                             port: port, explicit: false,
                             backup: backupDestinationFor(topology, redundant, box, port) });
       });
+      // The next screen carries on from where this screen's first part ended, not on a
+      // later part's processor
+      if(afterFirstPart) {
+        curProc = afterFirstPart.proc;
+        curBox = afterFirstPart.box;
+        inPart = false;
+      }
       perScreen.set(entry.screenId, lineMap);
     });
 
@@ -585,7 +640,8 @@ function dataLinesForPanels(data, panelKeys) {
     panelsPerDataLine: inp.panelsPerDataLine,
     startDir: inp.startDir,
     deletedPanels: inp.deletedPanels,
-    customDataLineAssignments: inp.customDataLines
+    customDataLineAssignments: inp.customDataLines,
+    split: data.split
   });
   const wanted = new Set(panelKeys || []);
   (built.sortedDataLines || []).forEach((ln, gi) => {

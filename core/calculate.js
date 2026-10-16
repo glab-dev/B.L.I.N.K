@@ -218,7 +218,7 @@ function resolvePanelsPerDataLine(o) {
   return userMax > 0 ? userMax : capacityBasedPanelsPerData;
 }
 
-function calculateActualDataLines(pw, ph, panelsPerDataLine, startDir, deletedPanelsParam, customAssignmentsParam) {
+function calculateActualDataLines(pw, ph, panelsPerDataLine, startDir, deletedPanelsParam, customAssignmentsParam, split) {
   // Use per-screen params if provided, otherwise fall back to globals
   const dp = deletedPanelsParam || deletedPanels;
   const cdla = customAssignmentsParam || customDataLineAssignments;
@@ -229,7 +229,7 @@ function calculateActualDataLines(pw, ph, panelsPerDataLine, startDir, deletedPa
   // this in step with the layout: a custom assignment can skip ahead (line 9 on a
   // 3-line wall) without adding six lines to the rig.
   // Main lines only; callers reporting a needed count apply the redundancy doubling.
-  const ordering = getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, dp, cdla);
+  const ordering = getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, dp, cdla, split);
   return Object.keys(ordering).length;
 }
 
@@ -625,6 +625,9 @@ function calculate(){
   console.log('=== calculate() called ===');
   // The port plan spans every screen; rebuild it once per calculate cycle.
   if(typeof invalidateDataPortPlan === 'function') invalidateDataPortPlan();
+  // Split screens too big for one processor before anything counts data lines, so this
+  // calculation already sees each part as its own processor input
+  if(typeof syncScreenSplits === 'function') syncScreenSplits();
   console.log('Current screen:', currentScreenId);
   
   showSpecWarningIfNeeded();
@@ -1034,7 +1037,7 @@ function calculate(){
   // Calculate actual data lines used (including custom assignments)
   // Use adjusted ph if CB5 half rows are enabled
   const adjustedPh = ph + halfRowCount;
-  const actualDataLines = calculateActualDataLines(pw, adjustedPh, panelsPerDataLine, startDir);
+  const actualDataLines = calculateActualDataLines(pw, adjustedPh, panelsPerDataLine, startDir, undefined, undefined, screens[currentScreenId] && screens[currentScreenId].data.split);
   const dataLines = actualDataLines;
   const portsNeeded = dataLines; // Each data line needs one port
   

@@ -47,6 +47,13 @@ export const test = base.extend<TestFixtures>({
     await page.addInitScript((v) => {
       try { localStorage.setItem('lastSeenWelcomeVersion', v); } catch (e) { /* opaque origin */ }
     }, APP_VERSION);
+    // The "Source Signal" question pops up once whenever a screen first needs a second
+    // processor, and blocks every click until answered. No test here is about that
+    // question, so answer it with the default ("Different Signals") when it gets in the way.
+    await page.addLocatorHandler(
+      page.locator('#customAlertModal.active #customAlertTitle', { hasText: 'Source Signal' }),
+      async () => { await page.locator('#customAlertCancelBtn').click(); }
+    );
     await use(page);
   },
 

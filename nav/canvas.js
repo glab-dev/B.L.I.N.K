@@ -1633,6 +1633,8 @@ function syncScreenSplits() {
   let changed = false;
   Object.keys(screens).forEach(id => { if(syncScreenSplit(id)) changed = true; });
   if(changed) {
+    // Data lines and processors are worked out per part, so the cached plan is stale
+    if(typeof invalidateDataPortPlan === 'function') invalidateDataPortPlan();
     if(typeof renderCanvasTabs === 'function') renderCanvasTabs();
     if(typeof renderRasterScreenTable === 'function') renderRasterScreenTable();
   }

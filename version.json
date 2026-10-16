@@ -1,5 +1,5 @@
 {
-  "version": "2.11.216",
+  "version": "2.11.217",
   "updated": "2026-10-16",
-  "changelog": "Switch the canvas to 8K when an SQ200 is picked and reuse empty split canvases"
+  "changelog": "Give each split screen part its own processor and data lines and mark the split in data layouts"
 }

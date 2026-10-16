@@ -37,7 +37,8 @@ test.describe('Custom Processor', () => {
     await page.waitForTimeout(500);
 
     // Dismiss any success alert
-    const alertVisible = await page.locator('#customAlertModal.active').isVisible().catch(() => false);
+    // The Source Signal question is answered by the fixture's handler, not here
+    const alertVisible = await page.locator('#customAlertModal.active:not(:has(#customAlertTitle:text-is("Source Signal")))').isVisible().catch(() => false);
     if (alertVisible) {
       await page.locator('#customAlertOkBtn').click();
       await page.waitForTimeout(300);
@@ -69,7 +70,8 @@ test.describe('Custom Processor', () => {
     await page.waitForTimeout(500);
 
     // Dismiss any alert
-    const alertVisible = await page.locator('#customAlertModal.active').isVisible().catch(() => false);
+    // The Source Signal question is answered by the fixture's handler, not here
+    const alertVisible = await page.locator('#customAlertModal.active:not(:has(#customAlertTitle:text-is("Source Signal")))').isVisible().catch(() => false);
     if (alertVisible) {
       await page.locator('#customAlertOkBtn').click();
       await page.waitForTimeout(300);
@@ -100,7 +102,8 @@ test.describe('Custom Processor', () => {
     await page.waitForTimeout(500);
 
     // Dismiss any alert
-    const alertVisible = await page.locator('#customAlertModal.active').isVisible().catch(() => false);
+    // The Source Signal question is answered by the fixture's handler, not here
+    const alertVisible = await page.locator('#customAlertModal.active:not(:has(#customAlertTitle:text-is("Source Signal")))').isVisible().catch(() => false);
     if (alertVisible) {
       await page.locator('#customAlertOkBtn').click();
       await page.waitForTimeout(300);

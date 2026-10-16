@@ -483,7 +483,9 @@ function updateRasterSplitSize(screenId, axis, index, value) {
   sizes[index] = Math.max(1, Math.min(pair - 1, n));
   sizes[other] = pair - sizes[index];
   layoutSplitParts(screenId);
-  showCanvasView();
+  // The parts' data lines and processors move with the split
+  if(typeof invalidateDataPortPlan === 'function') invalidateDataPortPlan();
+  calculate();
   clearTimeout(_rasterDimTimer);
   _rasterDimTimer = setTimeout(function() { renderRasterScreenTable(); }, 500);
 }

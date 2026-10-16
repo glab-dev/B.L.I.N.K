@@ -6,11 +6,70 @@
 // the exact same layout for each screen instead of forking the logic — the same
 // pattern drawSocaOverlay() uses for the power layout (layouts/power.js).
 
+// ==================== SPLIT SCREENS ====================
+// A screen split across processors (data.split, see nav/canvas.js) never runs a data line
+// over the split: each part is a separate processor input, so its lines are worked out on
+// that part alone and start fresh. The parts are then stitched back with their line
+// numbers carrying on (part 1 lines 1..n, part 2 from n+1) so every line stays unique on
+// the screen; the data plan starts each part on its own processor.
+
+// The parts of a split screen as sub-grids, in part order (across, then down)
+function splitDataParts(split) {
+  const sum = arr => arr.reduce((a, b) => a + b, 0);
+  return split.parts.map((part, k) => {
+    const ci = k % split.cols.length, ri = Math.floor(k / split.cols.length);
+    return { k: k, c0: sum(split.cols.slice(0, ci)), r0: sum(split.rows.slice(0, ri)),
+             pw: split.cols[ci], ph: split.rows[ri] };
+  });
+}
+
+// A "c,r"-keyed Set or Map narrowed to one part, keys moved to the part's own origin
+function narrowToSplitPart(coll, part) {
+  const move = key => {
+    const [c, r] = String(key).split(',').map(Number);
+    const pc = c - part.c0, pr = r - part.r0;
+    return (pc >= 0 && pc < part.pw && pr >= 0 && pr < part.ph) ? `${pc},${pr}` : null;
+  };
+  if(coll instanceof Map) {
+    const out = new Map();
+    coll.forEach((v, key) => { const nk = move(key); if(nk) out.set(nk, v); });
+    return out;
+  }
+  const out = new Set();
+  (coll || []).forEach(key => { const nk = move(key); if(nk) out.add(nk); });
+  return out;
+}
+
+// buildDataLineGroups for a split screen: each part on its own, then stitched back
+function buildSplitDataLineGroups(o) {
+  const groups = [], sortedDataLines = [], usedCustomDataLines = new Set(), panelToDataLine = new Map();
+  let offset = 0;
+  splitDataParts(o.split).forEach(part => {
+    const sub = buildDataLineGroups(Object.assign({}, o, {
+      split: null, pw: part.pw, ph: part.ph,
+      deletedPanels: narrowToSplitPart(o.deletedPanels, part),
+      customDataLineAssignments: narrowToSplitPart(o.customDataLineAssignments, part)
+    }));
+    sub.sortedDataLines.forEach((ln, gi) => {
+      groups.push(sub.groups[gi].map(pt => ({c: pt.c + part.c0, r: pt.r + part.r0})));
+      sortedDataLines.push(ln + offset);
+    });
+    sub.usedCustomDataLines.forEach(ln => usedCustomDataLines.add(ln + offset));
+    sub.panelToDataLine.forEach((ln, key) => {
+      const [c, r] = key.split(',').map(Number);
+      panelToDataLine.set(`${c + part.c0},${r + part.r0}`, ln + offset);
+    });
+    if(sub.sortedDataLines.length) offset += Math.max(...sub.sortedDataLines) + 1;
+  });
+  return {groups, sortedDataLines, usedCustomDataLines, panelToDataLine};
+}
+
 // ==================== DATA LINE GROUPING ====================
 // Walks the wall in serpentine order and groups panels into data lines.
 // Pure: takes the per-screen deletedPanels Set / customDataLineAssignments Map as
-// params rather than reading the current-screen globals.
+// params rather than reading the current-screen globals. Pass o.split for a split screen.
 function buildDataLineGroups(o) {
+  if(o.split) return buildSplitDataLineGroups(o);
   const {pw, ph, panelsPerDataLine, startDir, deletedPanels, customDataLineAssignments} = o;
 
   // Build data path based on start direction (matching calculateActualDataLines logic)
@@ -560,7 +619,8 @@ function renderDataLayout(params) {
 
   const {groups, sortedDataLines} = buildDataLineGroups({
     pw, ph, panelsPerDataLine, startDir,
-    deletedPanels, customDataLineAssignments
+    deletedPanels, customDataLineAssignments,
+    split: (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].data.split : null
   });
 
   const _flip = (typeof dataFlipEnabled !== 'undefined') && dataFlipEnabled;
@@ -589,6 +649,74 @@ function renderDataLayout(params) {
     arrowHeadSize: 12,
     lightDeletedPanels: (ecoPrintMode || greyscalePrintMode)
   });
+
+  drawSplitPartMarkers(ctx, currentScreenId, { offsetX: 0, offsetY: 0, panelWidth, rowGeo, fontSize });
+}
+
+// ==================== SPLIT PART MARKERS ====================
+// A split screen's data layout shows where it splits — a dashed line between the parts —
+// and, over each part, the canvas and processor that part goes to ("Canvas 2 · SX40 2").
+// The processor is the one the data plan put the part's first line on.
+function drawSplitPartMarkers(ctx, screenId, o) {
+  const screen = screens[screenId];
+  const split = screen && screen.data.split;
+  if(!split) return;
+  const {offsetX, offsetY, panelWidth, rowGeo} = o;
+  const fontSize = Math.max(10, o.fontSize || 12);
+  const isPrint = (typeof pdfWhiteBgMode !== 'undefined' && pdfWhiteBgMode) ||
+    (typeof ecoPrintMode !== 'undefined' && ecoPrintMode) || (typeof greyscalePrintMode !== 'undefined' && greyscalePrintMode);
+
+  // Which processor each part's lines landed on
+  const procLabels = {};
+  if(typeof screenDataLineDestinations === 'function' && typeof cachedDataPortPlan === 'function') {
+    const data = (typeof liveScreenData === 'function' ? liveScreenData(screenId) : null) || screen.data;
+    const info = screenDataLineDestinations(data);
+    const lineMap = cachedDataPortPlan().perScreen.get(screenId);
+    const units = (typeof projectDataUnits === 'function') ? projectDataUnits().procs : [];
+    (info.partOf || new Map()).forEach((part, line) => {
+      if(procLabels[part] !== undefined) return;
+      const dest = lineMap && lineMap.get(line);
+      const unit = dest && units.find(u => u.unitId === dest.groupKey + '|' + dest.proc + '|-');
+      procLabels[part] = unit ? unit.label : '';
+    });
+  }
+
+  ctx.save();
+  const totalCols = split.cols.reduce((a, b) => a + b, 0);
+  ctx.strokeStyle = isPrint ? '#000000' : '#FFD700';
+  ctx.lineWidth = Math.max(2, panelWidth * 0.06);
+  ctx.setLineDash([Math.max(4, panelWidth * 0.25), Math.max(3, panelWidth * 0.15)]);
+  let acc = 0;
+  split.cols.slice(0, -1).forEach(n => {
+    acc += n;
+    const x = offsetX + acc * panelWidth;
+    ctx.beginPath(); ctx.moveTo(x, offsetY); ctx.lineTo(x, offsetY + rowGeo.height); ctx.stroke();
+  });
+  acc = 0;
+  split.rows.slice(0, -1).forEach(n => {
+    acc += n;
+    const y = offsetY + rowGeo.y(acc);
+    ctx.beginPath(); ctx.moveTo(offsetX, y); ctx.lineTo(offsetX + totalCols * panelWidth, y); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  ctx.font = `bold ${fontSize}px Arial`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  splitDataParts(split).forEach(part => {
+    const canvas = canvases[split.parts[part.k].canvasId];
+    const text = [canvas ? canvas.name : '', procLabels[part.k] || ''].filter(Boolean).join(' · ');
+    if(!text) return;
+    const pad = 3;
+    const x = offsetX + part.c0 * panelWidth + pad;
+    const y = offsetY + rowGeo.y(part.r0) + pad;
+    const w = ctx.measureText(text).width + pad * 2;
+    ctx.fillStyle = isPrint ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)';
+    ctx.fillRect(x, y, w, fontSize + pad * 2);
+    ctx.fillStyle = isPrint ? '#000000' : '#FFD700';
+    ctx.fillText(text, x + pad, y + pad);
+  });
+  ctx.restore();
 }
 
 // ==================== ARROW DRAWING ====================

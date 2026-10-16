@@ -44,14 +44,15 @@ test.describe('Responsive Layout @comprehensive @mobile', () => {
     await expect(panelsWide).toBeVisible();
   });
 
-  test('should hide combined cabling container on mobile', async ({ page, navigation }) => {
+  test('should hide the combined cable diagram on mobile', async ({ page, navigation }) => {
     await AppHelpers.setupAppWithDimensions(page, 4, 3);
     await navigation.switchToCombined();
     await page.waitForTimeout(500);
 
-    // Combined cabling is hidden on mobile
-    const cabling = page.locator('#combinedCablingContainer');
-    await expect(cabling).not.toBeVisible();
+    // The combined cabling panel shows on mobile for its Source feed options, but the
+    // diagram itself (and its export button) is desktop-only
+    await expect(page.locator('#combinedSourceFeeds')).toBeVisible();
+    await expect(page.locator('#combinedCableDiagramCanvasWrapper')).not.toBeVisible();
   });
 
   test('should hide combined gear list container on mobile', async ({ page, navigation }) => {

@@ -3231,7 +3231,8 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     const {groups, sortedDataLines} = buildDataLineGroups({
       pw, ph: screenEffectivePh, panelsPerDataLine, startDir,
       deletedPanels: screenDeletedPanels,
-      customDataLineAssignments: screenCustomDataLines
+      customDataLineAssignments: screenCustomDataLines,
+      split: data.split
     });
 
     // Per-screen view toggles: each wall draws with its OWN saved settings so it
@@ -3293,6 +3294,12 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
           labelDiagonal: false
         });
       }
+    }
+
+    // A split screen: where it splits, and which canvas / processor each part goes to
+    if(typeof drawSplitPartMarkers === 'function') {
+      drawSplitPartMarkers(ctx, screenId, { offsetX: screenX, offsetY: screenY,
+        panelWidth: drawPanelWidth, rowGeo: screenRowGeo, fontSize: numberFontSize });
     }
 
     // Draw screen label

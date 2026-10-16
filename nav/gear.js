@@ -34,11 +34,11 @@ function roundUpToStandard(lengthFt) {
 }
 
 // Returns array mapping data line index to its entry panel {col, row}
-function getDataLineEntryPoints(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap) {
+function getDataLineEntryPoints(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap, split) {
   // Entry point = first panel in each line's canonical flow order, derived from
   // getDataLinePanelOrdering so the two never diverge. Auto lines are unchanged
   // (ordering preserves walk order); custom lines use the re-ordered serpentine.
-  const ordering = getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap);
+  const ordering = getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap, split);
   const entryPoints = {};
   Object.keys(ordering).forEach(dl => {
     const first = ordering[dl] && ordering[dl][0];
@@ -54,8 +54,24 @@ function dataLineIndexes(points) {
   return Object.keys(points || {}).map(Number).sort((a, b) => a - b);
 }
 
-// Get ALL panels per data line in serpentine order (for inter-panel cable calculations)
-function getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap) {
+// Get ALL panels per data line in serpentine order (for inter-panel cable calculations).
+// A split screen (split = data.split) orders each part on its own and numbers its lines on
+// from the part before, so no line crosses the split (see splitDataParts in layouts/data.js).
+function getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap, split) {
+  if(split) {
+    const merged = {};
+    let offset = 0;
+    splitDataParts(split).forEach(part => {
+      const sub = getDataLinePanelOrdering(part.pw, part.ph, panelsPerDataLine, startDir,
+        narrowToSplitPart(deletedPanelsSet, part), narrowToSplitPart(customDataLineAssignmentsMap, part));
+      const lines = Object.keys(sub).map(Number);
+      lines.forEach(ln => {
+        merged[ln + offset] = sub[ln].map(pt => ({col: pt.col + part.c0, row: pt.row + part.r0}));
+      });
+      if(lines.length) offset += Math.max(...lines) + 1;
+    });
+    return merged;
+  }
   const dataLinePanels = {}; // { dataLineIndex: [{col, row}, ...] in order }
   const usedCustomDataLines = new Set();
 
@@ -367,7 +383,8 @@ function calculateCabling(screenId) {
     pw, effectivePh, panelsPerDataLine,
     data.dataStartDir || 'top',
     deletedPanelsSet,
-    data.customDataLineAssignments
+    data.customDataLineAssignments,
+    data.split
   );
 
   const isRemoteXd = placement === 'remote' && hasDistBox;
@@ -565,7 +582,8 @@ function calculateCabling(screenId) {
     pw, effectivePh, panelsPerDataLine,
     data.dataStartDir || 'top',
     deletedPanelsSet,
-    data.customDataLineAssignments
+    data.customDataLineAssignments,
+    data.split
   );
 
   for(const [dlIndex, panels] of Object.entries(dataLinePanelOrdering)) {

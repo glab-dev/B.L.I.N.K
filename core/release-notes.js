@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.211', date: '2026-10-15', notes: 'Limit the auto-shown release notes popup to updates since the last seen version' },
   { version: '2.11.210', date: '2026-10-15', notes: 'Ask whether overflow processors share a source and lock Cable tab feeds for multi-screen projects' },
   { version: '2.11.209', date: '2026-10-15', notes: 'Stop Source feed edits jumping the page and tidy the cable input layout' },
   { version: '2.11.208', date: '2026-10-15', notes: 'Shrink the test pattern center circle to fit inside each screen and corner circles' },
@@ -131,11 +132,18 @@ const RELEASE_NOTES = [
 ];
 
 // Build the list of release entries into #releaseNotesList.
-function renderReleaseNotesList() {
+// With sinceVersion, only the entries newer than that version are shown
+// (just the newest one if sinceVersion isn't in the list).
+function renderReleaseNotesList(sinceVersion) {
   const list = document.getElementById('releaseNotesList');
   if (!list) return;
   list.textContent = '';
-  RELEASE_NOTES.forEach(function(rel) {
+  let entries = RELEASE_NOTES;
+  if (sinceVersion !== undefined) {
+    const seenIndex = RELEASE_NOTES.findIndex(function(rel) { return rel.version === sinceVersion; });
+    entries = RELEASE_NOTES.slice(0, seenIndex === -1 ? 1 : seenIndex);
+  }
+  entries.forEach(function(rel) {
     const entry = document.createElement('div');
     entry.className = 'release-note-entry';
 
@@ -160,10 +168,10 @@ function renderReleaseNotesList() {
   });
 }
 
-function openReleaseNotesModal() {
+function openReleaseNotesModal(sinceVersion) {
   const modal = document.getElementById('releaseNotesModal');
   if (modal) {
-    renderReleaseNotesList();
+    renderReleaseNotesList(sinceVersion);
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
   }
@@ -186,7 +194,8 @@ function closeReleaseNotesModal() {
 // Auto-show the popup once on launch when the running version is new to this user.
 function maybeAutoShowReleaseNotes() {
   if (typeof APP_VERSION === 'undefined') return;
-  if (localStorage.getItem('lastSeenWelcomeVersion') !== APP_VERSION) {
-    openReleaseNotesModal();
+  const lastSeen = localStorage.getItem('lastSeenWelcomeVersion');
+  if (lastSeen !== APP_VERSION) {
+    openReleaseNotesModal(lastSeen);
   }
 }

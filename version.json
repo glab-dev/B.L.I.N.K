@@ -1,5 +1,5 @@
 {
-  "version": "2.11.210",
+  "version": "2.11.211",
   "updated": "2026-10-15",
-  "changelog": "Ask whether overflow processors share a source and lock Cable tab feeds for multi-screen projects"
+  "changelog": "Limit the auto-shown release notes popup to updates since the last seen version"
 }

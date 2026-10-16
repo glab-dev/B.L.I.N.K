@@ -558,6 +558,8 @@ var _tpRecentCache = [];
 function _tpCanvasDims(d) {
   var size = d && d.canvasSize;
   if(size === '4K_DCI') return { w: 4096, h: 2160 };
+  if(size === '8K_UHD') return { w: 7680, h: 4320 };
+  if(size === '8K_DCI') return { w: 8192, h: 4320 };
   if(size === 'HD') return { w: 1920, h: 1080 };
   if(size === 'custom') {
     return {

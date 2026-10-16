@@ -3614,12 +3614,16 @@
           <select id="canvasSize" style="display: none;">
             <option value="4K_UHD" selected="">4K UHD (3840x2160)</option>
             <option value="4K_DCI">4K DCI (4096x2160)</option>
+            <option value="8K_UHD">8K UHD (7680x4320)</option>
+            <option value="8K_DCI">8K DCI (8192x4320)</option>
             <option value="HD">HD (1920x1080)</option>
             <option value="custom">Custom</option>
           </select>
           <div class="toggle-group size-preset-group canvas-size-presets" data-target="canvasSize">
             <button type="button" class="toggle-btn active" data-size="4K_UHD" onclick="setCanvasSizePreset('canvasSize','4K_UHD')">UHD</button>
             <button type="button" class="toggle-btn" data-size="4K_DCI" onclick="setCanvasSizePreset('canvasSize','4K_DCI')">DCI</button>
+            <button type="button" class="toggle-btn" data-size="8K_UHD" onclick="setCanvasSizePreset('canvasSize','8K_UHD')">8K</button>
+            <button type="button" class="toggle-btn" data-size="8K_DCI" onclick="setCanvasSizePreset('canvasSize','8K_DCI')">8K DCI</button>
             <button type="button" class="toggle-btn" data-size="HD" onclick="setCanvasSizePreset('canvasSize','HD')">HD</button>
             <button type="button" class="toggle-btn" data-size="custom" onclick="setCanvasSizePreset('canvasSize','custom')">Custom</button>
           </div>
@@ -3720,12 +3724,16 @@
           <select id="rasterToolbarCanvasSize" class="min-w-140" style="display: none;">
             <option value="4K_UHD" selected="">4K UHD (3840x2160)</option>
             <option value="4K_DCI">4K DCI (4096x2160)</option>
+            <option value="8K_UHD">8K UHD (7680x4320)</option>
+            <option value="8K_DCI">8K DCI (8192x4320)</option>
             <option value="HD">HD (1920x1080)</option>
             <option value="custom">Custom</option>
           </select>
           <div class="toggle-group size-preset-group raster-size-presets" data-target="rasterToolbarCanvasSize">
             <button type="button" class="toggle-btn active" data-size="4K_UHD" onclick="setCanvasSizePreset('rasterToolbarCanvasSize','4K_UHD')">UHD</button>
             <button type="button" class="toggle-btn" data-size="4K_DCI" onclick="setCanvasSizePreset('rasterToolbarCanvasSize','4K_DCI')">DCI</button>
+            <button type="button" class="toggle-btn" data-size="8K_UHD" onclick="setCanvasSizePreset('rasterToolbarCanvasSize','8K_UHD')">8K</button>
+            <button type="button" class="toggle-btn" data-size="8K_DCI" onclick="setCanvasSizePreset('rasterToolbarCanvasSize','8K_DCI')">8K DCI</button>
             <button type="button" class="toggle-btn" data-size="HD" onclick="setCanvasSizePreset('rasterToolbarCanvasSize','HD')">HD</button>
             <button type="button" class="toggle-btn" data-size="custom" onclick="setCanvasSizePreset('rasterToolbarCanvasSize','custom')">Custom</button>
           </div>
@@ -3974,8 +3982,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.214';
-const APP_CHANGELOG = 'Split screens too big for one processor across seamless canvases with adjustable parts';
+const APP_VERSION = '2.11.215';
+const APP_CHANGELOG = 'Add 8K UHD and 8K DCI canvas sizes so SQ200 screens fit one canvas';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

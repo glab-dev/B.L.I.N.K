@@ -1501,6 +1501,12 @@ function getCanvasDescription() {
   } else if(canvasSize === '4K_DCI') {
     canvasResX = 4096;
     canvasResY = 2160;
+  } else if(canvasSize === '8K_UHD') {
+    canvasResX = 7680;
+    canvasResY = 4320;
+  } else if(canvasSize === '8K_DCI') {
+    canvasResX = 8192;
+    canvasResY = 4320;
   } else if(canvasSize === 'HD') {
     canvasResX = 1920;
     canvasResY = 1080;

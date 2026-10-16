@@ -1236,13 +1236,15 @@ canvas {
     min-width: 0 !important;
     width: 100%;
   }
-  .raster-size-presets {
+  /* .size-preset-group (later in the file) sets wrap at the same specificity — out-rank it */
+  .raster-size-presets.size-preset-group {
     width: 100%;
     flex-wrap: nowrap;
   }
   .raster-size-presets .toggle-btn {
     flex: 1 1 0;
     padding: 4px 2px;
+    white-space: nowrap;
   }
   /* Custom W/H drop to row 3 (full width, side by side) when Custom is active */
   .canvas-toolbar-group.toolbar-custom-w {

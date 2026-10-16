@@ -977,6 +977,10 @@ function showCanvasView(){
     canvasResX = 3840; canvasResY = 2160; canvasName = '4K UHD (3840x2160)';
   } else if(canvasSize === '4K_DCI'){
     canvasResX = 4096; canvasResY = 2160; canvasName = '4K DCI (4096x2160)';
+  } else if(canvasSize === '8K_UHD'){
+    canvasResX = 7680; canvasResY = 4320; canvasName = '8K UHD (7680x4320)';
+  } else if(canvasSize === '8K_DCI'){
+    canvasResX = 8192; canvasResY = 4320; canvasName = '8K DCI (8192x4320)';
   } else if(canvasSize === 'HD'){
     canvasResX = 1920; canvasResY = 1080; canvasName = 'HD (1920x1080)';
   } else if(canvasSize === 'custom'){
@@ -1252,6 +1256,8 @@ function canvasPixelSize(canvasId) {
   const d = (canvases[canvasId] && canvases[canvasId].data) || {};
   const size = isOpen ? (document.getElementById('canvasSize')?.value || d.canvasSize) : d.canvasSize;
   if(size === '4K_DCI') return { width: 4096, height: 2160, name: '4K DCI' };
+  if(size === '8K_UHD') return { width: 7680, height: 4320, name: '8K UHD' };
+  if(size === '8K_DCI') return { width: 8192, height: 4320, name: '8K DCI' };
   if(size === 'HD') return { width: 1920, height: 1080, name: 'HD' };
   if(size === 'custom') {
     const w = isOpen ? parseInt(document.getElementById('customCanvasWidth')?.value) : d.customCanvasWidth;
@@ -1338,7 +1344,13 @@ function canvasFitWarningText(screenId) {
     : fit.processorName + ' input (' + fit.processorW + ' × ' + fit.processorH + ')';
   let text = '⚠️ ' + screens[screenId].name + ' is ' + fit.width + ' × ' + fit.height + ' px — larger than one ' +
     limit + '. It needs ' + fit.parts + ' processors / canvases.';
-  if(fit.fitsProcessorInput) text += ' It fits one ' + fit.processorName + ' on a larger canvas, e.g. 4K DCI.';
+  if(fit.fitsProcessorInput) {
+    // The smallest canvas preset that holds the screen within the processor's input
+    const presets = [['4K UHD', 3840, 2160], ['4K DCI', 4096, 2160], ['8K UHD', 7680, 4320], ['8K DCI', 8192, 4320]];
+    const fits = presets.find(([, w, h]) => w >= fit.width && h >= fit.height &&
+      (!fit.processorW || w <= fit.processorW) && (!fit.processorH || h <= fit.processorH));
+    if(fits) text += ' It fits one ' + fit.processorName + (fits[0][0] === '8' ? ' on an ' : ' on a ') + fits[0] + ' canvas.';
+  }
 
   // Once split: where the parts went, and any part resized past one input
   const split = screens[screenId].data.split;

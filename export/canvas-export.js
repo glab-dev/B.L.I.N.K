@@ -134,6 +134,8 @@ function _getCanvasResolution() {
   var canvasSize = document.getElementById('canvasSize').value;
   if(canvasSize === '4K_UHD') return { w: 3840, h: 2160 };
   if(canvasSize === '4K_DCI') return { w: 4096, h: 2160 };
+  if(canvasSize === '8K_UHD') return { w: 7680, h: 4320 };
+  if(canvasSize === '8K_DCI') return { w: 8192, h: 4320 };
   if(canvasSize === 'HD') return { w: 1920, h: 1080 };
   return {
     w: parseInt(document.getElementById('customCanvasWidth').value) || 1920,

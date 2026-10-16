@@ -1,5 +1,5 @@
 {
-  "version": "2.11.214",
+  "version": "2.11.215",
   "updated": "2026-10-16",
-  "changelog": "Split screens too big for one processor across seamless canvases with adjustable parts"
+  "changelog": "Add 8K UHD and 8K DCI canvas sizes so SQ200 screens fit one canvas"
 }

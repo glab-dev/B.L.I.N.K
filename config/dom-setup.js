@@ -56,6 +56,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const element = document.getElementById(id);
       if(element) {
         element.addEventListener('change', () => {
+          // A new processor may need a different canvas size (SQ200 = 8K); set it before
+          // calculating so the screen isn't measured against the old canvas
+          if(id === 'processor' && typeof matchCanvasToProcessor === 'function') matchCanvasToProcessor(currentScreenId);
           calculate();
         });
         // Also listen for input events on number fields for real-time updates

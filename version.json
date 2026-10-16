@@ -1,5 +1,5 @@
 {
-  "version": "2.11.215",
+  "version": "2.11.216",
   "updated": "2026-10-16",
-  "changelog": "Add 8K UHD and 8K DCI canvas sizes so SQ200 screens fit one canvas"
+  "changelog": "Switch the canvas to 8K when an SQ200 is picked and reuse empty split canvases"
 }

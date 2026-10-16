@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.216', date: '2026-10-16', notes: 'Switch the canvas to 8K when an SQ200 is picked and reuse empty split canvases' },
   { version: '2.11.215', date: '2026-10-16', notes: 'Add 8K UHD and 8K DCI canvas sizes so SQ200 screens fit one canvas' },
   { version: '2.11.214', date: '2026-10-16', notes: 'Split screens too big for one processor across seamless canvases with adjustable parts' },
   { version: '2.11.213', date: '2026-10-15', notes: 'Warn when a screen is too big for one processor input or canvas' },

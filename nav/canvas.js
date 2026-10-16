@@ -1378,6 +1378,35 @@ function updateCanvasFitWarning() {
   if(el) el.textContent = canvasFitWarningText(currentScreenId);
 }
 
+// Picking a processor sets the canvas the screen sits on to suit it: an 8K-input processor
+// (SQ200) gets an 8K UHD canvas, and moving an 8K canvas back to a smaller-input processor
+// returns it to 4K UHD, the usual default. Custom canvas sizes are left alone. Runs before
+// the recalculation, so the screen is never split against the old canvas size.
+function matchCanvasToProcessor(screenId) {
+  const screen = screens[screenId];
+  if(!screen) return;
+  const data = (typeof liveScreenData === 'function' ? liveScreenData(screenId) : null) || screen.data;
+  const topology = resolveProcessorTopology(data.processor || 'Brompton_SX40', data.mx40ConnectionMode || 'direct');
+  const canvasId = (screen.data.split && canvases[screen.data.split.parts[0].canvasId])
+    ? screen.data.split.parts[0].canvasId
+    : Object.keys(canvases).find(id =>
+        canvases[id].data && canvases[id].data.screenVisibility && canvases[id].data.screenVisibility[screenId]);
+  if(!canvasId) return;
+
+  const isOpen = canvasId === currentCanvasId;
+  const sizeKey = isOpen ? document.getElementById('canvasSize')?.value : canvases[canvasId].data.canvasSize;
+  if(sizeKey === 'custom') return;
+  const size = canvasPixelSize(canvasId);
+  const takes8K = topology.maxInputWidth >= 7680 && topology.maxInputHeight >= 4320;
+  let target = null;
+  if(takes8K && size.width < 7680) target = '8K_UHD';
+  else if(!takes8K && topology.maxInputWidth && size.width > 4096) target = '4K_UHD';
+  if(!target) return;
+
+  if(isOpen && typeof setCanvasSizePreset === 'function') setCanvasSizePreset('canvasSize', target);
+  else canvases[canvasId].data.canvasSize = target;
+}
+
 // ==================== SPLIT SCREENS ====================
 // A screen too big for one processor input / canvas is split on panel boundaries into
 // parts, each on its own canvas (and so its own processor input). Stored on the screen:
@@ -1577,12 +1606,19 @@ function syncScreenSplit(screenId) {
     canvases[cid].data.screenVisibility && canvases[cid].data.screenVisibility[screenId])).find(cid => canvases[cid]);
   if(!home) return false;
 
+  // Each part keeps the canvas it had; otherwise it takes a canvas nothing is on (such as
+  // one an earlier split left behind) before a new canvas is made
   const previous = split ? split.parts : [];
   const used = new Set([home]);
+  const isEmpty = cid => !Object.values(canvases[cid].data.screenVisibility || {}).some(Boolean);
   const parts = [];
   for(let k = 0; k < fit.parts; k++) {
-    let canvasId = k === 0 ? home : (previous[k] && canvases[previous[k].canvasId] && !used.has(previous[k].canvasId))
-      ? previous[k].canvasId : createSplitCanvas(home);
+    let canvasId = home;
+    if(k > 0) {
+      canvasId = (previous[k] && canvases[previous[k].canvasId] && !used.has(previous[k].canvasId))
+        ? previous[k].canvasId
+        : (getCanvasIdsInOrder().find(cid => !used.has(cid) && isEmpty(cid)) || createSplitCanvas(home));
+    }
     used.add(canvasId);
     parts.push({ canvasId, x: 0, y: 0 });
   }

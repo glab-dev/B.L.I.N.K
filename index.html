@@ -3263,6 +3263,7 @@
               <span>Source to Proc</span>
               <input type="number" id="serverToProcessor" min="0" step="0.1" placeholder="50">
             </label>
+            <div id="sourceFeedLockHint" class="source-feed-lock-hint" style="display: none;">Set in Combined view</div>
           </div>
           <div class="cabling-divider-indent">
             <div id="xdPlacementRow">
@@ -3961,8 +3962,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.209';
-const APP_CHANGELOG = 'Stop Source feed edits jumping the page and tidy the cable input layout';
+const APP_VERSION = '2.11.210';
+const APP_CHANGELOG = 'Ask whether overflow processors share a source and lock Cable tab feeds for multi-screen projects';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

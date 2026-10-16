@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.210', date: '2026-10-15', notes: 'Ask whether overflow processors share a source and lock Cable tab feeds for multi-screen projects' },
   { version: '2.11.209', date: '2026-10-15', notes: 'Stop Source feed edits jumping the page and tidy the cable input layout' },
   { version: '2.11.208', date: '2026-10-15', notes: 'Shrink the test pattern center circle to fit inside each screen and corner circles' },
   { version: '2.11.207', date: '2026-10-15', notes: 'Replace the single server cable with editable per-processor Source feeds' },

@@ -17,12 +17,13 @@ function showAlert(message, title) {
   });
 }
 
-function showConfirm(message, title, okLabel) {
+function showConfirm(message, title, okLabel, cancelLabel) {
   return new Promise(resolve => {
     _customAlertResolve = resolve;
     document.getElementById('customAlertTitle').textContent = title || 'Confirm';
     document.getElementById('customAlertMessage').textContent = message;
     document.getElementById('customAlertCancelBtn').style.display = '';
+    document.getElementById('customAlertCancelBtn').textContent = cancelLabel || 'Cancel';
     document.getElementById('customAlertOkBtn').textContent = okLabel || 'OK';
     document.getElementById('customAlertModal').classList.add('active');
   });
@@ -211,6 +212,8 @@ function closeCustomAlert(result) {
   }
   _customAlertIsPrompt = false;
   _customAlertIsDualField = false;
+  // showConfirm can relabel Cancel; the other dialogs don't set it, so put it back
+  document.getElementById('customAlertCancelBtn').textContent = 'Cancel';
   input.style.display = 'none';
   input.value = '';
   input.placeholder = '';

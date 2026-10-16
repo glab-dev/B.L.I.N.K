@@ -5306,9 +5306,11 @@ body.tab-reordering {
     margin-right: -16px;
     width: calc(100% + 32px);
   }
-  /* Hide desktop-only features on mobile */
+  /* Hide desktop-only features on mobile. The combined cabling panel stays for its Source
+     feed options, but its diagram (and the export of it) is desktop-only. */
   #mobileMenuInventorySection,
-  #combinedCablingContainer,
+  #combinedCableDiagramCanvasWrapper,
+  #combinedCablingContainer .view-export-btn,
   #combinedGearListContainer {
     display: none !important;
   }
@@ -7392,9 +7394,27 @@ input[type="number"].spare-qty-input::placeholder {
   margin: 0 0 0 6px;
   color: var(--primary);
 }
+/* Cable tab Source inputs, locked when a multi-screen project sets feeds in Combined */
+#sourceFeedName:disabled,
+#serverToProcessor:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.source-feed-lock-hint {
+  margin-top: 4px;
+}
+/* Mobile: each feed is its own two-column block, so one processor's fields never run
+   on into the next one's */
 @media (max-width: 768px) {
   .source-feed-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .source-feed-row {
+    display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    align-items: end;
   }
 }
 
@@ -7974,7 +7994,8 @@ input[type="number"].spare-qty-input::placeholder {
 .spare-hint,
 .canvas-hint-text,
 .combined-hint-box,
-.combined-interaction-hints {
+.combined-interaction-hints,
+.source-feed-lock-hint {
   /* fit-content rather than display:inline-block — several of these rely on
      display being toggled (none/block/inline-block) by CSS or JS, and this rule
      is last, so setting display here would override every one of those. */

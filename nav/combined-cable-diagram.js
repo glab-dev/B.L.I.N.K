@@ -83,14 +83,28 @@ function deriveCombinedCablingConfig(selectedScreenIds) {
 }
 
 // ---- Source Feeds ----
-// One signal source per processor. Feeds are numbered by processor ORDER in the project
-// (the order projectDataUnits() lists them), not by model, so swapping an SX40 for an S8
-// keeps that feed's name and distance. sourceFeeds.list[i] holds the i-th processor's
-// settings; anything unset falls back to the defaults.
+// One signal source per processor. Feeds are numbered by processor ORDER in the project,
+// not by model, so swapping an SX40 for an S8 keeps that feed's name and distance.
+// sourceFeeds.list[i] holds the i-th processor's settings; anything unset falls back to
+// the defaults.
 const SOURCE_FEED_DEFAULT_NAME = 'Source';
 
+// projectDataUnits() with its processors in feed order: first appearance walking the
+// screens in tab order. Its own order is by processor number, which would slot a new
+// screen's processor in among the existing ones and shift every feed after it.
 function sourceFeedUnits() {
-  return (typeof projectDataUnits === 'function') ? projectDataUnits() : { procs: [], boxes: [], byScreen: new Map() };
+  const units = (typeof projectDataUnits === 'function') ? projectDataUnits() : { procs: [], boxes: [], byScreen: new Map() };
+  const ordered = [];
+  const seen = new Set();
+  getScreenIdsInOrder().forEach(id => {
+    const reach = units.byScreen.get(id);
+    if(!reach) return;
+    units.procs.forEach(u => {
+      if(reach.procUnitIds.has(u.unitId) && !seen.has(u.unitId)) { seen.add(u.unitId); ordered.push(u); }
+    });
+  });
+  units.procs.forEach(u => { if(!seen.has(u.unitId)) ordered.push(u); });
+  return { procs: ordered, boxes: units.boxes, byScreen: units.byScreen };
 }
 
 function sourceFeedEntry(index) {
@@ -172,6 +186,40 @@ function loadSourceFeedIntoCableTab(screenId) {
   const distEl = document.getElementById('serverToProcessor');
   if(nameEl) nameEl.value = feed.name === SOURCE_FEED_DEFAULT_NAME ? '' : feed.name;
   if(distEl) distEl.value = feed.distance !== 50 ? feed.distance : '';
+  // A multi-screen project sets its feeds per processor in the Combined view
+  const locked = Object.keys(screens).length > 1;
+  [nameEl, distEl].forEach(el => { if(el) el.disabled = locked; });
+  const hint = document.getElementById('sourceFeedLockHint');
+  if(hint) hint.style.display = locked ? '' : 'none';
+}
+
+// A screen whose data needs more than one main processor: ask once per extra processor
+// whether it takes the same source signal as the screen's first one. The answer is saved
+// on that processor's feed (asked, plus sameAs for "same"), so it is never asked again.
+// The alert modal is shared, so never open over another dialog — a later calculate()
+// asks instead.
+function checkSourceFeedOverflow() {
+  if(isLoadingScreenData || isWelcomePageVisible) return;
+  const modal = document.getElementById('customAlertModal');
+  if(!modal || modal.classList.contains('active')) return;
+  const units = sourceFeedUnits();
+  for(const screenId of getScreenIdsInOrder()) {
+    const reach = units.byScreen.get(screenId);
+    if(!reach || reach.procUnitIds.size < 2) continue;
+    const indices = screenSourceFeedIndices(screenId, units);
+    const extra = indices.slice(1).find(i => !(sourceFeeds.list[i] && sourceFeeds.list[i].asked));
+    if(extra === undefined) continue;
+    const first = indices[0];
+    showConfirm('"' + screens[screenId].name + '" needs more than one processor (' + units.procs[first].label +
+      ' and ' + units.procs[extra].label + '). Do both processors get the same source signal?',
+      'Source Signal', 'Same Signal', 'Different Signals')
+      .then(same => {
+        setSourceFeedField(extra, 'asked', true);
+        if(same) setSourceFeedField(extra, 'sameAs', first);
+        calculate();
+      });
+    return;
+  }
 }
 
 function getSourceFeedsForSave() {
@@ -191,6 +239,7 @@ function loadProjectSourceFeeds(saved) {
         if(typeof e.name === 'string') out.name = e.name.slice(0, 24);
         if(typeof e.distance === 'number' && e.distance >= 0) out.distance = e.distance;
         if(Number.isInteger(e.sameAs) && e.sameAs >= 0) out.sameAs = e.sameAs;
+        if(e.asked === true) out.asked = true;
         return out;
       })
     };
@@ -1040,11 +1089,12 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   // sharing another feed's signal gets a branch off that feed's run instead of a box.
   var sourceBoxY = (wallTopY + floorY) / 2 - BOX_H / 2;
   var sourceBoxGap = isSmall ? 6 : 10;
+  var feedUnits = sourceFeedUnits();
   var feedBoxes = [];
   var feedByIndex = {};
   floorProcs.forEach(function(u) {
-    var procIdx = dataUnits.procs.findIndex(function(p) { return p.unitId === u.unitId; });
-    var own = resolveSourceFeedIndex(procIdx < 0 ? 0 : procIdx, dataUnits.procs.length);
+    var procIdx = feedUnits.procs.findIndex(function(p) { return p.unitId === u.unitId; });
+    var own = resolveSourceFeedIndex(procIdx < 0 ? 0 : procIdx, feedUnits.procs.length);
     if (!feedByIndex[own]) {
       feedByIndex[own] = { feed: sourceFeedEntry(own), procXs: [] };
       feedBoxes.push(feedByIndex[own]);

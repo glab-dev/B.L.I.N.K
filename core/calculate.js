@@ -1374,6 +1374,10 @@ function calculate(){
   if(currentAppMode === 'combined' && combinedSelectedScreens.size > 0) {
     renderCombinedView();
   }
+
+  // Deferred so a dialog this calculation's caller opens (e.g. a project load notice)
+  // gets the shared modal first
+  if(typeof checkSourceFeedOverflow === 'function') setTimeout(checkSourceFeedOverflow, 0);
 }
 
 

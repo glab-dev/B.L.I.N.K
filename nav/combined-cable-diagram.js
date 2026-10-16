@@ -235,10 +235,6 @@ function renderSourceFeedRows(selectedScreenIds) {
 function buildSourceFeedRow(index, units) {
   const row = document.createElement('div');
   row.className = 'source-feed-row';
-  const tag = document.createElement('span');
-  tag.className = 'source-feed-proc';
-  tag.textContent = units.procs[index] ? units.procs[index].label : '';
-  row.appendChild(tag);
 
   const addField = (labelText, control, field) => {
     control.dataset.feed = String(index);
@@ -249,26 +245,34 @@ function buildSourceFeedRow(index, units) {
     span.textContent = labelText;
     label.append(span, control);
     row.appendChild(label);
+    return span;
   };
 
   const name = document.createElement('input');
   name.type = 'text';
   name.maxLength = 24;
   name.placeholder = SOURCE_FEED_DEFAULT_NAME;
-  addField('Source', name, 'name');
+  const nameLabel = addField('Source', name, 'name');
+  // The processor this feed drives, beside the Source label
+  if(units.procs[index]) {
+    const tag = document.createElement('span');
+    tag.className = 'source-feed-proc';
+    tag.textContent = units.procs[index].label;
+    nameLabel.appendChild(tag);
+  }
 
   const dist = document.createElement('input');
   dist.type = 'number';
   dist.min = '0';
   dist.step = '0.1';
   dist.placeholder = '50';
-  addField('Source to Proc', dist, 'distance');
+  addField('Source to Proc Distance', dist, 'distance');
 
   if(units.procs.length > 1) {
     const sel = document.createElement('select');
     sel.add(new Option('Own Feed', ''));
     units.procs.forEach((u, i) => { if(i !== index) sel.add(new Option(u.label, String(i))); });
-    addField('Same Signal As', sel, 'sameAs');
+    addField('Source Signal', sel, 'sameAs');
   }
   return row;
 }
@@ -281,7 +285,13 @@ function onSourceFeedRowInput(e) {
   else setSourceFeedField(index, 'sameAs', el.value === '' ? null : parseInt(el.value, 10));
   // The Cable tab shows one screen's feed, which may be the one just edited
   loadSourceFeedIntoCableTab(sourceFeedCableTabScreenId());
-  if(typeof renderCombinedView === 'function') renderCombinedView();
+  // A feed only changes the cable diagram and the gear lists. Redrawing the whole combined
+  // view rebuilds every canvas above this panel and throws the page's scroll position.
+  if(combinedSelectedScreens.size > 0) {
+    const selectedScreenIds = combinedSelectedScreenIdsInOrder();
+    renderCombinedCableDiagram(selectedScreenIds, combinedScreenDimensions);
+    renderCombinedGearList(selectedScreenIds);
+  }
   if(typeof generateGearList === 'function') generateGearList();
 }
 

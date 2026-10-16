@@ -637,7 +637,8 @@ input[type=number] {
   margin-bottom: 0;
 }
 
-.cabling-grid input[type="number"] {
+.cabling-grid input[type="number"],
+.cabling-grid input[type="text"] {
   max-width: 90px;
 }
 
@@ -662,7 +663,8 @@ input[type=number] {
     grid-template-columns: 1fr !important;
     gap: 8px !important;
   }
-  .cabling-grid input[type="number"] {
+  .cabling-grid input[type="number"],
+  .cabling-grid input[type="text"] {
     max-width: none;
   }
   /* Tighten all label margins */
@@ -6772,7 +6774,7 @@ body.tab-reordering {
   flex: 0 1 800px;
 }
 .cabling-row .cabling-3col {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.75fr) minmax(0, 1.35fr);
 }
 .cabling-view {
   margin-left: auto;
@@ -6826,6 +6828,14 @@ body.tab-reordering {
 .cabling-data-2col {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+}
+@media (min-width: 769px) {
+  .cabling-data-2col {
+    grid-template-columns: minmax(0, 150px) auto;
+  }
+  .cabling-data-2col > .cabling-divider input {
+    max-width: 150px;
+  }
 }
 .cabling-pl-6 {
   padding-left: 6px;
@@ -7359,8 +7369,9 @@ input[type="number"].spare-qty-input::placeholder {
    each row's cells join it directly, so the columns line up across rows. */
 .source-feed-list {
   display: grid;
-  grid-template-columns: auto minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr);
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 170px));
+  justify-content: start;
+  gap: 8px 12px;
   align-items: end;
   margin-bottom: 10px;
 }
@@ -7371,20 +7382,19 @@ input[type="number"].spare-qty-input::placeholder {
   margin-bottom: 0;
   min-width: 0;
 }
-.source-feed-proc {
-  font-family: 'Roboto Condensed', sans-serif;
-  font-weight: 700;
-  font-size: 12px;
-  color: #aaa;
-  align-self: center;
+.source-feed-row label > span {
   white-space: nowrap;
+}
+/* Processor tag beside the Source label — the global `label span` rule makes every span
+   in a label a block with its own margins, so undo that for this inline tag */
+.source-feed-row .source-feed-proc {
+  display: inline;
+  margin: 0 0 0 6px;
+  color: var(--primary);
 }
 @media (max-width: 768px) {
   .source-feed-list {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-  .source-feed-proc {
-    grid-column: 1 / -1;
   }
 }
 

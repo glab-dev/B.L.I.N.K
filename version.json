@@ -1,5 +1,5 @@
 {
-  "version": "2.11.208",
+  "version": "2.11.209",
   "updated": "2026-10-15",
-  "changelog": "Shrink the test pattern center circle to fit inside each screen and corner circles"
+  "changelog": "Stop Source feed edits jumping the page and tidy the cable input layout"
 }

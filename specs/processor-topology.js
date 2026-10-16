@@ -42,6 +42,10 @@ function resolveProcessorTopology(processorId, connectionMode) {
     processorsFrom: pr.processors_from || 'ports',
     pixelsPerProcessor: pr.total_pixels || 0,
     pixelLimited: !!pr.pixel_limited,
+    // Largest input raster one processor takes; 0 = no known limit. Custom processors
+    // arrive from imported files, so coerce rather than trust the type.
+    maxInputWidth: Number(pr.max_input_width) > 0 ? Number(pr.max_input_width) : 0,
+    maxInputHeight: Number(pr.max_input_height) > 0 ? Number(pr.max_input_height) : 0,
     // SX40 doubles its XD count for redundancy; every other processor doubles the
     // port count first and derives boxes from that. The two round differently
     // (2*ceil(p/10) vs ceil(2p/10)), so the distinction is preserved deliberately.

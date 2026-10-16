@@ -1369,6 +1369,7 @@ function calculate(){
   showCanvasView();
   generateGearList();
   updateColumnHeightWarning();
+  if(typeof updateCanvasFitWarning === 'function') updateCanvasFitWarning();
 
   // If combined view is active, update it too
   if(currentAppMode === 'combined' && combinedSelectedScreens.size > 0) {

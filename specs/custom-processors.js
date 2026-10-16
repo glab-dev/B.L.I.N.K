@@ -154,6 +154,8 @@ function openCustomProcessorModal(editKey = null) {
     document.getElementById('customProcessorBitDepth').value = proc.base_bitdepth || 8;
     document.getElementById('customProcessorTotalPixels').value = proc.total_pixels || '';
     document.getElementById('customProcessorOutputPorts').value = proc.output_ports || '';
+    document.getElementById('customProcessorMaxInputWidth').value = proc.max_input_width || '';
+    document.getElementById('customProcessorMaxInputHeight').value = proc.max_input_height || '';
     document.getElementById('cpProcessorDirect').checked = proc.supports_direct !== false;
     document.getElementById('cpProcessorDistBox').checked = proc.uses_distribution_box || false;
     setCustomProcessorDistBox(proc.uses_distribution_box || false);
@@ -171,6 +173,8 @@ function openCustomProcessorModal(editKey = null) {
     document.getElementById('customProcessorBitDepth').value = '8';
     document.getElementById('customProcessorTotalPixels').value = '';
     document.getElementById('customProcessorOutputPorts').value = '';
+    document.getElementById('customProcessorMaxInputWidth').value = '';
+    document.getElementById('customProcessorMaxInputHeight').value = '';
     document.getElementById('cpProcessorDirect').checked = true;
     document.getElementById('cpProcessorDistBox').checked = false;
     setCustomProcessorDistBox(false);
@@ -229,6 +233,8 @@ function saveCustomProcessor() {
   const bitDepth = parseInt(document.getElementById('customProcessorBitDepth').value) || 8;
   const totalPixels = parseInt(document.getElementById('customProcessorTotalPixels').value) || 0;
   const outputPorts = parseInt(document.getElementById('customProcessorOutputPorts').value) || 0;
+  const maxInputWidth = parseInt(document.getElementById('customProcessorMaxInputWidth').value) || 0;
+  const maxInputHeight = parseInt(document.getElementById('customProcessorMaxInputHeight').value) || 0;
   const supportsDirect = document.getElementById('cpProcessorDirect').checked;
   const usesDistBox = document.getElementById('cpProcessorDistBox').checked;
   const distBoxName = document.getElementById('customProcessorDistBoxName').value.trim();
@@ -261,6 +267,8 @@ function saveCustomProcessor() {
     base_bitdepth: bitDepth,
     total_pixels: totalPixels,
     output_ports: outputPorts,
+    max_input_width: maxInputWidth,
+    max_input_height: maxInputHeight,
     outputs: outputsStr,
     supports_direct: supportsDirect,
     uses_distribution_box: usesDistBox,

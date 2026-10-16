@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.213', date: '2026-10-15', notes: 'Warn when a screen is too big for one processor input or canvas' },
   { version: '2.11.212', date: '2026-10-15', notes: 'Line up the Cable tab Source lock hint with its input on mobile' },
   { version: '2.11.211', date: '2026-10-15', notes: 'Limit the auto-shown release notes popup to updates since the last seen version' },
   { version: '2.11.210', date: '2026-10-15', notes: 'Ask whether overflow processors share a source and lock Cable tab feeds for multi-screen projects' },

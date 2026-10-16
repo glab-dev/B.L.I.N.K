@@ -1,5 +1,5 @@
 {
-  "version": "2.11.212",
+  "version": "2.11.213",
   "updated": "2026-10-15",
-  "changelog": "Line up the Cable tab Source lock hint with its input on mobile"
+  "changelog": "Warn when a screen is too big for one processor input or canvas"
 }

@@ -1782,6 +1782,17 @@
         </div>
       </div>
 
+      <div class="modal-input-row">
+        <div class="modal-input-group">
+          <label>Max Input Width (px)</label>
+          <input type="number" id="customProcessorMaxInputWidth" placeholder="e.g., 4096">
+        </div>
+        <div class="modal-input-group">
+          <label>Max Input Height (px)</label>
+          <input type="number" id="customProcessorMaxInputHeight" placeholder="e.g., 2160">
+        </div>
+      </div>
+
       <div class="cp-toggle-row">
         <label class="cp-toggle-label">Direct Mode</label>
         <label class="cp-mini-toggle">
@@ -3006,6 +3017,7 @@
 
     <div id="results" class="result">Configure your LED wall above - results update automatically.</div>
     <div id="specWarning" class="warn"></div>
+    <div id="canvasFitWarning" class="warn"></div>
 
     <div class="layout-container" id="standardContainer" style="display:none;">
       <button type="button" class="view-export-btn" onclick="exportViewPdf('standard')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
@@ -3962,8 +3974,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.212';
-const APP_CHANGELOG = 'Line up the Cable tab Source lock hint with its input on mobile';
+const APP_VERSION = '2.11.213';
+const APP_CHANGELOG = 'Warn when a screen is too big for one processor input or canvas';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

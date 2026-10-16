@@ -1236,7 +1236,93 @@ function updateCanvasInfoDisplay() {
     html += `<br><span style="color: var(--primary);">Selected: ${escapeHtml(screen.name)} (X: ${x}, Y: ${y})</span>`;
   }
 
+  // Screens on this canvas too big for one processor input / canvas
+  Object.keys(screens).forEach(screenId => {
+    if(!screens[screenId].visible) return;
+    const text = canvasFitWarningText(screenId);
+    if(text) html += `<br><span style="color: #ff6b6b;">${escapeHtml(text)}</span>`;
+  });
+
   infoEl.innerHTML = html;
+}
+
+// Pixel size of a canvas. The open canvas reads the live size controls; any other canvas
+// reads what was saved for it.
+function canvasPixelSize(canvasId) {
+  const isOpen = canvasId === currentCanvasId;
+  const d = (canvases[canvasId] && canvases[canvasId].data) || {};
+  const size = isOpen ? (document.getElementById('canvasSize')?.value || d.canvasSize) : d.canvasSize;
+  if(size === '4K_DCI') return { width: 4096, height: 2160, name: '4K DCI' };
+  if(size === 'HD') return { width: 1920, height: 1080, name: 'HD' };
+  if(size === 'custom') {
+    const w = isOpen ? parseInt(document.getElementById('customCanvasWidth')?.value) : d.customCanvasWidth;
+    const h = isOpen ? parseInt(document.getElementById('customCanvasHeight')?.value) : d.customCanvasHeight;
+    return { width: w || 1920, height: h || 1080, name: 'custom' };
+  }
+  return { width: 3840, height: 2160, name: '4K UHD' };
+}
+
+// How a screen fits one processor input on the canvas it sits on. The limit is the
+// processor's max input, tightened by the canvas size when that is smaller (a 4K UHD
+// canvas caps an SX40 at 3840 wide). Parts split on panel boundaries, so the count comes
+// from whole columns / rows per part. Null when the screen has no usable grid.
+function screenCanvasFit(screenId) {
+  const screen = screens[screenId];
+  const data = (typeof liveScreenData === 'function' ? liveScreenData(screenId) : null) || (screen && screen.data);
+  if(!data) return null;
+  const allPanels = getAllPanels();
+  const p = allPanels[data.panelType];
+  const pw = data.panelsWide || 0, ph = data.panelsHigh || 0;
+  if(!p || !p.res_x || !p.res_y || !pw || !ph) return null;
+
+  const halfRows = getCB5HalfRows(data, data.panelType);
+  const halfP = allPanels['CB5_MKII_HALF'];
+  const width = pw * p.res_x;
+  const height = ph * p.res_y + (halfRows.top + halfRows.bottom) * (halfP ? halfP.res_y : p.res_y);
+
+  const topology = resolveProcessorTopology(data.processor || 'Brompton_SX40', data.mx40ConnectionMode || 'direct');
+  const canvasId = Object.keys(canvases).find(id =>
+    canvases[id].data && canvases[id].data.screenVisibility && canvases[id].data.screenVisibility[screenId]);
+  const canvas = canvasId ? canvasPixelSize(canvasId) : null;
+
+  // The tighter of the two limits; 0 / missing means that side sets no limit
+  const tighter = (procMax, canvasMax) => [procMax, canvasMax].filter(v => v > 0).reduce((a, b) => Math.min(a, b), Infinity);
+  const limitW = tighter(topology.maxInputWidth, canvas ? canvas.width : 0);
+  const limitH = tighter(topology.maxInputHeight, canvas ? canvas.height : 0);
+  const colsPerPart = isFinite(limitW) ? Math.max(1, Math.floor(limitW / p.res_x)) : pw;
+  const rowsPerPart = isFinite(limitH) ? Math.max(1, Math.floor(limitH / p.res_y)) : ph;
+  const partsX = width > limitW ? Math.ceil(pw / colsPerPart) : 1;
+  const partsY = height > limitH ? Math.ceil(height / (rowsPerPart * p.res_y)) : 1;
+
+  return {
+    width, height, limitW, limitH, partsX, partsY, parts: partsX * partsY,
+    processorName: topology.name,
+    processorW: topology.maxInputWidth, processorH: topology.maxInputHeight,
+    canvas: canvas,
+    // Only the canvas size forces the split; a larger canvas would fit one processor
+    canvasIsLimit: !!canvas && (canvas.width < (topology.maxInputWidth || Infinity) || canvas.height < (topology.maxInputHeight || Infinity)),
+    fitsProcessorInput: (!topology.maxInputWidth || width <= topology.maxInputWidth) &&
+                        (!topology.maxInputHeight || height <= topology.maxInputHeight)
+  };
+}
+
+// Plain-text warning for a screen that needs more than one processor / canvas, or ''.
+function canvasFitWarningText(screenId) {
+  const fit = screenCanvasFit(screenId);
+  if(!fit || fit.parts < 2) return '';
+  const limit = (fit.canvasIsLimit && fit.canvas)
+    ? fit.canvas.name + ' canvas (' + fit.canvas.width + ' × ' + fit.canvas.height + ')'
+    : fit.processorName + ' input (' + fit.processorW + ' × ' + fit.processorH + ')';
+  let text = '⚠️ ' + screens[screenId].name + ' is ' + fit.width + ' × ' + fit.height + ' px — larger than one ' +
+    limit + '. It needs ' + fit.parts + ' processors / canvases.';
+  if(fit.fitsProcessorInput) text += ' It fits one ' + fit.processorName + ' on a larger canvas, e.g. 4K DCI.';
+  return text;
+}
+
+// Warning under the results for the screen being edited
+function updateCanvasFitWarning() {
+  const el = document.getElementById('canvasFitWarning');
+  if(el) el.textContent = canvasFitWarningText(currentScreenId);
 }
 
 // Draw selection highlight on canvas without full redraw

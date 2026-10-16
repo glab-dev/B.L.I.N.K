@@ -49,8 +49,10 @@ function updateWeightDisplay() {
   const useConnectingPlates = shouldUseConnectingPlates(panelType);
   const panelWeightKg = getPanelWeight(panelType, useConnectingPlates);
 
-  // Check if CB5 half panel row is enabled
-  const hasCB5HalfRow = cb5HalfRowEnabled && panelType === 'CB5_MKII';
+  // Check if CB5 half panel rows are enabled (the full rows start below any on top)
+  const halfRows = getCurrentCB5HalfRows();
+  const halfRowCount = halfRows.top + halfRows.bottom;
+  const hasCB5HalfRow = halfRowCount > 0;
   const halfPanelWeightKg = hasCB5HalfRow ? getPanelWeight('CB5_MKII_HALF', useConnectingPlates) : 0;
 
   let html = '';
@@ -78,14 +80,14 @@ function updateWeightDisplay() {
         let panelCount = 0;
         let panelWeight = 0;
         // Count full panels
-        for(let row = 0; row < H; row++) {
+        for(let row = halfRows.top; row < halfRows.top + H; row++) {
           if(!deletedPanels.has(`${col1},${row}`)) panelCount++;
           if(!deletedPanels.has(`${col2},${row}`)) panelCount++;
         }
         panelWeight = panelCount * panelWeightKg;
         // Add half panel row weight if enabled
         if(hasCB5HalfRow) {
-          panelWeight += 2 * halfPanelWeightKg; // 2 half panels per 2W bumper
+          panelWeight += countCB5LivePanels(W, H, halfRows, deletedPanels, [col1, col2]).half * halfPanelWeightKg; // live half panels under the 2W bumper
         }
         const totalWeight = panelWeight + bumper2wKg;
         html += `<div class="weight-item">Cols ${col1 + 1}-${col2 + 1} (2W): ${Math.ceil(totalWeight)} kg (${Math.ceil(totalWeight * 2.20462)} lbs)</div>`;
@@ -96,13 +98,13 @@ function updateWeightDisplay() {
         const lastCol = W - 1;
         let panelCount = 0;
         let panelWeight = 0;
-        for(let row = 0; row < H; row++) {
+        for(let row = halfRows.top; row < halfRows.top + H; row++) {
           if(!deletedPanels.has(`${lastCol},${row}`)) panelCount++;
         }
         panelWeight = panelCount * panelWeightKg;
         // Add half panel row weight if enabled
         if(hasCB5HalfRow) {
-          panelWeight += halfPanelWeightKg; // 1 half panel for 1W bumper
+          panelWeight += countCB5LivePanels(W, H, halfRows, deletedPanels, [lastCol]).half * halfPanelWeightKg; // live half panels under the 1W bumper
         }
         const totalWeight = panelWeight + bumper1wKg;
         html += `<div class="weight-item">Col ${lastCol + 1} (1W): ${Math.ceil(totalWeight)} kg (${Math.ceil(totalWeight * 2.20462)} lbs)</div>`;
@@ -120,14 +122,14 @@ function updateWeightDisplay() {
         let panelCount = 0;
         let panelWeight = 0;
         // Count full panels
-        for(let row = 0; row < H; row++) {
+        for(let row = halfRows.top; row < halfRows.top + H; row++) {
           if(!deletedPanels.has(`${col1},${row}`)) panelCount++;
           if(!deletedPanels.has(`${col2},${row}`)) panelCount++;
         }
         panelWeight = panelCount * panelWeightKg;
         // Add half panel row weight if enabled
         if(hasCB5HalfRow) {
-          panelWeight += 2 * halfPanelWeightKg; // 2 half panels per 2W bumper
+          panelWeight += countCB5LivePanels(W, H, halfRows, deletedPanels, [col1, col2]).half * halfPanelWeightKg; // live half panels under the 2W bumper
         }
         const totalWeight = panelWeight + bumper2wKg;
         html += `<div class="weight-item">Cols ${col1 + 1}-${col2 + 1} (2W): ${Math.ceil(totalWeight)} kg (${Math.ceil(totalWeight * 2.20462)} lbs)</div>`;
@@ -138,13 +140,13 @@ function updateWeightDisplay() {
         const lastCol = W - 1;
         let panelCount = 0;
         let panelWeight = 0;
-        for(let row = 0; row < H; row++) {
+        for(let row = halfRows.top; row < halfRows.top + H; row++) {
           if(!deletedPanels.has(`${lastCol},${row}`)) panelCount++;
         }
         panelWeight = panelCount * panelWeightKg;
         // Add half panel row weight if enabled
         if(hasCB5HalfRow) {
-          panelWeight += halfPanelWeightKg; // 1 half panel for 1W bumper
+          panelWeight += countCB5LivePanels(W, H, halfRows, deletedPanels, [lastCol]).half * halfPanelWeightKg; // live half panels under the 1W bumper
         }
         const totalWeight = panelWeight + bumper1wKg;
         html += `<div class="weight-item">Col ${lastCol + 1} (1W): ${Math.ceil(totalWeight)} kg (${Math.ceil(totalWeight * 2.20462)} lbs)</div>`;
@@ -168,7 +170,7 @@ function updateWeightDisplay() {
         
         // Count panels in all 4 columns
         let totalPanelCount = 0;
-        for(let row = 0; row < H; row++) {
+        for(let row = halfRows.top; row < halfRows.top + H; row++) {
           if(!deletedPanels.has(`${col1},${row}`)) totalPanelCount++;
           if(!deletedPanels.has(`${col2},${row}`)) totalPanelCount++;
           if(!deletedPanels.has(`${col3},${row}`)) totalPanelCount++;
@@ -179,7 +181,7 @@ function updateWeightDisplay() {
         let panelWeight = totalPanelCount * panelWeightKg;
         // Add half panel row weight if enabled (4 half panels per 4W bumper)
         if(hasCB5HalfRow) {
-          panelWeight += 4 * halfPanelWeightKg;
+          panelWeight += countCB5LivePanels(W, H, halfRows, deletedPanels, [col1, col2, col3, col4]).half * halfPanelWeightKg;
         }
         const bumper2wWeight = 2 * bumper2wKg;  // Two 2W bumpers (27.5 lbs each for CB5)
         const bumper4wWeight = bumper4wKg;      // One 4W bumper (66.15 lbs for CB5)
@@ -203,7 +205,7 @@ function updateWeightDisplay() {
         
         // Count panels in all 4 columns
         let totalPanelCount = 0;
-        for(let row = 0; row < H; row++) {
+        for(let row = halfRows.top; row < halfRows.top + H; row++) {
           if(!deletedPanels.has(`${col1},${row}`)) totalPanelCount++;
           if(!deletedPanels.has(`${col2},${row}`)) totalPanelCount++;
           if(!deletedPanels.has(`${col3},${row}`)) totalPanelCount++;
@@ -214,7 +216,7 @@ function updateWeightDisplay() {
         let panelWeight = totalPanelCount * panelWeightKg;
         // Add half panel row weight if enabled (4 half panels per 4W bumper)
         if(hasCB5HalfRow) {
-          panelWeight += 4 * halfPanelWeightKg;
+          panelWeight += countCB5LivePanels(W, H, halfRows, deletedPanels, [col1, col2, col3, col4]).half * halfPanelWeightKg;
         }
         const bumper2wWeight = 2 * bumper2wKg;  // Two 2W bumpers (27.5 lbs each for CB5)
         const bumper4wWeight = bumper4wKg;      // One 4W bumper (66.15 lbs for CB5)
@@ -226,6 +228,66 @@ function updateWeightDisplay() {
   }
 
   weightContent.innerHTML = html;
+}
+
+// Tallest live column of the current wall against the panel's max hanging (hanging) or max
+// stacking (ground stack), counted in full panels: a CB5 half panel is worth
+// max_full / max_half of one (12 / 24 = half a panel when hanging). Null when the
+// structure or the panel spec has no limit.
+function getColumnHeightStatus() {
+  const panelType = document.getElementById('panelType').value;
+  const allPanels = getAllPanels();
+  const p = allPanels[panelType];
+  const structureType = document.getElementById('structureType').value;
+  const limitKey = structureType === 'hanging' ? 'max_hanging' : (structureType === 'ground' ? 'max_stacking' : null);
+  if(!p || !limitKey || !(p[limitKey] > 0)) return null;
+
+  const {pw, ph} = getEffectivePanelCounts();
+  const halfRows = getCurrentCB5HalfRows();
+  const halfP = allPanels['CB5_MKII_HALF'];
+  const halfWorth = (halfP && halfP[limitKey] > 0) ? p[limitKey] / halfP[limitKey] : 0.5;
+
+  let tallest = 0;
+  for(let c = 0; c < pw; c++) {
+    const live = countCB5LivePanels(pw, ph, halfRows, deletedPanels, [c]);
+    tallest = Math.max(tallest, live.full + live.half * halfWorth);
+  }
+  return {
+    limit: p[limitKey],
+    tallest: tallest,
+    over: tallest > p[limitKey],
+    hanging: limitKey === 'max_hanging',
+    panelName: p.name || panelType,
+    hasHalf: halfRows.top + halfRows.bottom > 0
+  };
+}
+
+// Screen id -> whether its tallest column was over the limit at the last check, so the
+// popup only fires when a change pushes a wall over, not on every recalculation.
+const columnHeightOverByScreen = {};
+
+// Shows the too-tall warning under the half row controls and on the Structure Layout,
+// and pops it up once when the current wall first goes over its limit.
+function updateColumnHeightWarning() {
+  const status = getColumnHeightStatus();
+  const over = !!(status && status.over);
+  let message = '';
+  if(over) {
+    const fmt = n => Number.isInteger(n) ? String(n) : n.toFixed(1);
+    message = `Column too tall to ${status.hanging ? 'hang' : 'ground stack'}: ${fmt(status.tallest)} panels high — ` +
+      `max ${status.hanging ? 'hanging' : 'stacking'} for ${status.panelName} is ${status.limit}.` +
+      (status.hasHalf ? ' Half panels count as half a panel.' : '');
+  }
+  ['cb5HalfRowHeightWarning', 'structureHeightWarning'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.textContent = message;
+    el.style.display = over ? '' : 'none';
+  });
+
+  const wasOver = columnHeightOverByScreen[currentScreenId];
+  columnHeightOverByScreen[currentScreenId] = over;
+  if(over && wasOver === false) showAlert(message, 'Column Too Tall');
 }
 
 function calculateTotalBumperWeight(W, H) {

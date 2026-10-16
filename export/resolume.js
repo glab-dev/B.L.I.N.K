@@ -37,42 +37,35 @@ function buildScreenSliceRects(screenData, panel) {
     ? screenData.deletedPanels
     : new Set(screenData.deletedPanels || []);
 
-  // Signature per row so identical neighbouring rows can merge into one band
+  // CB5 half rows sit above and/or below the full rows, in the same grid of panel keys
+  // (rows above come first), and have their own deleted panels. Honours addCB5HalfRow for
+  // any panel type — callers pass the flag they actually drew.
+  const rowGeo = cb5RowGeometry(panelsHigh, getCB5HalfRows(screenData, 'CB5_MKII'), resY, Math.round(resY / 2));
+
+  // Signature per row so identical neighbouring rows of the same height can merge into one band
   const rowRuns = [];
   const rowKeys = [];
-  for(let row = 0; row < panelsHigh; row++) {
+  for(let row = 0; row < rowGeo.rows; row++) {
     const runs = getLivePanelRuns(deletedPanels, row, panelsWide);
     rowRuns.push(runs);
-    rowKeys.push(JSON.stringify(runs));
+    rowKeys.push((rowGeo.isHalf(row) ? 'half:' : 'full:') + JSON.stringify(runs));
   }
 
   const rects = [];
   let row = 0;
-  while(row < panelsHigh) {
+  while(row < rowGeo.rows) {
     let bandEnd = row;
-    while(bandEnd + 1 < panelsHigh && rowKeys[bandEnd + 1] === rowKeys[row]) bandEnd++;
-    const bandHeight = (bandEnd - row + 1) * resY;
+    while(bandEnd + 1 < rowGeo.rows && rowKeys[bandEnd + 1] === rowKeys[row]) bandEnd++;
+    const bandHeight = rowGeo.y(bandEnd + 1) - rowGeo.y(row);
     rowRuns[row].forEach(function(run) {
       rects.push({
         x: originX + run[0] * resX,
-        y: originY + row * resY,
+        y: originY + rowGeo.y(row),
         w: (run[1] - run[0] + 1) * resX,
         h: bandHeight
       });
     });
     row = bandEnd + 1;
-  }
-
-  // CB5 half row sits below the last full row, spanning that row's live runs
-  if(screenData.addCB5HalfRow) {
-    getLivePanelRuns(deletedPanels, panelsHigh - 1, panelsWide).forEach(function(run) {
-      rects.push({
-        x: originX + run[0] * resX,
-        y: originY + panelsHigh * resY,
-        w: (run[1] - run[0] + 1) * resX,
-        h: Math.round(resY / 2)
-      });
-    });
   }
 
   return rects;

@@ -4,7 +4,8 @@
 // currentPanelWidth, currentPanelHeight, structureDraggingBumper, etc.
 
 // Draw all bumpers from the bumpers array
-function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, fourWayHeight, fourWayGap, panelYOffset, bumpersWithLadders = new Set()) {
+// rowGeo: cb5RowGeometry of the drawn wall, so CB5 half rows above/below sit at their real height.
+function drawAllBumpers(ctx, pw, ph, panelWidth, rowGeo, bumperHeight, fourWayHeight, fourWayGap, panelYOffset, bumpersWithLadders = new Set()) {
   const use4Way = use4WayBumpersEnabled;
   const panelType = document.getElementById('panelType').value;
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
@@ -33,7 +34,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
         // 4W bumpers stay at top (they connect to the 2W bumpers which drop down)
         y = 0;
       } else {
-        y = panelYOffset + (ph * panelHeight) + bumperHeight + fourWayGap;
+        y = panelYOffset + rowGeo.height + bumperHeight + fourWayGap;
       }
 
       fillColor = greyscalePrintMode ? toGreyscale('#FF6B35') : (ecoPrintMode ? toPastelColor('#FF6B35') : '#FF6B35'); // Orange
@@ -54,9 +55,9 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
         const maxRow = Math.max(row1, row2); // Use the deeper one so bumper sits on both
 
         const baseY = use4Way && isCB5 ? (fourWayHeight + fourWayGap) : 0;
-        y = baseY + (maxRow * panelHeight); // Drop down by the number of deleted rows
+        y = baseY + rowGeo.y(maxRow); // Drop down by the number of deleted rows
       } else {
-        y = panelYOffset + (ph * panelHeight);
+        y = panelYOffset + rowGeo.height;
       }
 
       fillColor = greyscalePrintMode ? toGreyscale('#4CAF50') : (ecoPrintMode ? toPastelColor('#4CAF50') : '#4CAF50'); // Green for top, orange for bottom
@@ -77,9 +78,9 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
         const firstRow = getFirstNonDeletedRow(col, ph);
 
         const baseY = use4Way && isCB5 ? (fourWayHeight + fourWayGap) : 0;
-        y = baseY + (firstRow * panelHeight); // Drop down by the number of deleted rows
+        y = baseY + rowGeo.y(firstRow); // Drop down by the number of deleted rows
       } else {
-        y = panelYOffset + (ph * panelHeight);
+        y = panelYOffset + rowGeo.height;
       }
 
       fillColor = greyscalePrintMode ? toGreyscale('#2196F3') : (ecoPrintMode ? toPastelColor('#2196F3') : '#2196F3'); // Blue for 1W
@@ -197,7 +198,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
   }
   if(showBottomBumper) {
     ctx.beginPath();
-    ctx.moveTo(centerX, panelYOffset + (ph * panelHeight));
+    ctx.moveTo(centerX, panelYOffset + rowGeo.height);
     ctx.lineTo(centerX, ctx.canvas.height);
     ctx.stroke();
   }
@@ -205,7 +206,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, four
     // Bumpers off (or floor structure): short red tick at the top of the centre panel
     ctx.beginPath();
     ctx.moveTo(centerX, panelYOffset);
-    ctx.lineTo(centerX, panelYOffset + Math.min(bumperHeight, ph * panelHeight));
+    ctx.lineTo(centerX, panelYOffset + Math.min(bumperHeight, rowGeo.height));
     ctx.stroke();
   }
 }
@@ -216,7 +217,7 @@ function calculateBumperPickupWeight(bumper) {
   const allPanels = getAllPanels();
   const p = allPanels[panelType];
   // Same counts the structure canvas draws. Deliberately NOT getEffectivePanelCountsForLayout()
-  // - that adds the CB5 half row to ph, which hasCB5HalfRow below already accounts for.
+  // - that adds the CB5 half rows to ph, which halfRowCount below already accounts for.
   const {pw, ph} = getEffectivePanelCounts();
 
   if(!p) return { kg: 0, lbs: 0 };
@@ -225,9 +226,14 @@ function calculateBumperPickupWeight(bumper) {
   const useConnectingPlates = shouldUseConnectingPlates(panelType);
   const panelWeightKg = getPanelWeight(panelType, useConnectingPlates);
 
-  // Check if CB5 half panel row is enabled
-  const hasCB5HalfRow = cb5HalfRowEnabled && panelType === 'CB5_MKII';
+  // Check if CB5 half panel rows are enabled. The full rows start below any half rows on
+  // top, and the whole column — half rows included — hangs from the bumper.
+  const halfRows = getCurrentCB5HalfRows();
+  const halfRowCount = halfRows.top + halfRows.bottom;
+  const hasCB5HalfRow = halfRowCount > 0;
   const halfPanelWeightKg = hasCB5HalfRow ? getPanelWeight('CB5_MKII_HALF', useConnectingPlates) : 0;
+  const firstFullRow = halfRows.top;
+  const endFullRow = halfRows.top + ph;
 
   let totalPanelWeightKg = 0;
   let bumperWeightLbs = 0;
@@ -258,7 +264,7 @@ function calculateBumperPickupWeight(bumper) {
     for(let c = colStart; c <= colEnd; c++) {
       if(c >= 0) {
         directColumns.push(c);
-        for(let r = 0; r < ph; r++) {
+        for(let r = firstFullRow; r < endFullRow; r++) {
           const panelKey = `${c},${r}`;
           if(!deletedPanels.has(panelKey)) {
             totalPanelWeightKg += panelWeightKg;
@@ -270,9 +276,9 @@ function calculateBumperPickupWeight(bumper) {
     
     console.log(`4W Bumper picked up ${panelCount} panels at ${panelWeightKg}kg each = ${totalPanelWeightKg}kg panel weight`);
 
-    // Add half panel row weight if enabled (4 half panels for 4W bumper)
+    // Add the live half panels in these columns if half rows are enabled
     if(hasCB5HalfRow) {
-      totalPanelWeightKg += 4 * halfPanelWeightKg;
+      totalPanelWeightKg += countCB5LivePanels(pw, ph, halfRows, deletedPanels, directColumns).half * halfPanelWeightKg;
     }
 
     // Add 4W hanging bar weight + 2x 2W bumpers (structural, part of the pickup assembly)
@@ -288,16 +294,16 @@ function calculateBumperPickupWeight(bumper) {
     
     // For hanging bumpers, we need to calculate from the row the bumper is sitting on
     // (which accounts for dropped position due to deleted top panels)
-    let startRow = 0;
+    let startRow = firstFullRow;
     if(bumper.position === 'top') {
       // Find the first non-deleted row for both columns - bumper sits on the deeper one
-      const row1 = getFirstNonDeletedRow(colStart, ph);
-      const row2 = getFirstNonDeletedRow(colEnd, ph);
+      const row1 = getFirstNonDeletedRow(colStart, endFullRow, firstFullRow);
+      const row2 = getFirstNonDeletedRow(colEnd, endFullRow, firstFullRow);
       startRow = Math.max(row1, row2);
     }
     
     for(let c = colStart; c <= colEnd; c++) {
-      for(let r = startRow; r < ph; r++) {
+      for(let r = startRow; r < endFullRow; r++) {
         const panelKey = `${c},${r}`;
         if(!deletedPanels.has(panelKey)) {
           totalPanelWeightKg += panelWeightKg;
@@ -305,9 +311,9 @@ function calculateBumperPickupWeight(bumper) {
       }
     }
 
-    // Add half panel row weight if enabled (2 half panels for 2W bumper)
+    // Add the live half panels in both columns if half rows are enabled
     if(hasCB5HalfRow) {
-      totalPanelWeightKg += 2 * halfPanelWeightKg;
+      totalPanelWeightKg += countCB5LivePanels(pw, ph, halfRows, deletedPanels, [colStart, colEnd]).half * halfPanelWeightKg;
     }
 
     bumperWeightLbs = bumper2wLbs;
@@ -319,21 +325,21 @@ function calculateBumperPickupWeight(bumper) {
     directColumns.push(col);
     
     // For hanging bumpers, calculate from the row the bumper is sitting on
-    let startRow = 0;
+    let startRow = firstFullRow;
     if(bumper.position === 'top') {
-      startRow = getFirstNonDeletedRow(col, ph);
+      startRow = getFirstNonDeletedRow(col, endFullRow, firstFullRow);
     }
     
-    for(let r = startRow; r < ph; r++) {
+    for(let r = startRow; r < endFullRow; r++) {
       const panelKey = `${col},${r}`;
       if(!deletedPanels.has(panelKey)) {
         totalPanelWeightKg += panelWeightKg;
       }
     }
 
-    // Add half panel row weight if enabled (1 half panel for 1W bumper)
+    // Add the live half panels in this column if half rows are enabled
     if(hasCB5HalfRow) {
-      totalPanelWeightKg += halfPanelWeightKg;
+      totalPanelWeightKg += countCB5LivePanels(pw, ph, halfRows, deletedPanels, [col]).half * halfPanelWeightKg;
     }
 
     bumperWeightLbs = bumper1wLbs;
@@ -355,15 +361,15 @@ function calculateBumperPickupWeight(bumper) {
   };
 }
 
-// Get the first non-deleted row for a column (for top bumpers)
-function getFirstNonDeletedRow(column, ph) {
-  for(let r = 0; r < ph; r++) {
+// Get the first non-deleted row for a column (for top bumpers), searching rows fromRow..ph-1
+function getFirstNonDeletedRow(column, ph, fromRow = 0) {
+  for(let r = fromRow; r < ph; r++) {
     const panelKey = `${column},${r}`;
     if(!deletedPanels.has(panelKey)) {
       return r;
     }
   }
-  return 0; // If all deleted, return 0
+  return fromRow; // If all deleted, return the first row searched
 }
 
 // Get the last non-deleted row for a column (for bottom bumpers)
@@ -451,9 +457,11 @@ function getOrphanedColumnWeightForBumper(bumper, pw, ph, panelWeightKg) {
   // Only calculate for 1w and 2w bumpers (4w bumpers pick up via their 2w sub-bumpers)
   if(bumper.type === '4w') return 0;
 
-  // Check if CB5 half panel row is enabled
+  // Check if CB5 half panel rows are enabled (the full rows start below any on top)
   const panelType = document.getElementById('panelType').value;
-  const hasCB5HalfRow = cb5HalfRowEnabled && panelType === 'CB5_MKII';
+  const halfRows = getCurrentCB5HalfRows();
+  const halfRowCount = halfRows.top + halfRows.bottom;
+  const hasCB5HalfRow = halfRowCount > 0;
   const useConnectingPlates = shouldUseConnectingPlates(panelType);
   const halfPanelWeightKg = hasCB5HalfRow ? getPanelWeight('CB5_MKII_HALF', useConnectingPlates) : 0;
 
@@ -467,21 +475,21 @@ function getOrphanedColumnWeightForBumper(bumper, pw, ph, panelWeightKg) {
     // If this bumper is the nearest one to this orphaned column, add the weight
     if(nearestBumper && nearestBumper.id === bumper.id) {
       // Calculate weight of panels in this orphaned column
-      let startRow = 0;
+      let startRow = halfRows.top;
       if(bumper.position === 'top') {
-        startRow = getFirstNonDeletedRow(col, ph);
+        startRow = getFirstNonDeletedRow(col, halfRows.top + ph, halfRows.top);
       }
 
-      for(let r = startRow; r < ph; r++) {
+      for(let r = startRow; r < halfRows.top + ph; r++) {
         const panelKey = `${col},${r}`;
         if(!deletedPanels.has(panelKey)) {
           additionalWeightKg += panelWeightKg;
         }
       }
 
-      // Add half panel weight for this orphaned column if enabled
+      // Add the live half panel weight for this orphaned column if enabled
       if(hasCB5HalfRow) {
-        additionalWeightKg += halfPanelWeightKg;
+        additionalWeightKg += countCB5LivePanels(pw, ph, halfRows, deletedPanels, [col]).half * halfPanelWeightKg;
       }
 
       console.log(`Orphaned column ${col} weight (${additionalWeightKg.toFixed(2)}kg) transferred to ${bumper.type} bumper #${bumper.id}`);

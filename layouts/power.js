@@ -10,7 +10,7 @@
 // place the grid on the target canvas.
 function drawSocaOverlay(ctx, o) {
   const { panelToCircuit, panelToSoca, deletedPanels,
-          panelWidth, panelHeight, halfPanelHeight, hasCB5HalfRow, originalPh,
+          panelWidth, rowGeo,
           offsetX, offsetY, outlineLineWidth, socaLabelIdx } = o;
   // labelFor/labelColor let another view reuse this grouping + diagonal-label
   // geometry with its own text — the combined data layout labels distribution
@@ -92,10 +92,9 @@ function drawSocaOverlay(ctx, o) {
       const segments = []; // [x1,y1,x2,y2]
       cellSet.forEach(k => {
         const [c, r] = k.split(',').map(Number);
-        const isHalfRow = hasCB5HalfRow && r === originalPh;
-        const ph_ = isHalfRow ? halfPanelHeight : panelHeight;
+        const ph_ = rowGeo.h(r);
         const x = c * panelWidth + offsetX;
-        const y = (isHalfRow ? (originalPh * panelHeight) : (r * panelHeight)) + offsetY;
+        const y = rowGeo.y(r) + offsetY;
         const hasTop   = cellSet.has(`${c},${r-1}`);
         const hasBot   = cellSet.has(`${c},${r+1}`);
         const hasLeft  = cellSet.has(`${c-1},${r}`);
@@ -192,14 +191,11 @@ function drawSocaOverlay(ctx, o) {
         }
       }
 
-      // Pixel bounds of the chosen rectangle (honour the CB5 half row).
-      const topIsHalf = hasCB5HalfRow && best.r0 === originalPh;
-      const botIsHalf = hasCB5HalfRow && best.r1 === originalPh;
+      // Pixel bounds of the chosen rectangle (honour the CB5 half rows).
       const rx = best.c0 * panelWidth + offsetX;
-      const ry = (topIsHalf ? originalPh * panelHeight : best.r0 * panelHeight) + offsetY;
+      const ry = rowGeo.y(best.r0) + offsetY;
       const rw = (best.c1 - best.c0 + 1) * panelWidth;
-      const yBot = (botIsHalf ? originalPh * panelHeight + halfPanelHeight
-                              : (best.r1 + 1) * panelHeight) + offsetY;
+      const yBot = rowGeo.y(best.r1 + 1) + offsetY;
       const rh = yBot - ry;
 
       const cx = rx + rw / 2, cy = ry + rh / 2;
@@ -247,7 +243,7 @@ function drawSocaOverlay(ctx, o) {
 }
 
 function renderPowerLayout(params) {
-  const {pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, panelsPerCircuit} = params;
+  const {pw, ph, panelWidth, rowGeo, canvas, ctx, panelsPerCircuit} = params;
 
   const _pdfMode = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
   const _isMultiScreen = typeof pdfMultiScreenCapture !== 'undefined' && pdfMultiScreenCapture;
@@ -425,10 +421,9 @@ function renderPowerLayout(params) {
       const panelKey = `${c},${r}`;
 
       // Determine if this row is the half panel row
-      const isHalfPanelRow = hasCB5HalfRow && r === originalPh;
-      const currentPanelHeight = isHalfPanelRow ? halfPanelHeight : panelHeight;
+      const currentPanelHeight = rowGeo.h(r);
       const x = c * panelWidth + rowMarkerW;
-      const y = (isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight)) + topBandH;
+      const y = rowGeo.y(r) + topBandH;
 
       // Check if panel is deleted
       if(deletedPanels.has(panelKey)) {
@@ -486,7 +481,7 @@ function renderPowerLayout(params) {
   // power canvas (nav/combined.js) draws them identically.
   drawSocaOverlay(ctx, {
     panelToCircuit, panelToSoca, deletedPanels,
-    panelWidth, panelHeight, halfPanelHeight, hasCB5HalfRow, originalPh,
+    panelWidth, rowGeo,
     offsetX: rowMarkerW, offsetY: topBandH,
     outlineLineWidth: _pdfMode ? Math.max(1.5, 1.5 * _markerScale) : 1.5,
     socaLabelIdx: _socaLabelIdx,
@@ -509,9 +504,8 @@ function renderPowerLayout(params) {
   }
 
   for(let r = 0; r < ph; r++) {
-    const isHalfPanelRow = hasCB5HalfRow && r === originalPh;
-    const rowH = isHalfPanelRow ? halfPanelHeight : panelHeight;
-    const rowY = (isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight)) + topBandH;
+    const rowH = rowGeo.h(r);
+    const rowY = rowGeo.y(r) + topBandH;
     ctx.fillText(`${r+1}`, rowMarkerW / 2, rowY + rowH / 2);
   }
 }

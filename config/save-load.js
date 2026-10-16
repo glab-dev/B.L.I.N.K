@@ -98,6 +98,9 @@ function buildCurrentConfig() {
         useBumpers: data.useBumpers,
         use4WayBumpers: data.use4WayBumpers,
         addCB5HalfRow: data.addCB5HalfRow,
+        cb5HalfRowPosition: data.cb5HalfRowPosition,
+        cb5HalfRowsAbove: data.cb5HalfRowsAbove,
+        cb5HalfRowsBelow: data.cb5HalfRowsBelow,
         connectionMethod: data.connectionMethod,
         wallToFloor: data.wallToFloor,
         distroToWall: data.distroToWall,
@@ -812,7 +815,7 @@ function applyConfiguration(config, fileNameOverride) {
     document.getElementById('frameRate').value = config.frameRate || '60';
     document.getElementById('bitDepth').value = config.bitDepth || '8';
     redundancyEnabled = config.redundancy !== false;
-    cb5HalfRowEnabled = config.addCB5HalfRow || false;
+    loadCB5HalfRowState(config, config.panelType);
     document.getElementById('canvasSize').value = config.canvasSize || '4K_UHD';
     document.getElementById('customCanvasWidth').value = config.customCanvasWidth || '';
     document.getElementById('customCanvasHeight').value = config.customCanvasHeight || '';

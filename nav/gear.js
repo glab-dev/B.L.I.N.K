@@ -258,12 +258,13 @@ function calculateCabling(screenId) {
   let wallHeightFt = ph * panelHeightFt;
   let wallWidthFt = pw * panelWidthFt;
 
-  // Account for CB5 half panel row
-  const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
-  if(hasCB5HalfRow) {
+  // Account for CB5 half panel rows
+  const halfRows = getCB5HalfRows(data, panelType);
+  const halfRowCount = halfRows.top + halfRows.bottom;
+  if(halfRowCount > 0) {
     const halfP = allPanels['CB5_MKII_HALF'];
     if(halfP) {
-      wallHeightFt += halfP.height_m * M_TO_FT;
+      wallHeightFt += halfRowCount * halfP.height_m * M_TO_FT;
     }
   }
 
@@ -358,8 +359,8 @@ function calculateCabling(screenId) {
   const distributionBoxName = calc.distributionBoxName || '';
   const hasDistBox = distributionBoxCount > 0;
 
-  // Effective ph for layout (includes CB5 half row)
-  const effectivePh = hasCB5HalfRow ? ph + 1 : ph;
+  // Effective ph for layout (includes CB5 half rows)
+  const effectivePh = ph + halfRowCount;
 
   // Get entry points for each data line
   const entryPoints = getDataLineEntryPoints(

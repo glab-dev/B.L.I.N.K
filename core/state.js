@@ -515,6 +515,15 @@ function toggleSnapMode() {
 
 // CB5 Half row toggle
 let cb5HalfRowEnabled = false;
+// Where the half rows go ('below' | 'above' | 'both') and how many on each side.
+// Mirrors the current screen's data.cb5HalfRowPosition / cb5HalfRowsAbove / cb5HalfRowsBelow.
+let cb5HalfRowPosition = 'below';
+let cb5HalfRowsAbove = 1;
+let cb5HalfRowsBelow = 1;
+// The row layout the current screen's panel keys ("c,r") are written in (cb5RowLayout).
+let cb5RowKeyLayout = {top: 0, full: 1, hasHalf: false};
+// Row geometry of the last-drawn standard/power/data canvas (cb5RowGeometry), for hit-testing.
+let currentRowGeo = null;
 function toggleCB5HalfRow() {
   cb5HalfRowEnabled = !cb5HalfRowEnabled;
   document.getElementById('addCB5HalfRowBtn').classList.toggle('active', cb5HalfRowEnabled);
@@ -523,10 +532,240 @@ function toggleCB5HalfRow() {
   if(typeof screens !== 'undefined' && screens[currentScreenId]) {
     screens[currentScreenId].data.addCB5HalfRow = cb5HalfRowEnabled;
   }
+  updateCB5HalfRowControls();
+  refreshCB5HalfRows();
+}
 
+// Position picker: half rows 'above', 'below' or 'both' sides of the full rows.
+function setCB5HalfRowPosition(position) {
+  cb5HalfRowPosition = position;
+  if(typeof screens !== 'undefined' && screens[currentScreenId]) {
+    screens[currentScreenId].data.cb5HalfRowPosition = position;
+  }
+  updateCB5HalfRowControls();
+  refreshCB5HalfRows();
+}
+
+// Row count for one side ('above' | 'below'); at least 1, no upper limit.
+function setCB5HalfRowCount(side, value) {
+  const count = Math.max(1, parseInt(value) || 1);
+  if(side === 'above') cb5HalfRowsAbove = count;
+  else cb5HalfRowsBelow = count;
+  if(typeof screens !== 'undefined' && screens[currentScreenId]) {
+    screens[currentScreenId].data[side === 'above' ? 'cb5HalfRowsAbove' : 'cb5HalfRowsBelow'] = count;
+  }
+  refreshCB5HalfRows();
+}
+
+// Re-key the panels for any change in top half rows, then recalculate everything the
+// half rows feed into.
+function refreshCB5HalfRows() {
+  syncCB5RowKeys();
   updateSuggestedDataLimit(); // Update max/data placeholder when half panels toggled
   calculate();
-  updateWeightDisplay(); // Update bumper pickup weights for half panel row
+  updateWeightDisplay(); // Update bumper pickup weights for half panel rows
+}
+
+// Show the half row toggle, position picker and counts as the live state has them.
+function updateCB5HalfRowControls() {
+  const btn = document.getElementById('addCB5HalfRowBtn');
+  if(btn) btn.classList.toggle('active', cb5HalfRowEnabled);
+  const options = document.getElementById('cb5HalfRowOptions');
+  if(options) options.style.display = cb5HalfRowEnabled ? '' : 'none';
+  ['above', 'below', 'both'].forEach(pos => {
+    const b = document.getElementById('cb5HalfRow' + pos.charAt(0).toUpperCase() + pos.slice(1) + 'Btn');
+    if(b) b.classList.toggle('active', cb5HalfRowPosition === pos);
+  });
+  const aboveField = document.getElementById('cb5HalfRowsAboveField');
+  if(aboveField) aboveField.style.display = cb5HalfRowPosition === 'below' ? 'none' : '';
+  const belowField = document.getElementById('cb5HalfRowsBelowField');
+  if(belowField) belowField.style.display = cb5HalfRowPosition === 'above' ? 'none' : '';
+  const aboveInput = document.getElementById('cb5HalfRowsAbove');
+  if(aboveInput && document.activeElement !== aboveInput) aboveInput.value = cb5HalfRowsAbove;
+  const belowInput = document.getElementById('cb5HalfRowsBelow');
+  if(belowInput && document.activeElement !== belowInput) belowInput.value = cb5HalfRowsBelow;
+}
+
+// Load the half row state from a screen's data into the live globals and controls.
+// The screen's panel keys are written in its own row layout, so re-base on that.
+function loadCB5HalfRowState(data, panelType) {
+  cb5HalfRowEnabled = !!(data && data.addCB5HalfRow);
+  const pos = data && data.cb5HalfRowPosition;
+  cb5HalfRowPosition = (pos === 'above' || pos === 'both') ? pos : 'below';
+  cb5HalfRowsAbove = Math.max(1, parseInt(data && data.cb5HalfRowsAbove) || 1);
+  cb5HalfRowsBelow = Math.max(1, parseInt(data && data.cb5HalfRowsBelow) || 1);
+  cb5RowKeyLayout = cb5RowLayout(getCB5HalfRows(data, panelType), Math.max(1, parseInt(data && data.panelsHigh) || 1));
+  updateCB5HalfRowControls();
+}
+
+// CB5 half-panel rows for one screen: how many sit above (top) and below (bottom)
+// the full rows. Grid rows run top to bottom — top half rows, full rows, bottom half
+// rows — so a full panel's row index is offset by `top`. Projects saved before the
+// position/count options existed only have addCB5HalfRow, which reads as one row below.
+function getCB5HalfRows(data, panelType) {
+  if(!data || !data.addCB5HalfRow || panelType !== 'CB5_MKII') return {top: 0, bottom: 0};
+  const pos = (data.cb5HalfRowPosition === 'above' || data.cb5HalfRowPosition === 'both') ? data.cb5HalfRowPosition : 'below';
+  const count = v => Math.max(1, parseInt(v) || 1);
+  return {
+    top: pos === 'below' ? 0 : count(data.cb5HalfRowsAbove),
+    bottom: pos === 'above' ? 0 : count(data.cb5HalfRowsBelow)
+  };
+}
+
+// The current screen's half rows, from the live toggle state.
+function getCurrentCB5HalfRows() {
+  return getCB5HalfRows({
+    addCB5HalfRow: cb5HalfRowEnabled,
+    cb5HalfRowPosition: cb5HalfRowPosition,
+    cb5HalfRowsAbove: cb5HalfRowsAbove,
+    cb5HalfRowsBelow: cb5HalfRowsBelow
+  }, document.getElementById('panelType').value);
+}
+
+// Spec-text suffix for a wall's half rows: '' when off, ' + half row' for the classic
+// single row below.
+function cb5HalfRowLabel(half) {
+  const t = half.top, b = half.bottom;
+  if(!t && !b) return '';
+  if(!t) return b === 1 ? ' + half row' : ` + ${b} half rows`;
+  if(!b) return t === 1 ? ' + half row above' : ` + ${t} half rows above`;
+  return ` + ${t + b} half rows (${t} above, ${b} below)`;
+}
+
+// Row positions for a grid of `fullRows` full-height rows with half.top / half.bottom
+// half-height rows above and below it. fullH / halfH are the row heights in whatever
+// unit the caller draws in (canvas px, pixels, metres).
+function cb5RowGeometry(fullRows, half, fullH, halfH) {
+  const top = half.top, bottom = half.bottom;
+  const rows = top + fullRows + bottom;
+  const isHalf = r => r < top || r >= top + fullRows;
+  const y = r => {
+    if(r <= top) return r * halfH;
+    if(r <= top + fullRows) return top * halfH + (r - top) * fullH;
+    return top * halfH + fullRows * fullH + (r - top - fullRows) * halfH;
+  };
+  const h = r => isHalf(r) ? halfH : fullH;
+  // Row under a y position (same unit), or -1 outside the grid.
+  const rowAt = py => {
+    if(py < 0) return -1;
+    for(let r = 0; r < rows; r++) if(py < y(r + 1)) return r;
+    return -1;
+  };
+  return {top, bottom, fullRows, rows, fullH, halfH, isHalf, y, h, rowAt, height: y(rows)};
+}
+
+// Live (non-deleted) panels in a grid of `fullRows` full rows with half.top / half.bottom
+// CB5 half rows around it, split into full and half panels. `deleted` holds "c,r" keys
+// (a Set, or an array after a JSON round-trip). `cols` limits the count to those columns.
+function countCB5LivePanels(pw, fullRows, half, deleted, cols) {
+  const del = deleted instanceof Set ? deleted : new Set(Array.isArray(deleted) ? deleted : []);
+  const columns = cols || Array.from({length: pw}, (_, c) => c);
+  const rows = half.top + fullRows + half.bottom;
+  let full = 0, halfCount = 0;
+  for(let r = 0; r < rows; r++) {
+    const isHalf = r < half.top || r >= half.top + fullRows;
+    columns.forEach(c => {
+      if(del.has(`${c},${r}`)) return;
+      if(isHalf) halfCount++; else full++;
+    });
+  }
+  return {full, half: halfCount};
+}
+
+// cb5RowGeometry for the current screen's wall: the full rows from the dimension inputs
+// plus its half rows above/below.
+function getCurrentRowGeometry(fullH, halfH) {
+  return cb5RowGeometry(getEffectivePanelCounts().ph, getCurrentCB5HalfRows(), fullH, halfH);
+}
+
+// Move every row-keyed panel entry ("c,r") down by `delta` rows (up when negative),
+// dropping any pushed above the grid. Works on a Set or a Map of keys.
+function shiftCB5RowKeys(coll, delta) {
+  const moveKey = k => {
+    const [c, r] = String(k).split(',').map(Number);
+    return (r + delta >= 0) ? `${c},${r + delta}` : null;
+  };
+  if(coll instanceof Map) {
+    const out = new Map();
+    coll.forEach((v, k) => { const nk = moveKey(k); if(nk !== null) out.set(nk, v); });
+    return out;
+  }
+  const out = new Set();
+  (coll || []).forEach(k => { const nk = moveKey(k); if(nk !== null) out.add(nk); });
+  return out;
+}
+
+const CB5_ROW_KEYED_FIELDS = ['deletedPanels', 'selectedPanels', 'customCircuitAssignments',
+  'customSocaAssignments', 'customDataLineAssignments', 'customDataDestinations'];
+
+// A screen's row layout as its panel keys see it: the half rows above the full rows, the
+// number of full rows, and whether there are any half rows at all.
+function cb5RowLayout(half, fullRows) {
+  return {top: half.top, full: fullRows, hasHalf: half.top + half.bottom > 0};
+}
+
+// Re-key row-keyed panel entries ("c,r") from one row layout to another: rows above the
+// full rows keep their distance from the first full row, full rows keep their index within
+// the full rows (dropped if the wall got shorter), and rows below follow the last full row.
+// Walls without half rows on either side are left exactly as they are.
+function rebaseCB5RowKeys(coll, from, to) {
+  if(!from.hasHalf && !to.hasHalf) return coll;
+  const moveRow = r => {
+    if(r < from.top) return r - from.top + to.top;
+    if(r < from.top + from.full) return (r - from.top < to.full) ? to.top + (r - from.top) : -1;
+    return to.top + to.full + (r - from.top - from.full);
+  };
+  const moveKey = k => {
+    const [c, r] = String(k).split(',').map(Number);
+    const nr = moveRow(r);
+    return nr >= 0 ? `${c},${nr}` : null;
+  };
+  if(coll instanceof Map) {
+    const out = new Map();
+    coll.forEach((v, k) => { const nk = moveKey(k); if(nk !== null) out.set(nk, v); });
+    return out;
+  }
+  const out = new Set();
+  (coll || []).forEach(k => { const nk = moveKey(k); if(nk !== null) out.add(nk); });
+  return out;
+}
+
+// Re-key a state object's row-keyed fields: a screen's data, or an undo snapshot.
+function rebaseCB5StateKeys(state, from, to) {
+  if(!state) return;
+  CB5_ROW_KEYED_FIELDS.forEach(f => { if(state[f]) state[f] = rebaseCB5RowKeys(state[f], from, to); });
+  (state.undoHistory || []).forEach(st => rebaseCB5StateKeys(st, from, to));
+  (state.redoHistory || []).forEach(st => rebaseCB5StateKeys(st, from, to));
+}
+
+// Changing the top half rows moves every full panel down or up the grid, and changing
+// the full rows moves the half rows below them, so the current screen's deletions,
+// selection and custom assignments (and its undo history) move with their panels.
+// Call after anything that can change the current screen's row layout: the half row
+// toggle, position or counts, the panel type, or the panels high.
+function syncCB5RowKeys() {
+  const from = cb5RowKeyLayout;
+  const to = cb5RowLayout(getCurrentCB5HalfRows(), getEffectivePanelCounts().ph);
+  cb5RowKeyLayout = to;
+  if(from.top === to.top && from.full === to.full) return;
+  if(!from.hasHalf && !to.hasHalf) return;
+  deletedPanels = rebaseCB5RowKeys(deletedPanels, from, to);
+  selectedPanels = rebaseCB5RowKeys(selectedPanels, from, to);
+  customCircuitAssignments = rebaseCB5RowKeys(customCircuitAssignments, from, to);
+  customSocaAssignments = rebaseCB5RowKeys(customSocaAssignments, from, to);
+  customDataLineAssignments = rebaseCB5RowKeys(customDataLineAssignments, from, to);
+  customDataDestinations = rebaseCB5RowKeys(customDataDestinations, from, to);
+  undoHistory.forEach(st => rebaseCB5StateKeys(st, from, to));
+  redoHistory.forEach(st => rebaseCB5StateKeys(st, from, to));
+  if(typeof screens !== 'undefined' && screens[currentScreenId]) {
+    const data = screens[currentScreenId].data;
+    data.deletedPanels = new Set(deletedPanels);
+    data.selectedPanels = new Set(selectedPanels);
+    data.customCircuitAssignments = new Map(customCircuitAssignments);
+    data.customSocaAssignments = new Map(customSocaAssignments);
+    data.customDataLineAssignments = new Map(customDataLineAssignments);
+    data.customDataDestinations = new Map(customDataDestinations);
+  }
 }
 
 // Connection method toggle

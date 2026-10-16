@@ -151,9 +151,10 @@ function _getScreenResolution(screenId) {
   var ph = sd.panelsHigh || 0;
   var wallW = pw * p.res_x;
   var wallH = ph * p.res_y;
-  if(sd.addCB5HalfRow && sd.panelType === 'CB5_MKII') {
+  var halfRows = getCB5HalfRows(sd, sd.panelType);
+  if(halfRows.top + halfRows.bottom > 0) {
     var half = getAllPanels()['CB5_MKII_HALF'];
-    if(half) wallH += half.res_y;
+    if(half) wallH += (halfRows.top + halfRows.bottom) * half.res_y;
   }
   return { w: wallW, h: wallH };
 }
@@ -410,9 +411,9 @@ function _drawScreenOutline(ctx, sd, allPanels, ox, oy, bw, scale) {
   var ph = sd.panelsHigh || 0;
   if(pw === 0 || ph === 0) return false;
 
-  var hasCB5HalfRow = sd.addCB5HalfRow && panelType === 'CB5_MKII';
-  var totalRows = hasCB5HalfRow ? ph + 1 : ph;
   var halfPanel = allPanels['CB5_MKII_HALF'];
+  var rowGeo = cb5RowGeometry(ph, getCB5HalfRows(sd, panelType), p.res_y, halfPanel ? halfPanel.res_y : p.res_y);
+  var totalRows = rowGeo.rows;
 
   // Ensure deletedPanels is a Set
   var deleted = sd.deletedPanels;
@@ -426,12 +427,12 @@ function _drawScreenOutline(ctx, sd, allPanels, ox, oy, bw, scale) {
       var key = c + ',' + r;
       if(deleted.has(key)) continue;
 
-      var isHalfRow = hasCB5HalfRow && (r === ph);
+      var isHalfRow = rowGeo.isHalf(r);
       var panelW = (isHalfRow && halfPanel) ? halfPanel.res_x : p.res_x;
-      var panelH = (isHalfRow && halfPanel) ? halfPanel.res_y : p.res_y;
+      var panelH = rowGeo.h(r);
 
       var px = ox + Math.round(c * p.res_x * s);
-      var py = oy + Math.round(r * p.res_y * s);
+      var py = oy + Math.round(rowGeo.y(r) * s);
       var pw2 = Math.round(panelW * s);
       var ph2 = Math.round(panelH * s);
 

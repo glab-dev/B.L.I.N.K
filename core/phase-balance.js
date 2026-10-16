@@ -505,9 +505,9 @@ function sharedDistroBalancedPlan() {
     if (!data) return;
     const inp = resolveScreenPowerInputs(data);
     if (!inp || inp.phase !== 3) return;
-    // The CB5 half row is an extra grid row — match the power canvases.
-    const panelType = data.panelType || 'CB5_MKII';
-    const effectivePh = (data.addCB5HalfRow && panelType === 'CB5_MKII') ? inp.ph + 1 : inp.ph;
+    // The CB5 half rows are extra grid rows — match the power canvases.
+    const _half = getCB5HalfRows(data, data.panelType || 'CB5_MKII');
+    const effectivePh = inp.ph + _half.top + _half.bottom;
     members.push({
       screenId: id,
       pw: inp.pw,

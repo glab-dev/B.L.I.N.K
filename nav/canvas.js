@@ -109,13 +109,13 @@ function lightenHexCanvas(hex, amt) {
 
 // Draws the data-line arrows and start labels for one screen onto the canvas,
 // reusing the exact data-line ordering used by the data layout / cabling.
-function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelResY, ph, hasCB5HalfRow, opts) {
+function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelResY, ph, halfRows, opts) {
   if(typeof getDataLinePanelOrdering !== 'function') return;
   const data = screen.data || {};
   const pw = data.panelsWide || 0;
   if(pw === 0 || ph === 0) return;
 
-  const effectivePh = hasCB5HalfRow ? ph + 1 : ph;
+  const effectivePh = ph + halfRows.top + halfRows.bottom;
   const panelsPerDataLine = (screen.calculatedData && screen.calculatedData.panelsPerDataLine) || 16;
   const startDir = data.dataStartDir || 'top';
 
@@ -129,11 +129,10 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
 
   const allP = getAllPanels();
   const halfPanel = allP['CB5_MKII_HALF'];
-  const halfResY = (hasCB5HalfRow && halfPanel) ? halfPanel.res_y : panelResY;
+  const halfResY = halfPanel ? halfPanel.res_y : panelResY;
+  const rowGeo = cb5RowGeometry(ph, halfRows, panelResY, halfResY);
   const cX = (c) => offsetX + c * panelResX + panelResX / 2;
-  const cY = (r) => (hasCB5HalfRow && r === ph)
-    ? offsetY + ph * panelResY + halfResY / 2
-    : offsetY + r * panelResY + panelResY / 2;
+  const cY = (r) => offsetY + rowGeo.y(r) + rowGeo.h(r) / 2;
 
   const flip = !!data.dataFlip;
 
@@ -230,7 +229,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
       // One uniform font size for every badge: base on the smallest badge panel (so
       // none overflow vertically), then shrink to fit the widest label, and apply that
       // single size to all badges.
-      const minBadgeH = badges.some(b => hasCB5HalfRow && b.r === ph) ? halfResY : panelResY;
+      const minBadgeH = badges.some(b => rowGeo.isHalf(b.r)) ? halfResY : panelResY;
       let fs = Math.floor(Math.min(panelResX, minBadgeH) * 0.5);
       ctx.font = `bold ${fs}px Arial`;
       let widest = badges[0].text;
@@ -534,21 +533,17 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
 
     if(pw === 0 || ph === 0) return;
 
-    // Check if CB5 half panel row is enabled for this screen
-    const hasCB5HalfRow = screenData.addCB5HalfRow && panelType === 'CB5_MKII';
+    // Check if CB5 half panel rows (above/below the full rows) are enabled for this screen
+    const halfRows = getCB5HalfRows(screenData, panelType);
+    const hasCB5HalfRow = halfRows.top + halfRows.bottom > 0;
+    const halfPanel = allPanels['CB5_MKII_HALF'];
+    const rowGeo = cb5RowGeometry(ph, halfRows, p.res_y, hasCB5HalfRow ? halfPanel.res_y : p.res_y);
 
     // Calculate wall resolution accounting for CB5 half panels
-    let wallResX, wallResY;
-    if(hasCB5HalfRow) {
-      const halfPanel = allPanels['CB5_MKII_HALF'];
-      wallResX = pw * p.res_x;
-      wallResY = ph * p.res_y + halfPanel.res_y;
-    } else {
-      wallResX = pw * p.res_x;
-      wallResY = ph * p.res_y;
-    }
+    const wallResX = pw * p.res_x;
+    const wallResY = rowGeo.height;
 
-    const totalRows = hasCB5HalfRow ? ph + 1 : ph;
+    const totalRows = rowGeo.rows;
     // Ensure deletedPanels is a Set (might be array from JSON load)
     let deletedPanelsForScreen = screenData.deletedPanels;
     if(deletedPanelsForScreen && !(deletedPanelsForScreen instanceof Set)) {
@@ -558,10 +553,9 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
       deletedPanelsForScreen = new Set();
     }
 
-    // Pre-calculate colors and halfPanel outside loop
+    // Pre-calculate colors outside loop
     const primaryColor = screen.color || '#808080';
     const secondaryColor = screen.color2 || darkenColor(primaryColor, 30);
-    const halfPanel = allPanels['CB5_MKII_HALF'];
 
     // Pixel-perfect boundary: clip the panel fills and outlines to the union of
     // this screen's live panels. Canvas strokes are centred on the path, so the
@@ -576,12 +570,12 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     for(let c = 0; c < pw; c++) {
       for(let r = 0; r < totalRows; r++) {
         if(deletedPanelsForScreen.has(`${c},${r}`)) continue;
-        const isHalfRow = hasCB5HalfRow && (r === ph);
+        const isHalfRow = rowGeo.isHalf(r);
         ctx.rect(
           offsetX + (c * p.res_x),
-          offsetY + (r * p.res_y),
+          offsetY + rowGeo.y(r),
           isHalfRow ? halfPanel.res_x : p.res_x,
-          isHalfRow ? halfPanel.res_y : p.res_y
+          rowGeo.h(r)
         );
       }
     }
@@ -597,15 +591,15 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
         // Skip deleted panels
         if(deletedPanelsForScreen.has(panelKey)) continue;
 
-        // Determine if this is the half panel row
-        const isHalfPanelRow = hasCB5HalfRow && (r === ph);
+        // Determine if this is a half panel row
+        const isHalfPanelRow = rowGeo.isHalf(r);
 
         // Calculate panel pixel dimensions
         const panelResX = isHalfPanelRow ? halfPanel.res_x : p.res_x;
-        const panelResY = isHalfPanelRow ? halfPanel.res_y : p.res_y;
+        const panelResY = rowGeo.h(r);
 
         // Calculate Y position
-        const y = offsetY + (r * p.res_y);
+        const y = offsetY + rowGeo.y(r);
 
         // Skip if out of view
         if(xBase >= cullW || y >= cullH || xBase + panelResX <= 0 || y + panelResY <= 0) continue;
@@ -868,7 +862,7 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     // Data line/label overlay — drawn last so labels sit over the X/Y coordinate
     // and other annotations (front view; canvas only).
     if(dataOverlay && dataOverlay.active) {
-      drawScreenDataOverlay(ctx, screen, offsetX, offsetY, p.res_x, p.res_y, ph, hasCB5HalfRow, { showLines: dataOverlay.showLines, showLabels: dataOverlay.showLabels });
+      drawScreenDataOverlay(ctx, screen, offsetX, offsetY, p.res_x, p.res_y, ph, halfRows, { showLines: dataOverlay.showLines, showLabels: dataOverlay.showLabels });
     }
 
     // Screen name overlay — drawn last so it sits on top of everything (incl.
@@ -881,10 +875,8 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
       for(let c = 0; c < pw; c++) {
         for(let r = 0; r < totalRows; r++) {
           if(deletedPanelsForScreen.has(`${c},${r}`)) continue;
-          const isHalfPanelRow = hasCB5HalfRow && (r === ph);
-          const panelResY = isHalfPanelRow ? halfPanel.res_y : p.res_y;
           sumX += offsetX + c * p.res_x + p.res_x / 2;
-          sumY += offsetY + r * p.res_y + panelResY / 2;
+          sumY += offsetY + rowGeo.y(r) + rowGeo.h(r) / 2;
           liveCount++;
         }
       }
@@ -896,17 +888,15 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
         // Donut/ring layouts: if the centroid lands on a deleted panel, snap to
         // the nearest live panel center.
         const centroidCol = Math.floor((labelX - offsetX) / p.res_x);
-        const centroidRow = Math.floor((labelY - offsetY) / p.res_y);
+        const centroidRow = rowGeo.rowAt(labelY - offsetY);
         if(deletedPanelsForScreen.has(`${centroidCol},${centroidRow}`)) {
           const cx = labelX, cy = labelY;
           let bestDist = Infinity;
           for(let c = 0; c < pw; c++) {
             for(let r = 0; r < totalRows; r++) {
               if(deletedPanelsForScreen.has(`${c},${r}`)) continue;
-              const isHalfPanelRow = hasCB5HalfRow && (r === ph);
-              const panelResY = isHalfPanelRow ? halfPanel.res_y : p.res_y;
               const pcx = offsetX + c * p.res_x + p.res_x / 2;
-              const pcy = offsetY + r * p.res_y + panelResY / 2;
+              const pcy = offsetY + rowGeo.y(r) + rowGeo.h(r) / 2;
               const d = (pcx - cx) * (pcx - cx) + (pcy - cy) * (pcy - cy);
               if(d < bestDist) { bestDist = d; labelX = pcx; labelY = pcy; }
             }
@@ -1212,7 +1202,7 @@ function updateCanvasInfoDisplay() {
   const canvasResY = canvas ? canvas.height : 0;
 
   // Count visible screens and panels. Counts the panels that are actually in the rig —
-  // the raw grid minus the deleted ones, plus the CB5 half-panel row — so this matches the
+  // the raw grid minus the deleted ones, plus the live CB5 half-row panels — so this matches the
   // Panel count in the specs and the Total Panels in the Combined view. Read straight from
   // screen.data rather than calculatedData, which only ever holds the current screen's
   // freshly computed numbers.
@@ -1228,14 +1218,9 @@ function updateCanvasInfoDisplay() {
       // a larger grid don't count — calculate() prunes them the same way.
       const deleted = data.deletedPanels instanceof Set ? [...data.deletedPanels]
         : (Array.isArray(data.deletedPanels) ? data.deletedPanels : []);
-      let deletedInGrid = 0;
-      deleted.forEach(key => {
-        const parts = String(key).split(',');
-        const c = parseInt(parts[0], 10), r = parseInt(parts[1], 10);
-        if(c >= 0 && c < pw && r >= 0 && r < ph) deletedInGrid++;
-      });
-      const halfRow = (data.addCB5HalfRow && (data.panelType || 'CB5_MKII') === 'CB5_MKII') ? pw : 0;
-      totalPanels += (pw * ph) - deletedInGrid + halfRow;
+      // Live full panels plus live panels in any CB5 half rows.
+      const live = countCB5LivePanels(pw, ph, getCB5HalfRows(data, data.panelType || 'CB5_MKII'), deleted);
+      totalPanels += live.full + live.half;
     }
   });
 
@@ -1276,14 +1261,15 @@ function drawSelectionHighlight() {
   const offsetY = screenData.canvasY || 0;
 
   // Check if CB5 half panel row is enabled for this screen
-  const hasCB5HalfRow = screenData.addCB5HalfRow && panelType === 'CB5_MKII';
+  const _halfRows = getCB5HalfRows(screenData, panelType);
+  const hasCB5HalfRow = _halfRows.top + _halfRows.bottom > 0;
 
   // Calculate wall resolution accounting for CB5 half panels
   let wallResX, wallResY;
   if(hasCB5HalfRow) {
     const halfPanel = allPanels['CB5_MKII_HALF'];
     wallResX = screenData.panelsWide * p.res_x;
-    wallResY = screenData.panelsHigh * p.res_y + halfPanel.res_y;
+    wallResY = screenData.panelsHigh * p.res_y + (_halfRows.top + _halfRows.bottom) * halfPanel.res_y;
   } else {
     wallResX = screenData.panelsWide * p.res_x;
     wallResY = screenData.panelsHigh * p.res_y;
@@ -1325,14 +1311,15 @@ function getScreenAtPosition(mouseX, mouseY) {
     if(pw === 0 || ph === 0) continue;
 
     // Check if CB5 half panel row is enabled for this screen
-    const hasCB5HalfRow = screenData.addCB5HalfRow && panelType === 'CB5_MKII';
+    const _halfRows = getCB5HalfRows(screenData, panelType);
+    const hasCB5HalfRow = _halfRows.top + _halfRows.bottom > 0;
 
     // Calculate wall resolution accounting for CB5 half panels
     let wallResX, wallResY;
     if(hasCB5HalfRow) {
       const halfPanel = allPanels['CB5_MKII_HALF'];
       wallResX = pw * p.res_x;
-      wallResY = ph * p.res_y + halfPanel.res_y;
+      wallResY = ph * p.res_y + (_halfRows.top + _halfRows.bottom) * halfPanel.res_y;
     } else {
       wallResX = pw * p.res_x;
       wallResY = ph * p.res_y;
@@ -1511,14 +1498,15 @@ function setupCanvasViewInteractivity() {
     const ph = screenData.panelsHigh || 0;
 
     // Check if CB5 half panel row is enabled for this screen
-    const hasCB5HalfRow = screenData.addCB5HalfRow && panelType === 'CB5_MKII';
+    const _halfRows = getCB5HalfRows(screenData, panelType);
+    const hasCB5HalfRow = _halfRows.top + _halfRows.bottom > 0;
 
     // Calculate wall resolution accounting for CB5 half panels
     let wallResX, wallResY;
     if(hasCB5HalfRow) {
       const halfPanel = allPanels['CB5_MKII_HALF'];
       wallResX = pw * p.res_x;
-      wallResY = ph * p.res_y + halfPanel.res_y;
+      wallResY = ph * p.res_y + (_halfRows.top + _halfRows.bottom) * halfPanel.res_y;
     } else {
       wallResX = pw * p.res_x;
       wallResY = ph * p.res_y;
@@ -1719,14 +1707,15 @@ function setupCanvasViewInteractivity() {
     const ph = screenData.panelsHigh || 0;
 
     // Check if CB5 half panel row is enabled for this screen
-    const hasCB5HalfRow = screenData.addCB5HalfRow && panelType === 'CB5_MKII';
+    const _halfRows = getCB5HalfRows(screenData, panelType);
+    const hasCB5HalfRow = _halfRows.top + _halfRows.bottom > 0;
 
     // Calculate wall resolution accounting for CB5 half panels
     let wallResX, wallResY;
     if(hasCB5HalfRow) {
       const halfPanel = allPanels['CB5_MKII_HALF'];
       wallResX = pw * p.res_x;
-      wallResY = ph * p.res_y + halfPanel.res_y;
+      wallResY = ph * p.res_y + (_halfRows.top + _halfRows.bottom) * halfPanel.res_y;
     } else {
       wallResX = pw * p.res_x;
       wallResY = ph * p.res_y;
@@ -1964,13 +1953,14 @@ function setupCanvasViewInteractivity() {
         if(otherPw === 0 || otherPh === 0) return;
         
         // Check if other screen has CB5 half panel row
-        const otherHasCB5HalfRow = otherData.addCB5HalfRow && otherPanelType === 'CB5_MKII';
+        const otherHalfRows = getCB5HalfRows(otherData, otherPanelType);
+        const otherHasCB5HalfRow = otherHalfRows.top + otherHalfRows.bottom > 0;
         
         let otherWallResX, otherWallResY;
         if(otherHasCB5HalfRow) {
           const halfPanel = panels['CB5_MKII_HALF'];
           otherWallResX = otherPw * otherPanel.res_x;
-          otherWallResY = otherPh * otherPanel.res_y + halfPanel.res_y;
+          otherWallResY = otherPh * otherPanel.res_y + (otherHalfRows.top + otherHalfRows.bottom) * halfPanel.res_y;
         } else {
           otherWallResX = otherPw * otherPanel.res_x;
           otherWallResY = otherPh * otherPanel.res_y;

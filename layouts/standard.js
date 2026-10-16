@@ -3,7 +3,7 @@
 // Called by generateLayout() dispatcher in index.html.
 
 function renderStandardLayout(params) {
-  const {pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, fontSize} = params;
+  const {pw, ph, panelWidth, rowGeo, canvas, ctx, fontSize} = params;
 
   currentCanvas = canvas;
   currentPw = pw;
@@ -13,11 +13,9 @@ function renderStandardLayout(params) {
     for(let r=0;r<ph;r++){
       const panelKey = `${c},${r}`;
 
-      // Determine if this row is the half panel row (last row when hasCB5HalfRow)
-      const isHalfPanelRow = hasCB5HalfRow && r === originalPh;
-      const currentPanelHeight = isHalfPanelRow ? halfPanelHeight : panelHeight;
-      // Calculate Y position: full panels use panelHeight, half panel row starts after all full panels
-      const y = isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight);
+      // Row height and Y position: CB5 half panel rows (above/below the full rows) are shorter
+      const currentPanelHeight = rowGeo.h(r);
+      const y = rowGeo.y(r);
       const x = c * panelWidth;
 
       // Skip deleted panels

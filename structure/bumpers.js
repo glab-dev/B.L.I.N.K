@@ -615,12 +615,15 @@ function getStructurePanelAtMouse(canvas, clientX, clientY) {
     if(use4Way && supports4wViz) panelYOffset += fourWayHeight + fourWayGap;
   }
   
+  // CB5 half rows (above/below the full rows) are square, like the structure canvas draws them
+  const rowGeo = getCurrentRowGeometry(panelHeight, size);
+
   // Check if click is in panel area
-  if(y < panelYOffset || y >= panelYOffset + ph * panelHeight) return null;
+  if(y < panelYOffset || y >= panelYOffset + rowGeo.height) return null;
   if(x < 0 || x >= pw * panelWidth) return null;
   
   const col = Math.floor(x / panelWidth);
-  const row = Math.floor((y - panelYOffset) / panelHeight);
+  const row = rowGeo.rowAt(y - panelYOffset);
   
   if(col < 0 || col >= pw || row < 0 || row >= ph) return null;
   
@@ -634,7 +637,7 @@ function getStructurePanelAtMouse(canvas, clientX, clientY) {
     row: row,
     key: panelKey,
     x: col * panelWidth,
-    y: panelYOffset + row * panelHeight
+    y: panelYOffset + rowGeo.y(row)
   };
 }
 

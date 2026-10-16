@@ -93,13 +93,19 @@ function renderRasterScreenTable() {
     // Panel dropdown (+ CB5 half-panel-row chip for CB5 MKII rows)
     if(panelType === 'CB5_MKII') {
       var halfActive = !!data.addCB5HalfRow;
+      // Rows and position are set in the Panel Type section; the tooltip shows them
+      var halfRows = getCB5HalfRows(data, panelType);
+      var halfTitle = halfActive
+        ? 'Half-panel rows: ' + [halfRows.top ? halfRows.top + ' above' : '', halfRows.bottom ? halfRows.bottom + ' below' : '']
+            .filter(Boolean).join(' · ')
+        : 'Add half-panel row (CB5)';
       html += '<td data-label="Panel"><div class="raster-panel-cell">' +
               '<select class="raster-select" onchange="updateRasterScreenPanel(\'' + safeId + '\', this.value)">' +
               buildRasterPanelOptions(panelType) +
               '</select>' +
               '<button type="button" class="raster-toggle-btn raster-half-btn ' + (halfActive ? 'active' : '') + '" ' +
               'style="' + (halfActive ? textOutline : '') + '" ' +
-              'title="Add half-panel row (CB5)" ' +
+              'title="' + halfTitle + '" ' +
               'onclick="toggleRasterHalfRow(\'' + safeId + '\')">+½</button>' +
               '</div></td>';
     } else {
@@ -372,10 +378,7 @@ function updateRasterScreenPanel(screenId, panelType) {
     var cb5Toggle = document.getElementById('cb5HalfPanelToggle');
     if(cb5Toggle) cb5Toggle.style.display = (panelType === 'CB5_MKII') ? 'block' : 'none';
     if(typeof updateConnectingPlatesVisibility === 'function') updateConnectingPlatesVisibility(panelType);
-    var halfOn = !!screens[screenId].data.addCB5HalfRow;
-    if(typeof cb5HalfRowEnabled !== 'undefined') cb5HalfRowEnabled = halfOn;
-    var mainHalfBtn = document.getElementById('addCB5HalfRowBtn');
-    if(mainHalfBtn) mainHalfBtn.classList.toggle('active', halfOn);
+    if(typeof loadCB5HalfRowState === 'function') loadCB5HalfRowState(screens[screenId].data, panelType);
   }
 
   // Keep the panel counts and drop everything that was tied to the old panel. Runs after the
@@ -391,7 +394,15 @@ function updateRasterScreenPanel(screenId, panelType) {
 var _rasterDimTimer = null;
 function updateRasterScreenDim(screenId, field, value) {
   if(!screens[screenId]) return;
-  screens[screenId].data[field] = parseInt(value) || 0;
+  var dimData = screens[screenId].data;
+  var dimPanelType = dimData.panelType || 'CB5_MKII';
+  var fromLayout = cb5RowLayout(getCB5HalfRows(dimData, dimPanelType), Math.max(1, parseInt(dimData.panelsHigh) || 1));
+  dimData[field] = parseInt(value) || 0;
+  // A taller or shorter wall moves the CB5 half rows below it, and their row-keyed data
+  // with them. The current screen's keys live in the globals: re-keyed once its input is set.
+  if(screenId !== currentScreenId) {
+    rebaseCB5StateKeys(dimData, fromLayout, cb5RowLayout(getCB5HalfRows(dimData, dimPanelType), Math.max(1, parseInt(dimData.panelsHigh) || 1)));
+  }
 
   // Cols/Rows are panel counts - re-derive the wall size so it can't outvote them later
   syncRasterScreenWallSize(screenId);
@@ -400,6 +411,7 @@ function updateRasterScreenDim(screenId, field, value) {
   if(screenId === currentScreenId) {
     var el = document.getElementById(field);
     if(el) el.value = screens[screenId].data[field];
+    syncCB5RowKeys();
   }
 
   // Update canvas immediately, debounce table re-render to avoid losing focus
@@ -431,23 +443,24 @@ function toggleRasterOverlay(screenId, property) {
   showCanvasView();
 }
 
-// Toggle the CB5 half-panel row for a single screen (mirrors toggleCB5HalfRow,
-// but per-screen). Only meaningful for CB5_MKII panels.
+// Toggle the CB5 half-panel rows for a single screen (mirrors toggleCB5HalfRow,
+// but per-screen), using that screen's saved position and row counts. Only
+// meaningful for CB5_MKII panels.
 function toggleRasterHalfRow(screenId) {
   var screen = screens[screenId];
   if(!screen || !screen.data) return;
-  var newVal = !screen.data.addCB5HalfRow;
-  screen.data.addCB5HalfRow = newVal;
 
-  // If this is the active screen, keep the main Dimensions toggle + global flag
-  // + dependent calcs in sync (same side effects as toggleCB5HalfRow)
+  // The active screen goes through the main toggle, which keeps the Panel Type
+  // controls, the global flag, the panel keys and the dependent calcs in sync
   if(screenId === currentScreenId) {
-    if(typeof cb5HalfRowEnabled !== 'undefined') cb5HalfRowEnabled = newVal;
-    var mainBtn = document.getElementById('addCB5HalfRowBtn');
-    if(mainBtn) mainBtn.classList.toggle('active', newVal);
-    if(typeof updateSuggestedDataLimit === 'function') updateSuggestedDataLimit();
-    if(typeof calculate === 'function') calculate();
-    if(typeof updateWeightDisplay === 'function') updateWeightDisplay();
+    toggleCB5HalfRow();
+  } else {
+    // Half rows on top move every full panel down, so its row-keyed data moves too
+    var panelType = screen.data.panelType || 'CB5_MKII';
+    var fullRows = Math.max(1, parseInt(screen.data.panelsHigh) || 1);
+    var from = cb5RowLayout(getCB5HalfRows(screen.data, panelType), fullRows);
+    screen.data.addCB5HalfRow = !screen.data.addCB5HalfRow;
+    rebaseCB5StateKeys(screen.data, from, cb5RowLayout(getCB5HalfRows(screen.data, panelType), fullRows));
   }
 
   showCanvasView();
@@ -967,6 +980,9 @@ async function saveRasterFile() {
         canvasX: data.canvasX || 0,
         canvasY: data.canvasY || 0,
         addCB5HalfRow: data.addCB5HalfRow || false,
+        cb5HalfRowPosition: data.cb5HalfRowPosition || 'below',
+        cb5HalfRowsAbove: data.cb5HalfRowsAbove || 1,
+        cb5HalfRowsBelow: data.cb5HalfRowsBelow || 1,
         deletedPanels: deletedArr
       }
     };
@@ -1112,6 +1128,9 @@ function applyRasterFile(config) {
         canvasX: parseInt(data.canvasX) || 0,
         canvasY: parseInt(data.canvasY) || 0,
         addCB5HalfRow: data.addCB5HalfRow || false,
+        cb5HalfRowPosition: (data.cb5HalfRowPosition === 'above' || data.cb5HalfRowPosition === 'both') ? data.cb5HalfRowPosition : 'below',
+        cb5HalfRowsAbove: Math.max(1, parseInt(data.cb5HalfRowsAbove) || 1),
+        cb5HalfRowsBelow: Math.max(1, parseInt(data.cb5HalfRowsBelow) || 1),
         deletedPanels: deletedPanelsSet
       },
       calculatedData: {}

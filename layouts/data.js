@@ -337,7 +337,7 @@ function computeDataLineEndpoints(groups, sortedDataLines, flip) {
 function drawDataOverlay(ctx, o) {
   const {
     groups, sortedDataLines, endpoints, deletedPanels, startDir,
-    pw, ph, panelWidth, panelHeight, halfPanelHeight, hasCB5HalfRow, originalPh,
+    pw, ph, panelWidth, rowGeo,
     offsetX, offsetY, rearView, flip, showArrows, showLabels, redundancy,
     panelFontSize, arrowLineWidth, arrowHeadSize, lightDeletedPanels
   } = o;
@@ -350,8 +350,8 @@ function drawDataOverlay(ctx, o) {
   // assignments are unchanged). Labels stay upright and arrows mirror because
   // their points inherit the mirrored x.
   const drawX = (c) => (rearView ? (pw - 1 - c) : c) * panelWidth + offsetX;
-  const drawY = (r) => offsetY + ((hasCB5HalfRow && r === originalPh) ? (originalPh * panelHeight) : (r * panelHeight));
-  const rowHeight = (r) => (hasCB5HalfRow && r === originalPh) ? halfPanelHeight : panelHeight;
+  const drawY = (r) => offsetY + rowGeo.y(r);
+  const rowHeight = (r) => rowGeo.h(r);
 
   ctx.font = `${panelFontSize}px Arial`;
   ctx.textAlign = 'center';
@@ -556,7 +556,7 @@ function drawDataOverlay(ctx, o) {
 }
 
 function renderDataLayout(params) {
-  const {pw, ph, panelWidth, panelHeight, hasCB5HalfRow, originalPh, halfPanelHeight, canvas, ctx, panelsPerDataLine, startDir, showArrows, fontSize} = params;
+  const {pw, ph, panelWidth, rowGeo, canvas, ctx, panelsPerDataLine, startDir, showArrows, fontSize} = params;
 
   const {groups, sortedDataLines} = buildDataLineGroups({
     pw, ph, panelsPerDataLine, startDir,
@@ -576,7 +576,7 @@ function renderDataLayout(params) {
     groups, sortedDataLines, endpoints: dataLineEndpoints,
     lineDisplay: (typeof dataPortLineDisplayMap === 'function') ? dataPortLineDisplayMap(currentScreenId) : null,
     deletedPanels,
-    pw, ph, panelWidth, panelHeight, halfPanelHeight, hasCB5HalfRow, originalPh,
+    pw, ph, panelWidth, rowGeo,
     offsetX: 0, offsetY: 0,
     startDir,
     rearView: (typeof dataRearViewEnabled !== 'undefined') && dataRearViewEnabled,

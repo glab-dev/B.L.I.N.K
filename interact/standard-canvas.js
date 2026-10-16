@@ -1,7 +1,7 @@
 // ==================== STANDARD CANVAS INTERACTIVITY ====================
 // Panel selection, context menus, circuit/data prompts, suggested limits.
 // Depends on globals: currentCanvas, currentPw, currentPh, currentPanelWidth,
-// currentPanelHeight, deletedPanels, selectedPanels, isDragging, etc.
+// currentPanelHeight, currentRowGeo, deletedPanels, selectedPanels, isDragging, etc.
 
 // Interactive panel selection functions
 function getPanelAtPosition(canvas, x, y) {
@@ -13,7 +13,7 @@ function getPanelAtPosition(canvas, x, y) {
   const canvasY = (y - rect.top) * scaleY;
   
   const col = Math.floor(canvasX / currentPanelWidth);
-  const row = Math.floor(canvasY / currentPanelHeight);
+  const row = currentRowGeo.rowAt(canvasY); // CB5 half rows are shorter than full rows
   
   if(col >= 0 && col < currentPw && row >= 0 && row < currentPh) {
     return {col, row, key: `${col},${row}`};
@@ -31,10 +31,16 @@ function getPanelsInRect(x1, y1, x2, y2) {
   const canvasX2 = (Math.max(x1, x2) - rect.left) * scaleX;
   const canvasY2 = (Math.max(y1, y2) - rect.top) * scaleY;
   
+  // Row under a y position; past the bottom counts as beyond the last row
+  const rowIdx = y => {
+    if(y < 0) return -1;
+    const r = currentRowGeo.rowAt(y);
+    return r === -1 ? currentRowGeo.rows : r;
+  };
   const col1 = Math.max(0, Math.floor(canvasX1 / currentPanelWidth));
-  const row1 = Math.max(0, Math.floor(canvasY1 / currentPanelHeight));
+  const row1 = Math.max(0, rowIdx(canvasY1));
   const col2 = Math.min(currentPw - 1, Math.floor(canvasX2 / currentPanelWidth));
-  const row2 = Math.min(currentPh - 1, Math.floor(canvasY2 / currentPanelHeight));
+  const row2 = Math.min(currentPh - 1, rowIdx(canvasY2));
   
   const panels = [];
   for(let c = col1; c <= col2; c++) {
@@ -828,14 +834,15 @@ function updateSuggestedDataLimit(){
   const pr=allProcessors[document.getElementById('processor').value];
   if(!p || !p.res_x || !p.res_y){ document.getElementById('maxPanelsPerData').placeholder = "Auto"; return; }
 
-  // Check if CB5 half panel row is enabled
-  // Using cb5HalfRowEnabled toggle state
-  const hasCB5HalfRow = cb5HalfRowEnabled && document.getElementById('panelType').value === 'CB5_MKII';
+  // Check if CB5 half panel rows are enabled
+  const halfRows = getCurrentCB5HalfRows();
+  const halfRowCount = halfRows.top + halfRows.bottom;
+  const hasCB5HalfRow = halfRowCount > 0;
 
   // Get panel dimensions
   const pw = parseInt(document.getElementById('panelsWide').value) || 1;
   const ph = parseInt(document.getElementById('panelsHigh').value) || 1;
-  const activePanelsCount = (pw * ph) - deletedPanels.size;
+  const activePanelsCount = countCB5LivePanels(pw, ph, halfRows, deletedPanels).full;
 
   const pixelsPerPanel = p.res_x*p.res_y;
   const frameRate = parseInt(document.getElementById('frameRate').value) || 60;
@@ -850,7 +857,7 @@ function updateSuggestedDataLimit(){
     const halfPanel = panels['CB5_MKII_HALF'];
     const halfPanelPixels = halfPanel.res_x * halfPanel.res_y;
     const mainPanelCount = activePanelsCount; // All full panels
-    const halfPanelCount = pw; // Additional half panel row
+    const halfPanelCount = countCB5LivePanels(pw, ph, halfRows, deletedPanels).half; // Live half panels
     const totalMixedPanels = mainPanelCount + halfPanelCount;
     const totalMixedPixels = (mainPanelCount * pixelsPerPanel) + (halfPanelCount * halfPanelPixels);
     const avgPixelsPerPanel = totalMixedPixels / totalMixedPanels;

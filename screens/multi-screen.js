@@ -47,6 +47,9 @@ function getDefaultScreenData() {
     // Panel Type
     panelType: 'BP2_V2',
     addCB5HalfRow: false,
+    cb5HalfRowPosition: 'below', // 'below' | 'above' | 'both'
+    cb5HalfRowsAbove: 1,
+    cb5HalfRowsBelow: 1,
     connectionMethod: 'airframe', // 'airframe' or 'plates'
     
     // Optional display name (separate from tab name)
@@ -267,6 +270,9 @@ function saveCurrentScreenData() {
   
   // CB5-specific options - use the global toggle state
   data.addCB5HalfRow = cb5HalfRowEnabled;
+  data.cb5HalfRowPosition = cb5HalfRowPosition;
+  data.cb5HalfRowsAbove = cb5HalfRowsAbove;
+  data.cb5HalfRowsBelow = cb5HalfRowsBelow;
 
   // Share Distro toggle (per-screen) - mirror the global into this screen's data
   if(typeof shareDistroEnabled !== 'undefined') data.sharedDistro = shareDistroEnabled;
@@ -629,12 +635,8 @@ function loadScreenData(screenId) {
   // Update connecting plates visibility
   updateConnectingPlatesVisibility(panelType);
   
-  // Restore per-screen CB5 half row toggle state
-  cb5HalfRowEnabled = data.addCB5HalfRow || false;
-  const addCB5HalfRowBtn = document.getElementById('addCB5HalfRowBtn');
-  if(addCB5HalfRowBtn) {
-    addCB5HalfRowBtn.classList.toggle('active', cb5HalfRowEnabled);
-  }
+  // Restore per-screen CB5 half row toggle, position and counts
+  loadCB5HalfRowState(data, panelType);
 
   // Restore per-screen Share Distro toggle
   if(typeof shareDistroEnabled !== 'undefined') {

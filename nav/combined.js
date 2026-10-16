@@ -484,14 +484,14 @@ function getCombinedArrangement() {
     const ph = parseInt(data.panelsHigh) || 0;
     const panelType = data.panelType || 'CB5_MKII';
     const heightRatio = getPanelHeightRatio(panelType);
-    const halfRow = !!(data.addCB5HalfRow && panelType === 'CB5_MKII');
+    const half = getCB5HalfRows(data, panelType);
     return {
       pw: pw,
       ph: ph,
       heightRatio: heightRatio,
-      halfRow: halfRow,
+      half: half,
       w: pw,
-      h: ph * heightRatio + (halfRow ? 1 : 0)
+      h: ph * heightRatio + half.top + half.bottom
     };
   }
 
@@ -514,7 +514,7 @@ function getCombinedArrangement() {
       pw: box.pw,
       ph: box.ph,
       heightRatio: box.heightRatio,
-      halfRow: box.halfRow,
+      half: box.half,
       x: baseX + pos.x / panelSize,
       y: pos.y / panelSize,
       w: box.w,
@@ -541,7 +541,7 @@ function getCombinedArrangement() {
         pw: box.pw,
         ph: box.ph,
         heightRatio: box.heightRatio,
-        halfRow: box.halfRow,
+        half: box.half,
         x: tailX,
         y: 0,
         w: box.w,
@@ -938,29 +938,24 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
 }
 
 // Row geometry for one combined-view screen at a given drawn panel size, honouring
-// the CB5 half row: it is an EXTRA row below the full ones (data.panelsHigh excludes
-// it) and is half their height. Mirrors what the renderers draw, so hit detection and
-// the canvas can never disagree about where a row is.
+// the CB5 half rows: they are EXTRA rows above and/or below the full ones
+// (data.panelsHigh excludes them) and are half their height. Mirrors what the renderers
+// draw, so hit detection and the canvas can never disagree about where a row is.
 function combinedRowGeometry(data, panelSize) {
   const panelType = (data && data.panelType) || 'CB5_MKII';
   const fullH = panelSize * getPanelHeightRatio(panelType);
   const halfH = panelSize; // half panels are square
-  const hasHalf = !!(data && data.addCB5HalfRow) && panelType === 'CB5_MKII';
   const ph = (data && data.panelsHigh) || 0;
+  const g = cb5RowGeometry(ph, getCB5HalfRows(data, panelType), fullH, halfH);
   return {
-    hasHalf,
-    effectivePh: hasHalf ? ph + 1 : ph,
-    totalH: hasHalf ? (ph * fullH + halfH) : (ph * fullH),
-    rowY: r => (hasHalf && r === ph) ? (ph * fullH) : (r * fullH),
-    rowH: r => (hasHalf && r === ph) ? halfH : fullH,
+    hasHalf: g.top + g.bottom > 0,
+    effectivePh: g.rows,
+    totalH: g.height,
+    rowY: g.y,
+    rowH: g.h,
     // Row index at a y offset from the top of the grid, or -1 when outside it.
-    rowAt: dy => {
-      if(dy < 0) return -1;
-      const full = Math.floor(dy / fullH);
-      if(full < ph) return full;
-      if(hasHalf && dy < ph * fullH + halfH) return ph;
-      return -1;
-    }
+    rowAt: g.rowAt,
+    geo: g
   };
 }
 
@@ -1824,8 +1819,9 @@ function setupCombinedCanvasHandlersFor(canvasId, layoutKind) {
   if(canvas.dataset.combinedHandlersSet) return;
   canvas.dataset.combinedHandlersSet = 'true';
 
-  // Screen dragging and delete are standard-canvas only: the power/data canvases lay
-  // screens out in a fixed row and offer no delete options.
+  // Screen dragging and delete are standard-canvas only: the power/data canvases follow
+  // the standard arrangement and offer no delete options. Manual Adjust belongs to the
+  // standard canvas, so it never blocks panel selection on the power/data canvases.
   const allowScreenDrag = (layoutKind === 'standard');
   const allowDelete = (layoutKind === 'standard');
 
@@ -1854,7 +1850,7 @@ function setupCombinedCanvasHandlersFor(canvasId, layoutKind) {
         canvas.style.cursor = 'grabbing';
         e.preventDefault();
       }
-    } else if(!combinedManualAdjust) {
+    } else if(!(allowScreenDrag && combinedManualAdjust)) {
       // Panel selection mode: anchor the drag box. The selection is not touched
       // until the mouse moves (marquee) or is released without moving (click).
       // Ignore the mousedown a touch device synthesizes after a tap
@@ -1905,7 +1901,7 @@ function setupCombinedCanvasHandlersFor(canvasId, layoutKind) {
   // Right-click - context menu for panel (desktop)
   canvas.addEventListener('contextmenu', function(e) {
     e.preventDefault();
-    if(combinedManualAdjust) return; // No panel menu in adjust mode
+    if(allowScreenDrag && combinedManualAdjust) return; // No panel menu in adjust mode
 
     useCombinedSelection(canvasId);
     const panelInfo = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
@@ -1968,7 +1964,7 @@ function setupCombinedCanvasHandlersFor(canvasId, layoutKind) {
         combinedDragState.startPosY = combinedScreenPositions[screenDim.screenId]?.y || 0;
         e.preventDefault();
       }
-    } else if(!combinedManualAdjust) {
+    } else if(!(allowScreenDrag && combinedManualAdjust)) {
       // Panel selection mode: track start panel for tap-to-select
       useCombinedSelection(canvasId);
       touchStartPanel = getCombinedPanelAtPosition(canvas, touch.clientX, touch.clientY);
@@ -2008,7 +2004,7 @@ function setupCombinedCanvasHandlersFor(canvasId, layoutKind) {
         });
       }
       e.preventDefault();
-    } else if(combinedSelectModeByCanvas[canvasId] && !combinedManualAdjust) {
+    } else if(combinedSelectModeByCanvas[canvasId] && !(allowScreenDrag && combinedManualAdjust)) {
       // Select Mode: drag a box to select panels instead of scrolling the canvas
       const dx = Math.abs(touch.clientX - touchStartPos.x);
       const dy = Math.abs(touch.clientY - touchStartPos.y);
@@ -2052,7 +2048,7 @@ function setupCombinedCanvasHandlersFor(canvasId, layoutKind) {
         combinedDragState.screenDim = null;
         saveCombinedPositions();
       }
-    } else if(combinedSelectModeByCanvas[canvasId] && !combinedManualAdjust) {
+    } else if(combinedSelectModeByCanvas[canvasId] && !(allowScreenDrag && combinedManualAdjust)) {
       // Panel selection mode: tap to select, tap again for menu. Gated on Select
       // Mode exactly like the drag path above — with it off the tap belongs to the
       // canvas so the layout can be panned.
@@ -2316,12 +2312,10 @@ function renderCombinedView() {
       // Calculate actual height accounting for CB5 panel type (2:1 ratio) and half panel rows
       const screenPanelType = data.panelType || 'CB5_MKII';
       const heightRatio = getPanelHeightRatio(screenPanelType);
-      const hasCB5HalfRow = data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
-      // The half row is an EXTRA row below the full ones — data.panelsHigh excludes it.
-      const originalPh = ph;
+      // The half rows are EXTRA rows above/below the full ones — data.panelsHigh excludes them.
       const fullPanelHeight = panelSize * heightRatio;
       const halfPanelHeight = panelSize; // Half panels are square
-      const height = hasCB5HalfRow ? (originalPh * fullPanelHeight + halfPanelHeight) : (ph * fullPanelHeight);
+      const height = cb5RowGeometry(ph, getCB5HalfRows(data, screenPanelType), fullPanelHeight, halfPanelHeight).height;
 
       screenDimensions.push({
         screenId,
@@ -2531,22 +2525,19 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     const drawPanelWidth = drawPanelSize;
     const drawPanelHeight = drawPanelSize * screenHeightRatio;
 
-    // Check if this screen has half panel row enabled. The half row is an EXTRA row
-    // below the full ones, so the grid is one taller than data.panelsHigh.
-    const screenHasCB5HalfRow = data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
-    const screenOriginalPh = ph;                                  // full-height rows
-    const screenEffectivePh = screenHasCB5HalfRow ? ph + 1 : ph;  // incl. the half row
+    // Half panel rows are EXTRA rows above/below the full ones, so the grid is taller
+    // than data.panelsHigh.
     const halfPanelDrawHeight = drawPanelSize; // Half panels are square
+    const screenRowGeo = cb5RowGeometry(ph, getCB5HalfRows(data, screenPanelType), drawPanelHeight, halfPanelDrawHeight);
+    const screenEffectivePh = screenRowGeo.rows;  // incl. the half rows
 
     for(let c = 0; c < pw; c++) {
       for(let r = 0; r < screenEffectivePh; r++) {
         const panelKey = `${c},${r}`;
 
-        // Determine if this row is the half panel row
-        const isHalfPanelRow = screenHasCB5HalfRow && r === screenOriginalPh;
-        const currentDrawHeight = isHalfPanelRow ? halfPanelDrawHeight : drawPanelHeight;
+        const currentDrawHeight = screenRowGeo.h(r);
         const px = screenX + c * drawPanelWidth;
-        const py = screenY + (isHalfPanelRow ? (screenOriginalPh * drawPanelHeight) : (r * drawPanelHeight));
+        const py = screenY + screenRowGeo.y(r);
 
         const hasDeleted = screenDeletedPanels.has(panelKey);
         if(hasDeleted) {
@@ -2577,7 +2568,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     }
 
     // Calculate total screen height for label positioning
-    const screenTotalHeight = screenHasCB5HalfRow ? (screenOriginalPh * drawPanelHeight + halfPanelDrawHeight) : (ph * drawPanelHeight);
+    const screenTotalHeight = screenRowGeo.height;
 
     // Draw screen label centered over the screen's live panels (overlay style,
     // like the Canvas view) so it stays with the screen when screens overlap.
@@ -2586,9 +2577,8 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       for(let c = 0; c < pw; c++) {
         for(let r = 0; r < screenEffectivePh; r++) {
           if(screenDeletedPanels.has(`${c},${r}`)) continue;
-          const isHalfRow = screenHasCB5HalfRow && r === screenOriginalPh;
-          const cellH = isHalfRow ? halfPanelDrawHeight : drawPanelHeight;
-          const cellY = screenY + (isHalfRow ? (screenOriginalPh * drawPanelHeight) : (r * drawPanelHeight));
+          const cellH = screenRowGeo.h(r);
+          const cellY = screenY + screenRowGeo.y(r);
           sumX += screenX + c * drawPanelWidth + drawPanelWidth / 2;
           sumY += cellY + cellH / 2;
           liveCount++;
@@ -2601,15 +2591,14 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
         // If the centroid lands on a deleted (blank) cell, snap to the nearest
         // live panel center so the label never floats in an empty gap.
         const cCol = Math.floor((labelX - screenX) / drawPanelWidth);
-        const cRow = Math.floor((labelY - screenY) / drawPanelHeight);
+        const cRow = screenRowGeo.rowAt(labelY - screenY);
         if(screenDeletedPanels.has(`${cCol},${cRow}`)) {
           let bestDist = Infinity;
           for(let c = 0; c < pw; c++) {
             for(let r = 0; r < screenEffectivePh; r++) {
               if(screenDeletedPanels.has(`${c},${r}`)) continue;
-              const isHalfRow = screenHasCB5HalfRow && r === screenOriginalPh;
-              const cellH = isHalfRow ? halfPanelDrawHeight : drawPanelHeight;
-              const cellY = screenY + (isHalfRow ? (screenOriginalPh * drawPanelHeight) : (r * drawPanelHeight));
+              const cellH = screenRowGeo.h(r);
+              const cellY = screenY + screenRowGeo.y(r);
               const pcx = screenX + c * drawPanelWidth + drawPanelWidth / 2;
               const pcy = cellY + cellH / 2;
               const d = (pcx - labelX) * (pcx - labelX) + (pcy - labelY) * (pcy - labelY);
@@ -2760,12 +2749,11 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     const userMaxPanelsPerCircuit = parseInt(data.maxPanelsPerCircuit);
     const panelsPerCircuit = userMaxPanelsPerCircuit > 0 ? userMaxPanelsPerCircuit : calculatedPanelsPerCircuit;
 
-    // The CB5 half row is an EXTRA row below the full ones, so the grid is one row
-    // taller than data.panelsHigh. Mirrors getEffectivePanelCountsForLayout() in
-    // core/calculate.js, which returns ph + 1 for the Complex canvas.
-    const screenHasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
-    const screenOriginalPh = ph;                                  // full-height rows
-    const screenEffectivePh = screenHasCB5HalfRow ? ph + 1 : ph;  // incl. the half row
+    // The CB5 half rows are EXTRA rows above/below the full ones, so the grid is taller
+    // than data.panelsHigh. Mirrors getEffectivePanelCountsForLayout() in
+    // core/calculate.js, which adds them for the Complex canvas.
+    const screenHalfRows = getCB5HalfRows(data, panelType);
+    const screenEffectivePh = ph + screenHalfRows.top + screenHalfRows.bottom;  // incl. the half rows
 
     // Circuit + SOCA assignment via the shared helpers in core/phase-balance.js — the
     // same ones renderPowerLayout() uses — so the grouping matches the Complex canvas.
@@ -2797,17 +2785,16 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     const drawPanelWidth = panelSize;
     const drawPanelHeight = panelSize * screenHeightRatio;
     const halfPanelDrawHeight = panelSize; // Half panels are square
+    const screenRowGeo = cb5RowGeometry(ph, screenHalfRows, drawPanelHeight, halfPanelDrawHeight);
 
     // Draw all panels using resistor colors (same as original)
     for(let c=0; c<pw; c++){
       for(let r=0; r<screenEffectivePh; r++){
         const panelKey = `${c},${r}`;
 
-        // Determine if this row is the half panel row
-        const isHalfPanelRow = screenHasCB5HalfRow && r === screenOriginalPh;
-        const currentDrawHeight = isHalfPanelRow ? halfPanelDrawHeight : drawPanelHeight;
+        const currentDrawHeight = screenRowGeo.h(r);
         const px = screenX + c * drawPanelWidth;
-        const py = screenY + (isHalfPanelRow ? (screenOriginalPh * drawPanelHeight) : (r * drawPanelHeight));
+        const py = screenY + screenRowGeo.y(r);
 
         const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
         if(hasDeleted) {
@@ -2855,10 +2842,7 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       panelToCircuit, panelToSoca,
       deletedPanels: screenDeletedPanels,
       panelWidth: drawPanelWidth,
-      panelHeight: drawPanelHeight,
-      halfPanelHeight: halfPanelDrawHeight,
-      hasCB5HalfRow: screenHasCB5HalfRow,
-      originalPh: screenOriginalPh,
+      rowGeo: screenRowGeo,
       offsetX: screenX, offsetY: screenY,
       outlineLineWidth: 1.5,
       socaLabelIdx: _socaLabelIdx,
@@ -3218,11 +3202,12 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     const drawPanelWidth = panelSize;
     const drawPanelHeight = panelSize * screenHeightRatio;
 
-    // Check if this screen has half panel row enabled
-    const screenHasCB5HalfRow = data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
-    const screenOriginalPh = ph;                                  // full-height rows
-    const screenEffectivePh = screenHasCB5HalfRow ? ph + 1 : ph;  // incl. the half row
+    // This screen's half panel rows (above/below the full rows)
+    const screenHalfRows = getCB5HalfRows(data, screenPanelType);
     const halfPanelDrawHeight = panelSize; // Half panels are square
+    const screenRowGeo = cb5RowGeometry(ph, screenHalfRows, drawPanelHeight, halfPanelDrawHeight);
+    const screenEffectivePh = screenRowGeo.rows;  // incl. the half rows
+    const _live = countCB5LivePanels(pw, ph, screenHalfRows, screenDeletedPanels);
 
     // Panels per data line from THIS screen's own processor capacity, via the shared
     // helper generateLayout() uses (core/calculate.js) — the combined view used to
@@ -3235,9 +3220,8 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       processor: allProcessorsData[data.processor],
       frameRate: parseInt(data.frameRate) || 60,
       bitDepth: parseInt(data.bitDepth) || 8,
-      hasCB5HalfRow: screenHasCB5HalfRow,
-      pw, ph,
-      deletedCount: screenDeletedPanels.size,
+      fullPanels: _live.full,
+      halfPanels: _live.half,
       userMax: parseInt(data.maxPanelsPerData)
     });
 
@@ -3273,10 +3257,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       startDir,
       pw, ph: screenEffectivePh,
       panelWidth: drawPanelWidth,
-      panelHeight: drawPanelHeight,
-      halfPanelHeight: halfPanelDrawHeight,
-      hasCB5HalfRow: screenHasCB5HalfRow,
-      originalPh: screenOriginalPh,
+      rowGeo: screenRowGeo,
       offsetX: screenX, offsetY: screenY,
       rearView: !!data.dataRearView,
       flip: screenFlip,
@@ -3301,10 +3282,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
           panelToSoca: unitGroups.panelToUnit,
           deletedPanels: screenDeletedPanels,
           panelWidth: drawPanelWidth,
-          panelHeight: drawPanelHeight,
-          halfPanelHeight: halfPanelDrawHeight,
-          hasCB5HalfRow: screenHasCB5HalfRow,
-          originalPh: screenOriginalPh,
+          rowGeo: screenRowGeo,
           offsetX: screenX, offsetY: screenY,
           outlineLineWidth: 1.5,
           socaLabelIdx: (i) => i,
@@ -3655,15 +3633,14 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     const drawPanelWidth = panelSize;
     const drawPanelHeight = panelSize * screenHeightRatio;
 
-    // Check if this screen has half panel row enabled. The half row is an EXTRA row
-    // below the full ones, so the grid is one taller than data.panelsHigh.
-    const screenHasCB5HalfRow = data.addCB5HalfRow && screenPanelType === 'CB5_MKII';
-    const screenOriginalPh = ph;                                  // full-height rows
-    const screenEffectivePh = screenHasCB5HalfRow ? ph + 1 : ph;  // incl. the half row
+    // Half panel rows are EXTRA rows above/below the full ones, so the grid is taller
+    // than data.panelsHigh.
     const halfPanelDrawHeight = panelSize; // Half panels are square
+    const screenRowGeo = cb5RowGeometry(ph, getCB5HalfRows(data, screenPanelType), drawPanelHeight, halfPanelDrawHeight);
+    const screenEffectivePh = screenRowGeo.rows;  // incl. the half rows
 
-    // Calculate total screen height (accounting for half panel row if present)
-    const screenTotalHeight = screenHasCB5HalfRow ? (screenOriginalPh * drawPanelHeight + halfPanelDrawHeight) : (ph * drawPanelHeight);
+    // Calculate total screen height (accounting for half panel rows if present)
+    const screenTotalHeight = screenRowGeo.height;
 
     // Determine if we have top or bottom bumpers based on structure type
     const isHanging = structureType === 'hanging' || structureType === 'hybrid';
@@ -3684,11 +3661,9 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
       for(let r=0; r<screenEffectivePh; r++){
         const panelKey = `${c},${r}`;
 
-        // Determine if this row is the half panel row
-        const isHalfPanelRow = screenHasCB5HalfRow && r === screenOriginalPh;
-        const currentDrawHeight = isHalfPanelRow ? halfPanelDrawHeight : drawPanelHeight;
+        const currentDrawHeight = screenRowGeo.h(r);
         const px = screenX + c * drawPanelWidth;
-        const py = panelYOffset + (isHalfPanelRow ? (screenOriginalPh * drawPanelHeight) : (r * drawPanelHeight));
+        const py = panelYOffset + screenRowGeo.y(r);
 
         const hasDeleted = screenDeletedPanels.has(panelKey);
         if(hasDeleted) {
@@ -3948,9 +3923,11 @@ function renderCombinedSpecs(selectedScreenIds) {
     // Use calcData.activePanels directly (same as PDF export) — already accounts for deletions
     const activePanels = calcData.activePanels || calcData.panelCount || 0;
 
-    // CB5 half panel row
-    const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
-    const halfPanelCount = hasCB5HalfRow ? pw : 0;
+    // CB5 half panel rows
+    const _half = getCB5HalfRows(data, panelType);
+    const halfRowCount = _half.top + _half.bottom;
+    const hasCB5HalfRow = halfRowCount > 0;
+    const halfPanelCount = countCB5LivePanels(pw, ph, _half, data.deletedPanels).half;
     const fullPanelCount = activePanels - halfPanelCount;
 
     // Track panels by type
@@ -4032,7 +4009,7 @@ function renderCombinedSpecs(selectedScreenIds) {
     let screenHeight = ph * (panel.height_m || 0.5);
     if(hasCB5HalfRow) {
       const halfPanel = allPanels['CB5_MKII_HALF'];
-      if(halfPanel) screenHeight += halfPanel.height_m || 0;
+      if(halfPanel) screenHeight += halfRowCount * (halfPanel.height_m || 0);
     }
     maxHeight = Math.max(maxHeight, screenHeight);
   });
@@ -4192,9 +4169,9 @@ function renderCombinedGearList(selectedScreenIds) {
     if(!panel || pw === 0 || ph === 0) return;
 
     // Use calcData.activePanels directly (same as PDF export) — already accounts for deletions
-    const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
+    const _half = getCB5HalfRows(data, panelType);
     const activePanels = calculatedData.activePanels || calculatedData.panelCount || 0;
-    const halfPanelCount = hasCB5HalfRow ? pw : 0;
+    const halfPanelCount = countCB5LivePanels(pw, ph, _half, data.deletedPanels).half;
     const fullPanelCount = activePanels - halfPanelCount;
 
     const panelLabel = `${panel.brand} ${panel.name}`;

@@ -135,10 +135,9 @@ function generateStructureLayout(){
   const panelWidth = size;
   const panelHeight = size * heightRatio;
 
-  // Check if CB5 half panel row is enabled - last row should be square
-  const hasCB5HalfRow = cb5HalfRowEnabled && panelType === 'CB5_MKII';
-  const originalPh = hasCB5HalfRow ? ph - 1 : ph;
+  // CB5 half panel rows (above/below the full rows) are square
   const halfPanelHeight = size; // Half panels are square
+  const rowGeo = getCurrentRowGeometry(panelHeight, halfPanelHeight);
 
   const bumperHeight = Math.max(30, size * 0.8); // Scale bumper height with panel size
   const fourWayHeight = Math.max(15, size * 0.4); // Scale 4-way height with panel size
@@ -150,8 +149,8 @@ function generateStructureLayout(){
   const has4WayBumpers = use4Way && isCB5;
 
   // Calculate canvas height - add space for bumpers and 4-way bumpers
-  // Account for half panel row if enabled
-  let canvasHeight = hasCB5HalfRow ? (originalPh * panelHeight + halfPanelHeight) : (ph * panelHeight);
+  // Account for half panel rows if enabled
+  let canvasHeight = rowGeo.height;
   if(showTopBumper) {
     canvasHeight += bumperHeight;
     if(has4WayBumpers) canvasHeight += fourWayHeight + fourWayGap;
@@ -191,11 +190,9 @@ function generateStructureLayout(){
     for(let r=0;r<ph;r++){
       const panelKey = `${c},${r}`;
 
-      // Determine if this row is the half panel row
-      const isHalfPanelRow = hasCB5HalfRow && r === originalPh;
-      const currentPanelHeight = isHalfPanelRow ? halfPanelHeight : panelHeight;
+      const currentPanelHeight = rowGeo.h(r);
       const x = c * panelWidth;
-      const y = panelYOffset + (isHalfPanelRow ? (originalPh * panelHeight) : (r * panelHeight));
+      const y = panelYOffset + rowGeo.y(r);
 
       // Skip deleted panels - they'll show the dark background
       if(deletedPanels.has(panelKey)) {
@@ -299,7 +296,7 @@ function generateStructureLayout(){
       if(m.kind === '4way') {
         // Every 4-way sits centered on its grid vertex (vc, vr).
         const x = m.vc * panelWidth - plate4WaySize/2;
-        const y = panelYOffset + m.vr * panelHeight - plate4WaySize/2;
+        const y = panelYOffset + rowGeo.y(m.vr) - plate4WaySize/2;
         ctx.fillStyle = '#FF4444'; // Red for 4-way
         ctx.fillRect(x, y, plate4WaySize, plate4WaySize);
         ctx.strokeStyle = '#000000';
@@ -312,25 +309,25 @@ function generateStructureLayout(){
       let x, y, w, h;
       if(m.place === 'vLeft') {
         x = m.vc * panelWidth + 2;
-        y = panelYOffset + m.vr * panelHeight - plateLength/2;
+        y = panelYOffset + rowGeo.y(m.vr) - plateLength/2;
         w = plateThickness; h = plateLength;
       } else if(m.place === 'vRight') {
         x = m.vc * panelWidth - plateThickness - 2;
-        y = panelYOffset + m.vr * panelHeight - plateLength/2;
+        y = panelYOffset + rowGeo.y(m.vr) - plateLength/2;
         w = plateThickness; h = plateLength;
       } else if(m.place === 'hTop') {
         x = m.vc * panelWidth - plateLength/2;
-        y = panelYOffset + m.vr * panelHeight + 2;
+        y = panelYOffset + rowGeo.y(m.vr) + 2;
         w = plateLength; h = plateThickness;
       } else if(m.place === 'hBottom') {
         x = m.vc * panelWidth - plateLength/2;
-        y = panelYOffset + m.vr * panelHeight - plateThickness - 2;
+        y = panelYOffset + rowGeo.y(m.vr) - plateThickness - 2;
         w = plateLength; h = plateThickness;
       } else {
         // Bumper-end plate: a single straight VERTICAL 2-way at the outer corner of the edge
         // panel, straddling the panel/bumper interface so its visible half shows below (top
         // bumper) or above (bottom bumper) the bumper - same trick the 4-ways use.
-        const yBase = panelYOffset + m.vr * panelHeight; // the interface line at this vertex
+        const yBase = panelYOffset + rowGeo.y(m.vr); // the interface line at this vertex
         const onLeft = (m.place === 'endTopLeft' || m.place === 'endBottomLeft');
         x = onLeft ? m.vc * panelWidth + 2 : m.vc * panelWidth - plateThickness - 2;
         y = yBase - plateLength/2;
@@ -423,8 +420,8 @@ function generateStructureLayout(){
           if(ladderTopRow < topRow) continue;
 
           const ladderX = c * panelWidth + panelWidth/2 - ladderWidth/2; // Centered in column
-          const ladderTopY = panelYOffset + ladderTopRow * panelHeight + 4;
-          const ladderHeight = ladderHeightPanels * panelHeight - 8;
+          const ladderTopY = panelYOffset + rowGeo.y(ladderTopRow) + 4;
+          const ladderHeight = rowGeo.y(ladderBottomRow + 1) - rowGeo.y(ladderTopRow) - 8;
 
           // Draw ladder as a rounded rectangle
           ctx.fillStyle = '#00CED1'; // Cyan
@@ -463,7 +460,7 @@ function generateStructureLayout(){
           if(!deletedPanels.has(panelKey)) {
             // Draw bridge clamp as a filled circle at center of panel
             ctx.beginPath();
-            ctx.arc(c * panelWidth + panelWidth/2, panelYOffset + r * panelHeight + panelHeight/2, bridgeClampSize/2, 0, Math.PI * 2);
+            ctx.arc(c * panelWidth + panelWidth/2, panelYOffset + rowGeo.y(r) + rowGeo.h(r)/2, bridgeClampSize/2, 0, Math.PI * 2);
             ctx.fill();
 
             // Black outline
@@ -478,7 +475,7 @@ function generateStructureLayout(){
 
   // Draw all bumpers and store their positions for interaction
   // Pass bumpersWithLadders so we can draw ladder bases inside bumpers
-  drawAllBumpers(ctx, pw, ph, panelWidth, panelHeight, bumperHeight, fourWayHeight, fourWayGap, panelYOffset, bumpersWithLadders);
+  drawAllBumpers(ctx, pw, ph, panelWidth, rowGeo, bumperHeight, fourWayHeight, fourWayGap, panelYOffset, bumpersWithLadders);
 
   // Update pickup weight summary
   updatePickupWeightSummary();

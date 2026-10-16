@@ -2632,6 +2632,50 @@
             <div class="toggle-group">
               <button type="button" class="toggle-btn" id="addCB5HalfRowBtn" onclick="toggleCB5HalfRow()">+ Half Panel Row</button>
             </div>
+            <!-- Half row position + count (only visible while the half row toggle is on) -->
+            <div id="cb5HalfRowOptions" class="mt-8" style="display: none;">
+              <div class="compact-row">
+                <div class="flex-noshrink">
+                  <span class="toggle-label toggle-label-block">Position</span>
+                  <div class="slider-toggle">
+                    <button type="button" class="slider-toggle-btn" id="cb5HalfRowAboveBtn" onclick="setCB5HalfRowPosition('above')">Above</button>
+                    <button type="button" class="slider-toggle-btn active" id="cb5HalfRowBelowBtn" onclick="setCB5HalfRowPosition('below')">Below</button>
+                    <button type="button" class="slider-toggle-btn" id="cb5HalfRowBothBtn" onclick="setCB5HalfRowPosition('both')">Both</button>
+                  </div>
+                </div>
+              </div>
+              <div class="compact-row mt-8">
+                <div class="flex-noshrink" id="cb5HalfRowsAboveField" style="display: none;">
+                  <span class="toggle-label toggle-label-block">Rows Above</span>
+                  <div class="number-input-with-arrows">
+                    <input type="number" id="cb5HalfRowsAbove" value="1" min="1" oninput="setCB5HalfRowCount('above', this.value)">
+                    <div class="number-input-arrows">
+                      <button type="button" onclick="adjustNumberInput('cb5HalfRowsAbove', 1)">
+                        <span class="material-symbols-outlined icon-14">keyboard_arrow_up</span>
+                      </button>
+                      <button type="button" onclick="adjustNumberInput('cb5HalfRowsAbove', -1)">
+                        <span class="material-symbols-outlined icon-14">keyboard_arrow_down</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex-noshrink" id="cb5HalfRowsBelowField">
+                  <span class="toggle-label toggle-label-block">Rows Below</span>
+                  <div class="number-input-with-arrows">
+                    <input type="number" id="cb5HalfRowsBelow" value="1" min="1" oninput="setCB5HalfRowCount('below', this.value)">
+                    <div class="number-input-arrows">
+                      <button type="button" onclick="adjustNumberInput('cb5HalfRowsBelow', 1)">
+                        <span class="material-symbols-outlined icon-14">keyboard_arrow_up</span>
+                      </button>
+                      <button type="button" onclick="adjustNumberInput('cb5HalfRowsBelow', -1)">
+                        <span class="material-symbols-outlined icon-14">keyboard_arrow_down</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="cb5HalfRowHeightWarning" class="warn" style="display: none;"></div>
           </div>
         </div>
 
@@ -3062,6 +3106,7 @@
         <span>Structure Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('structureContainer')" id="structureCollapseBtn" title="Minimize">▼</button></span>
       </div>
       <div class="layout-content" id="structureContent">
+      <div id="structureHeightWarning" class="warn" style="display: none;"></div>
       <!-- Manual Mode Toggle -->
       <div class="structure-mode-toggle">
         <button type="button" class="toggle-btn toggle-btn-standalone" id="manualBumperToggle" onclick="toggleManualBumperMode()">
@@ -3911,8 +3956,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.205';
-const APP_CHANGELOG = 'Make combined layouts follow the standard arrangement and fix serpentine data turns';
+const APP_VERSION = '2.11.206';
+const APP_CHANGELOG = 'Allow CB5 half rows above and below screens and limit Manual Adjust to the standard canvas';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

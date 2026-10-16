@@ -260,9 +260,9 @@ function buildGearListData(screenIds) {
     const isFirstScreenInGroup = processorGroup && processorGroup.firstScreenId === screenId;
 
     // --- EQUIPMENT ---
-    const hasCB5HalfRow = data.addCB5HalfRow && panelType === 'CB5_MKII';
+    const halfRows = getCB5HalfRows(data, panelType);
     const activePanels = calcData.activePanels || calcData.panelCount || 0;
-    const activeHalfPanels = hasCB5HalfRow ? W : 0;
+    const activeHalfPanels = countCB5LivePanels(W, H, halfRows, data.deletedPanels).half;
     const activeFullPanels = activePanels - activeHalfPanels;
     const halfPanelObj = allPanelsObj['CB5_MKII_HALF'];
 

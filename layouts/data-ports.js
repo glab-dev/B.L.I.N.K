@@ -70,8 +70,10 @@ function resolveScreenDataInputs(data) {
   const toMap = v => v instanceof Map ? v : new Map(Array.isArray(v) ? v : (v && v.entries ? [...v.entries()] : []));
 
   const processorId = data.processor || 'Brompton_SX40';
-  const hasCB5HalfRow = !!data.addCB5HalfRow && panelType === 'CB5_MKII';
+  const halfRows = getCB5HalfRows(data, panelType);
+  const halfRowCount = halfRows.top + halfRows.bottom;
   const deletedPanels = toSet(data.deletedPanels);
+  const _live = countCB5LivePanels(pw, ph, halfRows, deletedPanels);
 
   const panelsPerDataLine = (typeof resolvePanelsPerDataLine === 'function')
     ? resolvePanelsPerDataLine({
@@ -80,16 +82,15 @@ function resolveScreenDataInputs(data) {
         processor: allProcs[processorId],
         frameRate: data.frameRate || 60,
         bitDepth: data.bitDepth || 8,
-        hasCB5HalfRow: hasCB5HalfRow,
-        pw: pw, ph: ph,
-        deletedCount: deletedPanels.size,
+        fullPanels: _live.full,
+        halfPanels: _live.half,
         userMax: parseInt(data.maxPanelsPerData) || 0
       })
     : 48;
 
   return {
     pw: pw,
-    ph: hasCB5HalfRow ? ph + 1 : ph,
+    ph: ph + halfRowCount,
     panelsPerDataLine: panelsPerDataLine,
     startDir: data.dataStartDir || 'top',
     deletedPanels: deletedPanels,

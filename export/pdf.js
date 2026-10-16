@@ -1457,7 +1457,7 @@ function buildComplexPdf(opts, canvasCache) {
         color2: (scr && scr.color2) || null,
         pw: geom.pw, ph: geom.ph,
         heightRatio: geom.heightRatio,
-        halfRow: geom.halfRow,
+        half: geom.half,
         x: geom.x, y: geom.y, w: geom.w, h: geom.h,
         deletedPanels: deletedSet
       };
@@ -1478,10 +1478,10 @@ function buildComplexPdf(opts, canvasCache) {
         const ph = parseInt(d.panelsHigh) || 1;
         const pt = d.panelType || 'CB5_MKII';
         const hr = (typeof getPanelHeightRatio === 'function') ? getPanelHeightRatio(pt) : 1;
-        const half = !!(d.addCB5HalfRow && pt === 'CB5_MKII');
+        const half = getCB5HalfRows(d, pt);
         const geom = {
-          pw: pw, ph: ph, heightRatio: hr, halfRow: half,
-          x: rowX, y: 0, w: pw, h: ph * hr + (half ? 1 : 0)
+          pw: pw, ph: ph, heightRatio: hr, half: half,
+          x: rowX, y: 0, w: pw, h: ph * hr + half.top + half.bottom
         };
         rowX += geom.w + FALLBACK_GAP_UNITS;
         return describe(sid, geom);
@@ -1512,12 +1512,11 @@ function buildComplexPdf(opts, canvasCache) {
       '<rect x="0" y="0" width="' + cw + '" height="' + SVG_H.toFixed(2) + '" fill="#f5f5f0"/>'
     ];
 
-    // Row boundaries in panel units — full rows are heightRatio tall, the CB5 half row is 1.
-    // The half row is keyed as row index ph, matching renderStandardLayout().
-    function rowCountOf(it) { return it.ph + (it.halfRow ? 1 : 0); }
-    function rowEdge(it, r) {
-      return (r <= it.ph) ? (r * it.heightRatio) : (it.ph * it.heightRatio + (r - it.ph));
-    }
+    // Row boundaries in panel units — full rows are heightRatio tall, the CB5 half rows are 1.
+    // Half rows above the full ones come first in the row keys, matching renderStandardLayout().
+    function rowGeoOf(it) { return cb5RowGeometry(it.ph, it.half, it.heightRatio, 1); }
+    function rowCountOf(it) { return rowGeoOf(it).rows; }
+    function rowEdge(it, r) { return rowGeoOf(it).y(r); }
     function cellCenterY(it, by, bh, r) {
       return by + ((rowEdge(it, r) + rowEdge(it, r + 1)) / 2 / it.h) * bh;
     }
@@ -1555,7 +1554,7 @@ function buildComplexPdf(opts, canvasCache) {
       // Panel numbers only when they actually fit, mirroring the app's size guard
       var numFont  = Math.max(4.5, Math.min(9, panelW * 0.28));
       var widest   = it.pw + '.' + rowCount;
-      var rowH     = (rowEdge(it, 1) / it.h) * bh;
+      var rowH     = (it.heightRatio / it.h) * bh;
       var showNums = textWidth(widest, numFont, false) <= panelW * 0.85 && rowH >= numFont * 1.25;
 
       for (var r = 0; r < rowCount; r++) {
@@ -1604,7 +1603,7 @@ function buildComplexPdf(opts, canvasCache) {
         // If the centroid lands on a deleted cell, snap to the nearest live panel centre
         var ccol = Math.floor(((nameX - bx) / bw) * it.pw);
         var cyu  = ((nameY - by) / bh) * it.h;
-        var crow = (cyu < it.ph * it.heightRatio) ? Math.floor(cyu / it.heightRatio) : it.ph;
+        var crow = rowGeoOf(it).rowAt(cyu);
         if (it.deletedPanels.has(ccol + ',' + crow)) {
           var best = Infinity;
           for (var sr = 0; sr < rowCount; sr++) {

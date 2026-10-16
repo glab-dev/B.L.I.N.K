@@ -1,5 +1,5 @@
 {
-  "version": "2.11.205",
+  "version": "2.11.206",
   "updated": "2026-10-15",
-  "changelog": "Make combined layouts follow the standard arrangement and fix serpentine data turns"
+  "changelog": "Allow CB5 half rows above and below screens and limit Manual Adjust to the standard canvas"
 }

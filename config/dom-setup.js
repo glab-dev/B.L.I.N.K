@@ -471,7 +471,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Cabling input listeners - save to active gear screen then update gear list
-    const cablingInputIds = ['wallToFloor', 'distroToWall', 'processorToWall', 'serverToProcessor', 'cablePick', 'xdToProcessor', 'xdToWall'];
+    const cablingInputIds = ['wallToFloor', 'distroToWall', 'processorToWall', 'cablePick', 'xdToProcessor', 'xdToWall'];
     cablingInputIds.forEach(id => {
       const el = document.getElementById(id);
       if(el) {
@@ -490,6 +490,16 @@ document.addEventListener('DOMContentLoaded', function() {
         el.addEventListener('keyup', updateCabling);
         el.addEventListener('change', updateCabling);
       }
+    });
+    // Source feed inputs write to the project-wide feed, never to screen data, so a bulk
+    // screen save can't overwrite a feed edited in the Combined view with a stale value
+    ['sourceFeedName', 'serverToProcessor'].forEach(id => {
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.addEventListener('input', function() {
+        saveSourceFeedFromCableTab();
+        generateGearList();
+      });
     });
     updateWallSizeUnitLabels();
     syncFromPanels();

@@ -3255,8 +3255,12 @@
               <span>Proc to Drop</span>
               <input type="number" id="processorToWall" min="0" step="0.1" placeholder="15">
             </label>
+            <label class="mb-4">
+              <span>Source</span>
+              <input type="text" id="sourceFeedName" maxlength="24" placeholder="Source">
+            </label>
             <label class="mb-2">
-              <span>Server to Proc</span>
+              <span>Source to Proc</span>
               <input type="number" id="serverToProcessor" min="0" step="0.1" placeholder="50">
             </label>
           </div>
@@ -3498,9 +3502,10 @@
       <span>Cabling Layout (Combined)<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('combinedCablingContainer')" id="combinedCablingCollapseBtn" title="Minimize">▼</button></span>
     </div>
     <div class="layout-content" id="combinedCablingContent">
-      <!-- Read-only view: this diagram is assembled from each screen's own Cable tab
-           settings. Edit cabling per screen there, not here. -->
-      <div class="combined-cabling-note">Assembled from each screen&rsquo;s Cable tab &mdash; edit cabling there.</div>
+      <!-- Source feeds are project-wide, one per processor, and edited here. Everything
+           else in this diagram comes from each screen's own Cable tab settings. -->
+      <div id="combinedSourceFeeds" class="source-feed-list"></div>
+      <div class="combined-hint-box">Adjust each screen&rsquo;s cabling in the Cable tab</div>
 
       <!-- Cable Diagram Canvas -->
       <div id="combinedCableDiagramCanvasWrapper" class="overflow-x-auto">
@@ -3956,8 +3961,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.206';
-const APP_CHANGELOG = 'Allow CB5 half rows above and below screens and limit Manual Adjust to the standard canvas';
+const APP_VERSION = '2.11.207';
+const APP_CHANGELOG = 'Replace the single server cable with editable per-processor Source feeds';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -4021,6 +4026,8 @@ let greyscalePrintMode = false;
 let projectLogo = null;
 // PDF white background mode - white background only, preserves panel colors
 let pdfWhiteBgMode = false;
+// Source feeds — project-wide, one per processor in project order (see nav/combined-cable-diagram.js)
+let sourceFeeds = { defaultDistance: 50, list: [] };
 
 // Canvas movement undo/redo state
 let canvasMoveHistory = [];

@@ -41,6 +41,7 @@ function renderCableDiagram(screenId) {
   const processorToWall = cabling.inputs.processorToWall;
   const cablePick = cabling.inputs.cablePick;
   const serverToProcessor = cabling.serverCable ? cabling.serverCable.lengthFt : 0;
+  const sourceName = (cabling.serverCable && cabling.serverCable.name) || 'Source';
   const xdPlace = cabling.inputs.xdPlacement || 'proc';
   const distBoxOnWall = xdPlace === 'wall';
   const xdToProcessor = cabling.inputs.xdToProcessor ?? 25;
@@ -1210,7 +1211,7 @@ function renderCableDiagram(screenId) {
     drawCableEquipmentBox(ctx, xdX - BOX_W / 2, xdBoxY, BOX_W, BOX_H, remoteXdLabel, DISTBOX_COLOR, rearView);
   }
   if (serverToProcessor > 0) {
-    drawCableEquipmentBox(ctx, serverBoxX, serverBoxY, BOX_W, BOX_H, 'SERVER', SERVER_COLOR, rearView);
+    drawCableEquipmentBox(ctx, serverBoxX, serverBoxY, BOX_W, BOX_H, sourceFeedBoxLabel(sourceName), SERVER_COLOR, rearView);
   }
 
   // Dist box on wall (when toggle ON)
@@ -1415,7 +1416,7 @@ function renderCableDiagram(screenId) {
     ctx.fillStyle = SERVER_COLOR;
     ctx.fillRect(MARGIN.left + legendOffset, legendY - legendSq / 2, legendSq, legendSq);
     ctx.fillStyle = fgColor;
-    ctx.fillText('Server', MARGIN.left + legendOffset + legendTx, legendY);
+    ctx.fillText(sourceName, MARGIN.left + legendOffset + legendTx, legendY);
     legendOffset += isPdf ? 88 : 55;
   }
 

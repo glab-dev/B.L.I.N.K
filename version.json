@@ -1,5 +1,5 @@
 {
-  "version": "2.11.206",
+  "version": "2.11.207",
   "updated": "2026-10-15",
-  "changelog": "Allow CB5 half rows above and below screens and limit Manual Adjust to the standard canvas"
+  "changelog": "Replace the single server cable with editable per-processor Source feeds"
 }

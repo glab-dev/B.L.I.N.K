@@ -19,7 +19,6 @@ let combinedCablingConfig = {
   wallToFloor: 5,
   distroToWall: 10,
   processorToWall: 15,
-  serverToProcessor: 50,
   cablePick: 0,
   cableDropPosition: 'behind',
   powerInPosition: 'top',
@@ -39,7 +38,6 @@ function screenCablingValues(screenId) {
     wallToFloor: d.wallToFloor ?? 5,
     distroToWall: d.distroToWall ?? 10,
     processorToWall: d.processorToWall ?? 15,
-    serverToProcessor: d.serverToProcessor ?? 50,
     cablePick: d.cablePick ?? 0,
     cableDropPosition: d.cableDropPosition ?? 'behind',
     powerInPosition: d.powerInPosition ?? 'top',
@@ -54,7 +52,7 @@ function screenCablingValues(screenId) {
   };
 }
 
-// Rebuild the derived config from the current selection. Rig-wide values (server run,
+// Rebuild the derived config from the current selection. Rig-wide values (wall height,
 // distro distance) take the largest across the selection so nothing is under-reported.
 function deriveCombinedCablingConfig(selectedScreenIds) {
   const ids = (selectedScreenIds || []).filter(id => screens[id] && screens[id].data);
@@ -71,7 +69,6 @@ function deriveCombinedCablingConfig(selectedScreenIds) {
   cfg.wallToFloor = Math.max.apply(null, ids.map(id => screenCablingValues(id).wallToFloor));
   cfg.distroToWall = Math.max.apply(null, ids.map(id => screenCablingValues(id).distroToWall));
   cfg.processorToWall = Math.max.apply(null, ids.map(id => screenCablingValues(id).processorToWall));
-  cfg.serverToProcessor = Math.max.apply(null, ids.map(id => screenCablingValues(id).serverToProcessor));
   cfg.cablePick = Math.max.apply(null, ids.map(id => screenCablingValues(id).cablePick));
   cfg.xdToProcessor = Math.max.apply(null, ids.map(id => screenCablingValues(id).xdToProcessor));
   // Placement is rig-wide only in the sense that the floor lane needs to know whether ANY
@@ -83,6 +80,209 @@ function deriveCombinedCablingConfig(selectedScreenIds) {
   cfg.cableDropPosition = first.cableDropPosition;
   cfg.powerInPosition = first.powerInPosition;
   return cfg;
+}
+
+// ---- Source Feeds ----
+// One signal source per processor. Feeds are numbered by processor ORDER in the project
+// (the order projectDataUnits() lists them), not by model, so swapping an SX40 for an S8
+// keeps that feed's name and distance. sourceFeeds.list[i] holds the i-th processor's
+// settings; anything unset falls back to the defaults.
+const SOURCE_FEED_DEFAULT_NAME = 'Source';
+
+function sourceFeedUnits() {
+  return (typeof projectDataUnits === 'function') ? projectDataUnits() : { procs: [], boxes: [], byScreen: new Map() };
+}
+
+function sourceFeedEntry(index) {
+  const e = sourceFeeds.list[index] || {};
+  return {
+    name: (typeof e.name === 'string' && e.name.trim()) ? e.name : SOURCE_FEED_DEFAULT_NAME,
+    distance: (typeof e.distance === 'number' && e.distance >= 0) ? e.distance : sourceFeeds.defaultDistance,
+    sameAs: (typeof e.sameAs === 'number') ? e.sameAs : null
+  };
+}
+
+function setSourceFeedField(index, field, value) {
+  if(!sourceFeeds.list[index]) sourceFeeds.list[index] = {};
+  sourceFeeds.list[index][field] = value;
+}
+
+// The feed that actually carries a processor's signal: its own, or the one it shares.
+// A pointer to a processor that no longer exists, or a loop, counts as its own feed.
+function resolveSourceFeedIndex(index, procCount) {
+  const seen = new Set();
+  let i = index;
+  while(!seen.has(i)) {
+    seen.add(i);
+    const next = sourceFeedEntry(i).sameAs;
+    if(next === null || next < 0 || next >= procCount) return i;
+    i = next;
+  }
+  return index;
+}
+
+// Feed indices a screen's data lines reach. A screen with no data plan yet still has a
+// source, so it falls back to the first feed.
+function screenSourceFeedIndices(screenId, units) {
+  const reach = units.byScreen.get(screenId);
+  const out = [];
+  units.procs.forEach((u, i) => { if(reach && reach.procUnitIds.has(u.unitId)) out.push(i); });
+  return out.length ? out : [0];
+}
+
+// The feed a single screen's cable diagram and the Cable tab show: its first processor's.
+function screenSourceFeed(screenId) {
+  const units = sourceFeedUnits();
+  const index = resolveSourceFeedIndex(screenSourceFeedIndices(screenId, units)[0], units.procs.length);
+  return Object.assign({ index: index }, sourceFeedEntry(index));
+}
+
+// Equipment box label: upper-case, split onto two lines at the space nearest the middle
+// so a name like "MEDIA SERVER" fits the box.
+function sourceFeedBoxLabel(name) {
+  const words = String(name).toUpperCase().split(/\s+/).filter(Boolean);
+  if(words.length < 2) return words.join('');
+  let best = 1, bestDiff = Infinity;
+  for(let i = 1; i < words.length; i++) {
+    const diff = Math.abs(words.slice(0, i).join(' ').length - words.slice(i).join(' ').length);
+    if(diff < bestDiff) { bestDiff = diff; best = i; }
+  }
+  return [words.slice(0, best).join(' '), words.slice(best).join(' ')];
+}
+
+// The Cable tab edits the screen it is showing: the gear tab's active screen, otherwise
+// the current one — same target the cabling input listeners use.
+function sourceFeedCableTabScreenId() {
+  return (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+    ? gearActiveScreenId : currentScreenId;
+}
+
+function saveSourceFeedFromCableTab() {
+  const index = screenSourceFeed(sourceFeedCableTabScreenId()).index;
+  const nameEl = document.getElementById('sourceFeedName');
+  const distEl = document.getElementById('serverToProcessor');
+  if(nameEl) setSourceFeedField(index, 'name', nameEl.value.trim());
+  if(distEl) setSourceFeedField(index, 'distance', distEl.value !== '' ? parseFloat(distEl.value) : parseFloat(distEl.placeholder));
+}
+
+function loadSourceFeedIntoCableTab(screenId) {
+  if(!screens[screenId]) return;
+  const feed = screenSourceFeed(screenId);
+  const nameEl = document.getElementById('sourceFeedName');
+  const distEl = document.getElementById('serverToProcessor');
+  if(nameEl) nameEl.value = feed.name === SOURCE_FEED_DEFAULT_NAME ? '' : feed.name;
+  if(distEl) distEl.value = feed.distance !== 50 ? feed.distance : '';
+}
+
+function getSourceFeedsForSave() {
+  return { defaultDistance: sourceFeeds.defaultDistance, list: sourceFeeds.list.map(e => e || {}) };
+}
+
+// Restore feeds from a project file (untrusted input). Files from before per-processor
+// feeds carried a server distance on every screen and the gear list used the longest,
+// so that becomes every feed's starting distance.
+function loadProjectSourceFeeds(saved) {
+  if(saved && typeof saved === 'object' && !Array.isArray(saved) && Array.isArray(saved.list)) {
+    sourceFeeds = {
+      defaultDistance: (typeof saved.defaultDistance === 'number' && saved.defaultDistance >= 0) ? saved.defaultDistance : 50,
+      list: saved.list.slice(0, 64).map(e => {
+        const out = {};
+        if(!e || typeof e !== 'object') return out;
+        if(typeof e.name === 'string') out.name = e.name.slice(0, 24);
+        if(typeof e.distance === 'number' && e.distance >= 0) out.distance = e.distance;
+        if(Number.isInteger(e.sameAs) && e.sameAs >= 0) out.sameAs = e.sameAs;
+        return out;
+      })
+    };
+    return;
+  }
+  const old = Object.keys(screens)
+    .map(id => screens[id].data ? (screens[id].data.serverToProcessor ?? screens[id].data.fohToProcessor) : null)
+    .filter(v => typeof v === 'number' && v >= 0);
+  sourceFeeds = { defaultDistance: old.length ? Math.max.apply(null, old) : 50, list: [] };
+}
+
+// Rows in the combined Cabling panel, one per feed: the selection's feeds, or every feed
+// in the project when nothing is selected. Rebuilt only when the set of feeds changes,
+// so typing in a row never loses focus to a re-render.
+function renderSourceFeedRows(selectedScreenIds) {
+  const list = document.getElementById('combinedSourceFeeds');
+  if(!list) return;
+  const units = sourceFeedUnits();
+  let indices = [];
+  (selectedScreenIds || []).forEach(id => {
+    screenSourceFeedIndices(id, units).forEach(i => { if(!indices.includes(i)) indices.push(i); });
+  });
+  if(!indices.length) indices = units.procs.length ? units.procs.map((u, i) => i) : [0];
+  indices.sort((a, b) => a - b);
+
+  const sig = JSON.stringify([indices, units.procs.map(u => u.label)]);
+  if(list.dataset.sig !== sig) {
+    list.dataset.sig = sig;
+    list.replaceChildren();
+    indices.forEach(i => list.appendChild(buildSourceFeedRow(i, units)));
+  }
+
+  list.querySelectorAll('[data-feed]').forEach(el => {
+    if(el === document.activeElement) return;
+    const feed = sourceFeedEntry(parseInt(el.dataset.feed, 10));
+    if(el.dataset.field === 'name') el.value = feed.name === SOURCE_FEED_DEFAULT_NAME ? '' : feed.name;
+    else if(el.dataset.field === 'distance') el.value = feed.distance !== 50 ? feed.distance : '';
+    else el.value = feed.sameAs === null ? '' : String(feed.sameAs);
+  });
+}
+
+function buildSourceFeedRow(index, units) {
+  const row = document.createElement('div');
+  row.className = 'source-feed-row';
+  const tag = document.createElement('span');
+  tag.className = 'source-feed-proc';
+  tag.textContent = units.procs[index] ? units.procs[index].label : '';
+  row.appendChild(tag);
+
+  const addField = (labelText, control, field) => {
+    control.dataset.feed = String(index);
+    control.dataset.field = field;
+    control.addEventListener('input', onSourceFeedRowInput);
+    const label = document.createElement('label');
+    const span = document.createElement('span');
+    span.textContent = labelText;
+    label.append(span, control);
+    row.appendChild(label);
+  };
+
+  const name = document.createElement('input');
+  name.type = 'text';
+  name.maxLength = 24;
+  name.placeholder = SOURCE_FEED_DEFAULT_NAME;
+  addField('Source', name, 'name');
+
+  const dist = document.createElement('input');
+  dist.type = 'number';
+  dist.min = '0';
+  dist.step = '0.1';
+  dist.placeholder = '50';
+  addField('Source to Proc', dist, 'distance');
+
+  if(units.procs.length > 1) {
+    const sel = document.createElement('select');
+    sel.add(new Option('Own Feed', ''));
+    units.procs.forEach((u, i) => { if(i !== index) sel.add(new Option(u.label, String(i))); });
+    addField('Same Signal As', sel, 'sameAs');
+  }
+  return row;
+}
+
+function onSourceFeedRowInput(e) {
+  const el = e.target;
+  const index = parseInt(el.dataset.feed, 10);
+  if(el.dataset.field === 'name') setSourceFeedField(index, 'name', el.value.trim());
+  else if(el.dataset.field === 'distance') setSourceFeedField(index, 'distance', el.value !== '' ? parseFloat(el.value) : 50);
+  else setSourceFeedField(index, 'sameAs', el.value === '' ? null : parseInt(el.value, 10));
+  // The Cable tab shows one screen's feed, which may be the one just edited
+  loadSourceFeedIntoCableTab(sourceFeedCableTabScreenId());
+  if(typeof renderCombinedView === 'function') renderCombinedView();
+  if(typeof generateGearList === 'function') generateGearList();
 }
 
 // ---- Processor Dist Box Support Check ----
@@ -371,6 +571,8 @@ function calculateCombinedCabling(selectedScreenIds, config) {
 // ---- Main Renderer ----
 
 function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
+  renderSourceFeedRows(selectedScreenIds);
+
   // Eco/greyscale print mode support — reassign module-level colors
   var isPrintMode = ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode;
   function ccPrintColor(hex) {
@@ -823,15 +1025,27 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     return out;
   }
 
-  // Server: far-left, vertically centered between wall top and floor
-  var serverCanvasX = MARGIN.left;
-  var serverBoxCenterY = (wallTopY + floorY) / 2;
-  var serverBoxY = serverBoxCenterY - BOX_H / 2;
+  // Source feeds: one box per feed carrying its own signal, in processor order, side by
+  // side from the far left, vertically centered between wall top and floor. A processor
+  // sharing another feed's signal gets a branch off that feed's run instead of a box.
+  var sourceBoxY = (wallTopY + floorY) / 2 - BOX_H / 2;
+  var sourceBoxGap = isSmall ? 6 : 10;
+  var feedBoxes = [];
+  var feedByIndex = {};
+  floorProcs.forEach(function(u) {
+    var procIdx = dataUnits.procs.findIndex(function(p) { return p.unitId === u.unitId; });
+    var own = resolveSourceFeedIndex(procIdx < 0 ? 0 : procIdx, dataUnits.procs.length);
+    if (!feedByIndex[own]) {
+      feedByIndex[own] = { feed: sourceFeedEntry(own), procXs: [] };
+      feedBoxes.push(feedByIndex[own]);
+    }
+    feedByIndex[own].procXs.push(unitX[u.unitId] !== undefined ? unitX[u.unitId] : procCanvasX);
+  });
+  feedBoxes.forEach(function(fb, i) { fb.x = MARGIN.left + i * (BOX_W + sourceBoxGap); });
 
   // Use abbreviated labels on mobile
   var distLabel = isSmall ? 'DIST' : 'DISTRO';
   var procLabel = 'PROC';
-  var srvLabel = isSmall ? 'SRV' : 'SERVER';
 
   // Remote XD trunks: each floor XD box is fed by the processor that owns it. Length is
   // a label, not a measured span. The backup box sits beside the main one, so redundancy
@@ -889,44 +1103,57 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     ctx.textBaseline = 'alphabetic';
   });
 
-  // Every unit in the lane, plus the server
+  // Every unit in the lane, plus the source feeds
   if (typeof drawCableEquipmentBox === 'function') {
     laneSlots.forEach(function(slot) {
       drawCableEquipmentBox(ctx, slot.x - BOX_W / 2, slot.y, BOX_W, BOX_H, slot.label, slot.color);
     });
-    drawCableEquipmentBox(ctx, serverCanvasX, serverBoxY, BOX_W, BOX_H, srvLabel, CC_SERVER_COLOR);
+    feedBoxes.forEach(function(fb) {
+      drawCableEquipmentBox(ctx, fb.x, sourceBoxY, BOX_W, BOX_H, sourceFeedBoxLabel(fb.feed.name), CC_SERVER_COLOR);
+    });
   }
 
-  // Server-to-processor cable. It runs OVER the floor lane on its own line rather than
-  // straight through the distro box, then drops into the processor's top edge — the same
-  // treatment the proc→XD trunks get, one line clear of the topmost trunk.
-  if (cfg.serverToProcessor > 0) {
-    // With a shelf the trunks already fill the shelf-to-floor gap, so the server run goes
-    // over the top of the shelf; on a single row it clears the topmost trunk instead.
-    var serverRunY;
-    if (useShelf) {
-      serverRunY = shelfY - (isSmall ? 5 : 7);
-    } else {
-      var maxTrunkSeq = 0;
-      Object.keys(trunkSeq).forEach(function(k) { if (trunkSeq[k] > maxTrunkSeq) maxTrunkSeq = trunkSeq[k]; });
-      serverRunY = equipY - 6 - (maxTrunkSeq + 1) * (isSmall ? 5 : 7) - (isSmall ? 3 : 5);
-    }
+  // Source-to-processor cables. Each runs OVER the floor lane on its own line rather than
+  // straight through the distro box, then drops into its processor's top edge — the same
+  // treatment the proc→XD trunks get, one line clear of the topmost trunk. Later feeds
+  // ride higher, so a run never crosses the drop of the feed to its left.
+  // With a shelf the trunks already fill the shelf-to-floor gap, so the runs go over the
+  // top of the shelf; on a single row they clear the topmost trunk instead.
+  var baseRunY;
+  if (useShelf) {
+    baseRunY = shelfY - (isSmall ? 5 : 7);
+  } else {
+    var maxTrunkSeq = 0;
+    Object.keys(trunkSeq).forEach(function(k) { if (trunkSeq[k] > maxTrunkSeq) maxTrunkSeq = trunkSeq[k]; });
+    baseRunY = equipY - 6 - (maxTrunkSeq + 1) * (isSmall ? 5 : 7) - (isSmall ? 3 : 5);
+  }
+  feedBoxes.forEach(function(fb, i) {
+    if (!(fb.feed.distance > 0)) return;
     // Never ride up into the screens
-    serverRunY = Math.max(serverRunY, wallBottomY + 4);
+    var runY = Math.max(baseRunY - i * (isSmall ? 5 : 7), wallBottomY + 4);
+    var dropX = fb.x + BOX_W / 2;
 
     ctx.strokeStyle = CC_SERVER_COLOR;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(serverCanvasX + BOX_W / 2, serverBoxY + BOX_H);
-    ctx.lineTo(serverCanvasX + BOX_W / 2, serverRunY);
-    ctx.lineTo(procCanvasX, serverRunY);
-    ctx.lineTo(procCanvasX, equipY);
+    ctx.moveTo(dropX, sourceBoxY + BOX_H);
+    ctx.lineTo(dropX, runY);
+    ctx.lineTo(fb.procXs[0], runY);
+    ctx.lineTo(fb.procXs[0], equipY);
     ctx.stroke();
+    // Processors sharing this feed's signal branch off the same run
+    fb.procXs.slice(1).forEach(function(px) {
+      ctx.beginPath();
+      ctx.moveTo(dropX, runY);
+      ctx.lineTo(px, runY);
+      ctx.lineTo(px, equipY);
+      ctx.stroke();
+    });
 
-    // Server distance label on the vertical segment
-    var srvLabelText = cfg.serverToProcessor + "'";
-    var srvLabelX = serverCanvasX + BOX_W / 2 + 4;
-    var srvLabelMidY = (serverBoxY + BOX_H + serverRunY) / 2;
+    // Distance label on the vertical segment
+    var srvLabelText = fb.feed.distance + "'";
+    var srvLabelX = dropX + 4;
+    var srvLabelMidY = (sourceBoxY + BOX_H + runY) / 2;
     ctx.font = 'bold ' + (isPdf ? (isSmall ? 13 : 16) : (isSmall ? 7 : 10)) + 'px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -936,7 +1163,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     ctx.fillStyle = isPrintMode ? ccFgColor : CC_SERVER_COLOR;
     ctx.fillText(srvLabelText, srvLabelX + 2, srvLabelMidY);
     ctx.textBaseline = 'alphabetic';
-  }
+  });
 
   // Cable picks are per screen — set on each screenPos above, drawn after the cables.
 
@@ -1407,7 +1634,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     { color: CC_DATA_COLOR, label: 'Data' },
     { color: CC_PROC_COLOR, label: 'Proc' },
     { color: CC_POWER_COLOR, label: 'Distro' },
-    { color: CC_SERVER_COLOR, label: 'Server' }
+    { color: CC_SERVER_COLOR, label: 'Source' }
   ];
   if (redundancy) legendItems.push({ color: CC_BACKUP_COLOR, label: 'Backup' });
   if (floorBoxes.length) {

@@ -287,7 +287,6 @@ function saveCurrentScreenData() {
   const wallToFloorEl = document.getElementById('wallToFloor');
   const distroToWallEl = document.getElementById('distroToWall');
   const processorToWallEl = document.getElementById('processorToWall');
-  const serverToProcessorEl = document.getElementById('serverToProcessor');
   const cablePickEl = document.getElementById('cablePick');
   const xdToProcessorEl = document.getElementById('xdToProcessor');
   const xdToWallEl = document.getElementById('xdToWall');
@@ -295,7 +294,6 @@ function saveCurrentScreenData() {
   if(wallToFloorEl) data.wallToFloor = wallToFloorEl.value !== '' ? parseFloat(wallToFloorEl.value) : parseFloat(wallToFloorEl.placeholder);
   if(distroToWallEl) data.distroToWall = distroToWallEl.value !== '' ? parseFloat(distroToWallEl.value) : parseFloat(distroToWallEl.placeholder);
   if(processorToWallEl) data.processorToWall = processorToWallEl.value !== '' ? parseFloat(processorToWallEl.value) : parseFloat(processorToWallEl.placeholder);
-  if(serverToProcessorEl) data.serverToProcessor = serverToProcessorEl.value !== '' ? parseFloat(serverToProcessorEl.value) : parseFloat(serverToProcessorEl.placeholder);
   if(cablePickEl) data.cablePick = cablePickEl.value !== '' ? parseFloat(cablePickEl.value) : 0;
   if(xdToProcessorEl) data.xdToProcessor = xdToProcessorEl.value !== '' ? parseFloat(xdToProcessorEl.value) : parseFloat(xdToProcessorEl.placeholder);
   if(xdToWallEl) data.xdToWall = xdToWallEl.value !== '' ? parseFloat(xdToWallEl.value) : parseFloat(xdToWallEl.placeholder);
@@ -480,7 +478,6 @@ function loadScreenData(screenId) {
   const wallToFloorEl = document.getElementById('wallToFloor');
   const distroToWallEl = document.getElementById('distroToWall');
   const processorToWallEl = document.getElementById('processorToWall');
-  const serverToProcessorEl = document.getElementById('serverToProcessor');
   const cablePickEl = document.getElementById('cablePick');
   const xdToProcessorEl = document.getElementById('xdToProcessor');
   const xdToWallEl = document.getElementById('xdToWall');
@@ -489,8 +486,6 @@ function loadScreenData(screenId) {
   if(wallToFloorEl) wallToFloorEl.value = (data.wallToFloor && data.wallToFloor !== 5) ? data.wallToFloor : '';
   if(distroToWallEl) distroToWallEl.value = (data.distroToWall && data.distroToWall !== 10) ? data.distroToWall : '';
   if(processorToWallEl) processorToWallEl.value = (data.processorToWall && data.processorToWall !== 15) ? data.processorToWall : '';
-  const serverVal = data.serverToProcessor ?? data.fohToProcessor;
-  if(serverToProcessorEl) serverToProcessorEl.value = (serverVal && serverVal !== 50) ? serverVal : '';
   if(cablePickEl) cablePickEl.value = (data.cablePick && data.cablePick !== 0) ? data.cablePick : '';
   if(xdToProcessorEl) xdToProcessorEl.value = (data.xdToProcessor && data.xdToProcessor !== 25) ? data.xdToProcessor : '';
   if(xdToWallEl) xdToWallEl.value = (data.xdToWall && data.xdToWall !== 40) ? data.xdToWall : '';
@@ -683,6 +678,10 @@ function loadScreenData(screenId) {
     initializeBumpers();
   }
   
+  // The Source feed comes from the data port plan, which reads this screen's restored
+  // assignments, so it can only be shown once they are all loaded
+  loadSourceFeedIntoCableTab(screenId);
+
   // Clear flag after all data is loaded
   isLoadingScreenData = false;
 }

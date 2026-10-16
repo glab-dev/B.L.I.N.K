@@ -229,6 +229,8 @@ function buildCurrentConfig() {
     // Combined view arrangement (selection order + manual drag offsets) so the layout,
     // and the PDF combined diagram built from it, survives save/reload
     combinedView: (typeof getCombinedViewSaveState === 'function') ? getCombinedViewSaveState() : undefined,
+    // Project-wide Source feeds, one per processor (name, distance, shared signal)
+    sourceFeeds: (typeof getSourceFeedsForSave === 'function') ? getSourceFeedsForSave() : undefined,
     // Project logo (base64 data URL) — null if no logo uploaded
     logo: (typeof projectLogo !== 'undefined') ? projectLogo : null
   };
@@ -391,6 +393,7 @@ function newProject() {
       if(typeof projectLogo !== 'undefined') projectLogo = null;
       if(typeof loadProjectGearCodeOverrides === 'function') loadProjectGearCodeOverrides({});
       if(typeof loadProjectSpareOverrides === 'function') loadProjectSpareOverrides({});
+      if(typeof loadProjectSourceFeeds === 'function') loadProjectSourceFeeds(null);
       displayLengthUnit = 'ft';
       displayWeightUnit = 'lbs';
       document.getElementById('unitImperial')?.classList.toggle('active', true);
@@ -615,6 +618,11 @@ function applyConfiguration(config, fileNameOverride) {
     // Restore per-project spare quantity overrides
     if(typeof loadProjectSpareOverrides === 'function') {
       loadProjectSpareOverrides(config.spareOverrides || {});
+    }
+
+    // Restore Source feeds; older files fall back to their screens' server distances
+    if(typeof loadProjectSourceFeeds === 'function') {
+      loadProjectSourceFeeds(config.sourceFeeds);
     }
 
     // Restore project logo

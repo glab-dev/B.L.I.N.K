@@ -449,6 +449,10 @@ function resetCalculator() {
   if(processorToWallEl) processorToWallEl.value = '';
   const serverToProcessorEl = document.getElementById('serverToProcessor');
   if(serverToProcessorEl) serverToProcessorEl.value = '';
+  const sourceFeedNameEl = document.getElementById('sourceFeedName');
+  if(sourceFeedNameEl) sourceFeedNameEl.value = '';
+  // The cleared Source inputs belong to this screen's feed, so reset that feed with them
+  if(typeof saveSourceFeedFromCableTab === 'function') saveSourceFeedFromCableTab();
   const cablePickEl = document.getElementById('cablePick');
   if(cablePickEl) cablePickEl.value = '';
 

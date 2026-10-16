@@ -226,18 +226,16 @@ function buildGearListData(screenIds) {
     group.distBoxName = counts.distBoxName;
   });
 
-  // Server → Processor cable is system-wide (one connection: main + backup = 2 cables)
-  // Use the longest serverToProcessor value across all screens
-  let serverCableLength = 0;
+  // Source → Processor cables: one run (main + backup = 2 cables) per Source feed that
+  // carries its own signal. A processor sharing another feed's signal adds no run.
+  const feedUnits = sourceFeedUnits();
+  const ownFeeds = new Set();
   screenIds.forEach(screenId => {
     const screen = screens[screenId];
     if(!screen || !screen.data) return;
-    const cablingCheck = (typeof calculateCabling === 'function') ? calculateCabling(screenId) : null;
-    if(cablingCheck && cablingCheck.serverCable) {
-      const len = cablingCheck.serverCable.lengthFt || 0;
-      if(len > serverCableLength) serverCableLength = len;
-    }
+    screenSourceFeedIndices(screenId, feedUnits).forEach(i => ownFeeds.add(resolveSourceFeedIndex(i, feedUnits.procs.length)));
   });
+  const serverCableLengths = [...ownFeeds].map(i => sourceFeedEntry(i).distance).filter(len => len > 0);
 
   // === PER-SCREEN DATA ===
   const screenDataList = [];
@@ -484,16 +482,23 @@ function buildGearListData(screenIds) {
       sdiByLength[25] = sdiPerProcessor;
     }
 
-    // Server → Processor cable: single run + backup (2 cables total)
+    // Source → Processor cables: each feed is a run + backup (2 cables). Runs over 300'
+    // go fiber, and share one line sized to the longest of them.
     let serverFiberLine = null;
-    if(serverCableLength > 0) {
-      if(serverCableLength > 300) {
-        const fiberLen = Math.max(500, Math.ceil(serverCableLength / 100) * 100);
-        serverFiberLine = { label: fiberLen + "' Fiber", count: 2 };
+    let fiberRuns = 0;
+    let longestFiberRun = 0;
+    serverCableLengths.forEach(len => {
+      if(len > 300) {
+        fiberRuns++;
+        longestFiberRun = Math.max(longestFiberRun, len);
       } else {
-        const sdiLen = roundUpToStandard(serverCableLength);
+        const sdiLen = roundUpToStandard(len);
         sdiByLength[sdiLen] = (sdiByLength[sdiLen] || 0) + 2;
       }
+    });
+    if(fiberRuns > 0) {
+      const fiberLen = Math.max(500, Math.ceil(longestFiberRun / 100) * 100);
+      serverFiberLine = { label: fiberLen + "' Fiber", count: fiberRuns * 2 };
     }
 
     signalCablesAuto = {

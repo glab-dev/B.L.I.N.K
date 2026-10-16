@@ -272,7 +272,7 @@ function calculateCabling(screenId) {
   const wallToFloor = data.wallToFloor ?? 5;
   const distroToWall = data.distroToWall ?? 10;
   const processorToWall = data.processorToWall ?? 15;
-  const serverToProcessor = data.serverToProcessor ?? 50;
+  const sourceFeed = screenSourceFeed(screenId);
   const cablePick = data.cablePick ?? 0;
   const dropPos = data.cableDropPosition ?? 'behind';
   const powerInPos = data.powerInPosition ?? 'top';
@@ -614,7 +614,7 @@ function calculateCabling(screenId) {
     dataCables,
     distBoxCables,
     knockoutBridgeCables,
-    serverCable: {lengthFt: serverToProcessor},
+    serverCable: {lengthFt: sourceFeed.distance, name: sourceFeed.name},
     wallHeightFt: Math.round(wallHeightFt * 10) / 10,
     wallWidthFt: Math.round(wallWidthFt * 10) / 10,
     inputs: {wallToFloor, distroToWall, processorToWall, cablePick, xdPlacement: placement, xdToProcessor, xdToWall},
@@ -646,7 +646,6 @@ function saveGearCablingInputs(screenId) {
   const wallToFloorEl = document.getElementById('wallToFloor');
   const distroToWallEl = document.getElementById('distroToWall');
   const processorToWallEl = document.getElementById('processorToWall');
-  const serverToProcessorEl = document.getElementById('serverToProcessor');
   const cablePickEl = document.getElementById('cablePick');
   const xdToProcessorEl = document.getElementById('xdToProcessor');
   const xdToWallEl = document.getElementById('xdToWall');
@@ -654,7 +653,6 @@ function saveGearCablingInputs(screenId) {
   if(wallToFloorEl) data.wallToFloor = wallToFloorEl.value !== '' ? parseFloat(wallToFloorEl.value) : parseFloat(wallToFloorEl.placeholder);
   if(distroToWallEl) data.distroToWall = distroToWallEl.value !== '' ? parseFloat(distroToWallEl.value) : parseFloat(distroToWallEl.placeholder);
   if(processorToWallEl) data.processorToWall = processorToWallEl.value !== '' ? parseFloat(processorToWallEl.value) : parseFloat(processorToWallEl.placeholder);
-  if(serverToProcessorEl) data.serverToProcessor = serverToProcessorEl.value !== '' ? parseFloat(serverToProcessorEl.value) : parseFloat(serverToProcessorEl.placeholder);
   if(cablePickEl) data.cablePick = cablePickEl.value !== '' ? parseFloat(cablePickEl.value) : 0;
   if(xdToProcessorEl) data.xdToProcessor = xdToProcessorEl.value !== '' ? parseFloat(xdToProcessorEl.value) : parseFloat(xdToProcessorEl.placeholder);
   if(xdToWallEl) data.xdToWall = xdToWallEl.value !== '' ? parseFloat(xdToWallEl.value) : parseFloat(xdToWallEl.placeholder);
@@ -666,7 +664,6 @@ function loadGearCablingInputs(screenId) {
   const wallToFloorEl = document.getElementById('wallToFloor');
   const distroToWallEl = document.getElementById('distroToWall');
   const processorToWallEl = document.getElementById('processorToWall');
-  const serverToProcessorEl = document.getElementById('serverToProcessor');
   const cablePickEl = document.getElementById('cablePick');
   const xdToProcessorEl = document.getElementById('xdToProcessor');
   const xdToWallEl = document.getElementById('xdToWall');
@@ -674,8 +671,7 @@ function loadGearCablingInputs(screenId) {
   if(wallToFloorEl) wallToFloorEl.value = (data.wallToFloor && data.wallToFloor !== 5) ? data.wallToFloor : '';
   if(distroToWallEl) distroToWallEl.value = (data.distroToWall && data.distroToWall !== 10) ? data.distroToWall : '';
   if(processorToWallEl) processorToWallEl.value = (data.processorToWall && data.processorToWall !== 15) ? data.processorToWall : '';
-  const serverVal = data.serverToProcessor ?? data.fohToProcessor;
-  if(serverToProcessorEl) serverToProcessorEl.value = (serverVal && serverVal !== 50) ? serverVal : '';
+  loadSourceFeedIntoCableTab(screenId);
   if(cablePickEl) cablePickEl.value = (data.cablePick && data.cablePick !== 0) ? data.cablePick : '';
   if(xdToProcessorEl) xdToProcessorEl.value = (data.xdToProcessor && data.xdToProcessor !== 25) ? data.xdToProcessor : '';
   if(xdToWallEl) xdToWallEl.value = (data.xdToWall && data.xdToWall !== 40) ? data.xdToWall : '';

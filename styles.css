@@ -7355,6 +7355,39 @@ input[type="number"].spare-qty-input::placeholder {
   display: inline-block;
 }
 
+/* Combined cabling: Source feed rows, one per processor feed. The list is the grid and
+   each row's cells join it directly, so the columns line up across rows. */
+.source-feed-list {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+.source-feed-row {
+  display: contents;
+}
+.source-feed-row label {
+  margin-bottom: 0;
+  min-width: 0;
+}
+.source-feed-proc {
+  font-family: 'Roboto Condensed', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  color: #aaa;
+  align-self: center;
+  white-space: nowrap;
+}
+@media (max-width: 768px) {
+  .source-feed-list {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .source-feed-proc {
+    grid-column: 1 / -1;
+  }
+}
+
 /* Combined screen toggles */
 #combinedScreenToggles {
   display: flex;

@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.208', date: '2026-10-15', notes: 'Shrink the test pattern center circle to fit inside each screen and corner circles' },
   { version: '2.11.207', date: '2026-10-15', notes: 'Replace the single server cable with editable per-processor Source feeds' },
   { version: '2.11.206', date: '2026-10-15', notes: 'Allow CB5 half rows above and below screens and limit Manual Adjust to the standard canvas' },
   { version: '2.11.205', date: '2026-10-15', notes: 'Make combined layouts follow the standard arrangement and fix serpentine data turns' },

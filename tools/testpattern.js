@@ -2711,17 +2711,19 @@ function drawTPCircles(ctx, w, h) {
   ctx.lineWidth = Math.max(2, Math.round(w / 480));
   ctx.globalAlpha = 0.5;
 
-  // 1 big circle centered, inscribed to touch top and bottom edges
+  // 4 small circles in corners — edge touches screen edge
+  var smallRadius = Math.min(w, h) * 0.15;
+  var inset = smallRadius;
+
+  // 1 big circle centered, inscribed to touch the nearest pair of edges,
+  // shrunk where needed so it stops at the corner circles instead of crossing them
   var centerX = w / 2;
   var centerY = h / 2;
-  var bigRadius = h / 2;
+  var bigRadius = Math.min(Math.min(w, h) / 2, Math.hypot(centerX - inset, centerY - inset) - smallRadius);
   ctx.beginPath();
   ctx.arc(centerX, centerY, bigRadius, 0, Math.PI * 2);
   ctx.stroke();
 
-  // 4 small circles in corners — edge touches screen edge
-  var smallRadius = Math.min(w, h) * 0.15;
-  var inset = smallRadius;
   var corners = [
     [inset, inset],              // top-left
     [w - inset, inset],          // top-right
@@ -3114,9 +3116,9 @@ function drawTPColorBars(ctx, w, h) {
     // Circle positions must match drawTPCircles exactly
     var centerX = w / 2;
     var centerY = h / 2;
-    var bigRadius = h / 2;
     var smallRadius = Math.min(w, h) * 0.15;
     var inset = smallRadius;
+    var bigRadius = Math.min(Math.min(w, h) / 2, Math.hypot(centerX - inset, centerY - inset) - smallRadius);
     var corners = [
       [inset, inset],
       [w - inset, inset],
@@ -3203,9 +3205,9 @@ function drawTPLogo(ctx, w, h) {
     // Circle positions must match drawTPCircles exactly
     var centerX = w / 2;
     var centerY = h / 2;
-    var bigRadius = h / 2;
     var smallRadius = Math.min(w, h) * 0.15;
     var inset = smallRadius;
+    var bigRadius = Math.min(Math.min(w, h) / 2, Math.hypot(centerX - inset, centerY - inset) - smallRadius);
     var corners = [
       [inset, inset],
       [w - inset, inset],

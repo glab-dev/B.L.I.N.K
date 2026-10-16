@@ -1,5 +1,5 @@
 {
-  "version": "2.11.207",
+  "version": "2.11.208",
   "updated": "2026-10-15",
-  "changelog": "Replace the single server cable with editable per-processor Source feeds"
+  "changelog": "Shrink the test pattern center circle to fit inside each screen and corner circles"
 }

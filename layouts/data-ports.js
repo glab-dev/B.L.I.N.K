@@ -790,7 +790,7 @@ function cachedDataPortPlan() {
 // Destination split into its parts for tabular display:
 // { unit: 'XD1' | 'P2', port: 3 }, or null when unresolved.
 // unitCode/unitDetail carry the same text pre-split for the two-line canvas label:
-// the processor model on top, the box and/or processor index underneath.
+// the processor (model and number, kept together) on top, the box underneath.
 function dataLineDestinationParts(screenId, line) {
   try {
     const plan = cachedDataPortPlan();
@@ -807,25 +807,22 @@ function dataLineDestinationParts(screenId, line) {
     const totalProcs = dataPortGroupTotals(plan, dest.procType).procCount;
     const procIdx = totalProcs > 1 ? String(dest.proc) : '';
     const procTag = procIdx ? (code + ' ' + procIdx) : code;
-    // The second line of the canvas label: the processor index and the box, whichever
-    // of the two this rig actually needs.
-    const detail = (boxTag) => [procIdx, boxTag].filter(Boolean).join(' ');
 
     if(group && group.usesDistBox && dest.box !== null) {
       const boxCode = shortDistBoxCode(group.distBoxName);
       const boxTag = boxCode + ' ' + formatUnitLabel(dest.box, group.boxLabelStyle);
       const main = { unit: procTag + ' ' + boxTag, port: dest.port,
-                     unitCode: code, unitDetail: detail(boxTag) };
+                     unitCode: procTag, unitDetail: boxTag };
       if(dest.backup) {
         const backupBoxTag = boxCode + ' ' + formatUnitLabel(dest.backup.box, group.boxLabelStyle);
         main.backupUnit = procTag + ' ' + backupBoxTag;
-        main.backupDetail = detail(backupBoxTag);
+        main.backupDetail = backupBoxTag;
         main.backupPort = dest.backup.port;
       }
       return main;
     }
-    const res = { unit: procTag, port: dest.port, unitCode: code, unitDetail: procIdx };
-    if(dest.backup) { res.backupUnit = procTag; res.backupDetail = procIdx; res.backupPort = dest.backup.port; }
+    const res = { unit: procTag, port: dest.port, unitCode: procTag, unitDetail: '' };
+    if(dest.backup) { res.backupUnit = procTag; res.backupDetail = ''; res.backupPort = dest.backup.port; }
     return res;
   } catch(err) {
     return null;

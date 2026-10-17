@@ -1,5 +1,5 @@
 {
-  "version": "2.11.217",
-  "updated": "2026-10-16",
-  "changelog": "Give each split screen part its own processor and data lines and mark the split in data layouts"
+  "version": "2.11.218",
+  "updated": "2026-10-17",
+  "changelog": "Keep the processor number beside the processor on data unit labels"
 }

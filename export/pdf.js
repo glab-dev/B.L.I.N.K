@@ -2463,7 +2463,9 @@ function buildDataLineMapTable(screenId, perRowOverride) {
       return [
         { text: r.line, fontSize: 8, bold: true, color: '#000000' },
         { text: r.panel, fontSize: 8, color: tc.textSecondary },
-        { text: r.unit || '\u2014', fontSize: 8, color: tc.textSecondary },
+        // A line another line took the port from, flagged in red as in the app
+        r.unassigned ? { text: 'No port', fontSize: 8, bold: true, color: '#d32f2f' }
+                     : { text: r.unit || '\u2014', fontSize: 8, color: tc.textSecondary },
         { text: (r.port === null || r.port === undefined) ? '\u2014' : String(r.port),
           fontSize: 8, bold: true, color: '#000000' }
       ];
@@ -2496,13 +2498,13 @@ function buildDataLineMapTable(screenId, perRowOverride) {
   const cards = [ buildCard('Mains', endpoints.map(ep => {
     const d = partsFor(ep.line);
     return { line: String(shownLine(ep.line)), panel: fmt(ep.main),
-             unit: d ? d.unit : '', port: d ? d.port : null };
+             unit: d ? d.unit : '', port: d ? d.port : null, unassigned: !!(d && d.unassigned) };
   })) ];
   if (redundancy) {
     cards.push(buildCard('Backups', endpoints.map(ep => {
       const d = partsFor(ep.line);
       return { line: shownLine(ep.line) + 'B', panel: fmt(ep.backup),
-               unit: d ? d.backupUnit : '', port: d ? d.backupPort : null };
+               unit: d ? d.backupUnit : '', port: d ? d.backupPort : null, unassigned: !!(d && d.unassigned) };
     })));
   }
   const perRow = perRowOverride || pdfCurrentCardsPerRow();

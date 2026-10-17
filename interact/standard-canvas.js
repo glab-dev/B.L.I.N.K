@@ -794,25 +794,15 @@ async function showDataLineNumberPrompt(seed) {
   const blocked = dataPortAssignmentBlocker(currentScreenId, panelsToAssign, topology, result);
   if(blocked) { showAlert(blocked, 'Loop-back Port'); return; }
 
-  // Another screen may already hold this port number — warn, but let it through.
-  const duplicate = dataPortDuplicateWarning({ [currentScreenId]: [...panelsToAssign] }, topology, result);
-  if(duplicate && !(await showConfirm(duplicate, 'Port Already Assigned'))) return;
+  // Taking a port another line holds leaves that line with no port — confirm first
+  const panelsByScreen = { [currentScreenId]: [...panelsToAssign] };
+  const takeover = dataPortTakeoverWarning(panelsByScreen, result);
+  if(takeover && !(await showConfirm(takeover, 'Port Already Assigned'))) return;
 
   saveState(); // Save state before making changes
 
-  panelsToAssign.forEach(key => {
-    if(result.portCleared) {
-      customDataLineAssignments.delete(key);
-    } else if(result.port !== null) {
-      customDataLineAssignments.set(key, result.port);
-    }
-    if(result.proc === null && result.box === null) {
-      customDataDestinations.delete(key);
-    } else {
-      // Always a fresh object — undo keeps only a shallow Map copy.
-      customDataDestinations.set(key, { proc: result.proc, box: result.box });
-    }
-  });
+  // Only this line changes: everything else on the processor is pinned where it is
+  applyDataPortAssignment(panelsByScreen, result);
 
   selectedPanels.clear();
   calculate();

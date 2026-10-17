@@ -490,7 +490,8 @@ function applyConfiguration(config, fileNameOverride) {
         dataLineAssignmentsMap = new Map(validEntries);
       }
 
-      // Safely restore customDataDestinations (validate [key, {proc, box}] pairs)
+      // Safely restore customDataDestinations (validate [key, {proc, box, port}] pairs;
+      // port is a pinned port, 0 for a line left with no port, absent on older files)
       let dataDestinationsMap = new Map();
       if(savedScreen.data && Array.isArray(savedScreen.data.customDataDestinations)) {
         savedScreen.data.customDataDestinations.forEach(e => {
@@ -499,8 +500,9 @@ function applyConfiguration(config, fileNameOverride) {
           if(!v || typeof v !== 'object' || Array.isArray(v)) return;
           const proc = (typeof v.proc === 'number' && v.proc >= 1) ? v.proc : null;
           const box = (typeof v.box === 'number' && v.box >= 1) ? v.box : null;
-          if(proc === null && box === null) return;
-          dataDestinationsMap.set(e[0], { proc: proc, box: box });
+          const port = (Number.isInteger(v.port) && v.port >= 0 && v.port <= 999) ? v.port : null;
+          if(proc === null && box === null && port === null) return;
+          dataDestinationsMap.set(e[0], port === null ? { proc: proc, box: box } : { proc: proc, box: box, port: port });
         });
       }
 

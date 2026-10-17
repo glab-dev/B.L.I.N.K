@@ -1457,40 +1457,16 @@ async function promptAssignCombinedDataLine(seed) {
     if(blocked) { showAlert(blocked, 'Loop-back Port'); return; }
   }
 
-  // Another screen may already hold this port number — warn, but let it through.
-  const duplicate = dataPortDuplicateWarning(panelsByScreen, topology, result);
-  if(duplicate && !(await showConfirm(duplicate, 'Port Already Assigned'))) return;
+  // Taking a port another line holds leaves that line with no port — confirm first
+  const takeover = dataPortTakeoverWarning(panelsByScreen, result);
+  if(takeover && !(await showConfirm(takeover, 'Port Already Assigned'))) return;
 
   if(typeof saveState === 'function') saveState();
 
-  // Apply to each screen's data
-  screenIds.forEach(screenId => {
-    const screen = screens[screenId];
-    if(!screen || !screen.data) return;
-
-    screen.data.customDataLineAssignments = toCombinedSocaMap(screen.data.customDataLineAssignments);
-    screen.data.customDataDestinations = toCombinedDestMap(screen.data.customDataDestinations);
-
-    panelsByScreen[screenId].forEach(panelKey => {
-      if(result.portCleared) {
-        screen.data.customDataLineAssignments.delete(panelKey);
-      } else if(result.port !== null) {
-        screen.data.customDataLineAssignments.set(panelKey, result.port);
-      }
-      if(result.proc === null && result.box === null) {
-        screen.data.customDataDestinations.delete(panelKey);
-      } else {
-        screen.data.customDataDestinations.set(panelKey, { proc: result.proc, box: result.box });
-      }
-    });
-
-    // Keep the open screen's globals in step so saveCurrentScreenData() cannot
-    // write stale values back over this.
-    if(screenId === currentScreenId) {
-      customDataLineAssignments = new Map(screen.data.customDataLineAssignments);
-      customDataDestinations = new Map(screen.data.customDataDestinations);
-    }
-  });
+  // Only these lines change: everything else on the processors is pinned where it is.
+  // The open screen is written through its live globals, so saveCurrentScreenData()
+  // carries it into the screen's data.
+  applyDataPortAssignment(panelsByScreen, result);
 
   // Always recalculate: the port plan spans every screen, so a change on one wall
   // can move another wall's ports. The same trap promptAssignCombinedSoca() hits
@@ -3287,6 +3263,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       redundancy: !!data.redundancy,
       lineDisplay: (typeof dataPortLineDisplayMap === 'function') ? dataPortLineDisplayMap(screenId) : null,
       linePorts: (typeof dataPortLinePortMap === 'function') ? dataPortLinePortMap(screenId) : null,
+      unassignedLines: (typeof dataPortUnassignedLines === 'function') ? dataPortUnassignedLines(screenId) : null,
       panelFontSize: numberFontSize,
       arrowLineWidth: Math.max(1.5, panelSize * 0.075),
       arrowHeadSize: Math.max(5, panelSize * 0.3),
@@ -3375,14 +3352,14 @@ function renderCombinedDataLineMap(sections) {
     grid.appendChild(buildDataLineMapBox('mains', 'Mains', section.endpoints.map(function(ep){
       const d = partsFor(ep.line);
       return { line: `${shownLine(ep.line)}`, panel: formatDataLinePanel(ep.main),
-               unit: d ? d.unit : '', port: d ? d.port : null };
+               unit: d ? d.unit : '', port: d ? d.port : null, unassigned: !!(d && d.unassigned) };
     })));
 
     if(section.redundancy) {
       grid.appendChild(buildDataLineMapBox('backups', 'Backups', section.endpoints.map(function(ep){
         const d = partsFor(ep.line);
         return { line: `${shownLine(ep.line)}B`, panel: formatDataLinePanel(ep.backup),
-                 unit: d ? d.backupUnit : '', port: d ? d.backupPort : null };
+                 unit: d ? d.backupUnit : '', port: d ? d.backupPort : null, unassigned: !!(d && d.unassigned) };
       })));
     }
 

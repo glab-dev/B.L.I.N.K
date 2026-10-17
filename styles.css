@@ -4099,6 +4099,12 @@ body.tab-reordering {
   color: #e0e0e0;
 }
 
+/* A line another line took the port from — "No port" until it gets a new one */
+.dlm-row .dlm-no-port {
+  color: #ff6b6b;
+  font-weight: 700;
+}
+
 .dlm-head .dlm-line,
 .dlm-head .dlm-panel,
 .dlm-head .dlm-unit,

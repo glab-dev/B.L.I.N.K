@@ -149,6 +149,13 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
       : null;
     return shown || (ln + 1);
   };
+  // A line left with no port is drawn grey, as in the data layouts
+  const NO_PORT_COLOR = '#777777';
+  const noPortFor = (ln) => {
+    const first = ordering[ln] && ordering[ln][0];
+    return !!(first && typeof dataLineHasNoPortAtPanel === 'function' && screen.id &&
+      dataLineHasNoPortAtPanel(screen.id, (first.col + (data.splitColOffset || 0)) + ',' + (first.row + (data.splitRowOffset || 0))));
+  };
   // Colour follows the port the line plugs into, as in the data layouts
   const colorNumFor = (ln) => {
     const first = ordering[ln] && ordering[ln][0];
@@ -177,7 +184,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
     sortedLines.forEach(ln => {
       const grp = ordering[ln];
       if(!grp || grp.length < 2) return;
-      ctx.strokeStyle = lineColorFor(colorNumFor(ln) - 1);
+      ctx.strokeStyle = noPortFor(ln) ? NO_PORT_COLOR : lineColorFor(colorNumFor(ln) - 1);
       const segments = [];
       let seg = [grp[0]];
       for(let i = 1; i < grp.length; i++) {
@@ -227,7 +234,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
       const mainP = flip ? last : first;
       const backupP = flip ? first : last;
       const lineNum = shownLineFor(ln);
-      const mainColor = lineColorFor(colorNumFor(ln) - 1); // resistor colour, by port
+      const mainColor = noPortFor(ln) ? NO_PORT_COLOR : lineColorFor(colorNumFor(ln) - 1); // resistor colour, by port
       const backupColor = lightenHexCanvas(mainColor, 0.5); // muted/lighter shade
       const mKey = mainP.col + ',' + mainP.row;
       const bKey = redundancy ? (backupP.col + ',' + backupP.row) : null;

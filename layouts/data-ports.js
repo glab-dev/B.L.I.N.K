@@ -106,7 +106,7 @@ function resolveScreenDataInputs(data) {
 // Backup lines are not modelled here — redundancy is handled downstream, unchanged.
 function screenDataLineDestinations(data) {
   const inp = resolveScreenDataInputs(data);
-  if(!inp || typeof buildDataLineGroups !== 'function') return { lines: [], explicit: new Map(), portFixed: new Map() };
+  if(!inp || typeof buildDataLineGroups !== 'function') return { lines: [], explicit: new Map(), portFixed: new Map(), unassigned: new Set() };
 
   const built = buildDataLineGroups({
     pw: inp.pw,
@@ -125,6 +125,11 @@ function screenDataLineDestinations(data) {
   // kept as given — on a split screen a part's internal line numbers are offset, so the
   // line number itself can't stand in for the port.
   const portFixed = new Map();
+  // A pinned port is stored on the panel's destination ({ proc, box, port }) and wins
+  // over the custom-line number, which older projects used as the port. port 0 means
+  // the line gave its port up to another line and has none.
+  const pinnedPort = new Map();
+  const unassigned = new Set();
 
   // A line's destination comes from any panel on it that carries one. Later panels
   // win, matching how a line only ever terminates in one place.
@@ -134,6 +139,8 @@ function screenDataLineDestinations(data) {
       if(inp.customDataLines.has(pt.c + ',' + pt.r)) portFixed.set(ln + 1, inp.customDataLines.get(pt.c + ',' + pt.r));
       const dest = inp.customDestinations.get(pt.c + ',' + pt.r);
       if(!dest) return;
+      if(dest.port === 0) unassigned.add(ln + 1);
+      else if(typeof dest.port === 'number' && dest.port >= 1) pinnedPort.set(ln + 1, dest.port);
       const proc = (typeof dest.proc === 'number' && dest.proc >= 1) ? dest.proc : null;
       const box = (typeof dest.box === 'number' && dest.box >= 1) ? dest.box : null;
       if(proc === null && box === null) return;
@@ -144,6 +151,9 @@ function screenDataLineDestinations(data) {
       });
     });
   });
+
+  pinnedPort.forEach((port, line) => portFixed.set(line, port));
+  unassigned.forEach(line => portFixed.delete(line));
 
   // A split screen's lines each belong to one part (its own processor input), found from
   // the part holding the line's first panel
@@ -159,7 +169,7 @@ function screenDataLineDestinations(data) {
     });
   }
 
-  return { lines: lines, explicit: explicit, portFixed: portFixed, partOf: partOf,
+  return { lines: lines, explicit: explicit, portFixed: portFixed, partOf: partOf, unassigned: unassigned,
            processorId: inp.processorId, connectionMode: inp.connectionMode };
 }
 
@@ -270,6 +280,7 @@ function buildDataPortPlan(liveOverride) {
     bucket.entries.forEach(entry => {
       const portFixed = entry.info.portFixed || new Map();
       entry.info.lines.forEach(line => {
+        if(entry.info.unassigned && entry.info.unassigned.has(line)) return;
         const dest = entry.info.explicit.get(line);
         if(!dest || dest.proc === null) return;
         if(usesDistBox && dest.box === null) return;
@@ -410,6 +421,12 @@ function buildDataPortPlan(liveOverride) {
             });
           }
           lastPart = part;
+        }
+        // A line that gave its port up to another line has none until it's given one
+        if(entry.info.unassigned && entry.info.unassigned.has(line)) {
+          lineMap.set(line, { procType: procType, groupKey: bucketKey, proc: null, box: null,
+                              port: null, explicit: true, unassigned: true, backup: null });
+          return;
         }
         const claimed = claimedPorts.get(entry.screenId + '|' + line);
         if(claimed) {
@@ -692,77 +709,155 @@ function dataPortAssignmentBlocker(screenId, panelKeys, topology, result) {
   return dataPortLoopbackBlocker(procType, topology, redundant, result.box, result.port);
 }
 
-// Warns when the typed port number is already held by another data line on the same
-// processor. Deliberately NOT a block: an explicit assignment stays authoritative,
-// the same rule dataPortAssignmentBlocker() follows for a full unit. Only a typed
-// assignment counts as a holder — an auto line yields its number without a fight.
-// panelsByScreen = { screenId: [panelKey, ...] }: the lines being re-assigned right
-// now, which never count as holders of their own number.
-// Returns a message to confirm, or null when the number is free.
-function dataPortDuplicateWarning(panelsByScreen, topology, result) {
-  if(result.portCleared || result.port === null) return null;
-  const screenIds = Object.keys(panelsByScreen || {});
-  if(!screenIds.length) return null;
+// ==================== ASSIGNING A PORT ====================
+// What a line is assigned lives on its panels' destinations as { proc, box, port }.
+// Changing one line never moves another: before anything is written, every line on the
+// same processors — on every screen sharing them — is pinned where it is now. A port
+// another line already holds is taken from it, and that line is left with no port
+// (port 0): drawn grey and listed in red as "No port" until it is given one.
 
-  const seed = liveScreenData(screenIds[0]);
-  if(!seed) return null;
-  const procType = seed.processor || 'Brompton_SX40';
-  const targetGroupKey = procType + '|' + (dataPortBucketIsIndirect(procType) ? 'indirect' : 'direct');
+// The panel destination map a change writes to: the open screen's live global, any
+// other screen's saved data
+function dataDestMapFor(screenId) {
+  if(screenId === currentScreenId) return customDataDestinations;
+  const d = screens[screenId].data;
+  if(!(d.customDataDestinations instanceof Map)) {
+    d.customDataDestinations = new Map(Array.isArray(d.customDataDestinations) ? d.customDataDestinations : []);
+  }
+  return d.customDataDestinations;
+}
 
+// The custom-line map (which panels form a hand-made line) a change writes to
+function dataLineMapFor(screenId) {
+  if(screenId === currentScreenId) return customDataLineAssignments;
+  const d = screens[screenId].data;
+  if(!(d.customDataLineAssignments instanceof Map)) {
+    d.customDataLineAssignments = new Map(Array.isArray(d.customDataLineAssignments) ? d.customDataLineAssignments : []);
+  }
+  return d.customDataLineAssignments;
+}
+
+// Where the assignment puts the lines: each dialog field left blank keeps what the
+// first selected line has now. panelsByScreen = { screenId: [panelKey, ...] }.
+// Returns { proc, box, port, groupKey, own } — own = Set of "screenId|line" being changed.
+function resolveDataPortTarget(panelsByScreen, result) {
+  const plan = cachedDataPortPlan();
   const own = new Set();
-  screenIds.forEach(sid => {
-    const d = liveScreenData(sid);
-    if(!d) return;
-    dataLinesForPanels(d, panelsByScreen[sid]).forEach(line => own.add(sid + '|' + line));
+  Object.keys(panelsByScreen).forEach(sid => {
+    const info = screenLineLabels(sid);
+    panelsByScreen[sid].forEach(k => { const line = info.panelLine.get(k); if(line !== undefined) own.add(sid + '|' + line); });
   });
+  const firstSid = Object.keys(panelsByScreen)[0];
+  const firstLine = screenLineLabels(firstSid).panelLine.get(panelsByScreen[firstSid][0]);
+  const base = ((plan.perScreen.get(firstSid) || new Map()).get(firstLine)) || {};
+  return {
+    proc: result.proc !== null ? result.proc : (base.proc !== undefined ? base.proc : null),
+    box: result.box !== null ? result.box : (base.box !== undefined ? base.box : null),
+    port: result.port !== null ? result.port : (base.port !== undefined ? base.port : null),
+    groupKey: base.groupKey || null,
+    own: own
+  };
+}
 
-  const unitLabel = (proc, box) => (topology.usesDistBox && box !== null)
-    ? ((topology.distBoxName || 'Box') + ' ' + formatUnitLabel(box, topology.boxLabelStyle))
-    : ('Processor ' + proc);
-
+// Lines other than the ones being changed that sit on the target's exact port
+function dataPortHolders(target) {
   const holders = [];
-  try {
-    buildDataPortPlan().perScreen.forEach((lineMap, sid) => {
-      lineMap.forEach((dest, line) => {
-        if(dest.groupKey !== targetGroupKey) return;
-        if(dest.port !== result.port) return;
-        // An auto line never owns its number — pass 1/1b claim explicit ports first
-        // and the cursor routes around them, so only a typed assignment can collide.
-        if(!dest.explicit) return;
-        if(own.has(sid + '|' + line)) return;
-        holders.push({ screenId: sid, line: line, proc: dest.proc, box: dest.box });
-      });
+  if(target.port === null || target.proc === null) return holders;
+  cachedDataPortPlan().perScreen.forEach((lineMap, sid) => {
+    lineMap.forEach((dest, line) => {
+      if(dest.unassigned || dest.groupKey !== target.groupKey) return;
+      if(target.own.has(sid + '|' + line)) return;
+      if(dest.proc === target.proc && dest.box === target.box && dest.port === target.port) {
+        holders.push({ screenId: sid, line: line });
+      }
     });
+  });
+  return holders;
+}
+
+// Message to confirm when the assignment takes a port another line holds, or null
+function dataPortTakeoverWarning(panelsByScreen, result) {
+  if(result.portCleared) return null;
+  try {
+    const target = resolveDataPortTarget(panelsByScreen, result);
+    const holders = dataPortHolders(target);
+    if(!holders.length) return null;
+    const who = holders.map(h => (screens[h.screenId] ? screens[h.screenId].name : h.screenId)
+      + ' line ' + dataLineDisplayNumber(h.screenId, h.line)).join(', ');
+    return 'Port ' + target.port + ' is already used by ' + who + '.\n\n'
+      + 'Assign it here anyway? ' + (holders.length > 1 ? 'Those lines' : 'That line')
+      + ' will be left with no port until you give ' + (holders.length > 1 ? 'them' : 'it') + ' another one.';
   } catch(err) {
     return null;
   }
-  if(!holders.length) return null;
+}
 
-  const nameOf = sid => (screens[sid] ? screens[sid].name : sid);
-  const who = holders.map(h => nameOf(h.screenId) + ' line ' + h.line
-                               + ' on ' + unitLabel(h.proc, h.box)).join(', ');
+// Write an Assign Data Port result. Pins every line on the same processors first so
+// nothing else moves, takes the port from any line holding it, then puts the selected
+// panels on the target. A selection that is exactly one existing line keeps that line;
+// any other selection becomes a line of its own. Clearing the port returns the panels
+// to automatic.
+function applyDataPortAssignment(panelsByScreen, result) {
+  const plan = cachedDataPortPlan();
+  const screenIds = Object.keys(panelsByScreen);
 
-  // A holder on a screen in the selection is a different outcome: a port number is a
-  // line's identity within one screen, so two groups both assigned it merge into a
-  // single data line rather than the second one moving to another unit.
-  const sameScreen = holders.filter(h => panelsByScreen[h.screenId]);
-  if(sameScreen.length) {
-    return nameOf(sameScreen[0].screenId) + ' already uses port ' + result.port
-      + ' for another data line.\n\nAssigning it here merges the two into one data line '
-      + 'rather than creating a second port ' + result.port + '.\n\nAssign it anyway?';
+  if(result.portCleared) {
+    screenIds.forEach(sid => {
+      const destMap = dataDestMapFor(sid), lineMap = dataLineMapFor(sid);
+      panelsByScreen[sid].forEach(k => { destMap.delete(k); lineMap.delete(k); });
+    });
+    return;
   }
 
-  // Pinning the same unit as a holder double-books one physical port; leaving the
-  // unit on Auto just pushes this line onto the next one.
-  const samePinnedUnit = result.proc !== null
-    && (!topology.usesDistBox || result.box !== null)
-    && holders.some(h => h.proc === result.proc && (!topology.usesDistBox || h.box === result.box));
+  const target = resolveDataPortTarget(panelsByScreen, result);
+  const holders = dataPortHolders(target);
 
-  return 'Port ' + result.port + ' is already assigned to ' + who + '.\n\n'
-    + (samePinnedUnit
-        ? 'Two data lines cannot share one physical port.'
-        : 'This line will keep port ' + result.port + ' and land on the next available unit, which adds one to the gear list.')
-    + '\n\nAssign it anyway?';
+  // Pin everything on the processors this touches where it is right now
+  plan.perScreen.forEach((lineMap, sid) => {
+    const panels = screenLineLabels(sid).linePanels;
+    const destMap = dataDestMapFor(sid);
+    lineMap.forEach((dest, line) => {
+      if(dest.unassigned || !dest.port || dest.groupKey !== target.groupKey) return;
+      (panels.get(line) || []).forEach(k => {
+        const cur = destMap.get(k);
+        if(cur && typeof cur.port === 'number') return;
+        destMap.set(k, { proc: dest.proc, box: dest.box, port: dest.port });
+      });
+    });
+  });
+
+  // The lines losing their port keep their unit, with no port
+  holders.forEach(h => {
+    const destMap = dataDestMapFor(h.screenId);
+    const dest = plan.perScreen.get(h.screenId).get(h.line);
+    (screenLineLabels(h.screenId).linePanels.get(h.line) || []).forEach(k => {
+      destMap.set(k, { proc: dest.proc, box: dest.box, port: 0 });
+    });
+  });
+
+  screenIds.forEach(sid => {
+    const info = screenLineLabels(sid);
+    const keys = panelsByScreen[sid];
+    const destMap = dataDestMapFor(sid);
+    const customLines = dataLineMapFor(sid);
+
+    // A selection that isn't exactly one existing line becomes a line of its own, under
+    // an id no other line on the screen uses
+    const lines = new Set(keys.map(k => info.panelLine.get(k)));
+    const onlyLine = lines.size === 1 ? [...lines][0] : undefined;
+    const wholeLine = onlyLine !== undefined && (info.linePanels.get(onlyLine) || []).length === keys.length;
+    if(!wholeLine) {
+      let id = info.labels.size;
+      customLines.forEach(v => { if(typeof v === 'number' && v > id) id = v; });
+      keys.forEach(k => customLines.set(k, id + 1));
+    }
+
+    keys.forEach(k => {
+      // Always a fresh object — undo keeps only a shallow Map copy
+      if(target.proc === null || target.port === null) destMap.set(k, { proc: result.proc, box: result.box });
+      else destMap.set(k, { proc: target.proc, box: target.box, port: target.port });
+    });
+  });
 }
 
 // Explicit floors per processor TYPE, summed across its connection modes. Direct
@@ -860,6 +955,22 @@ function dataPortLinePortMap(screenId) {
   return out;
 }
 
+// A screen's lines left with no port (another line took it)
+function dataPortUnassignedLines(screenId) {
+  const out = new Set();
+  try {
+    const lineMap = cachedDataPortPlan().perScreen.get(screenId);
+    if(lineMap) lineMap.forEach((dest, line) => { if(dest && dest.unassigned) out.add(line); });
+  } catch(err) { /* no plan: nothing is unassigned */ }
+  return out;
+}
+
+// True when the line a panel ("c,r" on the whole screen) is on has no port
+function dataLineHasNoPortAtPanel(screenId, key) {
+  const line = screenLineLabels(screenId).panelLine.get(key);
+  return line !== undefined && dataPortUnassignedLines(screenId).has(line);
+}
+
 // The port of the line a panel ("c,r" on the whole screen) is on, or null
 function dataLinePortAtPanel(screenId, key) {
   const line = screenLineLabels(screenId).panelLine.get(key);
@@ -905,6 +1016,8 @@ function dataLineDestinationParts(screenId, line) {
     if(!lineMap) return null;
     const dest = lineMap.get(line);
     if(!dest) return null;
+    // Lost its port to another line: the tables show it in red as "No port"
+    if(dest.unassigned) return { unassigned: true, unit: '', port: null, backupUnit: '', backupPort: null };
     const group = plan.groups.get(dest.groupKey);
     // The processor's model code identifies the unit on the drawing; the index is
     // only meaningful — and only shown — when more than one of that model is in the
@@ -983,6 +1096,7 @@ function projectDataUnits() {
     }
 
     lineMap.forEach(dest => {
+      if(dest.unassigned) return; // no port, so no unit
       const group = plan.groups.get(dest.groupKey);
       if(!group) return;
 

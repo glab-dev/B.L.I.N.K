@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.222', date: '2026-10-17', notes: 'Keep other data lines in place when one port changes and flag lines left without a port' },
   { version: '2.11.221', date: '2026-10-17', notes: 'Colour data lines by the port they plug into instead of their line number' },
   { version: '2.11.220', date: '2026-10-17', notes: 'Add a right-click option to change a whole data line from its start panel' },
   { version: '2.11.219', date: '2026-10-17', notes: 'Number data lines along the data path and keep typed numbers as ports' },

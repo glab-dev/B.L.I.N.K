@@ -1,5 +1,5 @@
 {
-  "version": "2.11.221",
+  "version": "2.11.222",
   "updated": "2026-10-17",
-  "changelog": "Colour data lines by the port they plug into instead of their line number"
+  "changelog": "Keep other data lines in place when one port changes and flag lines left without a port"
 }

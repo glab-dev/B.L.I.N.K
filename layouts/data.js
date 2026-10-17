@@ -413,6 +413,9 @@ function drawDataOverlay(ctx, o) {
   // Colour follows the port a line plugs into, falling back to its shown number
   const _linePorts = (o.linePorts instanceof Map) ? o.linePorts : null;
   const _colorNum = (line) => (_linePorts && _linePorts.has(line)) ? _linePorts.get(line) : _shown(line);
+  // Lines left with no port (another line took it) are drawn grey with a dashed outline
+  const _unassigned = (o.unassignedLines instanceof Set) ? o.unassignedLines : null;
+  const NO_PORT_COLORS = { fill: '#3a3a3a', text: '#bbbbbb', solid: '#777777' };
 
   // Rear view = mirror the draw x-coordinate horizontally (visual only; data
   // assignments are unchanged). Labels stay upright and arrows mirror because
@@ -473,7 +476,8 @@ function drawDataOverlay(ctx, o) {
     // Colour follows the port, so the same port reads the same colour on every screen
     // and unit, whatever number the line is labelled with.
     const dataLineNum = _colorNum(sortedDataLines[gi] + 1) - 1;
-    const colors=colorForIndex(dataLineNum);
+    const noPort = !!(_unassigned && _unassigned.has(sortedDataLines[gi] + 1));
+    const colors = noPort ? NO_PORT_COLORS : colorForIndex(dataLineNum);
     groupPoints[gi] = [];
     for(let idx=0; idx<groups[gi].length; idx++){
       const pnt = groups[gi][idx];
@@ -484,9 +488,11 @@ function drawDataOverlay(ctx, o) {
 
       ctx.fillStyle=colors.fill;
       ctx.fillRect(x,y,panelWidth,currentPanelHeight);
-      ctx.strokeStyle='#000000';
+      ctx.strokeStyle = noPort ? colors.solid : '#000000';
       ctx.lineWidth = 2;
+      if(noPort) ctx.setLineDash([4, 3]);
       ctx.strokeRect(x,y,panelWidth,currentPanelHeight);
+      if(noPort) ctx.setLineDash([]);
 
       const _bigLabel = lineLabelMap.get(`${pnt.c},${pnt.r}`);
       if (_bigLabel) {
@@ -495,7 +501,7 @@ function drawDataOverlay(ctx, o) {
         bigLabelDraws.push({ label: _bigLabel.text, color: _bigLabel.color, cx: x + panelWidth/2, cy: y + currentPanelHeight/2, h: currentPanelHeight });
       } else {
         // Use white text only for data line 9 (black resistor color), black text for all others
-        ctx.fillStyle = (dataLineNum % 10 === 9) ? '#FFFFFF' : '#000000';
+        ctx.fillStyle = noPort ? colors.text : ((dataLineNum % 10 === 9) ? '#FFFFFF' : '#000000');
         // Show panel number as column.row (matching standard layout)
         ctx.fillText(`${pnt.c+1}.${pnt.r+1}`, x+panelWidth/2, y+currentPanelHeight/2);
       }
@@ -645,6 +651,7 @@ function renderDataLayout(params) {
     groups, sortedDataLines, endpoints: dataLineEndpoints,
     lineDisplay: (typeof dataPortLineDisplayMap === 'function') ? dataPortLineDisplayMap(currentScreenId) : null,
     linePorts: (typeof dataPortLinePortMap === 'function') ? dataPortLinePortMap(currentScreenId) : null,
+    unassignedLines: (typeof dataPortUnassignedLines === 'function') ? dataPortUnassignedLines(currentScreenId) : null,
     deletedPanels,
     pw, ph, panelWidth, rowGeo,
     offsetX: 0, offsetY: 0,
@@ -790,8 +797,9 @@ function buildDataLineMapBox(variant, title, rows) {
     [
       { text: row.line, cls: 'dlm-line' },
       { text: row.panel, cls: 'dlm-panel' },
-      { text: row.unit || '\u2014', cls: 'dlm-unit' },
-      { text: (row.port === null || row.port === undefined) ? '\u2014' : row.port, cls: 'dlm-port' }
+      // A line another line took the port from: flagged in red until it gets a new one
+      { text: row.unassigned ? 'No port' : (row.unit || '\u2014'), cls: row.unassigned ? 'dlm-unit dlm-no-port' : 'dlm-unit' },
+      { text: (row.port === null || row.port === undefined) ? '\u2014' : row.port, cls: row.unassigned ? 'dlm-port dlm-no-port' : 'dlm-port' }
     ].forEach(function(cell) {
       const c = document.createElement('span');
       c.className = cell.cls;
@@ -833,14 +841,14 @@ function renderDataLineMap() {
   host.appendChild(buildDataLineMapBox('mains', 'Mains', endpoints.map(function(ep){
     const d = partsFor(ep.line);
     return { line: `${shownLine(ep.line)}`, panel: formatDataLinePanel(ep.main),
-             unit: d ? d.unit : '', port: d ? d.port : null };
+             unit: d ? d.unit : '', port: d ? d.port : null, unassigned: !!(d && d.unassigned) };
   })));
 
   if(redundancy) {
     host.appendChild(buildDataLineMapBox('backups', 'Backups', endpoints.map(function(ep){
       const d = partsFor(ep.line);
       return { line: `${shownLine(ep.line)}B`, panel: formatDataLinePanel(ep.backup),
-               unit: d ? d.backupUnit : '', port: d ? d.backupPort : null };
+               unit: d ? d.backupUnit : '', port: d ? d.backupPort : null, unassigned: !!(d && d.unassigned) };
     })));
   }
 }

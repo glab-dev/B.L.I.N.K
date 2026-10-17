@@ -849,6 +849,25 @@ function dataLineStartingAt(screenId, key) {
   };
 }
 
+// A screen's lines mapped to the port each lands on. Data lines are coloured by port, so
+// a port reads the same colour on every screen and unit, whatever the line is numbered.
+function dataPortLinePortMap(screenId) {
+  const out = new Map();
+  try {
+    const lineMap = cachedDataPortPlan().perScreen.get(screenId);
+    if(lineMap) lineMap.forEach((dest, line) => { if(dest && dest.port) out.set(line, dest.port); });
+  } catch(err) { /* no plan: callers fall back to the line number */ }
+  return out;
+}
+
+// The port of the line a panel ("c,r" on the whole screen) is on, or null
+function dataLinePortAtPanel(screenId, key) {
+  const line = screenLineLabels(screenId).panelLine.get(key);
+  if(line === undefined) return null;
+  const port = dataPortLinePortMap(screenId).get(line);
+  return port !== undefined ? port : null;
+}
+
 // The label of the line a panel ("c,r" on the whole screen) is on, or null
 function dataLineLabelAtPanel(screenId, key) {
   const info = screenLineLabels(screenId);

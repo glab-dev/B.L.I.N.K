@@ -410,6 +410,9 @@ function drawDataOverlay(ctx, o) {
   // the port they land on; without it the raw line numbers are used.
   const _lineDisplay = (o.lineDisplay instanceof Map) ? o.lineDisplay : null;
   const _shown = (line) => (_lineDisplay && _lineDisplay.has(line)) ? _lineDisplay.get(line) : line;
+  // Colour follows the port a line plugs into, falling back to its shown number
+  const _linePorts = (o.linePorts instanceof Map) ? o.linePorts : null;
+  const _colorNum = (line) => (_linePorts && _linePorts.has(line)) ? _linePorts.get(line) : _shown(line);
 
   // Rear view = mirror the draw x-coordinate horizontally (visual only; data
   // assignments are unchanged). Labels stay upright and arrows mirror because
@@ -467,9 +470,9 @@ function drawDataOverlay(ctx, o) {
   const groupPoints = [];
   const bigLabelDraws = []; // deferred so all labels share one uniform font size and render ON TOP OF the arrows
   for(let gi=0; gi<groups.length; gi++){
-    // Colour follows the displayed number, so the same port reads the same colour
-    // on every screen sharing that unit.
-    const dataLineNum = _shown(sortedDataLines[gi] + 1) - 1;
+    // Colour follows the port, so the same port reads the same colour on every screen
+    // and unit, whatever number the line is labelled with.
+    const dataLineNum = _colorNum(sortedDataLines[gi] + 1) - 1;
     const colors=colorForIndex(dataLineNum);
     groupPoints[gi] = [];
     for(let idx=0; idx<groups[gi].length; idx++){
@@ -641,6 +644,7 @@ function renderDataLayout(params) {
   drawDataOverlay(ctx, {
     groups, sortedDataLines, endpoints: dataLineEndpoints,
     lineDisplay: (typeof dataPortLineDisplayMap === 'function') ? dataPortLineDisplayMap(currentScreenId) : null,
+    linePorts: (typeof dataPortLinePortMap === 'function') ? dataPortLinePortMap(currentScreenId) : null,
     deletedPanels,
     pw, ph, panelWidth, rowGeo,
     offsetX: 0, offsetY: 0,

@@ -149,6 +149,14 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
       : null;
     return shown || (ln + 1);
   };
+  // Colour follows the port the line plugs into, as in the data layouts
+  const colorNumFor = (ln) => {
+    const first = ordering[ln] && ordering[ln][0];
+    const port = (first && typeof dataLinePortAtPanel === 'function' && screen.id)
+      ? dataLinePortAtPanel(screen.id, (first.col + (data.splitColOffset || 0)) + ',' + (first.row + (data.splitRowOffset || 0)))
+      : null;
+    return port || shownLineFor(ln);
+  };
 
   // ---- Data lines (serpentine arrows; matches data layout segmentation) ----
   if(opts.showLines) {
@@ -169,7 +177,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
     sortedLines.forEach(ln => {
       const grp = ordering[ln];
       if(!grp || grp.length < 2) return;
-      ctx.strokeStyle = lineColorFor(shownLineFor(ln) - 1);
+      ctx.strokeStyle = lineColorFor(colorNumFor(ln) - 1);
       const segments = [];
       let seg = [grp[0]];
       for(let i = 1; i < grp.length; i++) {
@@ -219,7 +227,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
       const mainP = flip ? last : first;
       const backupP = flip ? first : last;
       const lineNum = shownLineFor(ln);
-      const mainColor = lineColorFor(lineNum - 1);        // resistor colour
+      const mainColor = lineColorFor(colorNumFor(ln) - 1); // resistor colour, by port
       const backupColor = lightenHexCanvas(mainColor, 0.5); // muted/lighter shade
       const mKey = mainP.col + ',' + mainP.row;
       const bKey = redundancy ? (backupP.col + ',' + backupP.row) : null;

@@ -3286,6 +3286,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       showLabels: !!data.dataLineLabels,
       redundancy: !!data.redundancy,
       lineDisplay: (typeof dataPortLineDisplayMap === 'function') ? dataPortLineDisplayMap(screenId) : null,
+      linePorts: (typeof dataPortLinePortMap === 'function') ? dataPortLinePortMap(screenId) : null,
       panelFontSize: numberFontSize,
       arrowLineWidth: Math.max(1.5, panelSize * 0.075),
       arrowHeadSize: Math.max(5, panelSize * 0.3),

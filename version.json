@@ -1,5 +1,5 @@
 {
-  "version": "2.11.220",
+  "version": "2.11.221",
   "updated": "2026-10-17",
-  "changelog": "Add a right-click option to change a whole data line from its start panel"
+  "changelog": "Colour data lines by the port they plug into instead of their line number"
 }

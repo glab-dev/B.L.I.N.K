@@ -2268,7 +2268,7 @@
         </div>
       </div>
       <div class="modal-input-group">
-        <label for="dataPortPortInput">Port # (data line)</label>
+        <label for="dataPortPortInput">Port #</label>
         <input type="number" id="dataPortPortInput" min="1" max="999" placeholder="Auto" onkeydown="if(event.key==='Enter'){event.preventDefault();closeDataPortAssign(true);}">
         <div class="hint" id="dataPortAvailabilityHint"></div>
       </div>
@@ -3982,8 +3982,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.219';
-const APP_CHANGELOG = 'Number data lines along the data path and keep typed numbers as ports';
+const APP_VERSION = '2.11.220';
+const APP_CHANGELOG = 'Add a right-click option to change a whole data line from its start panel';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

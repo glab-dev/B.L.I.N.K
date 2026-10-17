@@ -534,6 +534,34 @@ function showContextMenu(x, y) {
     showDataLineNumberPrompt();
   });
 
+  // Change a whole data line — offered when the one panel right-clicked is where a line
+  // starts. Selects every panel on the line and opens Assign Data Port showing where the
+  // line goes now.
+  const startedLine = (selectedPanels.size === 1 && typeof dataLineStartingAt === 'function')
+    ? dataLineStartingAt(currentScreenId, [...selectedPanels][0]) : null;
+  let changeLineOption = null;
+  if (startedLine) {
+    changeLineOption = document.createElement('div');
+    changeLineOption.textContent = `Change data line ${startedLine.label} (whole line)…`;
+    changeLineOption.style.padding = '8px 12px';
+    changeLineOption.style.cursor = 'pointer';
+    changeLineOption.style.color = '#e0e0e0';
+    changeLineOption.style.fontSize = '13px';
+    changeLineOption.style.borderBottom = '1px solid #383838';
+    changeLineOption.addEventListener('mouseover', function() {
+      changeLineOption.style.background = '#0a66c2';
+    });
+    changeLineOption.addEventListener('mouseout', function() {
+      changeLineOption.style.background = 'transparent';
+    });
+    changeLineOption.addEventListener('click', function() {
+      menu.remove();
+      selectedPanels.clear();
+      startedLine.panels.forEach(k => selectedPanels.add(k));
+      showDataLineNumberPrompt(startedLine.current);
+    });
+  }
+
   // Reset selected option — only when at least one selected panel is modified
   const _anySelModified = [...selectedPanels].some(k =>
     deletedPanels.has(k) || customCircuitAssignments.has(k)
@@ -606,6 +634,7 @@ function showContextMenu(x, y) {
   menu.appendChild(assignCircuitOption);
   if (assignSocaOption) menu.appendChild(assignSocaOption);
   menu.appendChild(assignDataLineOption);
+  if (changeLineOption) menu.appendChild(changeLineOption);
   if (resetSelectedOption) menu.appendChild(resetSelectedOption);
   if (resetAllOption) menu.appendChild(resetAllOption);
   menu.appendChild(deleteOption);
@@ -723,7 +752,9 @@ async function showAssignSocaPrompt() {
   calculate();
 }
 
-async function showDataLineNumberPrompt() {
+// seed: optional { proc, box, port } to open the dialog with instead of the first
+// selected panel's own assignment (used when changing a whole line).
+async function showDataLineNumberPrompt(seed) {
   // Capture selected panels before await — the document click handler clears
   // selectedPanels during the async gap when the prompt modal is open
   const panelsToAssign = new Set(selectedPanels);
@@ -738,7 +769,7 @@ async function showDataLineNumberPrompt() {
   // Seed the dialog from whatever the first selected panel already carries.
   const firstKey = panelsToAssign.values().next().value;
   const curDest = customDataDestinations.get(firstKey) || {};
-  const current = {
+  const current = seed || {
     proc: curDest.proc !== undefined ? curDest.proc : null,
     box: curDest.box !== undefined ? curDest.box : null,
     port: customDataLineAssignments.has(firstKey) ? customDataLineAssignments.get(firstKey) : null

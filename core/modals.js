@@ -117,7 +117,7 @@ function closeModeChoice(mode) {
 
 // ==================== ASSIGN DATA PORT ====================
 // Three-field prompt: Processor #, Distribution Box # (only when the screen's
-// processor uses one) and Port #, which is the data line number.
+// processor uses one) and Port #, the port the line plugs into (not its line number).
 // Uses its own modal — #customAlertModal belongs to showSocaCircuitPrompt().
 // Resolves { proc, box, port } with null for any field left blank, or null if
 // cancelled.

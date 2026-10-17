@@ -1186,6 +1186,24 @@ function showCombinedPanelContextMenu(x, y, panelInfo, layoutKind) {
       }
     );
     menu.appendChild(dataOption);
+
+    // Change a whole data line — offered when the one panel right-clicked is where a
+    // line starts. Selects every panel on the line and opens Assign Data Port showing
+    // where the line goes now.
+    const startedLine = (selectedCount === 1 && typeof dataLineStartingAt === 'function')
+      ? dataLineStartingAt(screenId, key) : null;
+    if(startedLine) {
+      menu.appendChild(createMenuOption(
+        `Change data line ${startedLine.label} (whole line)…`,
+        '#4a2a6a',
+        function() {
+          menu.remove();
+          combinedSelectedPanels.clear();
+          startedLine.panels.forEach(k => combinedSelectedPanels.add(`${screenId}:${k}`));
+          promptAssignCombinedDataLine(startedLine.current);
+        }
+      ));
+    }
   }
 
   // Reset — scoped to the layout it was opened from: the data canvas resets only
@@ -1376,7 +1394,9 @@ async function promptAssignCombinedCircuit() {
 }
 
 // Prompt user for custom data line number and assign to selected panels
-async function promptAssignCombinedDataLine() {
+// seed: optional { proc, box, port } to open the dialog with instead of the first
+// panel's own assignment (used when changing a whole line).
+async function promptAssignCombinedDataLine(seed) {
   // Get panels to assign (use multi-selection or single selected panel)
   const panelsToAssign = [];
   if(combinedSelectedPanels.size > 0) {
@@ -1411,7 +1431,7 @@ async function promptAssignCombinedDataLine() {
 
   const seedDest = toCombinedDestMap(seedData && seedData.customDataDestinations).get(panelsToAssign[0].panelKey) || {};
   const seedLines = toCombinedSocaMap(seedData && seedData.customDataLineAssignments);
-  const current = {
+  const current = seed || {
     proc: seedDest.proc !== undefined ? seedDest.proc : null,
     box: seedDest.box !== undefined ? seedDest.box : null,
     port: seedLines.has(panelsToAssign[0].panelKey) ? seedLines.get(panelsToAssign[0].panelKey) : null

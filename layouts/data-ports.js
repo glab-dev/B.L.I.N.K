@@ -388,7 +388,11 @@ function buildDataPortPlan(liveOverride) {
           const part = partOf.get(line);
           if(lastPart !== null && part !== lastPart) {
             if(!afterFirstPart) afterFirstPart = { proc: curProc, box: curBox };
-            curProc = highestProcInUse() + 1;
+            // A line of this part already pinned to a processor (a whole-line change, or a
+            // typed processor #) decides the part's processor; otherwise it's a fresh one
+            const pinned = entry.info.lines.map(partLine => partOf.get(partLine) === part
+              ? claimedPorts.get(entry.screenId + '|' + partLine) : null).find(Boolean);
+            curProc = pinned ? pinned.proc : highestProcInUse() + 1;
             if(usesDistBox) curBox = 1;
             inPart = true;
             // This part's typed ports go on its new processor, reserved before its auto
@@ -785,15 +789,16 @@ function dataPortLineDisplayMap(screenId) {
   return screenLineLabels(screenId).labels;
 }
 
-// A screen's line labels (line -> number shown) and which line each panel is on
-// ("c,r" -> line), worked out once per plan
+// A screen's line labels (line -> number shown), which line each panel is on
+// ("c,r" -> line) and each line's panels in flow order (line -> ["c,r", ...]), worked
+// out once per plan
 function screenLineLabels(screenId) {
-  const empty = { labels: new Map(), panelLine: new Map() };
+  const empty = { labels: new Map(), panelLine: new Map(), linePanels: new Map() };
   try {
     const plan = cachedDataPortPlan();
     if(!plan.lineLabels) plan.lineLabels = new Map();
     if(plan.lineLabels.has(screenId)) return plan.lineLabels.get(screenId);
-    const out = { labels: new Map(), panelLine: new Map() };
+    const out = { labels: new Map(), panelLine: new Map(), linePanels: new Map() };
     const screen = screens[screenId];
     const data = (screen && (liveScreenData(screenId) || screen.data)) || null;
     const inp = data ? resolveScreenDataInputs(data) : null;
@@ -808,12 +813,40 @@ function screenLineLabels(screenId) {
       });
       (built.lineOrder || []).forEach((ln, i) => out.labels.set(ln + 1, i + 1));
       (built.panelToDataLine || new Map()).forEach((ln, key) => out.panelLine.set(key, ln + 1));
+      (built.sortedDataLines || []).forEach((ln, gi) => {
+        out.linePanels.set(ln + 1, (built.groups[gi] || []).map(pt => pt.c + ',' + pt.r));
+      });
     }
     plan.lineLabels.set(screenId, out);
     return out;
   } catch(err) {
     return empty; // fall back to the raw line numbers
   }
+}
+
+// The data line a panel starts — its first panel in flow order, or its last when the
+// screen's data is flipped — with everything needed to re-assign the whole line:
+// { line, label, panels, current: { proc, box, port } }. Null for any other panel.
+function dataLineStartingAt(screenId, key) {
+  const info = screenLineLabels(screenId);
+  const line = info.panelLine.get(key);
+  if(line === undefined) return null;
+  const panels = info.linePanels.get(line) || [];
+  if(!panels.length) return null;
+  // The open screen's flip lives in the live toggle; other screens use their saved one
+  const data = screens[screenId] && screens[screenId].data;
+  const flipped = (screenId === currentScreenId && typeof dataFlipEnabled !== 'undefined')
+    ? dataFlipEnabled : !!(data && data.dataFlip);
+  const startKey = flipped ? panels[panels.length - 1] : panels[0];
+  if(startKey !== key) return null;
+  const lineMap = cachedDataPortPlan().perScreen.get(screenId);
+  const dest = lineMap && lineMap.get(line);
+  return {
+    line: line,
+    label: info.labels.has(line) ? info.labels.get(line) : line,
+    panels: panels,
+    current: { proc: dest ? dest.proc : null, box: dest ? dest.box : null, port: dest ? dest.port : null }
+  };
 }
 
 // The label of the line a panel ("c,r" on the whole screen) is on, or null

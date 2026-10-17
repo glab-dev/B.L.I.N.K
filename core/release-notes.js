@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.220', date: '2026-10-17', notes: 'Add a right-click option to change a whole data line from its start panel' },
   { version: '2.11.219', date: '2026-10-17', notes: 'Number data lines along the data path and keep typed numbers as ports' },
   { version: '2.11.218', date: '2026-10-17', notes: 'Keep the processor number beside the processor on data unit labels' },
   { version: '2.11.217', date: '2026-10-16', notes: 'Give each split screen part its own processor and data lines and mark the split in data layouts' },

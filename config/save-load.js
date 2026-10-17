@@ -526,6 +526,7 @@ function applyConfiguration(config, fileNameOverride) {
       }
 
       screens[screenId] = {
+        id: screenId,
         name: screenName,
         color: screenColor,
         color2: screenColor2,

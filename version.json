@@ -1,5 +1,5 @@
 {
-  "version": "2.11.224",
+  "version": "2.11.225",
   "updated": "2026-10-17",
-  "changelog": "Export one Resolume output per canvas reading from a side-by-side composition"
+  "changelog": "Fix dragging screens in the canvas after loading a project"
 }

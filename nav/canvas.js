@@ -140,6 +140,15 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
   // (line 1 brown, 2 red, ...). The data layout keeps its own black/green/magenta.
   const palette = (typeof resistorColors !== 'undefined' && resistorColors.length) ? resistorColors : ['#000000'];
   const lineColorFor = (ln) => palette[ln % palette.length];
+  // A line's label everywhere else in the app: its place along the whole screen's data
+  // path. A split part looks its first panel up on the whole screen.
+  const shownLineFor = (ln) => {
+    const first = ordering[ln] && ordering[ln][0];
+    const shown = (first && typeof dataLineLabelAtPanel === 'function' && screen.id)
+      ? dataLineLabelAtPanel(screen.id, (first.col + (data.splitColOffset || 0)) + ',' + (first.row + (data.splitRowOffset || 0)))
+      : null;
+    return shown || (ln + 1);
+  };
 
   // ---- Data lines (serpentine arrows; matches data layout segmentation) ----
   if(opts.showLines) {
@@ -160,7 +169,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
     sortedLines.forEach(ln => {
       const grp = ordering[ln];
       if(!grp || grp.length < 2) return;
-      ctx.strokeStyle = lineColorFor(ln);
+      ctx.strokeStyle = lineColorFor(shownLineFor(ln) - 1);
       const segments = [];
       let seg = [grp[0]];
       for(let i = 1; i < grp.length; i++) {
@@ -209,8 +218,8 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
       const first = grp[0], last = grp[grp.length - 1];
       const mainP = flip ? last : first;
       const backupP = flip ? first : last;
-      const lineNum = ln + 1;
-      const mainColor = lineColorFor(ln);                 // resistor colour
+      const lineNum = shownLineFor(ln);
+      const mainColor = lineColorFor(lineNum - 1);        // resistor colour
       const backupColor = lightenHexCanvas(mainColor, 0.5); // muted/lighter shade
       const mKey = mainP.col + ',' + mainP.row;
       const bKey = redundancy ? (backupP.col + ',' + backupP.row) : null;

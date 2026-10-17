@@ -43,6 +43,7 @@ function narrowToSplitPart(coll, part) {
 // buildDataLineGroups for a split screen: each part on its own, then stitched back
 function buildSplitDataLineGroups(o) {
   const groups = [], sortedDataLines = [], usedCustomDataLines = new Set(), panelToDataLine = new Map();
+  const lineOrder = [];
   let offset = 0;
   splitDataParts(o.split).forEach(part => {
     const sub = buildDataLineGroups(Object.assign({}, o, {
@@ -55,13 +56,14 @@ function buildSplitDataLineGroups(o) {
       sortedDataLines.push(ln + offset);
     });
     sub.usedCustomDataLines.forEach(ln => usedCustomDataLines.add(ln + offset));
+    sub.lineOrder.forEach(ln => lineOrder.push(ln + offset));
     sub.panelToDataLine.forEach((ln, key) => {
       const [c, r] = key.split(',').map(Number);
       panelToDataLine.set(`${c + part.c0},${r + part.r0}`, ln + offset);
     });
     if(sub.sortedDataLines.length) offset += Math.max(...sub.sortedDataLines) + 1;
   });
-  return {groups, sortedDataLines, usedCustomDataLines, panelToDataLine};
+  return {groups, sortedDataLines, usedCustomDataLines, panelToDataLine, lineOrder};
 }
 
 // ==================== DATA LINE GROUPING ====================
@@ -370,7 +372,11 @@ function buildDataLineGroups(o) {
     }
   }
 
-  return {groups, sortedDataLines, usedCustomDataLines, panelToDataLine};
+  // Lines in the order the walk reaches them — the order they run along the wall,
+  // whatever numbers custom assignments gave them
+  const lineOrder = Array.from(dataLineGroups.keys());
+
+  return {groups, sortedDataLines, usedCustomDataLines, panelToDataLine, lineOrder};
 }
 
 // ==================== DATA LINE ENDPOINTS ====================

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.218",
+  "version": "2.11.219",
   "updated": "2026-10-17",
-  "changelog": "Keep the processor number beside the processor on data unit labels"
+  "changelog": "Number data lines along the data path and keep typed numbers as ports"
 }

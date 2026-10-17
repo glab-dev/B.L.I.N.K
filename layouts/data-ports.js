@@ -106,7 +106,7 @@ function resolveScreenDataInputs(data) {
 // Backup lines are not modelled here — redundancy is handled downstream, unchanged.
 function screenDataLineDestinations(data) {
   const inp = resolveScreenDataInputs(data);
-  if(!inp || typeof buildDataLineGroups !== 'function') return { lines: [], explicit: new Map(), portFixed: new Set() };
+  if(!inp || typeof buildDataLineGroups !== 'function') return { lines: [], explicit: new Map(), portFixed: new Map() };
 
   const built = buildDataLineGroups({
     pw: inp.pw,
@@ -120,16 +120,18 @@ function screenDataLineDestinations(data) {
 
   const lines = (built.sortedDataLines || []).map(ln => ln + 1);
   const explicit = new Map();
-  // Lines whose number the user typed into Assign Data Port. That number IS the port,
-  // so it has to survive allocation even when Processor #/Box # were left on Auto.
-  const portFixed = new Set();
+  // Lines whose port the user typed into Assign Data Port: line -> that port. It has to
+  // survive allocation even when Processor #/Box # were left on Auto. The typed value is
+  // kept as given — on a split screen a part's internal line numbers are offset, so the
+  // line number itself can't stand in for the port.
+  const portFixed = new Map();
 
   // A line's destination comes from any panel on it that carries one. Later panels
   // win, matching how a line only ever terminates in one place.
   (built.sortedDataLines || []).forEach((ln, gi) => {
     const group = built.groups[gi] || [];
     group.forEach(pt => {
-      if(inp.customDataLines.has(pt.c + ',' + pt.r)) portFixed.add(ln + 1);
+      if(inp.customDataLines.has(pt.c + ',' + pt.r)) portFixed.set(ln + 1, inp.customDataLines.get(pt.c + ',' + pt.r));
       const dest = inp.customDestinations.get(pt.c + ',' + pt.r);
       if(!dest) return;
       const proc = (typeof dest.proc === 'number' && dest.proc >= 1) ? dest.proc : null;
@@ -199,7 +201,7 @@ function buildDataPortPlan(liveOverride) {
     const data = liveScreenData(id) || screens[id].data;
     const info = (liveOverride && liveOverride.screenId === id)
       ? { lines: liveOverride.lines || [], explicit: liveOverride.explicit || new Map(),
-          portFixed: liveOverride.portFixed || new Set(),
+          portFixed: liveOverride.portFixed || new Map(),
           processorId: data.processor || 'Brompton_SX40', connectionMode: data.mx40ConnectionMode || 'direct' }
       : screenDataLineDestinations(data);
     if(!info.lines.length) return;
@@ -266,13 +268,14 @@ function buildDataPortPlan(liveOverride) {
     // Only fully-specified destinations claim here; partial ones resolve in pass 2.
     const claimedPorts = new Map(); // "screenId|line" -> { proc, box, port }
     bucket.entries.forEach(entry => {
+      const portFixed = entry.info.portFixed || new Map();
       entry.info.lines.forEach(line => {
         const dest = entry.info.explicit.get(line);
         if(!dest || dest.proc === null) return;
         if(usesDistBox && dest.box === null) return;
         const box = usesDistBox ? dest.box : null;
-        // The line number IS the port number for an explicit assignment.
-        const port = line;
+        // The typed port when there is one, otherwise the line's own number
+        const port = portFixed.has(line) ? portFixed.get(line) : line;
         portsOn(dest.proc, box).add(port);
         claimedPorts.set(entry.screenId + '|' + line, { proc: dest.proc, box: box, port: port });
       });
@@ -309,22 +312,27 @@ function buildDataPortPlan(liveOverride) {
     }
 
     bucket.entries.forEach(entry => {
-      const portFixed = entry.info.portFixed || new Set();
+      const portFixed = entry.info.portFixed || new Map();
+      const partOf = entry.info.partOf || null;
       entry.info.lines.forEach(line => {
         if(!portFixed.has(line)) return;
+        // A typed port in a later part of a split screen belongs on that part's own
+        // processor, which pass 2 picks — it claims its port there
+        if(partOf && (partOf.get(line) || 0) > 0) return;
         const key = entry.screenId + '|' + line;
         if(claimedPorts.has(key)) return;
+        const port = portFixed.get(line);
         // An even port is a loop-back once ports pair off, and an even box is a
         // loop-back box — leave those to the cursor rather than patching a main onto
         // a backup slot. dataPortLoopbackBlocker() refuses them at assignment time.
-        if(pairedPorts && line % 2 === 0) return;
+        if(pairedPorts && port % 2 === 0) return;
         const dest = entry.info.explicit.get(line);
         const pinProc = (dest && dest.proc !== null) ? dest.proc : null;
         const pinBox = (usesDistBox && dest && dest.box !== null) ? dest.box : null;
         if(pairedBoxes && pinBox !== null && pinBox % 2 === 0) return;
-        const slot = unitForFixedPort(line, pinProc, pinBox);
-        portsOn(slot.proc, slot.box).add(line);
-        claimedPorts.set(key, { proc: slot.proc, box: slot.box, port: line });
+        const slot = unitForFixedPort(port, pinProc, pinBox);
+        portsOn(slot.proc, slot.box).add(port);
+        claimedPorts.set(key, { proc: slot.proc, box: slot.box, port: port });
       });
     });
 
@@ -383,6 +391,19 @@ function buildDataPortPlan(liveOverride) {
             curProc = highestProcInUse() + 1;
             if(usesDistBox) curBox = 1;
             inPart = true;
+            // This part's typed ports go on its new processor, reserved before its auto
+            // lines fill the unit so none of them takes a typed number first
+            entry.info.lines.forEach(partLine => {
+              if(partOf.get(partLine) !== part || !entry.info.portFixed || !entry.info.portFixed.has(partLine)) return;
+              const partKey = entry.screenId + '|' + partLine;
+              if(claimedPorts.has(partKey)) return;
+              const pin = entry.info.explicit.get(partLine);
+              const pinProc = (pin && pin.proc !== null) ? pin.proc : curProc;
+              const pinBox = usesDistBox ? ((pin && pin.box !== null) ? pin.box : curBox) : null;
+              const typedPort = entry.info.portFixed.get(partLine);
+              portsOn(pinProc, pinBox).add(typedPort);
+              claimedPorts.set(partKey, { proc: pinProc, box: pinBox, port: typedPort });
+            });
           }
           lastPart = part;
         }
@@ -754,24 +775,58 @@ function dataPortGroupTotals(plan, procType) {
   return { procCount, boxCount, distBoxName };
 }
 
-// Map of a screen's true data line numbers to the physical port each one lands on.
-// The data layout numbers its lines by port so the label on the wall matches the
-// port it patches into, and so the colour ramp is consistent across screens.
+// Map of a screen's true data line numbers to the number each line is labelled with:
+// its place along the data path, 1..n per screen — never the port, which restarts on
+// every box and processor (the PORT column and unit labels show that). Lines are
+// numbered in the order the walk reaches them, so a custom line takes the number of
+// where it sits on the wall, and a split screen counts on across its parts. Cached with
+// the plan, since the gear list asks per cable.
 function dataPortLineDisplayMap(screenId) {
-  const out = new Map();
-  try {
-    const plan = cachedDataPortPlan();
-    const lineMap = plan.perScreen.get(screenId);
-    if(!lineMap) return out;
-    lineMap.forEach((dest, line) => { if(dest && dest.port) out.set(line, dest.port); });
-  } catch(err) { /* fall back to the raw line numbers */ }
-  return out;
+  return screenLineLabels(screenId).labels;
 }
 
-// The number a line is labelled with anywhere in the app: the processor port it
-// lands on, falling back to its raw line number when the port plan can't resolve one.
-// The data layout, cable diagram and gear list all name a line through this, so a
-// line is called the same thing in all three.
+// A screen's line labels (line -> number shown) and which line each panel is on
+// ("c,r" -> line), worked out once per plan
+function screenLineLabels(screenId) {
+  const empty = { labels: new Map(), panelLine: new Map() };
+  try {
+    const plan = cachedDataPortPlan();
+    if(!plan.lineLabels) plan.lineLabels = new Map();
+    if(plan.lineLabels.has(screenId)) return plan.lineLabels.get(screenId);
+    const out = { labels: new Map(), panelLine: new Map() };
+    const screen = screens[screenId];
+    const data = (screen && (liveScreenData(screenId) || screen.data)) || null;
+    const inp = data ? resolveScreenDataInputs(data) : null;
+    if(inp && typeof buildDataLineGroups === 'function') {
+      const built = buildDataLineGroups({
+        pw: inp.pw, ph: inp.ph,
+        panelsPerDataLine: inp.panelsPerDataLine,
+        startDir: inp.startDir,
+        deletedPanels: inp.deletedPanels,
+        customDataLineAssignments: inp.customDataLines,
+        split: data.split
+      });
+      (built.lineOrder || []).forEach((ln, i) => out.labels.set(ln + 1, i + 1));
+      (built.panelToDataLine || new Map()).forEach((ln, key) => out.panelLine.set(key, ln + 1));
+    }
+    plan.lineLabels.set(screenId, out);
+    return out;
+  } catch(err) {
+    return empty; // fall back to the raw line numbers
+  }
+}
+
+// The label of the line a panel ("c,r" on the whole screen) is on, or null
+function dataLineLabelAtPanel(screenId, key) {
+  const info = screenLineLabels(screenId);
+  const line = info.panelLine.get(key);
+  return line !== undefined && info.labels.has(line) ? info.labels.get(line) : null;
+}
+
+// The number a line is labelled with anywhere in the app: its place along the screen's
+// data path (see dataPortLineDisplayMap), falling back to its raw line number. The data
+// layout, cable diagram and gear list all name a line through this, so a line is called
+// the same thing in all three.
 function dataLineDisplayNumber(screenId, line) {
   const map = dataPortLineDisplayMap(screenId);
   return map.has(line) ? map.get(line) : line;

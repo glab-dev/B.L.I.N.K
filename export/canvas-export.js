@@ -146,7 +146,12 @@ function _getCanvasResolution() {
 function _getScreenResolution(screenId) {
   var screen = screens[screenId];
   if(!screen || !screen.data) return { w: 0, h: 0 };
-  var sd = screen.data;
+  return _getScreenDataResolution(screen.data);
+}
+
+// The pixel size of a screen's data — or of a split part's, whose data covers only
+// that part's columns and rows
+function _getScreenDataResolution(sd) {
   var p = getAllPanels()[sd.panelType || 'CB5_MKII'];
   if(!p || !p.res_x || !p.res_y) return { w: 0, h: 0 };
   var pw = sd.panelsWide || 0;
@@ -331,11 +336,14 @@ function showOutlineExportModal() {
   screenIds.forEach(function(id) {
     var s = screens[id];
     if(!s.visible) return;
-    var res = _getScreenResolution(id);
+    // A split screen is listed as its part on this canvas, at that part's size
+    var item = canvasItemForScreen(id);
+    if(!item) return;
+    var res = _getScreenDataResolution(item.data);
     if(res.w === 0 || res.h === 0) return;
     var opt = document.createElement('option');
     opt.value = id;
-    opt.textContent = (s.name || id) + ' (' + res.w + 'x' + res.h + ')';
+    opt.textContent = (item.name || id) + ' (' + res.w + 'x' + res.h + ')';
     sel.appendChild(opt);
   });
 
@@ -507,10 +515,8 @@ function updateOutlinePreview() {
   var allP = getAllPanels();
 
   if(_outlineMode === 'canvas') {
-    var screenIds = getScreenIdsInOrder();
-    screenIds.forEach(function(id) {
-      var s = screens[id];
-      if(!s.visible) return;
+    // Every screen (or split part) on this canvas
+    canvasItemsOnCurrentCanvas().forEach(function(s) {
       var sd = s.data;
       var ox = ((typeof sd.canvasX === 'number' && !isNaN(sd.canvasX)) ? sd.canvasX : 0) * scale;
       var oy = ((typeof sd.canvasY === 'number' && !isNaN(sd.canvasY)) ? sd.canvasY : 0) * scale;
@@ -519,8 +525,9 @@ function updateOutlinePreview() {
   } else {
     // Per screen mode: draw selected screen at its canvas position
     var selId = document.getElementById('outlineScreenSelect').value;
-    if(selId && screens[selId]) {
-      var sd = screens[selId].data;
+    var selItem = selId ? canvasItemForScreen(selId) : null;
+    if(selItem) {
+      var sd = selItem.data;
       var ox = ((typeof sd.canvasX === 'number' && !isNaN(sd.canvasX)) ? sd.canvasX : 0) * scale;
       var oy = ((typeof sd.canvasY === 'number' && !isNaN(sd.canvasY)) ? sd.canvasY : 0) * scale;
       _drawScreenOutline(ctx, sd, allP, ox, oy, scaledBw, scale);
@@ -548,7 +555,7 @@ function exportOutlinePNG() {
     if(_outlineMode === 'screen') {
       var selId = document.getElementById('outlineScreenSelect').value;
       var screenName = (screens[selId] && screens[selId].name) ? screens[selId].name.replace(/[<>:"/\\|?*\s]/g, '_') : selId;
-      var sd = screens[selId].data;
+      var sd = (canvasItemForScreen(selId) || screens[selId]).data;
 
       var exportCanvas = document.createElement('canvas');
       exportCanvas.width = _outlineW;
@@ -577,10 +584,8 @@ function exportOutlinePNG() {
       }
       ctx.fillStyle = color;
 
-      var screenIds = getScreenIdsInOrder();
-      screenIds.forEach(function(id) {
-        var s = screens[id];
-        if(!s.visible) return;
+      // Every screen (or split part) on this canvas
+      canvasItemsOnCurrentCanvas().forEach(function(s) {
         var sd = s.data;
         var ox = (typeof sd.canvasX === 'number' && !isNaN(sd.canvasX)) ? sd.canvasX : 0;
         var oy = (typeof sd.canvasY === 'number' && !isNaN(sd.canvasY)) ? sd.canvasY : 0;

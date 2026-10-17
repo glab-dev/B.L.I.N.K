@@ -1524,6 +1524,18 @@ function canvasItemsOnCurrentCanvas() {
   return items;
 }
 
+// A screen as it sits on the open canvas: the screen itself, or — when it is split —
+// its part on this canvas (each part has its own canvas), or null when it has none here.
+// For exports that draw screens one by one rather than copying the canvas.
+function canvasItemForScreen(screenId) {
+  const screen = screens[screenId];
+  if(!screen) return null;
+  const split = screen.data.split;
+  if(!split) return screen;
+  const k = split.parts.findIndex(p => p.canvasId === currentCanvasId);
+  return k >= 0 ? splitPartView(screenId, k) : null;
+}
+
 // Id a canvas item is selected / dragged by: the screen id, or "screenId#part"
 function canvasItemId(item) {
   return item.splitItemId || item.id;

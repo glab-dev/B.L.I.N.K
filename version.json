@@ -1,5 +1,5 @@
 {
-  "version": "2.11.222",
+  "version": "2.11.223",
   "updated": "2026-10-17",
-  "changelog": "Keep other data lines in place when one port changes and flag lines left without a port"
+  "changelog": "Export split screens as their part on each canvas in test patterns and outlines"
 }

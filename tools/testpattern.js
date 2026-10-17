@@ -691,7 +691,14 @@ function _tpBuildRasterFromCurrentProject() {
   }
   var order = (typeof getScreenIdsInOrder === 'function') ? getScreenIdsInOrder() : null;
   var nameEl = document.getElementById('configName');
-  return _tpBuildRaster(screens, order, canvasDims,
+  // A split screen contributes only its part on this canvas (each part is its own
+  // processor input); a split screen with no part here is left out
+  var onCanvas = {};
+  Object.keys(screens).forEach(function(id) {
+    var item = (typeof canvasItemForScreen === 'function') ? canvasItemForScreen(id) : screens[id];
+    if(item) onCanvas[id] = item;
+  });
+  return _tpBuildRaster(onCanvas, order, canvasDims,
     (typeof customPanels !== 'undefined' ? customPanels : null),
     (nameEl && nameEl.value.trim()) || 'Current Project', 'current');
 }

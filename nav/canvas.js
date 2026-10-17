@@ -1510,13 +1510,22 @@ function splitPartView(screenId, k) {
 // What the open canvas shows: every visible whole screen, plus the parts of split screens
 // that sit on this canvas.
 function canvasItemsOnCurrentCanvas() {
+  return canvasItemsOn(currentCanvasId);
+}
+
+// The same for any canvas. The open canvas's visibility is the live per-screen flag; any
+// other canvas uses what it saved.
+function canvasItemsOn(canvasId) {
   const items = [];
+  const saved = (canvases[canvasId] && canvases[canvasId].data && canvases[canvasId].data.screenVisibility) || {};
   getScreenIdsInOrder().forEach(id => {
     const screen = screens[id];
-    if(!screen || !screen.visible) return;
+    if(!screen) return;
+    const visible = canvasId === currentCanvasId ? screen.visible : !!saved[id];
+    if(!visible) return;
     const split = screen.data.split;
     if(split) {
-      split.parts.forEach((part, k) => { if(part.canvasId === currentCanvasId) items.push(splitPartView(id, k)); });
+      split.parts.forEach((part, k) => { if(part.canvasId === canvasId) items.push(splitPartView(id, k)); });
     } else {
       items.push(screen);
     }

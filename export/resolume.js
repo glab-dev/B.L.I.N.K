@@ -71,78 +71,99 @@ function buildScreenSliceRects(screenData, panel) {
   return rects;
 }
 
-// Builds the full slice list across every visible screen.
+// Builds one Resolume output screen per canvas that has anything on it, in canvas order.
+// Each canvas is one output (one processor input), so its slices output at their own
+// canvas position — a split screen's part on that canvas included. They take their
+// input from a composition made of the canvases side by side: canvas 1 at x 0, canvas 2
+// right after canvas 1's width, and so on. A split wall therefore reads straight across
+// the composition while each output starts at 0,0, and a one-canvas project's input and
+// output rectangles stay the same, as before.
 // Screens producing more than one rectangle get numbered names (e.g. "IMAG SR 1").
-function buildResolumeSlices() {
+// Returns [{ name, width, height, slices: [{ name, x, y, w, h, inX, inY }] }].
+function buildResolumeScreens() {
   const allPanels = getAllPanels();
-  const slices = [];
+  const outputs = [];
+  let compositionX = 0;
 
-  Object.keys(screens).forEach(function(key) {
-    const screen = screens[key];
-    if(screen.visible === false) return;
-
-    const screenData = screen.data || screen;
-    const panel = allPanels[screenData.panelType || 'CB5_MKII'];
-    if(!panel) return;
-
-    const rects = buildScreenSliceRects(screenData, panel);
-    const baseName = screen.name || 'Screen';
-    rects.forEach(function(rect, i) {
-      slices.push({
-        name: rects.length > 1 ? (baseName + ' ' + (i + 1)) : baseName,
-        x: rect.x,
-        y: rect.y,
-        w: rect.w,
-        h: rect.h
+  getCanvasIdsInOrder().forEach(function(canvasId) {
+    const size = canvasPixelSize(canvasId);
+    const slices = [];
+    canvasItemsOn(canvasId).forEach(function(item) {
+      const screenData = item.data;
+      const panel = allPanels[screenData.panelType || 'CB5_MKII'];
+      if(!panel) return;
+      const rects = buildScreenSliceRects(screenData, panel);
+      const baseName = item.name || 'Screen';
+      rects.forEach(function(rect, i) {
+        slices.push({
+          name: rects.length > 1 ? (baseName + ' ' + (i + 1)) : baseName,
+          x: rect.x, y: rect.y, w: rect.w, h: rect.h,
+          inX: compositionX + rect.x, inY: rect.y
+        });
       });
     });
+
+    if(slices.length) {
+      // Output resolution: the canvas, grown to cover every slice
+      let width = size.width, height = size.height;
+      slices.forEach(function(slice) {
+        width = Math.max(width, slice.x + slice.w);
+        height = Math.max(height, slice.y + slice.h);
+      });
+      outputs.push({ name: (canvases[canvasId] && canvases[canvasId].name) || 'Screen', width: width, height: height, slices: slices });
+    }
+    compositionX += size.width;
   });
 
-  return slices;
+  return outputs;
 }
 
 // Builds the complete Resolume Arena 7 XML document, or null if there is
 // nothing to export. Shared by exportResolumeXML() and getResolumeXmlBlob()
 // so both paths always emit identical slice geometry.
 function buildResolumeXml(projectName) {
-  const slices = buildResolumeSlices();
-  if(slices.length === 0) return null;
+  const outputs = buildResolumeScreens();
+  if(outputs.length === 0) return null;
 
   function generateUniqueId() {
     return Math.floor(Math.random() * 9000000000000000) + 1000000000000000;
   }
 
-  let slicesXml = '';
-  slices.forEach(function(slice) {
-    const x1 = slice.x, y1 = slice.y;
-    const x2 = slice.x + slice.w, y2 = slice.y + slice.h;
-
-    // Bezier warper control grid (4x4) across the slice
-    let verticesXml = '';
-    for(let row = 0; row < 4; row++) {
-      for(let col = 0; col < 4; col++) {
-        const x = x1 + Math.round((col / 3) * slice.w);
-        const y = y1 + Math.round((row / 3) * slice.h);
-        verticesXml += `
-                  <v x="${x}" y="${y}"/>`;
-      }
-    }
-
-    // Input and output rectangles both sit at the slice's canvas position
-    const rectVertices = `
+  // A rectangle's four corners, clockwise from top-left
+  function rectVertices(x1, y1, x2, y2) {
+    return `
               <v x="${x1}" y="${y1}"/>
               <v x="${x2}" y="${y1}"/>
               <v x="${x2}" y="${y2}"/>
               <v x="${x1}" y="${y2}"/>`;
+  }
 
-    slicesXml += `
+  let screensXml = '';
+  outputs.forEach(function(output, n) {
+    let slicesXml = '';
+    output.slices.forEach(function(slice) {
+      const x1 = slice.x, y1 = slice.y;
+      const x2 = slice.x + slice.w, y2 = slice.y + slice.h;
+
+      // Bezier warper control grid (4x4) across the slice
+      let verticesXml = '';
+      for(let row = 0; row < 4; row++) {
+        for(let col = 0; col < 4; col++) {
+          const x = x1 + Math.round((col / 3) * slice.w);
+          const y = y1 + Math.round((row / 3) * slice.h);
+          verticesXml += `
+                  <v x="${x}" y="${y}"/>`;
+        }
+      }
+
+      slicesXml += `
           <Slice>
             <Params name="Common">
               <Param name="Name" default="Layer" value="${escapeXml(slice.name)}"/>
             </Params>
-            <InputRect orientation="0">${rectVertices}
+            <InputRect orientation="0">${rectVertices(slice.inX, slice.inY, slice.inX + slice.w, slice.inY + slice.h)}
             </InputRect>
-            <OutputRect orientation="0">${rectVertices}
+            <OutputRect orientation="0">${rectVertices(x1, y1, x2, y2)}
             </OutputRect>
             <Warper>
               <Params name="Warper">
@@ -155,18 +176,25 @@ function buildResolumeXml(projectName) {
               </BezierWarper>
             </Warper>
           </Slice>`;
-  });
+    });
 
-  // Output resolution: the canvas, grown to cover every slice
-  const canvas = document.getElementById('canvasView');
-  let totalWidth = canvas ? canvas.width : 1920;
-  let totalHeight = canvas ? canvas.height : 1080;
-  slices.forEach(function(slice) {
-    totalWidth = Math.max(totalWidth, slice.x + slice.w);
-    totalHeight = Math.max(totalHeight, slice.y + slice.h);
+    const name = escapeXml(output.name);
+    screensXml += `
+      <Screen name="${name}" uniqueId="${generateUniqueId()}">
+        <layers>${slicesXml}
+        </layers>
+        <OutputDevice>
+          <OutputDeviceVirtual name="${name}" deviceId="VirtualScreen ${n + 1}" idHash="${generateUniqueId()}"
+                               width="${output.width}" height="${output.height}">
+            <Params name="Params">
+              <ParamRange name="Width" default="${output.width}" value="${output.width}"/>
+              <ValueRange name="defaultRange" min="1" max="16384"/>
+              <ParamRange name="Height" default="${output.height}" value="${output.height}"/>
+            </Params>
+          </OutputDeviceVirtual>
+        </OutputDevice>
+      </Screen>`;
   });
-
-  const screenUniqueId = generateUniqueId();
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 
@@ -175,21 +203,7 @@ function buildResolumeXml(projectName) {
                revision="51094"/>
   <ScreenSetup name="ScreenSetup">
     <Params name="ScreenSetupParams"/>
-    <screens>
-      <Screen name="Screen 1" uniqueId="${screenUniqueId}">
-        <layers>${slicesXml}
-        </layers>
-        <OutputDevice>
-          <OutputDeviceVirtual name="Screen 1" deviceId="VirtualScreen 1" idHash="${generateUniqueId()}"
-                               width="${totalWidth}" height="${totalHeight}">
-            <Params name="Params">
-              <ParamRange name="Width" default="${totalWidth}" value="${totalWidth}"/>
-              <ValueRange name="defaultRange" min="1" max="16384"/>
-              <ParamRange name="Height" default="${totalHeight}" value="${totalHeight}"/>
-            </Params>
-          </OutputDeviceVirtual>
-        </OutputDevice>
-      </Screen>
+    <screens>${screensXml}
     </screens>
   </ScreenSetup>
 </XmlState>`;

@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.224', date: '2026-10-17', notes: 'Export one Resolume output per canvas reading from a side-by-side composition' },
   { version: '2.11.223', date: '2026-10-17', notes: 'Export split screens as their part on each canvas in test patterns and outlines' },
   { version: '2.11.222', date: '2026-10-17', notes: 'Keep other data lines in place when one port changes and flag lines left without a port' },
   { version: '2.11.221', date: '2026-10-17', notes: 'Colour data lines by the port they plug into instead of their line number' },

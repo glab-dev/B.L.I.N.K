@@ -199,6 +199,15 @@ function getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPa
     });
     return merged;
   }
+  if(isHorizontalDataDir(startDir)) {
+    const t = dataDirTranspose(startDir, pw, ph);
+    const turned = getDataLinePanelOrdering(t.pw, t.ph, panelsPerDataLine, 'top',
+      transposeDataKeys(deletedPanelsSet, t), transposeDataKeys(customDataLineAssignmentsMap, t));
+    Object.keys(turned).forEach(ln => {
+      turned[ln] = turned[ln].map(pt => { const p = t.from(pt.col, pt.row); return {col: p.c, row: p.r}; });
+    });
+    return turned;
+  }
   const dataLinePanels = {}; // { dataLineIndex: [{col, row}, ...] in order }
   const usedCustomDataLines = new Set();
 

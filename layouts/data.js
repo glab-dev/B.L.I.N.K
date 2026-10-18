@@ -74,6 +74,24 @@ function buildDataLineGroups(o) {
   if(o.split) return buildSplitDataLineGroups(o);
   const {pw, ph, panelsPerDataLine, startDir, deletedPanels, customDataLineAssignments} = o;
 
+  if(isHorizontalDataDir(startDir)) {
+    const t = dataDirTranspose(startDir, pw, ph);
+    const turned = buildDataLineGroups(Object.assign({}, o, {
+      pw: t.pw, ph: t.ph, startDir: 'top',
+      deletedPanels: transposeDataKeys(deletedPanels, t),
+      customDataLineAssignments: transposeDataKeys(customDataLineAssignments, t)
+    }));
+    turned.groups = turned.groups.map(g => g.map(pt => t.from(pt.c, pt.r)));
+    const panelToDataLine = new Map();
+    turned.panelToDataLine.forEach((ln, key) => {
+      const [c, r] = key.split(',').map(Number);
+      const p = t.from(c, r);
+      panelToDataLine.set(`${p.c},${p.r}`, ln);
+    });
+    turned.panelToDataLine = panelToDataLine;
+    return turned;
+  }
+
   // Build data path based on start direction (matching calculateActualDataLines logic)
   const serp = [];
 
@@ -540,10 +558,15 @@ function drawDataOverlay(ctx, o) {
       // Build segments of continuous adjacent panels
       // Top-most / bottom-most live row of each column — a serpentine turn happens
       // at a column's effective end, which moves when edge panels are deleted.
+      // Horizontal directions are judged on the wall turned on its side (rows become columns).
+      const tp = isHorizontalDataDir(startDir) ? dataDirTranspose(startDir, pw, ph) : null;
+      const W = tp ? tp.pw : pw, H = tp ? tp.ph : ph;
+      const at = (p) => tp ? tp.to(p.c, p.r) : p;
       const colTop = [], colBottom = [];
-      for(let c=0; c<pw; c++){
-        for(let r=0; r<ph; r++){
-          if(deletedPanels.has(`${c},${r}`)) continue;
+      for(let c=0; c<W; c++){
+        for(let r=0; r<H; r++){
+          const wp = tp ? tp.from(c, r) : {c, r};
+          if(deletedPanels.has(`${wp.c},${wp.r}`)) continue;
           if(colTop[c] === undefined) colTop[c] = r;
           colBottom[c] = r;
         }
@@ -558,8 +581,8 @@ function drawDataOverlay(ctx, o) {
         let currentSegment = [pts[0]];
 
         for(let i=1; i<pts.length; i++){
-          const prev = grp[i-1];
-          const curr = grp[i];
+          const prev = at(grp[i-1]);
+          const curr = at(grp[i]);
 
           // Check if current panel is adjacent to previous (within same column or adjacent columns)
           const colDiff = Math.abs(curr.c - prev.c);
@@ -570,7 +593,7 @@ function drawDataOverlay(ctx, o) {
           // at a column's effective bottom (e.g. a 2-row strip turning at row 1, where the
           // rows below are deleted), not just the full-grid top/bottom boundary.
           const isAdjacent = (colDiff === 0) || // same column
-                             (colDiff === 1 && (rowDiff === 0 || prev.r === 0 || prev.r === ph-1 || curr.r === 0 || curr.r === ph-1 ||
+                             (colDiff === 1 && (rowDiff === 0 || prev.r === 0 || prev.r === H-1 || curr.r === 0 || curr.r === H-1 ||
                                (prev.r === colTop[prev.c] && curr.r === colTop[curr.c]) ||
                                (prev.r === colBottom[prev.c] && curr.r === colBottom[curr.c]))); // adjacent column at turn
 

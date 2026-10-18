@@ -172,11 +172,16 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     const headLen = Math.max(8, panelResX * 0.2);
-    // Top-most / bottom-most live row of each column (turns move when edge panels are deleted)
+    // Top-most / bottom-most live row of each column (turns move when edge panels are deleted).
+    // Horizontal directions are judged on the wall turned on its side (rows become columns).
+    const tp = isHorizontalDataDir(startDir) ? dataDirTranspose(startDir, pw, effectivePh) : null;
+    const W = tp ? tp.pw : pw, H = tp ? tp.ph : effectivePh;
+    const at = (p) => { const q = tp ? tp.to(p.col, p.row) : {c: p.col, r: p.row}; return {col: q.c, row: q.r}; };
     const colTop = [], colBottom = [];
-    for(let c = 0; c < pw; c++) {
-      for(let r = 0; r < effectivePh; r++) {
-        if(deletedSet.has(`${c},${r}`)) continue;
+    for(let c = 0; c < W; c++) {
+      for(let r = 0; r < H; r++) {
+        const wp = tp ? tp.from(c, r) : {c, r};
+        if(deletedSet.has(`${wp.c},${wp.r}`)) continue;
         if(colTop[c] === undefined) colTop[c] = r;
         colBottom[c] = r;
       }
@@ -188,14 +193,14 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
       const segments = [];
       let seg = [grp[0]];
       for(let i = 1; i < grp.length; i++) {
-        const prev = grp[i - 1], curr = grp[i];
+        const prev = at(grp[i - 1]), curr = at(grp[i]);
         const colDiff = Math.abs(curr.col - prev.col), rowDiff = Math.abs(curr.row - prev.row);
         const isAdjacent = (colDiff === 0) ||
-          (colDiff === 1 && (rowDiff === 0 || prev.row === 0 || prev.row === effectivePh - 1 || curr.row === 0 || curr.row === effectivePh - 1 ||
+          (colDiff === 1 && (rowDiff === 0 || prev.row === 0 || prev.row === H - 1 || curr.row === 0 || curr.row === H - 1 ||
             (prev.row === colTop[prev.col] && curr.row === colTop[curr.col]) ||
             (prev.row === colBottom[prev.col] && curr.row === colBottom[curr.col])));
-        if(isAdjacent) seg.push(curr);
-        else { if(seg.length >= 2) segments.push(seg); seg = [curr]; }
+        if(isAdjacent) seg.push(grp[i]);
+        else { if(seg.length >= 2) segments.push(seg); seg = [grp[i]]; }
       }
       if(seg.length >= 2) segments.push(seg);
       segments.forEach(s => {

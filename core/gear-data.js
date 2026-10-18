@@ -85,9 +85,18 @@ function calcDataCrossJumpers(data, p, W, H) {
     const userMaxPPD = parseInt(data.maxPanelsPerData) || 0;
     const panelsPerDataLine = userMaxPPD > 0 ? userMaxPPD : suggestedPPD;
 
-    const startDir = data.dataStartDir || 'top';
-    const deletedPanelsData = data.deletedPanels;
-    const customDataLines = data.customDataLineAssignments;
+    let startDir = data.dataStartDir || 'top';
+    let deletedPanelsData = data.deletedPanels;
+    let customDataLines = data.customDataLineAssignments;
+    // Horizontal directions cross between rows — count them on the wall turned on its side
+    if(isHorizontalDataDir(startDir)) {
+      const t = dataDirTranspose(startDir, W, H);
+      deletedPanelsData = transposeDataKeys(deletedPanelsData, t);
+      customDataLines = transposeDataKeys(customDataLines, t);
+      W = t.pw;
+      H = t.ph;
+      startDir = 'top';
+    }
     const hasCustomDataLines = customDataLines && customDataLines.size > 0;
 
     if(startDir !== 'all_top' && startDir !== 'all_bottom') {

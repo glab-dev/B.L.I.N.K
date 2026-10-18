@@ -1,5 +1,5 @@
 {
-  "version": "2.11.227",
+  "version": "2.11.228",
   "updated": "2026-10-17",
-  "changelog": "Remove in-progress data direction lines that were shipped by mistake"
+  "changelog": "Add left and right data directions and refresh test pattern names on raster import"
 }

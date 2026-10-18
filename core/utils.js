@@ -544,6 +544,36 @@ function orderDataLineFlow(panels, startDir) {
   return out;
 }
 
+// ==================== HORIZONTAL DATA DIRECTIONS ====================
+// 'lr_top' / 'lr_bottom' / 'rl_top' / 'rl_bottom' snake across rows instead of down
+// columns, starting on the left or right side, from the top or bottom row. They run
+// the 'top' column walk on the wall turned on its side — rows become columns, starting
+// from the chosen edge — so every column-based walk, numbering and arrow rule applies
+// unchanged, then the result is mapped back.
+function isHorizontalDataDir(startDir) {
+  return startDir === 'lr_top' || startDir === 'lr_bottom' || startDir === 'rl_top' || startDir === 'rl_bottom';
+}
+
+// to(c, r) maps a wall panel onto the turned wall; from(c, r) maps it back.
+function dataDirTranspose(startDir, pw, ph) {
+  const fromBottom = startDir === 'lr_bottom' || startDir === 'rl_bottom';
+  const fromRight = startDir === 'rl_top' || startDir === 'rl_bottom';
+  return {
+    pw: ph,
+    ph: pw,
+    to: (c, r) => ({ c: fromBottom ? ph - 1 - r : r, r: fromRight ? pw - 1 - c : c }),
+    from: (c, r) => ({ c: fromRight ? pw - 1 - r : r, r: fromBottom ? ph - 1 - c : c })
+  };
+}
+
+// A "c,r"-keyed Set or Map with its keys moved onto the turned wall
+function transposeDataKeys(coll, t) {
+  if(!coll) return coll;
+  const move = (key) => { const [c, r] = key.split(',').map(Number); const p = t.to(c, r); return `${p.c},${p.r}`; };
+  if(coll instanceof Map) return new Map(Array.from(coll, ([k, v]) => [move(k), v]));
+  return new Set(Array.from(coll, move));
+}
+
 // ==================== FILE SAVE HELPERS ====================
 // One 3-tier save ladder for every export: File System Access "Save As" dialog
 // (Chrome/Edge desktop) -> Web Share sheet, i.e. "Save to Files" (mobile) ->

@@ -663,6 +663,7 @@ function _tpApplyRaster(raster) {
     return;
   }
   tpSaveState();
+  var prevRasterName = tpRaster ? tpRaster.name : null;
   tpRaster = raster;
   // A raster is a set of separate walls, so each gets its own pattern
   tpRasterMode = 'perScreen';
@@ -675,7 +676,7 @@ function _tpApplyRaster(raster) {
   // Canvas dimensions changed — reseed the size-dependent animations
   _tpScrollTime = 0;
   _tpBounceTime = 0;
-  if(!tpImageName || tpImageName === 'Name your testpattern') {
+  if(!tpImageName || tpImageName === 'Name your testpattern' || tpImageName === prevRasterName) {
     tpImageName = raster.name;
   }
   _tpSyncDOM();
@@ -884,6 +885,7 @@ function tpClearRaster() {
   if(!tpRaster) return;
   tpSaveState();
   tpRaster = null;
+  tpImageName = 'Name your testpattern';
   _tpScrollTime = 0;
   _tpBounceTime = 0;
   _tpSyncDOM();

@@ -21,6 +21,9 @@ function drawSocaOverlay(ctx, o) {
   // Tall narrow groups (a single screen on the data canvas) rotate almost
   // vertical, so callers can ask for a horizontal label instead.
   const _labelDiagonal = (o.labelDiagonal !== false);
+  // Optional (panelKey) -> true when an empty/deleted hole is NOT free for the label —
+  // on the combined canvas another screen placed over the hole is drawn there.
+  const _holeBlocked = (typeof o.holeBlocked === 'function') ? o.holeBlocked : null;
   const _drawOutlines = !!o.drawOutlines;
   const _labelsOn     = !!o.drawLabels;
   if (!panelToCircuit || (!_drawOutlines && !_labelsOn)) return;
@@ -173,7 +176,7 @@ function drawSocaOverlay(ctx, o) {
           const _hk = `${minC + c},${minR + r}`;
           // Usable = this SOCA's cell, or an empty/deleted hole (owned by no
           // SOCA) so the label spans across deleted columns; another SOCA blocks.
-          const _avail = cellSet.has(_hk) || !_cellOwner.has(_hk);
+          const _avail = cellSet.has(_hk) || (!_cellOwner.has(_hk) && !(_holeBlocked && _holeBlocked(_hk)));
           heights[c] = _avail ? heights[c] + 1 : 0;
         }
         const stack = [];

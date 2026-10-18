@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.230', date: '2026-10-17', notes: 'Blank knocked-out panels and fit labels around overlapped screens in combined view' },
   { version: '2.11.229', date: '2026-10-17', notes: 'Show cable lengths in metres across the gear list, PDF and email' },
   { version: '2.11.228', date: '2026-10-17', notes: 'Add left and right data directions and refresh test pattern names on raster import' },
   { version: '2.11.227', date: '2026-10-17', notes: 'Remove in-progress data direction lines that were shipped by mistake' },

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.229",
+  "version": "2.11.230",
   "updated": "2026-10-17",
-  "changelog": "Show cable lengths in metres across the gear list, PDF and email"
+  "changelog": "Blank knocked-out panels and fit labels around overlapped screens in combined view"
 }

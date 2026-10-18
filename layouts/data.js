@@ -422,7 +422,7 @@ function drawDataOverlay(ctx, o) {
     groups, sortedDataLines, endpoints, deletedPanels, startDir,
     pw, ph, panelWidth, rowGeo,
     offsetX, offsetY, rearView, flip, showArrows, showLabels, redundancy,
-    panelFontSize, arrowLineWidth, arrowHeadSize, lightDeletedPanels
+    panelFontSize, arrowLineWidth, arrowHeadSize, lightDeletedPanels, skipDeletedPanels
   } = o;
   // Optional Map(trueLine -> displayed number). The data layout numbers lines by
   // the port they land on; without it the raw line numbers are used.
@@ -473,7 +473,7 @@ function drawDataOverlay(ctx, o) {
       const panelKey = `${c},${r}`;
 
       // Check if panel is deleted
-      if(deletedPanels.has(panelKey)) {
+      if(deletedPanels.has(panelKey) && !skipDeletedPanels) {
         const x = drawX(c);
         const y = drawY(r);
         ctx.fillStyle = lightDeletedPanels ? '#ffffff' : '#1a1a1a';

@@ -2657,6 +2657,36 @@ function combinedArrangedCanvasSize(screenDimensions, canvasWidth, canvasHeight,
   return { width, height };
 }
 
+// For one screen on the power/data canvas: is its cell "c,r" covered by another screen's
+// live panel? Manually overlapped screens fill each other's knockouts, so a SOCA /
+// processor label may only span a hole that nothing else is drawn in.
+function combinedCellCoveredByOtherScreen(screenDimensions, dim, panelSize, topPadding) {
+  const others = screenDimensions.filter(d => d !== dim).map(d => {
+    const origin = combinedScreenOrigin(d, panelSize, topPadding);
+    return { dim: d, x: origin.x, y: origin.y, geo: combinedRowGeometry(d.data, panelSize).geo };
+  });
+  const own = combinedScreenOrigin(dim, panelSize, topPadding);
+  const ownGeo = combinedRowGeometry(dim.data, panelSize).geo;
+  return (panelKey) => {
+    const [c, r] = panelKey.split(',').map(Number);
+    // Shrink by half a pixel so screens that only touch edges don't count as overlapping
+    const x0 = own.x + c * panelSize + 0.5, x1 = own.x + (c + 1) * panelSize - 0.5;
+    const y0 = own.y + ownGeo.y(r) + 0.5, y1 = own.y + ownGeo.y(r) + ownGeo.h(r) - 0.5;
+    return others.some(o => {
+      const cFrom = Math.max(0, Math.floor((x0 - o.x) / panelSize));
+      const cTo = Math.min(o.dim.pw - 1, Math.floor((x1 - o.x) / panelSize));
+      for(let oc = cFrom; oc <= cTo; oc++) {
+        for(let orow = 0; orow < o.geo.rows; orow++) {
+          const oy0 = o.y + o.geo.y(orow);
+          if(oy0 >= y1 || oy0 + o.geo.h(orow) <= y0) continue;
+          if(!isCombinedPanelDeleted(o.dim.data, `${oc},${orow}`)) return true;
+        }
+      }
+      return false;
+    });
+  };
+}
+
 // Render combined power layout
 function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding) {
   const canvas = document.getElementById('combinedPowerCanvas');
@@ -2794,13 +2824,6 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
 
         const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
         if(hasDeleted) {
-          ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#ffffff' : '#1a1a1a';
-          ctx.fillRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.strokeStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#cccccc' : '#333333';
-          ctx.lineWidth = 1;
-          ctx.setLineDash([3, 3]);
-          ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.setLineDash([]);
           continue;
         }
 
@@ -2842,6 +2865,7 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       offsetX: screenX, offsetY: screenY,
       outlineLineWidth: 1.5,
       socaLabelIdx: _socaLabelIdx,
+      holeBlocked: combinedCellCoveredByOtherScreen(screenDimensions, dim, panelSize, topPadding),
       drawOutlines: (typeof socaOutlinesEnabled !== 'undefined') ? socaOutlinesEnabled : true,
       drawLabels:   (typeof socaDiagonalLabelEnabled !== 'undefined') ? socaDiagonalLabelEnabled : true
     });
@@ -3267,7 +3291,8 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       panelFontSize: numberFontSize,
       arrowLineWidth: Math.max(1.5, panelSize * 0.075),
       arrowHeadSize: Math.max(5, panelSize * 0.3),
-      lightDeletedPanels: (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode)
+      lightDeletedPanels: (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode),
+      skipDeletedPanels: true
     });
 
     // Distribution box / processor label across each screen, drawn by the same
@@ -3289,7 +3314,8 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
           drawLabels: true,
           labelFor: (idx) => unitGroups.labels.get(idx) || '',
           labelColor: '#10b981',
-          labelDiagonal: false
+          labelDiagonal: false,
+          holeBlocked: combinedCellCoveredByOtherScreen(screenDimensions, dim, panelSize, topPadding)
         });
       }
     }
@@ -3672,12 +3698,6 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 
         const hasDeleted = screenDeletedPanels.has(panelKey);
         if(hasDeleted) {
-          // Deleted panels show dashed outline
-          ctx.strokeStyle = '#333333';
-          ctx.lineWidth = 1;
-          ctx.setLineDash([3, 3]);
-          ctx.strokeRect(px, py, drawPanelWidth, currentDrawHeight);
-          ctx.setLineDash([]);
           continue;
         }
 

@@ -2,12 +2,10 @@
 // Single source of truth for gear list calculations.
 // Consumed by: gear tab (nav/gear.js), PDF export, and email export (export/pdf.js)
 
-// Cable lengths actually stocked, per type — these drive the spare rows offered in the
-// combined gear list. Deliberately NOT the same list as STANDARD_CABLE_LENGTHS in
-// nav/gear.js: that one sizes real cable runs, and changing it would move every
-// calculated cable count in the app.
-const SPARE_CAT6_LENGTHS = [10, 25, 50, 75, 100, 200, 300];
-const SPARE_SOCA_LENGTHS = [25, 50, 75, 100];
+// The cable lengths actually stocked for spares, the SDI/HDMI kit and the source fiber
+// come from cableKit() (CABLE_KIT_LENGTHS in nav/gear.js), per cable unit. Deliberately NOT
+// the run-sizing list (STANDARD_CABLE_LENGTHS / METRIC_CABLE_LENGTHS): that one sizes real
+// cable runs, and changing it would move every calculated cable count in the app.
 
 // ==================== SPARE QUANTITY OVERRIDES ====================
 // Spares are auto-calculated (panels 10%, cables/rigging 40%) but every line is
@@ -479,17 +477,12 @@ function buildGearListData(screenIds) {
     const sdiPerProcessor = totalProcessors * 2;
 
     const sdiByLength = {};
-    if(isHDCanvas) {
-      sdiByLength[100] = sdiPerProcessor;
-      sdiByLength[50] = sdiPerProcessor;
-      sdiByLength[25] = sdiPerProcessor;
-      sdiByLength[10] = 6;
-      sdiByLength[3] = 6;
-    } else {
-      sdiByLength[100] = sdiPerProcessor;
-      sdiByLength[50] = sdiPerProcessor;
-      sdiByLength[25] = sdiPerProcessor;
-    }
+    // The kit, in the project's cable unit: the three long lengths per processor pair,
+    // plus six each of the two short patch lengths on an HD canvas
+    const kit = cableKit();
+    (isHDCanvas ? kit.sdiHD : kit.sdi4K).forEach((len, i) => {
+      sdiByLength[len] = i < 3 ? sdiPerProcessor : 6;
+    });
 
     // Source → Processor cables: each feed is a run + backup (2 cables). Runs over 300'
     // go fiber, and share one line sized to the longest of them.
@@ -506,8 +499,10 @@ function buildGearListData(screenIds) {
       }
     });
     if(fiberRuns > 0) {
-      const fiberLen = Math.max(500, Math.ceil(longestFiberRun / 100) * 100);
-      serverFiberLine = { label: fiberLen + "' Fiber", count: fiberRuns * 2 };
+      // Fiber is sized in the project's unit: at least 500', in 100' steps — or 150 m in 50 m
+      const longest = (typeof cableUnit !== 'undefined' && cableUnit === 'm') ? longestFiberRun / FT_PER_M : longestFiberRun;
+      const fiberLen = Math.max(kit.fiberMin, Math.ceil(longest / kit.fiberStep) * kit.fiberStep);
+      serverFiberLine = { label: cableLenLabel(fiberLen) + ' Fiber', count: fiberRuns * 2 };
     }
 
     signalCablesAuto = {
@@ -515,7 +510,7 @@ function buildGearListData(screenIds) {
       sdiType: sdiType,
       sdiByLength: sdiByLength,
       serverFiberLine: serverFiberLine,
-      hdmi: { 25: 6, 10: 6, 6: 6 }
+      hdmi: kit.hdmi.reduce((acc, len) => { acc[len] = 6; return acc; }, {})
     };
 
     // SDI counts are derived but the HDMI counts are flat constants, so both are
@@ -620,8 +615,8 @@ function buildGearListData(screenIds) {
     };
     const autoCrossJumpers = {};
     Object.entries(totCrossJumpersByLen).forEach(([len, count]) => { autoCrossJumpers[len] = spareCable(count); });
-    const autoCat6 = byLengthSpares(SPARE_CAT6_LENGTHS, totCat6);
-    const autoSoca = byLengthSpares(SPARE_SOCA_LENGTHS, totSoca);
+    const autoCat6 = byLengthSpares(cableKit().spareCat6, totCat6);
+    const autoSoca = byLengthSpares(cableKit().spareSoca, totSoca);
 
     combinedSparesAuto = {
       panelsByType: autoPanelsByType,

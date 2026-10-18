@@ -22,11 +22,24 @@ function activateGearView() {
 // ==================== CABLING CALCULATION SYSTEM ====================
 
 // Lengths that real cable runs are rounded up to. The spare rows offered in the
-// combined gear list come from SPARE_CAT6_LENGTHS / SPARE_SOCA_LENGTHS in
-// core/gear-data.js instead — changing this list would move calculated cable counts.
+// combined gear list come from CABLE_KIT_LENGTHS below instead — changing this list
+// would move calculated cable counts.
 const STANDARD_CABLE_LENGTHS = [25, 50, 75, 100, 150, 200, 250, 300];
 
+// The same in metres — rental stock lengths (researched 2026-10-17), one list for every
+// cable type just as the feet list is
+const METRIC_CABLE_LENGTHS = [10, 15, 25, 30, 50, 75, 100];
+
+// A run's length (in feet) rounded up to the next stocked cable, in the project's cable
+// unit: feet from the feet list, or metres from the metric list
 function roundUpToStandard(lengthFt) {
+  if(typeof cableUnit !== 'undefined' && cableUnit === 'm') {
+    const m = lengthFt / FT_PER_M;
+    for(const s of METRIC_CABLE_LENGTHS) {
+      if(m <= s) return s;
+    }
+    return Math.ceil(m / 25) * 25;
+  }
   for(const s of STANDARD_CABLE_LENGTHS) {
     if(lengthFt <= s) return s;
   }
@@ -39,6 +52,42 @@ function roundUpToStandard(lengthFt) {
 // metres. Defaults for empty fields are whole metres (5' → 2 m), so the numbers read
 // cleanly; anything typed converts exactly.
 const FT_PER_M = 3.28084;
+
+// Fixed kit lines, by cable unit — the metric column uses stocked metric lengths, not
+// converted feet (25' would be an unstocked 7.62 m)
+const CABLE_KIT_LENGTHS = {
+  ft: {
+    sdiHD: [100, 50, 25, 10, 3], sdi4K: [100, 50, 25], hdmi: [25, 10, 6],
+    ug: { ug10: 10, ug25: 25, ug50: 50 },
+    true1: { true1_50: 50, true1_25: 25, true1_10: 10, true1_5: 5 },
+    spareCat6: [10, 25, 50, 75, 100, 200, 300], spareSoca: [25, 50, 75, 100],
+    fiberMin: 500, fiberStep: 100
+  },
+  m: {
+    sdiHD: [30, 15, 10, 3, 1], sdi4K: [30, 15, 10], hdmi: [7.5, 3, 2],
+    ug: { ug10: 3, ug25: 10, ug50: 15 },
+    true1: { true1_50: 15, true1_25: 10, true1_10: 3, true1_5: 1.5 },
+    spareCat6: [3, 10, 15, 20, 30, 50, 100], spareSoca: [10, 15, 25, 30],
+    fiberMin: 150, fiberStep: 50
+  }
+};
+
+// The kit lengths for the project's cable unit
+function cableKit() {
+  return CABLE_KIT_LENGTHS[(typeof cableUnit !== 'undefined' && cableUnit === 'm') ? 'm' : 'ft'];
+}
+
+// A stocked cable length already in the project's unit, as a label: 50' or 15 m
+function cableLenLabel(n) {
+  return (typeof cableUnit !== 'undefined' && cableUnit === 'm') ? n + ' m' : n + "'";
+}
+
+// A panel's jumper length from its spec (text like "1'") in the project's unit
+function cableJumperLabel(text) {
+  if(!text || typeof cableUnit === 'undefined' || cableUnit !== 'm') return text;
+  const ft = parseFloat(text);
+  return isNaN(ft) ? text : cableLabel(ft);
+}
 
 // Default for each cable distance field, in feet
 const CABLE_INPUT_DEFAULTS = {
@@ -979,10 +1028,10 @@ function generateGearList() {
     // === DATA CABLES ===
     html += sectionHdr('Data Cables');
     if(dc.jumperCount > 0) {
-      html += gearLine(`Jumpers ${dc.dataJumperLen}:`, dc.jumperCount);
+      html += gearLine(`Jumpers ${cableJumperLabel(dc.dataJumperLen)}:`, dc.jumperCount);
     }
     if(dc.crossJumperLen && dc.crossJumperCount > 0) {
-      html += gearLine(`Cross Jumpers ${dc.crossJumperLen}:`, dc.crossJumperCount);
+      html += gearLine(`Cross Jumpers ${cableJumperLabel(dc.crossJumperLen)}:`, dc.crossJumperCount);
     }
     if(dc.jumpersBuiltin && dc.cat5CouplerCount > 0) {
       html += gearLine('Cat5 Couplers:', dc.cat5CouplerCount);
@@ -994,7 +1043,7 @@ function generateGearList() {
     }
     if(cat6Lengths.length > 0) {
       for(const [len, count] of cat6Lengths) {
-        html += `<div style="margin-left: 12px; color: #fff;">${count} x ${len}' Cat6</div>`;
+        html += `<div style="margin-left: 12px; color: #fff;">${count} x ${cableLenLabel(len)} Cat6</div>`;
       }
       // Detail dropdown
       if(dc.cableDetail.length > 0 || dc.knockoutDetail.length > 0) {
@@ -1002,10 +1051,10 @@ function generateGearList() {
         dc.cableDetail.forEach(c => {
           const _lineNo = (typeof dataLineDisplayNumber === 'function')
             ? dataLineDisplayNumber(sd.screenId, c.lineIndex) : c.lineIndex;
-          html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">Line ${_lineNo}: ${c.lengthFt}' → ${c.roundedFt}'</div>`;
+          html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">Line ${_lineNo}: ${cableLabel(c.lengthFt)} → ${cableLenLabel(c.roundedFt)}</div>`;
         });
         dc.knockoutDetail.forEach(c => {
-          html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">Knockout ${c.index + 1} (P${c.fromPanel} → P${c.toPanel}): ${c.lengthFt}' → ${c.roundedFt}'</div>`;
+          html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">Knockout ${c.index + 1} (P${c.fromPanel} → P${c.toPanel}): ${cableLabel(c.lengthFt)} → ${cableLenLabel(c.roundedFt)}</div>`;
         });
         html += `</details>`;
       }
@@ -1014,26 +1063,26 @@ function generateGearList() {
     // === POWER CABLES ===
     html += sectionHdr('Power Cables');
     if(pc.jumperCount > 0) {
-      html += gearLine(`Jumpers ${pc.powerJumperLen}:`, pc.jumperCount);
+      html += gearLine(`Jumpers ${cableJumperLabel(pc.powerJumperLen)}:`, pc.jumperCount);
     }
     if(pc.jumperCount > 0) html += subTypeSpacer;
     html += gearLine('Soca Splays:', pc.socaSplays);
     // Dynamic SOCA cable lengths
     const socaLengths = Object.entries(pc.socaByLength).sort((a,b) => a[0] - b[0]);
     for(const [len, count] of socaLengths) {
-      html += `<div style="margin-left: 12px; color: #fff;">${count} x ${len}' Soca</div>`;
+      html += `<div style="margin-left: 12px; color: #fff;">${count} x ${cableLenLabel(len)} Soca</div>`;
     }
     // True1 cables
     if(socaLengths.length > 0 || pc.socaSplays > 0) html += subTypeSpacer;
-    html += gearLine("25' True1:", pc.true1_25);
-    html += gearLine("10' True1:", pc.true1_10);
-    html += gearLine("5' True1:", pc.true1_5);
+    html += gearLine(`${cableLenLabel(cableKit().true1.true1_25)} True1:`, pc.true1_25);
+    html += gearLine(`${cableLenLabel(cableKit().true1.true1_10)} True1:`, pc.true1_10);
+    html += gearLine(`${cableLenLabel(cableKit().true1.true1_5)} True1:`, pc.true1_5);
     html += gearLine('True1 Twofer:', pc.true1Twofer);
     // SOCA detail dropdown
     if(pc.socaDetail.length > 0) {
       html += `<details style="margin-left: 12px; margin-top: 4px;"><summary style="cursor: pointer; color: #fff; font-size: 12px;">Detail</summary>`;
       pc.socaDetail.forEach(s => {
-        html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">SOCA ${s.index}: ${s.lengthFt}' → ${s.roundedFt}'</div>`;
+        html += `<div style="margin-left: 12px; font-size: 12px; color: #fff;">SOCA ${s.index}: ${cableLabel(s.lengthFt)} → ${cableLenLabel(s.roundedFt)}</div>`;
       });
       html += `</details>`;
     }
@@ -1041,9 +1090,9 @@ function generateGearList() {
     // === PROCESSOR → DIST BOX ===
     if(p2d.count > 0) {
       html += sectionHdr('Processor → Dist Box');
-      html += `<div style="margin-left: 12px; color: #fff;">${p2d.count} x ${p2d.cableType} ${p2d.cableLength}'</div>`;
+      html += `<div style="margin-left: 12px; color: #fff;">${p2d.count} x ${p2d.cableType} ${cableLenLabel(p2d.cableLength)}</div>`;
       if(p2d.cableType === 'Fiber') {
-        html += `<div style="margin-left: 12px; color: #e040fb; font-size: 12px;">(Fiber required: distance > 200')</div>`;
+        html += `<div style="margin-left: 12px; color: #e040fb; font-size: 12px;">(Fiber required: distance > ${cableLabel(200)})</div>`;
       }
     }
 

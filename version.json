@@ -1,5 +1,5 @@
 {
-  "version": "2.11.228",
+  "version": "2.11.229",
   "updated": "2026-10-17",
-  "changelog": "Add left and right data directions and refresh test pattern names on raster import"
+  "changelog": "Show cable lengths in metres across the gear list, PDF and email"
 }

@@ -185,29 +185,29 @@ function buildGearListText(gearData) {
     }
 
     text += hdr('Data Cables');
-    if(dc.jumperCount > 0) text += line('Jumpers ' + dc.dataJumperLen + ':', dc.jumperCount);
-    if(dc.crossJumperLen && dc.crossJumperCount > 0) text += line('Cross Jumpers ' + dc.crossJumperLen + ':', dc.crossJumperCount);
+    if(dc.jumperCount > 0) text += line('Jumpers ' + cableJumperLabel(dc.dataJumperLen) + ':', dc.jumperCount);
+    if(dc.crossJumperLen && dc.crossJumperCount > 0) text += line('Cross Jumpers ' + cableJumperLabel(dc.crossJumperLen) + ':', dc.crossJumperCount);
     if(dc.jumpersBuiltin && dc.cat5CouplerCount > 0) text += line('Cat5 Couplers:', dc.cat5CouplerCount);
     var cat6Lengths = Object.entries(dc.cat6ByLength).sort(function(a, b) { return a[0] - b[0]; });
     for(var ci = 0; ci < cat6Lengths.length; ci++) {
-      text += ' - ' + cat6Lengths[ci][1] + " x " + cat6Lengths[ci][0] + "' Cat6" + nl;
+      text += ' - ' + cat6Lengths[ci][1] + " x " + cableLenLabel(cat6Lengths[ci][0]) + ' Cat6' + nl;
     }
 
     text += hdr('Power Cables');
-    if(pc.jumperCount > 0) text += line('Jumpers ' + pc.powerJumperLen + ':', pc.jumperCount);
+    if(pc.jumperCount > 0) text += line('Jumpers ' + cableJumperLabel(pc.powerJumperLen) + ':', pc.jumperCount);
     text += line('Soca Splays:', pc.socaSplays);
     var socaLengths = Object.entries(pc.socaByLength).sort(function(a, b) { return a[0] - b[0]; });
     for(var si = 0; si < socaLengths.length; si++) {
-      text += ' - ' + socaLengths[si][1] + " x " + socaLengths[si][0] + "' Soca" + nl;
+      text += ' - ' + socaLengths[si][1] + " x " + cableLenLabel(socaLengths[si][0]) + ' Soca' + nl;
     }
-    text += line("25' True1:", pc.true1_25);
-    text += line("10' True1:", pc.true1_10);
-    text += line("5' True1:", pc.true1_5);
+    text += line(cableLenLabel(cableKit().true1.true1_25) + ' True1:', pc.true1_25);
+    text += line(cableLenLabel(cableKit().true1.true1_10) + ' True1:', pc.true1_10);
+    text += line(cableLenLabel(cableKit().true1.true1_5) + ' True1:', pc.true1_5);
     text += line('True1 Twofer:', pc.true1Twofer);
 
     if(p2d.count > 0) {
       text += hdr('Processor to Dist Box');
-      text += ' - ' + p2d.count + 'x ' + p2d.cableType + ' ' + p2d.cableLength + "'" + nl;
+      text += ' - ' + p2d.count + 'x ' + p2d.cableType + ' ' + cableLenLabel(p2d.cableLength) + nl;
     }
   });
 
@@ -218,20 +218,20 @@ function buildGearListText(gearData) {
     text += '======================================' + nl;
     var sdiLengths = Object.keys(sig.sdiByLength).map(Number).sort(function(a, b) { return b - a; });
     for(var li = 0; li < sdiLengths.length; li++) {
-      if(sig.sdiByLength[sdiLengths[li]] > 0) text += line(sdiLengths[li] + "' " + sig.sdiType + ':', sig.sdiByLength[sdiLengths[li]]);
+      if(sig.sdiByLength[sdiLengths[li]] > 0) text += line(cableLenLabel(sdiLengths[li]) + ' ' + sig.sdiType + ':', sig.sdiByLength[sdiLengths[li]]);
     }
     if(sig.serverFiberLine) text += line(sig.serverFiberLine.label + ':', sig.serverFiberLine.count);
-    text += line("25' HDMI:", sig.hdmi[25]);
-    text += line("10' HDMI:", sig.hdmi[10]);
-    text += line("6' HDMI:", sig.hdmi[6]);
+    Object.keys(sig.hdmi).map(Number).sort(function(a, b) { return b - a; }).forEach(function(len) {
+      text += line(cableLenLabel(len) + ' HDMI:', sig.hdmi[len]);
+    });
   }
 
   var util = gearData.utility;
   if(util) {
     text += hdr('Utility');
-    text += line("UG 10':", util.ug10);
-    text += line("UG 25':", util.ug25);
-    text += line("UG 50':", util.ug50);
+    text += line('UG ' + cableLenLabel(cableKit().ug.ug10) + ':', util.ug10);
+    text += line('UG ' + cableLenLabel(cableKit().ug.ug25) + ':', util.ug25);
+    text += line('UG ' + cableLenLabel(cableKit().ug.ug50) + ':', util.ug50);
     text += line('UG Twofers:', util.ugTwofers);
     text += line('Power Bars:', util.powerBars);
   }
@@ -250,13 +250,13 @@ function buildGearListText(gearData) {
     if(sp.cheeseyes) text += line('Cheeseyes:', sp.cheeseyes);
     text += nl;
     Object.entries(sp.crossJumpersByLength || {}).forEach(function(e) {
-      if(e[1] > 0) text += line('Cross Jumpers ' + e[0] + ':', e[1]);
+      if(e[1] > 0) text += line('Cross Jumpers ' + cableJumperLabel(e[0]) + ':', e[1]);
     });
     if(sp.cat5Couplers) text += line('Cat5 Couplers:', sp.cat5Couplers);
     if(sp.cat6ByLength) {
       var cat6Spare = Object.entries(sp.cat6ByLength).sort(function(a, b) { return Number(b[0]) - Number(a[0]); });
       for(var ki = 0; ki < cat6Spare.length; ki++) {
-        if(cat6Spare[ki][1] > 0) text += line(cat6Spare[ki][0] + "' Cat6:", cat6Spare[ki][1]);
+        if(cat6Spare[ki][1] > 0) text += line(cableLenLabel(cat6Spare[ki][0]) + ' Cat6:', cat6Spare[ki][1]);
       }
     }
     text += nl;
@@ -264,13 +264,13 @@ function buildGearListText(gearData) {
     if(sp.socaByLength) {
       var socaSpare = Object.entries(sp.socaByLength).sort(function(a, b) { return Number(a[0]) - Number(b[0]); });
       for(var si = 0; si < socaSpare.length; si++) {
-        if(socaSpare[si][1] > 0) text += line(socaSpare[si][0] + "' Soca:", socaSpare[si][1]);
+        if(socaSpare[si][1] > 0) text += line(cableLenLabel(socaSpare[si][0]) + ' Soca:', socaSpare[si][1]);
       }
     }
-    if(sp.true1_50) text += line("50' True1:", sp.true1_50);
-    if(sp.true1_25) text += line("25' True1:", sp.true1_25);
-    if(sp.true1_10) text += line("10' True1:", sp.true1_10);
-    if(sp.true1_5) text += line("5' True1:", sp.true1_5);
+    if(sp.true1_50) text += line(cableLenLabel(cableKit().true1.true1_50) + ' True1:', sp.true1_50);
+    if(sp.true1_25) text += line(cableLenLabel(cableKit().true1.true1_25) + ' True1:', sp.true1_25);
+    if(sp.true1_10) text += line(cableLenLabel(cableKit().true1.true1_10) + ' True1:', sp.true1_10);
+    if(sp.true1_5) text += line(cableLenLabel(cableKit().true1.true1_5) + ' True1:', sp.true1_5);
     if(sp.true1Twofer) text += line('True1 Twofer:', sp.true1Twofer);
   }
 
@@ -367,31 +367,31 @@ function sendGearListToJared(includeRP) {
 
     // Data Cables
     text += hdr('Data Cables');
-    if(dc.jumperCount > 0) text += line(`Jumpers ${dc.dataJumperLen}:`, dc.jumperCount);
-    if(dc.crossJumperLen && dc.crossJumperCount > 0) text += line(`Cross Jumpers ${dc.crossJumperLen}:`, dc.crossJumperCount);
+    if(dc.jumperCount > 0) text += line(`Jumpers ${cableJumperLabel(dc.dataJumperLen)}:`, dc.jumperCount);
+    if(dc.crossJumperLen && dc.crossJumperCount > 0) text += line(`Cross Jumpers ${cableJumperLabel(dc.crossJumperLen)}:`, dc.crossJumperCount);
     if(dc.jumpersBuiltin && dc.cat5CouplerCount > 0) text += line('Cat5 Couplers:', dc.cat5CouplerCount);
     const cat6Lengths = Object.entries(dc.cat6ByLength).sort((a,b) => a[0] - b[0]);
     for(const [len, count] of cat6Lengths) {
-      text += ` - ${count} x ${len}' Cat6${nl}`;
+      text += ` - ${count} x ${cableLenLabel(len)} Cat6${nl}`;
     }
 
     // Power Cables
     text += hdr('Power Cables');
-    if(pc.jumperCount > 0) text += line(`Jumpers ${pc.powerJumperLen}:`, pc.jumperCount);
+    if(pc.jumperCount > 0) text += line(`Jumpers ${cableJumperLabel(pc.powerJumperLen)}:`, pc.jumperCount);
     text += line('Soca Splays:', pc.socaSplays);
     const socaLengths = Object.entries(pc.socaByLength).sort((a,b) => a[0] - b[0]);
     for(const [len, count] of socaLengths) {
-      text += ` - ${count} x ${len}' Soca${nl}`;
+      text += ` - ${count} x ${cableLenLabel(len)} Soca${nl}`;
     }
-    text += line("25' True1:", pc.true1_25);
-    text += line("10' True1:", pc.true1_10);
-    text += line("5' True1:", pc.true1_5);
+    text += line(cableLenLabel(cableKit().true1.true1_25) + ' True1:', pc.true1_25);
+    text += line(cableLenLabel(cableKit().true1.true1_10) + ' True1:', pc.true1_10);
+    text += line(cableLenLabel(cableKit().true1.true1_5) + ' True1:', pc.true1_5);
     text += line('True1 Twofer:', pc.true1Twofer);
 
     // Processor -> Dist Box
     if(p2d.count > 0) {
       text += hdr('Processor to Dist Box');
-      text += ` - ${p2d.count}x ${p2d.cableType} ${p2d.cableLength}'${nl}`;
+      text += ` - ${p2d.count}x ${p2d.cableType} ${cableLenLabel(p2d.cableLength)}${nl}`;
     }
 
   });
@@ -403,21 +403,21 @@ function sendGearListToJared(includeRP) {
     text += `SIGNAL CABLES${nl}`;
     text += `======================================${nl}`;
     for(const len of Object.keys(sig.sdiByLength).map(Number).sort((a,b) => b - a)) {
-      if(sig.sdiByLength[len] > 0) text += line(`${len}' ${sig.sdiType}:`, sig.sdiByLength[len]);
+      if(sig.sdiByLength[len] > 0) text += line(`${cableLenLabel(len)} ${sig.sdiType}:`, sig.sdiByLength[len]);
     }
     if(sig.serverFiberLine) text += line(`${sig.serverFiberLine.label}:`, sig.serverFiberLine.count);
-    text += line("25' HDMI:", sig.hdmi[25]);
-    text += line("10' HDMI:", sig.hdmi[10]);
-    text += line("6' HDMI:", sig.hdmi[6]);
+    Object.keys(sig.hdmi).map(Number).sort(function(a, b) { return b - a; }).forEach(function(len) {
+      text += line(cableLenLabel(len) + ' HDMI:', sig.hdmi[len]);
+    });
   }
 
   // System-wide: Utility
   const util = gearData.utility;
   if(util) {
     text += hdr('Utility');
-    text += line("UG 10':", util.ug10);
-    text += line("UG 25':", util.ug25);
-    text += line("UG 50':", util.ug50);
+    text += line('UG ' + cableLenLabel(cableKit().ug.ug10) + ':', util.ug10);
+    text += line('UG ' + cableLenLabel(cableKit().ug.ug25) + ':', util.ug25);
+    text += line('UG ' + cableLenLabel(cableKit().ug.ug50) + ':', util.ug50);
     text += line('UG Twofers:', util.ugTwofers);
     text += line('Power Bars:', util.powerBars);
   }
@@ -439,12 +439,12 @@ function sendGearListToJared(includeRP) {
     // Data
     text += nl;
     Object.entries(sp.crossJumpersByLength || {}).forEach(function(e) {
-      if(e[1] > 0) text += line(`Cross Jumpers ${e[0]}:`, e[1]);
+      if(e[1] > 0) text += line(`Cross Jumpers ${cableJumperLabel(e[0])}:`, e[1]);
     });
     if(sp.cat5Couplers) text += line('Cat5 Couplers:', sp.cat5Couplers);
     if(sp.cat6ByLength) {
       for(const [len, count] of Object.entries(sp.cat6ByLength).sort((a,b) => Number(b[0]) - Number(a[0]))) {
-        if(count > 0) text += line(`${len}' Cat6:`, count);
+        if(count > 0) text += line(`${cableLenLabel(len)} Cat6:`, count);
       }
     }
     // Power
@@ -453,13 +453,13 @@ function sendGearListToJared(includeRP) {
     if(sp.socaByLength) {
       var socaSpare = Object.entries(sp.socaByLength).sort(function(a, b) { return Number(a[0]) - Number(b[0]); });
       for(var si = 0; si < socaSpare.length; si++) {
-        if(socaSpare[si][1] > 0) text += line(socaSpare[si][0] + "' Soca:", socaSpare[si][1]);
+        if(socaSpare[si][1] > 0) text += line(cableLenLabel(socaSpare[si][0]) + ' Soca:', socaSpare[si][1]);
       }
     }
-    if(sp.true1_50) text += line("50' True1:", sp.true1_50);
-    if(sp.true1_25) text += line("25' True1:", sp.true1_25);
-    if(sp.true1_10) text += line("10' True1:", sp.true1_10);
-    if(sp.true1_5) text += line("5' True1:", sp.true1_5);
+    if(sp.true1_50) text += line(cableLenLabel(cableKit().true1.true1_50) + ' True1:', sp.true1_50);
+    if(sp.true1_25) text += line(cableLenLabel(cableKit().true1.true1_25) + ' True1:', sp.true1_25);
+    if(sp.true1_10) text += line(cableLenLabel(cableKit().true1.true1_10) + ' True1:', sp.true1_10);
+    if(sp.true1_5) text += line(cableLenLabel(cableKit().true1.true1_5) + ' True1:', sp.true1_5);
     if(sp.true1Twofer) text += line('True1 Twofer:', sp.true1Twofer);
   }
 
@@ -515,6 +515,10 @@ function buildGearInventoryContent(gearData) {
 
   // Helper: resolve code from user gear code mappings, with fallback description
   function gc(key, fallbackDesc) {
+    // Codes name the feet stock, so a run sized in metres carries no code
+    if(typeof cableUnit !== 'undefined' && cableUnit === 'm' && /^(data\.cat6a|p2d\.fiber|power\.soca|power\.true1|signal\.sdi12g|signal\.sdi3g|signal\.fiber|signal\.hdmi|util\.ug)\./.test(key)) {
+      return { type: '', code: '', desc: fallbackDesc };
+    }
     var resolved = resolveGearCode(key);
     return { type: resolved.type || '', code: resolved.code || '', desc: resolved.desc || fallbackDesc };
   }
@@ -601,33 +605,33 @@ function buildGearInventoryContent(gearData) {
 
     // Data Cables
     var dataGroup = newGroup();
-    if(dc.jumperCount > 0) addToGroup(dataGroup, gc('data.jumper.' + parseFloat(dc.dataJumperLen), "Data Jumper " + dc.dataJumperLen), dc.jumperCount);
-    if(dc.crossJumperCount > 0) addToGroup(dataGroup, gc('data.crossJumper.' + parseFloat(dc.crossJumperLen), "Data Cross Jumper " + dc.crossJumperLen), dc.crossJumperCount);
+    if(dc.jumperCount > 0) addToGroup(dataGroup, gc('data.jumper.' + parseFloat(dc.dataJumperLen), "Data Jumper " + cableJumperLabel(dc.dataJumperLen)), dc.jumperCount);
+    if(dc.crossJumperCount > 0) addToGroup(dataGroup, gc('data.crossJumper.' + parseFloat(dc.crossJumperLen), "Data Cross Jumper " + cableJumperLabel(dc.crossJumperLen)), dc.crossJumperCount);
     if(dc.cat5CouplerCount > 0) addToGroup(dataGroup, gc('data.cat5Coupler', 'NE8FF EtherCON Coupler'), dc.cat5CouplerCount);
     Object.keys(dc.cat6ByLength).forEach(function(len) {
       var count = dc.cat6ByLength[len];
-      if(count > 0) addToGroup(dataGroup, gc('data.cat6a.' + parseFloat(len), "CAT6A EtherCON Cable " + len + "'"), count);
+      if(count > 0) addToGroup(dataGroup, gc('data.cat6a.' + parseFloat(len), "CAT6A EtherCON Cable " + cableLenLabel(len)), count);
     });
     if(p2d.count > 0) {
       if(p2d.cableType === 'Fiber') {
-        addToGroup(dataGroup, gc('p2d.fiber.' + p2d.cableLength, "Fiber OpticalCON " + p2d.cableLength + "'"), p2d.count);
+        addToGroup(dataGroup, gc('p2d.fiber.' + p2d.cableLength, "Fiber OpticalCON " + cableLenLabel(p2d.cableLength)), p2d.count);
       } else {
-        addToGroup(dataGroup, gc('data.cat6a.' + p2d.cableLength, "CAT6A EtherCON Cable " + p2d.cableLength + "'"), p2d.count);
+        addToGroup(dataGroup, gc('data.cat6a.' + p2d.cableLength, "CAT6A EtherCON Cable " + cableLenLabel(p2d.cableLength)), p2d.count);
       }
     }
     if(dataGroup.size > 0) categories.push(dataGroup);
 
     // Power Cables
     var powerGroup = newGroup();
-    if(pc.jumperCount > 0) addToGroup(powerGroup, gc('power.jumper.' + parseFloat(pc.powerJumperLen), "Power Jumper " + pc.powerJumperLen), pc.jumperCount);
+    if(pc.jumperCount > 0) addToGroup(powerGroup, gc('power.jumper.' + parseFloat(pc.powerJumperLen), "Power Jumper " + cableJumperLabel(pc.powerJumperLen)), pc.jumperCount);
     if(pc.socaSplays > 0) addToGroup(powerGroup, gc('power.socaSplay', 'Soca Splay'), pc.socaSplays);
     Object.keys(pc.socaByLength).forEach(function(len) {
       var count = pc.socaByLength[len];
-      if(count > 0) addToGroup(powerGroup, gc('power.soca.' + parseInt(len), "Soca Cable " + len + "'"), count);
+      if(count > 0) addToGroup(powerGroup, gc('power.soca.' + parseInt(len), "Soca Cable " + cableLenLabel(len)), count);
     });
-    if(pc.true1_25 > 0) addToGroup(powerGroup, gc('power.true1.25', "True1 25'"), pc.true1_25);
-    if(pc.true1_10 > 0) addToGroup(powerGroup, gc('power.true1.10', "True1 10'"), pc.true1_10);
-    if(pc.true1_5 > 0) addToGroup(powerGroup, gc('power.true1.5', "True1 5'"), pc.true1_5);
+    if(pc.true1_25 > 0) addToGroup(powerGroup, gc('power.true1.25', 'True1 ' + cableLenLabel(cableKit().true1.true1_25)), pc.true1_25);
+    if(pc.true1_10 > 0) addToGroup(powerGroup, gc('power.true1.10', 'True1 ' + cableLenLabel(cableKit().true1.true1_10)), pc.true1_10);
+    if(pc.true1_5 > 0) addToGroup(powerGroup, gc('power.true1.5', 'True1 ' + cableLenLabel(cableKit().true1.true1_5)), pc.true1_5);
     if(pc.true1Twofer > 0) addToGroup(powerGroup, gc('power.true1Twofer', 'True1 Twofer'), pc.true1Twofer);
     if(powerGroup.size > 0) categories.push(powerGroup);
 
@@ -647,17 +651,17 @@ function buildGearInventoryContent(gearData) {
       var count = sig.sdiByLength[len];
       if(count > 0) {
         var lengthNum = parseInt(len);
-        if(is12G) addToGroup(sigGroup, gc('signal.sdi12g.' + lengthNum, "SDI 12G 4K BNC Cable " + len + "'"), count);
-        else addToGroup(sigGroup, gc('signal.sdi3g.' + lengthNum, "HD-SDI BNC Video Cable " + len + "'"), count);
+        if(is12G) addToGroup(sigGroup, gc('signal.sdi12g.' + lengthNum, "SDI 12G 4K BNC Cable " + cableLenLabel(len)), count);
+        else addToGroup(sigGroup, gc('signal.sdi3g.' + lengthNum, "HD-SDI BNC Video Cable " + cableLenLabel(len)), count);
       }
     });
     if(sig.serverFiberLine && sig.serverFiberLine.count > 0) {
       var fiberLabel = sig.serverFiberLine.label;
       addToGroup(sigGroup, gc('signal.fiber.' + parseInt(fiberLabel), "Fiber OpticalCON " + fiberLabel), sig.serverFiberLine.count);
     }
-    if(sig.hdmi[25] > 0) addToGroup(sigGroup, gc('signal.hdmi.25', "HDMI Cable 25'"), sig.hdmi[25]);
-    if(sig.hdmi[10] > 0) addToGroup(sigGroup, gc('signal.hdmi.10', "HDMI Cable 10'"), sig.hdmi[10]);
-    if(sig.hdmi[6] > 0) addToGroup(sigGroup, gc('signal.hdmi.6', "HDMI Cable 6'"), sig.hdmi[6]);
+    Object.keys(sig.hdmi).map(Number).sort(function(a, b) { return b - a; }).forEach(function(len) {
+      if(sig.hdmi[len] > 0) addToGroup(sigGroup, gc('signal.hdmi.' + len, 'HDMI Cable ' + cableLenLabel(len)), sig.hdmi[len]);
+    });
     if(sigGroup.size > 0) {
       writeSeparator();
       writeHeader('Signal Cables');
@@ -669,9 +673,9 @@ function buildGearInventoryContent(gearData) {
   var util = gearData.utility;
   if(util) {
     var utilGroup = newGroup();
-    if(util.ug10 > 0) addToGroup(utilGroup, gc('util.ug.10', "Edison Power Cable 10'"), util.ug10);
-    if(util.ug25 > 0) addToGroup(utilGroup, gc('util.ug.25', "Edison Power Cable 25'"), util.ug25);
-    if(util.ug50 > 0) addToGroup(utilGroup, gc('util.ug.50', "Edison Power Cable 50'"), util.ug50);
+    if(util.ug10 > 0) addToGroup(utilGroup, gc('util.ug.10', 'Edison Power Cable ' + cableLenLabel(cableKit().ug.ug10)), util.ug10);
+    if(util.ug25 > 0) addToGroup(utilGroup, gc('util.ug.25', 'Edison Power Cable ' + cableLenLabel(cableKit().ug.ug25)), util.ug25);
+    if(util.ug50 > 0) addToGroup(utilGroup, gc('util.ug.50', 'Edison Power Cable ' + cableLenLabel(cableKit().ug.ug50)), util.ug50);
     if(util.ugTwofers > 0) addToGroup(utilGroup, gc('util.ugTwofer', 'UG Twofer'), util.ugTwofers);
     if(util.powerBars > 0) addToGroup(utilGroup, gc('util.powerBar', 'Power Bar'), util.powerBars);
     if(utilGroup.size > 0) {
@@ -1980,28 +1984,28 @@ function buildComplexPdf(opts, canvasCache) {
         }
 
         const dcItems = [];
-        if (dc.jumperCount > 0) dcItems.push({ qty: dc.jumperCount, item: ('Data Jumpers ' + (dc.dataJumperLen || '')).trim() });
-        if (dc.crossJumperLen && dc.crossJumperCount > 0) dcItems.push({ qty: dc.crossJumperCount, item: "Cross Jumpers " + dc.crossJumperLen });
+        if (dc.jumperCount > 0) dcItems.push({ qty: dc.jumperCount, item: ('Data Jumpers ' + (cableJumperLabel(dc.dataJumperLen) || '')).trim() });
+        if (dc.crossJumperLen && dc.crossJumperCount > 0) dcItems.push({ qty: dc.crossJumperCount, item: "Cross Jumpers " + cableJumperLabel(dc.crossJumperLen) });
         if (dc.jumpersBuiltin && dc.cat5CouplerCount > 0) dcItems.push({ qty: dc.cat5CouplerCount, item: 'Cat5 Couplers' });
         Object.entries(dc.cat6ByLength || {}).sort(function(a, b) { return Number(a[0]) - Number(b[0]); }).forEach(function(e) {
-          if (Number(e[1]) > 0) dcItems.push({ qty: e[1], item: e[0] + "' Cat6" });
+          if (Number(e[1]) > 0) dcItems.push({ qty: e[1], item: cableLenLabel(e[0]) + ' Cat6' });
         });
         if (p2d && p2d.count > 0) {
           dcItems.push({ qty: '— — —', item: 'Proc → Dist Box' });
           dcItems.push({ qty: p2d.count, item: p2d.cableType === 'Fiber'
-            ? ('Fiber OpticalCON ' + (p2d.cableLength || '') + "'").trim()
-            : ('CAT6A EtherCON ' + (p2d.cableLength || '') + "'").trim() });
+            ? ('Fiber OpticalCON ' + cableLenLabel(p2d.cableLength || '')).trim()
+            : ('CAT6A EtherCON ' + cableLenLabel(p2d.cableLength || '')).trim() });
         }
 
         const pcItems = [];
-        if (pc.jumperCount  > 0) pcItems.push({ qty: pc.jumperCount,  item: ('Power Jumpers ' + (pc.powerJumperLen || '')).trim() });
+        if (pc.jumperCount  > 0) pcItems.push({ qty: pc.jumperCount,  item: ('Power Jumpers ' + (cableJumperLabel(pc.powerJumperLen) || '')).trim() });
         if (pc.socaSplays   > 0) pcItems.push({ qty: pc.socaSplays,   item: 'Soca Splays' });
         Object.entries(pc.socaByLength || {}).sort(function(a, b) { return Number(a[0]) - Number(b[0]); }).forEach(function(e) {
-          if (Number(e[1]) > 0) pcItems.push({ qty: e[1], item: 'Soca ' + e[0] + "'" });
+          if (Number(e[1]) > 0) pcItems.push({ qty: e[1], item: 'Soca ' + cableLenLabel(e[0]) });
         });
-        if (pc.true1_25    > 0) pcItems.push({ qty: pc.true1_25,    item: "25' True1" });
-        if (pc.true1_10    > 0) pcItems.push({ qty: pc.true1_10,    item: "10' True1" });
-        if (pc.true1_5     > 0) pcItems.push({ qty: pc.true1_5,     item: "5' True1"  });
+        if (pc.true1_25    > 0) pcItems.push({ qty: pc.true1_25,    item: cableLenLabel(cableKit().true1.true1_25) + ' True1' });
+        if (pc.true1_10    > 0) pcItems.push({ qty: pc.true1_10,    item: cableLenLabel(cableKit().true1.true1_10) + ' True1' });
+        if (pc.true1_5     > 0) pcItems.push({ qty: pc.true1_5,     item: cableLenLabel(cableKit().true1.true1_5) + ' True1'  });
         if (pc.true1Twofer > 0) pcItems.push({ qty: pc.true1Twofer, item: 'True1 Twofer' });
 
         screenCols.push({
@@ -2061,17 +2065,17 @@ function buildComplexPdf(opts, canvasCache) {
       const scItems = [];
       if (sc.serverFiberLine && sc.serverFiberLine.count > 0) scItems.push({ qty: sc.serverFiberLine.count, item: sc.serverFiberLine.label });
       Object.entries(sc.sdiByLength || {}).forEach(function(e) {
-        if (Number(e[1]) > 0) scItems.push({ qty: e[1], item: e[0] + "' " + (sc.sdiType || 'SDI') });
+        if (Number(e[1]) > 0) scItems.push({ qty: e[1], item: cableLenLabel(e[0]) + ' ' + (sc.sdiType || 'SDI') });
       });
       Object.entries(sc.hdmi || {}).forEach(function(e) {
-        if (Number(e[1]) > 0) scItems.push({ qty: e[1], item: e[0] + "' HDMI" });
+        if (Number(e[1]) > 0) scItems.push({ qty: e[1], item: cableLenLabel(e[0]) + ' HDMI' });
       });
 
       const u = gearData.utility || {};
       const utilItems = [];
-      if (u.ug10     > 0) utilItems.push({ qty: u.ug10,     item: "10' UG" });
-      if (u.ug25     > 0) utilItems.push({ qty: u.ug25,     item: "25' UG" });
-      if (u.ug50     > 0) utilItems.push({ qty: u.ug50,     item: "50' UG" });
+      if (u.ug10     > 0) utilItems.push({ qty: u.ug10,     item: cableLenLabel(cableKit().ug.ug10) + ' UG' });
+      if (u.ug25     > 0) utilItems.push({ qty: u.ug25,     item: cableLenLabel(cableKit().ug.ug25) + ' UG' });
+      if (u.ug50     > 0) utilItems.push({ qty: u.ug50,     item: cableLenLabel(cableKit().ug.ug50) + ' UG' });
       if (u.ugTwofers > 0) utilItems.push({ qty: u.ugTwofers, item: 'UG Twofers' });
       if (u.powerBars > 0) utilItems.push({ qty: u.powerBars, item: 'Power Bars' });
 
@@ -2083,20 +2087,20 @@ function buildComplexPdf(opts, canvasCache) {
       if (sp.shackles    > 0) spareItems.push({ qty: sp.shackles,    item: 'Shackles' });
       if (sp.cheeseyes   > 0) spareItems.push({ qty: sp.cheeseyes,   item: 'Cheeseyes' });
       Object.entries(sp.crossJumpersByLength || {}).forEach(function(e) {
-        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: e[0] + ' Cross Jumpers' });
+        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: cableJumperLabel(e[0]) + ' Cross Jumpers' });
       });
       if (sp.cat5Couplers > 0) spareItems.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers' });
       Object.entries(sp.cat6ByLength || {}).forEach(function(e) {
-        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: e[0] + "' Cat6" });
+        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: cableLenLabel(e[0]) + ' Cat6' });
       });
       if (sp.socaSplays  > 0) spareItems.push({ qty: sp.socaSplays,  item: 'Soca Splays' });
       Object.entries(sp.socaByLength || {}).sort(function(a, b) { return Number(a[0]) - Number(b[0]); }).forEach(function(e) {
-        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: e[0] + "' Soca" });
+        if (Number(e[1]) > 0) spareItems.push({ qty: e[1], item: cableLenLabel(e[0]) + ' Soca' });
       });
-      if (sp.true1_50    > 0) spareItems.push({ qty: sp.true1_50,    item: "50' True1" });
-      if (sp.true1_25    > 0) spareItems.push({ qty: sp.true1_25,    item: "25' True1" });
-      if (sp.true1_10    > 0) spareItems.push({ qty: sp.true1_10,    item: "10' True1" });
-      if (sp.true1_5     > 0) spareItems.push({ qty: sp.true1_5,     item: "5' True1"  });
+      if (sp.true1_50    > 0) spareItems.push({ qty: sp.true1_50,    item: cableLenLabel(cableKit().true1.true1_50) + ' True1' });
+      if (sp.true1_25    > 0) spareItems.push({ qty: sp.true1_25,    item: cableLenLabel(cableKit().true1.true1_25) + ' True1' });
+      if (sp.true1_10    > 0) spareItems.push({ qty: sp.true1_10,    item: cableLenLabel(cableKit().true1.true1_10) + ' True1' });
+      if (sp.true1_5     > 0) spareItems.push({ qty: sp.true1_5,     item: cableLenLabel(cableKit().true1.true1_5) + ' True1'  });
       if (sp.true1Twofer > 0) spareItems.push({ qty: sp.true1Twofer, item: 'True1 Twofer' });
 
       // Spares is much the longest of the three, and landscape has ~250pt less usable
@@ -2365,31 +2369,31 @@ function pdfBuildGearRows(sd) {
 
   if (dc) {
     addHeader('DATA CABLES');
-    addRow(dc.jumperCount, `Jumpers ${dc.dataJumperLen}`);
-    if (dc.crossJumperLen && dc.crossJumperCount > 0) addRow(dc.crossJumperCount, `Cross Jumpers ${dc.crossJumperLen}`);
+    addRow(dc.jumperCount, `Jumpers ${cableJumperLabel(dc.dataJumperLen)}`);
+    if (dc.crossJumperLen && dc.crossJumperCount > 0) addRow(dc.crossJumperCount, `Cross Jumpers ${cableJumperLabel(dc.crossJumperLen)}`);
     if (dc.jumpersBuiltin && dc.cat5CouplerCount > 0) addRow(dc.cat5CouplerCount, 'Cat5 Couplers');
     const cat6Lengths = Object.entries(dc.cat6ByLength || {}).sort((a, b) => Number(a[0]) - Number(b[0]));
     for (const [len, count] of cat6Lengths) {
-      if (count > 0) addRow(count, `${len}' Cat6`);
+      if (count > 0) addRow(count, `${cableLenLabel(len)} Cat6`);
     }
     if (p2d && p2d.count > 0) {
       addRow(p2d.count, p2d.cableType === 'Fiber'
-        ? `Fiber OpticalCON ${p2d.cableLength}'`
-        : `CAT6A EtherCON ${p2d.cableLength}'`);
+        ? `Fiber OpticalCON ${cableLenLabel(p2d.cableLength)}`
+        : `CAT6A EtherCON ${cableLenLabel(p2d.cableLength)}`);
     }
   }
 
   if (pc) {
     addHeader('POWER CABLES');
-    addRow(pc.jumperCount, `Jumpers ${pc.powerJumperLen}`);
+    addRow(pc.jumperCount, `Jumpers ${cableJumperLabel(pc.powerJumperLen)}`);
     addRow(pc.socaSplays, 'Soca Splays');
     const socaLengths = Object.entries(pc.socaByLength || {}).sort((a, b) => Number(a[0]) - Number(b[0]));
     for (const [len, count] of socaLengths) {
-      if (count > 0) addRow(count, `Soca ${len}'`);
+      if (count > 0) addRow(count, `Soca ${cableLenLabel(len)}`);
     }
-    addRow(pc.true1_25, "25' True1");
-    addRow(pc.true1_10, "10' True1");
-    addRow(pc.true1_5, "5' True1");
+    addRow(pc.true1_25, cableLenLabel(cableKit().true1.true1_25) + ' True1');
+    addRow(pc.true1_10, cableLenLabel(cableKit().true1.true1_10) + ' True1');
+    addRow(pc.true1_5, cableLenLabel(cableKit().true1.true1_5) + ' True1');
     addRow(pc.true1Twofer, 'True1 Twofer');
   }
 
@@ -3064,11 +3068,11 @@ function buildPdfDocDefinition(opts, canvasCache) {
       const scRows = [];
       if (sc.serverFiberLine) scRows.push({ qty: sc.serverFiberLine.count, item: sc.serverFiberLine.label });
       Object.entries(sc.sdiByLength || {}).forEach(([len, count]) => {
-        if (count > 0) scRows.push({ qty: count, item: `${len}' ${sc.sdiType}` });
+        if (count > 0) scRows.push({ qty: count, item: `${cableLenLabel(len)} ${sc.sdiType}` });
       });
       if (sc.hdmi) {
         Object.entries(sc.hdmi).forEach(([len, count]) => {
-          if (count > 0) scRows.push({ qty: count, item: `${len}' HDMI` });
+          if (count > 0) scRows.push({ qty: count, item: `${cableLenLabel(len)} HDMI` });
         });
       }
       if (scRows.length > 0) {
@@ -3079,9 +3083,9 @@ function buildPdfDocDefinition(opts, canvasCache) {
     if (gearData.utility) {
       const u = gearData.utility;
       const uRows = [];
-      if (u.ug10  > 0) uRows.push({ qty: u.ug10,      item: "10' UG" });
-      if (u.ug25  > 0) uRows.push({ qty: u.ug25,      item: "25' UG" });
-      if (u.ug50  > 0) uRows.push({ qty: u.ug50,      item: "50' UG" });
+      if (u.ug10  > 0) uRows.push({ qty: u.ug10,      item: cableLenLabel(cableKit().ug.ug10) + ' UG' });
+      if (u.ug25  > 0) uRows.push({ qty: u.ug25,      item: cableLenLabel(cableKit().ug.ug25) + ' UG' });
+      if (u.ug50  > 0) uRows.push({ qty: u.ug50,      item: cableLenLabel(cableKit().ug.ug50) + ' UG' });
       if (u.ugTwofers > 0) uRows.push({ qty: u.ugTwofers, item: 'UG Twofers' });
       if (u.powerBars > 0) uRows.push({ qty: u.powerBars,  item: 'Power Bars' });
       if (uRows.length > 0) {
@@ -3098,20 +3102,20 @@ function buildPdfDocDefinition(opts, canvasCache) {
       if (sp.shackles    > 0) spRows.push({ qty: sp.shackles,    item: 'Shackles' });
       if (sp.cheeseyes   > 0) spRows.push({ qty: sp.cheeseyes,   item: 'Cheeseyes' });
       Object.entries(sp.crossJumpersByLength || {}).forEach(function(e) {
-        if (Number(e[1]) > 0) spRows.push({ qty: e[1], item: `${e[0]} Cross Jumpers` });
+        if (Number(e[1]) > 0) spRows.push({ qty: e[1], item: `${cableJumperLabel(e[0])} Cross Jumpers` });
       });
       if (sp.cat5Couplers > 0) spRows.push({ qty: sp.cat5Couplers, item: 'Cat5 Couplers' });
       Object.entries(sp.cat6ByLength || {}).forEach(([len, count]) => {
-        if (count > 0) spRows.push({ qty: count, item: `${len}' Cat6` });
+        if (count > 0) spRows.push({ qty: count, item: `${cableLenLabel(len)} Cat6` });
       });
       if (sp.socaSplays  > 0) spRows.push({ qty: sp.socaSplays,  item: 'Soca Splays' });
       Object.entries(sp.socaByLength || {}).sort(function(a, b) { return Number(a[0]) - Number(b[0]); }).forEach(function(e) {
-        if (Number(e[1]) > 0) spRows.push({ qty: e[1], item: e[0] + "' Soca" });
+        if (Number(e[1]) > 0) spRows.push({ qty: e[1], item: cableLenLabel(e[0]) + ' Soca' });
       });
-      if (sp.true1_50    > 0) spRows.push({ qty: sp.true1_50,    item: "50' True1" });
-      if (sp.true1_25    > 0) spRows.push({ qty: sp.true1_25,    item: "25' True1" });
-      if (sp.true1_10    > 0) spRows.push({ qty: sp.true1_10,    item: "10' True1" });
-      if (sp.true1_5     > 0) spRows.push({ qty: sp.true1_5,     item: "5' True1" });
+      if (sp.true1_50    > 0) spRows.push({ qty: sp.true1_50,    item: cableLenLabel(cableKit().true1.true1_50) + ' True1' });
+      if (sp.true1_25    > 0) spRows.push({ qty: sp.true1_25,    item: cableLenLabel(cableKit().true1.true1_25) + ' True1' });
+      if (sp.true1_10    > 0) spRows.push({ qty: sp.true1_10,    item: cableLenLabel(cableKit().true1.true1_10) + ' True1' });
+      if (sp.true1_5     > 0) spRows.push({ qty: sp.true1_5,     item: cableLenLabel(cableKit().true1.true1_5) + ' True1' });
       if (sp.true1Twofer > 0) spRows.push({ qty: sp.true1Twofer, item: 'True1 Twofers' });
       if (spRows.length > 0) {
         sysStack.push(pdfSectionBar('Spares', colors));

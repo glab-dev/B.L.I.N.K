@@ -4493,7 +4493,7 @@ function renderCombinedGearList(selectedScreenIds) {
 
     // Aggregate dist box cables
     (cabling.distBoxCables || []).forEach(c => {
-      const key = `${c.type === 'fiber' ? 'Fiber' : 'Cat6A'} ${c.roundedFt}'`;
+      const key = `${c.type === 'fiber' ? 'Fiber' : 'Cat6A'} ${cableLenLabel(c.roundedFt)}`;
       combinedDistBoxByType[key] = (combinedDistBoxByType[key] || 0) + 1;
     });
   });
@@ -4510,7 +4510,7 @@ function renderCombinedGearList(selectedScreenIds) {
   // Shortest first, matching how the cable length lists elsewhere read.
   const byLenLines = (map, label) => Object.keys(map)
     .sort((a, b) => (parseFloat(a) || 0) - (parseFloat(b) || 0))
-    .map(len => addGearLine(len ? `${label} ${len}:` : `${label}:`, map[len]))
+    .map(len => addGearLine(len ? `${label} ${cableJumperLabel(len)}:` : `${label}:`, map[len]))
     .join('');
   const sumByLen = (map) => Object.values(map).reduce((t, n) => t + n, 0);
 
@@ -4522,7 +4522,7 @@ function renderCombinedGearList(selectedScreenIds) {
     colData += addGearLine('Cat5 Couplers:', totalCat5Couplers);
     if(hasCatCables) {
       for(const [len, count] of Object.entries(combinedDataByLength).sort((a,b) => a[0] - b[0])) {
-        colData += `<div style="margin-left: 12px; color: #fff;">${count} x ${len}' Cat6</div>`;
+        colData += `<div style="margin-left: 12px; color: #fff;">${count} x ${cableLenLabel(len)} Cat6</div>`;
       }
     }
     if(hasDistBox) {
@@ -4543,13 +4543,13 @@ function renderCombinedGearList(selectedScreenIds) {
     colPower += addGearLine('Soca Splays:', totalSocaSplays);
     if(hasSocaRuns) {
       for(const [len, count] of Object.entries(combinedSocaByLength).sort((a,b) => a[0] - b[0])) {
-        colPower += `<div style="margin-left: 12px; color: #fff;">${count} x ${len}' Soca</div>`;
+        colPower += `<div style="margin-left: 12px; color: #fff;">${count} x ${cableLenLabel(len)} Soca</div>`;
       }
     }
     colPower += `<div style="margin-top: 10px;"></div>`;
-    colPower += addGearLine("25' True1:", totalSocaSplays);
-    colPower += addGearLine("10' True1:", totalSocaSplays);
-    colPower += addGearLine("5' True1:", totalSocaSplays * 2);
+    colPower += addGearLine(`${cableLenLabel(cableKit().true1.true1_25)} True1:`, totalSocaSplays);
+    colPower += addGearLine(`${cableLenLabel(cableKit().true1.true1_10)} True1:`, totalSocaSplays);
+    colPower += addGearLine(`${cableLenLabel(cableKit().true1.true1_5)} True1:`, totalSocaSplays * 2);
     colPower += addGearLine('True1 Twofer:', totalTrue1Twofers);
   }
 
@@ -4602,22 +4602,22 @@ function renderCombinedGearList(selectedScreenIds) {
   if(sig && sigAuto) {
     colSignal += addGearHeader('Signal Cables');
     for(const len of Object.keys(sigAuto.sdiByLength).map(Number).sort((a, b) => b - a)) {
-      colSignal += editRow('signal:sdi:' + len, sigAuto.sdiByLength[len], `${len}' ${sig.sdiType}`);
+      colSignal += editRow('signal:sdi:' + len, sigAuto.sdiByLength[len], `${cableLenLabel(len)} ${sig.sdiType}`);
     }
     if(sigAuto.serverFiberLine) {
       colSignal += editRow('signal:fiber', sigAuto.serverFiberLine.count, sigAuto.serverFiberLine.label);
     }
     for(const len of Object.keys(sigAuto.hdmi).map(Number).sort((a, b) => b - a)) {
-      colSignal += editRow('signal:hdmi:' + len, sigAuto.hdmi[len], `${len}' HDMI`);
+      colSignal += editRow('signal:hdmi:' + len, sigAuto.hdmi[len], `${cableLenLabel(len)} HDMI`);
     }
   }
 
   let colUtility = '';
   if(util && utilAuto) {
     colUtility += addGearHeader('Utility');
-    colUtility += editRow('util:ug10', utilAuto.ug10, "UG 10'");
-    colUtility += editRow('util:ug25', utilAuto.ug25, "UG 25'");
-    colUtility += editRow('util:ug50', utilAuto.ug50, "UG 50'");
+    colUtility += editRow('util:ug10', utilAuto.ug10, `UG ${cableLenLabel(cableKit().ug.ug10)}`);
+    colUtility += editRow('util:ug25', utilAuto.ug25, `UG ${cableLenLabel(cableKit().ug.ug25)}`);
+    colUtility += editRow('util:ug50', utilAuto.ug50, `UG ${cableLenLabel(cableKit().ug.ug50)}`);
     colUtility += editRow('util:ugTwofers', utilAuto.ugTwofers, 'UG Twofers');
     colUtility += editRow('util:powerBars', utilAuto.powerBars, 'Power Bars');
   }
@@ -4643,23 +4643,23 @@ function renderCombinedGearList(selectedScreenIds) {
 
     let colSpareData = addGearHeader('Data Cables');
     for(const len of Object.keys(spAuto.crossJumpersByLength)) {
-      colSpareData += editRow('crossJumpers:' + len, spAuto.crossJumpersByLength[len], `Cross Jumpers ${len}`);
+      colSpareData += editRow('crossJumpers:' + len, spAuto.crossJumpersByLength[len], `Cross Jumpers ${cableJumperLabel(len)}`);
     }
     if(hasJumpersBuiltin) colSpareData += editRow('cat5Couplers', spAuto.cat5Couplers, 'Cat5 Couplers');
     for(const len of Object.keys(spAuto.cat6ByLength).map(Number).sort((a, b) => a - b)) {
-      colSpareData += editRow('cat6:' + len, spAuto.cat6ByLength[len], `${len}' Cat6`);
+      colSpareData += editRow('cat6:' + len, spAuto.cat6ByLength[len], `${cableLenLabel(len)} Cat6`);
     }
 
     let colSparePower = addGearHeader('Power Cables');
     colSparePower += editRow('socaSplays', spAuto.socaSplays, 'Soca Splays');
     for(const len of Object.keys(spAuto.socaByLength).map(Number).sort((a, b) => a - b)) {
-      colSparePower += editRow('soca:' + len, spAuto.socaByLength[len], `${len}' Soca`);
+      colSparePower += editRow('soca:' + len, spAuto.socaByLength[len], `${cableLenLabel(len)} Soca`);
     }
     colSparePower += spacer;
-    colSparePower += editRow('true1_50', spAuto.true1_50, "50' True1");
-    colSparePower += editRow('true1_25', spAuto.true1_25, "25' True1");
-    colSparePower += editRow('true1_10', spAuto.true1_10, "10' True1");
-    colSparePower += editRow('true1_5', spAuto.true1_5, "5' True1");
+    colSparePower += editRow('true1_50', spAuto.true1_50, `${cableLenLabel(cableKit().true1.true1_50)} True1`);
+    colSparePower += editRow('true1_25', spAuto.true1_25, `${cableLenLabel(cableKit().true1.true1_25)} True1`);
+    colSparePower += editRow('true1_10', spAuto.true1_10, `${cableLenLabel(cableKit().true1.true1_10)} True1`);
+    colSparePower += editRow('true1_5', spAuto.true1_5, `${cableLenLabel(cableKit().true1.true1_5)} True1`);
     colSparePower += editRow('true1Twofer', spAuto.true1Twofer, 'True1 Twofer');
 
     html += gearGrid([colSpareHardware, colSpareData, colSparePower], 'gear-grid-3');

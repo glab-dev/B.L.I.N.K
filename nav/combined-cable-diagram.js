@@ -194,6 +194,29 @@ function loadSourceFeedIntoCableTab(screenId) {
   [nameEl, distEl].forEach(el => { if(el) el.disabled = locked; });
   const hint = document.getElementById('sourceFeedLockHint');
   if(hint) hint.style.display = locked ? '' : 'none';
+  updateCableTabSourceFeeds(screenId);
+}
+
+// A one-screen project has no reason to open the Combined view, so when its screen needs
+// more than one processor the Cable tab shows every feed itself: one row per feed, and
+// the Combined cable diagram. Multi-screen projects set feeds in the Combined view.
+function cableTabShowsAllFeeds(screenId) {
+  if(Object.keys(screens).length !== 1 || !screens[screenId]) return false;
+  const reach = sourceFeedUnits().byScreen.get(screenId);
+  return !!reach && reach.procUnitIds.size > 1;
+}
+
+// Swap the Cable tab's single Source fields for one row per feed, or back
+function updateCableTabSourceFeeds(screenId) {
+  const list = document.getElementById('cableTabSourceFeeds');
+  if(!list) return;
+  const showAll = cableTabShowsAllFeeds(screenId);
+  list.style.display = showAll ? '' : 'none';
+  ['sourceFeedName', 'serverToProcessor'].forEach(id => {
+    const label = document.getElementById(id)?.closest('label');
+    if(label) label.style.display = showAll ? 'none' : '';
+  });
+  if(showAll) renderSourceFeedRows([screenId], list);
 }
 
 // A screen whose data needs more than one main processor: ask once whether its extra
@@ -266,9 +289,9 @@ function loadProjectSourceFeeds(saved) {
 
 // Rows in the combined Cabling panel, one per feed: the selection's feeds, or every feed
 // in the project when nothing is selected. Rebuilt only when the set of feeds changes,
-// so typing in a row never loses focus to a re-render.
-function renderSourceFeedRows(selectedScreenIds) {
-  const list = document.getElementById('combinedSourceFeeds');
+// so typing in a row never loses focus to a re-render. The Cable tab passes its own list.
+function renderSourceFeedRows(selectedScreenIds, listEl) {
+  const list = listEl || document.getElementById('combinedSourceFeeds');
   if(!list) return;
   const units = sourceFeedUnits();
   let indices = [];
@@ -642,8 +665,11 @@ function calculateCombinedCabling(selectedScreenIds, config) {
 
 // ---- Main Renderer ----
 
-function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
-  renderSourceFeedRows(selectedScreenIds);
+// `target` ({ canvasId, containerId }) draws into another canvas instead — the Cable tab's,
+// for a one-screen project that needs more than one processor. That tab keeps its own
+// Source rows, so the Combined panel's are left alone.
+function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target) {
+  if (!target) renderSourceFeedRows(selectedScreenIds);
 
   // Eco/greyscale print mode support — reassign module-level colors
   var isPrintMode = ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode;
@@ -671,8 +697,8 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   var ccLegendTextColor = isPrintMode ? '#000000' : '#cccccc';
   var ccSummaryColor = isPrintMode ? '#000000' : '#888888';
 
-  const canvas = document.getElementById('combinedCableDiagramCanvas');
-  const container = document.getElementById('combinedCableDiagramCanvasWrapper');
+  const canvas = document.getElementById(target ? target.canvasId : 'combinedCableDiagramCanvas');
+  const container = document.getElementById(target ? target.containerId : 'combinedCableDiagramCanvasWrapper');
   if (!canvas || !container) return;
 
   // Empty state — matches other combined canvases (100x100, no CSS stretch)
@@ -1440,65 +1466,105 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     }
     if (!mains.length) return;
 
-    // ---- ON WALL: the box sits on this screen; fan across the panels, trunk down ----
+    // ---- ON WALL: each processor's box sits on the stretch of wall its lines cover ----
+    // A screen on one processor has one stretch, the whole wall. With redundancy, a
+    // Backup position different from Main gives the backups their own box and trunk.
     if (place === 'wall' && hasDistBox) {
-      var dbHoriz = sp.data.distBoxMainHorizPosition || sp.data.distBoxHorizPosition || 'center';
-      var dbVert = sp.data.distBoxMainVertPosition || 'top';
-      // Panel-quantised, matching the per-screen diagram and the gear-list length math
-      var dbX = (dbHoriz === 'sr') ? sp.left + 2 * pxW
-              : (dbHoriz === 'sl') ? sp.right - 2 * pxW
-              : (sp.left + sp.right) / 2;
-      dbX = Math.max(sp.left + 20, Math.min(sp.right - 20, dbX));
-      var dbY = (dbVert === 'bottom') ? sp.bottom - 18 - 6 : sp.top + 6;
-      var fanY = dbY + 9;
+      var mainHoriz = sp.data.distBoxMainHorizPosition || sp.data.distBoxHorizPosition || 'center';
+      var mainVert = sp.data.distBoxMainVertPosition || 'top';
+      var backupHoriz = sp.data.distBoxBackupHorizPosition || sp.data.distBoxHorizPosition || 'center';
+      var backupVert = sp.data.distBoxBackupVertPosition || 'top';
+      var twoBoxes = redundancy && (mainHoriz !== backupHoriz || mainVert !== backupVert);
 
-      mains.forEach(function(ep) {
-        ctx.strokeStyle = CC_DATA_COLOR;
-        ctx.lineWidth = 1;
-        ctx.globalAlpha = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(ep.cx < dbX ? dbX - 20 : dbX + 20, fanY - (redundancy ? 3 : 0));
-        ctx.lineTo(ep.cx - 2, fanY - (redundancy ? 3 : 0));
-        ctx.lineTo(ep.cx - 2, ep.cy);
-        ctx.stroke();
-        ctx.globalAlpha = 1.0;
-      });
-      if (redundancy) {
-        backups.forEach(function(ep) {
-          ctx.strokeStyle = CC_BACKUP_COLOR;
-          ctx.lineWidth = 1;
-          ctx.globalAlpha = 0.4;
+      var wallGroups = [];
+      var wallGroupByTarget = {};
+      var addToWallGroup = function(ep, key) {
+        var g = wallGroupByTarget[ep.targetX];
+        if (!g) {
+          g = wallGroupByTarget[ep.targetX] = { targetX: ep.targetX, mains: [], backups: [], minCol: ep.col, maxCol: ep.col };
+          wallGroups.push(g);
+        }
+        g[key].push(ep);
+        g.minCol = Math.min(g.minCol, ep.col);
+        g.maxCol = Math.max(g.maxCol, ep.col);
+      };
+      mains.forEach(function(ep) { addToWallGroup(ep, 'mains'); });
+      backups.forEach(function(ep) { addToWallGroup(ep, 'backups'); });
+
+      wallGroups.forEach(function(g, gi) {
+        var procUnit = dataUnits.procs.find(function(u) { return unitX[u.unitId] === g.targetX; });
+        var procTag = (wallGroups.length > 1 && procUnit) ? procUnit.label : null;
+        var boxW = twoBoxes || procTag ? 48 : 40;
+        var boxH = procTag ? 26 : 18;
+        var regionL = sp.left + g.minCol * pxW;
+        var regionR = sp.left + (g.maxCol + 1) * pxW;
+        // Panel-quantised, matching the per-screen diagram and the gear-list length math
+        var boxCenterX = function(horiz) {
+          var x = (horiz === 'sr') ? regionL + 2 * pxW
+                : (horiz === 'sl') ? regionR - 2 * pxW
+                : (regionL + regionR) / 2;
+          return Math.max(regionL + boxW / 2, Math.min(regionR - boxW / 2, x));
+        };
+        var boxTopY = function(vert) { return vert === 'bottom' ? sp.bottom - boxH - 6 : sp.top + 6; };
+        var mainX = boxCenterX(mainHoriz), mainY = boxTopY(mainVert);
+        var backupX = twoBoxes ? boxCenterX(backupHoriz) : mainX;
+        var backupY = twoBoxes ? boxTopY(backupVert) : mainY;
+        var backupBoxVert = twoBoxes ? backupVert : mainVert;
+
+        var drawWallFan = function(points, boxX, fanY, color, alpha, nudgeX) {
+          points.forEach(function(ep) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = alpha;
+            ctx.beginPath();
+            ctx.moveTo(ep.cx < boxX ? boxX - boxW / 2 : boxX + boxW / 2, fanY);
+            ctx.lineTo(ep.cx + nudgeX, fanY);
+            ctx.lineTo(ep.cx + nudgeX, ep.cy);
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+          });
+        };
+        drawWallFan(g.mains, mainX, mainY + boxH / 2 - (redundancy && !twoBoxes ? 3 : 0), CC_DATA_COLOR, 0.5, -2);
+        if (redundancy) {
+          drawWallFan(g.backups, backupX, backupY + boxH / 2 + (twoBoxes ? 0 : 3), CC_BACKUP_COLOR, 0.4, 2);
+        }
+
+        // Trunk: box → this screen's top or bottom edge → own drop → floor → its processor.
+        // A top run comes down through the pick; one from the bottom edge drops straight.
+        var drawWallTrunk = function(boxX, boxY, vert, color, offsetX, floorY, endNudge) {
+          var fromBottom = vert === 'bottom';
+          var edgeY = fromBottom ? sp.bottom + 4 + gi * 3 : sp.top - 4 - gi * 3;
+          var fy = floorY + gi * 3;
+          var tx = g.targetX + endNudge;
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.moveTo(ep.cx < dbX ? dbX - 20 : dbX + 20, fanY + 3);
-          ctx.lineTo(ep.cx + 2, fanY + 3);
-          ctx.lineTo(ep.cx + 2, ep.cy);
+          ctx.moveTo(boxX + offsetX, fromBottom ? boxY + boxH : boxY);
+          ctx.lineTo(boxX + offsetX, edgeY);
+          ctx.lineTo(sp.dropX + offsetX, edgeY);
+          if (!fromBottom && sp.cab.cablePick > 0 && sp.pickCX !== undefined) {
+            ctx.lineTo(sp.pickCX + offsetX, sp.pickCY);
+            ctx.lineTo(sp.pickCX + offsetX, fy);
+          } else {
+            ctx.lineTo(sp.dropX + offsetX, fy);
+          }
+          ctx.lineTo(tx, fy);
+          ctx.lineTo(tx, dataEndYFor(g.targetX));
           ctx.stroke();
-          ctx.globalAlpha = 1.0;
-        });
-      }
+        };
+        drawWallTrunk(mainX, mainY, mainVert, CC_TRUNK_COLOR, DATA_OFFSET, spDataFloorY, 0);
+        if (redundancy) {
+          drawWallTrunk(backupX, backupY, backupBoxVert, CC_TRUNK_BACKUP_COLOR, BACKUP_OFFSET, spBackupFloorY, 8);
+        }
 
-      // Trunk: box → screen top edge → own drop → pick → floor → its processor
-      var wallTrunkTargetX = mains[0].targetX;
-      var trunkEdgeY = sp.top - 4;
-      ctx.strokeStyle = CC_TRUNK_COLOR;
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(dbX + DATA_OFFSET, dbVert === 'bottom' ? dbY + 18 : dbY);
-      ctx.lineTo(dbX + DATA_OFFSET, trunkEdgeY);
-      ctx.lineTo(sp.dropX + DATA_OFFSET, trunkEdgeY);
-      if (sp.cab.cablePick > 0 && sp.pickCX !== undefined) {
-        ctx.lineTo(sp.pickCX + DATA_OFFSET, sp.pickCY);
-        ctx.lineTo(sp.pickCX + DATA_OFFSET, spDataFloorY);
-      } else {
-        ctx.lineTo(sp.dropX + DATA_OFFSET, spDataFloorY);
-      }
-      ctx.lineTo(wallTrunkTargetX, spDataFloorY);
-      ctx.lineTo(wallTrunkTargetX, dataEndYFor(wallTrunkTargetX));
-      ctx.stroke();
-
-      if (typeof drawCableEquipmentBox === 'function') {
-        drawCableEquipmentBox(ctx, dbX - 20, dbY, 40, 18, 'XD', CC_DISTBOX_COLOR);
-      }
+        if (typeof drawCableEquipmentBox === 'function') {
+          var boxLabel = function(name) { return procTag ? [procTag, name] : name; };
+          drawCableEquipmentBox(ctx, mainX - boxW / 2, mainY, boxW, boxH, boxLabel(twoBoxes ? 'MAIN' : 'XD'), CC_DISTBOX_COLOR);
+          if (twoBoxes) {
+            drawCableEquipmentBox(ctx, backupX - boxW / 2, backupY, boxW, boxH, boxLabel('BACKUP'), CC_DISTBOX_COLOR);
+          }
+        }
+      });
       return;
     }
 
@@ -1750,12 +1816,20 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   var shared = calcData.shared;
+  // Processor and box counts from the gear list, which reads the data plan — the
+  // pixel-only estimate in calculateCombinedCabling() misses a screen split across
+  // processors
+  var gearGroup = (typeof buildGearListData === 'function')
+    ? buildGearListData(selectedScreenIds).processorGroups[cfg.processor] : null;
+  var summaryProcCount = gearGroup ? gearGroup.processorCount : shared.processorCount;
+  var summaryBoxCount = gearGroup ? gearGroup.distBoxCount : shared.distributionBoxCount;
+  var summaryBoxName = (gearGroup && gearGroup.distBoxName) || shared.distributionBoxName;
   var summaryParts = [
-    shared.processorCount + 'x ' + cfg.processor.replace(/_/g, ' '),
+    summaryProcCount + 'x ' + cfg.processor.replace(/_/g, ' '),
     shared.totalDataLines + ' data lines'
   ];
-  if (shared.distributionBoxCount > 0) {
-    summaryParts.push(shared.distributionBoxCount + 'x ' + shared.distributionBoxName);
+  if (summaryBoxCount > 0) {
+    summaryParts.push(summaryBoxCount + 'x ' + summaryBoxName);
   }
   ctx.fillText(summaryParts.join('  |  '), MARGIN.left + 4, canvasH - 4);
 

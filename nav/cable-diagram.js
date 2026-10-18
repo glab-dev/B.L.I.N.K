@@ -26,6 +26,26 @@ function renderCableDiagram(screenId) {
     return;
   }
 
+  // A one-screen project whose screen needs more than one processor draws the Combined
+  // diagram here instead: it gives each processor its own box, Source feed and runs.
+  // The processor count follows calculate(), so the Source rows are refreshed with it.
+  updateCableTabSourceFeeds(screenId);
+  if (cableTabShowsAllFeeds(screenId)) {
+    const d = screen.data;
+    const panelSize = 40;
+    const panelType = d.panelType || 'CB5_MKII';
+    const height = cb5RowGeometry(d.panelsHigh, getCB5HalfRows(d, panelType), panelSize * getPanelHeightRatio(panelType), panelSize).height;
+    const dims = [{ screenId, screen, data: d, pw: d.panelsWide, ph: d.panelsHigh, width: d.panelsWide * panelSize, height, x: 0 }];
+    const savedWhiteBg = pdfWhiteBgMode;
+    pdfWhiteBgMode = savedWhiteBg || cableDiagramPdfMode;
+    try {
+      renderCombinedCableDiagram([screenId], dims, { canvasId: 'cableDiagramCanvas', containerId: 'cableDiagramContainer' });
+    } finally {
+      pdfWhiteBgMode = savedWhiteBg;
+    }
+    return;
+  }
+
   const cabling = calculateCabling(screenId);
   if (!cabling) {
     canvas.width = 0;

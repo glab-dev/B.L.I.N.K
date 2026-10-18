@@ -1313,9 +1313,9 @@ function calculate(){
     if(pr.in_development) {
       processorDisplayName = processorDisplayName.replace('(in development)', '<span style="color: #d47a7a;">(in development)</span>');
     }
-    html += `<div class="result-row"><strong>Processor:</strong> ${processorDisplayName}</div>`;
+    html += `<div class="result-row"><strong>Processor:</strong> ${processorDisplayName}<span id="resultsProcessorCount"></span></div>`;
     if(distributionBoxName) {
-      html += `<div class="result-row"><strong>Distribution box:</strong> ${escapeHtml(distributionBoxName)}${distributionCount > 0 ? ` (${distributionCount})` : ''}</div>`;
+      html += `<div class="result-row"><strong>Distribution box:</strong> ${escapeHtml(distributionBoxName)}<span id="resultsDistBoxCount">${distributionCount > 0 ? ` (${distributionCount})` : ''}</span></div>`;
     }
     html += `<div class="result-row"><strong>Port Capacity:</strong> ${adjustedCapacity.toLocaleString()} px</div>`;
     html += `<div class="result-row"><strong>Max panels per data line:</strong> ${suggestedPanelsPerData}</div>`;
@@ -1371,6 +1371,18 @@ function calculate(){
       socaLabelMap: socaLabelMap,
       socaSpans: socaSpans
     };
+
+    // Processor and box counts as the gear list has them. It reads the data plan, which
+    // the port/pixel estimate above misses — a screen split across processors, say.
+    const gearGroup = Object.values(buildGearListData([currentScreenId]).processorGroups)[0];
+    if(gearGroup) {
+      screens[currentScreenId].calculatedData.processorCount = gearGroup.processorCount;
+      screens[currentScreenId].calculatedData.distributionBoxCount = gearGroup.distBoxCount;
+      const procCountEl = document.getElementById('resultsProcessorCount');
+      if(procCountEl) procCountEl.textContent = gearGroup.processorCount > 1 ? ` (${gearGroup.processorCount})` : '';
+      const boxCountEl = document.getElementById('resultsDistBoxCount');
+      if(boxCountEl) boxCountEl.textContent = gearGroup.distBoxCount > 0 ? ` (${gearGroup.distBoxCount})` : '';
+    }
   }
   
   generateLayout('standard');

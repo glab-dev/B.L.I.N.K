@@ -573,6 +573,11 @@ function calculateCabling(screenId) {
   );
 
   const isRemoteXd = placement === 'remote' && hasDistBox;
+  // Processor → box trunks. Boxes that pair off for backup (SX40 XDs) are already counted
+  // main + backup, so each takes one trunk: the mains first, then the backups beside them.
+  // Any other box carries both its mains and their backups, so with redundancy it takes a
+  // main trunk and a backup trunk.
+  const pairedBoxes = resolveProcessorTopology(data.processor || 'Brompton_SX40', data.mx40ConnectionMode).backupMode === 'paired_boxes';
 
   if(placement === 'wall' && hasDistBox) {
     // Main distribution box horizontal position
@@ -670,14 +675,17 @@ function calculateCabling(screenId) {
       : backupDistBoxHorizFt + dropToFloorFt + processorToWall;
 
     for(let b = 0; b < distributionBoxCount; b++) {
-      const mainType = mainTrunkFt > 200 ? 'fiber' : 'cat6a';
+      const isBackupBox = pairedBoxes && redundancy && b >= distributionBoxCount / 2;
+      const trunkFt = isBackupBox ? backupTrunkFt : mainTrunkFt;
+      const mainType = trunkFt > 200 ? 'fiber' : 'cat6a';
       distBoxCables.push({
         boxIndex: b + 1,
-        lengthFt: Math.round(mainTrunkFt * 10) / 10,
-        roundedFt: roundUpToStandard(mainTrunkFt),
+        lengthFt: Math.round(trunkFt * 10) / 10,
+        roundedFt: roundUpToStandard(trunkFt),
         type: mainType,
-        label: 'main'
+        label: isBackupBox ? 'backup' : 'main'
       });
+      if(pairedBoxes || !redundancy) continue;
       const backupType = backupTrunkFt > 200 ? 'fiber' : 'cat6a';
       distBoxCables.push({
         boxIndex: b + 1,
@@ -739,21 +747,24 @@ function calculateCabling(screenId) {
       dataCables.push(...backupCables);
     }
 
-    // Remote XD: one trunk per box from the processor out to the XD.
-    // distributionBoxCount already includes the backup boxes when redundancy is on
-    // (computeProcessorAndBoxCounts doubles it), so this loop must NOT double again.
-    // Backup boxes sit right beside the main ones, so every trunk is the same length.
+    // Remote box: trunks from the processor out to the box, as above. Backup boxes sit
+    // right beside the main ones, so every trunk is the same length.
     if(isRemoteXd) {
       const trunkType = xdToProcessor > 200 ? 'fiber' : 'cat6a';
+      const pushTrunk = (b, label) => distBoxCables.push({
+        boxIndex: b + 1,
+        lengthFt: Math.round(xdToProcessor * 10) / 10,
+        roundedFt: roundUpToStandard(xdToProcessor),
+        type: trunkType,
+        label: label
+      });
       for(let b = 0; b < distributionBoxCount; b++) {
-        const isBackupBox = redundancy && b >= distributionBoxCount / 2;
-        distBoxCables.push({
-          boxIndex: b + 1,
-          lengthFt: Math.round(xdToProcessor * 10) / 10,
-          roundedFt: roundUpToStandard(xdToProcessor),
-          type: trunkType,
-          label: isBackupBox ? 'backup' : 'main'
-        });
+        if(pairedBoxes) {
+          pushTrunk(b, (redundancy && b >= distributionBoxCount / 2) ? 'backup' : 'main');
+        } else {
+          pushTrunk(b, 'main');
+          if(redundancy) pushTrunk(b, 'backup');
+        }
       }
     }
   }

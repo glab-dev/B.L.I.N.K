@@ -4376,9 +4376,11 @@ function renderCombinedGearList(selectedScreenIds) {
         directCounts.processorCount + indirectCounts.processorCount,
         planned ? planned.procCount : 0
       ),
+      // The plan counts MAIN boxes; when boxes pair off for backup each one has a
+      // backup box too, the same doubling computeProcessorAndBoxCounts() applies
       distBoxCount: Math.max(
         directCounts.distBoxCount + indirectCounts.distBoxCount,
-        planned ? planned.boxCount : 0
+        planned ? planned.boxCount * ((group.hasAnyRedundancy && directTopo.backupMode === 'paired_boxes') ? 2 : 1) : 0
       ),
       distBoxName: indirectCounts.distBoxName || directCounts.distBoxName
     };

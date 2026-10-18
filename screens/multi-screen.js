@@ -291,12 +291,12 @@ function saveCurrentScreenData() {
   const xdToProcessorEl = document.getElementById('xdToProcessor');
   const xdToWallEl = document.getElementById('xdToWall');
 
-  if(wallToFloorEl) data.wallToFloor = wallToFloorEl.value !== '' ? parseFloat(wallToFloorEl.value) : parseFloat(wallToFloorEl.placeholder);
-  if(distroToWallEl) data.distroToWall = distroToWallEl.value !== '' ? parseFloat(distroToWallEl.value) : parseFloat(distroToWallEl.placeholder);
-  if(processorToWallEl) data.processorToWall = processorToWallEl.value !== '' ? parseFloat(processorToWallEl.value) : parseFloat(processorToWallEl.placeholder);
-  if(cablePickEl) data.cablePick = cablePickEl.value !== '' ? parseFloat(cablePickEl.value) : 0;
-  if(xdToProcessorEl) data.xdToProcessor = xdToProcessorEl.value !== '' ? parseFloat(xdToProcessorEl.value) : parseFloat(xdToProcessorEl.placeholder);
-  if(xdToWallEl) data.xdToWall = xdToWallEl.value !== '' ? parseFloat(xdToWallEl.value) : parseFloat(xdToWallEl.placeholder);
+  if(wallToFloorEl) data.wallToFloor = readCableInput(wallToFloorEl, CABLE_INPUT_DEFAULTS.wallToFloor, data.wallToFloor);
+  if(distroToWallEl) data.distroToWall = readCableInput(distroToWallEl, CABLE_INPUT_DEFAULTS.distroToWall, data.distroToWall);
+  if(processorToWallEl) data.processorToWall = readCableInput(processorToWallEl, CABLE_INPUT_DEFAULTS.processorToWall, data.processorToWall);
+  if(cablePickEl) data.cablePick = readCableInput(cablePickEl, CABLE_INPUT_DEFAULTS.cablePick, data.cablePick);
+  if(xdToProcessorEl) data.xdToProcessor = readCableInput(xdToProcessorEl, CABLE_INPUT_DEFAULTS.xdToProcessor, data.xdToProcessor);
+  if(xdToWallEl) data.xdToWall = readCableInput(xdToWallEl, CABLE_INPUT_DEFAULTS.xdToWall, data.xdToWall);
   data.cableDropPosition = cableDropPosition;
   data.powerInPosition = powerInPosition;
   data.xdPlacement = xdPlacement;
@@ -483,12 +483,12 @@ function loadScreenData(screenId) {
   const xdToWallEl = document.getElementById('xdToWall');
 
   // Set value only if non-default, otherwise leave empty to show placeholder
-  if(wallToFloorEl) wallToFloorEl.value = (data.wallToFloor && data.wallToFloor !== 5) ? data.wallToFloor : '';
-  if(distroToWallEl) distroToWallEl.value = (data.distroToWall && data.distroToWall !== 10) ? data.distroToWall : '';
-  if(processorToWallEl) processorToWallEl.value = (data.processorToWall && data.processorToWall !== 15) ? data.processorToWall : '';
-  if(cablePickEl) cablePickEl.value = (data.cablePick && data.cablePick !== 0) ? data.cablePick : '';
-  if(xdToProcessorEl) xdToProcessorEl.value = (data.xdToProcessor && data.xdToProcessor !== 25) ? data.xdToProcessor : '';
-  if(xdToWallEl) xdToWallEl.value = (data.xdToWall && data.xdToWall !== 40) ? data.xdToWall : '';
+  if(wallToFloorEl) wallToFloorEl.value = cableInputValue(data.wallToFloor, CABLE_INPUT_DEFAULTS.wallToFloor);
+  if(distroToWallEl) distroToWallEl.value = cableInputValue(data.distroToWall, CABLE_INPUT_DEFAULTS.distroToWall);
+  if(processorToWallEl) processorToWallEl.value = cableInputValue(data.processorToWall, CABLE_INPUT_DEFAULTS.processorToWall);
+  if(cablePickEl) cablePickEl.value = cableInputValue(data.cablePick, CABLE_INPUT_DEFAULTS.cablePick);
+  if(xdToProcessorEl) xdToProcessorEl.value = cableInputValue(data.xdToProcessor, CABLE_INPUT_DEFAULTS.xdToProcessor);
+  if(xdToWallEl) xdToWallEl.value = cableInputValue(data.xdToWall, CABLE_INPUT_DEFAULTS.xdToWall);
 
   // Restore cable drop toggle buttons
   cableDropPosition = data.cableDropPosition || 'behind';

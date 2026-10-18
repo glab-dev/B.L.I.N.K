@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.226', date: '2026-10-17', notes: 'Add a Cable Units toggle for showing and typing cable distances in feet or meters' },
   { version: '2.11.225', date: '2026-10-17', notes: 'Fix dragging screens in the canvas after loading a project' },
   { version: '2.11.224', date: '2026-10-17', notes: 'Export one Resolume output per canvas reading from a side-by-side composition' },
   { version: '2.11.223', date: '2026-10-17', notes: 'Export split screens as their part on each canvas in test patterns and outlines' },

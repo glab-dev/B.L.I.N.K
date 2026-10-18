@@ -2957,6 +2957,10 @@
                 <option value="bottom">Bottom → Top</option>
                 <option value="all_top">All from Top</option>
                 <option value="all_bottom">All from Bottom</option>
+                <option value="lr_top">Left → Right (from Top)</option>
+                <option value="lr_bottom">Left → Right (from Bottom)</option>
+                <option value="rl_top">Right → Left (from Top)</option>
+                <option value="rl_bottom">Right → Left (from Bottom)</option>
               </select>
             </label>
           </div>
@@ -3216,6 +3220,16 @@
   <div class="section-box mb-16" id="cablingSection">
     <div class="section-title">Cabling</div>
     <button type="button" class="view-export-btn" onclick="exportViewPdf('cabling')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
+
+    <!-- Cable Units: set here on a one-screen project, in the Combined view otherwise -->
+    <div class="cable-unit-row">
+      <span class="toggle-label">Cable Units</span>
+      <div class="slider-toggle">
+        <button type="button" class="slider-toggle-btn active" id="cableUnitFtBtn" onclick="setCableUnit('ft')">Feet</button>
+        <button type="button" class="slider-toggle-btn" id="cableUnitMBtn" onclick="setCableUnit('m')">Meters</button>
+      </div>
+      <div id="cableUnitLockHint" class="source-feed-lock-hint" style="display: none;">Set in Combined view</div>
+    </div>
 
     <div class="cabling-row">
     <div class="cabling-grid cabling-3col">
@@ -3517,6 +3531,13 @@
     <div class="layout-content" id="combinedCablingContent">
       <!-- Source feeds are project-wide, one per processor, and edited here. Everything
            else in this diagram comes from each screen's own Cable tab settings. -->
+      <div class="cable-unit-row">
+        <span class="toggle-label">Cable Units</span>
+        <div class="slider-toggle">
+          <button type="button" class="slider-toggle-btn active" id="combinedCableUnitFtBtn" onclick="setCableUnit('ft')">Feet</button>
+          <button type="button" class="slider-toggle-btn" id="combinedCableUnitMBtn" onclick="setCableUnit('m')">Meters</button>
+        </div>
+      </div>
       <div id="combinedSourceFeeds" class="source-feed-list"></div>
       <div class="combined-hint-box">Adjust each screen&rsquo;s cabling in the Cable tab</div>
 
@@ -3982,8 +4003,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.225';
-const APP_CHANGELOG = 'Fix dragging screens in the canvas after loading a project';
+const APP_VERSION = '2.11.226';
+const APP_CHANGELOG = 'Add a Cable Units toggle for showing and typing cable distances in feet or meters';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings
@@ -4049,6 +4070,8 @@ let projectLogo = null;
 let pdfWhiteBgMode = false;
 // Source feeds — project-wide, one per processor in project order (see nav/combined-cable-diagram.js)
 let sourceFeeds = { defaultDistance: 50, list: [] };
+// Cable unit — 'ft' or 'm', project-wide, separate from the screen size units (see nav/gear.js)
+let cableUnit = 'ft';
 
 // Canvas movement undo/redo state
 let canvasMoveHistory = [];

@@ -232,6 +232,8 @@ function buildCurrentConfig() {
     combinedView: (typeof getCombinedViewSaveState === 'function') ? getCombinedViewSaveState() : undefined,
     // Project-wide Source feeds, one per processor (name, distance, shared signal)
     sourceFeeds: (typeof getSourceFeedsForSave === 'function') ? getSourceFeedsForSave() : undefined,
+    // Cable unit for cable distances and lengths ('ft' or 'm')
+    cableUnit: (typeof cableUnit !== 'undefined') ? cableUnit : 'ft',
     // Project logo (base64 data URL) — null if no logo uploaded
     logo: (typeof projectLogo !== 'undefined') ? projectLogo : null
   };
@@ -395,6 +397,9 @@ function newProject() {
       if(typeof loadProjectGearCodeOverrides === 'function') loadProjectGearCodeOverrides({});
       if(typeof loadProjectSpareOverrides === 'function') loadProjectSpareOverrides({});
       if(typeof loadProjectSourceFeeds === 'function') loadProjectSourceFeeds(null);
+      if(typeof cableUnit !== 'undefined') cableUnit = 'ft';
+      if(typeof applyCablePlaceholders === 'function') applyCablePlaceholders();
+      if(typeof updateCableUnitControls === 'function') updateCableUnitControls();
       displayLengthUnit = 'ft';
       displayWeightUnit = 'lbs';
       document.getElementById('unitImperial')?.classList.toggle('active', true);
@@ -650,6 +655,10 @@ function applyConfiguration(config, fileNameOverride) {
     if(typeof loadProjectSourceFeeds === 'function') {
       loadProjectSourceFeeds(config.sourceFeeds);
     }
+
+    // Restore the cable unit; files from before it existed are in feet
+    if(typeof cableUnit !== 'undefined') cableUnit = config.cableUnit === 'm' ? 'm' : 'ft';
+    if(typeof applyCablePlaceholders === 'function') applyCablePlaceholders();
 
     // Restore project logo
     if (typeof projectLogo !== 'undefined') {

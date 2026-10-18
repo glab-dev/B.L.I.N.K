@@ -1139,7 +1139,7 @@ function renderCableDiagram(screenId) {
     ctx.stroke();
 
     // Cable length label on the vertical segment (between server box and floor)
-    const srvLabelText = serverToProcessor + "'";
+    const srvLabelText = cableLabel(serverToProcessor);
     const srvLabelX = serverBoxX + BOX_W + 4;
     const srvLabelY = (serverBoxCenterY + equipY + BOX_H / 2) / 2;
     const srvFontSize = cableDiagramPdfMode ? 24 : 10;
@@ -1186,7 +1186,7 @@ function renderCableDiagram(screenId) {
     if (dataRedundancy) drawTrunk(TRUNK_COLOR, 3);
 
     // Cable length label sitting on the run, matching the server cable's treatment
-    const trunkLabelText = xdToProcessor + "'";
+    const trunkLabelText = cableLabel(xdToProcessor);
     const trunkLabelX = (trunkFromX + trunkElbowX) / 2;
     const trunkLabelY = trunkMidY - BOX_H / 2 - 4;
     const trunkFontSize = isPdf ? 22 : 10;
@@ -1273,7 +1273,7 @@ function renderCableDiagram(screenId) {
   // Wall height — right side of wall
   const dimOffsetRight = 18;
   drawCableDimensionLine(ctx, wallRightX + dimOffsetRight, wallTopY, wallRightX + dimOffsetRight, wallBottomY,
-    wallHeightFt + "'", fgColor, bgColor, rearView);
+    cableLabel(wallHeightFt), fgColor, bgColor, rearView);
 
   // Wall width — above wall. When power enters from top the SOCA brackets sit above the
   // wall too, so the dimension line is pushed above the highest one actually drawn rather
@@ -1286,12 +1286,12 @@ function renderCableDiagram(screenId) {
                Math.min(wallTopY - (isPdf ? 65 : 22), socaOverlayMinY - DIM_CLEARANCE))
     : wallTopY - 12;
   drawCableDimensionLine(ctx, adjWallLeftX, wallWidthDimY, wallRightX, wallWidthDimY,
-    wallWidthFt + "'", fgColor, bgColor, rearView);
+    cableLabel(wallWidthFt), fgColor, bgColor, rearView);
 
   // Wall to floor — right side, between wall bottom and floor
   if (wallToFloor > 0) {
     drawCableDimensionLine(ctx, wallRightX + dimOffsetRight + 20, wallBottomY, wallRightX + dimOffsetRight + 20, floorY,
-      wallToFloor + "'", fgColor, bgColor, rearView);
+      cableLabel(wallToFloor), fgColor, bgColor, rearView);
   }
 
   // Cable pick — dimension from drop point to pick circle
@@ -1300,17 +1300,17 @@ function renderCableDiagram(screenId) {
       // Vertical: wall top up to pick circle
       const pickDimX = pickCenterX - 25;
       drawCableDimensionLine(ctx, pickDimX, pickCenterY - PICK_RADIUS, pickDimX, wallTopY,
-        cablePick + "'", fgColor, bgColor, rearView);
+        cableLabel(cablePick), fgColor, bgColor, rearView);
     } else if (dropPos === 'sr') {
       // Horizontal: left wall edge to pick circle
       const pickDimY = pickCenterY - PICK_RADIUS - 14;
       drawCableDimensionLine(ctx, pickCenterX - PICK_RADIUS, pickDimY, adjWallLeftX, pickDimY,
-        cablePick + "'", fgColor, bgColor, rearView);
+        cableLabel(cablePick), fgColor, bgColor, rearView);
     } else {
       // Horizontal: right wall edge to pick circle
       const pickDimY = pickCenterY - PICK_RADIUS - 14;
       drawCableDimensionLine(ctx, wallRightX, pickDimY, pickCenterX + PICK_RADIUS, pickDimY,
-        cablePick + "'", fgColor, bgColor, rearView);
+        cableLabel(cablePick), fgColor, bgColor, rearView);
     }
   }
 
@@ -1320,14 +1320,14 @@ function renderCableDiagram(screenId) {
   let dimRowY = floorY + 18;
   if (hasRemoteXd) {
     drawCableDimensionLine(ctx, xdX, dimRowY, dropX, dimRowY,
-      xdToWall + "'", fgColor, bgColor, rearView);
+      cableLabel(xdToWall), fgColor, bgColor, rearView);
     dimRowY += 15;
   }
   drawCableDimensionLine(ctx, procX, dimRowY, dropX, dimRowY,
-    processorToWall + "'", fgColor, bgColor, rearView);
+    cableLabel(processorToWall), fgColor, bgColor, rearView);
   dimRowY += 15;
   drawCableDimensionLine(ctx, distroX, dimRowY, dropX, dimRowY,
-    distroToWall + "'", fgColor, bgColor, rearView);
+    cableLabel(distroToWall), fgColor, bgColor, rearView);
 
   // End rear-view mirror — legend below is drawn un-flipped (upright, normal order)
   if (rearView) { ctx.restore(); }

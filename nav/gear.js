@@ -33,6 +33,133 @@ function roundUpToStandard(lengthFt) {
   return Math.ceil(lengthFt / 50) * 50;
 }
 
+// ==================== CABLE UNITS ====================
+// Cable distances are stored in feet whatever the project's cable unit (cableUnit, 'ft' or
+// 'm', set by the Cable Units toggle). These convert what is shown and typed when it is
+// metres. Defaults for empty fields are whole metres (5' → 2 m), so the numbers read
+// cleanly; anything typed converts exactly.
+const FT_PER_M = 3.28084;
+
+// Default for each cable distance field, in feet
+const CABLE_INPUT_DEFAULTS = {
+  wallToFloor: 5, cablePick: 0, distroToWall: 10, processorToWall: 15, xdToProcessor: 25, xdToWall: 40
+};
+
+// A distance in feet as shown in the active unit (one decimal at most)
+function cableToDisplay(ft) {
+  const v = cableUnit === 'm' ? ft / FT_PER_M : ft;
+  return Math.round(v * 10) / 10;
+}
+
+// A value typed in the active unit, in feet
+function cableFromDisplay(v) {
+  return cableUnit === 'm' ? v * FT_PER_M : v;
+}
+
+// A distance in feet as a label: 15' or 4.6 m
+function cableLabel(ft) {
+  return cableUnit === 'm' ? cableToDisplay(ft) + ' m' : cableToDisplay(ft) + "'";
+}
+
+// The default an empty field stands for, in feet: the feet default, or in metres the
+// nearest whole metre
+function cableDefaultFt(ftDefault) {
+  return cableUnit === 'm' ? Math.round(ftDefault / FT_PER_M) * FT_PER_M : ftDefault;
+}
+
+// The same default as shown in the field's placeholder
+function cableDefaultDisplay(ftDefault) {
+  return cableUnit === 'm' ? Math.round(ftDefault / FT_PER_M) : ftDefault;
+}
+
+// A cable distance input read into feet: what was typed, or the field's default. When the
+// field still shows exactly what the stored value displays as, the stored value is kept —
+// re-reading a rounded 6.1 m would otherwise nudge 20' to 20.01' on every save.
+function readCableInput(el, ftDefault, currentFt) {
+  if(el.value === '') return cableDefaultFt(ftDefault);
+  const typed = parseFloat(el.value);
+  if(typeof currentFt === 'number' && typed === cableToDisplay(currentFt)) return currentFt;
+  return cableFromDisplay(typed);
+}
+
+// What a cable distance input shows for a value in feet: blank (the placeholder) when it
+// is the default or unset, otherwise the value in the active unit
+function cableInputValue(ft, ftDefault) {
+  if(!ft || Math.abs(ft - cableDefaultFt(ftDefault)) < 0.001) return '';
+  return cableToDisplay(ft);
+}
+
+// Placeholders follow the unit, so an empty field shows the default it stands for
+function applyCablePlaceholders() {
+  Object.keys(CABLE_INPUT_DEFAULTS).forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.placeholder = cableDefaultDisplay(CABLE_INPUT_DEFAULTS[id]);
+  });
+  const sourceEl = document.getElementById('serverToProcessor');
+  if(sourceEl) sourceEl.placeholder = cableDefaultDisplay(sourceFeeds.defaultDistance);
+}
+
+// The toggles in the Cable tab and in Combined. A multi-screen project sets the unit in
+// the Combined view, so the Cable tab's copy is locked there, like the Source fields.
+function updateCableUnitControls() {
+  const locked = Object.keys(screens).length > 1;
+  [['cableUnitFtBtn', 'ft'], ['cableUnitMBtn', 'm'], ['combinedCableUnitFtBtn', 'ft'], ['combinedCableUnitMBtn', 'm']].forEach(([id, unit]) => {
+    const btn = document.getElementById(id);
+    if(!btn) return;
+    btn.classList.toggle('active', cableUnit === unit);
+    if(id.indexOf('combined') !== 0) btn.disabled = locked;
+  });
+  const hint = document.getElementById('cableUnitLockHint');
+  if(hint) hint.style.display = locked ? '' : 'none';
+}
+
+// Switch the project's cable unit. The open Cable tab's inputs are saved in the old unit
+// first; fields still on their default move to the new unit's default (5' → 2 m), so a
+// default never turns into an odd number like 1.5 m.
+function setCableUnit(unit) {
+  if(unit !== 'ft' && unit !== 'm') return;
+  if(unit === cableUnit) return;
+  const targetScreenId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+    ? gearActiveScreenId : currentScreenId;
+  if(targetScreenId === gearActiveScreenId) saveGearCablingInputs(targetScreenId);
+  else saveCurrentScreenData();
+
+  const oldDefaults = {};
+  Object.keys(CABLE_INPUT_DEFAULTS).forEach(f => { oldDefaults[f] = cableDefaultFt(CABLE_INPUT_DEFAULTS[f]); });
+  cableUnit = unit;
+  Object.keys(screens).forEach(sid => {
+    const d = screens[sid].data;
+    if(!d) return;
+    Object.keys(CABLE_INPUT_DEFAULTS).forEach(f => {
+      if(typeof d[f] === 'number' && Math.abs(d[f] - oldDefaults[f]) < 0.001) d[f] = cableDefaultFt(CABLE_INPUT_DEFAULTS[f]);
+    });
+  });
+  refreshCableUnitDisplay();
+}
+
+// Re-show everything that depends on the cable unit
+function refreshCableUnitDisplay() {
+  applyCablePlaceholders();
+  updateCableUnitControls();
+  // The Cable tab shows the gear tab's active screen, otherwise the current one
+  const shownScreenId = (typeof currentAppMode !== 'undefined' && currentAppMode === 'gear' && gearActiveScreenId && screens[gearActiveScreenId])
+    ? gearActiveScreenId : currentScreenId;
+  if(screens[shownScreenId]) loadGearCablingInputs(shownScreenId);
+  const feedList = document.getElementById('combinedSourceFeeds');
+  if(feedList) delete feedList.dataset.sig;
+  // Only cable lengths and labels change. Redraw just what shows them — a full
+  // calculate() would rebuild every combined canvas and throw the page's scroll position.
+  generateGearList();
+  if(typeof combinedSelectedScreens !== 'undefined' && combinedSelectedScreens.size > 0 &&
+     typeof renderCombinedCableDiagram === 'function') {
+    const selectedScreenIds = combinedSelectedScreenIdsInOrder();
+    renderCombinedCableDiagram(selectedScreenIds, combinedScreenDimensions);
+    renderCombinedGearList(selectedScreenIds);
+  } else if(typeof renderSourceFeedRows === 'function') {
+    renderSourceFeedRows([]);
+  }
+}
+
 // Returns array mapping data line index to its entry panel {col, row}
 function getDataLineEntryPoints(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap, split) {
   // Entry point = first panel in each line's canonical flow order, derived from
@@ -71,6 +198,15 @@ function getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPa
       if(lines.length) offset += Math.max(...lines) + 1;
     });
     return merged;
+  }
+  if(isHorizontalDataDir(startDir)) {
+    const t = dataDirTranspose(startDir, pw, ph);
+    const turned = getDataLinePanelOrdering(t.pw, t.ph, panelsPerDataLine, 'top',
+      transposeDataKeys(deletedPanelsSet, t), transposeDataKeys(customDataLineAssignmentsMap, t));
+    Object.keys(turned).forEach(ln => {
+      turned[ln] = turned[ln].map(pt => { const p = t.from(pt.col, pt.row); return {col: p.c, row: p.r}; });
+    });
+    return turned;
   }
   const dataLinePanels = {}; // { dataLineIndex: [{col, row}, ...] in order }
   const usedCustomDataLines = new Set();
@@ -668,12 +804,12 @@ function saveGearCablingInputs(screenId) {
   const xdToProcessorEl = document.getElementById('xdToProcessor');
   const xdToWallEl = document.getElementById('xdToWall');
 
-  if(wallToFloorEl) data.wallToFloor = wallToFloorEl.value !== '' ? parseFloat(wallToFloorEl.value) : parseFloat(wallToFloorEl.placeholder);
-  if(distroToWallEl) data.distroToWall = distroToWallEl.value !== '' ? parseFloat(distroToWallEl.value) : parseFloat(distroToWallEl.placeholder);
-  if(processorToWallEl) data.processorToWall = processorToWallEl.value !== '' ? parseFloat(processorToWallEl.value) : parseFloat(processorToWallEl.placeholder);
-  if(cablePickEl) data.cablePick = cablePickEl.value !== '' ? parseFloat(cablePickEl.value) : 0;
-  if(xdToProcessorEl) data.xdToProcessor = xdToProcessorEl.value !== '' ? parseFloat(xdToProcessorEl.value) : parseFloat(xdToProcessorEl.placeholder);
-  if(xdToWallEl) data.xdToWall = xdToWallEl.value !== '' ? parseFloat(xdToWallEl.value) : parseFloat(xdToWallEl.placeholder);
+  if(wallToFloorEl) data.wallToFloor = readCableInput(wallToFloorEl, CABLE_INPUT_DEFAULTS.wallToFloor, data.wallToFloor);
+  if(distroToWallEl) data.distroToWall = readCableInput(distroToWallEl, CABLE_INPUT_DEFAULTS.distroToWall, data.distroToWall);
+  if(processorToWallEl) data.processorToWall = readCableInput(processorToWallEl, CABLE_INPUT_DEFAULTS.processorToWall, data.processorToWall);
+  if(cablePickEl) data.cablePick = readCableInput(cablePickEl, CABLE_INPUT_DEFAULTS.cablePick, data.cablePick);
+  if(xdToProcessorEl) data.xdToProcessor = readCableInput(xdToProcessorEl, CABLE_INPUT_DEFAULTS.xdToProcessor, data.xdToProcessor);
+  if(xdToWallEl) data.xdToWall = readCableInput(xdToWallEl, CABLE_INPUT_DEFAULTS.xdToWall, data.xdToWall);
 }
 
 function loadGearCablingInputs(screenId) {
@@ -686,13 +822,13 @@ function loadGearCablingInputs(screenId) {
   const xdToProcessorEl = document.getElementById('xdToProcessor');
   const xdToWallEl = document.getElementById('xdToWall');
 
-  if(wallToFloorEl) wallToFloorEl.value = (data.wallToFloor && data.wallToFloor !== 5) ? data.wallToFloor : '';
-  if(distroToWallEl) distroToWallEl.value = (data.distroToWall && data.distroToWall !== 10) ? data.distroToWall : '';
-  if(processorToWallEl) processorToWallEl.value = (data.processorToWall && data.processorToWall !== 15) ? data.processorToWall : '';
+  if(wallToFloorEl) wallToFloorEl.value = cableInputValue(data.wallToFloor, CABLE_INPUT_DEFAULTS.wallToFloor);
+  if(distroToWallEl) distroToWallEl.value = cableInputValue(data.distroToWall, CABLE_INPUT_DEFAULTS.distroToWall);
+  if(processorToWallEl) processorToWallEl.value = cableInputValue(data.processorToWall, CABLE_INPUT_DEFAULTS.processorToWall);
   loadSourceFeedIntoCableTab(screenId);
-  if(cablePickEl) cablePickEl.value = (data.cablePick && data.cablePick !== 0) ? data.cablePick : '';
-  if(xdToProcessorEl) xdToProcessorEl.value = (data.xdToProcessor && data.xdToProcessor !== 25) ? data.xdToProcessor : '';
-  if(xdToWallEl) xdToWallEl.value = (data.xdToWall && data.xdToWall !== 40) ? data.xdToWall : '';
+  if(cablePickEl) cablePickEl.value = cableInputValue(data.cablePick, CABLE_INPUT_DEFAULTS.cablePick);
+  if(xdToProcessorEl) xdToProcessorEl.value = cableInputValue(data.xdToProcessor, CABLE_INPUT_DEFAULTS.xdToProcessor);
+  if(xdToWallEl) xdToWallEl.value = cableInputValue(data.xdToWall, CABLE_INPUT_DEFAULTS.xdToWall);
 
   // Update toggle button states
   const dropPos = data.cableDropPosition || 'behind';

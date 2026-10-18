@@ -1,5 +1,5 @@
 {
-  "version": "2.11.225",
+  "version": "2.11.226",
   "updated": "2026-10-17",
-  "changelog": "Fix dragging screens in the canvas after loading a project"
+  "changelog": "Add a Cable Units toggle for showing and typing cable distances in feet or meters"
 }

@@ -7402,6 +7402,26 @@ input[type="number"].spare-qty-input::placeholder {
   display: inline-block;
 }
 
+/* Cable Units toggle (Cable tab and Combined cabling) — first row under the header */
+.cable-unit-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin-bottom: 10px;
+}
+.cable-unit-row .toggle-label {
+  margin-right: 0;
+}
+/* Locked on a multi-screen project — set in the Combined view */
+.cable-unit-row .slider-toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.cable-unit-row .source-feed-lock-hint {
+  margin: 0;
+}
+
 /* Combined cabling: Source feed rows, one per processor feed. The list is the grid and
    each row's cells join it directly, so the columns line up across rows. */
 .source-feed-list {

@@ -111,7 +111,8 @@ function sourceFeedEntry(index) {
   const e = sourceFeeds.list[index] || {};
   return {
     name: (typeof e.name === 'string' && e.name.trim()) ? e.name : SOURCE_FEED_DEFAULT_NAME,
-    distance: (typeof e.distance === 'number' && e.distance >= 0) ? e.distance : sourceFeeds.defaultDistance,
+    // No distance of its own: the project default, in metres the nearest whole metre
+    distance: (typeof e.distance === 'number' && e.distance >= 0) ? e.distance : cableDefaultFt(sourceFeeds.defaultDistance),
     sameAs: (typeof e.sameAs === 'number') ? e.sameAs : null
   };
 }
@@ -176,7 +177,7 @@ function saveSourceFeedFromCableTab() {
   const nameEl = document.getElementById('sourceFeedName');
   const distEl = document.getElementById('serverToProcessor');
   if(nameEl) setSourceFeedField(index, 'name', nameEl.value.trim());
-  if(distEl) setSourceFeedField(index, 'distance', distEl.value !== '' ? parseFloat(distEl.value) : parseFloat(distEl.placeholder));
+  if(distEl) setSourceFeedField(index, 'distance', readCableInput(distEl, sourceFeeds.defaultDistance, sourceFeedEntry(index).distance));
 }
 
 function loadSourceFeedIntoCableTab(screenId) {
@@ -185,8 +186,10 @@ function loadSourceFeedIntoCableTab(screenId) {
   const nameEl = document.getElementById('sourceFeedName');
   const distEl = document.getElementById('serverToProcessor');
   if(nameEl) nameEl.value = feed.name === SOURCE_FEED_DEFAULT_NAME ? '' : feed.name;
-  if(distEl) distEl.value = feed.distance !== 50 ? feed.distance : '';
-  // A multi-screen project sets its feeds per processor in the Combined view
+  if(distEl) distEl.value = cableInputValue(feed.distance, sourceFeeds.defaultDistance);
+  // A multi-screen project sets its feeds per processor in the Combined view — and the
+  // cable unit, whose Cable tab toggle locks the same way
+  if(typeof updateCableUnitControls === 'function') updateCableUnitControls();
   const locked = Object.keys(screens).length > 1;
   [nameEl, distEl].forEach(el => { if(el) el.disabled = locked; });
   const hint = document.getElementById('sourceFeedLockHint');
@@ -286,7 +289,7 @@ function renderSourceFeedRows(selectedScreenIds) {
     if(el === document.activeElement) return;
     const feed = sourceFeedEntry(parseInt(el.dataset.feed, 10));
     if(el.dataset.field === 'name') el.value = feed.name === SOURCE_FEED_DEFAULT_NAME ? '' : feed.name;
-    else if(el.dataset.field === 'distance') el.value = feed.distance !== 50 ? feed.distance : '';
+    else if(el.dataset.field === 'distance') el.value = cableInputValue(feed.distance, sourceFeeds.defaultDistance);
     else el.value = feed.sameAs === null ? '' : String(feed.sameAs);
   });
 }
@@ -324,7 +327,7 @@ function buildSourceFeedRow(index, units) {
   dist.type = 'number';
   dist.min = '0';
   dist.step = '0.1';
-  dist.placeholder = '50';
+  dist.placeholder = cableDefaultDisplay(sourceFeeds.defaultDistance);
   addField('Source to Proc Distance', dist, 'distance');
 
   if(units.procs.length > 1) {
@@ -340,7 +343,7 @@ function onSourceFeedRowInput(e) {
   const el = e.target;
   const index = parseInt(el.dataset.feed, 10);
   if(el.dataset.field === 'name') setSourceFeedField(index, 'name', el.value.trim());
-  else if(el.dataset.field === 'distance') setSourceFeedField(index, 'distance', el.value !== '' ? parseFloat(el.value) : 50);
+  else if(el.dataset.field === 'distance') setSourceFeedField(index, 'distance', readCableInput(el, sourceFeeds.defaultDistance, sourceFeedEntry(index).distance));
   else setSourceFeedField(index, 'sameAs', el.value === '' ? null : parseInt(el.value, 10));
   // The Cable tab shows one screen's feed, which may be the one just edited
   loadSourceFeedIntoCableTab(sourceFeedCableTabScreenId());
@@ -1157,7 +1160,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     // Every trunk off a processor is the same length, so label the first one only —
     // repeating it under each box just produced a pile of overlapping numbers.
     if (seq > 1) return;
-    var trunkLabelText = cfg.xdToProcessor + "'";
+    var trunkLabelText = cableLabel(cfg.xdToProcessor);
     var trunkLabelX = boxX;
     var trunkLabelY = trunkMidY - (redundancy ? 2 : 0);
     var trunkFontSize = isPdf ? 18 : (isSmall ? 8 : 10);
@@ -1221,7 +1224,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     });
 
     // Distance label on the vertical segment
-    var srvLabelText = fb.feed.distance + "'";
+    var srvLabelText = cableLabel(fb.feed.distance);
     var srvLabelX = dropX + 4;
     var srvLabelMidY = (sourceBoxY + BOX_H + runY) / 2;
     ctx.font = 'bold ' + (isPdf ? (isSmall ? 13 : 16) : (isSmall ? 7 : 10)) + 'px Arial';
@@ -1606,15 +1609,15 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
       if (pos === 'behind') {
         var pickDimX = sp.pickCX - (isSmall ? 15 : 25);
         drawCableDimensionLine(ctx, pickDimX, sp.pickCY - PICK_RADIUS, pickDimX, sp.top,
-          sp.cab.cablePick + "'", ccDimColor, CC_BG_COLOR);
+          cableLabel(sp.cab.cablePick), ccDimColor, CC_BG_COLOR);
       } else if (pos === 'sr') {
         var pickDimY = sp.pickCY - PICK_RADIUS - 14;
         drawCableDimensionLine(ctx, sp.pickCX - PICK_RADIUS, pickDimY, sp.left, pickDimY,
-          sp.cab.cablePick + "'", ccDimColor, CC_BG_COLOR);
+          cableLabel(sp.cab.cablePick), ccDimColor, CC_BG_COLOR);
       } else {
         var pickDimY2 = sp.pickCY - PICK_RADIUS - 14;
         drawCableDimensionLine(ctx, sp.right, pickDimY2, sp.pickCX + PICK_RADIUS, pickDimY2,
-          sp.cab.cablePick + "'", ccDimColor, CC_BG_COLOR);
+          cableLabel(sp.cab.cablePick), ccDimColor, CC_BG_COLOR);
       }
     }
   });
@@ -1652,18 +1655,18 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     var totalWidthFt = bbW / ftToPx;
     var dimAboveWall = isSmall ? 16 : 32;
     drawCableDimensionLine(ctx, bbCanvasL, bbCanvasT - dimAboveWall, bbCanvasR, bbCanvasT - dimAboveWall,
-      Math.round(totalWidthFt * 10) / 10 + '\'', ccDimColor, CC_BG_COLOR);
+      cableLabel(totalWidthFt), ccDimColor, CC_BG_COLOR);
 
     // Combined wall height — SL: left side to avoid drop/pick overlap; otherwise right side
     var totalHeightFt = bbH / ftToPx;
     if (dropPos === 'sl') {
       var dimOffL1 = isSmall ? 8 : 15;
       drawCableDimensionLine(ctx, bbCanvasL - dimOffL1, bbCanvasT, bbCanvasL - dimOffL1, bbCanvasB,
-        Math.round(totalHeightFt * 10) / 10 + '\'', ccDimColor, CC_BG_COLOR);
+        cableLabel(totalHeightFt), ccDimColor, CC_BG_COLOR);
     } else {
       var dimOffR1 = isSmall ? 8 : 15;
       drawCableDimensionLine(ctx, bbCanvasR + dimOffR1, bbCanvasT, bbCanvasR + dimOffR1, bbCanvasB,
-        Math.round(totalHeightFt * 10) / 10 + '\'', ccDimColor, CC_BG_COLOR);
+        cableLabel(totalHeightFt), ccDimColor, CC_BG_COLOR);
     }
 
     // Wall-to-floor — SL: left side; otherwise right side
@@ -1671,11 +1674,11 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
       if (dropPos === 'sl') {
         var dimOffL2 = isSmall ? 18 : 35;
         drawCableDimensionLine(ctx, bbCanvasL - dimOffL2, bbCanvasB, bbCanvasL - dimOffL2, floorY,
-          cfg.wallToFloor + '\'', ccDimColor, CC_BG_COLOR);
+          cableLabel(cfg.wallToFloor), ccDimColor, CC_BG_COLOR);
       } else {
         var dimOffR2 = isSmall ? 18 : 35;
         drawCableDimensionLine(ctx, bbCanvasR + dimOffR2, bbCanvasB, bbCanvasR + dimOffR2, floorY,
-          cfg.wallToFloor + '\'', ccDimColor, CC_BG_COLOR);
+          cableLabel(cfg.wallToFloor), ccDimColor, CC_BG_COLOR);
       }
     }
 
@@ -1688,14 +1691,14 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions) {
     var dimRowY = floorY + floorBandPx + 10;
     if (floorBoxes.length) {
       drawCableDimensionLine(ctx, unitX[floorBoxes[0].unitId], dimRowY, dimAnchorX, dimRowY,
-        minXdToWall + "'", ccDimColor, CC_BG_COLOR);
+        cableLabel(minXdToWall), ccDimColor, CC_BG_COLOR);
       dimRowY += 15;
     }
     drawCableDimensionLine(ctx, procCanvasX, dimRowY, dimAnchorX, dimRowY,
-      cfg.processorToWall + "'", ccDimColor, CC_BG_COLOR);
+      cableLabel(cfg.processorToWall), ccDimColor, CC_BG_COLOR);
     dimRowY += 15;
     drawCableDimensionLine(ctx, distroCanvasX, dimRowY, dimAnchorX, dimRowY,
-      cfg.distroToWall + "'", ccDimColor, CC_BG_COLOR);
+      cableLabel(cfg.distroToWall), ccDimColor, CC_BG_COLOR);
   }
 
   // ---- Legend (wraps to multiple rows on small screens) ----

@@ -989,7 +989,7 @@
             <li>ROE DM2.6</li>
             <li>INFiLED AMT 8.3</li>
           </ul>
-          <p class="help-text"><strong>CB5 MKII:</strong> Half Panel Row toggle adds a row of half-height panels at the bottom. Choose between Air Frame or Connecting Plates.</p>
+          <p class="help-text"><strong>CB5 MKII:</strong> Half Panel Row adds rows of half-height panels Above, Below, or Both, with a row count for each side. Choose between Air Frame or Connecting Plates.</p>
           <p class="help-text"><strong>DM2.6:</strong> Automatically uses connecting plates (2-way and 4-way).</p>
           <p class="help-text"><strong>BM4 (Matte):</strong> Floor panel &mdash; no bumper support.</p>
 
@@ -1021,9 +1021,9 @@
 
           <h3 class="help-section-title">Dimensions</h3>
           <ul class="help-list">
-            <li><strong>Panels mode</strong> &mdash; enter number of panels wide and high</li>
-            <li><strong>Size mode</strong> &mdash; enter desired wall width and height (auto-calculates panels)</li>
-            <li><strong>Pixels mode</strong> &mdash; enter target pixel width and height (auto-calculates panels)</li>
+            <li><strong>Panels, Wall Size, and Pixels</strong> show together &mdash; type in any of them and the others follow</li>
+            <li><strong>Panel counts set the wall</strong> &mdash; a size or pixel target that doesn&rsquo;t land on a whole panel stays as typed, with the actual size shown below it</li>
+            <li>Changing the panel type keeps the panel counts</li>
             <li><strong>Units</strong> &mdash; toggle between Imperial (ft/lbs) and Metric (m/kg)</li>
             <li><strong>Aspect Ratio Lock</strong> &mdash; None, 16:9, 4:3, or Custom ratio</li>
           </ul>
@@ -1048,7 +1048,7 @@
               <li><strong>Phase Balance</strong> &mdash; even the load across legs; the legend below the layout shows the result</li>
               <li><strong>Color by Leg</strong> &mdash; color panels by their phase leg instead of by circuit</li>
               <li><strong>Share Distro</strong> &mdash; chain screens onto one distro so legs balance across the whole group</li>
-              <li><strong>Circuit table</strong> &mdash; lists each SOCA, its circuits, and their loads below the layout</li>
+              <li><strong>Circuit table</strong> &mdash; lists each SOCA, its circuits, and their loads below the layout; each SOCA card is coloured by its number in resistor colour code</li>
             </ul>
             <p class="help-text"><strong>Assign Circuit #</strong> and <strong>Assign SOCA #</strong> &mdash; select panels in the Power layout and use the panel menu to set circuit and SOCA numbers by hand. A manual assignment always wins; Share Distro only auto-fills numbers you have not claimed. Cable and gear counts follow your assignments.</p>
             <p class="help-text"><strong>Distro Wiring</strong> (Menu &rarr; Power) &mdash; type the leg(s) each SOCA circuit is wired to. 120&nbsp;V circuits sit on one leg, 208&nbsp;V circuits bridge two. Blank cells use the standard rotation.</p>
@@ -1068,7 +1068,7 @@
               <li><strong>Frame Rate</strong> &mdash; 24, 25, 30, 50, 60 Hz</li>
               <li><strong>Bit Depth</strong> &mdash; 8, 10, 12-bit</li>
               <li><strong>Max/Data</strong> &mdash; override max panels per data line (leave blank for auto)</li>
-              <li><strong>Data Direction</strong> &mdash; Top&rarr;Bottom, Bottom&rarr;Top, All from Top, All from Bottom</li>
+              <li><strong>Data Direction</strong> &mdash; Top&rarr;Bottom, Bottom&rarr;Top, All from Top, All from Bottom, Left&rarr;Right or Right&rarr;Left (from Top or from Bottom)</li>
               <li><strong>Arrows</strong> &mdash; show/hide data routing arrows</li>
               <li><strong>Flip</strong> &mdash; flip direction of arrows</li>
               <li><strong>Data Redundancy</strong> &mdash; doubles ports needed</li>
@@ -1076,6 +1076,17 @@
             </ul>
           </div>
           <p class="help-text"><strong>Connection Mode</strong> (MX40 Pro) &mdash; <strong>Direct:</strong> 20 outputs off the processor (10 with redundancy). <strong>Indirect:</strong> CVT-10 Pro boxes, 10 outputs each (5 with redundancy), up to 4 CVT boxes per processor. Each screen keeps its own mode.</p>
+          <p class="help-text"><strong>Source signal</strong> &mdash; when a screen needs more than one processor, the app asks whether the extra processors take the same source signal as the first. The answer sets the Source feeds on the Cable tab.</p>
+
+          <h3 class="help-section-title">Screens Too Big for One Processor</h3>
+          <ul class="help-list">
+            <li><strong>Warning</strong> &mdash; a screen larger than its processor&rsquo;s input, or the canvas when that is smaller, shows a warning with the number of processors and canvases it needs</li>
+            <li><strong>Split</strong> &mdash; the screen is split on panel boundaries across seamless canvases, one part per canvas, and extra canvases are added for you</li>
+            <li><strong>Adjust the split</strong> &mdash; each part gets its own row under its screen in the Screens table, with its own columns, rows, and offset</li>
+            <li><strong>Data</strong> &mdash; each part gets its own processor and data lines, and the data layouts mark the split with a dashed line and a canvas / processor tag</li>
+            <li>Power and structure are still calculated on the whole screen</li>
+            <li>Picking an SQ200 switches the canvas to 8K so the screen can fit on one canvas</li>
+          </ul>
 
           <div class="help-complex-section" style="display: none;">
             <h3 class="help-section-title">Data Lines &amp; Ports</h3>
@@ -1085,9 +1096,12 @@
               <li><strong>Arrows / Flip</strong> &mdash; show routing arrows, or flip their direction</li>
               <li><strong>Data Labels</strong> &mdash; number each data line on the panels</li>
               <li><strong>Data Line Map</strong> &mdash; table below the layout with Line, Panel, Unit, and Port columns</li>
-              <li><strong>Consistent numbering</strong> &mdash; a line is named by the processor port it lands on, and the data layout, cable diagram, and gear list all call it the same thing</li>
+              <li><strong>Line numbers</strong> &mdash; lines are numbered 1, 2, 3&hellip; in the order the data path reaches them, per screen. The port each line plugs into shows in the Port column and on the unit labels. The data layout, cable diagram, and gear list all call a line the same thing</li>
+              <li><strong>Line colours</strong> &mdash; each line is coloured by the port it plugs into, so lines on the same port number share a colour</li>
             </ul>
-            <p class="help-text"><strong>Assign Data Port</strong> &mdash; select panels and use the panel menu to set the processor, distribution box, and port for a line. Processor and box accept a letter or a number, and Auto leaves the app to pick. The app warns before taking a port another line already holds, and manual assignments drive the gear list counts.</p>
+            <p class="help-text"><strong>Assign Data Port</strong> &mdash; select panels and use the panel menu to set the processor, distribution box, and port for a line. The number you type is the port, not the line number. Processor and box accept a letter or a number, and Auto leaves the app to pick. The app warns before taking a port another line already holds, and other lines stay where they are when one port changes. Manual assignments drive the gear list counts.</p>
+            <p class="help-text"><strong>Change a whole line</strong> &mdash; right-click the panel where a line starts and choose &ldquo;Change data line&hellip; (whole line)&rdquo; to select every panel on it and reassign it in one go.</p>
+            <p class="help-text"><strong>No port</strong> &mdash; a line that lost its port to another line shows grey dashed panels and a red &ldquo;No port&rdquo; in the tables and PDF until you give it one.</p>
             <p class="help-text">With Data Redundancy on, the map also shows each line&rsquo;s backup destination, and those loop-back ports appear in the PDF.</p>
           </div>
 
@@ -1124,7 +1138,7 @@
             <ul class="help-list">
               <li>Select which screens to include</li>
               <li><strong>Zoom</strong> &mdash; 50%&ndash;200% to see detail or overview</li>
-              <li><strong>Manual Adjust</strong> &mdash; drag screens to custom positions</li>
+              <li><strong>Manual Adjust</strong> &mdash; drag screens to custom positions in the Standard layout</li>
               <li><strong>Select Mode</strong> &mdash; turn it on before selecting panels, same as the Complex layouts</li>
               <li>Click panels to select across screens; Ctrl+click for multi-select; drag a box to select a region</li>
               <li>Right-click selected panels to assign circuits, SOCAs, or data ports, or to reset that layout</li>
@@ -1143,9 +1157,11 @@
             <p class="help-text">Cabling calculations and cable layout diagram.</p>
             <ul class="help-list">
               <li>Switch to the <strong>Cable</strong> tab in the bottom nav</li>
+              <li><strong>Cable Units</strong> &mdash; show and type cable distances in Feet or Meters, separate from the Imperial / Metric toggle</li>
               <li><strong>General</strong> &mdash; Wall to Floor distance, Cable Pick height, Cable Drop position (Behind, SR, SL)</li>
               <li><strong>Power</strong> &mdash; Distro to Drop distance, Power In position (Top, Bottom)</li>
-              <li><strong>Data</strong> &mdash; Proc to Drop, Server to Proc distances, Dist Box on-wall toggle with position controls</li>
+              <li><strong>Data</strong> &mdash; Proc to Drop distance, Source name and Source to Proc distance, Dist Box placement (At Proc, On Wall, Remote) with position controls</li>
+              <li><strong>Source feeds</strong> &mdash; one per processor, each with its own name and distance, or marked as the same signal as another feed. In multi-screen projects they, and Cable Units, are set in the Combined view</li>
               <li><strong>Cable Diagram</strong> &mdash; front-view layout showing cable routing from wall to processor/distro</li>
               <li><strong>Cable List</strong> &mdash; equipment and cable counts organized by category</li>
             </ul>
@@ -1166,7 +1182,7 @@
           <h3 class="help-section-title">Canvas View</h3>
           <p class="help-text">Position multiple screens visually on a virtual canvas.</p>
           <ul class="help-list">
-            <li><strong>Canvas Size</strong> &mdash; 4K UHD, 4K DCI, HD, or Custom dimensions</li>
+            <li><strong>Canvas Size</strong> &mdash; 4K UHD, 4K DCI, 8K UHD, 8K DCI, HD, or Custom dimensions</li>
             <li><strong>Drag screens</strong> &mdash; tap and drag to reposition on canvas</li>
             <li><strong>X/Y Pos</strong> &mdash; set exact pixel positions</li>
             <li><strong>Fine (px)</strong> &mdash; set arrow key increment for precise adjustments</li>
@@ -1177,8 +1193,9 @@
             <li><strong>Overlays</strong> &mdash; per-screen X/Y coordinates, pixel dimensions, and crosshair</li>
             <li><strong>Header/Footer</strong> &mdash; add a title block band to the canvas; set position (header or footer) and band height</li>
             <li><strong>Export</strong> &mdash; PNG, JPEG, or Resolume XML with custom filename; export the whole canvas or each screen at native resolution</li>
-            <li><strong>Resolume file</strong> &mdash; import in Resolume&rsquo;s advanced output section to create input and output screens based on canvas positions</li>
+            <li><strong>Resolume file</strong> &mdash; import in Resolume&rsquo;s advanced output section to create input and output screens based on canvas positions. Each canvas becomes its own output, and the input reads a composition with the canvases side by side</li>
             <li><strong>Add Canvas</strong> &mdash; add more than one canvas if your screens don&rsquo;t all fit on one canvas</li>
+            <li><strong>Split screens</strong> &mdash; a screen too big for one processor shows on each canvas as its part, and test pattern and outline exports use that part</li>
             <li><strong>Reorder Canvases</strong> &mdash; drag canvas tabs the same way as screen tabs</li>
           </ul>
 
@@ -1260,13 +1277,13 @@
 
           <h3 class="help-section-title">Preset Processors</h3>
           <table class="help-table">
-            <tr><td>SX40</td><td>40 &times; 1G &bull; XD Box (10 ports)</td></tr>
-            <tr><td>S8</td><td>8 &times; 1G &bull; Direct</td></tr>
-            <tr><td>M2</td><td>4 &times; 1G &bull; Direct</td></tr>
-            <tr><td>S4</td><td>4 &times; 1G &bull; Direct</td></tr>
-            <tr><td>T1</td><td>1 &times; 1G &bull; Direct</td></tr>
-            <tr><td>SQ200</td><td>Dual 100G QSFP28 &bull; 8 ports &bull; Direct</td></tr>
-            <tr><td>MX40 Pro</td><td>40 &times; 1G &bull; CVT Box (10 ports)</td></tr>
+            <tr><td>SX40</td><td>40 &times; 1G &bull; XD Box (10 ports) &bull; 4096&times;2160 input</td></tr>
+            <tr><td>S8</td><td>8 &times; 1G &bull; Direct &bull; 4096&times;2160 input</td></tr>
+            <tr><td>M2</td><td>4 &times; 1G &bull; Direct &bull; 1920&times;1080 input</td></tr>
+            <tr><td>S4</td><td>4 &times; 1G &bull; Direct &bull; 1920&times;1080 input</td></tr>
+            <tr><td>T1</td><td>1 &times; 1G &bull; Direct &bull; 1920&times;1080 input</td></tr>
+            <tr><td>SQ200</td><td>Dual 100G QSFP28 &bull; 8 ports &bull; Direct &bull; 8192&times;4320 input</td></tr>
+            <tr><td>MX40 Pro</td><td>40 &times; 1G &bull; CVT Box (10 ports) &bull; 4096&times;2160 input</td></tr>
           </table>
 
           <h3 class="help-section-title">Sign In &amp; Cloud Sync</h3>
@@ -1345,6 +1362,8 @@
           <ul class="help-list">
             <li><strong>Access</strong> &mdash; tap &ldquo;Test Pattern&rdquo; on the welcome page</li>
             <li><strong>Screen Options</strong> &mdash; image name, display size, displays grid (up to 12&times;12), auto-calculated total size</li>
+            <li><strong>Import Raster</strong> &mdash; bring in a real show raster from the Current Project, Recent Projects, a project file, or a raster file. Deleted panels leave real holes in the pattern. A raster from the Current Project stays linked, so it follows screen moves the next time you open the tool</li>
+            <li><strong>Whole Canvas / Per Screen</strong> &mdash; one pattern across the whole raster that each screen is a window onto, or a separate pattern per screen with that screen&rsquo;s own name and size. Imports start in Per Screen</li>
             <li><strong>Quick Patterns</strong> &mdash; one-tap presets: SMPTE, Grid, Checker, Gradient, Strobe, Solid</li>
             <li><strong>Processor Lines</strong> &mdash; show where processor canvas boundaries fall (4K UHD, 4K DCI, HD, or custom size)</li>
             <li><strong>Background</strong> &mdash; BG color, checker pattern with size/opacity/colors, checker border, and BG image upload</li>
@@ -1360,7 +1379,7 @@
             <li><strong>Layers</strong> &mdash; drag-and-drop panel to reorder all visual elements</li>
             <li><strong>Save/Load</strong> &mdash; save and load .blinktp pattern files from toolbar or hamburger menu</li>
             <li><strong>Live Out</strong> &mdash; popup window mirroring the canvas in real-time for display testing, with fullscreen (F key or double-click) and cursor auto-hide</li>
-            <li><strong>Export</strong> &mdash; PNG at full resolution, or MP4 video for animated patterns (sweep, spinning circles)</li>
+            <li><strong>Export</strong> &mdash; PNG at full resolution, or MP4 video for animated patterns (sweep, spinning circles). With a raster imported, Export PNG / MP4 &mdash; Per Screen zips one file per screen at its native size, plus the whole canvas. Exports ask where to save</li>
             <li><strong>Toolbar</strong> &mdash; undo/redo, save/load, share (PNG/MP4), reset</li>
           </ul>
         </div>
@@ -4003,8 +4022,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.230';
-const APP_CHANGELOG = 'Blank knocked-out panels and fit labels around overlapped screens in combined view';
+const APP_VERSION = '2.11.231';
+const APP_CHANGELOG = 'Update help modal and README for split screens, source feeds, data lines and test pattern rasters';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

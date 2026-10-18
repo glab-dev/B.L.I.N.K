@@ -190,7 +190,7 @@ The app works on both mobile and desktop devices. Both platforms support Simple 
 ### Panel-Specific Options
 
 **CB5 MKII:**
-- Half Panel Row toggle — Add a row of half-height panels at the bottom
+- Half Panel Row toggle — Add rows of half-height panels Above, Below, or Both, with a row count for each side
 - Connection Method — Choose between Air Frame or Connecting Plates
 
 **DM2.6:**
@@ -318,10 +318,13 @@ Want a panel or processor added to the built-in library?
 
 ## Dimensions
 
-### Input Modes
-- **Panels** — Enter number of panels wide and high
-- **Size** — Enter desired wall width and height (auto-calculates panels needed)
-- **Pixels** — Enter target pixel width and height (auto-calculates panels needed)
+### Inputs
+Panels, Wall Size, and Pixels are all shown at once — type in any of them and the others follow.
+- **Panels** — Number of panels wide and high. Panel counts are what set the wall
+- **Wall Size** — Desired wall width and height (calculates the panels needed)
+- **Pixels** — Target pixel width and height (calculates the panels needed)
+- A size or pixel target that doesn't land on a whole panel stays as typed, with the actual size shown below it (e.g. "= 19.69 x 13.12 ft actual")
+- Changing the panel type keeps the panel counts
 
 ### Unit Systems
 - **Imperial** — Feet (ft) and Pounds (lbs)
@@ -362,7 +365,7 @@ A SOCA groups circuits onto one multi-circuit cable run. Controls sit above the 
 - **Phase Balance** — Even the load across legs; a legend below the layout shows the result
 - **Color by Leg** — Color panels by phase leg instead of by circuit
 - **Share Distro** — Chain screens onto one distro so legs balance across the whole group
-- **Circuit table** — Lists each SOCA, its circuits, and their loads below the layout
+- **Circuit table** — Lists each SOCA, its circuits, and their loads below the layout; each SOCA card is coloured by its number in resistor colour code
 
 **Manual assignment** — Select panels in the Power layout and use the panel menu for **Assign Circuit #** and **Assign SOCA #**. A manual assignment always wins; Share Distro only auto-fills numbers you have not claimed. Cable lengths and gear counts follow your assignments.
 
@@ -392,6 +395,8 @@ A SOCA groups circuits onto one multi-circuit cable run. Controls sit above the 
 - **Bottom→Top** — Serpentine routing starting from bottom
 - **All from Top** — All data lines start from top
 - **All from Bottom** — All data lines start from bottom
+- **Left→Right (from Top / from Bottom)** — Lines run across the wall from the left edge
+- **Right→Left (from Top / from Bottom)** — Lines run across the wall from the right edge
 
 ### Options (Complex Mode)
 - **Arrows / Flip** — Show/hide data routing arrows, or flip their direction
@@ -402,9 +407,12 @@ A SOCA groups circuits onto one multi-circuit cable run. Controls sit above the 
 
 ### Data Lines & Ports (Complex Mode)
 - **Data Line Map** — Table below the Data layout with Line, Panel, Unit, and Port columns
-- **Consistent numbering** — A line is named by the processor port it lands on, and the data layout, cable diagram, and gear list all call it the same thing
-- **Assign Data Port** — Select panels and use the panel menu to set the processor, distribution box, and port for a line. Processor and box accept a letter or a number; Auto leaves the app to pick.
-- The app warns before taking a port another line already holds, and manual assignments drive gear list counts
+- **Line numbers** — Lines are numbered 1, 2, 3… in the order the data path reaches them, per screen (backups are the same number + B). The port each line plugs into shows in the Port column and on the unit labels. The data layout, cable diagram, and gear list all call a line the same thing
+- **Line colours** — Each line is coloured by the port it plugs into, so lines on the same port number share a colour
+- **Assign Data Port** — Select panels and use the panel menu to set the processor, distribution box, and port for a line. The number you type is the port, not the line number. Processor and box accept a letter or a number; Auto leaves the app to pick.
+- The app warns before taking a port another line already holds, other lines stay where they are when one port changes, and manual assignments drive gear list counts
+- **Change a whole line** — Right-click the panel where a line starts and choose "Change data line … (whole line)" to select every panel on it and reassign it in one go
+- **No port** — A line that lost its port to another line shows grey dashed panels and a red "No port" in the tables and PDF until you give it one
 - With Data Redundancy on, the map also shows each line's backup destination, and those loop-back ports appear in the PDF
 - **Connection Mode** — Per screen, run a processor direct or through its distribution box
 
@@ -424,6 +432,17 @@ A SOCA groups circuits onto one multi-circuit cable run. Controls sit above the 
 - Each MX40 Pro can drive up to 4 CVT boxes (40 total outputs, or 20 with redundancy)
 
 Processor count is automatically calculated based on total pixel count and port requirements.
+
+### Source Signal
+When a screen needs more than one processor, the app asks whether the extra processors take the same source signal as the first. The answer sets the Source feeds on the Cable tab.
+
+### Screens Too Big for One Processor
+- **Warning** — A screen larger than its processor's input (or the canvas, when that is smaller) shows a warning with the number of processors and canvases it needs
+- **Split** — The screen is split on panel boundaries across seamless canvases, one part per canvas; extra canvases are added for you
+- **Adjust the split** — Each part gets its own row under its screen in the Screens table, with its own columns, rows, and offset
+- **Data** — Each part gets its own processor and data lines; the data layouts mark the split with a dashed line and a canvas / processor tag
+- Power and structure are still calculated on the whole screen
+- Picking an SQ200 switches the canvas to 8K so the screen can fit on one canvas
 
 ---
 
@@ -506,6 +525,8 @@ Multi-screen canvas visualization for positioning multiple LED walls.
 ### Canvas Size Presets
 - 4K UHD (3840×2160)
 - 4K DCI (4096×2160)
+- 8K UHD (7680×4320)
+- 8K DCI (8192×4320)
 - HD (1920×1080)
 - Custom dimensions
 
@@ -540,6 +561,7 @@ The Canvas page shows the same spreadsheet-style table as Raster mode — a row 
 - **Add Canvas (+)** — Add more than one canvas when your screens don't all fit on one
 - **Reorder** — Drag canvas tabs the same way as screen tabs; the order saves with the project
 - Each canvas keeps its own size, positions, and visible screens
+- **Split screens** — A screen too big for one processor shows on each canvas as its part; test pattern and outline exports use that part
 
 ### Header/Footer Band
 - **Enable** — Add a title block band to the canvas
@@ -573,7 +595,7 @@ A spreadsheet-style table to manage all screens at once:
 ### Toolbar
 - **Filename** — Custom filename for exports
 - **Save / Load** — Save and load .blinkrast project files
-- **Canvas Size** — 4K UHD, 4K DCI, HD, or Custom dimensions
+- **Canvas Size** — 4K UHD, 4K DCI, 8K UHD, 8K DCI, HD, or Custom dimensions
 - **X/Y Pos** — Pixel position of selected screen
 - **Fine (px)** — Arrow key increment for precise adjustments
 - **Snap** — Toggle snapping to other screens and canvas edges
@@ -594,7 +616,7 @@ View and manage multiple screens together in a unified interface.
 ### Combined Standard Layout
 - View all selected screens in one layout
 - **Zoom Controls** — Zoom in/out (50%-200%) to see detail or overview
-- **Manual Adjust** — Enable to drag screens to custom positions
+- **Manual Adjust** — Enable to drag screens to custom positions (Standard layout only)
 - **Reset** — Reset all positions and zoom to defaults
 
 ### Panel Selection (Multi-Screen)
@@ -650,9 +672,11 @@ The SOCA circuit table, data line map, and structure pickup weights appear benea
 Cabling calculations, cable layout diagram, and gear list. Available in Complex mode via the **Cable** tab in the bottom navigation.
 
 ### Cabling Inputs
+- **Cable Units** — Show and type cable distances in Feet or Meters, separate from the Imperial / Metric toggle
 - **General** — Wall to Floor distance, Cable Pick height, Cable Drop position (Behind, SR, SL)
 - **Power** — Distro to Drop distance, Power In position (Top, Bottom)
-- **Data** — Proc to Drop distance, Server to Proc distance, Dist Box on-wall toggle with main/backup position controls (SR/C/SL, Top/Bottom)
+- **Data** — Proc to Drop distance, Source name and Source to Proc distance, Dist Box placement (At Proc, On Wall, Remote) with main/backup position controls (SR/C/SL, Top/Bottom)
+- **Source feeds** — One per processor, each with its own name and distance, or marked as the same signal as another feed (a same-signal feed is not counted in the gear list). In multi-screen projects the Source feeds and Cable Units are set in the Combined view
 
 ### Cable Diagram
 - Front-view layout showing cable routing from LED wall to processor and power distribution
@@ -729,7 +753,7 @@ Export the canvas view as an image file at full resolution, or each screen at it
 Export the gear list as a text file, or send it by email with a formatted breakdown of all equipment, rigging, and cabling organized by screen. Each screen's gear box also has its own share button for a PDF of just that screen's gear list. On mobile, uses the native share sheet.
 
 ### Resolume XML Export
-Export screen configurations as Resolume Arena 7 compatible XML files for LED mapping.
+Export screen configurations as Resolume Arena 7 compatible XML files for LED mapping. Each canvas becomes its own Advanced Output screen, and the input reads a composition with the canvases side by side. One-canvas projects export with input and output the same.
 
 ### Configuration Files
 - **Save** — Export all screens as a .blinkled file
@@ -749,6 +773,8 @@ Generate professional test pattern images and videos for LED walls and displays.
 - **Displays** — Number of displays in the grid (up to 12×12)
 - **Total Size [px]** — Auto-calculated total pixel resolution (Display Size × Displays)
 - **Quick Patterns** — One-tap presets: SMPTE, Grid, Checker, Gradient, Strobe, Solid
+- **Import Raster** — Bring in a real show raster from the Current Project, Recent Projects, a project file, or a raster file. Deleted panels leave real holes in the pattern. A raster from the Current Project stays linked, so it follows screen moves the next time you open the tool
+- **Whole Canvas / Per Screen** — One pattern across the whole raster that each screen is a window onto, or a separate pattern per screen with that screen's own name and size. Imports start in Per Screen
 - **Processor Lines** — Toggle + canvas size selector (4K UHD, 4K DCI, HD, or custom) to show where processor canvas boundaries fall on the pattern, with configurable line color
 
 ### Background (Column 2)
@@ -808,6 +834,8 @@ Generate professional test pattern images and videos for LED walls and displays.
 ### Export
 - **Export PNG** — Save the test pattern at full resolution
 - **Export MP4** — Export animated patterns (sweep, spinning circles) as MP4 video with configurable framerate (23.98–120 fps)
+- **Export PNG / MP4 — Per Screen** — With a raster imported, zips one file per screen at its native size, plus the whole canvas. MP4s are frame-synced
+- Exports ask where to save instead of dropping into Downloads
 
 ### Toolbar & Header
 - **Undo / Redo** — Full undo/redo history for all changes
@@ -849,15 +877,17 @@ Generate professional test pattern images and videos for LED walls and displays.
 
 ## Supported Processors
 
-| Processor | 1G Ports | 10G Ports | Pixels/Port | Distribution |
-|-----------|----------|-----------|-------------|--------------|
-| Brompton SX40 | 40 | 4 | 2,304,000 | XD Box (10 ports) |
-| Brompton S8 | 8 | 0 | 2,304,000 | — |
-| Brompton M2 | 4 | 0 | 2,304,000 | — |
-| Brompton S4 | 4 | 0 | 2,304,000 | — |
-| Brompton T1 | 1 | 0 | 2,304,000 | — |
-| Brompton SQ200 | 8 | 0 | 4,000,000 | Dual 100G QSFP28 |
-| NovaStar MX40 Pro | 40 | 4 | 2,600,000 | CVT Box (10 ports) |
+| Processor | 1G Ports | 10G Ports | Pixels/Port | Distribution | Max Input |
+|-----------|----------|-----------|-------------|--------------|-----------|
+| Brompton SX40 | 40 | 4 | 525,000 | XD Box (10 ports) | 4096×2160 |
+| Brompton S8 | 8 | 0 | 525,000 | — | 4096×2160 |
+| Brompton M2 | 4 | 0 | 500,000 | — | 1920×1080 |
+| Brompton S4 | 4 | 0 | 525,000 | — | 1920×1080 |
+| Brompton T1 | 1 | 0 | 525,000 | — | 1920×1080 |
+| Brompton SQ200 | 8 | 0 | 525,000 | Dual 100G QSFP28 | 8192×4320 |
+| NovaStar MX40 Pro | 40 | 4 | 659,722 | CVT Box (10 ports) | 4096×2160 |
+
+Pixels/Port is the capacity of one 1G data line at 60 Hz, 8-bit — the figure each data line is sized by. It drops at higher frame rates and bit depths (the MX40 Pro uses its own figures: 494,792 at 10-bit, 329,861 at 12-bit). On the SX40 each 10G trunk feeds an XD box, so its data lines are the XD box's 1G ports.
 
 ---
 

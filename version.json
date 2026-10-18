@@ -1,5 +1,5 @@
 {
-  "version": "2.11.230",
+  "version": "2.11.231",
   "updated": "2026-10-17",
-  "changelog": "Blank knocked-out panels and fit labels around overlapped screens in combined view"
+  "changelog": "Update help modal and README for split screens, source feeds, data lines and test pattern rasters"
 }

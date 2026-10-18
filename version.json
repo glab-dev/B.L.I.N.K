@@ -1,5 +1,5 @@
 {
-  "version": "2.11.231",
+  "version": "2.11.232",
   "updated": "2026-10-17",
-  "changelog": "Update help modal and README for split screens, source feeds, data lines and test pattern rasters"
+  "changelog": "Fit each screen on one page and keep panel shape in the Simple PDF"
 }

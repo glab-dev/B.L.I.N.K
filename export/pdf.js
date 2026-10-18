@@ -976,9 +976,19 @@ function buildSimplePdf(canvasCache) {
     const imgData = canvasCache && canvasCache[imgKey];
 
     if (imgData && imgData.dataUrl && pw * ph > 1) {
-      const usedAbove = m.headerBarH + 6 + m.summaryBarHExp + 8;
-      const remainH   = uh - usedAbove - m.resolutionLblH - 8;
-      const { renderWidth, renderHeight } = calculateGridScale(pw, ph, cw, remainH);
+      // The summary bar measures ~155pt with its full POWER column, so budget 160 (as
+      // complex mode does) rather than push the image onto a page of its own. Size by
+      // the captured image's own shape — panel counts alone squash non-square panels.
+      const SUMMARY_BAR_MAX_H = 160;
+      const usedAbove = m.headerBarH + 6 + SUMMARY_BAR_MAX_H + 8;
+      const remainH   = uh - usedAbove - m.resolutionLblH - 28;
+      const aspect    = imgData.aspectRatio || (ph / pw);
+      let renderWidth  = cw;
+      let renderHeight = renderWidth * aspect;
+      if (renderHeight > remainH) {
+        renderHeight = remainH;
+        renderWidth  = renderHeight / aspect;
+      }
 
       content.push({
         image: imgData.dataUrl,

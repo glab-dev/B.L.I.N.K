@@ -1585,7 +1585,7 @@ function resetCombinedSelectedPanels(sel, kind) {
     syncCombinedOverridesToGlobals(screenId);
   });
 
-  finishCombinedReset();
+  finishCombinedReset(Object.keys(byScreen));
 }
 
 function syncCombinedOverridesToGlobals(screenId) {
@@ -1598,12 +1598,13 @@ function syncCombinedOverridesToGlobals(screenId) {
   customDataDestinations = new Map(d.customDataDestinations);
 }
 
-function finishCombinedReset() {
+function finishCombinedReset(screenIds) {
   combinedSelectedPanels.clear();
   combinedSelectedPanel = null;
   syncCombinedSelectedPanel();
-  // Always recalculate: circuits, SOCAs and the port plan all span screens.
-  calculate();
+  // Always recalculate: circuits, SOCAs and the port plan all span screens, and every
+  // reset screen needs its own calculatedData rebuilt, not just the open one.
+  recalculateCombinedScreens(screenIds);
   renderCombinedView();
 }
 

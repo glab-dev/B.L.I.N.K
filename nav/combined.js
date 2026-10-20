@@ -4174,7 +4174,6 @@ function renderCombinedGearList(selectedScreenIds) {
   let totalFloorWeightKg = 0;
 
   // Track panel info for jumpers
-  let hasJumpersBuiltin = false;
   let needsShacklesAndCheeseye = false;
   let hasHangingScreen = false;
   let hasFloorScreen = false;
@@ -4278,9 +4277,6 @@ function renderCombinedGearList(selectedScreenIds) {
       totalFloorWeightLbs += ff.totalWeightLbs || 0;
       totalFloorWeightKg += ff.totalWeightKg || 0;
     }
-
-    // Panel-specific info for data/power jumpers
-    if(panel.jumpers_builtin) hasJumpersBuiltin = true;
 
     // Data and power jumpers, keyed by this panel's own length
     if(!panel.jumpers_builtin && panel.data_jumper_ft) {
@@ -4569,31 +4565,54 @@ function renderCombinedGearList(selectedScreenIds) {
     colPower += addGearLine('True1 Twofer:', totalTrue1Twofers);
   }
 
-  // A column is emitted only when its section has content, so a rig with no ground
-  // support or floor hardware keeps Data and Power on the first row instead of
-  // wrapping them to a second one.
-  const gearCol = (body) => body ? `<div class="gear-col">${body}</div>` : '';
-  const gearGrid = (cols, cls) => {
-    const filled = cols.map(gearCol).join('');
-    return filled ? `<div class="gear-grid ${cls}">${filled}</div>` : '';
-  };
+  html += gearSectionsHtml(colEquipment, colRigging, colGround, colFloor, colData, colPower);
+  html += gearSystemSparesHtml(selectedScreenIds);
 
-  // With ground support or floor hardware in play there are four hardware sections, so
-  // they take the row on their own and the cables drop to a row beneath. A rig with
-  // neither is only four sections all told, so they share one row.
+  html += '</div>';
+
+  gearContent.innerHTML = html;
+}
+
+// Gear list section header, shared by the combined gear list and the Cable tab
+function gearHeaderHtml(title) {
+  return `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #383838; margin-bottom: 4px;"><strong style="color: #10b981; font-size: 13px;">${title}</strong></div>`;
+}
+
+// A column is emitted only when its section has content, so a rig with no ground
+// support or floor hardware keeps Data and Power on the first row instead of
+// wrapping them to a second one.
+function gearGridHtml(cols, cls) {
+  const filled = cols.map(body => body ? `<div class="gear-col">${body}</div>` : '').join('');
+  return filled ? `<div class="gear-grid ${cls}">${filled}</div>` : '';
+}
+
+// The gear list's section columns, laid out the same in the combined view and the
+// Cable tab. With ground support or floor hardware in play there are four hardware
+// sections, so they take the row on their own and the cables drop to a row beneath.
+// A rig with neither is only four sections all told, so they share one row.
+function gearSectionsHtml(colEquipment, colRigging, colGround, colFloor, colData, colPower) {
   if(colGround || colFloor) {
-    html += gearGrid([colEquipment, colRigging, colGround, colFloor], 'gear-grid-4');
-    html += gearGrid([colData, colPower], 'gear-grid-4');
-  } else {
-    html += gearGrid([colEquipment, colRigging, colData, colPower], 'gear-grid-4');
+    return gearGridHtml([colEquipment, colRigging, colGround, colFloor], 'gear-grid-4')
+      + gearGridHtml([colData, colPower], 'gear-grid-4');
   }
+  return gearGridHtml([colEquipment, colRigging, colData, colPower], 'gear-grid-4');
+}
+
+// System (Signal + Utility) and Spares bands for the given screens. Shown in the
+// combined view, and in the Cable tab when the project has only one screen.
+function gearSystemSparesHtml(screenIds) {
+  const allPanels = getAllPanels();
+  const hasJumpersBuiltin = screenIds.some(id => {
+    const panel = screens[id] && screens[id].data ? allPanels[screens[id].data.panelType || 'CB5_MKII'] : null;
+    return !!(panel && panel.jumpers_builtin);
+  });
 
   // === SYSTEM-WIDE SECTION ===
 
   // The system sections and the spares are all editable, and all come from
   // buildGearListData() so the app and every export share one source of truth. The
   // matching `*Auto` trees supply the placeholder each input falls back to.
-  const gearOverrideData = buildGearListData(selectedScreenIds);
+  const gearOverrideData = buildGearListData(screenIds);
   const sp = gearOverrideData.spares;
   const spAuto = gearOverrideData.sparesAuto;
   const sig = gearOverrideData.signalCables;
@@ -4616,7 +4635,7 @@ function renderCombinedGearList(selectedScreenIds) {
   // Signal Cables + Utility — one row of two columns.
   let colSignal = '';
   if(sig && sigAuto) {
-    colSignal += addGearHeader('Signal Cables');
+    colSignal += gearHeaderHtml('Signal Cables');
     for(const len of Object.keys(sigAuto.sdiByLength).map(Number).sort((a, b) => b - a)) {
       colSignal += editRow('signal:sdi:' + len, sigAuto.sdiByLength[len], `${cableLenLabel(len)} ${sig.sdiType}`);
     }
@@ -4630,7 +4649,7 @@ function renderCombinedGearList(selectedScreenIds) {
 
   let colUtility = '';
   if(util && utilAuto) {
-    colUtility += addGearHeader('Utility');
+    colUtility += gearHeaderHtml('Utility');
     colUtility += editRow('util:ug10', utilAuto.ug10, `UG ${cableLenLabel(cableKit().ug.ug10)}`);
     colUtility += editRow('util:ug25', utilAuto.ug25, `UG ${cableLenLabel(cableKit().ug.ug25)}`);
     colUtility += editRow('util:ug50', utilAuto.ug50, `UG ${cableLenLabel(cableKit().ug.ug50)}`);
@@ -4638,9 +4657,9 @@ function renderCombinedGearList(selectedScreenIds) {
     colUtility += editRow('util:powerBars', utilAuto.powerBars, 'Power Bars');
   }
 
-  html += '<div class="gear-band">System</div>';
+  let html = '<div class="gear-band">System</div>';
   html += editHint;
-  html += gearGrid([colSignal, colUtility], 'gear-grid-2');
+  html += gearGridHtml([colSignal, colUtility], 'gear-grid-2');
 
   // Spares (panels 10%, cables/rigging 40%) — one row of three columns. Cat6 and Soca
   // list every stocked length, not just the ones this rig runs, so an unused length
@@ -4649,7 +4668,7 @@ function renderCombinedGearList(selectedScreenIds) {
     html += '<div class="gear-band">Spares</div>';
     html += editHint;
 
-    let colSpareHardware = addGearHeader('Panels & Hardware');
+    let colSpareHardware = gearHeaderHtml('Panels & Hardware');
     for(const name of Object.keys(spAuto.panelsByType)) {
       colSpareHardware += editRow('panel:' + name, spAuto.panelsByType[name], name);
     }
@@ -4657,7 +4676,7 @@ function renderCombinedGearList(selectedScreenIds) {
     colSpareHardware += editRow('shackles', spAuto.shackles, 'Shackles');
     colSpareHardware += editRow('cheeseyes', spAuto.cheeseyes, 'Cheeseyes');
 
-    let colSpareData = addGearHeader('Data Cables');
+    let colSpareData = gearHeaderHtml('Data Cables');
     for(const len of Object.keys(spAuto.crossJumpersByLength)) {
       colSpareData += editRow('crossJumpers:' + len, spAuto.crossJumpersByLength[len], `Cross Jumpers ${cableJumperLabel(len)}`);
     }
@@ -4666,7 +4685,7 @@ function renderCombinedGearList(selectedScreenIds) {
       colSpareData += editRow('cat6:' + len, spAuto.cat6ByLength[len], `${cableLenLabel(len)} Cat6`);
     }
 
-    let colSparePower = addGearHeader('Power Cables');
+    let colSparePower = gearHeaderHtml('Power Cables');
     colSparePower += editRow('socaSplays', spAuto.socaSplays, 'Soca Splays');
     for(const len of Object.keys(spAuto.socaByLength).map(Number).sort((a, b) => a - b)) {
       colSparePower += editRow('soca:' + len, spAuto.socaByLength[len], `${cableLenLabel(len)} Soca`);
@@ -4678,12 +4697,10 @@ function renderCombinedGearList(selectedScreenIds) {
     colSparePower += editRow('true1_5', spAuto.true1_5, `${cableLenLabel(cableKit().true1.true1_5)} True1`);
     colSparePower += editRow('true1Twofer', spAuto.true1Twofer, 'True1 Twofer');
 
-    html += gearGrid([colSpareHardware, colSpareData, colSparePower], 'gear-grid-3');
+    html += gearGridHtml([colSpareHardware, colSpareData, colSparePower], 'gear-grid-3');
   }
 
-  html += '</div>';
-
-  gearContent.innerHTML = html;
+  return html;
 }
 
 // Spare quantity edit handler. Stores the override and stops there — the input already

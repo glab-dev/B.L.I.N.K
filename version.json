@@ -1,5 +1,5 @@
 {
-  "version": "2.11.235",
+  "version": "2.11.236",
   "updated": "2026-10-20",
-  "changelog": "Count True1 twofers per extra circuit column from the drawn circuit layout"
+  "changelog": "Match Cable tab gear layout to combined view and measure backup data cables correctly"
 }

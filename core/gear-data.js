@@ -409,9 +409,10 @@ function buildGearListData(screenIds) {
       const knockoutCables = cabling.knockoutBridgeCables || [];
       allDataCables.forEach(c => { cat6ByLength[c.roundedFt] = (cat6ByLength[c.roundedFt] || 0) + 1; });
       knockoutCables.forEach(c => { cat6ByLength[c.roundedFt] = (cat6ByLength[c.roundedFt] || 0) + 1; });
-      // Detail for expandable sections
+      // Detail for expandable sections — every main line, then every backup line
       const primaryCables = allDataCables.filter(c => !c.backup);
-      primaryCables.forEach(c => { cableDetail.push({ lineIndex: c.lineIndex, lengthFt: c.lengthFt, roundedFt: c.roundedFt }); });
+      const backupCables = allDataCables.filter(c => c.backup);
+      primaryCables.concat(backupCables).forEach(c => { cableDetail.push({ lineIndex: c.lineIndex, lengthFt: c.lengthFt, roundedFt: c.roundedFt, backup: !!c.backup }); });
       knockoutCables.forEach((c, idx) => { knockoutDetail.push({ index: idx, fromPanel: c.fromPanel, toPanel: c.toPanel, lengthFt: c.lengthFt, roundedFt: c.roundedFt }); });
     }
 

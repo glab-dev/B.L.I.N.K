@@ -1,5 +1,5 @@
 {
-  "version": "2.11.233",
-  "updated": "2026-10-18",
-  "changelog": "Show every Source feed in the Cable tab and match processor and XD counts"
+  "version": "2.11.234",
+  "updated": "2026-10-20",
+  "changelog": "Count CB5 couplers across the top and cross jumpers across the bottom only"
 }

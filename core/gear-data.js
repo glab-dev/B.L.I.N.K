@@ -63,11 +63,17 @@ function loadProjectSpareOverrides(overrides) {
 }
 
 // Serpentine column-crossing count for data cabling.
-// Panels with cables attached to them join columns with Cat5 couplers (one per crossing);
-// panels without attached cables need a cross jumper at BOTH the top and the bottom of
-// every crossing, so their cross jumper count is twice the crossing count.
-function calcDataCrossJumpers(data, p, W, H) {
+// Panels with cables attached to them (CB5) join columns with a Cat5 coupler where the
+// crossing is at the top of the wall and a cross jumper where it is at the bottom;
+// panels without attached cables need one cross jumper per crossing.
+// Attached-cable panels also need a coupler wherever an external cable meets a cable
+// tail at the top of the wall: a main line entering at the top, or a backup line
+// feeding from a panel whose chain ends at the top. At the bottom it plugs straight in.
+function calcDataCrossJumpers(data, p, W, H, dataLinesCount) {
   let crossings = 0;
+  let topCrossings = 0;
+  const redundancy = data.redundancy !== false;
+  let feedCouplers = 0;
   if(W > 0 && H > 0) {
     const pr = processors[data.processor] || processors['Brompton_SX40'];
     const portCapacity = pr ? pr.base_pixels_1g : 525000;
@@ -84,21 +90,17 @@ function calcDataCrossJumpers(data, p, W, H) {
     const panelsPerDataLine = userMaxPPD > 0 ? userMaxPPD : suggestedPPD;
 
     let startDir = data.dataStartDir || 'top';
-    let deletedPanelsData = data.deletedPanels;
-    let customDataLines = data.customDataLineAssignments;
-    // Horizontal directions cross between rows — count them on the wall turned on its side
+    const deletedPanelsData = data.deletedPanels;
+    const customDataLines = data.customDataLineAssignments;
+    // Panels stay cabled up the columns whichever way the data path is mapped, so a
+    // horizontal direction is cabled like the vertical run from the same top/bottom edge
     if(isHorizontalDataDir(startDir)) {
-      const t = dataDirTranspose(startDir, W, H);
-      deletedPanelsData = transposeDataKeys(deletedPanelsData, t);
-      customDataLines = transposeDataKeys(customDataLines, t);
-      W = t.pw;
-      H = t.ph;
-      startDir = 'top';
+      startDir = (startDir === 'lr_bottom' || startDir === 'rl_bottom') ? 'bottom' : 'top';
     }
     const hasCustomDataLines = customDataLines && customDataLines.size > 0;
 
     if(startDir !== 'all_top' && startDir !== 'all_bottom') {
-      const dataLineColumns = new Map();
+      const dataLineLastColumn = new Map();
       const usedCustomDataLines = new Set();
       if(hasCustomDataLines) {
         for(let c = 0; c < W; c++) {
@@ -126,17 +128,31 @@ function calcDataCrossJumpers(data, p, W, H) {
             panelsInCurrent++;
             if(panelsInCurrent >= panelsPerDataLine) { autoCounter++; panelsInCurrent = 0; while(usedCustomDataLines.has(autoCounter)) autoCounter++; }
           }
-          if(!dataLineColumns.has(dl)) dataLineColumns.set(dl, new Set());
-          dataLineColumns.get(dl).add(c);
+          const last = dataLineLastColumn.get(dl);
+          if(last && last.col !== c) {
+            crossings++;
+            // A column that ran upward ends at the top, so its crossing is at the top
+            if(!last.down) topCrossings++;
+          }
+          dataLineLastColumn.set(dl, { col: c, down: goingDown, firstDown: last ? last.firstDown : goingDown });
         }
         goingDown = !goingDown;
       }
-      dataLineColumns.forEach((columns) => { if(columns.size > 1) crossings += (columns.size - 1); });
+      // A line running down enters at the top; one whose last column ran up ends at the top
+      dataLineLastColumn.forEach(line => {
+        if(line.firstDown) feedCouplers++;
+        if(redundancy && !line.down) feedCouplers++;
+      });
+    } else {
+      // Every column runs from the same end: all_top enters at the top and ends at the
+      // bottom, all_bottom the other way round
+      feedCouplers = (startDir === 'all_top' || redundancy) ? (dataLinesCount || 0) : 0;
     }
   }
   return {
     crossings: crossings,
-    crossJumperCount: p.jumpers_builtin ? crossings : crossings * 2
+    crossJumperCount: p.jumpers_builtin ? (crossings - topCrossings) : crossings,
+    cat5CouplerCount: p.jumpers_builtin ? (topCrossings + feedCouplers) : 0
   };
 }
 
@@ -362,7 +378,7 @@ function buildGearListData(screenIds) {
     const jumpersBuiltin = p.jumpers_builtin || false;
     const dataLinesCount = calcData.dataLines || 0;
 
-    const crossJumpers = calcDataCrossJumpers(data, p, W, H);
+    const crossJumpers = calcDataCrossJumpers(data, p, W, H, dataLinesCount);
 
     // --- CABLING (from calculateCabling) ---
     const cabling = (typeof calculateCabling === 'function') ? calculateCabling(screenId) : null;
@@ -382,12 +398,9 @@ function buildGearListData(screenIds) {
       knockoutCables.forEach((c, idx) => { knockoutDetail.push({ index: idx, fromPanel: c.fromPanel, toPanel: c.toPanel, lengthFt: c.lengthFt, roundedFt: c.roundedFt }); });
     }
 
-    // Panels with built-in jumpers need a coupler everywhere an external cable meets
-    // the chain: one per main line at its entry panel, one per backup line at the exit
-    // panel it feeds from, plus one per serpentine crossing. The backup runs back down
-    // the same chain, so crossings do not double.
-    const couplerFeeds = dataLinesCount * (data.redundancy !== false ? 2 : 1);
-    const cat5CouplerCount = jumpersBuiltin ? (crossJumpers.crossings + couplerFeeds) : 0;
+    // Coupler rules live in calcDataCrossJumpers(). The backup runs back down the same
+    // chain, so crossings do not double.
+    const cat5CouplerCount = crossJumpers.cat5CouplerCount;
 
     const dataCables = {
       dataJumperLen: dataJumperLen,

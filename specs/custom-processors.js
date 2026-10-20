@@ -318,6 +318,11 @@ function saveCustomProcessor() {
 
   closeCustomProcessorModal();
 
+  // Every screen on this processor has to pick up the new specs, not just the open one
+  if(typeof recalculateCombinedScreens === 'function') {
+    recalculateCombinedScreens(Object.keys(screens).filter(id => screens[id].data && screens[id].data.processor === key));
+  }
+
   // Show appropriate message
   if(processorObj.is_shared) {
     showAlert(`Processor "${name}" updated in your library and the community!`);

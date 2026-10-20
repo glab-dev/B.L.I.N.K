@@ -4289,15 +4289,13 @@ function renderCombinedGearList(selectedScreenIds) {
     if(!panel.jumpers_builtin && panel.power_jumper_ft) {
       powerJumpersByLen[panel.power_jumper_ft] = (powerJumpersByLen[panel.power_jumper_ft] || 0) + activePanels;
     }
-    const screenCrossJumpers = calcDataCrossJumpers(data, panel, pw, ph);
+    const screenCrossJumpers = calcDataCrossJumpers(data, panel, pw, ph, calculatedData.dataLines || 0);
     if(screenCrossJumpers.crossJumperCount > 0) {
       // A custom panel may not declare a length; '' keeps its count rather than dropping it.
       const cjLen = panel.data_cross_jumper_ft || '';
       crossJumpersByLen[cjLen] = (crossJumpersByLen[cjLen] || 0) + screenCrossJumpers.crossJumperCount;
     }
-    if(panel.jumpers_builtin) {
-      totalCat5Couplers += (calculatedData.dataLines || 0) + screenCrossJumpers.crossings;
-    }
+    totalCat5Couplers += screenCrossJumpers.cat5CouplerCount;
 
     // True1 Twofers
     const columnsPerCircuit = calculatedData.columnsPerCircuit || 1;

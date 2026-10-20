@@ -618,6 +618,11 @@ function saveCustomPanel() {
 
   closeCustomPanelModal();
 
+  // Every screen built on this panel has to pick up the new specs, not just the open one
+  if(typeof recalculateCombinedScreens === 'function') {
+    recalculateCombinedScreens(Object.keys(screens).filter(id => screens[id].data && screens[id].data.panelType === key));
+  }
+
   // Show appropriate message
   if(panel.is_shared) {
     showAlert(`Panel "${brand} ${name}" updated in your library and the community!`);

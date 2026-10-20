@@ -156,6 +156,23 @@ function calcDataCrossJumpers(data, p, W, H, dataLinesCount) {
   };
 }
 
+// True1 twofers: a circuit feeding more than one column splits with a twofer for each
+// extra column, so a circuit spanning n columns needs n - 1. Read from the as-wired
+// circuit layout so custom circuit assignments count the way they are drawn.
+function calcTrue1Twofers(data) {
+  const inp = (typeof resolveScreenPowerInputs === 'function') ? resolveScreenPowerInputs(data) : null;
+  if(!inp || typeof assignCircuits !== 'function') return 0;
+  const { panelToCircuit } = assignCircuits(inp.pw, inp.ph, inp.panelsPerCircuit, inp.deletedPanels, inp.customCircuit);
+  const columnsByCircuit = new Map();
+  panelToCircuit.forEach((circuit, key) => {
+    if(!columnsByCircuit.has(circuit)) columnsByCircuit.set(circuit, new Set());
+    columnsByCircuit.get(circuit).add(key.split(',')[0]);
+  });
+  let twofers = 0;
+  columnsByCircuit.forEach(columns => { twofers += columns.size - 1; });
+  return twofers;
+}
+
 function buildGearListData(screenIds) {
   if(!screenIds || screenIds.length === 0) return { configName: '', processorGroups: {}, screens: [] };
 
@@ -416,8 +433,6 @@ function buildGearListData(screenIds) {
 
     // --- POWER CABLES ---
     const socaCount = calcData.socaCount || 0;
-    const circuitsNeeded = calcData.circuitsNeeded || 0;
-    const columnsPerCircuit = calcData.columnsPerCircuit || 1;
 
     const socaByLength = {};
     const socaDetail = [];
@@ -437,7 +452,7 @@ function buildGearListData(screenIds) {
       true1_25: socaCount,
       true1_10: socaCount,
       true1_5: socaCount * 2,
-      true1Twofer: columnsPerCircuit > 1 ? (circuitsNeeded * columnsPerCircuit) : 0
+      true1Twofer: calcTrue1Twofers(data)
     };
 
     // --- PROCESSOR → DIST BOX ---

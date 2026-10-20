@@ -1,5 +1,5 @@
 {
-  "version": "2.11.234",
+  "version": "2.11.235",
   "updated": "2026-10-20",
-  "changelog": "Count CB5 couplers across the top and cross jumpers across the bottom only"
+  "changelog": "Count True1 twofers per extra circuit column from the drawn circuit layout"
 }

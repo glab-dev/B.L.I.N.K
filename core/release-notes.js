@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.235', date: '2026-10-20', notes: 'Count True1 twofers per extra circuit column from the drawn circuit layout' },
   { version: '2.11.234', date: '2026-10-20', notes: 'Count CB5 couplers across the top and cross jumpers across the bottom only' },
   { version: '2.11.233', date: '2026-10-18', notes: 'Show every Source feed in the Cable tab and match processor and XD counts' },
   { version: '2.11.232', date: '2026-10-17', notes: 'Fit each screen on one page and keep panel shape in the Simple PDF' },

@@ -4298,11 +4298,7 @@ function renderCombinedGearList(selectedScreenIds) {
     totalCat5Couplers += screenCrossJumpers.cat5CouplerCount;
 
     // True1 Twofers
-    const columnsPerCircuit = calculatedData.columnsPerCircuit || 1;
-    const circuitsNeeded = calculatedData.circuits || 0;
-    if(columnsPerCircuit > 1) {
-      totalTrue1Twofers += circuitsNeeded * columnsPerCircuit;
-    }
+    totalTrue1Twofers += calcTrue1Twofers(data);
   });
 
   // Build processor groups for signal cable calculation (same logic as gear tab)

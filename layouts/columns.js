@@ -111,6 +111,25 @@ function columnsDataPlan(wall, startDir, capacityPx, maxPanels) {
   return { lines };
 }
 
+// Bumpers for a columns layout: one per hung column, sized by the column's width in
+// units of the family's narrowest panel (V4ST: 0.5 m column = 1W, 1 m column = 2W).
+// Ground-stacked columns take none.
+function columnsBumpers(data, allPanels) {
+  const family = mixedLayoutFamily(data.panelType);
+  const unit = Math.min(...(family.length ? family : [data.panelType]).map(t => allPanels[t].width_m));
+  const counts = { '1w': 0, '2w': 0, '4w': 0 };
+  data.columns.forEach(col => {
+    if(col.rigging !== 'hung') return;
+    const k = Math.round(col.width_m / unit);
+    if(k === 2) counts['2w']++;
+    else if(k === 4) counts['4w']++;
+    else counts['1w'] += Math.max(1, k);
+  });
+  const p = allPanels[data.panelType] || {};
+  const lbs = (counts['1w'] * (p.bumper_1w_lbs || 0)) + (counts['2w'] * (p.bumper_2w_lbs || 0)) + (counts['4w'] * (p.bumper_4w_lbs || 0));
+  return { counts, weightKg: lbs * LBS_TO_KG };
+}
+
 // Everything a columns screen's specs, layouts and gear read, from its columns and its
 // power / data settings: the live form for the open screen, the saved values for the rest
 function columnsScreenPlans(data) {
@@ -142,8 +161,8 @@ function columnsScreenPlans(data) {
 }
 
 // Specs, stored totals and the Standard, Power and Data layouts for the current
-// screen when it is a columns screen. Structure for mixed screens comes later, so
-// that layout stays hidden.
+// screen when it is a columns screen. Its bumpers show in the specs and gear; the grid
+// Structure layout (manual bumpers, plates, ground support) stays hidden.
 function calculateColumnsScreen() {
   const screen = screens[currentScreenId];
   const data = screen.data;
@@ -176,6 +195,16 @@ function calculateColumnsScreen() {
   });
   const dataLines = plans.dataPlan.lines.length;
   const redundancyMultiplier = redundancyEnabled ? 2 : 1;
+  const bumpers = columnsBumpers(data, allPanels);
+  // Columns taller than the panel's hanging / stacking limit, counted in main-panel heights
+  const mainPanel = allPanels[data.panelType] || {};
+  const structureWarnings = [];
+  data.columns.forEach((col, c) => {
+    const limit = col.rigging === 'hung' ? mainPanel.max_hanging : mainPanel.max_stacking;
+    if(!limit || !mainPanel.height_m) return;
+    const high = col.panels.reduce((h, t) => h + allPanels[t].height_m, 0) / mainPanel.height_m;
+    if(high > limit + 0.001) structureWarnings.push(`Column ${c + 1} is ${+high.toFixed(1)} panels high; ${mainPanel.name} max ${col.rigging === 'hung' ? 'hanging' : 'stacking'} is ${limit}.`);
+  });
 
   screen.calculatedData = {
     processorName: pr ? pr.name : '',
@@ -183,7 +212,10 @@ function calculateColumnsScreen() {
     panelCount: totalPanels,
     activePanels: totalPanels,
     panelWeightOnlyKg: panelWeightKg,
-    bumperWeightKg: 0,
+    bumperWeightKg: bumpers.weightKg,
+    bumper1wCount: bumpers.counts['1w'],
+    bumper2wCount: bumpers.counts['2w'],
+    bumper4wCount: bumpers.counts['4w'],
     dataLines: dataLines,
     dataLinesFinal: dataLines * redundancyMultiplier,
     portsNeeded: dataLines,
@@ -206,7 +238,7 @@ function calculateColumnsScreen() {
   const lenUnit = getLengthUnitLabel();
   const wtUnit = getWeightUnitLabel();
   const len = m => (displayLengthUnit === 'ft' ? m * M_TO_FT : m).toFixed(2);
-  const weightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(panelWeightKg * KG_TO_LBS) : Math.ceil(panelWeightKg);
+  const weight = kg => displayWeightUnit === 'lbs' ? Math.ceil(kg * KG_TO_LBS) : Math.ceil(kg);
   const pitches = [...new Set(types.map(t => allPanels[t].pixel_pitch_mm))].join(' / ');
 
   let html = '';
@@ -224,7 +256,12 @@ function calculateColumnsScreen() {
   html += `<div class="result-row"><strong>Total panel count:</strong> ${totalPanels}</div>`;
   html += `<div class="result-row"><strong>Resolution:</strong> ${wall.resX} × ${wall.resY}</div>`;
   html += `<div class="result-row"><strong>Total pixel count:</strong> (${totalPixels.toLocaleString()} px)</div>`;
-  html += `<div class="result-row"><strong>Wall weight:</strong> ${weightDisplay} ${wtUnit}</div>`;
+  html += `<div class="result-row"><strong>Total weight:</strong> ${weight(panelWeightKg + bumpers.weightKg)} ${wtUnit}</div>`;
+  html += `<div class="result-row result-indent"><strong>Panels:</strong> ${weight(panelWeightKg)} ${wtUnit}</div>`;
+  html += `<div class="result-row result-indent"><strong>Structure:</strong> ${weight(bumpers.weightKg)} ${wtUnit}</div>`;
+  const bumperText = [['1w', '1W'], ['2w', '2W'], ['4w', '4W']].filter(([k]) => bumpers.counts[k] > 0).map(([k, l]) => `${bumpers.counts[k]} × ${l}`).join(', ');
+  html += `<div class="result-row"><strong>Bumpers:</strong> ${bumperText || 'none (all stacked)'}</div>`;
+  structureWarnings.forEach(w => { html += `<div class="warn">${escapeHtml(w)}</div>`; });
   html += `</div></div><div class="specs-row specs-row-bottom"><div class="spec-group">`;
   html += `<div class="result-section-title">POWER (${powerType.toUpperCase()})</div>`;
   html += `<div class="result-row"><strong>Total watts:</strong> ${totalPowerW.toLocaleString()} W</div>`;

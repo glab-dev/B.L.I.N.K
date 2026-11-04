@@ -289,8 +289,8 @@ function buildGearListData(screenIds) {
     const calcData = screen.calculatedData || {};
 
     // Mixed-panel (columns) screens list one panel line per type, read straight from
-    // the columns, and count jumpers, SOCA gear and twofers from their own circuit and
-    // data-line plans. Cable runs to the floor and rigging come with structure.
+    // the columns, and count jumpers, SOCA gear, twofers and bumpers from their own
+    // circuit, data-line and column plans. Cable runs to the floor aren't measured yet.
     if(isColumnsScreen(data)) {
       const colCounts = columnsPanelCounts(data.columns);
       const colPlans = columnsScreenPlans(data);
@@ -303,6 +303,11 @@ function buildGearListData(screenIds) {
       const colSocas = Math.ceil(colPlans.power.circuits.length / 6);
       // A circuit spanning n columns needs n - 1 twofers
       const colTwofers = colPlans.power.circuits.reduce((n, ci) => n + ci.cols.size - 1, 0);
+      // Shackles and cheeseyes per bumper, by the same rule as grid screens
+      const colBumpers = columnsBumpers(data, allPanelsObj);
+      const colNeedsSC = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3', 'V4ST', 'V4ST_H', 'V4ST_V', 'V4ST_Q'].includes(data.panelType) || (colMain.custom && colMain.needs_shackles);
+      const colDouble = data.panelType === 'INFILED_AMT8_3' || (colMain.custom && colMain.double_shackles);
+      const colShackles = colNeedsSC ? colBumpers.counts['1w'] + colBumpers.counts['2w'] * (colDouble ? 2 : 1) : 0;
       const panelLines = Object.keys(colCounts).filter(t => allPanelsObj[t])
         .sort((a, b) => colCounts[b] - colCounts[a])
         .map(t => ({ panelType: t, brand: allPanelsObj[t].brand || '', name: allPanelsObj[t].name || '', count: colCounts[t] }));
@@ -330,7 +335,11 @@ function buildGearListData(screenIds) {
           halfPanelName: '',
           panelLines: panelLines
         },
-        rigging: { bumper1w: 0, bumper2w: 0, bumper4w: 0, plates2way: 0, plates4way: 0, shackles: 0, cheeseye: 0, hasRigging: false },
+        rigging: {
+          bumper1w: colBumpers.counts['1w'], bumper2w: colBumpers.counts['2w'], bumper4w: colBumpers.counts['4w'],
+          plates2way: 0, plates4way: 0, shackles: colShackles, cheeseye: colShackles,
+          hasRigging: colBumpers.counts['1w'] + colBumpers.counts['2w'] + colBumpers.counts['4w'] > 0
+        },
         groundSupport: { rearTruss: 0, baseTruss: 0, bridgeClamps: 0, rearBridgeAdapters: 0, sandbags: 0, swivelCheeseboroughs: 0, pipes: 0, pipeLengthStr: '', hasGS: false },
         floorHardware: { frame3x2: 0, frame2x2: 0, frame2x1: 0, frame1x1: 0, hasFloorFrames: false },
         dataCables: {

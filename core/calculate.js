@@ -632,6 +632,12 @@ function calculate(){
   
   showSpecWarningIfNeeded();
   
+  // Mixed-panel (columns) screens have no panelsWide/panelsHigh grid
+  if(screens[currentScreenId] && isColumnsScreen(screens[currentScreenId].data)) {
+    calculateColumnsScreen();
+    return;
+  }
+
   // Check if this is an empty/new screen (no dimensions entered)
   const panelsWideInput = document.getElementById('panelsWide');
   const panelsHighInput = document.getElementById('panelsHigh');
@@ -2000,6 +2006,11 @@ function getEffectivePanelCountsForLayout(){
 
 function generateLayout(mode){
   lastLayoutMode = mode;
+  // Mixed-panel (columns) screens: only the Standard layout exists so far
+  if(screens[currentScreenId] && isColumnsScreen(screens[currentScreenId].data)) {
+    if(mode === 'standard') renderColumnsStandardLayout();
+    return;
+  }
   const allPanels = getAllPanels();
   const allProcessors = getAllProcessors();
   const p=allPanels[document.getElementById('panelType').value];

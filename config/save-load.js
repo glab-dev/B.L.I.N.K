@@ -101,6 +101,8 @@ function buildCurrentConfig() {
         cb5HalfRowPosition: data.cb5HalfRowPosition,
         cb5HalfRowsAbove: data.cb5HalfRowsAbove,
         cb5HalfRowsBelow: data.cb5HalfRowsBelow,
+        layoutMode: data.layoutMode,
+        columns: data.columns,
         connectionMethod: data.connectionMethod,
         wallToFloor: data.wallToFloor,
         distroToWall: data.distroToWall,
@@ -528,6 +530,28 @@ function applyConfiguration(config, fileNameOverride) {
             safeData[key] = savedScreen.data[key];
           }
         });
+      }
+
+      // Mixed-panel (columns) layout: every column needs a width, hung/stacked rigging and
+      // at least one known panel of that width. Anything else drops the screen back to a grid.
+      if(safeData.layoutMode === 'columns') {
+        const allP = getAllPanels();
+        const cols = Array.isArray(safeData.columns) ? safeData.columns : [];
+        const validCols = cols.length > 0 && cols.every(col =>
+          col && typeof col === 'object' &&
+          typeof col.width_m === 'number' && col.width_m > 0 &&
+          (col.rigging === 'hung' || col.rigging === 'stacked') &&
+          Array.isArray(col.panels) && col.panels.length > 0 &&
+          col.panels.every(t => typeof t === 'string' && Object.prototype.hasOwnProperty.call(allP, t) &&
+            allP[t].res_x > 0 && allP[t].res_y > 0 && allP[t].height_m > 0 &&
+            Math.abs(allP[t].width_m - col.width_m) < 0.001)
+        );
+        if(validCols) {
+          safeData.columns = cols.map(col => ({ width_m: col.width_m, rigging: col.rigging, panels: col.panels.slice() }));
+        } else {
+          delete safeData.layoutMode;
+          delete safeData.columns;
+        }
       }
 
       screens[screenId] = {

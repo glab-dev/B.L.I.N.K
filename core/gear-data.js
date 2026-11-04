@@ -287,6 +287,48 @@ function buildGearListData(screenIds) {
     if(!screen || !screen.data) return;
     const data = screen.data;
     const calcData = screen.calculatedData || {};
+
+    // Mixed-panel (columns) screens list one panel line per type, read straight from
+    // the columns. Their cabling, rigging and processors come with data/power/structure.
+    if(isColumnsScreen(data)) {
+      const colCounts = columnsPanelCounts(data.columns);
+      const panelLines = Object.keys(colCounts).filter(t => allPanelsObj[t])
+        .sort((a, b) => colCounts[b] - colCounts[a])
+        .map(t => ({ panelType: t, brand: allPanelsObj[t].brand || '', name: allPanelsObj[t].name || '', count: colCounts[t] }));
+      const colProcessorType = data.processor || 'Brompton_SX40';
+      const colProcessorGroup = processorGroups[colProcessorType] || null;
+      const colIsFirst = colProcessorGroup && colProcessorGroup.firstScreenId === screenId;
+      screenDataList.push({
+        screenId: screenId,
+        screenName: screen.name,
+        screenColor: screen.color,
+        equipment: {
+          processorType: colProcessorType,
+          processorCount: (colIsFirst && colProcessorGroup) ? colProcessorGroup.processorCount : 0,
+          processorName: calcData.processorName || '',
+          distBoxCount: (colIsFirst && colProcessorGroup) ? colProcessorGroup.distBoxCount : 0,
+          distBoxName: (colIsFirst && colProcessorGroup) ? colProcessorGroup.distBoxName : '',
+          isFirstScreenInGroup: colIsFirst,
+          referencesScreenName: (!colIsFirst && colProcessorGroup && colProcessorGroup.firstScreenName) ? colProcessorGroup.firstScreenName : null,
+          panelType: data.panelType || '',
+          activePanels: panelLines.reduce((n, l) => n + l.count, 0),
+          activeFullPanels: 0,
+          activeHalfPanels: 0,
+          panelBrand: '',
+          panelName: '',
+          halfPanelName: '',
+          panelLines: panelLines
+        },
+        rigging: { bumper1w: 0, bumper2w: 0, bumper4w: 0, plates2way: 0, plates4way: 0, shackles: 0, cheeseye: 0, hasRigging: false },
+        groundSupport: { rearTruss: 0, baseTruss: 0, bridgeClamps: 0, rearBridgeAdapters: 0, sandbags: 0, swivelCheeseboroughs: 0, pipes: 0, pipeLengthStr: '', hasGS: false },
+        floorHardware: { frame3x2: 0, frame2x2: 0, frame2x1: 0, frame1x1: 0, hasFloorFrames: false },
+        dataCables: { dataJumperLen: '', jumpersBuiltin: false, jumperCount: 0, crossJumperLen: '', crossJumperCount: 0, cat5CouplerCount: 0, cat6ByLength: {}, cableDetail: [], knockoutDetail: [] },
+        powerCables: { powerJumperLen: '', jumperCount: 0, socaSplays: 0, socaByLength: {}, socaDetail: [], true1_25: 0, true1_10: 0, true1_5: 0, true1Twofer: 0 },
+        processorToDistBox: { count: 0, cableType: '', cableLength: 0 }
+      });
+      return;
+    }
+
     const W = parseInt(data.panelsWide) || 0;
     const H = parseInt(data.panelsHigh) || 0;
     if(W === 0 || H === 0) return;
@@ -605,6 +647,10 @@ function buildGearListData(screenIds) {
         const halfName = (eq.panelBrand + ' ' + eq.halfPanelName).trim();
         panelsByType[halfName] = (panelsByType[halfName] || 0) + eq.activeHalfPanels;
       }
+      (eq.panelLines || []).forEach(line => {
+        const lineName = (line.brand + ' ' + line.name).trim();
+        panelsByType[lineName] = (panelsByType[lineName] || 0) + line.count;
+      });
       totShackles += sd.rigging.shackles || 0;
       totCheeseyes += sd.rigging.cheeseye || 0;
       // Cross jumper length comes from the panel (data_cross_jumper_ft), so a project

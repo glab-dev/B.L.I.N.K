@@ -39,6 +39,7 @@ const LOCAL_ASSETS = [
   '/structure/drawing.js',
   // layouts
   '/layouts/standard.js',
+  '/layouts/columns.js',
   '/layouts/power.js',
   '/layouts/data.js',
   '/layouts/data-ports.js',

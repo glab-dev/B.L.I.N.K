@@ -16,8 +16,54 @@ function freePanelWatts(p, powerType) {
   return powerType === 'max' ? (p.power_max_w || 0) : (p.power_avg_w || p.power_max_w * 0.5 || 0);
 }
 
+// The cell grid a free screen's power runs on: cols × rows snap cells, every cell that
+// isn't a panel's top-left one "deleted", and each panel's watts by its key.
+function freeCellGrid(data, allPanels, powerType) {
+  const b = freeBounds(data.freePanels, allPanels, data.freeCell_mm);
+  const cols = b ? b.maxX : 0, rows = b ? b.maxY : 0;
+  const watts = new Map();
+  data.freePanels.forEach(fp => watts.set(`${fp.gx},${fp.gy}`, freePanelWatts(allPanels[fp.type], powerType)));
+  const deleted = new Set();
+  for(let x = 0; x < cols; x++) for(let y = 0; y < rows; y++) if(!watts.has(`${x},${y}`)) deleted.add(`${x},${y}`);
+  return {cols, rows, deleted, watts};
+}
+
+// Panels per circuit: counted like grid screens, sized off the hungriest panel on the
+// wall so a full circuit can't go over the breaker whichever sizes it picks up.
+function freeSuggestedPanelsPerCircuit(watts, voltage, breaker, derate) {
+  return Math.max(1, Math.floor((voltage * breaker * derate) / Math.max(1, ...watts.values())));
+}
+
+// resolveScreenPowerInputs() for a drawn screen, from its saved data: the cell grid, each
+// panel's own watts (perPanelW is 1 so circuit "counts" summed from wattsByKey are watts).
+function freeScreenPowerInputs(data) {
+  const allPanels = getAllPanels();
+  if(!data.freePanels.length || !data.freePanels.every(fp => allPanels[fp.type])) return null;
+  const grid = freeCellGrid(data, allPanels, data.powerType || 'max');
+  const voltage = parseInt(data.voltage) || 208;
+  const breaker = parseInt(data.breaker) || 20;
+  const derate = data.derate ? 0.8 : 1.0;
+  const userMax = parseInt(data.maxPanelsPerCircuit);
+  const toMap = v => v instanceof Map ? v : new Map(Array.isArray(v) ? v : (v && v.entries ? [...v.entries()] : []));
+  return {
+    pw: grid.cols, ph: grid.rows,
+    panelsPerCircuit: userMax > 0 ? userMax : freeSuggestedPanelsPerCircuit(grid.watts, voltage, breaker, derate),
+    deletedPanels: grid.deleted,
+    customCircuit: toMap(data.customCircuitAssignments),
+    customSoca: toMap(data.customSocaAssignments),
+    perPanelW: 1, wattsByKey: grid.watts,
+    totalW: [...grid.watts.values()].reduce((a, w) => a + w, 0),
+    voltage,
+    wiring: (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(voltage) : null,
+    phase: parseInt(data.phase) || 1,
+    isFree: true
+  };
+}
+
 // Circuits, SOCAs, per-panel watts and the 3-phase load for the current free screen,
-// from the live power settings and custom circuit/SOCA Maps.
+// from the live power settings and custom circuit/SOCA Maps. Phase Balance and Share
+// Distro follow the grid path in calculate(): the canvas and SOCA table show the circuits
+// actually in use, while socaSpans and twofers stay as-wired (the cables' source of truth).
 function calculateFreePower(data, allPanels) {
   const powerType = document.getElementById('powerType').value;
   const voltage = parseFloat(document.getElementById('voltage').value) || 220;
@@ -26,17 +72,8 @@ function calculateFreePower(data, allPanels) {
   const derate = (document.getElementById('derate') && document.getElementById('derate').value === 'on') ? 0.8 : 1.0;
 
   const cellMm = data.freeCell_mm;
-  const b = freeBounds(data.freePanels, allPanels, cellMm);
-  const cols = b ? b.maxX : 0, rows = b ? b.maxY : 0;
-  const watts = new Map();
-  data.freePanels.forEach(fp => watts.set(`${fp.gx},${fp.gy}`, freePanelWatts(allPanels[fp.type], powerType)));
-  const deleted = new Set();
-  for(let x = 0; x < cols; x++) for(let y = 0; y < rows; y++) if(!watts.has(`${x},${y}`)) deleted.add(`${x},${y}`);
-
-  // Counted like grid screens, sized off the hungriest panel on the wall so a full
-  // circuit can't go over the breaker whichever sizes it picks up
-  const maxW = Math.max(1, ...watts.values());
-  const calculatedPanelsPerCircuit = Math.max(1, Math.floor((voltage * breaker * derate) / maxW));
+  const {cols, rows, deleted, watts} = freeCellGrid(data, allPanels, powerType);
+  const calculatedPanelsPerCircuit = freeSuggestedPanelsPerCircuit(watts, voltage, breaker, derate);
   const userMax = parseInt(document.getElementById('maxPanelsPerCircuit').value);
   const panelsPerCircuit = userMax > 0 ? userMax : calculatedPanelsPerCircuit;
   const maxInput = document.getElementById('maxPanelsPerCircuit');
@@ -44,16 +81,51 @@ function calculateFreePower(data, allPanels) {
 
   const { panelToCircuit, circuitCounts } = assignCircuits(cols, rows, panelsPerCircuit, deleted, customCircuitAssignments);
   const panelToSoca = assignSocas(panelToCircuit, customSocaAssignments);
-  const circuitWatts = new Map();
-  panelToCircuit.forEach((circuit, key) => circuitWatts.set(circuit, (circuitWatts.get(circuit) || 0) + watts.get(key)));
+  const circuitWatts = circuitWattsOf(panelToCircuit, watts);
 
-  // computePhaseBalance multiplies each circuit's count by one panel's watts; circuit
-  // watts with 1 W per "panel" give the real load of a mixed circuit
-  let phaseBalance = null;
+  // Circuits shown on the canvas and in the SOCA table: as-wired unless Phase Balance
+  // (or the shared-distro group plan) re-circuits them
+  let shownPanelToCircuit = panelToCircuit;
+  let phaseBalance = null, sharedDistroTotal = null, socaLabelMap = null;
   if(phase === 3 && circuitWatts.size) {
     const wiring = (typeof resolveDistroWiring === 'function') ? resolveDistroWiring(voltage) : null;
-    phaseBalance = computePhaseBalance(circuitWatts, 1, voltage, 'aswired', wiring);
+    const pbMode = (typeof phaseBalanceMode !== 'undefined') ? phaseBalanceMode : 'aswired';
+    const shared = !!data.sharedDistro;
+    const groupPlan = (shared && typeof sharedDistroBalancedPlan === 'function') ? sharedDistroBalancedPlan() : null;
+    const groupEntry = (groupPlan && groupPlan.useBalanced) ? groupPlan.byScreen.get(currentScreenId) : null;
+    // computePhaseBalance multiplies each circuit's count by one panel's watts; circuit
+    // watts with 1 W per "panel" give the real load of a mixed circuit
+    if(groupEntry) {
+      phaseBalance = computePhaseBalance(groupEntry.circuitWatts, 1, voltage, 'aswired', wiring);
+      phaseBalance.balanceMode = true;
+      phaseBalance.balanceApplied = true;
+      phaseBalance.aswiredImbalancePct = groupPlan.aswiredImbalancePct;
+      phaseBalance.groupBalanced = true;
+      shownPanelToCircuit = groupEntry.panelToCircuit;
+    } else if(pbMode === 'balanced') {
+      const bal = resolveBalancedCircuits(cols, rows, panelsPerCircuit, deleted, wiring, customCircuitAssignments, customSocaAssignments, 1, voltage, watts);
+      phaseBalance = bal.phaseBalance;
+      phaseBalance.balanceMode = true;
+      phaseBalance.balanceApplied = bal.useBalanced;
+      phaseBalance.aswiredImbalancePct = bal.aswiredImbalancePct;
+      if(bal.useBalanced) shownPanelToCircuit = bal.panelToCircuit;
+    } else {
+      phaseBalance = computePhaseBalance(circuitWatts, 1, voltage, pbMode, wiring);
+    }
+    if(shared) {
+      sharedDistroTotal = freeSharedDistroTotal(groupPlan, {cols, rows, deleted, watts, panelsPerCircuit, voltage, wiring});
+      if(typeof sharedDistroLabelPlan === 'function') {
+        const plan = sharedDistroLabelPlan({
+          screenId: currentScreenId,
+          distinct: [...new Set([...panelToSoca.values()])].sort((a, b) => a - b),
+          explicit: explicitSocaIndices(panelToCircuit, customSocaAssignments)
+        });
+        const m = plan.get(currentScreenId);
+        if(m) socaLabelMap = [...m.entries()];
+      }
+    }
   }
+  const shownPanelToSoca = (shownPanelToCircuit === panelToCircuit) ? panelToSoca : assignSocas(shownPanelToCircuit, customSocaAssignments);
 
   // SOCA spans over every cell a panel covers, so cable runs land on real panel edges
   const cellToCircuit = new Map(), cellToSoca = new Map();
@@ -65,18 +137,70 @@ function calculateFreePower(data, allPanels) {
       cellToSoca.set(`${fp.gx + i},${fp.gy + j}`, panelToSoca.get(key));
     }
   });
+  const socaSpans = computeSocaSpans(cellToCircuit, cellToSoca);
+  const lm = socaLabelMap ? new Map(socaLabelMap) : null;
+  socaSpans.forEach(sp => { sp.labelIdx = (lm && lm.has(sp.socaIdx)) ? lm.get(sp.socaIdx) : sp.socaIdx; });
 
   freePowerState = {
-    panelToCircuit, panelToSoca, circuitCounts, circuitWatts, watts,
+    panelToCircuit: shownPanelToCircuit, panelToSoca: shownPanelToSoca,
+    aswiredCircuitCounts: circuitCounts, aswiredPanelToCircuit: panelToCircuit, aswiredPanelToSoca: panelToSoca,
+    circuitWatts, watts,
     panelsPerCircuit,
     circuitsNeeded: circuitCounts.size,
     socaCount: new Set(panelToSoca.values()).size,
-    socaSpans: computeSocaSpans(cellToCircuit, cellToSoca),
+    socaSpans,
     true1Twofers: freeTrue1Twofers(data, allPanels, panelToCircuit),
-    socaBreakdown: computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, 1, voltage, watts),
-    phaseBalance
+    socaBreakdown: computeSocaBreakdown(null, shownPanelToCircuit, shownPanelToSoca, 1, voltage, watts),
+    phaseBalance, sharedDistroTotal, socaLabelMap
   };
   return freePowerState;
+}
+
+// Combined load of every Share Distro screen when the open screen is a drawn one — the
+// same totals calculate() builds for a grid screen. Each screen's circuits come from the
+// group plan when it is balanced, else as wired; its watts from its own panels.
+function freeSharedDistroTotal(groupPlan, cur) {
+  const pairW = { XY: 0, YZ: 0, ZX: 0 };
+  const singleW = { X: 0, Y: 0, Z: 0 };
+  const addCircuit = c => { if(pairW[c.pair] !== undefined) pairW[c.pair] += c.amps; else if(singleW[c.pair] !== undefined) singleW[c.pair] += c.amps; };
+  let comboWatts = 0, comboScreens = 0;
+  Object.keys(screens).forEach(sid => {
+    const sd = screens[sid] && screens[sid].data;
+    if(!sd || !sd.sharedDistro) return;
+    const e = (groupPlan && groupPlan.useBalanced) ? groupPlan.byScreen.get(sid) : null;
+    if(sid === currentScreenId) {
+      // Live values: the custom Maps are the globals, the panels the drawn list
+      const pc = e ? computePhaseBalance(e.circuitWatts, 1, cur.voltage, 'aswired', cur.wiring).perCircuit
+        : screenCircuitContributions(cur.cols, cur.rows, cur.panelsPerCircuit, cur.deleted, customCircuitAssignments, customSocaAssignments, 1, cur.voltage, cur.wiring, cur.watts).perCircuit;
+      pc.forEach(addCircuit);
+      comboWatts += [...cur.watts.values()].reduce((a, w) => a + w, 0);
+      comboScreens++;
+      return;
+    }
+    const inp = resolveScreenPowerInputs(sd);
+    if(!inp || inp.phase !== 3) return;
+    const half = inp.isFree ? { top: 0, bottom: 0 } : getCB5HalfRows(sd, sd.panelType || 'CB5_MKII');
+    const pc = e ? computePhaseBalance(e.circuitWatts || e.circuitCounts, e.circuitWatts ? 1 : inp.perPanelW, inp.voltage, 'aswired', inp.wiring).perCircuit
+      : screenCircuitContributions(inp.pw, inp.ph, inp.panelsPerCircuit, shiftCB5RowKeys(inp.deletedPanels, -half.top),
+          shiftCB5RowKeys(inp.customCircuit, -half.top), shiftCB5RowKeys(inp.customSoca, -half.top), inp.perPanelW, inp.voltage, inp.wiring, inp.wattsByKey).perCircuit;
+    pc.forEach(addCircuit);
+    if(inp.isFree) {
+      comboWatts += inp.totalW;
+    } else {
+      // Grid screens count their CB5 half-panel rows too, as calculate() does
+      const live = countCB5LivePanels(inp.pw, inp.ph, half, inp.deletedPanels);
+      let screenW = live.full * inp.perPanelW;
+      const halfP = live.half > 0 ? getAllPanels()['CB5_MKII_HALF'] : null;
+      if(halfP) screenW += live.half * ((sd.powerType || 'max') === 'max' ? (halfP.power_max_w || 0) : (halfP.power_avg_w || halfP.power_max_w * 0.5 || 0));
+      comboWatts += screenW;
+    }
+    comboScreens++;
+  });
+  const phasor = legAmpsFromPairWatts(pairW, 1);
+  const la = { X: phasor.X + singleW.X, Y: phasor.Y + singleW.Y, Z: phasor.Z + singleW.Z };
+  const arr = [la.X, la.Y, la.Z];
+  const peak = Math.max(...arr), min = Math.min(...arr);
+  return { screenCount: comboScreens, power: comboWatts, legAmps: la, peakLeg: peak, imbalancePct: peak > 0 ? ((peak - min) / peak) * 100 : 0, sharedDistro: true };
 }
 
 // True1 twofers: a circuit feeding n columns needs n - 1. On a drawn wall a column is a
@@ -114,13 +238,13 @@ function updateFreeCircuitRow() {
   const chips = document.getElementById('freeCircuitChips');
   if(!on || !chips || !freePowerState) return;
 
-  const counts = freePowerState.circuitCounts;
+  const counts = freePowerState.aswiredCircuitCounts;
   const used = [...counts.keys()].sort((a, b) => a - b);
   const next = used.length ? used[used.length - 1] + 1 : 0;
   if(freeCircuitBrush > 0 && !counts.has(freeCircuitBrush - 1) && freeCircuitBrush - 1 !== next) freeCircuitBrush = 0;
 
   const socaOf = new Map();
-  freePowerState.panelToCircuit.forEach((circuit, key) => { if(!socaOf.has(circuit)) socaOf.set(circuit, freePowerState.panelToSoca.get(key)); });
+  freePowerState.aswiredPanelToCircuit.forEach((circuit, key) => { if(!socaOf.has(circuit)) socaOf.set(circuit, freePowerState.aswiredPanelToSoca.get(key)); });
   const cd = screens[currentScreenId].calculatedData;
   const labelMap = (cd && Array.isArray(cd.socaLabelMap)) ? new Map(cd.socaLabelMap) : null;
   const socaLabel = idx => formatSocaLabel(labelMap && labelMap.has(idx) ? labelMap.get(idx) : idx);

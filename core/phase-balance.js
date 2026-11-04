@@ -188,7 +188,8 @@ function computeSocaSpans(panelToCircuit, panelToSoca) {
 // is auto-numbered (auto SOCAs never share) — pair is the as-wired leg / leg-pair token for
 // the circuit's distro slot, and amps is the circuit's current. Reuses assignCircuits so the
 // numbering matches the canvas and the per-screen load calc.
-function screenCircuitContributions(pw, ph, panelsPerCircuit, deletedPanels, customCircuit, customSoca, perPanelW, voltage, wiring) {
+// wattsByKey (optional, drawn screens with mixed panel sizes): each panel's own watts.
+function screenCircuitContributions(pw, ph, panelsPerCircuit, deletedPanels, customCircuit, customSoca, perPanelW, voltage, wiring, wattsByKey) {
   const Vll = voltage > 0 ? voltage : 208;
   const slots = (wiring && Array.isArray(wiring.slots) && wiring.slots.length) ? wiring.slots : SOCA_LEG_PAIRS;
   const wiringType = (wiring && wiring.type) ? wiring.type : 'pair';
@@ -199,10 +200,10 @@ function screenCircuitContributions(pw, ph, panelsPerCircuit, deletedPanels, cus
     : { panelToCircuit: new Map() };
   const panelToCircuit = base.panelToCircuit;
 
-  const counts = new Map();      // circuit -> panel count
+  const counts = new Map();      // circuit -> panel count (watts with wattsByKey)
   const circuitSoca = new Map(); // circuit -> explicit custom SOCA number (1-based)
   panelToCircuit.forEach((circuit, panelKey) => {
-    counts.set(circuit, (counts.get(circuit) || 0) + 1);
+    counts.set(circuit, (counts.get(circuit) || 0) + (wattsByKey ? wattsByKey.get(panelKey) : 1));
     if (!circuitSoca.has(circuit)) {
       const explicit = cs.get(panelKey);
       if (typeof explicit === 'number' && explicit >= 1) circuitSoca.set(circuit, explicit);
@@ -212,7 +213,7 @@ function screenCircuitContributions(pw, ph, panelsPerCircuit, deletedPanels, cus
   const perCircuit = [...counts.keys()].sort((a, b) => a - b).map(circuit => ({
     customSoca: circuitSoca.has(circuit) ? circuitSoca.get(circuit) : null,
     pair: slots[((circuit % slots.length) + slots.length) % slots.length],
-    amps: (counts.get(circuit) * perPanelW) / Vll
+    amps: (counts.get(circuit) * (wattsByKey ? 1 : perPanelW)) / Vll
   }));
 
   return { wiringType, perCircuit };
@@ -224,6 +225,8 @@ function screenCircuitContributions(pw, ph, panelsPerCircuit, deletedPanels, cus
 // screen's own powerType. Returns null when the screen has no usable grid/panel.
 function resolveScreenPowerInputs(data) {
   if (!data) return null;
+  // Drawn screens: cell-grid inputs with each panel's own watts (layouts/free-power.js)
+  if (typeof isFreeScreen === 'function' && isFreeScreen(data)) return freeScreenPowerInputs(data);
   const pw = data.panelsWide || 0, ph = data.panelsHigh || 0;
   if (pw <= 0 || ph <= 0) return null;
   const panels = (typeof getAllPanels === 'function') ? getAllPanels() : {};
@@ -263,13 +266,15 @@ function resolveScreenPowerInputs(data) {
 // starting from zero. `perPanelW` converts panel counts to watts so screens with different
 // panel types are comparable; both are optional and omitting them reproduces the original
 // single-screen behaviour exactly (load starts at 0, weights are panel counts).
-function balanceCircuitsByLeg(pw, ph, maxPerCircuit, deletedPanels, slots, customCircuit, customSoca, initialLoad, perPanelW) {
+// `wattsByKey` (optional, drawn screens with mixed panel sizes) weighs each circuit by its
+// panels' own watts instead of panel count × perPanelW.
+function balanceCircuitsByLeg(pw, ph, maxPerCircuit, deletedPanels, slots, customCircuit, customSoca, initialLoad, perPanelW, wattsByKey) {
   const max = maxPerCircuit > 0 ? maxPerCircuit : 6;
   const out = new Map();
   const wiring = (slots && slots.length === 6) ? slots : ['XY', 'YZ', 'ZX', 'XY', 'YZ', 'ZX'];
   const cc = customCircuit || new Map();
   const cs = customSoca || new Map();
-  const wPer = (typeof perPanelW === 'number' && perPanelW > 0) ? perPanelW : 1;
+  const wPer = wattsByKey ? 1 : ((typeof perPanelW === 'number' && perPanelW > 0) ? perPanelW : 1);
 
   // As-wired structure (respects manual circuit + SOCA assignments) — the same the
   // canvas shows in As-Wired mode.
@@ -308,7 +313,7 @@ function balanceCircuitsByLeg(pw, ph, maxPerCircuit, deletedPanels, slots, custo
   [...socaSlots.keys()].sort((a, b) => a - b).forEach(soca => {
     const sm = socaSlots.get(soca);
     const circuits = [...sm.keys()].sort((a, b) => a - b)
-      .map(slot => ({ panels: sm.get(slot), count: sm.get(slot).length }));
+      .map(slot => ({ panels: sm.get(slot), count: wattsByKey ? sm.get(slot).reduce((w, k) => w + wattsByKey.get(k), 0) : sm.get(slot).length }));
     if (circuits.length >= 6) {
       // Full SOCA: keep each circuit on its as-wired slot so the resistor colours stay
       // in column order (1-6). A full SOCA already uses all three leg-pairs (2 each), so
@@ -322,18 +327,23 @@ function balanceCircuitsByLeg(pw, ph, maxPerCircuit, deletedPanels, slots, custo
       const usedPerLeg = {}; tokens.forEach(t => usedPerLeg[t] = 0);
       const tmpLoad = {}; tokens.forEach(t => tmpLoad[t] = load[t]);
       const chosenSlots = [];
+      const slotOf = new Map(); // circuit -> the slot it was balanced onto
       [...circuits].sort((a, b) => b.count - a.count).forEach(circ => {
         let L = null;
         tokens.forEach(t => {
           if (usedPerLeg[t] < legSlots[t].length && (L === null || tmpLoad[t] < tmpLoad[L])) L = t;
         });
         if (L === null) L = tokens[0];
-        chosenSlots.push(legSlots[L][usedPerLeg[L]++]);
+        const chosen = legSlots[L][usedPerLeg[L]++];
+        chosenSlots.push(chosen);
+        slotOf.set(circ, chosen);
         tmpLoad[L] += circ.count * wPer;
       });
       chosenSlots.sort((a, b) => a - b);
       circuits.forEach((circ, i) => {
-        const slot = chosenSlots[i];
+        // Equal-weight circuits take the chosen slots in ascending order so the colours go
+        // up. Drawn screens' circuits weigh different watts, so each keeps its own slot.
+        const slot = wattsByKey ? slotOf.get(circ) : chosenSlots[i];
         circ.panels.forEach(k => out.set(k, soca * 6 + slot));
         load[wiring[slot]] += circ.count * wPer;
       });
@@ -349,24 +359,34 @@ function balanceCircuitsByLeg(pw, ph, maxPerCircuit, deletedPanels, slots, custo
 // legend (core/calculate.js) and the power canvas (layouts/power.js) call this so they
 // always agree on the choice. `wiring` is resolveDistroWiring(voltage) ({ type, slots }).
 // Returns { useBalanced, panelToCircuit, circuitCounts, phaseBalance }.
-function resolveBalancedCircuits(pw, ph, panelsPerCircuit, deletedPanels, wiring, customCircuit, customSoca, perPanelW, voltage) {
+// `wattsByKey` (optional, drawn screens): each panel's own watts; the phase balance is then
+// computed from circuit watts (1 W per unit) instead of counts × perPanelW.
+function resolveBalancedCircuits(pw, ph, panelsPerCircuit, deletedPanels, wiring, customCircuit, customSoca, perPanelW, voltage, wattsByKey) {
   const slots = (wiring && Array.isArray(wiring.slots)) ? wiring.slots : null;
+  const loadPerUnit = wattsByKey ? 1 : perPanelW;
 
   // As-wired layout + its imbalance.
   const aswired = assignCircuits(pw, ph, panelsPerCircuit, deletedPanels, customCircuit);
-  const aswiredPb = computePhaseBalance(aswired.circuitCounts, perPanelW, voltage, 'aswired', wiring);
+  const aswiredPb = computePhaseBalance(wattsByKey ? circuitWattsOf(aswired.panelToCircuit, wattsByKey) : aswired.circuitCounts, loadPerUnit, voltage, 'aswired', wiring);
 
   // Balanced layout (greedy re-circuiting onto lighter legs); its circuit numbers
   // already encode the distro slot/leg, so feed the counts through the as-wired path.
-  const balMap = balanceCircuitsByLeg(pw, ph, panelsPerCircuit, deletedPanels, slots, customCircuit, customSoca);
+  const balMap = balanceCircuitsByLeg(pw, ph, panelsPerCircuit, deletedPanels, slots, customCircuit, customSoca, undefined, undefined, wattsByKey);
   const balCounts = new Map();
   balMap.forEach(ci => balCounts.set(ci, (balCounts.get(ci) || 0) + 1));
-  const balancedPb = computePhaseBalance(balCounts, perPanelW, voltage, 'aswired', wiring);
+  const balancedPb = computePhaseBalance(wattsByKey ? circuitWattsOf(balMap, wattsByKey) : balCounts, loadPerUnit, voltage, 'aswired', wiring);
 
   const useBalanced = balancedPb.imbalancePct < aswiredPb.imbalancePct;
   return useBalanced
     ? { useBalanced: true, panelToCircuit: balMap, circuitCounts: balCounts, phaseBalance: balancedPb, aswiredImbalancePct: aswiredPb.imbalancePct }
     : { useBalanced: false, panelToCircuit: aswired.panelToCircuit, circuitCounts: aswired.circuitCounts, phaseBalance: aswiredPb, aswiredImbalancePct: aswiredPb.imbalancePct };
+}
+
+// Circuit -> summed watts of its panels, for drawn screens whose panels draw different watts.
+function circuitWattsOf(panelToCircuit, wattsByKey) {
+  const out = new Map();
+  panelToCircuit.forEach((ci, k) => out.set(ci, (out.get(ci) || 0) + wattsByKey.get(k)));
+  return out;
 }
 
 // ---- Shared-distro (group) phase balancing ----
@@ -421,29 +441,34 @@ function resolveGroupBalancedCircuits(members) {
 
   list.forEach(m => {
     const aswired = assignCircuits(m.pw, m.ph, m.panelsPerCircuit, m.deletedPanels, m.customCircuit);
-    aswiredByScreen.set(m.screenId, { panelToCircuit: aswired.panelToCircuit, circuitCounts: aswired.circuitCounts });
+    // Drawn screens (wattsByKey) also carry circuitWatts: their panels draw different watts
+    const withWatts = e => (m.wattsByKey ? Object.assign(e, { circuitWatts: circuitWattsOf(e.panelToCircuit, m.wattsByKey) }) : e);
+    aswiredByScreen.set(m.screenId, withWatts({ panelToCircuit: aswired.panelToCircuit, circuitCounts: aswired.circuitCounts }));
 
     let entry;
     if (m.balance) {
       const slots = (m.wiring && Array.isArray(m.wiring.slots)) ? m.wiring.slots : null;
-      const balMap = balanceCircuitsByLeg(m.pw, m.ph, m.panelsPerCircuit, m.deletedPanels, slots, m.customCircuit, m.customSoca, load, m.perPanelW);
+      const balMap = balanceCircuitsByLeg(m.pw, m.ph, m.panelsPerCircuit, m.deletedPanels, slots, m.customCircuit, m.customSoca, load, m.perPanelW, m.wattsByKey);
       const balCounts = new Map();
       balMap.forEach(ci => balCounts.set(ci, (balCounts.get(ci) || 0) + 1));
-      entry = { panelToCircuit: balMap, circuitCounts: balCounts };
+      entry = withWatts({ panelToCircuit: balMap, circuitCounts: balCounts });
     } else {
-      entry = { panelToCircuit: aswired.panelToCircuit, circuitCounts: aswired.circuitCounts };
+      entry = withWatts({ panelToCircuit: aswired.panelToCircuit, circuitCounts: aswired.circuitCounts });
     }
     balancedByScreen.set(m.screenId, entry);
 
     // Carry this screen's contribution forward so the next SOCA sees it
-    const contrib = legWattsFromCircuits(entry.circuitCounts, (m.wiring && m.wiring.slots) || null, m.perPanelW);
+    const contrib = legWattsFromCircuits(entry.circuitWatts || entry.circuitCounts, (m.wiring && m.wiring.slots) || null, entry.circuitWatts ? 1 : m.perPanelW);
     Object.keys(contrib).forEach(t => { load[t] = (load[t] || 0) + contrib[t]; });
   });
 
-  const toEntries = byScreen => list.map(m => ({
-    circuitCounts: byScreen.get(m.screenId).circuitCounts,
-    perPanelW: m.perPanelW, voltage: m.voltage, wiring: m.wiring
-  }));
+  const toEntries = byScreen => list.map(m => {
+    const e = byScreen.get(m.screenId);
+    return {
+      circuitCounts: e.circuitWatts || e.circuitCounts,
+      perPanelW: e.circuitWatts ? 1 : m.perPanelW, voltage: m.voltage, wiring: m.wiring
+    };
+  });
   const aswiredPb = groupLegImbalance(toEntries(aswiredByScreen));
   const balancedPb = groupLegImbalance(toEntries(balancedByScreen));
 
@@ -482,7 +507,7 @@ function sharedDistroBalancedPlan() {
   if (liveCur) {
     const li = resolveScreenPowerInputs(screens[liveCur].data);
     if (li) {
-      const { panelToCircuit } = assignCircuits(li.pw, li.ph, li.panelsPerCircuit, liveDeleted, liveCircuit);
+      const { panelToCircuit } = assignCircuits(li.pw, li.ph, li.panelsPerCircuit, li.isFree ? li.deletedPanels : liveDeleted, liveCircuit);
       const p2s = assignSocas(panelToCircuit, liveSoca);
       liveOverride = {
         screenId: liveCur,
@@ -507,18 +532,20 @@ function sharedDistroBalancedPlan() {
     if (!data) return;
     const inp = resolveScreenPowerInputs(data);
     if (!inp || inp.phase !== 3) return;
-    // The CB5 half rows are extra grid rows — match the power canvases.
-    const _half = getCB5HalfRows(data, data.panelType || 'CB5_MKII');
+    // The CB5 half rows are extra grid rows — match the power canvases. Drawn screens have
+    // none; their deleted cells come from the drawn panels, not the grid's live Set.
+    const _half = inp.isFree ? { top: 0, bottom: 0 } : getCB5HalfRows(data, data.panelType || 'CB5_MKII');
     const effectivePh = inp.ph + _half.top + _half.bottom;
     members.push({
       screenId: id,
       pw: inp.pw,
       ph: effectivePh,
       panelsPerCircuit: inp.panelsPerCircuit,
-      deletedPanels: (id === liveCur) ? liveDeleted : inp.deletedPanels,
+      deletedPanels: (id === liveCur && !inp.isFree) ? liveDeleted : inp.deletedPanels,
       customCircuit: (id === liveCur) ? liveCircuit : inp.customCircuit,
       customSoca: (id === liveCur) ? liveSoca : inp.customSoca,
       perPanelW: inp.perPanelW,
+      wattsByKey: inp.wattsByKey,
       voltage: inp.voltage,
       wiring: inp.wiring,
       balance: !!data.phaseBalance,

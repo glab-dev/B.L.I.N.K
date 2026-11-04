@@ -321,6 +321,10 @@ function calculateFreeScreen() {
       const la = power.phaseBalance.legAmps;
       html += `<div class="result-row"><strong>Leg amps:</strong> X ${la.X.toFixed(1)} A · Y ${la.Y.toFixed(1)} A · Z ${la.Z.toFixed(1)} A</div>`;
     }
+    if(power.sharedDistroTotal) {
+      const sd = power.sharedDistroTotal;
+      html += `<div class="result-row"><strong>Shared distro (${sd.screenCount} screens):</strong> ${sd.power.toLocaleString()} W · X ${sd.legAmps.X.toFixed(1)} A · Y ${sd.legAmps.Y.toFixed(1)} A · Z ${sd.legAmps.Z.toFixed(1)} A</div>`;
+    }
     html += `</div></div></div>`;
     document.getElementById('results').innerHTML = html;
   }
@@ -337,6 +341,8 @@ function calculateFreeScreen() {
     socaSpans: power.socaSpans,
     socaBreakdown: power.socaBreakdown,
     phaseBalance: power.phaseBalance,
+    sharedDistroTotal: power.sharedDistroTotal,
+    socaLabelMap: power.socaLabelMap,
     true1Twofers: power.true1Twofers
   };
 

@@ -921,7 +921,8 @@ function calculate(){
         // and the combined legend use.
         const _planned = (sid, _perPanelW, _voltage, _wiring) => {
           const e = (_groupPlan && _groupPlan.useBalanced) ? _groupPlan.byScreen.get(sid) : null;
-          return e ? computePhaseBalance(e.circuitCounts, _perPanelW, _voltage, 'aswired', _wiring).perCircuit : null;
+          // Drawn screens carry circuitWatts (mixed panel watts), read at 1 W per unit
+          return e ? computePhaseBalance(e.circuitWatts || e.circuitCounts, e.circuitWatts ? 1 : _perPanelW, _voltage, 'aswired', _wiring).perCircuit : null;
         };
         Object.keys(screens).forEach(sid => {
           const sd = screens[sid] && screens[sid].data;
@@ -937,16 +938,17 @@ function calculate(){
             const inp = resolveScreenPowerInputs(sd);
             if(!inp || inp.phase !== 3) return;
             // Circuits over the full rows only, keyed from the first full row (below any half rows on top)
-            const _half = getCB5HalfRows(sd, sd.panelType || 'CB5_MKII');
+            const _half = inp.isFree ? { top: 0, bottom: 0 } : getCB5HalfRows(sd, sd.panelType || 'CB5_MKII');
             const _pc = _planned(sid, inp.perPanelW, inp.voltage, inp.wiring)
               || screenCircuitContributions(inp.pw, inp.ph, inp.panelsPerCircuit, shiftCB5RowKeys(inp.deletedPanels, -_half.top),
-                   shiftCB5RowKeys(inp.customCircuit, -_half.top), shiftCB5RowKeys(inp.customSoca, -_half.top), inp.perPanelW, inp.voltage, inp.wiring).perCircuit;
+                   shiftCB5RowKeys(inp.customCircuit, -_half.top), shiftCB5RowKeys(inp.customSoca, -_half.top), inp.perPanelW, inp.voltage, inp.wiring, inp.wattsByKey).perCircuit;
             _pc.forEach(addCircuit);
             // The current screen's totalPowerW above already counts its CB5 half-panel row,
             // so the other screens have to count theirs too or the distro total under-reports
             // every half-row wall that isn't the open one.
             const _live = countCB5LivePanels(inp.pw, inp.ph, _half, inp.deletedPanels);
-            let _screenW = _live.full * inp.perPanelW;
+            // A drawn screen's own panel watts are summed in its inputs
+            let _screenW = inp.isFree ? inp.totalW : _live.full * inp.perPanelW;
             if(_live.half > 0) {
               const _halfP = (typeof getAllPanels === 'function') ? getAllPanels()['CB5_MKII_HALF'] : null;
               if(_halfP) {

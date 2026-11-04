@@ -29,9 +29,11 @@ function freeCellGrid(data, allPanels, powerType) {
 }
 
 // Panels per circuit: counted like grid screens, sized off the hungriest panel on the
-// wall so a full circuit can't go over the breaker whichever sizes it picks up.
-function freeSuggestedPanelsPerCircuit(watts, voltage, breaker, derate) {
-  return Math.max(1, Math.floor((voltage * breaker * derate) / Math.max(1, ...watts.values())));
+// wall so a full circuit can't go over the breaker whichever sizes it picks up. With
+// nothing drawn yet it is sized off `emptyWallW`, the panel about to be drawn.
+function freeSuggestedPanelsPerCircuit(watts, voltage, breaker, derate, emptyWallW) {
+  const sizingW = watts.size ? Math.max(...watts.values()) : emptyWallW;
+  return Math.max(1, Math.floor((voltage * breaker * derate) / Math.max(1, sizingW || 0)));
 }
 
 // resolveScreenPowerInputs() for a drawn screen, from its saved data: the cell grid, each
@@ -73,7 +75,8 @@ function calculateFreePower(data, allPanels) {
 
   const cellMm = data.freeCell_mm;
   const {cols, rows, deleted, watts} = freeCellGrid(data, allPanels, powerType);
-  const calculatedPanelsPerCircuit = freeSuggestedPanelsPerCircuit(watts, voltage, breaker, derate);
+  const pickedPanel = allPanels[document.getElementById('panelType').value];
+  const calculatedPanelsPerCircuit = freeSuggestedPanelsPerCircuit(watts, voltage, breaker, derate, pickedPanel ? freePanelWatts(pickedPanel, powerType) : 0);
   const userMax = parseInt(document.getElementById('maxPanelsPerCircuit').value);
   const panelsPerCircuit = userMax > 0 ? userMax : calculatedPanelsPerCircuit;
   const maxInput = document.getElementById('maxPanelsPerCircuit');

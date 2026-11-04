@@ -101,6 +101,9 @@ function buildCurrentConfig() {
         cb5HalfRowPosition: data.cb5HalfRowPosition,
         cb5HalfRowsAbove: data.cb5HalfRowsAbove,
         cb5HalfRowsBelow: data.cb5HalfRowsBelow,
+        layoutMode: data.layoutMode,
+        freeCell_mm: data.freeCell_mm,
+        freePanels: data.freePanels,
         connectionMethod: data.connectionMethod,
         wallToFloor: data.wallToFloor,
         distroToWall: data.distroToWall,
@@ -419,7 +422,7 @@ function newProject() {
       if(typeof initGearView === 'function') initGearView();
 
       // Land on a blank calculator in an input-capable mode
-      switchAppMode(currentAppMode === 'simple' ? 'simple' : 'complex');
+      switchAppMode(currentAppMode === 'simple' ? 'simple' : (freeDrawMode ? 'draw' : 'complex'));
       if(typeof renderRasterScreenTable === 'function') renderRasterScreenTable();
     });
 }
@@ -528,6 +531,18 @@ function applyConfiguration(config, fileNameOverride) {
             safeData[key] = savedScreen.data[key];
           }
         });
+      }
+
+      // Free-draw layout: known panels of one family on whole cells, no overlaps.
+      // Anything else drops the screen back to a grid.
+      if(safeData.layoutMode === 'free') {
+        if(isValidFreeLayout(safeData.freeCell_mm, safeData.freePanels, getAllPanels())) {
+          safeData.freePanels = safeData.freePanels.map(fp => ({ type: fp.type, gx: fp.gx, gy: fp.gy }));
+        } else {
+          delete safeData.layoutMode;
+          delete safeData.freeCell_mm;
+          delete safeData.freePanels;
+        }
       }
 
       screens[screenId] = {
@@ -776,6 +791,11 @@ function applyConfiguration(config, fileNameOverride) {
     currentScreenId = originalScreenId;
     loadScreenData(originalScreenId);
     calculate();
+
+    // Draw mode shows drawn screens, Simple/Complex normal ones: land on one that fits
+    if(currentAppMode === 'complex' || currentAppMode === 'simple' || currentAppMode === 'draw') {
+      ensureScreenForMode(true);
+    }
 
     // Restore the original (unresolved) custom panel/processor keys that the calc
     // loop coerced to defaults, so re-saving the project preserves the reference.

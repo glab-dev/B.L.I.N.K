@@ -632,6 +632,13 @@ function calculate(){
   
   showSpecWarningIfNeeded();
   
+  // Free-draw screens are a list of hand-placed panels, not a panelsWide/panelsHigh grid
+  updateFreeDrawRow();
+  if(isFreeCurrentScreen()) {
+    calculateFreeScreen();
+    return;
+  }
+
   // Check if this is an empty/new screen (no dimensions entered)
   const panelsWideInput = document.getElementById('panelsWide');
   const panelsHighInput = document.getElementById('panelsHigh');
@@ -2000,6 +2007,11 @@ function getEffectivePanelCountsForLayout(){
 
 function generateLayout(mode){
   lastLayoutMode = mode;
+  // Free-draw screens: only the Standard layout exists so far
+  if(isFreeCurrentScreen()) {
+    if(mode === 'standard') renderFreeStandardLayout();
+    return;
+  }
   const allPanels = getAllPanels();
   const allProcessors = getAllProcessors();
   const p=allPanels[document.getElementById('panelType').value];

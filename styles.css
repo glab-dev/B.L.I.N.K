@@ -1000,6 +1000,27 @@ canvas {
   touch-action: none;
 }
 
+/* Draw mode (free-draw screens): the canvas owns touches so a drag paints panels */
+#standardCanvas.draw-mode-active {
+  touch-action: none;
+  cursor: crosshair;
+}
+
+/* Draw row: panel-size chips wrap under each other instead of widening the row */
+.free-draw-picker {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.free-draw-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.free-draw-row .toggle-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* Combined view Select Mode: same scroll block on the combined standard canvas */
 #combinedStandardCanvas.select-mode-active {
   touch-action: none;
@@ -4319,6 +4340,8 @@ body.tab-reordering {
   #combinedDataContent .layout-toggle-row { flex-wrap: wrap; row-gap: 10px; }
   /* Combined power toggles gained Select Mode — wrap instead of overflowing on mobile */
   #combinedPowerContent .layout-toggle-row { flex-wrap: wrap; row-gap: 10px; }
+  /* Draw row: toggle, panel chips and Delete wrap instead of overflowing on mobile */
+  #standardContent .free-draw-row { flex-wrap: wrap; row-gap: 10px; }
   /* One screen per row on phones — two cards side by side already fills the width */
   #combinedDataLineMap { grid-template-columns: 1fr; }
 }

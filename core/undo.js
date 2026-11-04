@@ -11,7 +11,8 @@ function saveState() {
     customCircuitAssignments: new Map(customCircuitAssignments),
     customSocaAssignments: new Map(customSocaAssignments),
     customDataLineAssignments: new Map(customDataLineAssignments),
-    customDataDestinations: new Map(customDataDestinations)
+    customDataDestinations: new Map(customDataDestinations),
+    free: freeLayoutSnapshot()
   };
   
   undoHistory.push(state);
@@ -34,7 +35,8 @@ function undo() {
     customCircuitAssignments: new Map(customCircuitAssignments),
     customSocaAssignments: new Map(customSocaAssignments),
     customDataLineAssignments: new Map(customDataLineAssignments),
-    customDataDestinations: new Map(customDataDestinations)
+    customDataDestinations: new Map(customDataDestinations),
+    free: freeLayoutSnapshot()
   };
   redoHistory.push(currentState);
 
@@ -46,6 +48,13 @@ function undo() {
   customSocaAssignments = new Map(previousState.customSocaAssignments || []);
   customDataLineAssignments = new Map(previousState.customDataLineAssignments);
   customDataDestinations = new Map(previousState.customDataDestinations || []);
+
+  // Free-draw screens: the panel list changed, so totals and gear need a full recalculate
+  if(restoreFreeLayout(previousState.free)) {
+    calculate();
+    updateUndoRedoButtons();
+    return;
+  }
   
   // Sync deleted panels to current screen data for canvas view
   if(screens[currentScreenId]) {
@@ -77,7 +86,8 @@ function redo() {
     customCircuitAssignments: new Map(customCircuitAssignments),
     customSocaAssignments: new Map(customSocaAssignments),
     customDataLineAssignments: new Map(customDataLineAssignments),
-    customDataDestinations: new Map(customDataDestinations)
+    customDataDestinations: new Map(customDataDestinations),
+    free: freeLayoutSnapshot()
   };
   undoHistory.push(currentState);
 
@@ -89,6 +99,13 @@ function redo() {
   customSocaAssignments = new Map(nextState.customSocaAssignments || []);
   customDataLineAssignments = new Map(nextState.customDataLineAssignments);
   customDataDestinations = new Map(nextState.customDataDestinations || []);
+
+  // Free-draw screens: the panel list changed, so totals and gear need a full recalculate
+  if(restoreFreeLayout(nextState.free)) {
+    calculate();
+    updateUndoRedoButtons();
+    return;
+  }
   
   // Sync deleted panels to current screen data for canvas view
   if(screens[currentScreenId]) {

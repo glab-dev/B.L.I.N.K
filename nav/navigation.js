@@ -161,6 +161,8 @@ function activateComplexView() {
   if(specWarningEl) specWarningEl.style.display = 'block';
   if(screenTabsContainer) screenTabsContainer.style.display = 'flex';
   // Show all config sections
+  const dimensionsSection = document.getElementById('dimensionsSection');
+  if(dimensionsSection) dimensionsSection.style.display = 'block';
   if(powerSection) powerSection.style.display = 'block';
   if(structureSection) structureSection.style.display = 'block';
   if(dataDirectionRow) dataDirectionRow.style.display = 'block';
@@ -184,6 +186,8 @@ function activateSimpleView() {
   if(resultsEl) resultsEl.style.display = 'block';
   if(specWarningEl) specWarningEl.style.display = 'block';
   if(screenTabsContainer) screenTabsContainer.style.display = 'flex';
+  const dimensionsSection = document.getElementById('dimensionsSection');
+  if(dimensionsSection) dimensionsSection.style.display = 'block';
   // Show power section
   if(powerSection) powerSection.style.display = 'block';
   // Hide structure
@@ -192,6 +196,15 @@ function activateSimpleView() {
   if(dataDirectionRow) dataDirectionRow.style.display = 'none';
   if(dataTogglesRow) dataTogglesRow.style.display = 'none';
   // No layouts in simple mode (standardContainer, powerContainer, dataContainer, structureContainer already hidden)
+}
+
+// ==================== DRAW VIEW ACTIVATION ====================
+// Shows the Draw mode: the Complex page without the Dimensions card, since a drawn
+// screen's size comes from the panels placed on the Standard canvas.
+function activateDrawView() {
+  activateComplexView();
+  const dimensionsSection = document.getElementById('dimensionsSection');
+  if(dimensionsSection) dimensionsSection.style.display = 'none';
 }
 
 // Switch between Complex, Simple, and Combined app modes
@@ -214,6 +227,8 @@ function switchAppMode(mode) {
     switchMobileView('complex');
   } else if(mode === 'simple') {
     switchMobileView('simple');
+  } else if(mode === 'draw') {
+    switchMobileView('draw');
   } else if(mode === 'combined') {
     switchMobileView('combined');
   } else if(mode === 'gear') {
@@ -280,6 +295,10 @@ function switchMobileView(view) {
       activateSimpleView();
       break;
 
+    case 'draw':
+      activateDrawView();
+      break;
+
     case 'combined':
       activateCombinedView();
       break;
@@ -295,6 +314,11 @@ function switchMobileView(view) {
     case 'raster':
       activateRasterView();
       break;
+  }
+
+  // Simple and Complex show normal screens, Draw shows drawn ones: land on one that fits
+  if((view === 'complex' || view === 'simple' || view === 'draw') && typeof ensureScreenForMode === 'function') {
+    ensureScreenForMode(false);
   }
 
   // Trigger recalculation to ensure canvases render

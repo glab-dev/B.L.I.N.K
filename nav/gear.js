@@ -1037,7 +1037,13 @@ function generateGearList() {
       colEquipment += `<div style="margin-left: 24px; color: #fff;">See ${escapeHtml(eq.referencesScreenName)}</div>`;
     }
     colEquipment += `<div style="margin-left: 12px; color: #fff;">Panels:</div>`;
-    colEquipment += `<div style="margin-left: 24px; color: #fff;">${eq.activeFullPanels} x ${escapeHtml(eq.panelBrand)} ${escapeHtml(eq.panelName)}</div>`;
+    if(eq.panelLines) {
+      eq.panelLines.forEach(line => {
+        colEquipment += `<div style="margin-left: 24px; color: #fff;">${line.count} x ${escapeHtml(line.brand)} ${escapeHtml(line.name)}</div>`;
+      });
+    } else {
+      colEquipment += `<div style="margin-left: 24px; color: #fff;">${eq.activeFullPanels} x ${escapeHtml(eq.panelBrand)} ${escapeHtml(eq.panelName)}</div>`;
+    }
     if(eq.activeHalfPanels > 0) {
       colEquipment += `<div style="margin-left: 12px; color: #fff;">Half Panels:</div>`;
       colEquipment += `<div style="margin-left: 24px; color: #fff;">${eq.activeHalfPanels} x ${escapeHtml(eq.panelBrand)} ${escapeHtml(eq.halfPanelName)}</div>`;

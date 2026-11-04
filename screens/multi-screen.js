@@ -157,8 +157,9 @@ function renderScreenTabs() {
   const container = document.getElementById('screenTabsContainer');
   if(!container) return;
   
-  // Sort screen IDs numerically (screen_1, screen_2, ..., screen_10, screen_11)
-  const screenIds = getScreenIdsInOrder();
+  // Sort screen IDs numerically (screen_1, screen_2, ..., screen_10, screen_11).
+  // Draw mode lists only drawn screens, every other mode only normal ones.
+  const screenIds = getScreenIdsInOrder().filter(screenFitsMode);
 
   let html = '';
   screenIds.forEach(screenId => {
@@ -183,6 +184,53 @@ function renderScreenTabs() {
     container.insertBefore(tabsWrapper, container.firstChild);
   }
   tabsWrapper.innerHTML = html;
+}
+
+// A drawn (free) screen belongs to Draw mode; every other screen to Simple/Complex.
+function screenFitsMode(screenId) {
+  return isFreeScreen(screens[screenId].data) === freeDrawMode;
+}
+
+// Keeps the current screen in step with the mode. Lands on the first screen that fits;
+// with none, an untouched empty screen is converted in place, otherwise a blank one is
+// added. After a file load (followProject) a project with no screens of this kind
+// switches to the mode that shows them instead of growing an extra blank screen.
+function ensureScreenForMode(followProject) {
+  if(screens[currentScreenId] && screenFitsMode(currentScreenId)) {
+    renderScreenTabs();
+    return;
+  }
+  const match = getScreenIdsInOrder().find(screenFitsMode);
+  if(match) {
+    switchToScreen(match);
+    return;
+  }
+  if(followProject) {
+    const mode = freeDrawMode ? 'complex' : 'draw';
+    configureBottomNavForMode(mode);
+    switchAppMode(mode);
+    return;
+  }
+  saveCurrentScreenData();
+  const data = screens[currentScreenId].data;
+  const untouched = isFreeScreen(data)
+    ? data.freePanels.length === 0
+    : (!data.panelsWide && !data.panelsHigh && !data.wallWidth && !data.wallHeight);
+  if(!untouched) {
+    addNewScreen();
+    return;
+  }
+  if(freeDrawMode) {
+    makeFreeScreenData(data);
+  } else {
+    delete data.layoutMode;
+    delete data.freeCell_mm;
+    delete data.freePanels;
+  }
+  undoHistory = [];
+  redoHistory = [];
+  updateUndoRedoButtons();
+  renderScreenTabs();
 }
 
 function switchToScreen(screenId) {
@@ -336,7 +384,8 @@ function saveCurrentScreenData() {
     customCircuitAssignments: new Map(state.customCircuitAssignments),
     customSocaAssignments: new Map(state.customSocaAssignments || []),
     customDataLineAssignments: new Map(state.customDataLineAssignments),
-    customDataDestinations: new Map(state.customDataDestinations || [])
+    customDataDestinations: new Map(state.customDataDestinations || []),
+    free: state.free
   }));
   data.redoHistory = redoHistory.map(state => ({
     deletedPanels: new Set(state.deletedPanels),
@@ -344,7 +393,8 @@ function saveCurrentScreenData() {
     customCircuitAssignments: new Map(state.customCircuitAssignments),
     customSocaAssignments: new Map(state.customSocaAssignments || []),
     customDataLineAssignments: new Map(state.customDataLineAssignments),
-    customDataDestinations: new Map(state.customDataDestinations || [])
+    customDataDestinations: new Map(state.customDataDestinations || []),
+    free: state.free
   }));
 }
 
@@ -589,7 +639,8 @@ function loadScreenData(screenId) {
     customCircuitAssignments: new Map(state.customCircuitAssignments),
     customSocaAssignments: new Map(state.customSocaAssignments || []),
     customDataLineAssignments: new Map(state.customDataLineAssignments),
-    customDataDestinations: new Map(state.customDataDestinations || [])
+    customDataDestinations: new Map(state.customDataDestinations || []),
+    free: state.free
   })) : [];
   redoHistory = data.redoHistory ? data.redoHistory.map(state => ({
     deletedPanels: new Set(state.deletedPanels),
@@ -597,7 +648,8 @@ function loadScreenData(screenId) {
     customCircuitAssignments: new Map(state.customCircuitAssignments),
     customSocaAssignments: new Map(state.customSocaAssignments || []),
     customDataLineAssignments: new Map(state.customDataLineAssignments),
-    customDataDestinations: new Map(state.customDataDestinations || [])
+    customDataDestinations: new Map(state.customDataDestinations || []),
+    free: state.free
   })) : [];
   
   // Update undo/redo button states
@@ -730,6 +782,7 @@ function addNewScreen() {
     visible: true,
     data: getDefaultScreenData()
   };
+  if(freeDrawMode) makeFreeScreenData(screens[newScreenId].data);
 
   // Canvas size is a system-wide setting (see dom-setup.js) — inherit the
   // current value instead of resetting the new screen to the 4K_UHD default
@@ -776,7 +829,7 @@ function addNewScreen() {
 }
 
 function deleteScreen(screenId) {
-  if(Object.keys(screens).length === 1) {
+  if(Object.keys(screens).filter(screenFitsMode).length === 1) {
     showAlert('Cannot delete the last screen');
     return;
   }
@@ -796,7 +849,7 @@ function deleteScreen(screenId) {
   }
 
   if(currentScreenId === screenId) {
-    currentScreenId = Object.keys(screens)[0];
+    currentScreenId = getScreenIdsInOrder().find(screenFitsMode);
     loadScreenData(currentScreenId);
   }
 

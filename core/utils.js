@@ -49,6 +49,11 @@ document.addEventListener('DOMContentLoaded', function() {
 function standardLayoutHintText() {
   const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
   const isMobile = window.innerWidth <= 768;
+  if(isFreeCurrentScreen()) {
+    return (!isTouchDevice && !isMobile)
+      ? 'Click to place • Drag to paint • Click a panel to select, drag to move • Delete removes'
+      : 'Tap to place • Drag to paint • Tap a panel to select, drag to move';
+  }
   if(!isTouchDevice && !isMobile) {
     return 'Click to select • Right-click for options • Drag a box to multi-select';
   }

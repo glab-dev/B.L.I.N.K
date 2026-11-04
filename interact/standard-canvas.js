@@ -251,6 +251,7 @@ function setupStandardCanvasInteractivity() {
 
   // Mouse down - start the drag box (selection is not touched until move or release)
   canvas.addEventListener('mousedown', function(e) {
+    if(isFreeCurrentScreen()) return; // Draw mode handles free screens (layouts/free.js)
     if(e.button !== 0) return; // Only left click
     // Ignore the mousedown a touch device synthesizes after a tap — the touch
     // handlers below already dealt with it
@@ -354,6 +355,7 @@ function setupStandardCanvasInteractivity() {
 
   canvas.addEventListener('touchstart', function(e) {
     lastTouchInteraction = Date.now();
+    if(isFreeCurrentScreen()) return; // Draw mode handles free screens (layouts/free.js)
     if(e.touches.length !== 1) return;
 
     const touch = e.touches[0];

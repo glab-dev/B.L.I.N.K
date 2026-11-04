@@ -112,6 +112,16 @@
           <li>Combined Screen Views</li>
         </ul>
       </button>
+      <button class="welcome-btn welcome-btn-draw" onclick="enterDrawMode()">
+        <span class="welcome-btn-title">Draw</span>
+        <span class="welcome-btn-desc">Place panels by hand on a blank canvas</span>
+        <ul class="welcome-btn-features">
+          <li>Mix Panel Sizes (Same Family)</li>
+          <li>Click or Drag to Place</li>
+          <li>Hand-Assigned Power &amp; Data (Coming)</li>
+          <li>Specs &amp; Cable List</li>
+        </ul>
+      </button>
         <button class="welcome-btn welcome-btn-raster" onclick="enterRasterMode()">
           <span class="welcome-btn-title">Raster</span>
           <span class="welcome-btn-desc">Canvas mapping for LED raster workflows</span>
@@ -2750,7 +2760,7 @@
         </div>
 
         <!-- Dimensions Section -->
-        <div class="section-box">
+        <div class="section-box" id="dimensionsSection">
           <div class="section-title">Dimensions</div>
 
           <div class="dimension-toggles-row">
@@ -3065,6 +3075,16 @@
           <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">Select Mode</span>
             <button type="button" class="toggle-btn toggle-btn-standalone" id="selectModeBtn" onclick="toggleSelectMode()">Off</button>
+          </div>
+        </div>
+        <div class="layout-toggle-row free-draw-row" id="standardDrawRow" style="display:none;">
+          <div class="free-draw-picker">
+            <span class="toggle-label toggle-label-block">Panel</span>
+            <div class="free-draw-chips" id="freeDrawChips" role="radiogroup" aria-label="Panel to draw"></div>
+          </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Selected</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="freeDrawDeleteBtn" onclick="deleteFreeSelected()" disabled>Delete</button>
           </div>
         </div>
         <div class="mobile-hint" id="standardLayoutHint">Turn on Select Mode to select panels</div>
@@ -3988,6 +4008,7 @@
 
 <!-- Layout Renderers -->
 <script defer src="layouts/standard.js"></script>
+<script defer src="layouts/free.js"></script>
 <script defer src="layouts/power.js"></script>
 <script defer src="layouts/data.js"></script>
 <script defer src="layouts/data-ports.js"></script>
@@ -4212,6 +4233,9 @@ let isBorrowingScreenData = false; // Flag: loadScreenData is standing up anothe
   <div class="nav-mode-toggle nav-complex-group nav-flex-2">
     <button class="nav-toggle-btn active" data-mode="complex" onclick="switchAppMode('complex')">
       <span>Complex</span>
+    </button>
+    <button class="nav-toggle-btn" data-mode="draw" onclick="switchAppMode('draw')" style="display: none;">
+      <span>Draw</span>
     </button>
     <button class="nav-toggle-btn" data-mode="combined" onclick="switchAppMode('combined')">
       <span>Combined</span>

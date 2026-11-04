@@ -1485,6 +1485,47 @@
   </div>
 </div>
 
+<!-- Mixed Layout Modal (config/mixed-layout.js) -->
+<div id="mixedLayoutModal" class="modal-overlay">
+  <div class="modal-dialog modal-mixed">
+    <div class="modal-header">
+      <h2 class="modal-title">Mixed Layout</h2>
+      <button class="modal-close" onclick="closeMixedLayoutModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="mixedStartStep">
+        <button type="button" class="recent-project-item" onclick="mixedLayoutPickImage()">
+          <div class="recent-project-name">Trace a Drawing</div>
+          <div class="recent-project-meta">PNG or JPG stage plot. Box the wall and one panel, then fix any column the app guesses wrong. Works offline.</div>
+        </button>
+        <button type="button" class="recent-project-item" onclick="mixedLayoutStartBlank()">
+          <div class="recent-project-name">Start Blank</div>
+          <div class="recent-project-meta">Columns from this screen's current size, ready to edit</div>
+        </button>
+        <input type="file" id="mixedImageInput" accept="image/png,image/jpeg" style="display: none;">
+      </div>
+      <div id="mixedTraceStep" style="display: none;">
+        <div class="modal-hint" id="mixedTraceHint"></div>
+        <canvas id="mixedTraceCanvas" class="mixed-layout-canvas"></canvas>
+        <div class="mixed-layout-row">
+          <button type="button" class="btn-secondary" onclick="mixedLayoutRedoBoxes()">Redo Boxes</button>
+        </div>
+      </div>
+      <div id="mixedEditStep" style="display: none;">
+        <canvas id="mixedEditCanvas" class="mixed-layout-canvas"></canvas>
+        <div class="mixed-layout-summary" id="mixedSummary"></div>
+        <div id="mixedColumnControls"></div>
+        <div class="mixed-layout-legend" id="mixedLegend"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="mixedBackToGridBtn" onclick="mixedLayoutBackToGrid()">Back to Grid</button>
+      <button class="btn-secondary" onclick="closeMixedLayoutModal()">Cancel</button>
+      <button class="btn-primary" id="mixedApplyBtn" onclick="applyMixedLayout()">Apply</button>
+    </div>
+  </div>
+</div>
+
 <!-- Custom Panel Modal -->
 <div id="customPanelModal" class="modal-overlay">
   <div class="modal-dialog">
@@ -2666,6 +2707,11 @@
               <option value="V4ST_Q">ROE V4ST-Q</option>
             </select>
           </label>
+          <!-- Mixed panel layout (columns of different panel sizes, traced from a drawing or built by hand) -->
+          <div class="toggle-group mt-8">
+            <button type="button" class="toggle-btn" id="mixedLayoutBtn" onclick="openMixedLayoutModal()">Mixed Layout</button>
+          </div>
+          <div id="mixedLayoutNote" class="dim-actual">Mixed layout: size and panels come from its columns</div>
           <!-- CB5 Half Panel Row Toggle (only visible when CB5 MKII is selected) -->
           <div id="cb5HalfPanelToggle" class="mt-8" style="display: none;">
             <div class="toggle-group">
@@ -4023,6 +4069,7 @@
 <!-- Config -->
 <script defer src="config/setup.js"></script>
 <script defer src="config/save-load.js"></script>
+<script defer src="config/mixed-layout.js"></script>
 <script defer src="config/gear-codes.js"></script>
 <script defer src="config/distro-wiring.js"></script>
 <script defer src="config/dom-setup.js"></script>

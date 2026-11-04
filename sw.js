@@ -70,6 +70,7 @@ const LOCAL_ASSETS = [
   // config
   '/config/setup.js',
   '/config/save-load.js',
+  '/config/mixed-layout.js',
   '/config/gear-codes.js',
   '/config/distro-wiring.js',
   '/config/dom-setup.js',

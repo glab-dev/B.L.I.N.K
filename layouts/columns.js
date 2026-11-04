@@ -36,7 +36,7 @@ function columnsPlacedPanels(columns, allPanels) {
       y_px += p.res_y;
     }
     x_m += col.width_m;
-    x_px += s[0].res_x;
+    x_px += s.length ? s[0].res_x : 0; // empty only while being edited
   });
   return {panels: placed, widthM: x_m, heightM, resX: x_px, resY};
 }

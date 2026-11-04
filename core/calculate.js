@@ -633,6 +633,7 @@ function calculate(){
   showSpecWarningIfNeeded();
   
   // Mixed-panel (columns) screens have no panelsWide/panelsHigh grid
+  updateMixedLayoutButton();
   if(screens[currentScreenId] && isColumnsScreen(screens[currentScreenId].data)) {
     calculateColumnsScreen();
     return;

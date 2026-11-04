@@ -988,6 +988,7 @@
             <li>ROE Black Marble BM4 (Matte)</li>
             <li>ROE DM2.6</li>
             <li>INFiLED AMT 8.3</li>
+            <li>ROE Vanish ST V4ST (+ H, V, Q)</li>
           </ul>
           <p class="help-text"><strong>CB5 MKII:</strong> Half Panel Row adds rows of half-height panels Above, Below, or Both, with a row count for each side. Choose between Air Frame or Connecting Plates.</p>
           <p class="help-text"><strong>DM2.6:</strong> Automatically uses connecting plates (2-way and 4-way).</p>
@@ -1273,6 +1274,10 @@
             <tr><td>BM4 Matte</td><td>4.76mm &bull; 610&times;610mm &bull; 128&times;128px</td></tr>
             <tr><td>DM2.6</td><td>2.6mm &bull; 500&times;500mm &bull; 192&times;192px</td></tr>
             <tr><td>AMT 8.3</td><td>8.33mm &bull; 1000&times;1000mm &bull; 120&times;120px</td></tr>
+            <tr><td>V4ST</td><td>4.6mm &bull; 1000&times;1000mm &bull; 216&times;216px</td></tr>
+            <tr><td>V4ST-H</td><td>4.6mm &bull; 1000&times;500mm &bull; 216&times;108px</td></tr>
+            <tr><td>V4ST-V</td><td>4.6mm &bull; 500&times;1000mm &bull; 108&times;216px</td></tr>
+            <tr><td>V4ST-Q</td><td>4.6mm &bull; 500&times;500mm &bull; 108&times;108px</td></tr>
           </table>
 
           <h3 class="help-section-title">Preset Processors</h3>
@@ -2655,6 +2660,10 @@
               <option value="BM4_MATTE">BM4 (Matte)</option>
               <option value="DM2_6">ROE DM2.6</option>
               <option value="INFILED_AMT8_3">INFiLED AMT 8.3</option>
+              <option value="V4ST">ROE V4ST</option>
+              <option value="V4ST_H">ROE V4ST-H</option>
+              <option value="V4ST_V">ROE V4ST-V</option>
+              <option value="V4ST_Q">ROE V4ST-Q</option>
             </select>
           </label>
           <!-- CB5 Half Panel Row Toggle (only visible when CB5 MKII is selected) -->
@@ -4024,8 +4033,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.237';
-const APP_CHANGELOG = 'Recalculate every reset screen so combined-view resets update the gear list';
+const APP_VERSION = '2.11.238';
+const APP_CHANGELOG = 'Add ROE Vanish ST V4ST, V4ST-H, V4ST-V and V4ST-Q panels';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

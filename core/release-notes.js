@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.238', date: '2026-11-04', notes: 'Add ROE Vanish ST V4ST, V4ST-H, V4ST-V and V4ST-Q panels' },
   { version: '2.11.237', date: '2026-10-20', notes: 'Recalculate every reset screen so combined-view resets update the gear list' },
   { version: '2.11.236', date: '2026-10-20', notes: 'Match Cable tab gear layout to combined view and measure backup data cables correctly' },
   { version: '2.11.235', date: '2026-10-20', notes: 'Count True1 twofers per extra circuit column from the drawn circuit layout' },

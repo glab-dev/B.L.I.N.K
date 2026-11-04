@@ -4239,7 +4239,7 @@ function renderCombinedGearList(selectedScreenIds) {
     }
 
     // Shackles and Cheeseye
-    const needsShackles = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3'].includes(panelType) || (panel.custom && panel.needs_shackles);
+    const needsShackles = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3', 'V4ST', 'V4ST_H', 'V4ST_V', 'V4ST_Q'].includes(panelType) || (panel.custom && panel.needs_shackles);
     const structureType = data.structureType || 'hanging';
     const isHanging = structureType === 'hanging';
     if(isHanging) hasHangingScreen = true;

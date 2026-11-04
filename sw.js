@@ -40,6 +40,7 @@ const LOCAL_ASSETS = [
   // layouts
   '/layouts/standard.js',
   '/layouts/free.js',
+  '/layouts/free-power.js',
   '/layouts/power.js',
   '/layouts/data.js',
   '/layouts/data-ports.js',

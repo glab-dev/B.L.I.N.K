@@ -1001,7 +1001,8 @@ canvas {
 }
 
 /* Draw mode (free-draw screens): the canvas owns touches so a drag paints panels */
-#standardCanvas.draw-mode-active {
+#standardCanvas.draw-mode-active,
+#powerCanvas.draw-mode-active {
   touch-action: none;
   cursor: crosshair;
 }
@@ -1015,6 +1016,11 @@ canvas {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+/* Circuit chip: the circuit's colour as a bottom bar, label keeps the toggle contrast.
+   Compound selector so it beats the later .toggle-btn border. */
+.toggle-btn.free-circuit-chip {
+  border-bottom: 5px solid var(--chip-color, #000);
 }
 .free-draw-row .toggle-btn:disabled {
   opacity: 0.4;

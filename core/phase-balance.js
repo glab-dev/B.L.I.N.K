@@ -88,7 +88,9 @@ function assignSocas(panelToCircuit, customSocaAssignments) {
 // numbers can repeat across SOCAs (manual assignment numbers circuits within each
 // SOCA), so keying on circuit alone would merge those SOCAs and inflate the counts.
 // (circuitCounts is accepted for call-site symmetry but intentionally not used.)
-function computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, perPanelW, voltage) {
+// wattsByKey (optional, drawn screens with mixed panel sizes): each panel's own watts,
+// used instead of panel count × perPanelW.
+function computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, perPanelW, voltage, wattsByKey) {
   const Vll = voltage > 0 ? voltage : 208;
 
   const socaCircuits = new Map(); // socaIdx -> Map(circuit -> panelCount)
@@ -97,14 +99,14 @@ function computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, perPan
     const socaIdx = (typeof s === 'number') ? s : Math.floor(circuitNum / 6);
     if (!socaCircuits.has(socaIdx)) socaCircuits.set(socaIdx, new Map());
     const cm = socaCircuits.get(socaIdx);
-    cm.set(circuitNum, (cm.get(circuitNum) || 0) + 1);
+    cm.set(circuitNum, (cm.get(circuitNum) || 0) + (wattsByKey ? wattsByKey.get(panelKey) : 1));
   });
 
   return [...socaCircuits.keys()].sort((a, b) => a - b).map(socaIdx => {
     const cm = socaCircuits.get(socaIdx);
     const circuits = [...cm.keys()].sort((a, b) => a - b).map(circuit => ({
       circuit,
-      amps: (cm.get(circuit) * perPanelW) / Vll
+      amps: (cm.get(circuit) * (wattsByKey ? 1 : perPanelW)) / Vll
     }));
     return { socaIdx, circuits, totalAmps: circuits.reduce((sum, c) => sum + c.amps, 0) };
   });

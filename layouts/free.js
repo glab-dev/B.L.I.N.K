@@ -223,8 +223,8 @@ function updateFreeDrawRow() {
   });
 }
 
-// Specs, stored totals and the Standard layout for the current screen when it is a
-// free screen. Power, data and structure routing for free screens come later, so
+// Specs, stored totals and the Standard and Power layouts for the current screen when
+// it is a free screen. Data and structure routing for free screens come later, so
 // those layouts stay hidden.
 function calculateFreeScreen() {
   const screen = screens[currentScreenId];
@@ -237,6 +237,7 @@ function calculateFreeScreen() {
     freeAction = null;
     freeSelectedScreenId = currentScreenId;
   }
+  normalizeFreePanels(data, allPanels);
 
   // The panel dropdown picks the brush. Another family can only be picked while
   // nothing is drawn; otherwise it goes back to the family on the canvas.
@@ -279,6 +280,7 @@ function calculateFreeScreen() {
   });
   const totalAmps = totalPowerW / voltage;
   const ampsPerPhase = phase===3 ? (totalAmps / Math.sqrt(3)) : totalAmps;
+  const power = calculateFreePower(data, allPanels);
 
   if(totalPanels === 0) {
     document.getElementById('results').innerHTML = '<div style="padding: 40px; text-align: center; color: #888;">' +
@@ -312,6 +314,13 @@ function calculateFreeScreen() {
     html += `<div class="result-section-title">POWER (${powerType.toUpperCase()})</div>`;
     html += `<div class="result-row"><strong>Total watts:</strong> ${totalPowerW.toLocaleString()} W</div>`;
     html += `<div class="result-row"><strong>Total amps:</strong> ${ampsPerPhase.toFixed(2)} A @ ${voltage} V</div>`;
+    html += `<div class="result-row"><strong>Panels per circuit:</strong> ${power.panelsPerCircuit}</div>`;
+    html += `<div class="result-row"><strong>Circuits:</strong> ${power.circuitsNeeded}</div>`;
+    html += `<div class="result-row"><strong>SOCAs:</strong> ${power.socaCount}</div>`;
+    if(power.phaseBalance) {
+      const la = power.phaseBalance.legAmps;
+      html += `<div class="result-row"><strong>Leg amps:</strong> X ${la.X.toFixed(1)} A · Y ${la.Y.toFixed(1)} A · Z ${la.Z.toFixed(1)} A</div>`;
+    }
     html += `</div></div></div>`;
     document.getElementById('results').innerHTML = html;
   }
@@ -322,16 +331,27 @@ function calculateFreeScreen() {
     activePanels: totalPanels,
     panelWeightOnlyKg: panelWeightKg,
     bumperWeightKg: 0,
-    totalPixels: totalPixels
+    totalPixels: totalPixels,
+    circuitsNeeded: power.circuitsNeeded,
+    socaCount: power.socaCount,
+    socaSpans: power.socaSpans,
+    socaBreakdown: power.socaBreakdown,
+    phaseBalance: power.phaseBalance
   };
 
-  ['powerContainer', 'dataContainer', 'structureContainer'].forEach(id => {
+  ['dataContainer', 'structureContainer'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = 'none';
   });
 
   updateFreeDrawRow();
   generateLayout('standard');
+  if(totalPanels > 0) {
+    generateLayout('power');
+    renderPhaseBalanceLegend();
+  } else {
+    document.getElementById('powerContainer').style.display = 'none';
+  }
   showCanvasView();
   generateGearList();
 }
@@ -518,15 +538,28 @@ function freeMoveFits(data, allPanels, ox, oy) {
   });
 }
 
-// Shift the drawn panels so the top-left one sits at cell 0,0, keeping the selection.
+// Moves the custom circuit/SOCA/data assignments with their panels. `newKey` returns a
+// panel's new key, or null when the panel is gone.
+function rekeyFreeAssignments(newKey) {
+  const rekey = m => new Map([...m].map(([k, v]) => [newKey(k), v]).filter(([k]) => k !== null));
+  customCircuitAssignments = rekey(customCircuitAssignments);
+  customSocaAssignments = rekey(customSocaAssignments);
+  customDataLineAssignments = rekey(customDataLineAssignments);
+  customDataDestinations = rekey(customDataDestinations);
+}
+
+// Shift the drawn panels so the top-left one sits at cell 0,0, keeping the selection
+// and the custom assignments on their panels.
 function normalizeFreePanels(data, allPanels) {
   const b = freeBounds(data.freePanels, allPanels, data.freeCell_mm);
   if(!b || (b.minX === 0 && b.minY === 0)) return;
   data.freePanels = data.freePanels.map(fp => ({type: fp.type, gx: fp.gx - b.minX, gy: fp.gy - b.minY}));
-  freeSelected = new Set([...freeSelected].map(k => {
+  const shift = k => {
     const [x, y] = k.split(',').map(Number);
     return `${x - b.minX},${y - b.minY}`;
-  }));
+  };
+  freeSelected = new Set([...freeSelected].map(shift));
+  rekeyFreeAssignments(shift);
 }
 
 // Store an edited panel list and recalculate totals, gear and canvas
@@ -542,6 +575,8 @@ function deleteFreeSelected() {
   const data = screens[currentScreenId].data;
   saveState();
   const list = data.freePanels.filter(fp => !freeSelected.has(`${fp.gx},${fp.gy}`));
+  const gone = new Set(freeSelected);
+  rekeyFreeAssignments(k => gone.has(k) ? null : k);
   freeSelected.clear();
   commitFreePanels(list);
   vibrate(10);
@@ -623,10 +658,14 @@ function freePointerUp() {
     if(action.moved && (ox || oy) && freeMoveFits(data, allPanels, ox, oy)) {
       saveState();
       const list = data.freePanels.map(fp => freeSelected.has(`${fp.gx},${fp.gy}`) ? {type: fp.type, gx: fp.gx + ox, gy: fp.gy + oy} : fp);
-      freeSelected = new Set([...freeSelected].map(k => {
+      const moved = new Set(freeSelected);
+      const shift = k => {
+        if(!moved.has(k)) return k;
         const [x, y] = k.split(',').map(Number);
         return `${x + ox},${y + oy}`;
-      }));
+      };
+      freeSelected = new Set([...freeSelected].map(shift));
+      rekeyFreeAssignments(shift);
       commitFreePanels(list);
       return;
     }

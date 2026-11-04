@@ -2007,9 +2007,10 @@ function getEffectivePanelCountsForLayout(){
 
 function generateLayout(mode){
   lastLayoutMode = mode;
-  // Free-draw screens: only the Standard layout exists so far
+  // Free-draw screens: only the Standard and Power layouts exist so far
   if(isFreeCurrentScreen()) {
     if(mode === 'standard') renderFreeStandardLayout();
+    else if(mode === 'power') renderFreePowerLayout();
     return;
   }
   const allPanels = getAllPanels();

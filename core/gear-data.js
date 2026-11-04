@@ -289,12 +289,25 @@ function buildGearListData(screenIds) {
     const calcData = screen.calculatedData || {};
 
     // Free-draw screens list one panel line per type, read straight from the drawn
-    // panels. Their cabling, rigging and processors come with data/power/structure.
+    // panels. Their data cabling, rigging and processors come with data/structure.
     if(isFreeScreen(data)) {
       const freeCounts = freePanelCounts(data.freePanels);
       const panelLines = Object.keys(freeCounts).filter(t => allPanelsObj[t])
         .sort((a, b) => freeCounts[b] - freeCounts[a])
         .map(t => ({ panelType: t, brand: allPanelsObj[t].brand || '', name: allPanelsObj[t].name || '', count: freeCounts[t] }));
+      // Power cables: one jumper per panel (one family, so one jumper length), SOCA runs
+      // measured on the drawn wall, and twofers from the drawn circuits
+      const freePanel = data.freePanels.length ? allPanelsObj[data.freePanels[0].type] : null;
+      const freeJumperLen = freePanel ? (freePanel.power_jumper_ft || '') : '';
+      const freeJumpersBuiltin = freePanel ? !!freePanel.jumpers_builtin : false;
+      const freeSocaCount = calcData.socaCount || 0;
+      const freeCabling = (typeof calculateCabling === 'function') ? calculateCabling(screenId) : null;
+      const freeSocaByLength = {};
+      const freeSocaDetail = [];
+      ((freeCabling && freeCabling.socaCables) || []).forEach(s => {
+        freeSocaByLength[s.roundedFt] = (freeSocaByLength[s.roundedFt] || 0) + 1;
+        freeSocaDetail.push({ index: s.index, lengthFt: s.lengthFt, roundedFt: s.roundedFt });
+      });
       const freeProcessorType = data.processor || 'Brompton_SX40';
       const freeProcessorGroup = processorGroups[freeProcessorType] || null;
       const freeIsFirst = freeProcessorGroup && freeProcessorGroup.firstScreenId === screenId;
@@ -323,7 +336,17 @@ function buildGearListData(screenIds) {
         groundSupport: { rearTruss: 0, baseTruss: 0, bridgeClamps: 0, rearBridgeAdapters: 0, sandbags: 0, swivelCheeseboroughs: 0, pipes: 0, pipeLengthStr: '', hasGS: false },
         floorHardware: { frame3x2: 0, frame2x2: 0, frame2x1: 0, frame1x1: 0, hasFloorFrames: false },
         dataCables: { dataJumperLen: '', jumpersBuiltin: false, jumperCount: 0, crossJumperLen: '', crossJumperCount: 0, cat5CouplerCount: 0, cat6ByLength: {}, cableDetail: [], knockoutDetail: [] },
-        powerCables: { powerJumperLen: '', jumperCount: 0, socaSplays: 0, socaByLength: {}, socaDetail: [], true1_25: 0, true1_10: 0, true1_5: 0, true1Twofer: 0 },
+        powerCables: {
+          powerJumperLen: freeJumperLen,
+          jumperCount: (!freeJumpersBuiltin && freeJumperLen) ? panelLines.reduce((n, l) => n + l.count, 0) : 0,
+          socaSplays: freeSocaCount,
+          socaByLength: freeSocaByLength,
+          socaDetail: freeSocaDetail,
+          true1_25: freeSocaCount,
+          true1_10: freeSocaCount,
+          true1_5: freeSocaCount * 2,
+          true1Twofer: calcData.true1Twofers || 0
+        },
         processorToDistBox: { count: 0, cableType: '', cableLength: 0 }
       });
       return;

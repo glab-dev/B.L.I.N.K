@@ -55,16 +55,52 @@ function calculateFreePower(data, allPanels) {
     phaseBalance = computePhaseBalance(circuitWatts, 1, voltage, 'aswired', wiring);
   }
 
+  // SOCA spans over every cell a panel covers, so cable runs land on real panel edges
+  const cellToCircuit = new Map(), cellToSoca = new Map();
+  data.freePanels.forEach(fp => {
+    const key = `${fp.gx},${fp.gy}`;
+    const {cw, ch} = freeCells(allPanels[fp.type], cellMm);
+    for(let i = 0; i < cw; i++) for(let j = 0; j < ch; j++) {
+      cellToCircuit.set(`${fp.gx + i},${fp.gy + j}`, panelToCircuit.get(key));
+      cellToSoca.set(`${fp.gx + i},${fp.gy + j}`, panelToSoca.get(key));
+    }
+  });
+
   freePowerState = {
     panelToCircuit, panelToSoca, circuitCounts, circuitWatts, watts,
     panelsPerCircuit,
     circuitsNeeded: circuitCounts.size,
     socaCount: new Set(panelToSoca.values()).size,
-    socaSpans: computeSocaSpans(panelToCircuit, panelToSoca),
+    socaSpans: computeSocaSpans(cellToCircuit, cellToSoca),
+    true1Twofers: freeTrue1Twofers(data, allPanels, panelToCircuit),
     socaBreakdown: computeSocaBreakdown(circuitCounts, panelToCircuit, panelToSoca, 1, voltage, watts),
     phaseBalance
   };
   return freePowerState;
+}
+
+// True1 twofers: a circuit feeding n columns needs n - 1. On a drawn wall a column is a
+// run of panels whose widths overlap, so two 500 wide panels under one 1000 wide panel
+// share its column, while two 1000 wide panels side by side are two columns.
+function freeTrue1Twofers(data, allPanels, panelToCircuit) {
+  const spansByCircuit = new Map();
+  data.freePanels.forEach(fp => {
+    const circuit = panelToCircuit.get(`${fp.gx},${fp.gy}`);
+    if(circuit === undefined) return;
+    if(!spansByCircuit.has(circuit)) spansByCircuit.set(circuit, []);
+    spansByCircuit.get(circuit).push([fp.gx, fp.gx + freeCells(allPanels[fp.type], data.freeCell_mm).cw]);
+  });
+  let twofers = 0;
+  spansByCircuit.forEach(spans => {
+    spans.sort((a, b) => a[0] - b[0]);
+    let columns = 0, end = -Infinity;
+    spans.forEach(([x0, x1]) => {
+      if(x0 >= end) columns++;
+      end = Math.max(end, x1);
+    });
+    twofers += columns - 1;
+  });
+  return twofers;
 }
 
 // Circuit tool row on the Power layout: Auto, one chip per circuit in use, New.

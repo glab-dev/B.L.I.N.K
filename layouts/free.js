@@ -336,7 +336,8 @@ function calculateFreeScreen() {
     socaCount: power.socaCount,
     socaSpans: power.socaSpans,
     socaBreakdown: power.socaBreakdown,
-    phaseBalance: power.phaseBalance
+    phaseBalance: power.phaseBalance,
+    true1Twofers: power.true1Twofers
   };
 
   ['dataContainer', 'structureContainer'].forEach(id => {

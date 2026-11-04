@@ -445,22 +445,26 @@ function calculateCabling(screenId) {
   const p = allPanels[panelType];
   if(!p) return null;
 
-  const pw = data.panelsWide;
-  const ph = data.panelsHigh;
+  // Drawn screens are measured on their snap-cell grid: their socaSpans count columns
+  // and rows in cells, and every cell is the same size whatever panel covers it
+  const isFree = isFreeScreen(data);
+  const freeB = isFree ? freeBounds(data.freePanels, allPanels, data.freeCell_mm) : null;
+  const pw = isFree ? (freeB ? freeB.maxX : 0) : data.panelsWide;
+  const ph = isFree ? (freeB ? freeB.maxY : 0) : data.panelsHigh;
   if(pw === 0 || ph === 0) return null;
 
   const M_TO_FT = 3.28084;
 
   // Panel dimensions in feet
-  const panelWidthFt = p.width_m * M_TO_FT;
-  const panelHeightFt = p.height_m * M_TO_FT;
+  const panelWidthFt = isFree ? (data.freeCell_mm / 1000) * M_TO_FT : p.width_m * M_TO_FT;
+  const panelHeightFt = isFree ? (data.freeCell_mm / 1000) * M_TO_FT : p.height_m * M_TO_FT;
 
   // Wall dimensions in feet
   let wallHeightFt = ph * panelHeightFt;
   let wallWidthFt = pw * panelWidthFt;
 
   // Account for CB5 half panel rows
-  const halfRows = getCB5HalfRows(data, panelType);
+  const halfRows = isFree ? {top: 0, bottom: 0} : getCB5HalfRows(data, panelType);
   const halfRowCount = halfRows.top + halfRows.bottom;
   if(halfRowCount > 0) {
     const halfP = allPanels['CB5_MKII_HALF'];
@@ -548,6 +552,19 @@ function calculateCabling(screenId) {
       lengthFt: Math.round(totalFt * 10) / 10,
       roundedFt: roundUpToStandard(totalFt)
     });
+  }
+
+  // Drawn screens: data cabling comes with hand-assigned data lines, so only power so far
+  if(isFree) {
+    const freeResult = {
+      socaCables, dataCables: [], distBoxCables: [], knockoutBridgeCables: [],
+      wallHeightFt: Math.round(wallHeightFt * 10) / 10,
+      wallWidthFt: Math.round(wallWidthFt * 10) / 10,
+      inputs: {wallToFloor, distroToWall, processorToWall, cablePick, xdPlacement: placement, xdToProcessor, xdToWall},
+      totals: { socaCount: socaCables.length, dataCount: 0, knockoutBridgeCount: 0, distBoxCableCount: 0, fiberCount: 0, cat6aCount: 0 }
+    };
+    screen.calculatedData.cabling = freeResult;
+    return freeResult;
   }
 
   // ---- B. Data Cable Calculation ----

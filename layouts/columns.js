@@ -48,20 +48,109 @@ function columnsPanelCounts(columns) {
   return counts;
 }
 
-// Specs, stored totals and the Standard layout for the current screen when it is a
-// columns screen. Power, data and structure routing for mixed screens come later, so
-// those layouts stay hidden.
+// Power circuits for a columns layout. Whole columns share a circuit until the next
+// column would go over the breaker's watts (or the max-panels-per-circuit override); a
+// column that needs more than one circuit is split from the bottom up. Panel ids are
+// "column:fromBottom".
+function columnsPowerPlan(columns, panelWatts, capacityW, maxPanels) {
+  const circuits = [];
+  let cur = null;
+  const close = () => { if(cur && cur.panels.length) circuits.push(cur); cur = null; };
+  const fits = (w, n) => cur && cur.watts + w <= capacityW && (!maxPanels || cur.panels.length + n <= maxPanels);
+  const open = () => { close(); cur = { panels: [], watts: 0, cols: new Set() }; };
+  columns.forEach((col, c) => {
+    const panels = col.panels.map((t, i) => ({ id: `${c}:${i}`, w: panelWatts(t) }));
+    const colW = panels.reduce((sum, pnl) => sum + pnl.w, 0);
+    if(colW <= capacityW && (!maxPanels || panels.length <= maxPanels)) {
+      if(!fits(colW, panels.length)) open();
+      panels.forEach(pnl => cur.panels.push(pnl.id));
+      cur.watts += colW;
+      cur.cols.add(c);
+    } else {
+      open();
+      panels.forEach(pnl => {
+        if(!fits(pnl.w, 1)) open();
+        cur.panels.push(pnl.id);
+        cur.watts += pnl.w;
+        cur.cols.add(c);
+      });
+      close();
+    }
+  });
+  close();
+  const panelCircuit = new Map();
+  circuits.forEach((ci, n) => ci.panels.forEach(id => panelCircuit.set(id, n)));
+  return { circuits, panelCircuit };
+}
+
+// Data lines for a columns layout. The path snakes column by column, left to right:
+// 'top' starts the first column at its top, 'bottom' at its bottom; 'all_top' /
+// 'all_bottom' run every column the same way. A line takes panels until the next one
+// would go over the port's pixel capacity (or the max-panels-per-data-line override).
+function columnsDataPlan(wall, startDir, capacityPx, maxPanels) {
+  const byCol = [];
+  wall.panels.forEach(pp => { (byCol[pp.col] = byCol[pp.col] || []).push(pp); }); // top to bottom
+  const fromTop = startDir === 'top' || startDir === 'all_top' || startDir === 'lr_top';
+  const snake = startDir !== 'all_top' && startDir !== 'all_bottom';
+  const lines = [];
+  let cur = null;
+  let n = 0;
+  byCol.forEach(list => {
+    const down = snake ? (n % 2 === 0) === fromTop : fromTop;
+    n++;
+    (down ? list : list.slice().reverse()).forEach(pp => {
+      const px = pp.w_px * pp.h_px;
+      if(!cur || cur.px + px > capacityPx || (maxPanels && cur.panels.length >= maxPanels)) {
+        cur = { panels: [], px: 0 };
+        lines.push(cur);
+      }
+      cur.panels.push(pp);
+      cur.px += px;
+    });
+  });
+  return { lines };
+}
+
+// Everything a columns screen's specs, layouts and gear read, from its columns and its
+// power / data settings: the live form for the open screen, the saved values for the rest
+function columnsScreenPlans(data) {
+  const allPanels = getAllPanels();
+  const wall = columnsPlacedPanels(data.columns, allPanels);
+  const live = screens[currentScreenId] && screens[currentScreenId].data === data;
+  const setting = (id, key) => live ? document.getElementById(id).value : data[key];
+  const powerType = setting('powerType', 'powerType') || 'max';
+  const voltage = parseFloat(setting('voltage', 'voltage'))||220;
+  const breaker = parseFloat(setting('breaker', 'breaker'))||20;
+  const derate = (live ? document.getElementById('derate').value === 'on' : !!data.derate) ? 0.8 : 1.0;
+  const panelWatts = t => {
+    const p = allPanels[t];
+    return powerType==='max' ? p.power_max_w : (p.power_avg_w||p.power_max_w*0.5);
+  };
+  const capacityW = voltage*breaker*derate;
+  const maxPerCircuit = parseInt(setting('maxPanelsPerCircuit', 'maxPanelsPerCircuit')) || 0;
+  const pr = getAllProcessors()[setting('processor', 'processor')];
+  const frameRate = parseInt(setting('frameRate', 'frameRate')) || 60;
+  const bitDepth = parseInt(setting('bitDepth', 'bitDepth')) || 8;
+  const capacityPx = calculateAdjustedPixelCapacity(pr, frameRate, bitDepth);
+  const maxPerData = parseInt(setting('maxPanelsPerData', 'maxPanelsPerData')) || 0;
+  return {
+    allPanels, wall, powerType, voltage, derate, panelWatts, capacityW, pr, capacityPx,
+    power: columnsPowerPlan(data.columns, panelWatts, capacityW, maxPerCircuit),
+    // Same 500-panel port ceiling as grid screens (Brompton Tessera hardware limit)
+    dataPlan: columnsDataPlan(wall, setting('dataStartDir', 'dataStartDir') || 'top', capacityPx, Math.min(maxPerData || 500, 500))
+  };
+}
+
+// Specs, stored totals and the Standard, Power and Data layouts for the current
+// screen when it is a columns screen. Structure for mixed screens comes later, so
+// that layout stays hidden.
 function calculateColumnsScreen() {
   const screen = screens[currentScreenId];
   const data = screen.data;
-  const allPanels = getAllPanels();
-  const pr = getAllProcessors()[document.getElementById('processor').value];
-  const wall = columnsPlacedPanels(data.columns, allPanels);
+  const plans = columnsScreenPlans(data);
+  const { allPanels, wall, powerType, voltage, panelWatts, pr, capacityPx } = plans;
   const counts = columnsPanelCounts(data.columns);
   const types = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-
-  const powerType = document.getElementById('powerType').value;
-  const voltage = parseFloat(document.getElementById('voltage').value)||220;
   const phase = parseInt(document.getElementById('phase').value)||3;
 
   let totalPanels = 0, totalPixels = 0, panelWeightKg = 0, totalPowerW = 0;
@@ -71,10 +160,48 @@ function calculateColumnsScreen() {
     totalPanels += n;
     totalPixels += n * p.res_x * p.res_y;
     panelWeightKg += n * getPanelWeight(t, shouldUseConnectingPlates(t));
-    totalPowerW += n * (powerType==='max' ? p.power_max_w : (p.power_avg_w||p.power_max_w*0.5));
+    totalPowerW += n * panelWatts(t);
   });
   const totalAmps = totalPowerW / voltage;
   const ampsPerPhase = phase===3 ? (totalAmps / Math.sqrt(3)) : totalAmps;
+
+  const circuits = plans.power.circuits;
+  const socaCount = Math.ceil(circuits.length / 6);
+  const socaBreakdown = [];
+  circuits.forEach((ci, n) => {
+    const socaIdx = Math.floor(n / 6);
+    if(!socaBreakdown[socaIdx]) socaBreakdown[socaIdx] = { socaIdx, circuits: [], totalAmps: 0 };
+    socaBreakdown[socaIdx].circuits.push({ circuit: n, amps: ci.watts / voltage });
+    socaBreakdown[socaIdx].totalAmps += ci.watts / voltage;
+  });
+  const dataLines = plans.dataPlan.lines.length;
+  const redundancyMultiplier = redundancyEnabled ? 2 : 1;
+
+  screen.calculatedData = {
+    processorName: pr ? pr.name : '',
+    processorCount: 1,
+    panelCount: totalPanels,
+    activePanels: totalPanels,
+    panelWeightOnlyKg: panelWeightKg,
+    bumperWeightKg: 0,
+    dataLines: dataLines,
+    dataLinesFinal: dataLines * redundancyMultiplier,
+    portsNeeded: dataLines,
+    portsNeededFinal: dataLines * redundancyMultiplier,
+    totalPixels: totalPixels,
+    circuitsNeeded: circuits.length,
+    socaCount: socaCount,
+    socaBreakdown: socaBreakdown,
+    phaseBalance: null
+  };
+  // Processor and box counts as the gear list has them, the same as grid screens
+  const gearGroup = Object.values(buildGearListData([currentScreenId]).processorGroups)[0];
+  if(gearGroup) {
+    screen.calculatedData.processorCount = gearGroup.processorCount;
+    screen.calculatedData.distributionBoxCount = gearGroup.distBoxCount;
+    screen.calculatedData.distributionBoxName = gearGroup.distBoxName;
+  }
+  const cd = screen.calculatedData;
 
   const lenUnit = getLengthUnitLabel();
   const wtUnit = getWeightUnitLabel();
@@ -102,37 +229,38 @@ function calculateColumnsScreen() {
   html += `<div class="result-section-title">POWER (${powerType.toUpperCase()})</div>`;
   html += `<div class="result-row"><strong>Total watts:</strong> ${totalPowerW.toLocaleString()} W</div>`;
   html += `<div class="result-row"><strong>Total amps:</strong> ${ampsPerPhase.toFixed(2)} A @ ${voltage} V</div>`;
+  const svc = serviceNeededLabel(ampsPerPhase, plans.derate);
+  if(svc) html += `<div class="result-row"><strong>Service needed:</strong> ${svc}</div>`;
+  html += `<div class="result-row"><strong>Circuits:</strong> ${circuits.length}</div>`;
+  html += `<div class="result-row"><strong>SOCAs needed:</strong> ${socaCount}</div>`;
+  html += `</div><div class="spec-group">`;
+  html += `<div class="result-section-title">DATA</div>`;
+  html += `<div class="result-row"><strong>Processor:</strong> ${escapeHtml(pr ? pr.name : '')}${cd.processorCount > 1 ? ` (${cd.processorCount})` : ''}</div>`;
+  if(cd.distributionBoxCount > 0) html += `<div class="result-row"><strong>Distribution box:</strong> ${escapeHtml(cd.distributionBoxName || '')} (${cd.distributionBoxCount})</div>`;
+  html += `<div class="result-row"><strong>Port capacity:</strong> ${capacityPx.toLocaleString()} px</div>`;
+  html += `<div class="result-row"><strong>Data lines:</strong> ${dataLines}</div>`;
+  html += `<div class="result-row"><strong>Ports needed:</strong> ${cd.portsNeededFinal}${redundancyEnabled ? ' (with backup)' : ''}</div>`;
   html += `</div></div></div>`;
   document.getElementById('results').innerHTML = html;
 
-  screen.calculatedData = {
-    processorName: pr ? pr.name : '',
-    panelCount: totalPanels,
-    activePanels: totalPanels,
-    panelWeightOnlyKg: panelWeightKg,
-    bumperWeightKg: 0,
-    totalPixels: totalPixels
-  };
-
-  ['powerContainer', 'dataContainer', 'structureContainer'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.style.display = 'none';
-  });
+  const structureEl = document.getElementById('structureContainer');
+  if(structureEl) structureEl.style.display = 'none';
 
   generateLayout('standard');
+  generateLayout('power');
+  renderPhaseBalanceLegend();
+  generateLayout('data');
   showCanvasView();
   generateGearList();
 }
 
-// Standard layout for a columns screen: every panel at its true size relative to the
-// others, labelled column.panel (panel 1 = top of the column).
-function renderColumnsStandardLayout() {
-  const data = screens[currentScreenId].data;
-  const wall = columnsPlacedPanels(data.columns, getAllPanels());
-  const canvas = document.getElementById('standardCanvas');
-  const container = document.getElementById('standardContainer');
+// Shared canvas setup for a columns screen's layouts: shows the container, sizes the
+// canvas to the wall (same 30–80 px cell range as grid screens, applied per metre) and
+// paints the space above the shorter columns with the deleted-panel fill.
+function columnsLayoutCanvas(canvasId, containerId, wall) {
+  const canvas = document.getElementById(canvasId);
+  const container = document.getElementById(containerId);
   const ctx = canvas.getContext('2d');
-
   const isSimpleMode = typeof currentAppMode !== 'undefined' && currentAppMode === 'simple';
   if(!isSimpleMode) {
     container.style.display = 'block';
@@ -141,11 +269,36 @@ function renderColumnsStandardLayout() {
   const maxCanvasWidth = (typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode)
     ? Math.min(containerWidth, 4000)
     : Math.min(containerWidth, 800);
-  // Same 30–80 px cell range as grid screens, applied per metre
   const pxPerM = Math.max(30, Math.min(80, Math.floor(maxCanvasWidth / wall.widthM)));
-
   canvas.width = Math.round(wall.widthM * pxPerM);
   canvas.height = Math.round(wall.heightM * pxPerM);
+  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const rect = pp => {
+    const x = Math.round(pp.x_m * pxPerM);
+    const y = Math.round(pp.y_m * pxPerM);
+    return { x, y, w: Math.round((pp.x_m + pp.w_m) * pxPerM) - x, h: Math.round((pp.y_m + pp.h_m) * pxPerM) - y };
+  };
+  const smallestSide = Math.min(...wall.panels.map(pp => Math.min(pp.w_m, pp.h_m))) * pxPerM;
+  return { canvas, ctx, pxPerM, rect, fontSize: Math.max(10, Math.floor(smallestSide * 0.22)) };
+}
+
+// Label centred in a panel, shrunk until it fits
+function columnsFitText(ctx, text, r, fontSize) {
+  let fs = fontSize;
+  ctx.font = `${fs}px Arial`;
+  while(fs > 6 && ctx.measureText(text).width > r.w - 4) { fs--; ctx.font = `${fs}px Arial`; }
+  ctx.fillText(text, r.x + r.w / 2, r.y + r.h / 2);
+}
+
+// Standard layout for a columns screen: every panel at its true size relative to the
+// others, labelled column.panel (panel 1 = top of the column).
+function renderColumnsStandardLayout() {
+  const data = screens[currentScreenId].data;
+  const wall = columnsPlacedPanels(data.columns, getAllPanels());
+  const { canvas, ctx, rect, fontSize } = columnsLayoutCanvas('standardCanvas', 'standardContainer', wall);
 
   // The grid click/drag handlers stay attached to this canvas; a zero-size grid
   // makes their hit-tests find nothing, so a columns screen can't be edited as a grid
@@ -153,26 +306,75 @@ function renderColumnsStandardLayout() {
   currentPw = 0;
   currentPh = 0;
 
-  const smallestSide = Math.min(...wall.panels.map(pp => Math.min(pp.w_m, pp.h_m))) * pxPerM;
-  const fontSize = Math.max(10, Math.floor(smallestSide * 0.22));
-  // Space above the shorter columns: the deleted-panel fill, without its dashed outline
-  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.font = `${fontSize}px Arial`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
   wall.panels.forEach(pp => {
-    const x = Math.round(pp.x_m * pxPerM);
-    const y = Math.round(pp.y_m * pxPerM);
-    const w = Math.round((pp.x_m + pp.w_m) * pxPerM) - x;
-    const h = Math.round((pp.y_m + pp.h_m) * pxPerM) - y;
+    const r = rect(pp);
     ctx.fillStyle = getStandardColorForPanel(pp.col, pp.fromBottom);
-    ctx.fillRect(x, y, w, h);
+    ctx.fillRect(r.x, r.y, r.w, r.h);
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h);
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = '#000000';
-    ctx.fillText(`${pp.col+1}.${pp.idx+1}`, x+w/2, y+h/2);
+    ctx.fillText(`${pp.col+1}.${pp.idx+1}`, r.x + r.w/2, r.y + r.h/2);
   });
+}
+
+// Power layout for a columns screen: each panel in its circuit's colour, shaded per
+// SOCA, labelled SOCA.circuit — the grid power layout's colours and labels — plus the
+// per-SOCA amps cards below the canvas.
+function renderColumnsPowerLayout() {
+  const data = screens[currentScreenId].data;
+  const plans = columnsScreenPlans(data);
+  const { ctx, rect, fontSize } = columnsLayoutCanvas('powerCanvas', 'powerContainer', plans.wall);
+  plans.wall.panels.forEach(pp => {
+    const n = plans.power.panelCircuit.get(`${pp.col}:${pp.fromBottom}`);
+    const soca = Math.floor(n / 6);
+    const r = rect(pp);
+    ctx.fillStyle = applySocaShade(colorForIndex(n % 6).solid, soca);
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = '#000000';
+    columnsFitText(ctx, `${formatSocaLabel(soca)}.${(n % 6) + 1}`, r, fontSize);
+  });
+  const cd = screens[currentScreenId].calculatedData;
+  renderSocaCircuitTable(cd && cd.socaBreakdown);
+}
+
+// Data layout for a columns screen: each panel in its data line's colour with its
+// column.panel number, black arrows along each line's path (as on grid screens), and the
+// Mains / Backups start-panel lists.
+function renderColumnsDataLayout() {
+  const screen = screens[currentScreenId];
+  const plans = columnsScreenPlans(screen.data);
+  const { ctx, rect, fontSize } = columnsLayoutCanvas('dataCanvas', 'dataContainer', plans.wall);
+  plans.dataPlan.lines.forEach((line, n) => {
+    const colors = colorForIndex(n);
+    line.panels.forEach(pp => {
+      const r = rect(pp);
+      ctx.fillStyle = colors.fill;
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      // White only on the black (10th) line colour, black on the rest
+      ctx.fillStyle = (n % 10 === 9) ? '#FFFFFF' : '#000000';
+      columnsFitText(ctx, `${pp.col + 1}.${pp.idx + 1}`, r, fontSize);
+    });
+  });
+  if(showArrowsEnabled) {
+    plans.dataPlan.lines.forEach((line, n) => {
+      if(line.panels.length < 2) return;
+      const points = line.panels.map(pp => { const r = rect(pp); return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; });
+      drawArrowPath(ctx, points, '#000000', { lineWidth: 3, headSize: 12, hideArrowhead: false });
+    });
+  }
+  // Start panels, in the same column.panel numbering as the Standard layout
+  if(!screen.calculatedData) screen.calculatedData = {};
+  screen.calculatedData.dataLineEndpoints = plans.dataPlan.lines.map((line, n) => {
+    const first = line.panels[0], last = line.panels[line.panels.length - 1];
+    return { line: n + 1, main: { c: first.col, r: first.idx }, backup: { c: last.col, r: last.idx } };
+  });
+  renderDataLineMap();
 }

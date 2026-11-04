@@ -289,9 +289,20 @@ function buildGearListData(screenIds) {
     const calcData = screen.calculatedData || {};
 
     // Mixed-panel (columns) screens list one panel line per type, read straight from
-    // the columns. Their cabling, rigging and processors come with data/power/structure.
+    // the columns, and count jumpers, SOCA gear and twofers from their own circuit and
+    // data-line plans. Cable runs to the floor and rigging come with structure.
     if(isColumnsScreen(data)) {
       const colCounts = columnsPanelCounts(data.columns);
+      const colPlans = columnsScreenPlans(data);
+      const colMain = allPanelsObj[data.panelType] || {};
+      const colPanelTotal = Object.values(colCounts).reduce((n, c) => n + c, 0);
+      const colJumpersBuiltin = colMain.jumpers_builtin || false;
+      // One cross jumper wherever a data line steps from one column to the next
+      let colCrossJumpers = 0;
+      colPlans.dataPlan.lines.forEach(line => line.panels.forEach((pp, i) => { if(i > 0 && line.panels[i - 1].col !== pp.col) colCrossJumpers++; }));
+      const colSocas = Math.ceil(colPlans.power.circuits.length / 6);
+      // A circuit spanning n columns needs n - 1 twofers
+      const colTwofers = colPlans.power.circuits.reduce((n, ci) => n + ci.cols.size - 1, 0);
       const panelLines = Object.keys(colCounts).filter(t => allPanelsObj[t])
         .sort((a, b) => colCounts[b] - colCounts[a])
         .map(t => ({ panelType: t, brand: allPanelsObj[t].brand || '', name: allPanelsObj[t].name || '', count: colCounts[t] }));
@@ -322,8 +333,18 @@ function buildGearListData(screenIds) {
         rigging: { bumper1w: 0, bumper2w: 0, bumper4w: 0, plates2way: 0, plates4way: 0, shackles: 0, cheeseye: 0, hasRigging: false },
         groundSupport: { rearTruss: 0, baseTruss: 0, bridgeClamps: 0, rearBridgeAdapters: 0, sandbags: 0, swivelCheeseboroughs: 0, pipes: 0, pipeLengthStr: '', hasGS: false },
         floorHardware: { frame3x2: 0, frame2x2: 0, frame2x1: 0, frame1x1: 0, hasFloorFrames: false },
-        dataCables: { dataJumperLen: '', jumpersBuiltin: false, jumperCount: 0, crossJumperLen: '', crossJumperCount: 0, cat5CouplerCount: 0, cat6ByLength: {}, cableDetail: [], knockoutDetail: [] },
-        powerCables: { powerJumperLen: '', jumperCount: 0, socaSplays: 0, socaByLength: {}, socaDetail: [], true1_25: 0, true1_10: 0, true1_5: 0, true1Twofer: 0 },
+        dataCables: {
+          dataJumperLen: colMain.data_jumper_ft || '', jumpersBuiltin: colJumpersBuiltin,
+          jumperCount: (!colJumpersBuiltin && colMain.data_jumper_ft) ? colPanelTotal : 0,
+          crossJumperLen: colMain.data_cross_jumper_ft || '', crossJumperCount: colMain.data_cross_jumper_ft ? colCrossJumpers : 0,
+          cat5CouplerCount: 0, cat6ByLength: {}, cableDetail: [], knockoutDetail: []
+        },
+        powerCables: {
+          powerJumperLen: colMain.power_jumper_ft || '',
+          jumperCount: (!colJumpersBuiltin && colMain.power_jumper_ft) ? colPanelTotal : 0,
+          socaSplays: colSocas, socaByLength: {}, socaDetail: [],
+          true1_25: colSocas, true1_10: colSocas, true1_5: colSocas * 2, true1Twofer: colTwofers
+        },
         processorToDistBox: { count: 0, cableType: '', cableLength: 0 }
       });
       return;

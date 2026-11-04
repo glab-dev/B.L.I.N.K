@@ -2007,9 +2007,11 @@ function getEffectivePanelCountsForLayout(){
 
 function generateLayout(mode){
   lastLayoutMode = mode;
-  // Mixed-panel (columns) screens: only the Standard layout exists so far
+  // Mixed-panel (columns) screens have their own Standard, Power and Data layouts
   if(screens[currentScreenId] && isColumnsScreen(screens[currentScreenId].data)) {
     if(mode === 'standard') renderColumnsStandardLayout();
+    else if(mode === 'power') renderColumnsPowerLayout();
+    else if(mode === 'data') renderColumnsDataLayout();
     return;
   }
   const allPanels = getAllPanels();

@@ -173,6 +173,8 @@ function makeFreeScreenData(data) {
   data.layoutMode = 'free';
   data.freeCell_mm = fam.cellMm;
   data.freePanels = [];
+  // Grid knock-outs mean nothing here, and the shared assign prompts skip deleted keys
+  data.deletedPanels = new Set();
 }
 
 // Draw row state for the current screen: panel chips, Delete button, and the Select
@@ -480,6 +482,10 @@ function renderFreeStandardLayout() {
       ctx.lineWidth = 4;
       ctx.strokeRect(x+2, y+2, w-4, h-4);
     }
+    if(customCircuitAssignments.has(`${fp.gx},${fp.gy}`)) {
+      ctx.fillStyle = '#FFD700'; // Gold indicator for a hand-picked circuit
+      ctx.fillRect(x+w-10, y+2, 8, 8);
+    }
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, w, h);
@@ -502,6 +508,21 @@ function renderFreeStandardLayout() {
 // red where it would overlap a panel.
 function drawFreeGhost(ctx, data, allPanels, toX, toY) {
   const cellMm = data.freeCell_mm;
+  if(freeAction && freeAction.kind === 'box') {
+    if(!freeAction.moved) return;
+    // Selection box, styled like the grid's drag box, snapped to cells
+    const x0 = Math.min(freeAction.start.gx, freeAction.cur.gx), x1 = Math.max(freeAction.start.gx, freeAction.cur.gx) + 1;
+    const y0 = Math.min(freeAction.start.gy, freeAction.cur.gy), y1 = Math.max(freeAction.start.gy, freeAction.cur.gy) + 1;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.12)';
+    ctx.fillRect(toX(x0), toY(y0), toX(x1) - toX(x0), toY(y1) - toY(y0));
+    ctx.strokeStyle = '#00FF00';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(toX(x0), toY(y0), toX(x1) - toX(x0), toY(y1) - toY(y0));
+    ctx.restore();
+    return;
+  }
   const boxes = [];
   if(freeAction && freeAction.kind === 'move' && freeAction.moved) {
     const ox = freeAction.cur.gx - freeAction.start.gx, oy = freeAction.cur.gy - freeAction.start.gy;
@@ -605,7 +626,10 @@ function freeRedraw() {
   });
 }
 
-function freePointerDown(clientX, clientY, additive) {
+// `additive`: Shift/Ctrl/⌘ held — a click toggles a panel, a drag on empty space draws a
+// selection box. `touch`: a tap adds a panel to the selection and a tap on a selected
+// panel opens the options menu, like Select Mode on the grid.
+function freePointerDown(clientX, clientY, additive, touch) {
   const data = screens[currentScreenId].data;
   const allPanels = getAllPanels();
   const cell = freeCellAt(clientX, clientY);
@@ -615,11 +639,17 @@ function freePointerDown(clientX, clientY, additive) {
       if(freeSelected.has(hit)) freeSelected.delete(hit); else freeSelected.add(hit);
       freeAction = {kind: 'select', start: cell, cur: cell, moved: false, x: clientX, y: clientY};
     } else {
-      if(!freeSelected.has(hit)) { freeSelected.clear(); freeSelected.add(hit); }
-      freeAction = {kind: 'move', start: cell, cur: cell, moved: false, x: clientX, y: clientY, hit};
+      const wasSelected = freeSelected.has(hit);
+      if(!wasSelected) {
+        if(!touch) freeSelected.clear();
+        freeSelected.add(hit);
+      }
+      freeAction = {kind: 'move', start: cell, cur: cell, moved: false, x: clientX, y: clientY, hit, touch, menuOnTap: touch && wasSelected};
     }
+  } else if(additive) {
+    freeAction = {kind: 'box', start: cell, cur: cell, moved: false, x: clientX, y: clientY};
   } else {
-    if(!additive) freeSelected.clear();
+    freeSelected.clear();
     freeAction = {kind: 'paint', start: cell, cur: cell, moved: false, x: clientX, y: clientY};
   }
   freeHover = null;
@@ -676,13 +706,104 @@ function freePointerUp() {
       commitFreePanels(list);
       return;
     }
-    if(!action.moved) {
+    if(!action.moved && action.menuOnTap) {
+      freeRedraw();
+      showFreeContextMenu(action.x, action.y);
+      return;
+    }
+    if(!action.moved && !action.touch) {
       freeSelected.clear();
       freeSelected.add(action.hit);
     }
+  } else if(action.kind === 'box' && action.moved) {
+    // Every panel the box touches joins the selection
+    const x0 = Math.min(action.start.gx, action.cur.gx), x1 = Math.max(action.start.gx, action.cur.gx);
+    const y0 = Math.min(action.start.gy, action.cur.gy), y1 = Math.max(action.start.gy, action.cur.gy);
+    data.freePanels.forEach(fp => {
+      const {cw, ch} = freeCells(allPanels[fp.type], cellMm);
+      if(fp.gx <= x1 && fp.gx + cw - 1 >= x0 && fp.gy <= y1 && fp.gy + ch - 1 >= y0) freeSelected.add(`${fp.gx},${fp.gy}`);
+    });
   }
   updateFreeDrawRow();
   freeRedraw();
+}
+
+// Options for the selected panels, the drawn-screen counterpart of the grid's right-click
+// menu: Assign Circuit # / Assign SOCA # run the same prompts as on a grid screen.
+function showFreeContextMenu(x, y) {
+  if(freeSelected.size === 0) return;
+  const existingMenu = document.getElementById('panelContextMenu');
+  if(existingMenu) existingMenu.remove();
+
+  const menu = document.createElement('div');
+  menu.id = 'panelContextMenu';
+  menu.style.position = 'fixed';
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  menu.style.background = '#242424';
+  menu.style.border = '1px solid #555';
+  menu.style.borderRadius = '4px';
+  menu.style.padding = '4px 0';
+  menu.style.zIndex = '10000';
+  menu.style.minWidth = '200px';
+  menu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.5)';
+
+  const keys = [...freeSelected];
+  const n = keys.length;
+  const addOption = (text, onPick) => {
+    const option = document.createElement('div');
+    option.textContent = text;
+    option.style.padding = '8px 12px';
+    option.style.cursor = 'pointer';
+    option.style.color = '#e0e0e0';
+    option.style.fontSize = '13px';
+    option.style.borderBottom = '1px solid #383838';
+    option.addEventListener('mouseover', function() { option.style.background = '#0a66c2'; });
+    option.addEventListener('mouseout', function() { option.style.background = 'transparent'; });
+    option.addEventListener('click', function() {
+      menu.remove();
+      onPick();
+    });
+    menu.appendChild(option);
+  };
+
+  // The grid prompts assign whatever is in selectedPanels
+  addOption(`Assign Circuit # to ${n} panel(s)`, () => {
+    selectedPanels = new Set(keys);
+    showCircuitNumberPrompt();
+  });
+  // Same rule as the grid menu: a SOCA block spans 2+ columns and 2+ rows
+  const cols = new Set(keys.map(k => k.split(',')[0]));
+  const rows = new Set(keys.map(k => k.split(',')[1]));
+  if(cols.size > 1 && rows.size > 1) {
+    addOption(`Assign SOCA # to ${n} panel(s)`, () => {
+      selectedPanels = new Set(keys);
+      showAssignSocaPrompt();
+    });
+  }
+  if(keys.some(k => customCircuitAssignments.has(k) || customSocaAssignments.has(k))) {
+    addOption(`Reset ${n} panel(s) to auto power`, () => {
+      saveState();
+      keys.forEach(k => {
+        customCircuitAssignments.delete(k);
+        customSocaAssignments.delete(k);
+      });
+      calculate();
+    });
+  }
+  addOption(`Delete ${n} panel(s)`, () => deleteFreeSelected());
+  menu.lastChild.style.borderBottom = 'none';
+  document.body.appendChild(menu);
+
+  // Close menu when clicking elsewhere
+  setTimeout(() => {
+    document.addEventListener('click', function closeMenu(e) {
+      if(!menu.contains(e.target)) {
+        menu.remove();
+        document.removeEventListener('click', closeMenu);
+      }
+    });
+  }, 10);
 }
 
 // Draw-mode listeners on the Standard canvas, attached once. They only act on a free
@@ -718,13 +839,29 @@ function setupFreeCanvasInteractivity() {
     freeHover = null;
     freeRedraw();
   });
+  // Right-click a panel: select it if it isn't already, then show the options menu
+  canvas.addEventListener('contextmenu', function(e) {
+    if(!active()) return;
+    e.preventDefault();
+    const cell = freeCellAt(e.clientX, e.clientY);
+    const data = screens[currentScreenId].data;
+    const hit = freeOccupancy(data.freePanels, getAllPanels(), data.freeCell_mm).get(`${cell.gx},${cell.gy}`);
+    if(!hit) return;
+    if(!freeSelected.has(hit)) {
+      freeSelected.clear();
+      freeSelected.add(hit);
+      updateFreeDrawRow();
+      generateLayout('standard');
+    }
+    showFreeContextMenu(e.clientX, e.clientY);
+  });
 
   canvas.addEventListener('touchstart', function(e) {
     if(!active()) return;
     lastTouchInteraction = Date.now();
     if(e.touches.length !== 1) { freeAction = null; freeRedraw(); return; }
     e.preventDefault();
-    freePointerDown(e.touches[0].clientX, e.touches[0].clientY, false);
+    freePointerDown(e.touches[0].clientX, e.touches[0].clientY, false, true);
   }, {passive: false});
   canvas.addEventListener('touchmove', function(e) {
     if(!freeAction) return;

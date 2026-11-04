@@ -222,6 +222,7 @@ function ensureScreenForMode(followProject) {
   }
   if(freeDrawMode) {
     makeFreeScreenData(data);
+    deletedPanels.clear();
   } else {
     delete data.layoutMode;
     delete data.freeCell_mm;

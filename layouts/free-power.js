@@ -5,12 +5,7 @@
 // panel keys ("gx,gy") the custom circuit/SOCA Maps already use. Circuits fill by panel
 // count like grid screens; watts and amps come from each panel's own type.
 
-let freeCircuitBrush = 0;          // circuit chip: 0 = Auto (clear hand-picked), else 1-based circuit
-let freeCircuitAction = null;      // drag in progress: {keys: Set, x, y}
-let freeCircuitHover = null;       // panel key under the mouse
 let freePowerState = null;         // last calculateFreePower() result, read by the canvas
-let freePowerView = null;          // last power render: {cellPx}
-let freePowerListenersSetup = false;
 
 function freePanelWatts(p, powerType) {
   return powerType === 'max' ? (p.power_max_w || 0) : (p.power_avg_w || p.power_max_w * 0.5 || 0);
@@ -146,7 +141,6 @@ function calculateFreePower(data, allPanels) {
 
   freePowerState = {
     panelToCircuit: shownPanelToCircuit, panelToSoca: shownPanelToSoca,
-    aswiredCircuitCounts: circuitCounts, aswiredPanelToCircuit: panelToCircuit, aswiredPanelToSoca: panelToSoca,
     circuitWatts, watts,
     panelsPerCircuit,
     circuitsNeeded: circuitCounts.size,
@@ -230,55 +224,6 @@ function freeTrue1Twofers(data, allPanels, panelToCircuit) {
   return twofers;
 }
 
-// Circuit tool row on the Power layout: Auto, one chip per circuit in use, New.
-function updateFreeCircuitRow() {
-  const data = screens[currentScreenId] ? screens[currentScreenId].data : null;
-  const on = isFreeScreen(data) && freeDrawMode && data.freePanels.length > 0;
-  const row = document.getElementById('powerDrawRow');
-  if(row) row.style.display = on ? '' : 'none';
-  const canvas = document.getElementById('powerCanvas');
-  if(canvas) canvas.classList.toggle('draw-mode-active', on);
-  const chips = document.getElementById('freeCircuitChips');
-  if(!on || !chips || !freePowerState) return;
-
-  const counts = freePowerState.aswiredCircuitCounts;
-  const used = [...counts.keys()].sort((a, b) => a - b);
-  const next = used.length ? used[used.length - 1] + 1 : 0;
-  if(freeCircuitBrush > 0 && !counts.has(freeCircuitBrush - 1) && freeCircuitBrush - 1 !== next) freeCircuitBrush = 0;
-
-  const socaOf = new Map();
-  freePowerState.aswiredPanelToCircuit.forEach((circuit, key) => { if(!socaOf.has(circuit)) socaOf.set(circuit, freePowerState.aswiredPanelToSoca.get(key)); });
-  const cd = screens[currentScreenId].calculatedData;
-  const labelMap = (cd && Array.isArray(cd.socaLabelMap)) ? new Map(cd.socaLabelMap) : null;
-  const socaLabel = idx => formatSocaLabel(labelMap && labelMap.has(idx) ? labelMap.get(idx) : idx);
-
-  chips.textContent = '';
-  const addChip = (value, text, title, color) => {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'toggle-btn' + (color ? ' free-circuit-chip' : '');
-    if(color) chip.style.setProperty('--chip-color', color);
-    chip.setAttribute('role', 'radio');
-    chip.setAttribute('aria-checked', value === freeCircuitBrush ? 'true' : 'false');
-    chip.classList.toggle('active', value === freeCircuitBrush);
-    chip.textContent = text;
-    chip.title = title;
-    chip.addEventListener('click', () => {
-      freeCircuitBrush = value;
-      updateFreeCircuitRow();
-    });
-    chips.appendChild(chip);
-  };
-  addChip(0, 'Auto', 'Click panels to give them back their automatic circuit', null);
-  used.forEach(circuit => {
-    const soca = socaOf.has(circuit) ? socaOf.get(circuit) : Math.floor(circuit / 6);
-    const label = `${socaLabel(soca)}.${(circuit % 6) + 1}`;
-    addChip(circuit + 1, label, `Circuit ${label} (${counts.get(circuit)} panel${counts.get(circuit) === 1 ? '' : 's'})`,
-      applySocaShade(colorForIndex(circuit % 6).solid, soca));
-  });
-  addChip(next + 1, 'New', 'Start a new circuit', null);
-}
-
 // Power layout for a free screen: every panel at its true size, coloured by circuit and
 // labelled SOCA.circuit, with the SOCA outlines and labels the grid canvas draws.
 function renderFreePowerLayout() {
@@ -296,7 +241,6 @@ function renderFreePowerLayout() {
   if(!st || !b) {
     canvas.width = 0;
     canvas.height = 0;
-    updateFreeCircuitRow();
     return;
   }
 
@@ -309,7 +253,6 @@ function renderFreePowerLayout() {
   const cellPx = pxPerM * cellM;
   canvas.width = Math.round(b.maxX * cellPx);
   canvas.height = Math.round(b.maxY * cellPx);
-  freePowerView = {cellPx};
   const toPx = g => Math.round(g * cellPx);
 
   ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
@@ -326,10 +269,6 @@ function renderFreePowerLayout() {
   const labelMap = (cd && Array.isArray(cd.socaLabelMap)) ? new Map(cd.socaLabelMap) : null;
   const socaLabelIdx = idx => (labelMap && labelMap.has(idx)) ? labelMap.get(idx) : idx;
 
-  // While painting, crossed panels preview the chip's colour
-  const paintKeys = freeCircuitAction ? freeCircuitAction.keys : null;
-  const brushColor = freeCircuitBrush > 0 ? colorForIndex((freeCircuitBrush - 1) % 6).solid : '#888888';
-
   // Cell-level circuit/SOCA maps so the SOCA overlay outlines each panel's real footprint
   const cellToCircuit = new Map(), cellToSoca = new Map();
   data.freePanels.forEach(fp => {
@@ -345,8 +284,7 @@ function renderFreePowerLayout() {
     }
 
     const legPair = circuitToPair.get(circuit);
-    ctx.fillStyle = (paintKeys && paintKeys.has(key)) ? brushColor
-      : ((legColorOn && legPair) ? legPairColor(legPair) : applySocaShade(colorForIndex(circuit % 6).solid, soca));
+    ctx.fillStyle = (legColorOn && legPair) ? legPairColor(legPair) : applySocaShade(colorForIndex(circuit % 6).solid, soca);
     ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
@@ -354,13 +292,6 @@ function renderFreePowerLayout() {
     if(customCircuitAssignments.has(key)) {
       ctx.fillStyle = '#FFD700'; // Gold indicator for a hand-picked circuit
       ctx.fillRect(x + w - 10, y + 2, 8, 8);
-    }
-    if(freeDrawMode && freeCircuitHover === key && !freeCircuitAction) {
-      ctx.save();
-      ctx.setLineDash([6, 4]);
-      ctx.strokeStyle = '#ffffff';
-      ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
-      ctx.restore();
     }
 
     const label = (legColorOn && legPair) ? legPair : `${formatSocaLabel(socaLabelIdx(soca))}.${(circuit % 6) + 1}`;
@@ -392,108 +323,4 @@ function renderFreePowerLayout() {
   });
 
   if(!(typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode)) renderSocaCircuitTable(st.socaBreakdown);
-  updateFreeCircuitRow();
-  setupFreePowerInteractivity();
-}
-
-// Key of the panel under a point on the power canvas, or null
-function freePowerPanelAt(clientX, clientY) {
-  if(!freePowerView) return null;
-  const data = screens[currentScreenId].data;
-  const canvas = document.getElementById('powerCanvas');
-  const rect = canvas.getBoundingClientRect();
-  const gx = Math.floor((clientX - rect.left) * (canvas.width / rect.width) / freePowerView.cellPx);
-  const gy = Math.floor((clientY - rect.top) * (canvas.height / rect.height) / freePowerView.cellPx);
-  return freeOccupancy(data.freePanels, getAllPanels(), data.freeCell_mm).get(`${gx},${gy}`) || null;
-}
-
-function freeCircuitRedraw() {
-  if(freeRafId) return;
-  freeRafId = requestAnimationFrame(() => {
-    freeRafId = 0;
-    if(isFreeCurrentScreen()) generateLayout('power');
-  });
-}
-
-function freeCircuitDown(clientX, clientY) {
-  const key = freePowerPanelAt(clientX, clientY);
-  freeCircuitAction = {keys: new Set(key ? [key] : []), x: clientX, y: clientY};
-  freeCircuitRedraw();
-}
-
-function freeCircuitMove(clientX, clientY) {
-  if(!freeCircuitAction) return;
-  const key = freePowerPanelAt(clientX, clientY);
-  if(key && !freeCircuitAction.keys.has(key)) {
-    freeCircuitAction.keys.add(key);
-    freeCircuitRedraw();
-  }
-}
-
-// Put the crossed panels on the chosen circuit (or back on Auto) as one undo step
-function freeCircuitUp() {
-  const action = freeCircuitAction;
-  freeCircuitAction = null;
-  if(!action) return;
-  const keys = [...action.keys].filter(k => freeCircuitBrush > 0
-    ? customCircuitAssignments.get(k) !== freeCircuitBrush
-    : customCircuitAssignments.has(k));
-  if(keys.length === 0) { freeCircuitRedraw(); return; }
-  saveState();
-  keys.forEach(k => {
-    if(freeCircuitBrush > 0) customCircuitAssignments.set(k, freeCircuitBrush);
-    else customCircuitAssignments.delete(k);
-  });
-  vibrate(10);
-  calculate();
-}
-
-// Circuit-tool listeners on the power canvas, attached once. They only act on a free
-// screen in Draw mode.
-function setupFreePowerInteractivity() {
-  if(freePowerListenersSetup) return;
-  freePowerListenersSetup = true;
-  const canvas = document.getElementById('powerCanvas');
-  const active = () => freeDrawMode && isFreeCurrentScreen() && freePowerView;
-
-  canvas.addEventListener('mousedown', function(e) {
-    if(e.button !== 0 || !active()) return;
-    if(Date.now() - lastTouchInteraction < 700) return;
-    e.preventDefault();
-    freeCircuitDown(e.clientX, e.clientY);
-  });
-  document.addEventListener('mousemove', function(e) {
-    if(freeCircuitAction) { freeCircuitMove(e.clientX, e.clientY); return; }
-    if(!active() || e.target !== canvas) return;
-    const key = freePowerPanelAt(e.clientX, e.clientY);
-    if(key === freeCircuitHover) return;
-    freeCircuitHover = key;
-    freeCircuitRedraw();
-  });
-  document.addEventListener('mouseup', function() {
-    if(freeCircuitAction) freeCircuitUp();
-  });
-  canvas.addEventListener('mouseleave', function() {
-    if(!freeCircuitHover) return;
-    freeCircuitHover = null;
-    freeCircuitRedraw();
-  });
-
-  canvas.addEventListener('touchstart', function(e) {
-    if(!active()) return;
-    lastTouchInteraction = Date.now();
-    if(e.touches.length !== 1) { freeCircuitAction = null; freeCircuitRedraw(); return; }
-    e.preventDefault();
-    freeCircuitDown(e.touches[0].clientX, e.touches[0].clientY);
-  }, {passive: false});
-  canvas.addEventListener('touchmove', function(e) {
-    if(!freeCircuitAction) return;
-    if(e.touches.length !== 1) { freeCircuitAction = null; freeCircuitRedraw(); return; }
-    e.preventDefault();
-    freeCircuitMove(e.touches[0].clientX, e.touches[0].clientY);
-  }, {passive: false});
-  canvas.addEventListener('touchend', function() {
-    lastTouchInteraction = Date.now();
-    if(freeCircuitAction) freeCircuitUp();
-  });
 }

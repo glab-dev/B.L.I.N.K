@@ -51,8 +51,8 @@ function standardLayoutHintText() {
   const isMobile = window.innerWidth <= 768;
   if(isFreeCurrentScreen()) {
     return (!isTouchDevice && !isMobile)
-      ? 'Click to place • Drag to paint • Click a panel to select, drag to move • Delete removes'
-      : 'Tap to place • Drag to paint • Tap a panel to select, drag to move';
+      ? 'Click to place • Drag to paint • Shift-drag to select • Right-click for options'
+      : 'Tap to place • Drag to paint • Tap panels to select • Tap a selected panel for options';
   }
   if(!isTouchDevice && !isMobile) {
     return 'Click to select • Right-click for options • Drag a box to multi-select';

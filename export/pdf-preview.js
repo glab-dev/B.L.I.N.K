@@ -643,11 +643,25 @@ function buildStructureInfoLines(screenId) {
 
   // A drawn screen's bumpers are worked out from its panels (layouts/free-structure.js)
   if (typeof isFreeScreen === 'function' && isFreeScreen(data)) {
-    const st = freeStructurePlan(data, allPanels, freeBumperPosition(data.structureType || 'hanging', data.useBumpers !== false));
-    if (!st.bumpers.length) return [];
+    const st = freeStructurePlan(data, allPanels, freeBumperPosition(data.structureType || 'hanging', data.useBumpers !== false), data.use4WayBumpers);
+    const pickups = st.bumpers.filter(function(b) { return !b.under4w; });
+    if (!pickups.length) return [];
     lines.push({ text: 'Pickup Weights', bold: true, header: true });
-    st.bumpers.forEach(function(b) { lines.push({ text: '  ' + b.label + ': ' + toDisplay(b.loadKg) + ' ' + wtUnit }); });
-    lines.push({ text: '  Total: ' + toDisplay(st.bumpers.reduce(function(sum, b) { return sum + b.loadKg; }, 0)) + ' ' + wtUnit, bold: true });
+    pickups.forEach(function(b) { lines.push({ text: '  ' + b.label + ': ' + toDisplay(b.loadKg) + ' ' + wtUnit }); });
+    lines.push({ text: '  Total: ' + toDisplay(pickups.reduce(function(sum, b) { return sum + b.loadKg; }, 0)) + ' ' + wtUnit, bold: true });
+    const gs = st.groundSupport;
+    if (gs) {
+      lines.push({ text: '' });
+      lines.push({ text: 'Ground Support Hardware', bold: true, header: true });
+      if (gs.totalRearTruss > 0) lines.push({ text: '  Rear Truss: ' + gs.totalRearTruss });
+      if (gs.totalBaseTruss > 0) lines.push({ text: '  Base Truss: ' + gs.totalBaseTruss });
+      if (gs.totalBridgeClamps > 0) lines.push({ text: '  Bridge Clamps: ' + gs.totalBridgeClamps });
+      if (gs.totalRearBridgeClampAdapters > 0) lines.push({ text: '  Rear Bridge Adapter: ' + gs.totalRearBridgeClampAdapters });
+      if (gs.totalPipes > 0) lines.push({ text: '  Pipe (' + [...new Set(gs.pipeInfo.map(function(pi) { return pi.pipeLengthFt; }))].map(function(l) { return l + 'ft'; }).join(', ') + '): ' + gs.totalPipes });
+      if (gs.totalSwivelCheeseboroughs > 0) lines.push({ text: '  Swivel Cheeseborough: ' + gs.totalSwivelCheeseboroughs });
+      if (gs.totalSandbags > 0) lines.push({ text: '  Sandbags (25lb): ' + gs.totalSandbags });
+      lines.push({ text: '  Total Weight: ' + toDisplay(gs.totalWeightKg) + ' ' + wtUnit, bold: true });
+    }
     return lines;
   }
   if (!p || pw === 0 || ph === 0) return [];

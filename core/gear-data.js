@@ -337,6 +337,20 @@ function buildGearListData(screenIds) {
       const freeNeedsSC = freePanel && (['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3', 'V4ST', 'V4ST_H', 'V4ST_V', 'V4ST_Q'].includes(data.freePanels[0].type) || (freePanel.custom && freePanel.needs_shackles));
       const freeSC = (freeNeedsSC && freeHung) ? freeB1 + freeB2 : 0;
       const freeRigging = { bumper1w: freeB1, bumper2w: freeB2, bumper4w: freeB4, plates2way: 0, plates4way: 0, shackles: freeSC, cheeseye: freeSC, hasRigging: freeB1 + freeB2 + freeB4 > 0 };
+      // Ground support worked out from the drawn wall (layouts/free-structure.js), listed as
+      // grid screens list theirs
+      const freeGs = calcData.groundSupport;
+      const freeGroundSupport = freeGs ? {
+        rearTruss: freeGs.totalRearTruss,
+        baseTruss: freeGs.totalBaseTruss,
+        bridgeClamps: freeGs.totalBridgeClamps,
+        rearBridgeAdapters: freeGs.totalRearBridgeClampAdapters,
+        sandbags: freeGs.totalSandbags,
+        swivelCheeseboroughs: freeGs.totalSwivelCheeseboroughs,
+        pipes: freeGs.totalPipes,
+        pipeLengthStr: freeGs.totalPipes > 0 ? ' (' + [...new Set(freeGs.pipeInfo.map(pi => pi.pipeLengthFt))].map(l => l + 'ft').join(', ') + ')' : '',
+        hasGS: true
+      } : { rearTruss: 0, baseTruss: 0, bridgeClamps: 0, rearBridgeAdapters: 0, sandbags: 0, swivelCheeseboroughs: 0, pipes: 0, pipeLengthStr: '', hasGS: false };
       const freeProcessorType = data.processor || 'Brompton_SX40';
       const freeProcessorGroup = processorGroups[freeProcessorType] || null;
       const freeIsFirst = freeProcessorGroup && freeProcessorGroup.firstScreenId === screenId;
@@ -362,7 +376,7 @@ function buildGearListData(screenIds) {
           panelLines: panelLines
         },
         rigging: freeRigging,
-        groundSupport: { rearTruss: 0, baseTruss: 0, bridgeClamps: 0, rearBridgeAdapters: 0, sandbags: 0, swivelCheeseboroughs: 0, pipes: 0, pipeLengthStr: '', hasGS: false },
+        groundSupport: freeGroundSupport,
         floorHardware: { frame3x2: 0, frame2x2: 0, frame2x1: 0, frame1x1: 0, hasFloorFrames: false },
         dataCables: {
           dataJumperLen: freeDataJumperLen,

@@ -151,7 +151,7 @@ function drawFreeCombinedData(ctx, screen, screenId, data, sx, sy, cellPx, holeB
 function drawFreeCombinedStructure(ctx, screen, data, sx, top, cellPx, bumperH) {
   const allPanels = getAllPanels();
   const position = freeBumperPosition(data.structureType || 'hanging', data.useBumpers !== false);
-  const st = freeStructurePlan(data, allPanels, position);
+  const st = freeStructurePlan(data, allPanels, position, data.use4WayBumpers);
   const panelTop = top + (st.position === 'top' && st.bumpers.length ? bumperH + 5 : 0);
   drawFreeStructure(ctx, data, allPanels, st, {ox: sx, oy: panelTop, cellPx, bumperH, gap: 5});
   drawFreeCombinedName(ctx, screen, sx + data.panelsWide * cellPx / 2, (st.position === 'top' && st.bumpers.length ? top : panelTop) - 15);

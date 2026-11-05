@@ -16,13 +16,18 @@ function freeBumperColor(type, position) {
   return type === '2w' && position === 'bottom' ? '#FF9800' : FREE_BUMPER_COLORS[type];
 }
 
+// The width of the family's narrowest panel in cells: a 1W bumper's width
+function freeUnitCells(data, allPanels) {
+  const fam = freeFamily(data.freePanels[0].type, allPanels).types;
+  return Math.min(...fam.map(t => freeCells(allPanels[t], data.freeCell_mm).cw));
+}
+
 // Bumpers along one edge of a drawn wall: [{type, gx, cw, gy, panelType}], gx/cw in cells
 // and gy the row the panel it carries starts (top) or ends (bottom) on
 function freeBumpers(data, allPanels, position) {
   const cellMm = data.freeCell_mm;
   const occ = freeOccupancy(data.freePanels, allPanels, cellMm);
-  const fam = freeFamily(data.freePanels[0].type, allPanels).types;
-  const unit = Math.min(...fam.map(t => freeCells(allPanels[t], cellMm).cw));
+  const unit = freeUnitCells(data, allPanels);
   // Panels with a clear edge, by the row that edge sits on
   const levels = new Map();
   data.freePanels.forEach(fp => {
@@ -63,27 +68,24 @@ function freeBumperPosition(structureType, useBumpers) {
 // Bumpers for the current free screen, from the live structure settings
 function calculateFreeStructure(data, allPanels) {
   const structureType = document.getElementById('structureType').value;
-  freeStructureState = freeStructurePlan(data, allPanels, freeBumperPosition(structureType, showTopBumper || showBottomBumper));
+  freeStructureState = freeStructurePlan(data, allPanels, freeBumperPosition(structureType, showTopBumper || showBottomBumper), use4WayBumpersEnabled);
   return freeStructureState;
 }
 
-// Bumpers (each labelled "2W #1" and so on), their pickup weights and the column-height
-// warnings for a drawn wall with its bumpers on `position`
-function freeStructurePlan(data, allPanels, position) {
-  if(!data.freePanels.length) return {position: null, bumpers: [], counts: {'1w': 0, '2w': 0, '4w': 0}, bumperWeightKg: 0, warnings: []};
+// Bumpers (each pickup labelled "2W #1" and so on), their pickup weights, the column-height
+// warnings and, on a ground-stacked wall, the ground support for a drawn wall with its
+// bumpers on `position`. use4Way adds the 4-way layer on panels that take it.
+function freeStructurePlan(data, allPanels, position, use4Way) {
+  if(!data.freePanels.length) return {position: null, bumpers: [], counts: {'1w': 0, '2w': 0, '4w': 0}, bumperWeightKg: 0, warnings: [], groundSupport: null, ladders: []};
 
   const cellMm = data.freeCell_mm;
-  // Listed 4W, 2W, 1W and left to right within each, as the grid Pickup Weights box lists them
-  const order = {'4w': 0, '2w': 1, '1w': 2};
-  const bumpers = (position ? freeBumpers(data, allPanels, position) : []).sort((a, b) => order[a.type] - order[b.type]);
-  const counts = {'1w': 0, '2w': 0, '4w': 0};
-  let bumperWeightKg = 0;
+  const mainType = allPanels[data.panelType] ? data.panelType : data.freePanels[0].type;
+  const main = allPanels[mainType];
+  const isCB5 = mainType === 'CB5_MKII' || mainType === 'CB5_MKII_HALF';
+  const bumpers = position ? freeBumpers(data, allPanels, position) : [];
   bumpers.forEach(b => {
-    counts[b.type]++;
-    b.label = `${b.type.toUpperCase()} #${counts[b.type]}`;
     b.ownKg = (allPanels[b.panelType]['bumper_' + b.type + '_lbs'] || 0) * LBS_TO_KG;
     b.loadKg = b.ownKg;
-    bumperWeightKg += b.ownKg;
   });
 
   // Each panel loads the nearest bumper level over its middle, shared by overlap width
@@ -102,14 +104,49 @@ function freeStructurePlan(data, allPanels, position) {
     level.forEach(b => { b.loadKg += total > 0 ? kg * Math.max(0, overlap(b)) / total : kg / level.length; });
   });
 
+  // 4-way bumpers (CB5, or custom panels that take them) join each two touching 2Ws on one
+  // level, paired from the left as grid columns are, centre to centre. The 4W is then the
+  // pickup: it carries both 2Ws with their panels, and the 2Ws are no longer pickups.
+  const joined = bumpers.slice();
+  if(use4Way && position && (isCB5 || (main.custom && main.supports_4w_bumpers))) {
+    const twos = joined.filter(b => b.type === '2w').sort((a, b) => a.gy - b.gy || a.gx - b.gx);
+    for(let i = 0; i + 1 < twos.length; i++) {
+      const a = twos[i], b = twos[i + 1];
+      if(a.gy !== b.gy || a.gx + a.cw !== b.gx) continue;
+      const ownKg = (allPanels[a.panelType].bumper_4w_lbs || 0) * LBS_TO_KG;
+      bumpers.push({type: '4w', gx: a.gx + a.cw / 2, cw: (b.gx + b.cw / 2) - (a.gx + a.cw / 2), gy: a.gy,
+        panelType: a.panelType, ownKg, loadKg: ownKg + a.loadKg + b.loadKg, ladderGx: a.gx});
+      a.under4w = b.under4w = true;
+      i++;
+    }
+  }
+
+  // Listed 4W, 2W, 1W and left to right within each, as the grid Pickup Weights box lists
+  // them; only pickups are numbered, every bumper is counted for the gear list
+  const order = {'4w': 0, '2w': 1, '1w': 2};
+  bumpers.sort((a, b) => order[a.type] - order[b.type] || a.gx - b.gx || a.gy - b.gy);
+  const counts = {'1w': 0, '2w': 0, '4w': 0}, numbered = {'1w': 0, '2w': 0, '4w': 0};
+  let bumperWeightKg = 0;
+  bumpers.forEach(b => {
+    counts[b.type]++;
+    bumperWeightKg += b.ownKg;
+    if(!b.under4w) b.label = `${b.type.toUpperCase()} #${++numbered[b.type]}`;
+  });
+
+  const occ = freeOccupancy(data.freePanels, allPanels, cellMm);
+  // A column's height in main-panel heights, from a bottom bumper's level up
+  const stackPanels = (x, gy) => {
+    let run = 0;
+    for(let y = gy - 1; occ.has(`${x},${y}`); y--) run++;
+    return run * cellMm / 1000 / main.height_m;
+  };
+
   // Column height against the main panel's hanging / stacking limit, in its panel heights
   const warnings = [];
-  const main = allPanels[data.panelType] || allPanels[data.freePanels[0].type];
   const limit = position === 'top' ? main.max_hanging : (position === 'bottom' ? main.max_stacking : null);
   if(limit && main.height_m) {
-    const occ = freeOccupancy(data.freePanels, allPanels, cellMm);
     const names = freePanelNames(data.freePanels, allPanels, cellMm);
-    bumpers.forEach(b => {
+    joined.forEach(b => {
       let tallest = 0;
       for(let x = b.gx; x < b.gx + b.cw; x++) {
         let run = 0;
@@ -126,14 +163,62 @@ function freeStructurePlan(data, allPanels, position) {
     });
   }
 
-  return {position, bumpers, counts, bumperWeightKg, warnings: [...new Set(warnings)]};
+  // Ground support, as calculateGroundSupportHardware() (structure/weight.js) works it out
+  // on grid screens: a ladder up the left column of every bottom bumper, a rear truss per two
+  // panel heights (one per panel with CB5 air frames, which take no truss or clamps), a
+  // bridge clamp at every second panel up, a second base and pipe on a column over eight
+  // panels, and sandbags from each bumper's pickup weight
+  let groundSupport = null;
+  const ladders = [];
+  const cb5Air = isCB5 && connectionMethod === 'airframe';
+  if(position === 'bottom' && bumpers.length && main.height_m) {
+    const w = GROUND_SUPPORT_WEIGHTS;
+    groundSupport = {totalRearTruss: 0, totalBridgeClamps: 0, totalBaseTruss: 0, totalPipes: 0,
+      totalSwivelCheeseboroughs: 0, totalSandbags: 0, totalRearBridgeClampAdapters: 0,
+      totalWeightLbs: 0, totalWeightKg: 0, pipeInfo: []};
+    const ladderAt = new Set();
+    bumpers.forEach(b => {
+      groundSupport.totalSandbags += Math.ceil((b.loadKg * KG_TO_LBS / 25) * 1.25);
+      const gx = b.type === '4w' ? b.ladderGx : b.gx;
+      if(ladderAt.has(`${gx},${b.gy}`)) return;
+      ladderAt.add(`${gx},${b.gy}`);
+      const panels = stackPanels(gx, b.gy);
+      ladders.push({gx, gy: b.gy, panels});
+      const numTruss = Math.floor(panels / 2 + 0.001);
+      if(!cb5Air) {
+        groundSupport.totalRearTruss += numTruss;
+        groundSupport.totalBridgeClamps += numTruss;
+      }
+      if(panels > 8.001) {
+        groundSupport.totalBaseTruss++;
+        groundSupport.totalPipes++;
+        groundSupport.totalSwivelCheeseboroughs += 2;
+        groundSupport.pipeInfo.push({column: gx, rearTrussCount: numTruss, pipeLengthFt: Math.floor(Math.sqrt(6.56 * 6.56 + Math.pow(numTruss * 3.28, 2)))});
+      }
+    });
+    groundSupport.totalBaseTruss += ladders.length;
+    if(mainType === 'DM2_6' || (main.custom && main.needs_bridge_adapters)) {
+      groundSupport.totalRearBridgeClampAdapters = groundSupport.totalBridgeClamps;
+    }
+    groundSupport.totalWeightLbs = groundSupport.totalRearTruss * w.rearTruss + groundSupport.totalBaseTruss * w.baseTruss +
+      groundSupport.totalBridgeClamps * w.bridgeClamp + groundSupport.totalRearBridgeClampAdapters * w.rearBridgeClampAdapter +
+      groundSupport.totalPipes * w.pipe + groundSupport.totalSwivelCheeseboroughs * w.swivelCheeseborough +
+      groundSupport.totalSandbags * w.sandbag;
+    groundSupport.totalWeightKg = groundSupport.totalWeightLbs / KG_TO_LBS;
+  }
+
+  return {position, bumpers, counts, bumperWeightKg, warnings: [...new Set(warnings)], groundSupport, ladders, cb5Air,
+    unit: freeUnitCells(data, allPanels), mainHeightCells: main.height_m * 1000 / cellMm};
 }
 
 // Draws a drawn wall's structure: white panels at their true sizes (with their names when
 // o.numberSize is given), from (ox, oy) at cellPx a snap cell, and every bumper (bumperH
 // tall, o.gap off the panel edge) on the edge it carries. o.weights labels each bumper with
 // its type and pickup weight as the grid Structure layout does; without it, the type alone
-// as the Combined view does. Shared by the Draw tab and the Combined view.
+// as the Combined view does. 4Ws are drawn (o.fourWayH tall, o.fourWayGap beyond their 2Ws)
+// when o.fourWayH is given, and the ground support (ladders, bridge clamps and the ladder
+// bases in the bumpers) when o.groundSupport is set. Shared by the Draw tab and the
+// Combined view.
 function drawFreeStructure(ctx, data, allPanels, st, o) {
   const toX = g => o.ox + Math.round(g * o.cellPx);
   const toY = g => o.oy + Math.round(g * o.cellPx);
@@ -159,15 +244,68 @@ function drawFreeStructure(ctx, data, allPanels, st, o) {
     }
   });
 
-  // Bumpers sit on the panel edge they carry
+  // Ground support up each ladder column, as on grid screens: cyan rear-truss ladders from
+  // the bottom up (two panel heights each, one with CB5 air frames) and a purple bridge
+  // clamp at every second panel up
+  const mainH = st.mainHeightCells * o.cellPx;
+  const ladderSpan = st.cb5Air ? 1 : 2;
+  if(o.groundSupport) st.ladders.forEach(l => {
+    const cx = (toX(l.gx) + toX(l.gx + st.unit)) / 2;
+    const bottom = toY(l.gy);
+    for(let i = 0; i < Math.floor(l.panels / ladderSpan + 0.001); i++) {
+      const ladderX = cx - 4;
+      const ladderTopY = bottom - (i + 1) * ladderSpan * mainH + 4;
+      const ladderHeight = ladderSpan * mainH - 8;
+      ctx.fillStyle = '#00CED1';
+      ctx.beginPath();
+      ctx.roundRect(ladderX, ladderTopY, 8, ladderHeight, 2);
+      ctx.fill();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.strokeStyle = '#008B8B';
+      ctx.lineWidth = 1;
+      for(let y = ladderTopY + mainH / 2; y < ladderTopY + ladderHeight - 5; y += mainH / 2) {
+        ctx.beginPath();
+        ctx.moveTo(ladderX + 1, y);
+        ctx.lineTo(ladderX + 7, y);
+        ctx.stroke();
+      }
+    }
+    if(st.cb5Air) return;
+    ctx.fillStyle = '#9932CC';
+    for(let k = 2; k <= l.panels + 0.001; k += 2) {
+      ctx.beginPath();
+      ctx.arc(cx, bottom - (k - 0.5) * mainH, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  });
+
+  // Bumpers sit on the panel edge they carry, 4Ws beyond their 2Ws
   const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
-  const h = o.bumperH;
   st.bumpers.forEach(bp => {
+    if(bp.type === '4w' && !o.fourWayH) return;
+    const h = bp.type === '4w' ? o.fourWayH : o.bumperH;
+    const out = bp.type === '4w' ? o.bumperH + o.fourWayGap : 0;
     const x = toX(bp.gx), w = toX(bp.gx + bp.cw) - x;
-    const y = st.position === 'top' ? toY(bp.gy) - o.gap - h : toY(bp.gy) + o.gap;
+    const y = st.position === 'top' ? toY(bp.gy) - o.gap - out - h : toY(bp.gy) + o.gap + out;
     const color = freeBumperColor(bp.type, st.position);
     ctx.fillStyle = greyscalePrintMode ? toGreyscale(color) : (ecoPrintMode ? toPastelColor(color) : color);
     ctx.fillRect(x, y, w, h);
+    // Dark blue ladder base inside each bottom bumper, under its ladder column
+    if(o.groundSupport && st.position === 'bottom' && bp.type !== '4w') {
+      const unitW = toX(bp.gx + st.unit) - x;
+      ctx.fillStyle = '#00008B';
+      ctx.beginPath();
+      ctx.roundRect(x + unitW * 0.075, y + (h - 10) / 2, unitW * 0.85, 10, 3);
+      ctx.fill();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, w, h);
@@ -221,16 +359,18 @@ function renderFreeStructureLayout() {
   const cellM = data.freeCell_mm / 1000;
   const pxPerM = Math.max(30, Math.min(pdf ? 200 : 80, Math.floor(maxCanvasWidth / (b.maxX * cellM))));
   const cellPx = pxPerM * cellM;
-  const fam = freeFamily(data.freePanels[0].type, allPanels).types;
-  const unitPx = Math.min(...fam.map(t => freeCells(allPanels[t], data.freeCell_mm).cw)) * cellPx;
+  const unitPx = st.unit * cellPx;
   const bumperH = Math.max(30, Math.round(unitPx * 0.8));
-  const top = st.position === 'top' ? bumperH : 0;
+  const fourWayH = Math.max(15, Math.round(unitPx * 0.4));
+  const fourWayGap = 5;
+  const band = st.position ? bumperH + (st.counts['4w'] ? fourWayH + fourWayGap : 0) : 0;
+  const top = st.position === 'top' ? band : 0;
   canvas.width = Math.round(b.maxX * cellPx);
-  canvas.height = Math.round(b.maxY * cellPx) + (st.position ? bumperH : 0);
+  canvas.height = Math.round(b.maxY * cellPx) + band;
   ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   drawFreeStructure(ctx, data, allPanels, st, {
-    ox: 0, oy: top, cellPx, bumperH, gap: 0, weights: true,
+    ox: 0, oy: top, cellPx, bumperH, gap: 0, weights: true, fourWayH, fourWayGap, groundSupport: true,
     numberSize: (w, h) => Math.max(10, Math.floor(Math.min(w, h) * (pdf ? 0.25 : 0.22)))
   });
 
@@ -284,7 +424,44 @@ function renderFreeStructureLayout() {
       r.appendChild(v);
       weightsContent.appendChild(r);
     };
-    st.bumpers.forEach(bp => row(bp.label, shown(bp.loadKg), freeBumperColor(bp.type, st.position), false));
-    if(st.bumpers.length) row('Total', shown(st.bumpers.reduce((s, bp) => s + bp.loadKg, 0)), '#fff', true);
+    const pickups = st.bumpers.filter(bp => !bp.under4w);
+    pickups.forEach(bp => row(bp.label, shown(bp.loadKg), freeBumperColor(bp.type, st.position), false));
+    if(pickups.length) row('Total', shown(pickups.reduce((s, bp) => s + bp.loadKg, 0)), '#fff', true);
+  }
+
+  // Ground support hardware, in the box the grid structure layout uses
+  const gsBox = document.getElementById('structureGroundSupportBox');
+  const gsContent = document.getElementById('structureGroundSupportContent');
+  if(gsBox && gsContent) {
+    gsContent.textContent = '';
+    const gs = st.groundSupport;
+    gsBox.style.display = gs ? 'block' : 'none';
+    if(gs) {
+      const line = (label, value, total) => {
+        const r = document.createElement('div');
+        r.className = total ? 'plates-row plates-total' : 'plates-row';
+        if(total) r.style.cssText = 'border-top: 1px solid #00CED1; margin-top: 6px; padding-top: 6px;';
+        const l = document.createElement('span');
+        l.className = 'plates-label';
+        l.style.color = '#ffffff';
+        l.textContent = label;
+        const v = document.createElement('span');
+        v.className = 'plates-value';
+        if(total) v.style.color = '#00CED1';
+        v.textContent = value;
+        r.appendChild(l);
+        r.appendChild(v);
+        gsContent.appendChild(r);
+      };
+      if(gs.totalRearTruss > 0) line('Rear Truss', gs.totalRearTruss);
+      if(gs.totalBaseTruss > 0) line('Base Truss', gs.totalBaseTruss);
+      if(gs.totalBridgeClamps > 0) line('Bridge Clamps', gs.totalBridgeClamps);
+      if(gs.totalRearBridgeClampAdapters > 0) line('Rear Bridge Clamp Adapter', gs.totalRearBridgeClampAdapters);
+      if(gs.totalPipes > 0) line(`Pipe (${[...new Set(gs.pipeInfo.map(pi => pi.pipeLengthFt))].map(l => l + 'ft').join(', ')})`, gs.totalPipes);
+      if(gs.totalSwivelCheeseboroughs > 0) line('Swivel Cheeseborough', gs.totalSwivelCheeseboroughs);
+      line('Sandbags (25lb)', gs.totalSandbags);
+      const shownGs = displayWeightUnit === 'lbs' ? Math.ceil(gs.totalWeightLbs) : Math.ceil(gs.totalWeightKg);
+      line('Total Weight', `${shownGs} ${getWeightUnitLabel()}`, true);
+    }
   }
 }

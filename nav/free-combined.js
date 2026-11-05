@@ -159,3 +159,54 @@ function drawFreeCombinedStructure(ctx, screen, data, sx, top, cellPx, bumperH) 
   });
   drawFreeCombinedName(ctx, screen, sx + data.panelsWide * cellPx / 2, (st.position === 'top' && st.bumpers.length ? top : panelTop) - 15);
 }
+
+// One drawn screen's entry in calculateCombinedCabling() (nav/combined-cable-diagram.js):
+// its cell grid with the data lines and circuits worked out from the drawn panels. Line
+// ends sit at panel centres in cells (see freeDataLinePanelOrdering).
+function freeCombinedCablingScreen(screenId, screen) {
+  const allPanels = getAllPanels();
+  const data = screen.data;
+  if(!data.freePanels.length) return null;
+  const view = freeCellData(data, allPanels);
+  const cellFt = (data.freeCell_mm / 1000) * 3.28084;
+  const ordering = freeDataLinePanelOrdering(data, allPanels);
+  const entryPoints = {}, exitPoints = {};
+  Object.keys(ordering).forEach(ln => {
+    entryPoints[ln] = ordering[ln][0];
+    exitPoints[ln] = ordering[ln][ordering[ln].length - 1];
+  });
+  const inp = freeScreenDataInputs(data);
+
+  // SOCA runs over every cell a panel covers, labelled as on the power canvas
+  const plan = freeScreenCircuits(screenId, data, null);
+  const cellToCircuit = new Map(), cellToSoca = new Map();
+  data.freePanels.forEach(fp => {
+    const key = `${fp.gx},${fp.gy}`;
+    const {cw, ch} = freeCells(allPanels[fp.type], data.freeCell_mm);
+    for(let i = 0; i < cw; i++) for(let j = 0; j < ch; j++) {
+      cellToCircuit.set(`${fp.gx + i},${fp.gy + j}`, plan.panelToCircuit.get(key));
+      cellToSoca.set(`${fp.gx + i},${fp.gy + j}`, plan.panelToSoca.get(key));
+    }
+  });
+  const socaSpans = computeSocaSpans(cellToCircuit, cellToSoca);
+  const labelMap = sharedDistroSocaLabelMap(screenId);
+  socaSpans.forEach(sp => { sp.labelIdx = (labelMap && labelMap.has(sp.socaIdx)) ? labelMap.get(sp.socaIdx) : sp.socaIdx; });
+
+  return {
+    screenId,
+    screenName: screen.name || screenId,
+    screenColor: screen.color || '#888',
+    panelType: data.panelType, pw: view.panelsWide, ph: view.panelsHigh, effectivePh: view.panelsHigh, hasCB5HalfRow: false,
+    panelWidthFt: cellFt, panelHeightFt: cellFt,
+    wallWidthFt: Math.round(view.panelsWide * cellFt * 10) / 10,
+    wallHeightFt: Math.round(view.panelsHigh * cellFt * 10) / 10,
+    activePanelCount: data.freePanels.length,
+    screenPixels: data.freePanels.reduce((sum, fp) => sum + allPanels[fp.type].res_x * allPanels[fp.type].res_y, 0),
+    dataLines: Object.keys(ordering).length, entryPoints, exitPoints,
+    panelsPerDataLine: inp ? inp.panelsPerDataLine : 0,
+    circuitsNeeded: new Set(plan.panelToCircuit.values()).size,
+    socaCount: new Set(plan.panelToSoca.values()).size,
+    columnsPerCircuit: 1, socaSpans,
+    deletedPanelsSet: view.deletedPanels
+  };
+}

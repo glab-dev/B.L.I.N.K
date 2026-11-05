@@ -19,7 +19,8 @@ function renderCableDiagram(screenId) {
   const container = document.getElementById('cableDiagramContainer');
   if (!canvas || !container) return;
 
-  const screen = screens[screenId];
+  // A drawn screen is drawn on its cell grid (freeCellData), its panels over the cells
+  const screen = screens[screenId] && freeCanvasItem(screens[screenId]);
   if (!screen || !screen.calculatedData) {
     canvas.width = 0;
     canvas.height = 0;
@@ -34,7 +35,7 @@ function renderCableDiagram(screenId) {
     const d = screen.data;
     const panelSize = 40;
     const panelType = d.panelType || 'CB5_MKII';
-    const height = cb5RowGeometry(d.panelsHigh, getCB5HalfRows(d, panelType), panelSize * getPanelHeightRatio(panelType), panelSize).height;
+    const height = cb5RowGeometry(d.panelsHigh, getCB5HalfRows(d, panelType), panelSize * (d.freeCellPanel ? 1 : getPanelHeightRatio(panelType)), panelSize).height;
     const dims = [{ screenId, screen, data: d, pw: d.panelsWide, ph: d.panelsHigh, width: d.panelsWide * panelSize, height, x: 0 }];
     const savedWhiteBg = pdfWhiteBgMode;
     pdfWhiteBgMode = savedWhiteBg || cableDiagramPdfMode;
@@ -123,7 +124,7 @@ function renderCableDiagram(screenId) {
   const ph = screen.data.panelsHigh || 1;
   const panelType = screen.data.panelType || '';
   const halfRows = getCB5HalfRows(screen.data, panelType);
-  const heightRatio = (typeof getPanelHeightRatio === 'function') ? getPanelHeightRatio(panelType) : 1;
+  const heightRatio = screen.data.freeCellPanel ? 1 : ((typeof getPanelHeightRatio === 'function') ? getPanelHeightRatio(panelType) : 1);
   const LAYOUT_MIN_SIZE = 30;
   const LAYOUT_MAX_SIZE = 80;
   const layoutMaxW = Math.min(containerWidth - 32, isPdf ? 4000 : 800);
@@ -440,6 +441,19 @@ function renderCableDiagram(screenId) {
         ctx.strokeRect(px, py, panelPixelW, currentH);
       }
     }
+  }
+  // A drawn screen's panels span several cells: cover the cell lines inside each one
+  if (screen.data.freeCellPanel) {
+    freePlacedPanels(screen.data, getAllPanels()).panels.forEach(pp => {
+      const [gx, gy] = pp.key.split(',').map(Number);
+      const cells = freeCells(getAllPanels()[pp.type], screen.data.freeCell_mm);
+      const px = adjWallLeftX + gx * panelPixelW, py = wallTopY + rowGeo.y(gy);
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(px, py, cells.cw * panelPixelW, cells.ch * panelPixelW);
+      ctx.strokeStyle = gridColor;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px, py, cells.cw * panelPixelW, cells.ch * panelPixelW);
+    });
   }
 
   // === Cable pick circle ===

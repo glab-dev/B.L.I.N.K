@@ -499,6 +499,17 @@ function calculateCombinedCabling(selectedScreenIds, config) {
     const screen = screens[screenId];
     if (!screen || !screen.data) continue;
 
+    // A drawn screen: its cell grid, data lines and circuits from the drawn panels
+    if (isFreeScreen(screen.data)) {
+      const fr = freeCombinedCablingScreen(screenId, screen);
+      if (fr) {
+        screenResults.push(fr);
+        totalPixels += fr.screenPixels;
+        totalDataLines += fr.dataLines;
+      }
+      continue;
+    }
+
     const data = screen.data;
     const panelType = data.panelType;
     const p = allPanels[panelType];
@@ -992,7 +1003,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
     var screenH = sp.height * pxToCanvas;
 
     var panelType = sp.data.panelType || 'CB5_MKII';
-    var heightRatio = typeof getPanelHeightRatio === 'function' ? getPanelHeightRatio(panelType) : 1;
+    var heightRatio = sp.data.freeCellPanel ? 1 : (typeof getPanelHeightRatio === 'function' ? getPanelHeightRatio(panelType) : 1);
     // sp.ph is the full rows only; CB5 half rows sit above and/or below them
     var rowGeo = cb5RowGeometry(sp.ph, getCB5HalfRows(sp.data, panelType),
       panelSize * heightRatio * pxToCanvas, panelSize * pxToCanvas);
@@ -1039,6 +1050,20 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
         ctx.lineWidth = 0.5;
         ctx.strokeRect(hx, hy, pxW, halfPxH);
       }
+    }
+
+    // A drawn screen's panels span several cells: cover the cell lines inside each one
+    if (sp.data.freeCellPanel) {
+      freePlacedPanels(sp.data, allPanels).panels.forEach(function(pp) {
+        var at = pp.key.split(',').map(Number);
+        var cells = freeCells(allPanels[pp.type], sp.data.freeCell_mm);
+        var fx = screenLeft + at[0] * pxW, fy = screenTop + rowGeo.y(at[1]);
+        ctx.fillStyle = CC_PANEL_FILL;
+        ctx.fillRect(fx, fy, cells.cw * pxW, cells.ch * pxW);
+        ctx.strokeStyle = CC_PANEL_COLOR;
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(fx, fy, cells.cw * pxW, cells.ch * pxW);
+      });
     }
 
     // Screen border
@@ -1289,8 +1314,8 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
     var screenTop = toY(sp.y);
     var screenBottom = toY(sp.y + sp.height);
     var pxW = panelSize * pxToCanvas;
-    var powerHeightRatio = typeof getPanelHeightRatio === 'function'
-      ? getPanelHeightRatio(sp.data.panelType || 'CB5_MKII') : 1;
+    var powerHeightRatio = sp.data.freeCellPanel ? 1 : (typeof getPanelHeightRatio === 'function'
+      ? getPanelHeightRatio(sp.data.panelType || 'CB5_MKII') : 1);
     var pxRowH = panelSize * powerHeightRatio * pxToCanvas;
 
     // One cable per SOCA. Spans come from the screen's as-assigned grouping when available
@@ -1438,7 +1463,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
 
     var place = sp.cab.xdPlacement;
     var panelType = sp.data.panelType || 'CB5_MKII';
-    var heightRatio = typeof getPanelHeightRatio === 'function' ? getPanelHeightRatio(panelType) : 1;
+    var heightRatio = sp.data.freeCellPanel ? 1 : (typeof getPanelHeightRatio === 'function' ? getPanelHeightRatio(panelType) : 1);
     var pxW = panelSize * pxToCanvas;
     var pxH = panelSize * heightRatio * pxToCanvas;
     var dp = calc.deletedPanelsSet || new Set();

@@ -105,17 +105,18 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
   });
 
   // 4-way bumpers (CB5, or custom panels that take them) join each two touching 2Ws on one
-  // level, paired from the left as grid columns are, centre to centre. The 4W is then the
-  // pickup: it carries both 2Ws with their panels, and the 2Ws are no longer pickups.
+  // level of a hung wall, paired from the left as grid columns are, centre to centre. The
+  // 4W is then the pickup: it carries both 2Ws with their panels, and the 2Ws are no longer
+  // pickups. A ground-stacked wall takes none.
   const joined = bumpers.slice();
-  if(use4Way && position && (isCB5 || (main.custom && main.supports_4w_bumpers))) {
+  if(use4Way && position === 'top' && (isCB5 || (main.custom && main.supports_4w_bumpers))) {
     const twos = joined.filter(b => b.type === '2w').sort((a, b) => a.gy - b.gy || a.gx - b.gx);
     for(let i = 0; i + 1 < twos.length; i++) {
       const a = twos[i], b = twos[i + 1];
       if(a.gy !== b.gy || a.gx + a.cw !== b.gx) continue;
       const ownKg = (allPanels[a.panelType].bumper_4w_lbs || 0) * LBS_TO_KG;
       bumpers.push({type: '4w', gx: a.gx + a.cw / 2, cw: (b.gx + b.cw / 2) - (a.gx + a.cw / 2), gy: a.gy,
-        panelType: a.panelType, ownKg, loadKg: ownKg + a.loadKg + b.loadKg, ladderGx: a.gx});
+        panelType: a.panelType, ownKg, loadKg: ownKg + a.loadKg + b.loadKg});
       a.under4w = b.under4w = true;
       i++;
     }
@@ -176,14 +177,10 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
     groundSupport = {totalRearTruss: 0, totalBridgeClamps: 0, totalBaseTruss: 0, totalPipes: 0,
       totalSwivelCheeseboroughs: 0, totalSandbags: 0, totalRearBridgeClampAdapters: 0,
       totalWeightLbs: 0, totalWeightKg: 0, pipeInfo: []};
-    const ladderAt = new Set();
     bumpers.forEach(b => {
       groundSupport.totalSandbags += Math.ceil((b.loadKg * KG_TO_LBS / 25) * 1.25);
-      const gx = b.type === '4w' ? b.ladderGx : b.gx;
-      if(ladderAt.has(`${gx},${b.gy}`)) return;
-      ladderAt.add(`${gx},${b.gy}`);
-      const panels = stackPanels(gx, b.gy);
-      ladders.push({gx, gy: b.gy, panels});
+      const panels = stackPanels(b.gx, b.gy);
+      ladders.push({gx: b.gx, gy: b.gy, panels});
       const numTruss = Math.floor(panels / 2 + 0.001);
       if(!cb5Air) {
         groundSupport.totalRearTruss += numTruss;

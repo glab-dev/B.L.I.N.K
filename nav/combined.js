@@ -3651,6 +3651,9 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 
   // Add extra height for bumpers at top and bottom
   const bumperHeight = Math.max(25, panelSize * 0.7);
+  // 4W bumpers get their own band beyond the 2Ws they join, as in the Structure layout
+  const fourWayHeight = Math.max(12, Math.round(bumperHeight * 0.5));
+  const fourWayGap = 5;
   ({ width: canvasWidth, height: canvasHeight } = combinedArrangedCanvasSize(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding));
 
   // Each screen here is drawn taller than in the standard layout — name label above, top
@@ -3668,7 +3671,9 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
       y: origin.y,
       bottom: origin.y + totalH,
       below: (bumpers.some(b => b.position === 'top') ? bumperHeight + 5 : 0) + totalH +
-             (bumpers.some(b => b.position === 'bottom') ? bumperHeight + 5 : 0),
+             (bumpers.some(b => b.position === 'bottom') ? bumperHeight + 5 : 0) +
+             (bumpers.some(b => b.type === '4w' && b.position === 'top') ? fourWayHeight + fourWayGap : 0) +
+             (bumpers.some(b => b.type === '4w' && b.position === 'bottom') ? fourWayHeight + fourWayGap : 0),
       shift: 0
     };
   }).sort((a, b) => a.y - b.y);
@@ -3705,7 +3710,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     const structureType = data.structureType || 'hanging';
 
     if(data.freeCellPanel) {
-      drawFreeCombinedStructure(ctx, screen, data, screenX, screenTop, panelSize, bumperHeight);
+      drawFreeCombinedStructure(ctx, screen, data, screenX, screenTop, panelSize, bumperHeight, fourWayHeight, fourWayGap);
       return;
     }
 
@@ -3745,11 +3750,15 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     // Check if there are any top or bottom bumpers
     const hasTopBumpers = screenBumpers.some(b => b.position === 'top');
     const hasBottomBumpers = screenBumpers.some(b => b.position === 'bottom');
+    const hasTop4w = screenBumpers.some(b => b.type === '4w' && b.position === 'top');
 
     // Calculate panel Y position based on bumper placement
     let panelYOffset = screenTop;
     if(hasTopBumpers) {
       panelYOffset += bumperHeight + 5;
+    }
+    if(hasTop4w) {
+      panelYOffset += fourWayHeight + fourWayGap;
     }
 
     // Draw panels first (white background with black outline, same as original)
@@ -3794,12 +3803,13 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
         let bumperY;
 
         if(bumper.position === 'top') {
-          // Top bumpers
-          bumperY = screenTop;
+          // Top bumpers, under the 4W band when there is one
+          bumperY = (bumper.type === '4w' || !hasTop4w) ? screenTop : screenTop + fourWayHeight + fourWayGap;
         } else {
           // Bottom bumpers - use total screen height which accounts for half panel row
-          bumperY = panelYOffset + screenTotalHeight + 5;
+          bumperY = panelYOffset + screenTotalHeight + 5 + (bumper.type === '4w' ? bumperHeight + fourWayGap : 0);
         }
+        const bumperH = bumper.type === '4w' ? fourWayHeight : bumperHeight;
 
         // Use colors matching original: green for top 2W, orange for bottom, blue for 1W, orange for 4W
         let fillColor = '#4CAF50'; // Default green
@@ -3820,12 +3830,12 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 
         // Draw bumper
         ctx.fillStyle = fillColor;
-        ctx.fillRect(bumperX, bumperY, bumperWidthPx, bumperHeight);
+        ctx.fillRect(bumperX, bumperY, bumperWidthPx, bumperH);
 
         // Black outline
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(bumperX, bumperY, bumperWidthPx, bumperHeight);
+        ctx.strokeRect(bumperX, bumperY, bumperWidthPx, bumperH);
 
         // Bumper label (black for eco print, white otherwise)
         ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000000' : '#FFFFFF';
@@ -3833,7 +3843,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const label = bumper.type ? bumper.type.toUpperCase() : '2W';
-        ctx.fillText(label, bumperX + bumperWidthPx/2, bumperY + bumperHeight/2);
+        ctx.fillText(label, bumperX + bumperWidthPx/2, bumperY + bumperH/2);
       });
     }
 

@@ -5,13 +5,13 @@
 // tab. Hit-testing and the selection outline work on whole panels keyed "gx,gy", so
 // Assign Circuit # / SOCA # / Data Port write the keys the Draw tab uses.
 
-// A drawn screen's data as a Combined screen: its cell grid, plus its bumpers so the
-// structure canvas makes room above or below it
+// A drawn screen's data as a Combined screen: its cell grid, plus its bumpers (4Ws
+// included) so the structure canvas makes room above or below it
 function freeCombinedData(data, allPanels) {
   const view = freeCellData(data, allPanels);
   const position = freeBumperPosition(data.structureType || 'hanging', data.useBumpers !== false);
   view.bumpers = (position && data.freePanels.length)
-    ? freeBumpers(data, allPanels, position).map(b => ({position, type: b.type}))
+    ? freeStructurePlan(data, allPanels, position, data.use4WayBumpers).bumpers.map(b => ({position, type: b.type}))
     : [];
   return view;
 }
@@ -146,14 +146,16 @@ function drawFreeCombinedData(ctx, screen, screenId, data, sx, sy, cellPx, holeB
   return endpoints;
 }
 
-// Structure canvas: the panels with the bumpers worked out from the drawn wall. `top` is
-// where the screen's structure starts (its bumpers when they hang on top).
-function drawFreeCombinedStructure(ctx, screen, data, sx, top, cellPx, bumperH) {
+// Structure canvas: the panels with the bumpers worked out from the drawn wall, 4Ws in
+// their own band. `top` is where the screen's structure starts (its bumpers when they hang
+// on top).
+function drawFreeCombinedStructure(ctx, screen, data, sx, top, cellPx, bumperH, fourWayH, fourWayGap) {
   const allPanels = getAllPanels();
   const position = freeBumperPosition(data.structureType || 'hanging', data.useBumpers !== false);
   const st = freeStructurePlan(data, allPanels, position, data.use4WayBumpers);
-  const panelTop = top + (st.position === 'top' && st.bumpers.length ? bumperH + 5 : 0);
-  drawFreeStructure(ctx, data, allPanels, st, {ox: sx, oy: panelTop, cellPx, bumperH, gap: 5});
+  const panelTop = top + (st.position === 'top' && st.bumpers.length ? bumperH + 5 : 0) +
+    (st.position === 'top' && st.counts['4w'] ? fourWayH + fourWayGap : 0);
+  drawFreeStructure(ctx, data, allPanels, st, {ox: sx, oy: panelTop, cellPx, bumperH, gap: 5, fourWayH, fourWayGap});
   drawFreeCombinedName(ctx, screen, sx + data.panelsWide * cellPx / 2, (st.position === 'top' && st.bumpers.length ? top : panelTop) - 15);
 }
 

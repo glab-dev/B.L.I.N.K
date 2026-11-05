@@ -123,7 +123,10 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
   if(deletedSet && !(deletedSet instanceof Set)) deletedSet = new Set(deletedSet);
   if(!deletedSet) deletedSet = new Set();
 
-  const ordering = getDataLinePanelOrdering(pw, effectivePh, panelsPerDataLine, startDir, deletedSet, data.customDataLineAssignments);
+  // A drawn screen (see freeCellData) walks its own panels, each placed at its centre
+  const isFree = !!data.freeCellPanel;
+  const ordering = isFree ? freeDataLinePanelOrdering(data, getAllPanels())
+    : getDataLinePanelOrdering(pw, effectivePh, panelsPerDataLine, startDir, deletedSet, data.customDataLineAssignments);
   const sortedLines = Object.keys(ordering).map(Number).sort((a, b) => a - b);
   if(sortedLines.length === 0) return;
 
@@ -132,7 +135,9 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
   const halfResY = halfPanel ? halfPanel.res_y : panelResY;
   const rowGeo = cb5RowGeometry(ph, halfRows, panelResY, halfResY);
   const cX = (c) => offsetX + c * panelResX + panelResX / 2;
-  const cY = (r) => offsetY + rowGeo.y(r) + rowGeo.h(r) / 2;
+  const cY = isFree ? (r) => offsetY + r * panelResY + panelResY / 2 : (r) => offsetY + rowGeo.y(r) + rowGeo.h(r) / 2;
+  // The panel key the data port lookups know a point by
+  const keyOf = (p) => isFree ? p.key : (p.col + (data.splitColOffset || 0)) + ',' + (p.row + (data.splitRowOffset || 0));
 
   const flip = !!data.dataFlip;
 
@@ -145,7 +150,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
   const shownLineFor = (ln) => {
     const first = ordering[ln] && ordering[ln][0];
     const shown = (first && typeof dataLineLabelAtPanel === 'function' && screen.id)
-      ? dataLineLabelAtPanel(screen.id, (first.col + (data.splitColOffset || 0)) + ',' + (first.row + (data.splitRowOffset || 0)))
+      ? dataLineLabelAtPanel(screen.id, keyOf(first))
       : null;
     return shown || (ln + 1);
   };
@@ -154,13 +159,13 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
   const noPortFor = (ln) => {
     const first = ordering[ln] && ordering[ln][0];
     return !!(first && typeof dataLineHasNoPortAtPanel === 'function' && screen.id &&
-      dataLineHasNoPortAtPanel(screen.id, (first.col + (data.splitColOffset || 0)) + ',' + (first.row + (data.splitRowOffset || 0))));
+      dataLineHasNoPortAtPanel(screen.id, keyOf(first)));
   };
   // Colour follows the port the line plugs into, as in the data layouts
   const colorNumFor = (ln) => {
     const first = ordering[ln] && ordering[ln][0];
     const port = (first && typeof dataLinePortAtPanel === 'function' && screen.id)
-      ? dataLinePortAtPanel(screen.id, (first.col + (data.splitColOffset || 0)) + ',' + (first.row + (data.splitRowOffset || 0)))
+      ? dataLinePortAtPanel(screen.id, keyOf(first))
       : null;
     return port || shownLineFor(ln);
   };
@@ -195,7 +200,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
       for(let i = 1; i < grp.length; i++) {
         const prev = at(grp[i - 1]), curr = at(grp[i]);
         const colDiff = Math.abs(curr.col - prev.col), rowDiff = Math.abs(curr.row - prev.row);
-        const isAdjacent = (colDiff === 0) ||
+        const isAdjacent = isFree ? freePanelsTouch(grp[i - 1], grp[i]) : (colDiff === 0) ||
           (colDiff === 1 && (rowDiff === 0 || prev.row === 0 || prev.row === H - 1 || curr.row === 0 || curr.row === H - 1 ||
             (prev.row === colTop[prev.col] && curr.row === colTop[curr.col]) ||
             (prev.row === colBottom[prev.col] && curr.row === colBottom[curr.col])));
@@ -552,7 +557,7 @@ function groupRectsIntoIslands(rects) {
 function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cullH, dataOverlay) {
     const screenData = screen.data;
     const panelType = screenData.panelType || 'CB5_MKII';
-    const p = allPanels[panelType];
+    const p = screenData.freeCellPanel || allPanels[panelType];
 
     if(!p || !p.res_x || !p.res_y) return;
 
@@ -610,8 +615,11 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     }
     ctx.clip();
 
+    // A drawn screen's panels have their own sizes, so they are drawn one by one
+    if(screenData.freeCellPanel) drawFreePanelsToContext(ctx, screenData, allPanels, offsetX, offsetY, [primaryColor, secondaryColor], dataOverlay);
+
     // Draw panels for this screen - optimized loop
-    for(let c = 0; c < pw; c++){
+    for(let c = 0; c < (screenData.freeCellPanel ? 0 : pw); c++){
       const xBase = offsetX + (c * p.res_x);
 
       for(let r = 0; r < totalRows; r++){
@@ -984,7 +992,8 @@ function showCanvasView(){
   let anyScreenHasDimensions = false;
   Object.values(screens).forEach(screen => {
     const data = screen.data;
-    if((data.panelsWide && data.panelsWide > 0) || (data.panelsHigh && data.panelsHigh > 0)) {
+    if((data.panelsWide && data.panelsWide > 0) || (data.panelsHigh && data.panelsHigh > 0) ||
+       (isFreeScreen(data) && data.freePanels.length > 0)) {
       anyScreenHasDimensions = true;
     }
   });
@@ -1242,7 +1251,11 @@ function updateCanvasInfoDisplay() {
   Object.keys(screens).forEach(screenId => {
     const screen = screens[screenId];
     const data = screen.data;
-    if(screen.visible && data.panelsWide > 0 && data.panelsHigh > 0) {
+    if(screen.visible && isFreeScreen(data)) {
+      // A drawn screen counts the panels drawn on it
+      if(data.freePanels.length > 0) totalWalls++;
+      totalPanels += data.freePanels.length;
+    } else if(screen.visible && data.panelsWide > 0 && data.panelsHigh > 0) {
       totalWalls++;
       const pw = data.panelsWide, ph = data.panelsHigh;
       // deletedPanels is a Set live, an array after a JSON round-trip. Keys left over from
@@ -1302,10 +1315,12 @@ function canvasPixelSize(canvasId) {
 // from whole columns / rows per part. Null when the screen has no usable grid.
 function screenCanvasFit(screenId) {
   const screen = screens[screenId];
-  const data = (typeof liveScreenData === 'function' ? liveScreenData(screenId) : null) || (screen && screen.data);
-  if(!data) return null;
+  const liveData = (typeof liveScreenData === 'function' ? liveScreenData(screenId) : null) || (screen && screen.data);
+  if(!liveData) return null;
   const allPanels = getAllPanels();
-  const p = allPanels[data.panelType];
+  // A drawn screen is measured on its cell grid (see freeCellData)
+  const data = isFreeScreen(liveData) ? freeCellData(liveData, allPanels) : liveData;
+  const p = data.freeCellPanel || allPanels[data.panelType];
   const pw = data.panelsWide || 0, ph = data.panelsHigh || 0;
   if(!p || !p.res_x || !p.res_y || !pw || !ph) return null;
 
@@ -1328,9 +1343,10 @@ function screenCanvasFit(screenId) {
   const limitW = tighter(topology.maxInputWidth, canvas ? canvas.width : 0);
   const limitH = tighter(topology.maxInputHeight, canvas ? canvas.height : 0);
 
-  // Panel columns per part across: as many as fit, the last part takes the rest
+  // Panel columns per part across: as many as fit, the last part takes the rest. A drawn
+  // screen is never split: a cut through its cell grid could run through a panel.
   const colSizes = [];
-  if(width > limitW) {
+  if(width > limitW && !data.freeCellPanel) {
     const colsPerPart = Math.max(1, Math.floor(limitW / p.res_x));
     for(let left = pw; left > 0; left -= colsPerPart) colSizes.push(Math.min(colsPerPart, left));
   } else {
@@ -1338,7 +1354,7 @@ function screenCanvasFit(screenId) {
   }
   // Grid rows per part down (CB5 half rows included, at their own height), filled greedily
   const rowSizes = [];
-  if(height > limitH) {
+  if(height > limitH && !data.freeCellPanel) {
     let count = 0, used = 0;
     for(let r = 0; r < rowGeo.rows; r++) {
       if(count > 0 && used + rowGeo.h(r) > limitH) { rowSizes.push(count); count = 0; used = 0; }
@@ -1360,17 +1376,20 @@ function screenCanvasFit(screenId) {
     // Only the canvas size forces the split; a larger canvas would fit one processor
     canvasIsLimit: !!canvas && (canvas.width < (topology.maxInputWidth || Infinity) || canvas.height < (topology.maxInputHeight || Infinity)),
     fitsProcessorInput: (!topology.maxInputWidth || width <= topology.maxInputWidth) &&
-                        (!topology.maxInputHeight || height <= topology.maxInputHeight)
+                        (!topology.maxInputHeight || height <= topology.maxInputHeight),
+    drawnTooBig: !!data.freeCellPanel && (width > limitW || height > limitH)
   };
 }
 
 // Plain-text warning for a screen that needs more than one processor / canvas, or ''.
 function canvasFitWarningText(screenId) {
   const fit = screenCanvasFit(screenId);
-  if(!fit || fit.parts < 2) return '';
+  if(!fit || (fit.parts < 2 && !fit.drawnTooBig)) return '';
   const limit = (fit.canvasIsLimit && fit.canvas)
     ? fit.canvas.name + ' canvas (' + fit.canvas.width + ' × ' + fit.canvas.height + ')'
     : fit.processorName + ' input (' + fit.processorW + ' × ' + fit.processorH + ')';
+  if(fit.drawnTooBig) return '⚠️ ' + screens[screenId].name + ' is ' + fit.width + ' × ' + fit.height + ' px — larger than one ' +
+    limit + '. Drawn screens are not split across processors yet.';
   let text = '⚠️ ' + screens[screenId].name + ' is ' + fit.width + ' × ' + fit.height + ' px — larger than one ' +
     limit + '. It needs ' + fit.parts + ' processors / canvases.';
   if(fit.fitsProcessorInput) {
@@ -1532,7 +1551,7 @@ function canvasItemsOn(canvasId) {
     if(split) {
       split.parts.forEach((part, k) => { if(part.canvasId === canvasId) items.push(splitPartView(id, k)); });
     } else {
-      items.push(screen);
+      items.push(freeCanvasItem(screen));
     }
   });
   return items;
@@ -1545,7 +1564,7 @@ function canvasItemForScreen(screenId) {
   const screen = screens[screenId];
   if(!screen) return null;
   const split = screen.data.split;
-  if(!split) return screen;
+  if(!split) return freeCanvasItem(screen);
   const k = split.parts.findIndex(p => p.canvasId === currentCanvasId);
   return k >= 0 ? splitPartView(screenId, k) : null;
 }
@@ -1561,7 +1580,7 @@ function canvasItem(itemId) {
   const [screenId, k] = String(itemId).split('#');
   const screen = screens[screenId];
   if(!screen) return null;
-  if(k === undefined) return screen;
+  if(k === undefined) return freeCanvasItem(screen);
   const split = screen.data.split;
   return (split && split.parts[Number(k)]) ? splitPartView(screenId, Number(k)) : null;
 }
@@ -1705,7 +1724,7 @@ function drawSelectionHighlight() {
 
   const screenData = selectedScreen.data;
   const panelType = screenData.panelType || 'CB5_MKII';
-  const p = allPanels[panelType];
+  const p = screenData.freeCellPanel || allPanels[panelType];
 
   if(!p || !p.res_x || !p.res_y || !screenData.panelsWide || !screenData.panelsHigh) return;
 
@@ -1750,7 +1769,7 @@ function getScreenAtPosition(mouseX, mouseY) {
 
     const screenData = screen.data;
     const panelType = screenData.panelType || 'CB5_MKII';
-    const p = allPanels[panelType];
+    const p = screenData.freeCellPanel || allPanels[panelType];
 
     if(!p || !p.res_x || !p.res_y) continue;
 
@@ -1941,7 +1960,7 @@ function setupCanvasViewInteractivity() {
     const allPanels = getAllPanels();
     const screenData = screen.data;
     const panelType = screenData.panelType || 'CB5_MKII';
-    const p = allPanels[panelType];
+    const p = screenData.freeCellPanel || allPanels[panelType];
     if(!p || !p.res_x || !p.res_y) return;
 
     const pw = screenData.panelsWide || 0;
@@ -2150,7 +2169,7 @@ function setupCanvasViewInteractivity() {
 
     const screenData = screen.data;
     const panelType = screenData.panelType || 'CB5_MKII';
-    const p = allPanels[panelType];
+    const p = screenData.freeCellPanel || allPanels[panelType];
     if(!p || !p.res_x || !p.res_y) return;
 
     const pw = screenData.panelsWide || 0;
@@ -2390,7 +2409,7 @@ function setupCanvasViewInteractivity() {
         const otherData = otherScreen.data;
         const otherPanelType = otherData.panelType || 'CB5_MKII';
         const allPanelsSnap = getAllPanels();
-        const otherPanel = allPanelsSnap[otherPanelType];
+        const otherPanel = otherData.freeCellPanel || allPanelsSnap[otherPanelType];
         
         if(!otherPanel || !otherPanel.res_x || !otherPanel.res_y) return;
         
@@ -2700,7 +2719,7 @@ function setupCanvasViewInteractivity() {
           const allPanels = getAllPanels();
           const screenData = screen.data;
           const panelType = screenData.panelType || 'CB5_MKII';
-          const p = allPanels[panelType];
+          const p = screenData.freeCellPanel || allPanels[panelType];
           if(p && p.res_x && p.res_y) {
             const pw = screenData.panelsWide || 0;
             const ph = screenData.panelsHigh || 0;
@@ -2732,7 +2751,7 @@ function setupCanvasViewInteractivity() {
               const od = otherScreen.data;
               const opt = od.panelType || 'CB5_MKII';
               const allPanelsTouch = getAllPanels();
-              const op = allPanelsTouch[opt];
+              const op = od.freeCellPanel || allPanelsTouch[opt];
               if(!op) return;
 
               const oResX = (od.panelsWide || 0) * op.res_x;
@@ -2779,7 +2798,7 @@ function setupCanvasViewInteractivity() {
           const d = s.data;
           const pt = d.panelType || 'CB5_MKII';
           const allPanelsDraw = getAllPanels();
-          const panel = allPanelsDraw[pt];
+          const panel = d.freeCellPanel || allPanelsDraw[pt];
           if(!panel) return;
 
           const pw = d.panelsWide || 0;
@@ -2813,7 +2832,7 @@ function setupCanvasViewInteractivity() {
           const sd = sel.data;
           const spt = sd.panelType || 'CB5_MKII';
           const allPanelsSel = getAllPanels();
-          const sp = allPanelsSel[spt];
+          const sp = sd.freeCellPanel || allPanelsSel[spt];
           if(sp) {
             const sx = sd.canvasX || 0;
             const sy = sd.canvasY || 0;

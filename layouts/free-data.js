@@ -38,12 +38,18 @@ function freeScreenDataInputs(data) {
   };
 }
 
-// "column.row" name for each drawn panel, like the grid's panel numbers: columns are the
-// distinct left edges counted from the left, rows the distinct top edges from the top
-function freePanelNames(list) {
-  const xs = [...new Set(list.map(fp => fp.gx))].sort((a, b) => a - b);
-  const ys = [...new Set(list.map(fp => fp.gy))].sort((a, b) => a - b);
-  return new Map(list.map(fp => [`${fp.gx},${fp.gy}`, `${xs.indexOf(fp.gx) + 1}.${ys.indexOf(fp.gy) + 1}`]));
+// "column.row" name for each drawn panel, like the grid's panel numbers. Its column counts
+// the left edges of the panels beside it (those sharing any of its rows) up to its own,
+// and its row the top edges of the panels above and below it, so a row of small panels
+// under big ones numbers 1, 2, 3… instead of skipping.
+function freePanelNames(list, allPanels, cellMm) {
+  const boxes = list.map(fp => Object.assign({key: `${fp.gx},${fp.gy}`, gx: fp.gx, gy: fp.gy}, freeCells(allPanels[fp.type], cellMm)));
+  const rank = (values, own) => new Set(values.filter(v => v <= own)).size;
+  return new Map(boxes.map(a => {
+    const beside = boxes.filter(b => b.gy < a.gy + a.ch && a.gy < b.gy + b.ch).map(b => b.gx);
+    const aboveBelow = boxes.filter(b => b.gx < a.gx + a.cw && a.gx < b.gx + b.cw).map(b => b.gy);
+    return [a.key, `${rank(beside, a.gx)}.${rank(aboveBelow, a.gy)}`];
+  }));
 }
 
 // Data lines for the current free screen from the live data settings and the custom
@@ -68,7 +74,7 @@ function calculateFreeData(data, allPanels) {
     deletedPanels: deleted, customDataLineAssignments
   });
   // Named points, so the data line table lists panels the way the canvas numbers them
-  const names = freePanelNames(data.freePanels);
+  const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
   built.groups.forEach(g => g.forEach(pt => { pt.label = names.get(`${pt.c},${pt.r}`); }));
   freeDataState = {
     groups: built.groups, sortedDataLines: built.sortedDataLines,
@@ -78,9 +84,9 @@ function calculateFreeData(data, allPanels) {
   return freeDataState;
 }
 
-// Each line's panels in flow order for cable runs, keyed by 0-based line. col/row are the
-// panel's centre in cells less half a cell, so the grid's "(col + 0.5) × cell" lands on the
-// middle of a panel of any size.
+// Each line's panels in flow order for cable runs and the canvas overlay, keyed by 0-based
+// line. col/row are the panel's centre in cells less half a cell, so the grid's
+// "(col + 0.5) × cell" lands on the middle of a panel of any size.
 function freeDataLinePanelOrdering(data, allPanels) {
   const inp = freeScreenDataInputs(data);
   if(!inp) return {};
@@ -89,12 +95,12 @@ function freeDataLinePanelOrdering(data, allPanels) {
     deletedPanels: inp.deletedPanels, customDataLineAssignments: inp.customDataLines
   });
   const size = new Map(data.freePanels.map(fp => [`${fp.gx},${fp.gy}`, freeCells(allPanels[fp.type], data.freeCell_mm)]));
-  const names = freePanelNames(data.freePanels);
+  const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
   const out = {};
   built.sortedDataLines.forEach((ln, gi) => {
     out[ln] = built.groups[gi].map(pt => {
       const {cw, ch} = size.get(`${pt.c},${pt.r}`);
-      return {col: pt.c + cw / 2 - 0.5, row: pt.r + ch / 2 - 0.5, cw, ch, label: names.get(`${pt.c},${pt.r}`)};
+      return {col: pt.c + cw / 2 - 0.5, row: pt.r + ch / 2 - 0.5, cw, ch, key: `${pt.c},${pt.r}`, label: names.get(`${pt.c},${pt.r}`)};
     });
   });
   return out;

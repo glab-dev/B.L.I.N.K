@@ -1,8 +1,9 @@
 // ==================== FREE-DRAW LAYOUT SELECTION ====================
 // Panel selection on the Power and Data layouts of a drawn screen, the way the Combined
-// view does it: click a panel, drag a box, Shift/Ctrl/⌘ to add, right-click for that
-// layout's options. On touch, Select Mode turns on tap-to-select and drag-a-box, and a tap
-// on a selected panel opens the options. Each layout keeps its own selection.
+// view does it. Each layout has its own Select Mode toggle and its own selection, so the
+// layouts are edited independently. With Select Mode on: click a panel, drag a box,
+// Shift/Ctrl/⌘ to add, right-click for that layout's options; on touch, tap to select,
+// drag a box, and tap a selected panel for the options. With it off the layout is view-only.
 
 const freeLayerSel = { powerCanvas: new Set(), dataCanvas: new Set() };
 const freeLayerSelectMode = { powerCanvas: false, dataCanvas: false };
@@ -83,8 +84,8 @@ function applyFreeLayerBox() {
   freeLayerRedraw(a.canvasId);
 }
 
-// Touch Select Mode for one drawn layout: blocks native scroll on its canvas so a drag
-// draws a selection box instead of scrolling. Leaving it drops that layout's selection.
+// Select Mode for one drawn layout. It also blocks native touch scroll on its canvas so a
+// drag draws a selection box instead of scrolling. Leaving it drops that layout's selection.
 function setFreeSelectMode(canvasId, on) {
   freeLayerSelectMode[canvasId] = on;
   const canvas = document.getElementById(canvasId);
@@ -113,7 +114,7 @@ function setupFreeLayerInteractivity() {
   Object.keys(freeLayerSel).forEach(canvasId => {
     const canvas = document.getElementById(canvasId);
     const kind = FREE_LAYER_KIND[canvasId];
-    const active = () => freeDrawMode && isFreeCurrentScreen() && !!freeLayerView[canvasId];
+    const active = () => freeDrawMode && isFreeCurrentScreen() && !!freeLayerView[canvasId] && freeLayerSelectMode[canvasId];
     let touchStart = null;
 
     canvas.addEventListener('mousedown', function(e) {
@@ -149,7 +150,7 @@ function setupFreeLayerInteractivity() {
     }, {passive: false});
 
     canvas.addEventListener('touchmove', function(e) {
-      if(!touchStart || !freeLayerSelectMode[canvasId] || e.touches.length !== 1) return;
+      if(!touchStart || e.touches.length !== 1) return;
       const t = e.touches[0];
       if(!freeLayerAction && Math.abs(t.clientX - touchStart.x) <= 10 && Math.abs(t.clientY - touchStart.y) <= 10) return;
       e.preventDefault();
@@ -171,7 +172,7 @@ function setupFreeLayerInteractivity() {
         freeLayerRedraw(canvasId);
         return;
       }
-      if(!start || !start.hit || !freeLayerSelectMode[canvasId]) return;
+      if(!start || !start.hit) return;
       const t = e.changedTouches[0];
       if(Math.abs(t.clientX - start.x) >= 15 || Math.abs(t.clientY - start.y) >= 15) return;
       const sel = freeLayerSel[canvasId];

@@ -90,7 +90,7 @@ function buildResolumeScreens() {
     const slices = [];
     canvasItemsOn(canvasId).forEach(function(item) {
       const screenData = item.data;
-      const panel = allPanels[screenData.panelType || 'CB5_MKII'];
+      const panel = screenData.freeCellPanel || allPanels[screenData.panelType || 'CB5_MKII'];
       if(!panel) return;
       const rects = buildScreenSliceRects(screenData, panel);
       const baseName = item.name || 'Screen';

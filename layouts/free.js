@@ -115,6 +115,75 @@ function freePlacedPanels(data, allPanels) {
   };
 }
 
+// ==================== CELL VIEW ====================
+// A drawn screen as the views that place a screen by its pixels see it (Canvas, Raster,
+// Resolume, PNG export, Combined): a grid of its snap cells, panelsWide × panelsHigh, with
+// every cell no panel covers knocked out and freeCellPanel standing in for the panel type
+// (one cell's size and pixels). Like splitPartView() for a split screen, so their grid
+// code runs unchanged; only the loops that draw panels one by one read freePlacedPanels().
+// Writing canvasX / canvasY moves the real screen.
+function freeCellData(data, allPanels) {
+  const b = freeBounds(data.freePanels, allPanels, data.freeCell_mm);
+  const view = Object.create(data);
+  view.panelsWide = b ? b.maxX : 0;
+  view.panelsHigh = b ? b.maxY : 0;
+  view.addCB5HalfRow = false;
+  view.split = null;
+  if(b) {
+    const ref = allPanels[data.freePanels[0].type];
+    const cellM = data.freeCell_mm / 1000;
+    view.freeCellPanel = Object.assign({}, ref, {
+      width_m: cellM, height_m: cellM,
+      res_x: Math.round(ref.res_x * cellM / ref.width_m), res_y: Math.round(ref.res_y * cellM / ref.height_m)
+    });
+    const occ = freeOccupancy(data.freePanels, allPanels, data.freeCell_mm);
+    const holes = new Set();
+    for(let x = 0; x < b.maxX; x++) for(let y = 0; y < b.maxY; y++) if(!occ.has(`${x},${y}`)) holes.add(`${x},${y}`);
+    view.deletedPanels = holes;
+  }
+  Object.defineProperty(view, 'canvasX', { get: () => data.canvasX, set: v => { data.canvasX = v; }, enumerable: true });
+  Object.defineProperty(view, 'canvasY', { get: () => data.canvasY, set: v => { data.canvasY = v; }, enumerable: true });
+  return view;
+}
+
+// A screen as a canvas item: a drawn screen through freeCellData(), any other as it is
+function freeCanvasItem(screen) {
+  if(!isFreeScreen(screen.data)) return screen;
+  const item = Object.create(screen);
+  item.data = freeCellData(screen.data, getAllPanels());
+  return item;
+}
+
+// Draws a drawn screen's panels at their true sizes for drawScreenToContext(): the
+// two-tone fill, outline and "column.row" name the grid panels get
+function drawFreePanelsToContext(ctx, data, allPanels, offsetX, offsetY, colors, dataOverlay) {
+  const wall = freePlacedPanels(data, allPanels);
+  const tones = freeColorIndexes(data.freePanels, allPanels, data.freeCell_mm);
+  const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
+  wall.panels.forEach((pp, i) => {
+    const x = offsetX + pp.x_px, y = offsetY + pp.y_px;
+    ctx.fillStyle = colors[tones[i]];
+    ctx.fillRect(x, y, pp.w_px, pp.h_px);
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, pp.w_px, pp.h_px);
+    ctx.fillStyle = '#FFFFFF';
+    const label = names.get(pp.key);
+    if(dataOverlay && dataOverlay.active) {
+      ctx.font = `${Math.max(10, Math.min(pp.w_px, pp.h_px) / 6)}px Arial`;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      const pad = Math.max(3, pp.w_px * 0.05);
+      ctx.fillText(label, x + pp.w_px - pad, y + pad);
+    } else {
+      ctx.font = `${Math.max(12, Math.min(pp.w_px, pp.h_px) / 4)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, x + pp.w_px / 2, y + pp.h_px / 2);
+    }
+  });
+}
+
 // Panel count per panel type, e.g. {V4ST: 93, V4ST_V: 20}.
 function freePanelCounts(list) {
   const counts = {};
@@ -200,13 +269,12 @@ function updateFreeDrawRow() {
   }
   const hint = document.getElementById('standardLayoutHint');
   if(hint) hint.textContent = standardLayoutHintText();
-  // Touch Select Mode for the drawn Power and Data layouts; off whenever it is hidden so
-  // a grid screen's canvases keep scrolling
-  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  // Select Mode for the drawn Power and Data layouts, one each so every layout is selected
+  // on its own; off whenever it is hidden so a grid screen's canvases stay view-only
   [['powerCanvas', 'freePowerSelectModeRow'], ['dataCanvas', 'freeDataSelectModeRow']].forEach(([canvasId, rowId]) => {
     const modeRow = document.getElementById(rowId);
-    if(modeRow) modeRow.style.display = (on && isTouch) ? '' : 'none';
-    if(!(on && isTouch) && freeLayerSelectMode[canvasId]) setFreeSelectMode(canvasId, false);
+    if(modeRow) modeRow.style.display = on ? '' : 'none';
+    if(!on && freeLayerSelectMode[canvasId]) setFreeSelectMode(canvasId, false);
   });
   if(!on) return;
 

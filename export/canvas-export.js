@@ -146,13 +146,13 @@ function _getCanvasResolution() {
 function _getScreenResolution(screenId) {
   var screen = screens[screenId];
   if(!screen || !screen.data) return { w: 0, h: 0 };
-  return _getScreenDataResolution(screen.data);
+  return _getScreenDataResolution(freeCanvasItem(screen).data);
 }
 
 // The pixel size of a screen's data — or of a split part's, whose data covers only
 // that part's columns and rows
 function _getScreenDataResolution(sd) {
-  var p = getAllPanels()[sd.panelType || 'CB5_MKII'];
+  var p = sd.freeCellPanel || getAllPanels()[sd.panelType || 'CB5_MKII'];
   if(!p || !p.res_x || !p.res_y) return { w: 0, h: 0 };
   var pw = sd.panelsWide || 0;
   var ph = sd.panelsHigh || 0;
@@ -174,7 +174,7 @@ function _getScreenDataResolution(sd) {
 // Render one screen at native resolution using the shared canvas-view renderer.
 // Returns { canvas, w, h } or null if the screen has no valid dimensions.
 function _renderScreenNativeCanvas(screenId) {
-  var screen = screens[screenId];
+  var screen = screens[screenId] && freeCanvasItem(screens[screenId]);
   if(!screen || !screen.data) return null;
   var res = _getScreenResolution(screenId);
   if(!res.w || !res.h) return null;
@@ -415,7 +415,7 @@ function _updateOutlineMax() {
 // ox/oy = pixel offset on the target canvas, scale = multiplier (1 for export, <1 for preview).
 function _drawScreenOutline(ctx, sd, allPanels, ox, oy, bw, scale) {
   var panelType = sd.panelType || 'CB5_MKII';
-  var p = allPanels[panelType];
+  var p = sd.freeCellPanel || allPanels[panelType];
   if(!p || !p.res_x || !p.res_y) return false;
   var pw = sd.panelsWide || 0;
   var ph = sd.panelsHigh || 0;

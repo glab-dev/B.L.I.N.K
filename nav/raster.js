@@ -67,6 +67,14 @@ function renderRasterScreenTable() {
     var tileY = p ? (p.res_y || 0) : 0;
     var cols = data.panelsWide || 0;
     var rows = data.panelsHigh || 0;
+    // A drawn screen is edited in Draw: its panel, size and tile show here read-only, the
+    // tile being one snap cell (see freeCellData)
+    var isDrawn = isFreeScreen(data);
+    if(isDrawn) {
+      var cellView = freeCellData(data, allPanels);
+      tileX = cellView.freeCellPanel ? cellView.freeCellPanel.res_x : 0;
+      tileY = cellView.freeCellPanel ? cellView.freeCellPanel.res_y : 0;
+    }
 
     var safeId = escapeJsString(screenId);
     var showName = screen.showName !== false;
@@ -91,7 +99,11 @@ function renderRasterScreenTable() {
             'oninput="updateRasterScreenColor(\'' + safeId + '\', \'color2\', this.value)"></td>';
 
     // Panel dropdown (+ CB5 half-panel-row chip for CB5 MKII rows)
-    if(panelType === 'CB5_MKII') {
+    if(isDrawn) {
+      html += '<td data-label="Panel"><select class="raster-select" disabled title="Drawn screen — edit it in Draw">' +
+              buildRasterPanelOptions(panelType) +
+              '</select></td>';
+    } else if(panelType === 'CB5_MKII') {
       var halfActive = !!data.addCB5HalfRow;
       // Rows and position are set in the Panel Type section; the tooltip shows them
       var halfRows = getCB5HalfRows(data, panelType);
@@ -118,13 +130,16 @@ function renderRasterScreenTable() {
     html += '<td data-label="Tile X"><input type="number" class="raster-input raster-num" value="' + tileX + '" readonly></td>';
     html += '<td data-label="Tile Y"><input type="number" class="raster-input raster-num" value="' + tileY + '" readonly></td>';
 
-    // Cols
-    html += '<td data-label="Cols"><input type="number" class="raster-input raster-num" ' + (cols ? 'value="' + cols + '"' : '') + ' placeholder="0" min="0" ' +
-            'oninput="updateRasterScreenDim(\'' + safeId + '\', \'panelsWide\', this.value)"></td>';
-
-    // Rows
-    html += '<td data-label="Rows"><input type="number" class="raster-input raster-num" ' + (rows ? 'value="' + rows + '"' : '') + ' placeholder="0" min="0" ' +
-            'oninput="updateRasterScreenDim(\'' + safeId + '\', \'panelsHigh\', this.value)"></td>';
+    // Cols / Rows
+    if(isDrawn) {
+      html += '<td data-label="Cols"><input type="text" class="raster-input raster-num" placeholder="Drawn" title="Drawn screen — edit it in Draw" readonly></td>';
+      html += '<td data-label="Rows"><input type="text" class="raster-input raster-num" placeholder="Drawn" title="Drawn screen — edit it in Draw" readonly></td>';
+    } else {
+      html += '<td data-label="Cols"><input type="number" class="raster-input raster-num" ' + (cols ? 'value="' + cols + '"' : '') + ' placeholder="0" min="0" ' +
+              'oninput="updateRasterScreenDim(\'' + safeId + '\', \'panelsWide\', this.value)"></td>';
+      html += '<td data-label="Rows"><input type="number" class="raster-input raster-num" ' + (rows ? 'value="' + rows + '"' : '') + ' placeholder="0" min="0" ' +
+              'oninput="updateRasterScreenDim(\'' + safeId + '\', \'panelsHigh\', this.value)"></td>';
+    }
 
     // Offset X / Y — a split screen has one per part, in its part rows below
     if(data.split) {

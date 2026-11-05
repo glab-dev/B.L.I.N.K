@@ -301,7 +301,7 @@ function renderFreeDataLayout() {
     showArrows: showArrowsEnabled,
     showLabels: (typeof dataLineLabelsEnabled !== 'undefined') && dataLineLabelsEnabled,
     redundancy: !!data.redundancy,
-    sel: freeLayerSel.dataCanvas,
+    sel: pdf ? null : freeLayerSel.dataCanvas,
     numberSize: (w, h) => Math.max(10, Math.floor(Math.min(w, h) * (pdf ? 0.25 : 0.22))),
     arrowWidth: 3, headSize: 12
   });

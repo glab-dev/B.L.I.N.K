@@ -184,6 +184,18 @@ function drawFreePanelsToContext(ctx, data, allPanels, offsetX, offsetY, colors,
   });
 }
 
+// Size, pixels, watts and panel weight of a drawn wall, for summaries that would
+// otherwise multiply one panel's figures by a panel count
+function freeWallTotals(data, allPanels, powerType) {
+  const wall = freePlacedPanels(data, allPanels);
+  return {
+    widthM: wall.widthM, heightM: wall.heightM, resX: wall.resX, resY: wall.resY,
+    watts: data.freePanels.reduce((sum, fp) => sum + freePanelWatts(allPanels[fp.type], powerType), 0),
+    maxPanelW: Math.max(0, ...data.freePanels.map(fp => freePanelWatts(allPanels[fp.type], powerType))),
+    weightKg: data.freePanels.reduce((sum, fp) => sum + getPanelWeight(fp.type, shouldUseConnectingPlates(fp.type)), 0)
+  };
+}
+
 // Panel count per panel type, e.g. {V4ST: 93, V4ST_V: 20}.
 function freePanelCounts(list) {
   const counts = {};
@@ -579,7 +591,10 @@ function renderFreeStandardLayout() {
     : Math.min(containerWidth, 800);
 
   const b = freeBounds(list, allPanels, cellMm);
-  const showGrid = freeDrawMode || !b;
+  // Editing shows the snap grid, selection and ghost; a PDF capture crops to the panels
+  const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  const editing = freeDrawMode && !pdf;
+  const showGrid = editing || !b;
   let gx0, gy0, cols, rows;
   if(!b) {
     gx0 = 0; gy0 = 0; cols = 16; rows = 8;
@@ -632,7 +647,7 @@ function renderFreeStandardLayout() {
     const w = toX(fp.gx + cw) - x, h = toY(fp.gy + ch) - y;
     ctx.fillStyle = getStandardColorForPanel(colors[i], 0);
     ctx.fillRect(x, y, w, h);
-    if(freeDrawMode && freeSelected.has(`${fp.gx},${fp.gy}`)) {
+    if(editing && freeSelected.has(`${fp.gx},${fp.gy}`)) {
       ctx.strokeStyle = '#00FF00';
       ctx.lineWidth = 4;
       ctx.strokeRect(x+2, y+2, w-4, h-4);
@@ -655,7 +670,7 @@ function renderFreeStandardLayout() {
     }
   });
 
-  if(freeDrawMode) drawFreeGhost(ctx, data, allPanels, toX, toY);
+  if(editing) drawFreeGhost(ctx, data, allPanels, toX, toY);
   setupFreeCanvasInteractivity();
 }
 

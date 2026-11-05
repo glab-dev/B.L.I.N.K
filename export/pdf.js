@@ -1037,16 +1037,19 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
 
   const panelWidthM  = p.width_m  || 0;
   const panelHeightM = p.height_m || 0;
-  const wallWidthFt  = pw * panelWidthM * 3.28084;
-  const wallHeightFt = ph * panelHeightM * 3.28084;
-  const wallWidthM   = pw * panelWidthM;
-  const wallHeightM  = ph * panelHeightM;
+  // A drawn screen mixes panel sizes: its totals come from the drawn panels themselves
+  const drawn = (typeof isFreeScreen === 'function' && isFreeScreen(data))
+    ? freeWallTotals(data, getAllPanels(), data.powerType || 'max') : null;
+  const wallWidthM   = drawn ? drawn.widthM : pw * panelWidthM;
+  const wallHeightM  = drawn ? drawn.heightM : ph * panelHeightM;
+  const wallWidthFt  = wallWidthM * 3.28084;
+  const wallHeightFt = wallHeightM * 3.28084;
 
   const activePanels  = cd.activePanels || (pw * ph);
-  const totalPixels   = pw * (p.res_x || 0) * ph * (p.res_y || 0);
+  const totalPixels   = drawn ? (cd.totalPixels || 0) : pw * (p.res_x || 0) * ph * (p.res_y || 0);
   const panelWtKg     = p.weight_kg || 0;
   const panelWtLbs    = panelWtKg * 2.20462;
-  const panelsTotalWtLbs = Math.ceil(activePanels * panelWtLbs);
+  const panelsTotalWtLbs = Math.ceil(drawn ? drawn.weightKg * 2.20462 : activePanels * panelWtLbs);
 
   // Structure weight — read pre-computed fields from calculatedData (mirrors pdf-preview.js)
   const structureType = data.structureType || 'hanging';
@@ -1064,8 +1067,8 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
   const totalWtLbs = panelsTotalWtLbs + structWtLbs;
 
   const powerType     = data.powerType || 'max';
-  const powerPerPanel = (powerType === 'max') ? (p.power_max_w || 0) : (p.power_avg_w || 0);
-  const totalPowerW   = activePanels * powerPerPanel;
+  const powerPerPanel = drawn ? drawn.maxPanelW : ((powerType === 'max') ? (p.power_max_w || 0) : (p.power_avg_w || 0));
+  const totalPowerW   = drawn ? drawn.watts : activePanels * powerPerPanel;
   const voltage       = parseInt(data.voltage) || 208;
   const breaker       = parseInt(data.breaker) || 20;
   const phase         = parseInt(data.phase) || 3;
@@ -1109,7 +1112,7 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
   const colWall = buildSummaryColumn('WALL', [
     ['Dimensions',    (wallWidthFt > 0 && wallHeightFt > 0) ? `${wallWidthFt.toFixed(1)}' × ${wallHeightFt.toFixed(1)}'` : null],
     ['',              (wallWidthM > 0 && wallHeightM > 0) ? `(${wallWidthM.toFixed(2)} × ${wallHeightM.toFixed(2)} m)` : null],
-    [`${pw}×${ph} panels`, activePanels ? `${activePanels} active` : null],
+    [drawn ? 'Drawn wall' : `${pw}×${ph} panels`, activePanels ? `${activePanels} active` : null],
     ['Resolution',    (pw > 0 && ph > 0 && p.res_x) ? `${pw * p.res_x} × ${ph * p.res_y} px` : null],
     ['Total Pixels',  totalPixels > 0 ? totalPixels.toLocaleString() + ' px' : null],
     ['Panels Weight', panelsTotalWtLbs > 0 ? `${panelsTotalWtLbs} lbs` : null],
@@ -1487,11 +1490,13 @@ function buildComplexPdf(opts, canvasCache) {
     } else {
       var rowX = 0;
       items = sids.map(function(sid) {
-        const d  = (screens[sid] && screens[sid].data) || {};
+        const raw = (screens[sid] && screens[sid].data) || {};
+        // A drawn screen is placed as its cell grid (see freeCellData)
+        const d  = isFreeScreen(raw) ? freeCellData(raw, getAllPanels()) : raw;
         const pw = parseInt(d.panelsWide) || 1;
         const ph = parseInt(d.panelsHigh) || 1;
         const pt = d.panelType || 'CB5_MKII';
-        const hr = (typeof getPanelHeightRatio === 'function') ? getPanelHeightRatio(pt) : 1;
+        const hr = d.freeCellPanel ? 1 : ((typeof getPanelHeightRatio === 'function') ? getPanelHeightRatio(pt) : 1);
         const half = getCB5HalfRows(d, pt);
         const geom = {
           pw: pw, ph: ph, heightRatio: hr, half: half,
@@ -1664,7 +1669,7 @@ function buildComplexPdf(opts, canvasCache) {
     screenIds.forEach(function(sid) {
       screenPageStarts[sid] = pageAccum;
       const scr = screens[sid];
-      const pd = scr && scr.data ? scr.data : {};
+      const pd = scr && scr.data ? (isFreeScreen(scr.data) ? freeCellData(scr.data, getAllPanels()) : scr.data) : {};
       const pw2 = parseInt(pd.panelsWide) || 0;
       const ph2 = parseInt(pd.panelsHigh) || 0;
       const plan = buildComplexPagePlan(pw2, ph2,
@@ -1693,6 +1698,19 @@ function buildComplexPdf(opts, canvasCache) {
       const p   = allPanels[d.panelType]        || {};
       const active = cd.activePanels || (parseInt(d.panelsWide) || 0) * (parseInt(d.panelsHigh) || 0);
       const pwType = d.powerType || 'max';
+      // A drawn screen adds each of its panels at that panel's own watts and weight
+      if (isFreeScreen(d)) {
+        const drawnTotals = freeWallTotals(d, allPanels, pwType);
+        totalPowerW += drawnTotals.watts;
+        totalWeightLbs += Math.ceil(drawnTotals.weightKg * 2.20462);
+        const drawnCounts = freePanelCounts(d.freePanels);
+        Object.keys(drawnCounts).forEach(function(t) {
+          const dp = allPanels[t] || {};
+          const key = `${dp.brand || ''} ${dp.name || t}`.trim();
+          panelTypeCounts[key] = (panelTypeCounts[key] || 0) + drawnCounts[t];
+        });
+        return;
+      }
       const ppp = (pwType === 'max') ? (p.power_max_w || 0) : (p.power_avg_w || 0);
       totalPowerW   += active * ppp;
       totalWeightLbs += Math.ceil(active * (p.weight_kg || 0) * 2.20462);
@@ -1757,8 +1775,9 @@ function buildComplexPdf(opts, canvasCache) {
       const pw2 = parseInt(d.panelsWide) || 0;
       const ph2 = parseInt(d.panelsHigh) || 0;
       const active = cd.activePanels || (pw2 * ph2);
-      const wFt = (pw2 * (p.width_m  || 0) * 3.28084).toFixed(1);
-      const hFt = (ph2 * (p.height_m || 0) * 3.28084).toFixed(1);
+      const drawnWall = isFreeScreen(d) ? freeWallTotals(d, allPanels, d.powerType || 'max') : null;
+      const wFt = ((drawnWall ? drawnWall.widthM : pw2 * (p.width_m  || 0)) * 3.28084).toFixed(1);
+      const hFt = ((drawnWall ? drawnWall.heightM : ph2 * (p.height_m || 0)) * 3.28084).toFixed(1);
       const startPage = screenPageStarts[sid] || '—';
       // Pixel resolution moved here off the combined diagram
       const resTxt = (p.res_x && p.res_y) ? `${pw2 * p.res_x}×${ph2 * p.res_y} px` : '—';
@@ -1793,8 +1812,10 @@ function buildComplexPdf(opts, canvasCache) {
     const pw        = parseInt(data.panelsWide) || 0;
     const ph        = parseInt(data.panelsHigh) || 0;
     const sd        = gearData.screens[sIdx];
-    const resStr    = (pw > 0 && ph > 0 && panelSpec.res_x && panelSpec.res_y)
-      ? `${pw * panelSpec.res_x} × ${ph * panelSpec.res_y} px` : '';
+    const drawnRes  = isFreeScreen(data) ? freeWallTotals(data, allPanels, data.powerType || 'max') : null;
+    const resStr    = drawnRes ? (drawnRes.resX > 0 ? `${drawnRes.resX} × ${drawnRes.resY} px` : '')
+      : ((pw > 0 && ph > 0 && panelSpec.res_x && panelSpec.res_y)
+      ? `${pw * panelSpec.res_x} × ${ph * panelSpec.res_y} px` : '');
 
 
     // ===== PAGE 1: HERO =====
@@ -1918,7 +1939,7 @@ function buildComplexPdf(opts, canvasCache) {
   if (opts.gearList !== false) {
     const gearScreenIds = screenIds.filter(function(sid) {
       const d = (screens[sid] && screens[sid].data) || {};
-      return (parseInt(d.panelsWide) || 0) * (parseInt(d.panelsHigh) || 0) > 1;
+      return (parseInt(d.panelsWide) || 0) * (parseInt(d.panelsHigh) || 0) > 1 || (isFreeScreen(d) && d.freePanels.length > 0);
     });
 
     if (gearScreenIds.length > 0) {

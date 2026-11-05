@@ -356,7 +356,7 @@ function renderFreePowerLayout() {
     socaLabelIdx: idx => (labelMap && labelMap.has(idx)) ? labelMap.get(idx) : idx,
     customCircuit: customCircuitAssignments,
     circuitToPair, legColorOn: (typeof colorByLegEnabled !== 'undefined') && colorByLegEnabled,
-    ox: 0, oy: 0, cellPx, sel: freeLayerSel.powerCanvas,
+    ox: 0, oy: 0, cellPx, sel: pdf ? null : freeLayerSel.powerCanvas,
     labelSize: w => pdf ? Math.max(10, Math.floor(w * 0.25)) : 11
   });
 

@@ -84,23 +84,31 @@ function calculateFreeData(data, allPanels) {
   return freeDataState;
 }
 
-// Each line's panels in flow order for cable runs and the canvas overlay, keyed by 0-based
-// line. col/row are the panel's centre in cells less half a cell, so the grid's
-// "(col + 0.5) × cell" lands on the middle of a panel of any size.
-function freeDataLinePanelOrdering(data, allPanels) {
+// Data lines of any drawn screen from its saved data, each panel named for the line table
+function freeScreenDataGroups(data, allPanels) {
   const inp = freeScreenDataInputs(data);
-  if(!inp) return {};
+  if(!inp) return null;
   const built = buildDataLineGroups({
     pw: inp.pw, ph: inp.ph, panelsPerDataLine: inp.panelsPerDataLine, startDir: inp.startDir,
     deletedPanels: inp.deletedPanels, customDataLineAssignments: inp.customDataLines
   });
-  const size = new Map(data.freePanels.map(fp => [`${fp.gx},${fp.gy}`, freeCells(allPanels[fp.type], data.freeCell_mm)]));
   const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
+  built.groups.forEach(g => g.forEach(pt => { pt.label = names.get(`${pt.c},${pt.r}`); }));
+  return built;
+}
+
+// Each line's panels in flow order for cable runs and the canvas overlay, keyed by 0-based
+// line. col/row are the panel's centre in cells less half a cell, so the grid's
+// "(col + 0.5) × cell" lands on the middle of a panel of any size.
+function freeDataLinePanelOrdering(data, allPanels) {
+  const built = freeScreenDataGroups(data, allPanels);
+  if(!built) return {};
+  const size = new Map(data.freePanels.map(fp => [`${fp.gx},${fp.gy}`, freeCells(allPanels[fp.type], data.freeCell_mm)]));
   const out = {};
   built.sortedDataLines.forEach((ln, gi) => {
     out[ln] = built.groups[gi].map(pt => {
       const {cw, ch} = size.get(`${pt.c},${pt.r}`);
-      return {col: pt.c + cw / 2 - 0.5, row: pt.r + ch / 2 - 0.5, cw, ch, key: `${pt.c},${pt.r}`, label: names.get(`${pt.c},${pt.r}`)};
+      return {col: pt.c + cw / 2 - 0.5, row: pt.r + ch / 2 - 0.5, cw, ch, key: `${pt.c},${pt.r}`, label: pt.label};
     });
   });
   return out;
@@ -138,58 +146,30 @@ function freeDataCrossJumpers(data, p, ordering, rows) {
   };
 }
 
-// Data layout for a free screen: every panel at its true size, coloured by the port its
-// line lands on, with flow arrows between touching panels and the line's start label.
-function renderFreeDataLayout() {
-  const data = screens[currentScreenId].data;
-  const allPanels = getAllPanels();
-  const canvas = document.getElementById('dataCanvas');
-  const container = document.getElementById('dataContainer');
-  const ctx = canvas.getContext('2d');
-  const isSimpleMode = typeof currentAppMode !== 'undefined' && currentAppMode === 'simple';
-  if(!isSimpleMode) {
-    container.style.display = 'block';
-  }
-  const st = freeDataState;
+// Draws a drawn screen's data lines: every panel at its true size from (ox, oy) at cellPx
+// a snap cell, coloured by the port its line lands on, with flow arrows between touching
+// panels and the line's start label. Shared by the Draw tab and the Combined view.
+// o: {screenId, groups, sortedDataLines, endpoints, ox, oy, cellPx, mirror, flip, showArrows,
+//     showLabels, redundancy, sel, numberSize(w, h), arrowWidth, headSize}
+function drawFreeDataPanels(ctx, data, allPanels, o) {
   const b = freeBounds(data.freePanels, allPanels, data.freeCell_mm);
-  if(!st || !b) {
-    canvas.width = 0;
-    canvas.height = 0;
-    return;
-  }
-
-  const containerWidth = container.clientWidth - 32; // Account for padding
-  const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
-  const maxCanvasWidth = pdf ? Math.min(containerWidth, 4000) : Math.min(containerWidth, 800);
-  const cellM = data.freeCell_mm / 1000;
-  const pxPerM = Math.max(30, Math.min(80, Math.floor(maxCanvasWidth / (b.maxX * cellM))));
-  const cellPx = pxPerM * cellM;
-  canvas.width = Math.round(b.maxX * cellPx);
-  canvas.height = Math.round(b.maxY * cellPx);
-  const rearView = (typeof dataRearViewEnabled !== 'undefined') && dataRearViewEnabled;
-  freeLayerView.dataCanvas = {cellPx, cols: b.maxX, mirror: rearView};
-
-  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const flip = (typeof dataFlipEnabled !== 'undefined') && dataFlipEnabled;
-  const showLabels = (typeof dataLineLabelsEnabled !== 'undefined') && dataLineLabelsEnabled;
-  const redundancy = !!data.redundancy;
-  const endpoints = computeDataLineEndpoints(st.groups, st.sortedDataLines, flip);
-  screens[currentScreenId].calculatedData.dataLineEndpoints = endpoints;
-
-  const lineDisplay = dataPortLineDisplayMap(currentScreenId);
-  const linePorts = dataPortLinePortMap(currentScreenId);
-  const unassigned = dataPortUnassignedLines(currentScreenId);
+  const rect = (gx, gy, cells) => {
+    const x0 = o.mirror ? b.maxX - gx - cells.cw : gx;
+    const x = o.ox + Math.round(x0 * o.cellPx), y = o.oy + Math.round(gy * o.cellPx);
+    return {x, y, w: o.ox + Math.round((x0 + cells.cw) * o.cellPx) - x, h: o.oy + Math.round((gy + cells.ch) * o.cellPx) - y};
+  };
+  const lineDisplay = dataPortLineDisplayMap(o.screenId);
+  const linePorts = dataPortLinePortMap(o.screenId);
+  const unassigned = dataPortUnassignedLines(o.screenId);
   const shown = line => lineDisplay.has(line) ? lineDisplay.get(line) : line;
   const NO_PORT_COLORS = { fill: '#3a3a3a', text: '#bbbbbb', solid: '#777777' };
   const printColor = h => greyscalePrintMode ? toGreyscale(h) : (ecoPrintMode ? toPastelColor(h) : h);
 
   const startLabels = new Map();
-  if(showLabels) {
-    endpoints.forEach(ep => {
+  if(o.showLabels) {
+    o.endpoints.forEach(ep => {
       const mKey = `${ep.main.c},${ep.main.r}`;
-      const bKey = redundancy ? `${ep.backup.c},${ep.backup.r}` : null;
+      const bKey = o.redundancy ? `${ep.backup.c},${ep.backup.r}` : null;
       if(bKey === mKey) {
         startLabels.set(mKey, {text: `${shown(ep.line)}/${shown(ep.line)}B`, color: printColor('#10b981')});
       } else {
@@ -200,19 +180,18 @@ function renderFreeDataLayout() {
   }
 
   const size = new Map(data.freePanels.map(fp => [`${fp.gx},${fp.gy}`, freeCells(allPanels[fp.type], data.freeCell_mm)]));
-  const sel = freeLayerSel.dataCanvas;
   const labelDraws = [];
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  st.groups.forEach((group, gi) => {
-    const line = st.sortedDataLines[gi] + 1;
+  o.groups.forEach((group, gi) => {
+    const line = o.sortedDataLines[gi] + 1;
     const noPort = unassigned.has(line);
     const colorNum = (linePorts.has(line) ? linePorts.get(line) : shown(line)) - 1;
     const colors = noPort ? NO_PORT_COLORS : colorForIndex(colorNum);
     const pts = [];
     group.forEach(pt => {
       const key = `${pt.c},${pt.r}`;
-      const r = freeLayerRect('dataCanvas', pt.c, pt.r, size.get(key));
+      const r = rect(pt.c, pt.r, size.get(key));
       ctx.fillStyle = colors.fill;
       ctx.fillRect(r.x, r.y, r.w, r.h);
       ctx.strokeStyle = noPort ? colors.solid : '#000000';
@@ -220,7 +199,7 @@ function renderFreeDataLayout() {
       if(noPort) ctx.setLineDash([4, 3]);
       ctx.strokeRect(r.x, r.y, r.w, r.h);
       if(noPort) ctx.setLineDash([]);
-      if(sel.has(key)) {
+      if(o.sel && o.sel.has(key)) {
         ctx.strokeStyle = '#00FF00';
         ctx.lineWidth = 3;
         ctx.strokeRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4);
@@ -230,7 +209,7 @@ function renderFreeDataLayout() {
         labelDraws.push({label: big.text, color: big.color, cx: r.x + r.w / 2, cy: r.y + r.h / 2, h: r.h, w: r.w});
       } else {
         const label = `${shown(line)}`;
-        let fs = Math.max(10, Math.floor(Math.min(r.w, r.h) * (pdf ? 0.25 : 0.22)));
+        let fs = o.numberSize(r.w, r.h);
         ctx.font = `${fs}px Arial`;
         while(fs > 6 && ctx.measureText(label).width > r.w - 4) { fs--; ctx.font = `${fs}px Arial`; }
         ctx.fillStyle = noPort ? colors.text : ((colorNum % 10 === 9) ? '#FFFFFF' : '#000000');
@@ -241,10 +220,10 @@ function renderFreeDataLayout() {
     });
 
     // Arrows run between touching panels; a jump across a gap starts a new arrow
-    if(showArrowsEnabled && pts.length > 1) {
-      const opts = {lineWidth: 3, headSize: 12, hideArrowhead: showLabels};
+    if(o.showArrows && pts.length > 1) {
+      const opts = {lineWidth: o.arrowWidth, headSize: o.headSize, hideArrowhead: o.showLabels};
       let seg = [pts[0]];
-      const flush = () => { if(seg.length > 1) drawArrowPath(ctx, flip ? seg.slice().reverse() : seg, '#000000', opts); };
+      const flush = () => { if(seg.length > 1) drawArrowPath(ctx, o.flip ? seg.slice().reverse() : seg, '#000000', opts); };
       for(let i = 1; i < pts.length; i++) {
         if(freePanelsTouch(pts[i - 1], pts[i])) {
           seg.push(pts[i]);
@@ -278,6 +257,54 @@ function renderFreeDataLayout() {
     });
     ctx.restore();
   }
+}
+
+// Data layout for a free screen, from the live data settings
+function renderFreeDataLayout() {
+  const data = screens[currentScreenId].data;
+  const allPanels = getAllPanels();
+  const canvas = document.getElementById('dataCanvas');
+  const container = document.getElementById('dataContainer');
+  const ctx = canvas.getContext('2d');
+  const isSimpleMode = typeof currentAppMode !== 'undefined' && currentAppMode === 'simple';
+  if(!isSimpleMode) {
+    container.style.display = 'block';
+  }
+  const st = freeDataState;
+  const b = freeBounds(data.freePanels, allPanels, data.freeCell_mm);
+  if(!st || !b) {
+    canvas.width = 0;
+    canvas.height = 0;
+    return;
+  }
+
+  const containerWidth = container.clientWidth - 32; // Account for padding
+  const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  const maxCanvasWidth = pdf ? Math.min(containerWidth, 4000) : Math.min(containerWidth, 800);
+  const cellM = data.freeCell_mm / 1000;
+  const pxPerM = Math.max(30, Math.min(80, Math.floor(maxCanvasWidth / (b.maxX * cellM))));
+  const cellPx = pxPerM * cellM;
+  canvas.width = Math.round(b.maxX * cellPx);
+  canvas.height = Math.round(b.maxY * cellPx);
+  const rearView = (typeof dataRearViewEnabled !== 'undefined') && dataRearViewEnabled;
+  freeLayerView.dataCanvas = {cellPx, cols: b.maxX, mirror: rearView};
+
+  ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const flip = (typeof dataFlipEnabled !== 'undefined') && dataFlipEnabled;
+  const endpoints = computeDataLineEndpoints(st.groups, st.sortedDataLines, flip);
+  screens[currentScreenId].calculatedData.dataLineEndpoints = endpoints;
+  drawFreeDataPanels(ctx, data, allPanels, {
+    screenId: currentScreenId, groups: st.groups, sortedDataLines: st.sortedDataLines, endpoints,
+    ox: 0, oy: 0, cellPx, mirror: rearView, flip,
+    showArrows: showArrowsEnabled,
+    showLabels: (typeof dataLineLabelsEnabled !== 'undefined') && dataLineLabelsEnabled,
+    redundancy: !!data.redundancy,
+    sel: freeLayerSel.dataCanvas,
+    numberSize: (w, h) => Math.max(10, Math.floor(Math.min(w, h) * (pdf ? 0.25 : 0.22))),
+    arrowWidth: 3, headSize: 12
+  });
 
   drawFreeLayerBox(ctx, 'dataCanvas');
   setupFreeLayerInteractivity();

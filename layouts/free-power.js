@@ -224,6 +224,96 @@ function freeTrue1Twofers(data, allPanels, panelToCircuit) {
   return twofers;
 }
 
+// Draws a drawn screen's power: every panel at its true size from (ox, oy) at cellPx a snap
+// cell, coloured by circuit (or by leg) and labelled SOCA.circuit, with the SOCA outlines
+// and labels the grid canvas draws. Shared by the Draw tab and the Combined view.
+// o: {panelToCircuit, panelToSoca, socaLabelIdx, customCircuit, circuitToPair, legColorOn,
+//     ox, oy, cellPx, sel, labelSize(w), holeBlocked}
+function drawFreePowerPanels(ctx, data, allPanels, o) {
+  const toX = g => o.ox + Math.round(g * o.cellPx);
+  const toY = g => o.oy + Math.round(g * o.cellPx);
+  const legPairColor = pair => {
+    const base = { XY: '#ff5277', YZ: '#36c5f0', ZX: '#ffd23f', X: '#ff5277', Y: '#36c5f0', Z: '#ffd23f' }[pair] || '#cccccc';
+    return greyscalePrintMode ? toGreyscale(base) : (ecoPrintMode ? toPastelColor(base) : base);
+  };
+
+  // Cell-level circuit/SOCA maps so the SOCA overlay outlines each panel's real footprint
+  const cellToCircuit = new Map(), cellToSoca = new Map();
+  data.freePanels.forEach(fp => {
+    const key = `${fp.gx},${fp.gy}`;
+    const circuit = o.panelToCircuit.get(key);
+    if(circuit === undefined) return;
+    const soca = o.panelToSoca.get(key);
+    const {cw, ch} = freeCells(allPanels[fp.type], data.freeCell_mm);
+    const x = toX(fp.gx), y = toY(fp.gy);
+    const w = toX(fp.gx + cw) - x, h = toY(fp.gy + ch) - y;
+    for(let i = 0; i < cw; i++) for(let j = 0; j < ch; j++) {
+      cellToCircuit.set(`${fp.gx + i},${fp.gy + j}`, circuit);
+      cellToSoca.set(`${fp.gx + i},${fp.gy + j}`, soca);
+    }
+
+    const legPair = o.circuitToPair ? o.circuitToPair.get(circuit) : null;
+    ctx.fillStyle = (o.legColorOn && legPair) ? legPairColor(legPair) : applySocaShade(colorForIndex(circuit % 6).solid, soca);
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+    if(o.customCircuit.has(key)) {
+      ctx.fillStyle = '#FFD700'; // Gold indicator for a hand-picked circuit
+      ctx.fillRect(x + w - 10, y + 2, 8, 8);
+    }
+    if(o.sel && o.sel.has(key)) {
+      ctx.strokeStyle = '#00FF00';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+    }
+
+    const label = (o.legColorOn && legPair) ? legPair : `${formatSocaLabel(o.socaLabelIdx(soca))}.${(circuit % 6) + 1}`;
+    let fs = o.labelSize(w);
+    ctx.font = `${fs}px Arial`;
+    while(fs > 6 && ctx.measureText(label).width > w - 4) { fs--; ctx.font = `${fs}px Arial`; }
+    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + w/2, y + h/2);
+  });
+
+  const b = freeBounds(data.freePanels, allPanels, data.freeCell_mm);
+  drawSocaOverlay(ctx, {
+    panelToCircuit: cellToCircuit, panelToSoca: cellToSoca, deletedPanels: new Set(),
+    panelWidth: o.cellPx,
+    rowGeo: {
+      h: () => o.cellPx,
+      y: r => Math.round(r * o.cellPx),
+      rowAt: py => (py < 0 || py >= b.maxY * o.cellPx) ? -1 : Math.floor(py / o.cellPx),
+      rows: b.maxY,
+      height: Math.round(b.maxY * o.cellPx)
+    },
+    offsetX: o.ox, offsetY: o.oy,
+    outlineLineWidth: 1.5,
+    socaLabelIdx: o.socaLabelIdx,
+    holeBlocked: o.holeBlocked,
+    drawOutlines: (typeof socaOutlinesEnabled !== 'undefined') ? socaOutlinesEnabled : true,
+    drawLabels: (typeof socaDiagonalLabelEnabled !== 'undefined') ? socaDiagonalLabelEnabled : true
+  });
+}
+
+// Circuits and SOCAs of any drawn screen from its saved data, as the Combined view shows
+// them: the shared-distro group plan when it balances, else the screen's own Phase
+// Balance, else as wired — the same order the grid Combined canvas uses.
+function freeScreenCircuits(screenId, data, groupPlan) {
+  const inp = freeScreenPowerInputs(data);
+  if(!inp) return null;
+  const entry = (groupPlan && groupPlan.useBalanced && data.sharedDistro) ? groupPlan.byScreen.get(screenId) : null;
+  const bal = (!entry && data.phaseBalance && inp.phase === 3)
+    ? resolveBalancedCircuits(inp.pw, inp.ph, inp.panelsPerCircuit, inp.deletedPanels, inp.wiring, inp.customCircuit, inp.customSoca, 1, inp.voltage, inp.wattsByKey)
+    : null;
+  const panelToCircuit = entry ? entry.panelToCircuit
+    : ((bal && bal.useBalanced) ? bal.panelToCircuit
+      : assignCircuits(inp.pw, inp.ph, inp.panelsPerCircuit, inp.deletedPanels, inp.customCircuit).panelToCircuit);
+  return {panelToCircuit, panelToSoca: assignSocas(panelToCircuit, inp.customSoca), customCircuit: inp.customCircuit};
+}
+
 // Power layout for a free screen: every panel at its true size, coloured by circuit and
 // labelled SOCA.circuit, with the SOCA outlines and labels the grid canvas draws.
 function renderFreePowerLayout() {
@@ -245,91 +335,32 @@ function renderFreePowerLayout() {
   }
 
   const containerWidth = container.clientWidth - 32; // Account for padding
-  const maxCanvasWidth = (typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode)
-    ? Math.min(containerWidth, 4000)
-    : Math.min(containerWidth, 800);
+  const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  const maxCanvasWidth = pdf ? Math.min(containerWidth, 4000) : Math.min(containerWidth, 800);
   const cellM = data.freeCell_mm / 1000;
   const pxPerM = Math.max(30, Math.min(80, Math.floor(maxCanvasWidth / (b.maxX * cellM))));
   const cellPx = pxPerM * cellM;
   canvas.width = Math.round(b.maxX * cellPx);
   canvas.height = Math.round(b.maxY * cellPx);
-  const toPx = g => Math.round(g * cellPx);
   freeLayerView.powerCanvas = {cellPx, cols: b.maxX, mirror: false};
-  const sel = freeLayerSel.powerCanvas;
 
   ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const legColorOn = (typeof colorByLegEnabled !== 'undefined') && colorByLegEnabled;
   const cd = screens[currentScreenId].calculatedData;
   const circuitToPair = new Map();
   if(cd && cd.phaseBalance && cd.phaseBalance.perCircuit) cd.phaseBalance.perCircuit.forEach(e => circuitToPair.set(e.circuit, e.pair));
-  const legPairColor = pair => {
-    const base = { XY: '#ff5277', YZ: '#36c5f0', ZX: '#ffd23f', X: '#ff5277', Y: '#36c5f0', Z: '#ffd23f' }[pair] || '#cccccc';
-    return greyscalePrintMode ? toGreyscale(base) : (ecoPrintMode ? toPastelColor(base) : base);
-  };
   const labelMap = (cd && Array.isArray(cd.socaLabelMap)) ? new Map(cd.socaLabelMap) : null;
-  const socaLabelIdx = idx => (labelMap && labelMap.has(idx)) ? labelMap.get(idx) : idx;
-
-  // Cell-level circuit/SOCA maps so the SOCA overlay outlines each panel's real footprint
-  const cellToCircuit = new Map(), cellToSoca = new Map();
-  data.freePanels.forEach(fp => {
-    const key = `${fp.gx},${fp.gy}`;
-    const circuit = st.panelToCircuit.get(key);
-    const soca = st.panelToSoca.get(key);
-    const {cw, ch} = freeCells(allPanels[fp.type], data.freeCell_mm);
-    const x = toPx(fp.gx), y = toPx(fp.gy);
-    const w = toPx(fp.gx + cw) - x, h = toPx(fp.gy + ch) - y;
-    for(let i = 0; i < cw; i++) for(let j = 0; j < ch; j++) {
-      cellToCircuit.set(`${fp.gx + i},${fp.gy + j}`, circuit);
-      cellToSoca.set(`${fp.gx + i},${fp.gy + j}`, soca);
-    }
-
-    const legPair = circuitToPair.get(circuit);
-    ctx.fillStyle = (legColorOn && legPair) ? legPairColor(legPair) : applySocaShade(colorForIndex(circuit % 6).solid, soca);
-    ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h);
-    if(customCircuitAssignments.has(key)) {
-      ctx.fillStyle = '#FFD700'; // Gold indicator for a hand-picked circuit
-      ctx.fillRect(x + w - 10, y + 2, 8, 8);
-    }
-    if(sel.has(key)) {
-      ctx.strokeStyle = '#00FF00';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
-    }
-
-    const label = (legColorOn && legPair) ? legPair : `${formatSocaLabel(socaLabelIdx(soca))}.${(circuit % 6) + 1}`;
-    const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
-    let fs = pdf ? Math.max(10, Math.floor(w * 0.25)) : 11;
-    ctx.font = `${fs}px Arial`;
-    while(fs > 6 && ctx.measureText(label).width > w - 4) { fs--; ctx.font = `${fs}px Arial`; }
-    ctx.fillStyle = '#000000';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, x + w/2, y + h/2);
-  });
-
-  const rowGeo = {
-    h: () => cellPx,
-    y: r => toPx(r),
-    rowAt: py => (py < 0 || py >= canvas.height) ? -1 : Math.floor(py / cellPx),
-    rows: b.maxY,
-    height: canvas.height
-  };
-  drawSocaOverlay(ctx, {
-    panelToCircuit: cellToCircuit, panelToSoca: cellToSoca, deletedPanels: new Set(),
-    panelWidth: cellPx, rowGeo,
-    offsetX: 0, offsetY: 0,
-    outlineLineWidth: 1.5,
-    socaLabelIdx,
-    drawOutlines: (typeof socaOutlinesEnabled !== 'undefined') ? socaOutlinesEnabled : true,
-    drawLabels: (typeof socaDiagonalLabelEnabled !== 'undefined') ? socaDiagonalLabelEnabled : true
+  drawFreePowerPanels(ctx, data, allPanels, {
+    panelToCircuit: st.panelToCircuit, panelToSoca: st.panelToSoca,
+    socaLabelIdx: idx => (labelMap && labelMap.has(idx)) ? labelMap.get(idx) : idx,
+    customCircuit: customCircuitAssignments,
+    circuitToPair, legColorOn: (typeof colorByLegEnabled !== 'undefined') && colorByLegEnabled,
+    ox: 0, oy: 0, cellPx, sel: freeLayerSel.powerCanvas,
+    labelSize: w => pdf ? Math.max(10, Math.floor(w * 0.25)) : 11
   });
 
   drawFreeLayerBox(ctx, 'powerCanvas');
   setupFreeLayerInteractivity();
-  if(!(typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode)) renderSocaCircuitTable(st.socaBreakdown);
+  if(!pdf) renderSocaCircuitTable(st.socaBreakdown);
 }

@@ -634,13 +634,23 @@ function buildStructureInfoLines(screenId) {
   const p = allPanels[panelType];
   const pw = parseInt(data.panelsWide) || 0;
   const ph = parseInt(data.panelsHigh) || 0;
-  if (!p || pw === 0 || ph === 0) return [];
 
   const lines = [];
   const wtUnit = (typeof displayWeightUnit !== 'undefined' && displayWeightUnit === 'kg') ? 'kg' : 'lbs';
   const toDisplay = function(kg) {
     return wtUnit === 'lbs' ? Math.ceil(kg * 2.20462) : Math.ceil(kg);
   };
+
+  // A drawn screen's bumpers are worked out from its panels (layouts/free-structure.js)
+  if (typeof isFreeScreen === 'function' && isFreeScreen(data)) {
+    const st = freeStructurePlan(data, allPanels, freeBumperPosition(data.structureType || 'hanging', data.useBumpers !== false));
+    if (!st.bumpers.length) return [];
+    lines.push({ text: 'Pickup Weights', bold: true, header: true });
+    st.bumpers.forEach(function(b) { lines.push({ text: '  ' + b.label + ': ' + toDisplay(b.loadKg) + ' ' + wtUnit }); });
+    lines.push({ text: '  Total: ' + toDisplay(st.bumpers.reduce(function(sum, b) { return sum + b.loadKg; }, 0)) + ' ' + wtUnit, bold: true });
+    return lines;
+  }
+  if (!p || pw === 0 || ph === 0) return [];
 
   // Pickup Weights
   if (typeof bumpers !== 'undefined' && bumpers.length > 0) {

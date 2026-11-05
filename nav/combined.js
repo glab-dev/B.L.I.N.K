@@ -239,6 +239,11 @@ function drawCombinedSelectionOverlay(ctx, canvasId) {
 
   const outline = (screenId, panelKey) => {
     const e = byScreen.get(screenId);
+    if(e && e.data.freeCellPanel) {
+      const r = freeCombinedPanelRects(e).find(pr => pr.key === panelKey);
+      if(r) ctx.strokeRect(r.x + inset, r.y + inset, r.w - inset * 2, r.h - inset * 2);
+      return;
+    }
     if(!e || isCombinedPanelDeleted(e.data, panelKey)) return;
     const [col, row] = panelKey.split(',').map(Number);
     if(!(col >= 0 && col < e.pw && row >= 0 && row < e.geo.effectivePh)) return;
@@ -479,11 +484,13 @@ function getCombinedArrangement() {
 
   // Box size in panel units — mirrors the height math in renderCombinedView()
   function boxUnits(screenId) {
-    const data = (screens[screenId] && screens[screenId].data) || {};
+    const raw = (screens[screenId] && screens[screenId].data) || {};
+    // A drawn screen takes part as its cell grid (nav/free-combined.js)
+    const data = isFreeScreen(raw) ? freeCombinedData(raw, getAllPanels()) : raw;
     const pw = parseInt(data.panelsWide) || 0;
     const ph = parseInt(data.panelsHigh) || 0;
     const panelType = data.panelType || 'CB5_MKII';
-    const heightRatio = getPanelHeightRatio(panelType);
+    const heightRatio = data.freeCellPanel ? 1 : getPanelHeightRatio(panelType);
     const half = getCB5HalfRows(data, panelType);
     return {
       pw: pw,
@@ -631,7 +638,7 @@ function getCombinedScreenAtPosition(canvas, clientX, clientY) {
       const dataCanvasX = dim.data.canvasX || 0;
       const dataCanvasY = dim.data.canvasY || 0;
       const panelType = dim.data.panelType || 'CB5_MKII';
-      const panelInfo = allPanels[panelType];
+      const panelInfo = dim.data.freeCellPanel || allPanels[panelType];
       const pixelWidth = panelInfo ? panelInfo.res_x : 176;
       screenX = combinedLeftPadding + (dataCanvasX / pixelWidth) * combinedPanelSize;
       screenY = combinedTopPadding + (dataCanvasY / pixelWidth) * combinedPanelSize;
@@ -800,13 +807,16 @@ function mirrorCanvasPositions() {
   // Convert Canvas positions directly to Combined view absolute positions
   combinedScreenPositions = {};
 
+  // A drawn screen takes part as its cell grid (nav/free-combined.js)
+  const sizeOf = data => isFreeScreen(data) ? freeCombinedData(data, allPanels) : data;
+
   selectedIds.forEach((screenId, index) => {
     const screen = screens[screenId];
     if(!screen || !screen.data) return;
 
     const data = screen.data;
-    const pw = data.panelsWide || 0;
-    const ph = data.panelsHigh || 0;
+    const pw = sizeOf(data).panelsWide || 0;
+    const ph = sizeOf(data).panelsHigh || 0;
     if(pw === 0 || ph === 0) return;
 
     // Get Canvas position (pixel-based)
@@ -827,7 +837,7 @@ function mirrorCanvasPositions() {
     for(let i = 0; i < index; i++) {
       const prevScreen = screens[selectedIds[i]];
       if(prevScreen && prevScreen.data) {
-        defaultX += (prevScreen.data.panelsWide || 0) * combinedPanelPx + gap;
+        defaultX += (sizeOf(prevScreen.data).panelsWide || 0) * combinedPanelPx + gap;
       }
     }
 
@@ -914,6 +924,15 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
   // Walk the geometry this canvas's renderer published, so hit detection uses the exact
   // origin and panel size that were drawn (they differ per canvas — see recordCombinedHitGeometry).
   for(const e of entries) {
+    // A drawn screen is hit panel by panel (its panels span several cells)
+    if(e.data.freeCellPanel) {
+      const hit = freeCombinedPanelRects(e).find(r => canvasX >= r.x && canvasX < r.x + r.w && canvasY >= r.y && canvasY < r.y + r.h);
+      if(hit) {
+        const [col, row] = hit.key.split(',').map(Number);
+        return { screenId: e.screenId, screen: e.screen, data: e.data, col, row, key: hit.key };
+      }
+      continue;
+    }
     const screenWidth = e.pw * e.panelWidth;
     const screenHeight = e.geo.totalH;
 
@@ -943,7 +962,8 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
 // draw, so hit detection and the canvas can never disagree about where a row is.
 function combinedRowGeometry(data, panelSize) {
   const panelType = (data && data.panelType) || 'CB5_MKII';
-  const fullH = panelSize * getPanelHeightRatio(panelType);
+  // A drawn screen's rows are its square snap cells
+  const fullH = panelSize * ((data && data.freeCellPanel) ? 1 : getPanelHeightRatio(panelType));
   const halfH = panelSize; // half panels are square
   const ph = (data && data.panelsHigh) || 0;
   const g = cb5RowGeometry(ph, getCB5HalfRows(data, panelType), fullH, halfH);
@@ -993,6 +1013,15 @@ function getCombinedPanelsInRect(canvas, x1, y1, x2, y2) {
   // Same published geometry the point hit-test uses, so a drag box and a click can
   // never disagree about where a panel is.
   for(const dim of entries) {
+    if(dim.data.freeCellPanel) {
+      freeCombinedPanelRects(dim).forEach(r => {
+        if(r.x < canvasX2 && r.x + r.w > canvasX1 && r.y < canvasY2 && r.y + r.h > canvasY1) {
+          const [col, row] = r.key.split(',').map(Number);
+          panels.push({ screenId: dim.screenId, screen: dim.screen, data: dim.data, col, row, key: r.key });
+        }
+      });
+      continue;
+    }
     const drawPanelSize = dim.panelWidth;
     const screenX = dim.screenX;
     const screenY = dim.screenY;
@@ -1085,9 +1114,9 @@ function showCombinedPanelContextMenu(x, y, panelInfo, layoutKind) {
   const kind = layoutKind || 'standard';
   const showPower = (kind === 'standard' || kind === 'power');
   const showData = (kind === 'standard' || kind === 'data');
-  const showDelete = (kind === 'standard');
-
   const { screenId, screen, data, col, row, key } = panelInfo;
+  // A drawn screen's panels are added and removed in Draw, not knocked out here
+  const showDelete = (kind === 'standard') && !data.freeCellPanel;
 
   // Get selected panel count (use multi-selection if available, otherwise single)
   const selectedCount = combinedSelectedPanels.size > 0 ? combinedSelectedPanels.size : 1;
@@ -1118,7 +1147,11 @@ function showCombinedPanelContextMenu(x, y, panelInfo, layoutKind) {
   // Header showing selection count
   const header = document.createElement('div');
   if(selectedCount === 1) {
-    header.textContent = `${screen.name} - Panel ${col+1}.${row+1}`;
+    // A drawn screen names its panels by their own columns and rows (freePanelNames)
+    const panelName = data.freeCellPanel
+      ? freePanelNames(data.freePanels, getAllPanels(), data.freeCell_mm).get(key)
+      : `${col+1}.${row+1}`;
+    header.textContent = `${screen.name} - Panel ${panelName}`;
   } else {
     header.textContent = `${selectedCount} panels selected`;
   }
@@ -1249,7 +1282,7 @@ function showCombinedPanelContextMenu(x, y, panelInfo, layoutKind) {
       function() {
         menu.remove();
         switchToScreen(screenId);
-        switchMobileView('complex');
+        switchMobileView(data.freeCellPanel ? 'draw' : 'complex');
       }
     );
     goToOption.style.borderTop = '1px solid #383838';
@@ -1922,6 +1955,9 @@ function setupCombinedCanvasHandlersFor(canvasId, layoutKind) {
       if(combinedManualAdjust) return; // No panel actions in adjust mode
 
       useCombinedSelection(canvasId);
+      // A drawn screen's panels are removed in Draw, not knocked out here
+      const dblPanel = getCombinedPanelAtPosition(canvas, e.clientX, e.clientY);
+      if(dblPanel && dblPanel.data.freeCellPanel) return;
       // Delete all selected panels
       if(combinedSelectedPanels.size > 0) {
         toggleCombinedPanelsDelete(
@@ -2268,11 +2304,15 @@ function renderCombinedView() {
   const gapCount = Math.max(0, selectedScreenIds.length - 1);
   const minGap = 10; // Minimum gap between screens
 
+  // A drawn screen takes part as its cell grid (nav/free-combined.js)
+  const combinedData = screen => isFreeScreen(screen.data) ? freeCombinedData(screen.data, allPanels) : screen.data;
+
   selectedScreenIds.forEach(screenId => {
     const screen = screens[screenId];
     if(!screen || !screen.data) return;
-    const pw = screen.data.panelsWide || 0;
-    const ph = screen.data.panelsHigh || 0;
+    const sizing = combinedData(screen);
+    const pw = sizing.panelsWide || 0;
+    const ph = sizing.panelsHigh || 0;
     if(pw > 0 && ph > 0) {
       totalPanelsWide += pw;
       maxPanelsHigh = Math.max(maxPanelsHigh, ph);
@@ -2299,7 +2339,7 @@ function renderCombinedView() {
     const screen = screens[screenId];
     if(!screen || !screen.data) return;
 
-    const data = screen.data;
+    const data = combinedData(screen);
     const pw = data.panelsWide || 0;
     const ph = data.panelsHigh || 0;
 
@@ -2308,7 +2348,7 @@ function renderCombinedView() {
 
       // Calculate actual height accounting for CB5 panel type (2:1 ratio) and half panel rows
       const screenPanelType = data.panelType || 'CB5_MKII';
-      const heightRatio = getPanelHeightRatio(screenPanelType);
+      const heightRatio = data.freeCellPanel ? 1 : getPanelHeightRatio(screenPanelType);
       // The half rows are EXTRA rows above/below the full ones — data.panelsHigh excludes them.
       const fullPanelHeight = panelSize * heightRatio;
       const halfPanelHeight = panelSize; // Half panels are square
@@ -2399,7 +2439,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       const canvasX = dim.data.canvasX || 0;
       const canvasY = dim.data.canvasY || 0;
       const panelType = dim.data.panelType || 'CB5_MKII';
-      const panelInfo = allPanels[panelType];
+      const panelInfo = dim.data.freeCellPanel || allPanels[panelType];
       const pixelWidth = panelInfo ? panelInfo.res_x : 176;
       scaledX = (canvasX / pixelWidth) * zoomedPanelSize;
       scaledY = (canvasY / pixelWidth) * zoomedPanelSize;
@@ -2461,7 +2501,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       const canvasY = data.canvasY || 0;
       // Get this screen's panel pixel width to properly scale its position
       const panelType = data.panelType || 'CB5_MKII';
-      const panelInfo = allPanels[panelType];
+      const panelInfo = data.freeCellPanel || allPanels[panelType];
       const pixelWidth = panelInfo ? panelInfo.res_x : 176;
       // Convert pixel position to panel units, then to display pixels
       screenX = leftPadding + (canvasX / pixelWidth) * zoomedPanelSize;
@@ -2498,6 +2538,11 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     if (greyscalePrintMode) {
       primaryColor = toGreyscale(primaryColor);
       secondaryColor = toGreyscale(secondaryColor);
+    }
+
+    if(data.freeCellPanel) {
+      drawFreeCombinedStandard(ctx, screen, data, screenX, screenY, actualPanelSize, [primaryColor, secondaryColor]);
+      return;
     }
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
@@ -2634,7 +2679,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
 function combinedScreenOrigin(dim, panelSize, topPadding) {
   const leftPadding = 20;
   if(combinedMirrorCanvas) {
-    const panelInfo = getAllPanels()[dim.data.panelType || 'CB5_MKII'];
+    const panelInfo = dim.data.freeCellPanel || getAllPanels()[dim.data.panelType || 'CB5_MKII'];
     const pixelWidth = panelInfo ? panelInfo.res_x : 176;
     return {
       x: leftPadding + ((dim.data.canvasX || 0) / pixelWidth) * panelSize,
@@ -2721,6 +2766,12 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       panelWidth: panelSize,
       geo: combinedRowGeometry(data, panelSize)
     });
+
+    if(data.freeCellPanel) {
+      drawFreeCombinedPower(ctx, screen, screenId, data, screenX, screenY, panelSize, _groupPlan,
+        combinedCellCoveredByOtherScreen(screenDimensions, dim, panelSize, topPadding));
+      return;
+    }
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
     let screenDeletedPanels = new Set();
@@ -3188,8 +3239,16 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       screenId, screen, data, pw,
       screenX, screenY,
       panelWidth: panelSize,
-      geo: combinedRowGeometry(data, panelSize)
+      geo: combinedRowGeometry(data, panelSize),
+      freeMirror: !!(data.freeCellPanel && data.dataRearView)
     });
+
+    if(data.freeCellPanel) {
+      const freeEndpoints = drawFreeCombinedData(ctx, screen, screenId, data, screenX, screenY, panelSize,
+        combinedCellCoveredByOtherScreen(screenDimensions, dim, panelSize, topPadding));
+      mapSections.push({ screenId, name: screen.name, endpoints: freeEndpoints, redundancy: !!data.redundancy });
+      return;
+    }
 
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
     let screenDeletedPanels = new Set();
@@ -3645,6 +3704,11 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     const screenTop = structTops[screenId];
     const structureType = data.structureType || 'hanging';
 
+    if(data.freeCellPanel) {
+      drawFreeCombinedStructure(ctx, screen, data, screenX, screenTop, panelSize, bumperHeight);
+      return;
+    }
+
     // Properly convert deletedPanels to Set (may be array from JSON or Set with Array iterator)
     let screenDeletedPanels = new Set();
     if(data.deletedPanels instanceof Set) {
@@ -3820,7 +3884,7 @@ function computeCombinedLegAmps(selectedScreenIds) {
     const data = screen.data;
     const pw = data.panelsWide || 0;
     const ph = data.panelsHigh || 0;
-    if(pw <= 0 || ph <= 0) return;
+    if(!isFreeScreen(data) && (pw <= 0 || ph <= 0)) return;
     if((parseInt(data.phase) || 1) !== 3) return; // 3-phase screens only
 
     // Circuit inputs (panelsPerCircuit incl. the NEC derate, normalised Set/Map overrides,
@@ -3851,7 +3915,11 @@ function computeCombinedLegAmps(selectedScreenIds) {
 
     // Balanced circuits are numbered soca*6 + slot, so 'aswired' pair assignment over them
     // still lands each circuit on its real leg.
-    const pb = computePhaseBalance(circuitCounts, perPanelW, voltage, 'aswired', wiring);
+    // A drawn screen mixes panel sizes, so its circuits are loaded by each panel's own watts
+    const pb = inp.isFree
+      ? computePhaseBalance(circuitWattsOf(freeScreenCircuits(screenId, data, groupPlan).panelToCircuit,
+          freeCellGrid(data, allPanelsData, combinedPowerType).watts), 1, voltage, 'aswired', wiring)
+      : computePhaseBalance(circuitCounts, perPanelW, voltage, 'aswired', wiring);
 
     any3phase = true;
     if(!data.sharedDistro) allShared = false;
@@ -3943,6 +4011,32 @@ function renderCombinedSpecs(selectedScreenIds) {
     const ph = data.panelsHigh || 0;
     const panelType = data.panelType || 'CB5_MKII';
     const panel = allPanels[panelType];
+
+    // A drawn screen counts its drawn panels, each at its own pixels, watts and size
+    if(isFreeScreen(data)) {
+      if(!data.freePanels.length) return;
+      const counts = freePanelCounts(data.freePanels);
+      Object.keys(counts).filter(t => allPanels[t]).forEach(t => {
+        const name = `${allPanels[t].brand} ${allPanels[t].name}`;
+        panelsByType[name] = (panelsByType[name] || 0) + counts[t];
+      });
+      totalPixels += calcData.totalPixels || 0;
+      const freeW = data.freePanels.reduce((sum, fp) => sum + freePanelWatts(allPanels[fp.type], combinedPowerType), 0);
+      totalPowerW += freeW;
+      const freeVoltage = parseInt(data.voltage) || 208;
+      const freeAmps = freeVoltage > 0 ? freeW / freeVoltage : 0;
+      totalAmpsPerPhase += combinedPhase === 3 ? freeAmps / Math.sqrt(3) : freeAmps;
+      socaByScreen.push({ name: screen.name || screenId, count: calcData.socaCount || 0 });
+      totalSocas += calcData.socaCount || 0;
+      totalWeight += (calcData.panelWeightOnlyKg || 0) + (calcData.bumperWeightKg || 0);
+      const freeLines = calcData.dataLinesFinal || ((calcData.dataLines || 0) * (data.redundancy !== false ? 2 : 1));
+      dataLinesByScreen.push({ name: screen.name || screenId, count: freeLines });
+      totalDataLines += freeLines;
+      const wall = freePlacedPanels(data, allPanels);
+      totalWidth += wall.widthM;
+      maxHeight = Math.max(maxHeight, wall.heightM);
+      return;
+    }
 
     if(!panel || pw === 0 || ph === 0) return;
 
@@ -4185,6 +4279,43 @@ function renderCombinedGearList(selectedScreenIds) {
 
     const data = screen.data || {};
     const calculatedData = screen.calculatedData || {};
+
+    // A drawn screen's gear comes straight from buildGearListData(), which reads its panels
+    if(isFreeScreen(data)) {
+      const g = buildGearListData([screenId]).screens[0];
+      if(!g) return;
+      g.equipment.panelLines.forEach(l => {
+        const label = `${l.brand} ${l.name}`;
+        panelsByType[label] = (panelsByType[label] || 0) + l.count;
+      });
+      if(calculatedData.dataLines) totalDataLines += calculatedData.dataLines;
+      if(calculatedData.socaCount) totalSocaSplays += calculatedData.socaCount;
+      const main = allPanels[data.freePanels[0].type];
+      const mainLabel = `${main.brand} ${main.name}`;
+      screenPanelLabels.add(mainLabel);
+      const rig = g.rigging;
+      total1wBumpers += rig.bumper1w;
+      total2wBumpers += rig.bumper2w;
+      total4wBumpers += rig.bumper4w;
+      if(rig.hasRigging) {
+        if(!bumpersByPanel[mainLabel]) bumpersByPanel[mainLabel] = { b1w: 0, b2w: 0, b4w: 0 };
+        bumpersByPanel[mainLabel].b1w += rig.bumper1w;
+        bumpersByPanel[mainLabel].b2w += rig.bumper2w;
+        bumpersByPanel[mainLabel].b4w += rig.bumper4w;
+      }
+      totalShackles += rig.shackles;
+      totalCheeseye += rig.cheeseye;
+      if(rig.shackles > 0) needsShacklesAndCheeseye = true;
+      if((data.structureType || 'hanging') === 'hanging') hasHangingScreen = true;
+      if(data.structureType === 'floor') hasFloorScreen = true;
+      const dc = g.dataCables, pc = g.powerCables;
+      if(dc.jumperCount > 0) dataJumpersByLen[dc.dataJumperLen] = (dataJumpersByLen[dc.dataJumperLen] || 0) + dc.jumperCount;
+      if(dc.crossJumperCount > 0) crossJumpersByLen[dc.crossJumperLen] = (crossJumpersByLen[dc.crossJumperLen] || 0) + dc.crossJumperCount;
+      totalCat5Couplers += dc.cat5CouplerCount;
+      if(pc.jumperCount > 0) powerJumpersByLen[pc.powerJumperLen] = (powerJumpersByLen[pc.powerJumperLen] || 0) + pc.jumperCount;
+      totalTrue1Twofers += pc.true1Twofer;
+      return;
+    }
 
     const pw = data.panelsWide || 0;
     const ph = data.panelsHigh || 0;

@@ -33,13 +33,24 @@ function freeBumpers(data, allPanels, position) {
   return bumpers.sort((a, b) => a.gx - b.gx || a.gy - b.gy);
 }
 
-// Bumpers, their pickup weights and the column-height warnings for a drawn screen
+// The edge a drawn wall's bumpers go on: the top when it hangs, the bottom when it is
+// ground stacked, none on the floor or with bumpers off
+function freeBumperPosition(structureType, useBumpers) {
+  if(!useBumpers) return null;
+  return structureType === 'hanging' ? 'top' : (structureType === 'ground' ? 'bottom' : null);
+}
+
+// Bumpers for the current free screen, from the live structure settings
 function calculateFreeStructure(data, allPanels) {
   const structureType = document.getElementById('structureType').value;
-  const position = (structureType === 'hanging' && showTopBumper) ? 'top'
-    : ((structureType === 'ground' && showBottomBumper) ? 'bottom' : null);
-  const empty = {position: null, bumpers: [], counts: {'1w': 0, '2w': 0, '4w': 0}, bumperWeightKg: 0, warnings: []};
-  if(!data.freePanels.length) return (freeStructureState = empty);
+  freeStructureState = freeStructurePlan(data, allPanels, freeBumperPosition(structureType, showTopBumper || showBottomBumper));
+  return freeStructureState;
+}
+
+// Bumpers (each labelled "2W #1" and so on), their pickup weights and the column-height
+// warnings for a drawn wall with its bumpers on `position`
+function freeStructurePlan(data, allPanels, position) {
+  if(!data.freePanels.length) return {position: null, bumpers: [], counts: {'1w': 0, '2w': 0, '4w': 0}, bumperWeightKg: 0, warnings: []};
 
   const cellMm = data.freeCell_mm;
   const bumpers = position ? freeBumpers(data, allPanels, position) : [];
@@ -47,6 +58,7 @@ function calculateFreeStructure(data, allPanels) {
   let bumperWeightKg = 0;
   bumpers.forEach(b => {
     counts[b.type]++;
+    b.label = `${b.type.toUpperCase()} #${counts[b.type]}`;
     b.ownKg = (allPanels[b.panelType]['bumper_' + b.type + '_lbs'] || 0) * LBS_TO_KG;
     b.loadKg = b.ownKg;
     bumperWeightKg += b.ownKg;
@@ -92,8 +104,52 @@ function calculateFreeStructure(data, allPanels) {
     });
   }
 
-  freeStructureState = {position, bumpers, counts, bumperWeightKg, warnings: [...new Set(warnings)]};
-  return freeStructureState;
+  return {position, bumpers, counts, bumperWeightKg, warnings: [...new Set(warnings)]};
+}
+
+// Draws a drawn wall's structure: white panels at their true sizes with their names, from
+// (ox, oy) at cellPx a snap cell, and every bumper (bumperH tall) on the edge it carries.
+// Shared by the Draw tab and the Combined view.
+function drawFreeStructure(ctx, data, allPanels, st, o) {
+  const toX = g => o.ox + Math.round(g * o.cellPx);
+  const toY = g => o.oy + Math.round(g * o.cellPx);
+  const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  data.freePanels.forEach(fp => {
+    const {cw, ch} = freeCells(allPanels[fp.type], data.freeCell_mm);
+    const x = toX(fp.gx), y = toY(fp.gy), w = toX(fp.gx + cw) - x, h = toY(fp.gy + ch) - y;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+    const label = names.get(`${fp.gx},${fp.gy}`);
+    let fs = o.numberSize(w, h);
+    ctx.font = `${fs}px Arial`;
+    while(fs > 6 && ctx.measureText(label).width > w - 4) { fs--; ctx.font = `${fs}px Arial`; }
+    if(fs >= 6) {
+      ctx.fillStyle = '#000000';
+      ctx.fillText(label, x + w / 2, y + h / 2);
+    }
+  });
+
+  // Bumpers sit just outside the panel edge they carry
+  st.bumpers.forEach(bp => {
+    const x = toX(bp.gx) + 2, w = toX(bp.gx + bp.cw) - toX(bp.gx) - 4;
+    const y = st.position === 'top' ? toY(bp.gy) - o.bumperH + 3 : toY(bp.gy) + 3;
+    const color = FREE_BUMPER_COLORS[bp.type];
+    ctx.fillStyle = greyscalePrintMode ? toGreyscale(color) : (ecoPrintMode ? toPastelColor(color) : color);
+    ctx.fillRect(x, y, w, o.bumperH - 6);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, o.bumperH - 6);
+    let fs = Math.max(9, Math.floor((o.bumperH - 6) * 0.55));
+    ctx.font = `bold ${fs}px Arial`;
+    while(fs > 6 && ctx.measureText(bp.label).width > w - 4) { fs--; ctx.font = `bold ${fs}px Arial`; }
+    ctx.fillStyle = '#000000';
+    ctx.fillText(bp.label, x + w / 2, y + (o.bumperH - 6) / 2);
+  });
 }
 
 // Structure layout for a free screen: the panels at their true sizes with every bumper
@@ -126,49 +182,11 @@ function renderFreeStructureLayout() {
   const top = st.position === 'top' ? bumperH : 0;
   canvas.width = Math.round(b.maxX * cellPx);
   canvas.height = Math.round(b.maxY * cellPx) + (st.position ? bumperH : 0);
-  const toX = g => Math.round(g * cellPx);
-  const toY = g => top + Math.round(g * cellPx);
-
   ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  data.freePanels.forEach(fp => {
-    const {cw, ch} = freeCells(allPanels[fp.type], data.freeCell_mm);
-    const x = toX(fp.gx), y = toY(fp.gy), w = toX(fp.gx + cw) - x, h = toY(fp.gy + ch) - y;
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h);
-    const label = names.get(`${fp.gx},${fp.gy}`);
-    let fs = Math.max(10, Math.floor(Math.min(w, h) * (pdf ? 0.25 : 0.22)));
-    ctx.font = `${fs}px Arial`;
-    while(fs > 6 && ctx.measureText(label).width > w - 4) { fs--; ctx.font = `${fs}px Arial`; }
-    ctx.fillStyle = '#000000';
-    ctx.fillText(label, x + w / 2, y + h / 2);
-  });
-
-  // Bumpers sit just outside the panel edge they carry
-  const typeCount = {'1w': 0, '2w': 0, '4w': 0};
-  st.bumpers.forEach(bp => {
-    typeCount[bp.type]++;
-    bp.label = `${bp.type.toUpperCase()} #${typeCount[bp.type]}`;
-    const x = toX(bp.gx) + 2, w = toX(bp.gx + bp.cw) - toX(bp.gx) - 4;
-    const y = st.position === 'top' ? toY(bp.gy) - bumperH + 3 : toY(bp.gy) + 3;
-    const color = FREE_BUMPER_COLORS[bp.type];
-    ctx.fillStyle = greyscalePrintMode ? toGreyscale(color) : (ecoPrintMode ? toPastelColor(color) : color);
-    ctx.fillRect(x, y, w, bumperH - 6);
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, bumperH - 6);
-    let fs = Math.max(9, Math.floor((bumperH - 6) * 0.55));
-    ctx.font = `bold ${fs}px Arial`;
-    while(fs > 6 && ctx.measureText(bp.label).width > w - 4) { fs--; ctx.font = `bold ${fs}px Arial`; }
-    ctx.fillStyle = '#000000';
-    ctx.fillText(bp.label, x + w / 2, y + (bumperH - 6) / 2);
+  drawFreeStructure(ctx, data, allPanels, st, {
+    ox: 0, oy: top, cellPx, bumperH,
+    numberSize: (w, h) => Math.max(10, Math.floor(Math.min(w, h) * (pdf ? 0.25 : 0.22)))
   });
 
   const warnEl = document.getElementById('structureHeightWarning');

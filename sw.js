@@ -44,6 +44,7 @@ const LOCAL_ASSETS = [
   '/layouts/free-data.js',
   '/layouts/free-structure.js',
   '/interact/free-select.js',
+  '/nav/free-combined.js',
   '/layouts/power.js',
   '/layouts/data.js',
   '/layouts/data-ports.js',

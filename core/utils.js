@@ -49,6 +49,11 @@ document.addEventListener('DOMContentLoaded', function() {
 function standardLayoutHintText() {
   const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
   const isMobile = window.innerWidth <= 768;
+  if(isFreeCurrentScreen() && freeTool === 'select') {
+    return (!isTouchDevice && !isMobile)
+      ? 'Click to select • Drag a box to select • Drag selected panels to move • Right-click for options'
+      : 'Drag a box to select • Tap to add • Drag selected panels to move • Tap a selected panel for options';
+  }
   if(isFreeCurrentScreen()) {
     return (!isTouchDevice && !isMobile)
       ? 'Click to place • Drag to paint • Shift-drag to select • Right-click for options'

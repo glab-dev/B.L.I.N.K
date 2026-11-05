@@ -1005,6 +1005,15 @@ canvas {
   touch-action: none;
   cursor: crosshair;
 }
+#standardCanvas.draw-mode-active.free-select-tool {
+  cursor: default;
+}
+
+/* Drawn screens' Power and Data layouts: Select Mode blocks native scroll so a drag selects */
+#powerCanvas.select-mode-active,
+#dataCanvas.select-mode-active {
+  touch-action: none;
+}
 
 /* Draw row: panel-size chips wrap under each other instead of widening the row */
 .free-draw-picker {

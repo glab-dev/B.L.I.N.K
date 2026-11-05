@@ -3078,6 +3078,13 @@
           </div>
         </div>
         <div class="layout-toggle-row free-draw-row" id="standardDrawRow" style="display:none;">
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Tool</span>
+            <div class="slider-toggle" role="radiogroup" aria-label="Standard layout tool">
+              <button type="button" class="slider-toggle-btn active" id="freeToolDrawBtn" role="radio" aria-checked="true" onclick="setFreeTool('draw')">Draw</button>
+              <button type="button" class="slider-toggle-btn" id="freeToolSelectBtn" role="radio" aria-checked="false" onclick="setFreeTool('select')">Select</button>
+            </div>
+          </div>
           <div class="free-draw-picker">
             <span class="toggle-label toggle-label-block">Panel</span>
             <div class="free-draw-chips" id="freeDrawChips" role="radiogroup" aria-label="Panel to draw"></div>
@@ -3099,6 +3106,10 @@
       </div>
       <div class="layout-content" id="powerContent">
         <div class="layout-toggle-row">
+          <div class="flex-noshrink" id="freePowerSelectModeRow" style="display:none;">
+            <span class="toggle-label toggle-label-block">Select Mode</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="freePowerSelectModeBtn" aria-pressed="false" onclick="toggleFreeSelectMode('powerCanvas')">Off</button>
+          </div>
           <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">SOCA Label</span>
             <button type="button" class="toggle-btn toggle-btn-standalone active" id="socaDiagonalLabelBtn" onclick="toggleSocaDiagonalLabel()">On</button>
@@ -3140,6 +3151,10 @@
       </div>
       <div class="layout-content" id="dataContent">
         <div class="layout-toggle-row">
+          <div class="flex-noshrink" id="freeDataSelectModeRow" style="display:none;">
+            <span class="toggle-label toggle-label-block">Select Mode</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="freeDataSelectModeBtn" aria-pressed="false" onclick="toggleFreeSelectMode('dataCanvas')">Off</button>
+          </div>
           <div class="flex-noshrink">
             <span class="toggle-label toggle-label-block">View</span>
             <div class="slider-toggle">
@@ -4010,6 +4025,8 @@
 <script defer src="layouts/standard.js"></script>
 <script defer src="layouts/free.js"></script>
 <script defer src="layouts/free-power.js"></script>
+<script defer src="layouts/free-data.js"></script>
+<script defer src="interact/free-select.js"></script>
 <script defer src="layouts/power.js"></script>
 <script defer src="layouts/data.js"></script>
 <script defer src="layouts/data-ports.js"></script>

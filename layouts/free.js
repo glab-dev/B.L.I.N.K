@@ -10,6 +10,7 @@
 
 let freeDrawMode = false;     // Draw app mode is active: screen tabs show free screens, canvas edits them
 let freeBrushType = null;     // panel type a click or drag places
+let freeTool = 'draw';        // 'draw': a drag on empty grid paints; 'select': it draws a selection box
 let freeSelected = new Set(); // "gx,gy" keys of selected panels
 let freeSelectedScreenId = null;
 let freeView = null;          // last render: {gx0, gy0, cellPx}
@@ -193,10 +194,28 @@ function updateFreeDrawRow() {
     selectRow.style.display = (!isFree && isTouchDevice && canvasListenersSetup) ? 'flex' : 'none';
   }
   const canvas = document.getElementById('standardCanvas');
-  if(canvas) canvas.classList.toggle('draw-mode-active', on);
+  if(canvas) {
+    canvas.classList.toggle('draw-mode-active', on);
+    canvas.classList.toggle('free-select-tool', on && freeTool === 'select');
+  }
   const hint = document.getElementById('standardLayoutHint');
   if(hint) hint.textContent = standardLayoutHintText();
+  // Touch Select Mode for the drawn Power and Data layouts; off whenever it is hidden so
+  // a grid screen's canvases keep scrolling
+  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  [['powerCanvas', 'freePowerSelectModeRow'], ['dataCanvas', 'freeDataSelectModeRow']].forEach(([canvasId, rowId]) => {
+    const modeRow = document.getElementById(rowId);
+    if(modeRow) modeRow.style.display = (on && isTouch) ? '' : 'none';
+    if(!(on && isTouch) && freeLayerSelectMode[canvasId]) setFreeSelectMode(canvasId, false);
+  });
   if(!on) return;
+
+  [['draw', 'freeToolDrawBtn'], ['select', 'freeToolSelectBtn']].forEach(([tool, id]) => {
+    const btn = document.getElementById(id);
+    if(!btn) return;
+    btn.classList.toggle('active', freeTool === tool);
+    btn.setAttribute('aria-checked', freeTool === tool ? 'true' : 'false');
+  });
 
   const chips = document.getElementById('freeDrawChips');
   if(!chips) return;
@@ -225,9 +244,17 @@ function updateFreeDrawRow() {
   });
 }
 
-// Specs, stored totals and the Standard and Power layouts for the current screen when
-// it is a free screen. Data and structure routing for free screens come later, so
-// those layouts stay hidden.
+// Standard layout tool: Draw paints panels where a drag starts on empty grid, Select
+// draws a selection box there instead
+function setFreeTool(tool) {
+  freeTool = tool;
+  freeHover = null;
+  updateFreeDrawRow();
+  freeRedraw();
+}
+
+// Specs, stored totals and the Standard, Power and Data layouts for the current screen
+// when it is a free screen. Structure for free screens comes later, so it stays hidden.
 function calculateFreeScreen() {
   const screen = screens[currentScreenId];
   const data = screen.data;
@@ -236,6 +263,7 @@ function calculateFreeScreen() {
 
   if(freeSelectedScreenId !== currentScreenId) {
     freeSelected.clear();
+    Object.values(freeLayerSel).forEach(s => s.clear());
     freeAction = null;
     freeSelectedScreenId = currentScreenId;
   }
@@ -283,6 +311,17 @@ function calculateFreeScreen() {
   const totalAmps = totalPowerW / voltage;
   const ampsPerPhase = phase===3 ? (totalAmps / Math.sqrt(3)) : totalAmps;
   const power = calculateFreePower(data, allPanels);
+  const dataInfo = calculateFreeData(data, allPanels);
+  const redundancy = redundancyEnabled;
+  const portsNeededFinal = dataInfo.dataLines * (redundancy ? 2 : 1);
+  const topology = resolveProcessorTopology(document.getElementById('processor').value, mx40ConnectionMode);
+  const boxCounts = computeProcessorAndBoxCounts({
+    topology: topology,
+    mainPorts: dataInfo.dataLines,
+    totalPixels: totalPixels,
+    hasRedundancy: redundancy,
+    screenCount: 1
+  });
 
   if(totalPanels === 0) {
     document.getElementById('results').innerHTML = '<div style="padding: 40px; text-align: center; color: #888;">' +
@@ -327,17 +366,38 @@ function calculateFreeScreen() {
       const sd = power.sharedDistroTotal;
       html += `<div class="result-row"><strong>Shared distro (${sd.screenCount} screens):</strong> ${sd.power.toLocaleString()} W · X ${sd.legAmps.X.toFixed(1)} A · Y ${sd.legAmps.Y.toFixed(1)} A · Z ${sd.legAmps.Z.toFixed(1)} A</div>`;
     }
+    html += `</div><div class="spec-group">`;
+    html += `<div class="result-section-title">DATA</div>`;
+    html += `<div class="result-row"><strong>Processor:</strong> ${escapeHtml(pr ? pr.name : '')}<span id="resultsProcessorCount"></span></div>`;
+    if(boxCounts.distBoxName) {
+      html += `<div class="result-row"><strong>Distribution box:</strong> ${escapeHtml(boxCounts.distBoxName)}<span id="resultsDistBoxCount">${boxCounts.distBoxCount > 0 ? ` (${boxCounts.distBoxCount})` : ''}</span></div>`;
+    }
+    html += `<div class="result-row"><strong>Port Capacity:</strong> ${dataInfo.capacity.toLocaleString()} px</div>`;
+    html += `<div class="result-row"><strong>Max panels per data line:</strong> ${dataInfo.suggested}</div>`;
+    html += `<div class="result-row"><strong>Estimated 1G ports needed:</strong> ${portsNeededFinal}</div>`;
+    html += `<div class="result-row"><strong>Estimated data lines:</strong> ${portsNeededFinal}</div>`;
+    html += `<div class="result-row"><strong>Frame Rate:</strong> ${dataInfo.frameRate} Hz</div>`;
+    html += `<div class="result-row"><strong>Bit Depth:</strong> ${dataInfo.bitDepth}-bit</div>`;
+    html += `<div class="result-row"><strong>Redundancy:</strong> ${redundancy ? 'Yes' : 'No'}</div>`;
     html += `</div></div></div>`;
     document.getElementById('results').innerHTML = html;
   }
 
   screen.calculatedData = {
     processorName: pr ? pr.name : '',
+    processorCount: 1,
+    distributionBoxCount: boxCounts.distBoxCount,
+    distributionBoxName: boxCounts.distBoxName,
     panelCount: totalPanels,
     activePanels: totalPanels,
     panelWeightOnlyKg: panelWeightKg,
     bumperWeightKg: 0,
     totalPixels: totalPixels,
+    dataLines: dataInfo.dataLines,
+    dataLinesFinal: portsNeededFinal,
+    portsNeeded: dataInfo.dataLines,
+    portsNeededFinal: portsNeededFinal,
+    panelsPerDataLine: dataInfo.panelsPerDataLine,
     circuitsNeeded: power.circuitsNeeded,
     socaCount: power.socaCount,
     socaSpans: power.socaSpans,
@@ -348,18 +408,30 @@ function calculateFreeScreen() {
     true1Twofers: power.true1Twofers
   };
 
-  ['dataContainer', 'structureContainer'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.style.display = 'none';
-  });
+  // Processor and box counts as the gear list has them, the same as calculate()
+  const gearGroup = Object.values(buildGearListData([currentScreenId]).processorGroups)[0];
+  if(gearGroup) {
+    screen.calculatedData.processorCount = gearGroup.processorCount;
+    screen.calculatedData.distributionBoxCount = gearGroup.distBoxCount;
+    const procCountEl = document.getElementById('resultsProcessorCount');
+    if(procCountEl) procCountEl.textContent = gearGroup.processorCount > 1 ? ` (${gearGroup.processorCount})` : '';
+    const boxCountEl = document.getElementById('resultsDistBoxCount');
+    if(boxCountEl) boxCountEl.textContent = gearGroup.distBoxCount > 0 ? ` (${gearGroup.distBoxCount})` : '';
+  }
+
+  const structureEl = document.getElementById('structureContainer');
+  if(structureEl) structureEl.style.display = 'none';
 
   updateFreeDrawRow();
   generateLayout('standard');
   if(totalPanels > 0) {
     generateLayout('power');
     renderPhaseBalanceLegend();
+    generateLayout('data');
   } else {
     document.getElementById('powerContainer').style.display = 'none';
+    document.getElementById('dataContainer').style.display = 'none';
+    renderDataLineMap();
   }
   showCanvasView();
   generateGearList();
@@ -532,7 +604,7 @@ function drawFreeGhost(ctx, data, allPanels, toX, toY) {
       const {cw, ch} = freeCells(allPanels[fp.type], cellMm);
       boxes.push({gx: fp.gx + ox, gy: fp.gy + oy, cw, ch, ok});
     });
-  } else if(freeBrushType && allPanels[freeBrushType]) {
+  } else if(freeTool === 'draw' && freeBrushType && allPanels[freeBrushType]) {
     const {cw, ch} = freeCells(allPanels[freeBrushType], cellMm);
     let tiles = null;
     if(freeAction && freeAction.kind === 'paint') tiles = freePaintTiles(freeAction.start, freeAction.cur, cw, ch);
@@ -590,9 +662,11 @@ function normalizeFreePanels(data, allPanels) {
   rekeyFreeAssignments(shift);
 }
 
-// Store an edited panel list and recalculate totals, gear and canvas
+// Store an edited panel list and recalculate totals, gear and canvas. The Power and Data
+// selections are dropped: their panels may have moved or gone.
 function commitFreePanels(list) {
   const data = screens[currentScreenId].data;
+  Object.values(freeLayerSel).forEach(s => s.clear());
   data.freePanels = list;
   normalizeFreePanels(data, getAllPanels());
   calculate();
@@ -646,7 +720,9 @@ function freePointerDown(clientX, clientY, additive, touch) {
       }
       freeAction = {kind: 'move', start: cell, cur: cell, moved: false, x: clientX, y: clientY, hit, touch, menuOnTap: touch && wasSelected};
     }
-  } else if(additive) {
+  } else if(additive || freeTool === 'select') {
+    // Select tool: a plain drag on empty grid starts a fresh selection box
+    if(!additive) freeSelected.clear();
     freeAction = {kind: 'box', start: cell, cur: cell, moved: false, x: clientX, y: clientY};
   } else {
     freeSelected.clear();
@@ -708,7 +784,7 @@ function freePointerUp() {
     }
     if(!action.moved && action.menuOnTap) {
       freeRedraw();
-      showFreeContextMenu(action.x, action.y);
+      showFreeContextMenu(action.x, action.y, 'standard', freeSelected);
       return;
     }
     if(!action.moved && !action.touch) {
@@ -728,10 +804,13 @@ function freePointerUp() {
   freeRedraw();
 }
 
-// Options for the selected panels, the drawn-screen counterpart of the grid's right-click
-// menu: Assign Circuit # / Assign SOCA # run the same prompts as on a grid screen.
-function showFreeContextMenu(x, y) {
-  if(freeSelected.size === 0) return;
+// Options for the selected panels, the drawn-screen counterpart of the Combined view's
+// right-click menu: Assign Circuit # / Assign SOCA # / Assign Data Port run the same
+// prompts as on a grid screen. `kind` is the layout it opened from, like Combined: the
+// Power layout offers power options, the Data layout data options, and the Standard
+// layout both plus Delete. `sel` is that layout's selection.
+function showFreeContextMenu(x, y, kind, sel) {
+  if(sel.size === 0) return;
   const existingMenu = document.getElementById('panelContextMenu');
   if(existingMenu) existingMenu.remove();
 
@@ -748,8 +827,12 @@ function showFreeContextMenu(x, y) {
   menu.style.minWidth = '200px';
   menu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.5)';
 
-  const keys = [...freeSelected];
+  const keys = [...sel];
   const n = keys.length;
+  const showPower = kind !== 'data';
+  const showData = kind !== 'power';
+  // An option picked on the Power or Data layout uses up that layout's selection
+  const usedUp = () => { if(kind !== 'standard') sel.clear(); };
   const addOption = (text, onPick) => {
     const option = document.createElement('div');
     option.textContent = text;
@@ -768,30 +851,52 @@ function showFreeContextMenu(x, y) {
   };
 
   // The grid prompts assign whatever is in selectedPanels
-  addOption(`Assign Circuit # to ${n} panel(s)`, () => {
-    selectedPanels = new Set(keys);
-    showCircuitNumberPrompt();
-  });
-  // Same rule as the grid menu: a SOCA block spans 2+ columns and 2+ rows
-  const cols = new Set(keys.map(k => k.split(',')[0]));
-  const rows = new Set(keys.map(k => k.split(',')[1]));
-  if(cols.size > 1 && rows.size > 1) {
-    addOption(`Assign SOCA # to ${n} panel(s)`, () => {
+  if(showPower) {
+    addOption(`Assign Circuit # to ${n} panel(s)`, () => {
+      usedUp();
       selectedPanels = new Set(keys);
-      showAssignSocaPrompt();
+      showCircuitNumberPrompt();
     });
-  }
-  if(keys.some(k => customCircuitAssignments.has(k) || customSocaAssignments.has(k))) {
-    addOption(`Reset ${n} panel(s) to auto power`, () => {
-      saveState();
-      keys.forEach(k => {
-        customCircuitAssignments.delete(k);
-        customSocaAssignments.delete(k);
+    // Same rule as the grid menu: a SOCA block spans 2+ columns and 2+ rows
+    const cols = new Set(keys.map(k => k.split(',')[0]));
+    const rows = new Set(keys.map(k => k.split(',')[1]));
+    if(cols.size > 1 && rows.size > 1) {
+      addOption(`Assign SOCA # to ${n} panel(s)`, () => {
+        usedUp();
+        selectedPanels = new Set(keys);
+        showAssignSocaPrompt();
       });
+    }
+  }
+  if(showData) {
+    addOption(`Assign Data Port to ${n} panel(s)`, () => {
+      usedUp();
+      selectedPanels = new Set(keys);
+      showDataLineNumberPrompt();
+    });
+    // Right-clicking the panel a line starts on offers the whole line, as in Combined
+    const startedLine = n === 1 ? dataLineStartingAt(currentScreenId, keys[0]) : null;
+    if(startedLine) {
+      addOption(`Change data line ${startedLine.label} (whole line)…`, () => {
+        usedUp();
+        selectedPanels = new Set(startedLine.panels);
+        showDataLineNumberPrompt(startedLine.current);
+      });
+    }
+  }
+  // Reset follows the layout too: power on Power, data on Data, both on Standard
+  const resetMaps = [];
+  if(showPower) resetMaps.push(customCircuitAssignments, customSocaAssignments);
+  if(showData) resetMaps.push(customDataLineAssignments, customDataDestinations);
+  if(keys.some(k => resetMaps.some(m => m.has(k)))) {
+    addOption(`Reset ${n} panel(s) to auto ${kind === 'standard' ? 'power and data' : kind}`, () => {
+      usedUp();
+      saveState();
+      keys.forEach(k => resetMaps.forEach(m => m.delete(k)));
       calculate();
     });
   }
-  addOption(`Delete ${n} panel(s)`, () => deleteFreeSelected());
+  if(kind === 'standard') addOption(`Delete ${n} panel(s)`, () => deleteFreeSelected());
   menu.lastChild.style.borderBottom = 'none';
   document.body.appendChild(menu);
 
@@ -853,7 +958,7 @@ function setupFreeCanvasInteractivity() {
       updateFreeDrawRow();
       generateLayout('standard');
     }
-    showFreeContextMenu(e.clientX, e.clientY);
+    showFreeContextMenu(e.clientX, e.clientY, 'standard', freeSelected);
   });
 
   canvas.addEventListener('touchstart', function(e) {
@@ -881,10 +986,17 @@ function setupFreeCanvasInteractivity() {
     if((e.key === 'Delete' || e.key === 'Backspace') && freeSelected.size > 0) {
       e.preventDefault();
       deleteFreeSelected();
-    } else if(e.key === 'Escape' && freeSelected.size > 0) {
-      freeSelected.clear();
-      updateFreeDrawRow();
-      freeRedraw();
+    } else if(e.key === 'Escape') {
+      if(freeSelected.size > 0) {
+        freeSelected.clear();
+        updateFreeDrawRow();
+        freeRedraw();
+      }
+      Object.keys(freeLayerSel).forEach(canvasId => {
+        if(freeLayerSel[canvasId].size === 0) return;
+        freeLayerSel[canvasId].clear();
+        generateLayout(FREE_LAYER_KIND[canvasId]);
+      });
     }
   });
 }

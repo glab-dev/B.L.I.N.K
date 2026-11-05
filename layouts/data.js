@@ -834,9 +834,10 @@ function buildDataLineMapBox(variant, title, rows) {
   return box;
 }
 
-// Formats a data line endpoint panel as "column.row".
+// Formats a data line endpoint panel as "column.row". A drawn screen's panels carry
+// their own name (freePanelNames in layouts/free-data.js).
 function formatDataLinePanel(p) {
-  return p ? `${p.c+1}.${p.r+1}` : '—';
+  return p ? (p.label || `${p.c+1}.${p.r+1}`) : '—';
 }
 
 function renderDataLineMap() {

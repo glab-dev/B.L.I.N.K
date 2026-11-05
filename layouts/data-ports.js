@@ -57,6 +57,7 @@ function liveScreenData(screenId) {
 // arrays from JSON). Returns null when the screen has no usable grid.
 function resolveScreenDataInputs(data) {
   if(!data) return null;
+  if(typeof isFreeScreen === 'function' && isFreeScreen(data)) return freeScreenDataInputs(data);
   const pw = data.panelsWide || 0, ph = data.panelsHigh || 0;
   if(pw <= 0 || ph <= 0) return null;
 

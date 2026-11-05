@@ -254,6 +254,8 @@ function renderFreePowerLayout() {
   canvas.width = Math.round(b.maxX * cellPx);
   canvas.height = Math.round(b.maxY * cellPx);
   const toPx = g => Math.round(g * cellPx);
+  freeLayerView.powerCanvas = {cellPx, cols: b.maxX, mirror: false};
+  const sel = freeLayerSel.powerCanvas;
 
   ctx.fillStyle = (ecoPrintMode || greyscalePrintMode) ? '#ffffff' : '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -293,6 +295,11 @@ function renderFreePowerLayout() {
       ctx.fillStyle = '#FFD700'; // Gold indicator for a hand-picked circuit
       ctx.fillRect(x + w - 10, y + 2, 8, 8);
     }
+    if(sel.has(key)) {
+      ctx.strokeStyle = '#00FF00';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+    }
 
     const label = (legColorOn && legPair) ? legPair : `${formatSocaLabel(socaLabelIdx(soca))}.${(circuit % 6) + 1}`;
     const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
@@ -322,5 +329,7 @@ function renderFreePowerLayout() {
     drawLabels: (typeof socaDiagonalLabelEnabled !== 'undefined') ? socaDiagonalLabelEnabled : true
   });
 
+  drawFreeLayerBox(ctx, 'powerCanvas');
+  setupFreeLayerInteractivity();
   if(!(typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode)) renderSocaCircuitTable(st.socaBreakdown);
 }

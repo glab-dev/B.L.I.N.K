@@ -289,7 +289,7 @@ function buildGearListData(screenIds) {
     const calcData = screen.calculatedData || {};
 
     // Free-draw screens list one panel line per type, read straight from the drawn
-    // panels. Their data cabling, rigging and processors come with data/structure.
+    // panels. Their rigging comes with structure.
     if(isFreeScreen(data)) {
       const freeCounts = freePanelCounts(data.freePanels);
       const panelLines = Object.keys(freeCounts).filter(t => allPanelsObj[t])
@@ -308,6 +308,28 @@ function buildGearListData(screenIds) {
         freeSocaByLength[s.roundedFt] = (freeSocaByLength[s.roundedFt] || 0) + 1;
         freeSocaDetail.push({ index: s.index, lengthFt: s.lengthFt, roundedFt: s.roundedFt });
       });
+      // Data cables: one jumper per panel, cross jumpers and couplers from the drawn
+      // lines, and the line feeds and gap bridges calculateCabling measured
+      const freeActive = panelLines.reduce((n, l) => n + l.count, 0);
+      const freeDataJumperLen = freePanel ? (freePanel.data_jumper_ft || '') : '';
+      const freeCross = freePanel
+        ? freeDataCrossJumpers(data, freePanel, freeDataLinePanelOrdering(data, allPanelsObj), freeBounds(data.freePanels, allPanelsObj, data.freeCell_mm).maxY)
+        : { crossJumperCount: 0, cat5CouplerCount: 0 };
+      const freeCat6ByLength = {};
+      const freeCableDetail = [];
+      const freeKnockoutDetail = [];
+      if(freeCabling) {
+        const mains = (freeCabling.dataCables || []).filter(c => !c.backup);
+        const backups = (freeCabling.dataCables || []).filter(c => c.backup);
+        mains.concat(backups).forEach(c => {
+          freeCat6ByLength[c.roundedFt] = (freeCat6ByLength[c.roundedFt] || 0) + 1;
+          freeCableDetail.push({ lineIndex: c.lineIndex, lengthFt: c.lengthFt, roundedFt: c.roundedFt, backup: !!c.backup });
+        });
+        (freeCabling.knockoutBridgeCables || []).forEach((c, idx) => {
+          freeCat6ByLength[c.roundedFt] = (freeCat6ByLength[c.roundedFt] || 0) + 1;
+          freeKnockoutDetail.push({ index: idx, fromPanel: c.fromPanel, toPanel: c.toPanel, lengthFt: c.lengthFt, roundedFt: c.roundedFt });
+        });
+      }
       const freeProcessorType = data.processor || 'Brompton_SX40';
       const freeProcessorGroup = processorGroups[freeProcessorType] || null;
       const freeIsFirst = freeProcessorGroup && freeProcessorGroup.firstScreenId === screenId;
@@ -335,7 +357,17 @@ function buildGearListData(screenIds) {
         rigging: { bumper1w: 0, bumper2w: 0, bumper4w: 0, plates2way: 0, plates4way: 0, shackles: 0, cheeseye: 0, hasRigging: false },
         groundSupport: { rearTruss: 0, baseTruss: 0, bridgeClamps: 0, rearBridgeAdapters: 0, sandbags: 0, swivelCheeseboroughs: 0, pipes: 0, pipeLengthStr: '', hasGS: false },
         floorHardware: { frame3x2: 0, frame2x2: 0, frame2x1: 0, frame1x1: 0, hasFloorFrames: false },
-        dataCables: { dataJumperLen: '', jumpersBuiltin: false, jumperCount: 0, crossJumperLen: '', crossJumperCount: 0, cat5CouplerCount: 0, cat6ByLength: {}, cableDetail: [], knockoutDetail: [] },
+        dataCables: {
+          dataJumperLen: freeDataJumperLen,
+          jumpersBuiltin: freeJumpersBuiltin,
+          jumperCount: (!freeJumpersBuiltin && freeDataJumperLen) ? freeActive : 0,
+          crossJumperLen: freePanel ? (freePanel.data_cross_jumper_ft || '') : '',
+          crossJumperCount: freeCross.crossJumperCount,
+          cat5CouplerCount: freeCross.cat5CouplerCount,
+          cat6ByLength: freeCat6ByLength,
+          cableDetail: freeCableDetail,
+          knockoutDetail: freeKnockoutDetail
+        },
         powerCables: {
           powerJumperLen: freeJumperLen,
           jumperCount: (!freeJumpersBuiltin && freeJumperLen) ? panelLines.reduce((n, l) => n + l.count, 0) : 0,
@@ -347,7 +379,11 @@ function buildGearListData(screenIds) {
           true1_5: freeSocaCount * 2,
           true1Twofer: calcData.true1Twofers || 0
         },
-        processorToDistBox: { count: 0, cableType: '', cableLength: 0 }
+        processorToDistBox: (freeCabling && freeCabling.distBoxCables && freeCabling.distBoxCables.length > 0) ? {
+          count: freeCabling.distBoxCables.length,
+          cableType: (freeCabling.distBoxCables.find(c => c.label === 'main') || {}).type === 'fiber' ? 'Fiber' : 'Cat6A',
+          cableLength: (freeCabling.distBoxCables.find(c => c.label === 'main') || {}).roundedFt || 0
+        } : { count: 0, cableType: '', cableLength: 0 }
       });
       return;
     }

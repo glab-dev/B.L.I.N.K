@@ -489,8 +489,8 @@ function calculateCabling(screenId) {
   const distBoxMainVert = data.distBoxMainVertPosition ?? 'top';
   const distBoxBackupVert = data.distBoxBackupVertPosition ?? 'top';
 
-  // Deleted panels
-  const deletedPanelsSet = data.deletedPanels || new Set();
+  // Deleted panels (a drawn screen has none: its empty cells are just not drawn)
+  const deletedPanelsSet = isFree ? new Set() : (data.deletedPanels || new Set());
 
   // Drop point position in feet from wall left edge
   let dropPointFt;
@@ -554,19 +554,6 @@ function calculateCabling(screenId) {
     });
   }
 
-  // Drawn screens: data cabling comes with hand-assigned data lines, so only power so far
-  if(isFree) {
-    const freeResult = {
-      socaCables, dataCables: [], distBoxCables: [], knockoutBridgeCables: [],
-      wallHeightFt: Math.round(wallHeightFt * 10) / 10,
-      wallWidthFt: Math.round(wallWidthFt * 10) / 10,
-      inputs: {wallToFloor, distroToWall, processorToWall, cablePick, xdPlacement: placement, xdToProcessor, xdToWall},
-      totals: { socaCount: socaCables.length, dataCount: 0, knockoutBridgeCount: 0, distBoxCableCount: 0, fiberCount: 0, cat6aCount: 0 }
-    };
-    screen.calculatedData.cabling = freeResult;
-    return freeResult;
-  }
-
   // ---- B. Data Cable Calculation ----
   const dataCables = [];
   const distBoxCables = [];
@@ -580,16 +567,21 @@ function calculateCabling(screenId) {
   // Effective ph for layout (includes CB5 half rows)
   const effectivePh = ph + halfRowCount;
 
-  // Get entry points for each data line
-  const entryPoints = getDataLineEntryPoints(
-    pw, effectivePh, panelsPerDataLine,
-    data.dataStartDir || 'top',
-    deletedPanelsSet,
-    data.customDataLineAssignments,
-    data.split
-  );
+  // A drawn screen's lines come from its own walk, each panel placed at its centre
+  const dataLinePanelOrdering = isFree
+    ? freeDataLinePanelOrdering(data, allPanels)
+    : getDataLinePanelOrdering(
+        pw, effectivePh, panelsPerDataLine,
+        data.dataStartDir || 'top',
+        deletedPanelsSet,
+        data.customDataLineAssignments,
+        data.split
+      );
 
-  const dataLinePanelOrdering = getDataLinePanelOrdering(
+  // Get entry points for each data line
+  const entryPoints = isFree
+    ? Object.fromEntries(Object.entries(dataLinePanelOrdering).map(([dl, pts]) => [dl, pts[0]]))
+    : getDataLineEntryPoints(
     pw, effectivePh, panelsPerDataLine,
     data.dataStartDir || 'top',
     deletedPanelsSet,
@@ -819,8 +811,9 @@ function calculateCabling(screenId) {
       // Check if panels are physically adjacent (same column vertically adjacent, or column transition at boundary)
       const colDiff = Math.abs(curr.col - prev.col);
       const rowDiff = Math.abs(curr.row - prev.row);
-      const isAdjacent = (colDiff === 0 && rowDiff === 1) ||
-                         (colDiff === 1 && rowDiff === 0);
+      const isAdjacent = isFree ? freePanelsTouch(prev, curr)
+                       : ((colDiff === 0 && rowDiff === 1) ||
+                         (colDiff === 1 && rowDiff === 0));
 
       if(!isAdjacent) {
         // Non-adjacent panels — need a bridge cable
@@ -831,8 +824,8 @@ function calculateCabling(screenId) {
 
         knockoutBridgeCables.push({
           dataLine: parseInt(dlIndex) + 1,
-          fromPanel: `${prev.col + 1},${prev.row + 1}`,
-          toPanel: `${curr.col + 1},${curr.row + 1}`,
+          fromPanel: prev.label || `${prev.col + 1},${prev.row + 1}`,
+          toPanel: curr.label || `${curr.col + 1},${curr.row + 1}`,
           lengthFt: Math.round(bridgeFt * 10) / 10,
           roundedFt: roundUpToStandard(bridgeFt)
         });

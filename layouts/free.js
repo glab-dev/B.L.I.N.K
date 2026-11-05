@@ -269,6 +269,9 @@ function updateFreeDrawRow() {
   }
   const hint = document.getElementById('standardLayoutHint');
   if(hint) hint.textContent = standardLayoutHintText();
+  // A drawn screen's bumpers are placed for it, so the grid's manual bumper tools hide
+  const structureEl = document.getElementById('structureContainer');
+  if(structureEl) structureEl.classList.toggle('free-structure', isFree);
   // Select Mode for the drawn Power and Data layouts, one each so every layout is selected
   // on its own; off whenever it is hidden so a grid screen's canvases stay view-only
   [['powerCanvas', 'freePowerSelectModeRow'], ['dataCanvas', 'freeDataSelectModeRow']].forEach(([canvasId, rowId]) => {
@@ -321,8 +324,8 @@ function setFreeTool(tool) {
   freeRedraw();
 }
 
-// Specs, stored totals and the Standard, Power and Data layouts for the current screen
-// when it is a free screen. Structure for free screens comes later, so it stays hidden.
+// Specs, stored totals and the Standard, Power, Data and Structure layouts for the
+// current screen when it is a free screen.
 function calculateFreeScreen() {
   const screen = screens[currentScreenId];
   const data = screen.data;
@@ -380,6 +383,7 @@ function calculateFreeScreen() {
   const ampsPerPhase = phase===3 ? (totalAmps / Math.sqrt(3)) : totalAmps;
   const power = calculateFreePower(data, allPanels);
   const dataInfo = calculateFreeData(data, allPanels);
+  const structure = calculateFreeStructure(data, allPanels);
   const redundancy = redundancyEnabled;
   const portsNeededFinal = dataInfo.dataLines * (redundancy ? 2 : 1);
   const topology = resolveProcessorTopology(document.getElementById('processor').value, mx40ConnectionMode);
@@ -418,7 +422,16 @@ function calculateFreeScreen() {
     html += `<div class="result-row"><strong>Total panel count:</strong> ${totalPanels}</div>`;
     html += `<div class="result-row"><strong>Resolution:</strong> ${wall.resX} × ${wall.resY}</div>`;
     html += `<div class="result-row"><strong>Total pixel count:</strong> (${totalPixels.toLocaleString()} px)</div>`;
-    html += `<div class="result-row"><strong>Wall weight:</strong> ${weightDisplay} ${wtUnit}</div>`;
+    const kgShown = kg => displayWeightUnit === 'lbs' ? Math.ceil(kg * KG_TO_LBS) : Math.ceil(kg);
+    if(structure.bumperWeightKg > 0) {
+      html += `<div class="result-row"><strong>Total weight:</strong> ${kgShown(panelWeightKg + structure.bumperWeightKg)} ${wtUnit}</div>`;
+      html += `<div class="result-row result-indent"><strong>Panels:</strong> ${weightDisplay} ${wtUnit}</div>`;
+      html += `<div class="result-row result-indent"><strong>Structure:</strong> ${kgShown(structure.bumperWeightKg)} ${wtUnit}</div>`;
+    } else {
+      html += `<div class="result-row"><strong>Wall weight:</strong> ${weightDisplay} ${wtUnit}</div>`;
+    }
+    const bumperText = ['1w', '2w', '4w'].filter(t => structure.counts[t] > 0).map(t => `${structure.counts[t]} × ${t.toUpperCase()}`).join(', ');
+    if(bumperText) html += `<div class="result-row"><strong>Bumpers:</strong> ${bumperText}</div>`;
     html += `</div></div><div class="specs-row specs-row-bottom"><div class="spec-group">`;
     html += `<div class="result-section-title">POWER (${powerType.toUpperCase()})</div>`;
     html += `<div class="result-row"><strong>Total watts:</strong> ${totalPowerW.toLocaleString()} W</div>`;
@@ -459,7 +472,10 @@ function calculateFreeScreen() {
     panelCount: totalPanels,
     activePanels: totalPanels,
     panelWeightOnlyKg: panelWeightKg,
-    bumperWeightKg: 0,
+    bumperWeightKg: structure.bumperWeightKg,
+    bumper1wCount: structure.counts['1w'],
+    bumper2wCount: structure.counts['2w'],
+    bumper4wCount: structure.counts['4w'],
     totalPixels: totalPixels,
     dataLines: dataInfo.dataLines,
     dataLinesFinal: portsNeededFinal,
@@ -487,18 +503,17 @@ function calculateFreeScreen() {
     if(boxCountEl) boxCountEl.textContent = gearGroup.distBoxCount > 0 ? ` (${gearGroup.distBoxCount})` : '';
   }
 
-  const structureEl = document.getElementById('structureContainer');
-  if(structureEl) structureEl.style.display = 'none';
-
   updateFreeDrawRow();
   generateLayout('standard');
   if(totalPanels > 0) {
     generateLayout('power');
     renderPhaseBalanceLegend();
     generateLayout('data');
+    renderFreeStructureLayout();
   } else {
     document.getElementById('powerContainer').style.display = 'none';
     document.getElementById('dataContainer').style.display = 'none';
+    document.getElementById('structureContainer').style.display = 'none';
     renderDataLineMap();
   }
   showCanvasView();

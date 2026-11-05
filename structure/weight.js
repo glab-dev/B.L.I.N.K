@@ -15,7 +15,8 @@ function updateWeightDisplay() {
   
   const bumperDist = bumperDistSelect.value;
   
-  if(bumperDist !== 'auto' || (!showTopBumper && !showBottomBumper)) {
+  // A drawn screen's weights are in its specs and Structure layout
+  if(bumperDist !== 'auto' || (!showTopBumper && !showBottomBumper) || isFreeCurrentScreen()) {
     weightDiv.style.display = 'none';
     return;
   }

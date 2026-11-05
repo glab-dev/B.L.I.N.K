@@ -330,6 +330,13 @@ function buildGearListData(screenIds) {
           freeKnockoutDetail.push({ index: idx, fromPanel: c.fromPanel, toPanel: c.toPanel, lengthFt: c.lengthFt, roundedFt: c.roundedFt });
         });
       }
+      // Rigging: the bumpers worked out from the drawn wall, with a shackle and cheeseye per
+      // pickup on a hung wall of panels that take them, as on grid screens
+      const freeB1 = calcData.bumper1wCount || 0, freeB2 = calcData.bumper2wCount || 0, freeB4 = calcData.bumper4wCount || 0;
+      const freeHung = (data.structureType || 'hanging') === 'hanging' && data.useBumpers !== false;
+      const freeNeedsSC = freePanel && (['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3', 'V4ST', 'V4ST_H', 'V4ST_V', 'V4ST_Q'].includes(data.freePanels[0].type) || (freePanel.custom && freePanel.needs_shackles));
+      const freeSC = (freeNeedsSC && freeHung) ? freeB1 + freeB2 : 0;
+      const freeRigging = { bumper1w: freeB1, bumper2w: freeB2, bumper4w: freeB4, plates2way: 0, plates4way: 0, shackles: freeSC, cheeseye: freeSC, hasRigging: freeB1 + freeB2 + freeB4 > 0 };
       const freeProcessorType = data.processor || 'Brompton_SX40';
       const freeProcessorGroup = processorGroups[freeProcessorType] || null;
       const freeIsFirst = freeProcessorGroup && freeProcessorGroup.firstScreenId === screenId;
@@ -354,7 +361,7 @@ function buildGearListData(screenIds) {
           halfPanelName: '',
           panelLines: panelLines
         },
-        rigging: { bumper1w: 0, bumper2w: 0, bumper4w: 0, plates2way: 0, plates4way: 0, shackles: 0, cheeseye: 0, hasRigging: false },
+        rigging: freeRigging,
         groundSupport: { rearTruss: 0, baseTruss: 0, bridgeClamps: 0, rearBridgeAdapters: 0, sandbags: 0, swivelCheeseboroughs: 0, pipes: 0, pipeLengthStr: '', hasGS: false },
         floorHardware: { frame3x2: 0, frame2x2: 0, frame2x1: 0, frame1x1: 0, hasFloorFrames: false },
         dataCables: {

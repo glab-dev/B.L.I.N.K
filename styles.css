@@ -1009,6 +1009,18 @@ canvas {
   cursor: default;
 }
 
+/* Drawn screens' Structure layout: bumpers are placed automatically, so the grid's manual
+   bumper tools and its plates / ground support / floor frame boxes don't apply */
+#structureContainer.free-structure .structure-mode-toggle,
+#structureContainer.free-structure #structureSelectModeRow,
+#structureContainer.free-structure #structureSelectionInfo,
+#structureContainer.free-structure #structureGroundSupportBox,
+#structureContainer.free-structure #structurePlatesBox,
+#structureContainer.free-structure #structureFloorFramesBox,
+#structureContainer.free-structure #structureTotalWeightBox {
+  display: none !important;
+}
+
 /* Drawn screens' Power and Data layouts: Select Mode blocks native scroll so a drag selects */
 #powerCanvas.select-mode-active,
 #dataCanvas.select-mode-active {

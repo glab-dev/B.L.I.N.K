@@ -93,6 +93,11 @@ function getFloorFrameCounts(frames) {
 
 // Structure View generation
 function generateStructureLayout(){
+  // Drawn screens work their bumpers out from the drawn panels (layouts/free-structure.js)
+  if(isFreeCurrentScreen()) {
+    renderFreeStructureLayout();
+    return;
+  }
   const allPanels = getAllPanels();
   const p=allPanels[document.getElementById('panelType').value];
   if(!p || !p.width_m || !p.height_m){ return; }

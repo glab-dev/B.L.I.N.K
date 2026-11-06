@@ -7,7 +7,7 @@
 // middle sits over it, nearest bumper first.
 
 let freeStructureState = null;     // last calculateFreeStructure() result, read by the canvas
-let freeStructureView = null;      // {cellPx, top, bumperH} of the last Structure layout drawn
+let freeStructureView = null;      // {cellPx, top, bumperH, fourWayH, fourWayGap} of the last Structure layout drawn
 
 const FREE_BUMPER_COLORS = { '1w': '#2196F3', '2w': '#4CAF50', '4w': '#FF6B35' };
 
@@ -60,13 +60,19 @@ function freeBumpers(data, allPanels, position) {
   return bumpers.sort((a, b) => a.gx - b.gx || a.gy - b.gy);
 }
 
-// Hand-edited bumpers from a file: 1W / 2W on whole cells, each with its own id
+// Hand-edited bumpers from a file: 1W / 2W on whole cells, 4W from one 2W's centre to
+// another's (so on half cells), each with its own id
 function sanitizeFreeBumpers(list, allPanels) {
   if(!Array.isArray(list)) return null;
   const n = v => Number.isInteger(v) && v >= 0;
+  const half = v => Number.isInteger(v * 2) && v >= 0;
+  const fourWay = list.filter(b => b && n(b.id) && b.type === '4w' && half(b.gx) && n(b.gy) &&
+      half(b.cw) && b.cw > 0 && allPanels[b.panelType])
+    .map(b => ({id: b.id, type: b.type, gx: b.gx, cw: b.cw, gy: b.gy, panelType: b.panelType}));
   return list.filter(b => b && n(b.id) && (b.type === '1w' || b.type === '2w') && n(b.gx) && n(b.gy) &&
       n(b.cw) && b.cw > 0 && n(b.firstCw) && b.firstCw > 0 && allPanels[b.panelType])
-    .map(b => ({id: b.id, type: b.type, gx: b.gx, cw: b.cw, gy: b.gy, panelType: b.panelType, firstCw: b.firstCw, ladderRight: b.ladderRight === true}));
+    .map(b => ({id: b.id, type: b.type, gx: b.gx, cw: b.cw, gy: b.gy, panelType: b.panelType, firstCw: b.firstCw, ladderRight: b.ladderRight === true}))
+    .concat(fourWay);
 }
 
 // The edge a drawn wall's bumpers go on: the top when it hangs, the bottom when it is
@@ -84,9 +90,11 @@ function calculateFreeStructure(data, allPanels) {
   // In manual mode the wall's bumpers are its own to edit (interact/free-bumpers.js): the
   // ones drawn on this edge are copied the first time
   if(manualBumperMode && position && !(Array.isArray(data.freeBumpers) && data.freeBumpersPosition === position)) {
-    data.freeBumpers = freeStructureState.bumpers.filter(b => b.type !== '4w')
+    data.freeBumpers = freeStructureState.bumpers.slice()
       .sort((a, b) => a.gy - b.gy || a.gx - b.gx)
-      .map((b, i) => ({id: i + 1, type: b.type, gx: b.gx, cw: b.cw, gy: b.gy, panelType: b.panelType, firstCw: b.firstCw}));
+      .map((b, i) => b.type === '4w'
+        ? {id: i + 1, type: b.type, gx: b.gx, cw: b.cw, gy: b.gy, panelType: b.panelType}
+        : {id: i + 1, type: b.type, gx: b.gx, cw: b.cw, gy: b.gy, panelType: b.panelType, firstCw: b.firstCw});
     data.freeBumpersPosition = position;
     freeStructureState = freeStructurePlan(data, allPanels, position, use4WayBumpersEnabled);
   }
@@ -107,7 +115,7 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
   // the edge they were edited on
   const custom = position && Array.isArray(data.freeBumpers) && data.freeBumpersPosition === position;
   const bumpers = !position ? [] : custom
-    ? data.freeBumpers.map(b => ({id: b.id, type: b.type, gx: b.gx, cw: b.cw, gy: b.gy, panelType: b.panelType, firstCw: b.firstCw, ladderRight: !!b.ladderRight}))
+    ? data.freeBumpers.filter(b => b.type !== '4w').map(b => ({id: b.id, type: b.type, gx: b.gx, cw: b.cw, gy: b.gy, panelType: b.panelType, firstCw: b.firstCw, ladderRight: !!b.ladderRight}))
     : freeBumpers(data, allPanels, position);
   bumpers.forEach(b => {
     b.ownKg = (allPanels[b.panelType]['bumper_' + b.type + '_lbs'] || 0) * LBS_TO_KG;
@@ -140,9 +148,20 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
   // 4-way bumpers (CB5, or custom panels that take them) join each two touching 2Ws on one
   // level of a hung wall, paired from the left as grid columns are, centre to centre. The
   // 4W is then the pickup: it carries both 2Ws with their panels, and the 2Ws are no longer
-  // pickups. A ground-stacked wall takes none.
+  // pickups. A ground-stacked wall takes none. Hand-placed 4Ws carry the 2Ws whose middles
+  // they span, as a grid 4W carries the 2Ws within its columns.
   const joined = bumpers.slice();
-  if(use4Way && position === 'top' && (isCB5 || (main.custom && main.supports_4w_bumpers))) {
+  const takes4w = position === 'top' && (isCB5 || (main.custom && main.supports_4w_bumpers));
+  if(custom && takes4w) {
+    data.freeBumpers.filter(f => f.type === '4w').forEach(f => {
+      const under = joined.filter(b => b.type === '2w' && b.gy === f.gy && !b.under4w &&
+        b.gx + b.cw / 2 >= f.gx - 0.001 && b.gx + b.cw / 2 <= f.gx + f.cw + 0.001);
+      const ownKg = (allPanels[f.panelType].bumper_4w_lbs || 0) * LBS_TO_KG;
+      bumpers.push({id: f.id, type: '4w', gx: f.gx, cw: f.cw, gy: f.gy, panelType: f.panelType, ownKg,
+        loadKg: ownKg + under.reduce((s, b) => s + b.loadKg, 0)});
+      under.forEach(b => { b.under4w = true; });
+    });
+  } else if(!custom && use4Way && takes4w) {
     const twos = joined.filter(b => b.type === '2w').sort((a, b) => a.gy - b.gy || a.gx - b.gx);
     for(let i = 0; i + 1 < twos.length; i++) {
       const a = twos[i], b = twos[i + 1];
@@ -285,7 +304,7 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
     plates = {marks, total2way, total4way, totalPlateWeight: total2way * PLATE_WEIGHTS.plate2wayKg + total4way * PLATE_WEIGHTS.plate4wayKg};
   }
 
-  return {position, bumpers, counts, bumperWeightKg, warnings: [...new Set(warnings)], groundSupport, ladders, cb5Air, plates,
+  return {position, bumpers, counts, bumperWeightKg, warnings: [...new Set(warnings)], groundSupport, ladders, cb5Air, plates, takes4w,
     unit: freeUnitCells(data, allPanels), mainHeightCells: main.height_m * 1000 / cellMm};
 }
 
@@ -486,7 +505,8 @@ function renderFreeStructureLayout() {
   const bumperH = Math.max(30, Math.round(unitPx * 0.8));
   const fourWayH = Math.max(15, Math.round(unitPx * 0.4));
   const fourWayGap = 5;
-  const band = st.position ? bumperH + (st.counts['4w'] ? fourWayH + fourWayGap : 0) : 0;
+  // The 4W band also stays open to place 4Ws in by hand, as the grid layout keeps it
+  const band = st.position ? bumperH + (st.counts['4w'] || (manualBumperMode && st.takes4w) ? fourWayH + fourWayGap : 0) : 0;
   const top = st.position === 'top' ? band : 0;
   canvas.width = Math.round(b.maxX * cellPx);
   canvas.height = Math.round(b.maxY * cellPx) + band;
@@ -497,7 +517,7 @@ function renderFreeStructureLayout() {
     numberSize: (w, h) => Math.max(10, Math.floor(Math.min(w, h) * (pdf ? 0.25 : 0.22)))
   });
   // Where the wall sits on the canvas, for editing bumpers by hand (interact/free-bumpers.js)
-  freeStructureView = {cellPx, top, bumperH};
+  freeStructureView = {cellPx, top, bumperH, fourWayH, fourWayGap};
   setupFreeBumperInteractivity();
 
   // Center-of-wall mark: thin red vertical line over the bumper band, as on grid screens

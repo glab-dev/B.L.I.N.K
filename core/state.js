@@ -409,6 +409,10 @@ function toggle4WayBumpers() {
   
   // Re-initialize bumpers
   initializeBumpers();
+  if(isFreeCurrentScreen()) {
+    delete screens[currentScreenId].data.freeBumpers;
+    delete screens[currentScreenId].data.freeBumpersPosition;
+  }
   calculate();
 }
 

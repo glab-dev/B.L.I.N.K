@@ -67,13 +67,13 @@ function renderRasterScreenTable() {
     var tileY = p ? (p.res_y || 0) : 0;
     var cols = data.panelsWide || 0;
     var rows = data.panelsHigh || 0;
-    // A drawn screen is edited in Draw: its panel, size and tile show here read-only, the
-    // tile being one snap cell (see freeCellData)
+    // A drawn screen is edited in Draw: its panel and size show here read-only, the size in
+    // its panel's widths and heights (fractional where smaller panels are mixed in)
     var isDrawn = isFreeScreen(data);
     if(isDrawn) {
-      var cellView = freeCellData(data, allPanels);
-      tileX = cellView.freeCellPanel ? cellView.freeCellPanel.res_x : 0;
-      tileY = cellView.freeCellPanel ? cellView.freeCellPanel.res_y : 0;
+      var wall = freePlacedPanels(data, allPanels);
+      cols = (p && wall.panels.length) ? +(wall.widthM / p.width_m).toFixed(2) : 0;
+      rows = (p && wall.panels.length) ? +(wall.heightM / p.height_m).toFixed(2) : 0;
     }
 
     var safeId = escapeJsString(screenId);
@@ -132,8 +132,8 @@ function renderRasterScreenTable() {
 
     // Cols / Rows
     if(isDrawn) {
-      html += '<td data-label="Cols"><input type="text" class="raster-input raster-num" placeholder="Drawn" title="Drawn screen — edit it in Draw" readonly></td>';
-      html += '<td data-label="Rows"><input type="text" class="raster-input raster-num" placeholder="Drawn" title="Drawn screen — edit it in Draw" readonly></td>';
+      html += '<td data-label="Cols"><input type="number" class="raster-input raster-num" value="' + cols + '" title="Drawn screen — edit it in Draw" readonly></td>';
+      html += '<td data-label="Rows"><input type="number" class="raster-input raster-num" value="' + rows + '" title="Drawn screen — edit it in Draw" readonly></td>';
     } else {
       html += '<td data-label="Cols"><input type="number" class="raster-input raster-num" ' + (cols ? 'value="' + cols + '"' : '') + ' placeholder="0" min="0" ' +
               'oninput="updateRasterScreenDim(\'' + safeId + '\', \'panelsWide\', this.value)"></td>';
@@ -1083,7 +1083,11 @@ async function saveRasterFile() {
         cb5HalfRowPosition: data.cb5HalfRowPosition || 'below',
         cb5HalfRowsAbove: data.cb5HalfRowsAbove || 1,
         cb5HalfRowsBelow: data.cb5HalfRowsBelow || 1,
-        deletedPanels: deletedArr
+        deletedPanels: deletedArr,
+        // A drawn screen's panels (layouts/free.js)
+        layoutMode: data.layoutMode,
+        freeCell_mm: data.freeCell_mm,
+        freePanels: data.freePanels
       }
     };
   });
@@ -1235,6 +1239,12 @@ function applyRasterFile(config) {
       },
       calculatedData: {}
     };
+    // A drawn screen keeps its panels, validated as a project file's are
+    if(data.layoutMode === 'free' && isValidFreeLayout(data.freeCell_mm, data.freePanels, getAllPanels())) {
+      screens[screenId].data.layoutMode = 'free';
+      screens[screenId].data.freeCell_mm = data.freeCell_mm;
+      screens[screenId].data.freePanels = data.freePanels.map(function(fp) { return { type: fp.type, gx: fp.gx, gy: fp.gy }; });
+    }
   });
 
   // Restore counters

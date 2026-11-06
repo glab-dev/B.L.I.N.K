@@ -1,14 +1,25 @@
 // ==================== FREE-DRAW IN THE COMBINED VIEW ====================
-// Drawn (free) screens on the Combined canvases. Combined lays every screen out in grid
-// units; a drawn screen takes part as its cell grid (freeCellData), one unit per snap
-// cell, and draws its panels at their true sizes through the same helpers as the Draw
-// tab. Hit-testing and the selection outline work on whole panels keyed "gx,gy", so
+// Drawn (free) screens on the Combined canvases. Combined lays every screen out in panel
+// units, one per panel width; a drawn screen takes part in units of its main panel's
+// width (a snap cell is freeUnitScale of one), so it sits at the same size as a grid wall
+// of that panel, and draws its panels at their true sizes through the same helpers as
+// the Draw tab. Hit-testing and the selection outline work on whole panels keyed "gx,gy", so
 // Assign Circuit # / SOCA # / Data Port write the keys the Draw tab uses.
 
-// A drawn screen's data as a Combined screen: its cell grid, plus its bumpers (4Ws
-// included) so the structure canvas makes room above or below it
+// A drawn screen's data as a Combined screen: its size in main-panel widths (freeCols x
+// freeRows snap cells of freeUnitScale each), one unit's pixels for placing it from its
+// Canvas position, plus its bumpers (4Ws included) so the structure canvas makes room
+// above or below it
 function freeCombinedData(data, allPanels) {
   const view = freeCellData(data, allPanels);
+  const main = allPanels[data.panelType] || allPanels[data.freePanels.length ? data.freePanels[0].type : ''];
+  const scale = main ? data.freeCell_mm / (main.width_m * 1000) : 1;
+  view.freeUnitScale = scale;
+  view.freeCols = view.panelsWide;
+  view.freeRows = view.panelsHigh;
+  view.panelsWide = view.freeCols * scale;
+  view.panelsHigh = view.freeRows * scale;
+  if(view.freeCellPanel) view.freeCellPanel = Object.assign({}, view.freeCellPanel, {res_x: view.freeCellPanel.res_x / scale, res_y: view.freeCellPanel.res_y / scale});
   const position = freeBumperPosition(data.structureType || 'hanging', data.useBumpers !== false);
   view.bumpers = (position && data.freePanels.length)
     ? freeStructurePlan(data, allPanels, position, data.use4WayBumpers).bumpers.map(b => ({position, type: b.type}))
@@ -21,15 +32,16 @@ function freeCombinedData(data, allPanels) {
 function freeCombinedPanelRects(e) {
   const allPanels = getAllPanels();
   const data = e.data;
-  const cols = data.panelsWide;
+  const cols = data.freeCols;
+  const cellPx = e.panelWidth * data.freeUnitScale;
   return data.freePanels.map(fp => {
     const {cw, ch} = freeCells(allPanels[fp.type], data.freeCell_mm);
     const x0 = e.freeMirror ? cols - fp.gx - cw : fp.gx;
-    const x = e.screenX + Math.round(x0 * e.panelWidth), y = e.screenY + Math.round(fp.gy * e.panelWidth);
+    const x = e.screenX + Math.round(x0 * cellPx), y = e.screenY + Math.round(fp.gy * cellPx);
     return {
       key: `${fp.gx},${fp.gy}`, x, y,
-      w: e.screenX + Math.round((x0 + cw) * e.panelWidth) - x,
-      h: e.screenY + Math.round((fp.gy + ch) * e.panelWidth) - y
+      w: e.screenX + Math.round((x0 + cw) * cellPx) - x,
+      h: e.screenY + Math.round((fp.gy + ch) * cellPx) - y
     };
   });
 }
@@ -42,9 +54,11 @@ function drawFreeCombinedName(ctx, screen, x, y) {
   ctx.fillText(screen.name, x, y);
 }
 
-// Standard canvas: the two-tone panels with their names and the screen name over them
-function drawFreeCombinedStandard(ctx, screen, data, sx, sy, cellPx, colors) {
+// Standard canvas: the two-tone panels with their names and the screen name over them.
+// unitPx is Combined's panel size; the drawn screen's cells are freeUnitScale of it.
+function drawFreeCombinedStandard(ctx, screen, data, sx, sy, unitPx, colors) {
   const allPanels = getAllPanels();
+  const cellPx = unitPx * data.freeUnitScale;
   const wall = freePlacedPanels(data, allPanels);
   const tones = freeColorIndexes(data.freePanels, allPanels, data.freeCell_mm);
   const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
@@ -68,7 +82,7 @@ function drawFreeCombinedStandard(ctx, screen, data, sx, sy, cellPx, colors) {
   if(screen.name && wall.panels.length) {
     const b = freeBounds(data.freePanels, allPanels, data.freeCell_mm);
     const labelX = sx + b.maxX * cellPx / 2, labelY = sy + b.maxY * cellPx / 2;
-    ctx.font = `bold ${Math.max(8, Math.min(14, cellPx * 0.35))}px Arial`;
+    ctx.font = `bold ${Math.max(8, Math.min(14, unitPx * 0.35))}px Arial`;
     const printMode = ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode;
     ctx.fillStyle = printMode ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)';
     ctx.fillText(screen.name, labelX + 2, labelY + 2);
@@ -79,8 +93,9 @@ function drawFreeCombinedStandard(ctx, screen, data, sx, sy, cellPx, colors) {
 }
 
 // Power canvas: circuits and SOCAs as the screen's own Power layout shows them
-function drawFreeCombinedPower(ctx, screen, screenId, data, sx, sy, cellPx, groupPlan, holeBlocked) {
+function drawFreeCombinedPower(ctx, screen, screenId, data, sx, sy, unitPx, groupPlan, holeBlocked) {
   const allPanels = getAllPanels();
+  const cellPx = unitPx * data.freeUnitScale;
   const plan = freeScreenCircuits(screenId, data, groupPlan);
   if(plan) {
     const labelMap = sharedDistroSocaLabelMap(screenId);
@@ -89,19 +104,20 @@ function drawFreeCombinedPower(ctx, screen, screenId, data, sx, sy, cellPx, grou
       socaLabelIdx: idx => (labelMap && labelMap.has(idx)) ? labelMap.get(idx) : idx,
       customCircuit: plan.customCircuit,
       ox: sx, oy: sy, cellPx,
-      labelSize: () => Math.max(7, Math.round(cellPx * 0.32)),
+      labelSize: () => Math.max(7, Math.round(unitPx * 0.32)),
       holeBlocked
     });
   }
-  drawFreeCombinedName(ctx, screen, sx + data.panelsWide * cellPx / 2, sy - 10);
+  drawFreeCombinedName(ctx, screen, sx + data.freeCols * cellPx / 2, sy - 10);
 }
 
 // Data canvas: lines coloured by port with the screen's own view settings, the units they
 // land on, and the endpoints for the Mains/Backups table
-function drawFreeCombinedData(ctx, screen, screenId, data, sx, sy, cellPx, holeBlocked) {
+function drawFreeCombinedData(ctx, screen, screenId, data, sx, sy, unitPx, holeBlocked) {
   const allPanels = getAllPanels();
+  const cellPx = unitPx * data.freeUnitScale;
   const built = freeScreenDataGroups(data, allPanels);
-  drawFreeCombinedName(ctx, screen, sx + data.panelsWide * cellPx / 2, sy - 10);
+  drawFreeCombinedName(ctx, screen, sx + data.freeCols * cellPx / 2, sy - 10);
   if(!built) return [];
   const flip = !!data.dataFlip;
   const endpoints = computeDataLineEndpoints(built.groups, built.sortedDataLines, flip);
@@ -111,8 +127,8 @@ function drawFreeCombinedData(ctx, screen, screenId, data, sx, sy, cellPx, holeB
     showArrows: data.showArrows !== false,
     showLabels: !!data.dataLineLabels,
     redundancy: !!data.redundancy,
-    numberSize: () => Math.max(7, Math.round(cellPx * 0.32)),
-    arrowWidth: Math.max(1.5, cellPx * 0.075), headSize: Math.max(5, cellPx * 0.3)
+    numberSize: () => Math.max(7, Math.round(unitPx * 0.32)),
+    arrowWidth: Math.max(1.5, unitPx * 0.075), headSize: Math.max(5, unitPx * 0.3)
   });
 
   // Distribution box / processor labels across the screen, as on grid screens
@@ -124,13 +140,13 @@ function drawFreeCombinedData(ctx, screen, screenId, data, sx, sy, cellPx, holeB
         const unit = units.panelToUnit.get(`${fp.gx},${fp.gy}`);
         if(unit === undefined) return;
         const {cw, ch} = freeCells(allPanels[fp.type], data.freeCell_mm);
-        const x0 = data.dataRearView ? data.panelsWide - fp.gx - cw : fp.gx;
+        const x0 = data.dataRearView ? data.freeCols - fp.gx - cw : fp.gx;
         for(let i = 0; i < cw; i++) for(let j = 0; j < ch; j++) cellToUnit.set(`${x0 + i},${fp.gy + j}`, unit);
       });
       drawSocaOverlay(ctx, {
         panelToCircuit: cellToUnit, panelToSoca: cellToUnit, deletedPanels: new Set(),
         panelWidth: cellPx,
-        rowGeo: combinedRowGeometry(data, cellPx).geo,
+        rowGeo: cb5RowGeometry(data.freeRows, {top: 0, bottom: 0}, cellPx, cellPx),
         offsetX: sx, offsetY: sy,
         outlineLineWidth: 1.5,
         socaLabelIdx: i => i,
@@ -149,14 +165,15 @@ function drawFreeCombinedData(ctx, screen, screenId, data, sx, sy, cellPx, holeB
 // Structure canvas: the panels with the bumpers worked out from the drawn wall, 4Ws in
 // their own band. `top` is where the screen's structure starts (its bumpers when they hang
 // on top).
-function drawFreeCombinedStructure(ctx, screen, data, sx, top, cellPx, bumperH, fourWayH, fourWayGap) {
+function drawFreeCombinedStructure(ctx, screen, data, sx, top, unitPx, bumperH, fourWayH, fourWayGap) {
   const allPanels = getAllPanels();
+  const cellPx = unitPx * data.freeUnitScale;
   const position = freeBumperPosition(data.structureType || 'hanging', data.useBumpers !== false);
   const st = freeStructurePlan(data, allPanels, position, data.use4WayBumpers);
   const panelTop = top + (st.position === 'top' && st.bumpers.length ? bumperH + 5 : 0) +
     (st.position === 'top' && st.counts['4w'] ? fourWayH + fourWayGap : 0);
   drawFreeStructure(ctx, data, allPanels, st, {ox: sx, oy: panelTop, cellPx, bumperH, gap: 5, fourWayH, fourWayGap});
-  drawFreeCombinedName(ctx, screen, sx + data.panelsWide * cellPx / 2, (st.position === 'top' && st.bumpers.length ? top : panelTop) - 15);
+  drawFreeCombinedName(ctx, screen, sx + data.freeCols * cellPx / 2, (st.position === 'top' && st.bumpers.length ? top : panelTop) - 15);
 }
 
 // One drawn screen's entry in calculateCombinedCabling() (nav/combined-cable-diagram.js):

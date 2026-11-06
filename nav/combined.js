@@ -487,8 +487,9 @@ function getCombinedArrangement() {
     const raw = (screens[screenId] && screens[screenId].data) || {};
     // A drawn screen takes part as its cell grid (nav/free-combined.js)
     const data = isFreeScreen(raw) ? freeCombinedData(raw, getAllPanels()) : raw;
-    const pw = parseInt(data.panelsWide) || 0;
-    const ph = parseInt(data.panelsHigh) || 0;
+    // parseFloat: a drawn screen's size in panel widths can be fractional
+    const pw = parseFloat(data.panelsWide) || 0;
+    const ph = parseFloat(data.panelsHigh) || 0;
     const panelType = data.panelType || 'CB5_MKII';
     const heightRatio = data.freeCellPanel ? 1 : getPanelHeightRatio(panelType);
     const half = getCB5HalfRows(data, panelType);
@@ -2707,20 +2708,26 @@ function combinedArrangedCanvasSize(screenDimensions, canvasWidth, canvasHeight,
 // live panel? Manually overlapped screens fill each other's knockouts, so a SOCA /
 // processor label may only span a hole that nothing else is drawn in.
 function combinedCellCoveredByOtherScreen(screenDimensions, dim, panelSize, topPadding) {
+  // A screen's own cell grid: its panels, or a drawn screen's snap cells (nav/free-combined.js)
+  const cellGrid = d => d.data.freeCellPanel
+    ? { step: panelSize * d.data.freeUnitScale, cols: d.data.freeCols,
+        geo: cb5RowGeometry(d.data.freeRows, {top: 0, bottom: 0}, panelSize * d.data.freeUnitScale, panelSize * d.data.freeUnitScale) }
+    : { step: panelSize, cols: d.pw, geo: combinedRowGeometry(d.data, panelSize).geo };
   const others = screenDimensions.filter(d => d !== dim).map(d => {
     const origin = combinedScreenOrigin(d, panelSize, topPadding);
-    return { dim: d, x: origin.x, y: origin.y, geo: combinedRowGeometry(d.data, panelSize).geo };
+    return Object.assign({ dim: d, x: origin.x, y: origin.y }, cellGrid(d));
   });
   const own = combinedScreenOrigin(dim, panelSize, topPadding);
-  const ownGeo = combinedRowGeometry(dim.data, panelSize).geo;
+  const ownGrid = cellGrid(dim);
+  const ownGeo = ownGrid.geo;
   return (panelKey) => {
     const [c, r] = panelKey.split(',').map(Number);
     // Shrink by half a pixel so screens that only touch edges don't count as overlapping
-    const x0 = own.x + c * panelSize + 0.5, x1 = own.x + (c + 1) * panelSize - 0.5;
+    const x0 = own.x + c * ownGrid.step + 0.5, x1 = own.x + (c + 1) * ownGrid.step - 0.5;
     const y0 = own.y + ownGeo.y(r) + 0.5, y1 = own.y + ownGeo.y(r) + ownGeo.h(r) - 0.5;
     return others.some(o => {
-      const cFrom = Math.max(0, Math.floor((x0 - o.x) / panelSize));
-      const cTo = Math.min(o.dim.pw - 1, Math.floor((x1 - o.x) / panelSize));
+      const cFrom = Math.max(0, Math.floor((x0 - o.x) / o.step));
+      const cTo = Math.min(o.cols - 1, Math.floor((x1 - o.x) / o.step));
       for(let oc = cFrom; oc <= cTo; oc++) {
         for(let orow = 0; orow < o.geo.rows; orow++) {
           const oy0 = o.y + o.geo.y(orow);

@@ -137,7 +137,11 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
   const cX = (c) => offsetX + c * panelResX + panelResX / 2;
   const cY = isFree ? (r) => offsetY + r * panelResY + panelResY / 2 : (r) => offsetY + rowGeo.y(r) + rowGeo.h(r) / 2;
   // The panel key the data port lookups know a point by
-  const keyOf = (p) => isFree ? p.key : (p.col + (data.splitColOffset || 0)) + ',' + (p.row + (data.splitRowOffset || 0));
+  const keyOf = (p) => {
+    if(!isFree) return (p.col + (data.splitColOffset || 0)) + ',' + (p.row + (data.splitRowOffset || 0));
+    const [gx, gy] = p.key.split(',').map(Number);
+    return (gx + (data.splitColOffset || 0)) + ',' + (gy + (data.splitRowOffset || 0));
+  };
 
   const flip = !!data.dataFlip;
 
@@ -1343,10 +1347,33 @@ function screenCanvasFit(screenId) {
   const limitW = tighter(topology.maxInputWidth, canvas ? canvas.width : 0);
   const limitH = tighter(topology.maxInputHeight, canvas ? canvas.height : 0);
 
-  // Panel columns per part across: as many as fit, the last part takes the rest. A drawn
-  // screen is never split: a cut through its cell grid could run through a panel.
+  // A drawn screen splits on its cell grid, only where no panel straddles the cut: each part
+  // takes as many cells as fit, backed off to the last clean cut (or, when a panel is wider
+  // than one input, the first clean cut after it)
+  const freeCuts = (total, perPart, straddles) => {
+    const sizes = [];
+    for(let start = 0; start < total;) {
+      let end = Math.min(total, start + perPart);
+      if(end < total) {
+        let cut = end;
+        while(cut > start && straddles(cut)) cut--;
+        if(cut === start) { cut = end; while(cut < total && straddles(cut)) cut++; }
+        end = cut;
+      }
+      sizes.push(end - start);
+      start = end;
+    }
+    return sizes;
+  };
+  const freeCellsOf = isFreeScreen(liveData)
+    ? liveData.freePanels.map(fp => Object.assign({gx: fp.gx, gy: fp.gy}, freeCells(allPanels[fp.type], liveData.freeCell_mm)))
+    : null;
+
+  // Panel columns per part across: as many as fit, the last part takes the rest
   const colSizes = [];
-  if(width > limitW && !data.freeCellPanel) {
+  if(width > limitW && freeCellsOf) {
+    colSizes.push(...freeCuts(pw, Math.max(1, Math.floor(limitW / p.res_x)), x => freeCellsOf.some(c => c.gx < x && x < c.gx + c.cw)));
+  } else if(width > limitW) {
     const colsPerPart = Math.max(1, Math.floor(limitW / p.res_x));
     for(let left = pw; left > 0; left -= colsPerPart) colSizes.push(Math.min(colsPerPart, left));
   } else {
@@ -1354,7 +1381,9 @@ function screenCanvasFit(screenId) {
   }
   // Grid rows per part down (CB5 half rows included, at their own height), filled greedily
   const rowSizes = [];
-  if(height > limitH && !data.freeCellPanel) {
+  if(height > limitH && freeCellsOf) {
+    rowSizes.push(...freeCuts(ph, Math.max(1, Math.floor(limitH / p.res_y)), y => freeCellsOf.some(c => c.gy < y && y < c.gy + c.ch)));
+  } else if(height > limitH) {
     let count = 0, used = 0;
     for(let r = 0; r < rowGeo.rows; r++) {
       if(count > 0 && used + rowGeo.h(r) > limitH) { rowSizes.push(count); count = 0; used = 0; }
@@ -1376,20 +1405,17 @@ function screenCanvasFit(screenId) {
     // Only the canvas size forces the split; a larger canvas would fit one processor
     canvasIsLimit: !!canvas && (canvas.width < (topology.maxInputWidth || Infinity) || canvas.height < (topology.maxInputHeight || Infinity)),
     fitsProcessorInput: (!topology.maxInputWidth || width <= topology.maxInputWidth) &&
-                        (!topology.maxInputHeight || height <= topology.maxInputHeight),
-    drawnTooBig: !!data.freeCellPanel && (width > limitW || height > limitH)
+                        (!topology.maxInputHeight || height <= topology.maxInputHeight)
   };
 }
 
 // Plain-text warning for a screen that needs more than one processor / canvas, or ''.
 function canvasFitWarningText(screenId) {
   const fit = screenCanvasFit(screenId);
-  if(!fit || (fit.parts < 2 && !fit.drawnTooBig)) return '';
+  if(!fit || fit.parts < 2) return '';
   const limit = (fit.canvasIsLimit && fit.canvas)
     ? fit.canvas.name + ' canvas (' + fit.canvas.width + ' × ' + fit.canvas.height + ')'
     : fit.processorName + ' input (' + fit.processorW + ' × ' + fit.processorH + ')';
-  if(fit.drawnTooBig) return '⚠️ ' + screens[screenId].name + ' is ' + fit.width + ' × ' + fit.height + ' px — larger than one ' +
-    limit + '. Drawn screens are not split across processors yet.';
   let text = '⚠️ ' + screens[screenId].name + ' is ' + fit.width + ' × ' + fit.height + ' px — larger than one ' +
     limit + '. It needs ' + fit.parts + ' processors / canvases.';
   if(fit.fitsProcessorInput) {
@@ -1408,8 +1434,9 @@ function canvasFitWarningText(screenId) {
     const names = split.parts.map(p => (canvases[p.canvasId] && canvases[p.canvasId].name) || '?');
     text += ' Split across ' + names.join(', ') + '.';
     const oversized = split.parts.map((p, k) => {
-      const view = splitPartView(screenId, k);
-      const panel = allPanels[view.data.panelType];
+      // A drawn screen's part measures on its cell grid (see freeCellData)
+      const view = freeCanvasItem(splitPartView(screenId, k));
+      const panel = view.data.freeCellPanel || allPanels[view.data.panelType];
       const w = view.data.panelsWide * panel.res_x;
       const h = cb5RowGeometry(view.data.panelsHigh, getCB5HalfRows(view.data, view.data.panelType),
         panel.res_y, halfP ? halfP.res_y : panel.res_y).height;
@@ -1482,7 +1509,9 @@ function splitPartView(screenId, k) {
   const part = split.parts[k];
   const { c0, c1, r0, r1 } = splitPartRange(split, k);
 
-  const half = getCB5HalfRows(base, base.panelType);
+  // A drawn screen's split is on its cell grid, which has no half rows
+  const isDrawn = isFreeScreen(base);
+  const half = isDrawn ? {top: 0, bottom: 0} : getCB5HalfRows(base, base.panelType);
   const bottomStart = half.top + (base.panelsHigh || 0);
   const top = Math.max(0, Math.min(r1, half.top) - r0);
   const bottom = Math.max(0, r1 - Math.max(r0, bottomStart));
@@ -1517,6 +1546,11 @@ function splitPartView(screenId, k) {
   data.cb5HalfRowPosition = (top && bottom) ? 'both' : (top ? 'above' : 'below');
   data.cb5HalfRowsAbove = top || 1;
   data.cb5HalfRowsBelow = bottom || 1;
+  // A drawn screen's part keeps the panels inside it, moved to the part's own origin
+  if(isDrawn) {
+    data.freePanels = base.freePanels.filter(fp => fp.gx >= c0 && fp.gx < c1 && fp.gy >= r0 && fp.gy < r1)
+      .map(fp => ({type: fp.type, gx: fp.gx - c0, gy: fp.gy - r0}));
+  }
   data.split = null;
   data.splitColOffset = c0;
   data.splitRowOffset = r0;
@@ -1549,7 +1583,7 @@ function canvasItemsOn(canvasId) {
     if(!visible) return;
     const split = screen.data.split;
     if(split) {
-      split.parts.forEach((part, k) => { if(part.canvasId === canvasId) items.push(splitPartView(id, k)); });
+      split.parts.forEach((part, k) => { if(part.canvasId === canvasId) items.push(freeCanvasItem(splitPartView(id, k))); });
     } else {
       items.push(freeCanvasItem(screen));
     }
@@ -1566,7 +1600,7 @@ function canvasItemForScreen(screenId) {
   const split = screen.data.split;
   if(!split) return freeCanvasItem(screen);
   const k = split.parts.findIndex(p => p.canvasId === currentCanvasId);
-  return k >= 0 ? splitPartView(screenId, k) : null;
+  return k >= 0 ? freeCanvasItem(splitPartView(screenId, k)) : null;
 }
 
 // Id a canvas item is selected / dragged by: the screen id, or "screenId#part"
@@ -1582,7 +1616,7 @@ function canvasItem(itemId) {
   if(!screen) return null;
   if(k === undefined) return freeCanvasItem(screen);
   const split = screen.data.split;
-  return (split && split.parts[Number(k)]) ? splitPartView(screenId, Number(k)) : null;
+  return (split && split.parts[Number(k)]) ? freeCanvasItem(splitPartView(screenId, Number(k))) : null;
 }
 
 // A new canvas for a part, matching the size of the canvas the split starts on
@@ -1616,11 +1650,13 @@ function layoutSplitParts(screenId) {
   const fit = screenCanvasFit(screenId);
   split.parts.forEach((part, k) => {
     const { ci, ri } = splitPartRange(split, k);
-    const view = splitPartView(screenId, k);
+    // A drawn screen's part measures on its cell grid (see freeCellData)
+    const view = freeCanvasItem(splitPartView(screenId, k));
+    const pp = view.data.freeCellPanel || p;
     const halfP = allPanels['CB5_MKII_HALF'];
-    const partW = view.data.panelsWide * p.res_x;
+    const partW = view.data.panelsWide * pp.res_x;
     const partH = cb5RowGeometry(view.data.panelsHigh, getCB5HalfRows(view.data, view.data.panelType),
-      p.res_y, halfP ? halfP.res_y : p.res_y).height;
+      pp.res_y, halfP ? halfP.res_y : pp.res_y).height;
     const size = canvasPixelSize(part.canvasId);
     const edgeX = (fit && isFinite(fit.limitW)) ? Math.min(fit.limitW, size.width) : size.width;
     const edgeY = (fit && isFinite(fit.limitH)) ? Math.min(fit.limitH, size.height) : size.height;

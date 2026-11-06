@@ -537,6 +537,7 @@ function calculateFreeScreen() {
   }
   showCanvasView();
   generateGearList();
+  if(typeof updateCanvasFitWarning === 'function') updateCanvasFitWarning();
 }
 
 // Two-tone fill like the grid's checkerboard: each panel takes the first colour

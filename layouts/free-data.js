@@ -68,10 +68,12 @@ function calculateFreeData(data, allPanels) {
   const startDirEl = document.getElementById('dataStartDir');
   const startDir = startDirEl ? startDirEl.value : 'top';
 
+  // A split screen runs each part's lines on that part alone (layouts/data.js)
   const {cols, rows, deleted} = freeCellGrid(data, allPanels, 'max');
   const built = buildDataLineGroups({
     pw: cols, ph: rows, panelsPerDataLine, startDir,
-    deletedPanels: deleted, customDataLineAssignments
+    deletedPanels: deleted, customDataLineAssignments,
+    split: data.split
   });
   // Named points, so the data line table lists panels the way the canvas numbers them
   const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
@@ -90,7 +92,8 @@ function freeScreenDataGroups(data, allPanels) {
   if(!inp) return null;
   const built = buildDataLineGroups({
     pw: inp.pw, ph: inp.ph, panelsPerDataLine: inp.panelsPerDataLine, startDir: inp.startDir,
-    deletedPanels: inp.deletedPanels, customDataLineAssignments: inp.customDataLines
+    deletedPanels: inp.deletedPanels, customDataLineAssignments: inp.customDataLines,
+    split: data.split
   });
   const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
   built.groups.forEach(g => g.forEach(pt => { pt.label = names.get(`${pt.c},${pt.r}`); }));
@@ -304,6 +307,11 @@ function renderFreeDataLayout() {
     sel: pdf ? null : freeLayerSel.dataCanvas,
     numberSize: (w, h) => Math.max(10, Math.floor(Math.min(w, h) * (pdf ? 0.25 : 0.22))),
     arrowWidth: 3, headSize: 12
+  });
+  // Where a split screen splits, and each part's canvas and processor (layouts/data.js)
+  drawSplitPartMarkers(ctx, currentScreenId, {
+    offsetX: 0, offsetY: 0, panelWidth: cellPx,
+    rowGeo: cb5RowGeometry(b.maxY, {top: 0, bottom: 0}, cellPx, cellPx), fontSize: 12
   });
 
   drawFreeLayerBox(ctx, 'dataCanvas');

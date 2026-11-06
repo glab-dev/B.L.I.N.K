@@ -199,7 +199,8 @@ function renderRasterScreenTable() {
         var canvasName = (canvases[part.canvasId] && canvases[part.canvasId].name) || '';
         var sizeCell = function(label, axis, index) {
           var value = split[axis][index];
-          if(split[axis].length < 2) {
+          // A drawn screen's parts are cut where no panel straddles, so they aren't resized here
+          if(split[axis].length < 2 || isDrawn) {
             return '<td data-label="' + label + '"><input type="number" class="raster-input raster-num" value="' + value + '" readonly></td>';
           }
           return '<td data-label="' + label + '"><input type="number" class="raster-input raster-num" value="' + value + '" min="1" ' +

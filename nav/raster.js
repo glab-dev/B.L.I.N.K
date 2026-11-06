@@ -370,8 +370,6 @@ function resetRasterScreenLayouts(screenId) {
   data.customSocaAssignments = new Map();
   data.customDataLineAssignments = new Map();
   data.customDataDestinations = new Map();
-  data.undoHistory = [];
-  data.redoHistory = [];
 
   // Typed limits belong to the old panel - fall back to the new panel's suggestions
   data.maxPanelsPerCircuit = '';
@@ -390,9 +388,6 @@ function resetRasterScreenLayouts(screenId) {
   customSocaAssignments.clear();
   customDataLineAssignments.clear();
   customDataDestinations.clear();
-  undoHistory = [];
-  redoHistory = [];
-  if(typeof updateUndoRedoButtons === 'function') updateUndoRedoButtons();
 
   var maxCircuitEl = document.getElementById('maxPanelsPerCircuit');
   var maxDataEl = document.getElementById('maxPanelsPerData');

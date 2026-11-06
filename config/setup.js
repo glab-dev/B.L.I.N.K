@@ -46,7 +46,7 @@ function setupLive(){
       }
 
       // Save undo state
-      saveCanvasMoveState();
+      saveState();
 
       // Redraw canvas view
       showCanvasView();

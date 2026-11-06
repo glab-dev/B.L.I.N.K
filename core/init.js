@@ -64,9 +64,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
-    // Initialize canvas undo/redo button states
-    updateCanvasUndoRedoButtons();
-
     // Populate welcome page version line on initial load
     if(typeof isWelcomePageVisible !== 'undefined' && isWelcomePageVisible) {
       var versionLine = document.getElementById('welcomeVersionLine');
@@ -112,6 +109,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if(typeof initSupabase === 'function') {
       initSupabase();
     }
+
+    // The project as it opens is the first Undo step
+    resetHistory();
 
     console.log('Initialization complete - v55.6 Multi-Screen');
   } catch(err) {

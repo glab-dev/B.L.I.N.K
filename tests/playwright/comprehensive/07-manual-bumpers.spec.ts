@@ -42,10 +42,10 @@ test.describe('Manual Bumper Mode @comprehensive @desktop', () => {
     expect(hasContent).toBe(true);
   });
 
-  test('should show structure undo/redo buttons in manual mode', async ({ page, structure }) => {
+  test('should show the top bar undo/redo in manual mode', async ({ page, structure }) => {
     await structure.toggleManualBumperMode(true);
-    await expect(page.locator('#structureUndoBtn')).toBeVisible();
-    await expect(page.locator('#structureRedoBtn')).toBeVisible();
+    await expect(page.locator('#undoBtn')).toBeVisible();
+    await expect(page.locator('#redoBtn')).toBeVisible();
   });
 
   test('should show bumper context menu on right-click', async ({ page, structure }) => {
@@ -130,7 +130,7 @@ test.describe('Manual Bumper Mode @comprehensive @desktop', () => {
 
     // Delete first bumper
     await page.evaluate(`
-      saveStructureState();
+      saveState();
       bumpers.splice(0, 1);
       generateStructureLayout();
     `);
@@ -148,14 +148,14 @@ test.describe('Manual Bumper Mode @comprehensive @desktop', () => {
 
     // Delete bumper
     await page.evaluate(`
-      saveStructureState();
+      saveState();
       bumpers.splice(0, 1);
       generateStructureLayout();
     `);
     await page.waitForTimeout(300);
 
     // Undo
-    await page.locator('#structureUndoBtn').click();
+    await page.locator('#undoBtn').click();
     await page.waitForTimeout(500);
 
     const restoredCount = await page.evaluate('bumpers.length');
@@ -173,7 +173,7 @@ test.describe('Manual Bumper Mode @comprehensive @desktop', () => {
 
     // Delete a bumper
     await page.evaluate(`
-      saveStructureState();
+      saveState();
       bumpers.splice(0, 1);
       generateStructureLayout();
     `);

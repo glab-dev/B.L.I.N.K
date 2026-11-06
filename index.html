@@ -1140,7 +1140,7 @@
               <li><strong>Structure</strong> &mdash; bumper positions, pickup weights, ground support hardware, and the red centre-of-wall mark</li>
             </ul>
             <p class="help-text"><strong>Select Mode</strong> &mdash; panel selection is off until you turn Select Mode on above the layout. This keeps scrolling and panning from selecting panels by accident, and it applies to the Standard, Power, Data, and Combined layouts. Bumpers have their own Select Mode in Structure.</p>
-            <p class="help-text">Use the &#9660; button on a layout title to collapse or expand it. Undo and Redo sit in the Standard and Structure layout headers, and the share button exports that one layout as a single-page PDF.</p>
+            <p class="help-text">Use the &#9660; button on a layout title to collapse or expand it, and the share button exports that one layout as a single-page PDF. Undo and Redo sit in the middle of the top bar and step back through every change to the project.</p>
           </div>
 
           <div class="help-complex-section" style="display: none;">
@@ -1267,8 +1267,8 @@
 
           <h3 class="help-section-title">Keyboard Shortcuts</h3>
           <table class="help-table">
-            <tr><td>Ctrl+Z</td><td>Undo (panels, bumpers, canvas moves)</td></tr>
-            <tr><td>Ctrl+Y</td><td>Redo</td></tr>
+            <tr><td>Ctrl+Z</td><td>Undo (any change to the project)</td></tr>
+            <tr><td>Ctrl+Y / Ctrl+Shift+Z</td><td>Redo</td></tr>
             <tr><td>Arrow Keys</td><td>Fine position adjustment in Canvas</td></tr>
             <tr><td>Ctrl+Scroll</td><td>Zoom in/out in Canvas</td></tr>
             <tr><td>Delete</td><td>Remove selected panels</td></tr>
@@ -2493,15 +2493,17 @@
 <!-- Mobile Header -->
 <header class="mobile-header">
   <h1>CALCULATOR</h1>
-  <div class="mobile-header-actions">
-    <button class="mobile-header-btn" onclick="showWelcomePage()" title="Home">
-      <span class="material-symbols-outlined">home</span>
+  <div class="header-history">
+    <button class="mobile-header-btn" id="undoBtn" onclick="undo()" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+      <span class="material-symbols-outlined">undo</span>
     </button>
+    <button class="mobile-header-btn" id="redoBtn" onclick="redo()" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled>
+      <span class="material-symbols-outlined">redo</span>
+    </button>
+  </div>
+  <div class="mobile-header-actions">
     <button class="mobile-header-btn" onclick="showRecentProjects()" title="Recents">
       <span class="material-symbols-outlined">history</span>
-    </button>
-    <button class="mobile-header-btn" onclick="quickSaveToApp()" title="Quick Save">
-      <span class="material-symbols-outlined">cloud_upload</span>
     </button>
     <button class="mobile-header-btn" onclick="openExportModal()" title="Export">
       <span class="material-symbols-outlined">ios_share</span>
@@ -3065,10 +3067,6 @@
       <button type="button" class="view-export-btn" onclick="exportViewPdf('standard')" title="Export this view as PDF" aria-label="Export this view as PDF"><span class="material-symbols-outlined">ios_share</span></button>
       <div class="layout-title">
         <span>Standard Layout<button class="layout-collapse-btn" onclick="toggleLayoutCollapse('standardContainer')" id="standardCollapseBtn" title="Minimize">▼</button></span>
-        <div class="undo-redo-buttons">
-          <button class="undo-redo-btn" id="undoBtn" onclick="undo()" title="Undo">Undo</button>
-          <button class="undo-redo-btn" id="redoBtn" onclick="redo()" title="Redo">Redo</button>
-        </div>
       </div>
       <div class="layout-content" id="standardContent">
         <div class="layout-toggle-row" id="standardSelectModeRow" style="display:none;">
@@ -3212,10 +3210,6 @@
         <button type="button" class="toggle-btn toggle-btn-standalone" id="manualBumperToggle" onclick="toggleManualBumperMode()">
           Manually Distribute Bumpers
         </button>
-        <div class="undo-redo-buttons" id="structureUndoRedo" style="display: none;">
-          <button class="undo-redo-btn toggle-btn-standalone" id="structureUndoBtn" onclick="structureUndo()" title="Undo (Ctrl+Z)">Undo</button>
-          <button class="undo-redo-btn toggle-btn-standalone" id="structureRedoBtn" onclick="structureRedo()" title="Redo (Ctrl+Y)">Redo</button>
-        </div>
         <span class="structure-mode-hint" id="structureModeHint">Auto-distribution active</span>
       </div>
 
@@ -3686,14 +3680,12 @@
     <span class="canvas-title-top">Canvas View</span>
   </div>
 
-  <!-- Zoom and Undo/Redo Controls -->
+  <!-- Zoom Controls -->
   <div class="canvas-zoom-row">
     <button class="toggle-btn" onclick="zoomCanvas(-0.25)" title="Zoom Out" class="canvas-ctrl-btn-lg">−</button>
     <input type="number" id="canvasZoomInput" value="100" min="50" max="500" step="10" onchange="setCanvasZoom(this.value)" title="Enter zoom percentage">
     <button class="toggle-btn" onclick="zoomCanvas(0.25)" title="Zoom In" class="canvas-ctrl-btn-lg">+</button>
     <button class="toggle-btn" onclick="resetCanvasZoom()" title="Reset Zoom" class="canvas-ctrl-btn">Reset</button>
-    <button class="toggle-btn" id="canvasUndoBtn" onclick="undoCanvasMove()" title="Undo Canvas Move" class="canvas-ctrl-btn">Undo</button>
-    <button class="toggle-btn" id="canvasRedoBtn" onclick="redoCanvasMove()" title="Redo Canvas Move" class="canvas-ctrl-btn">Redo</button>
   </div>
 
   <div class="canvas-col-gap16">
@@ -4167,11 +4159,6 @@ let sourceFeeds = { defaultDistance: 50, list: [] };
 // Cable unit — 'ft' or 'm', project-wide, separate from the screen size units (see nav/gear.js)
 let cableUnit = 'ft';
 
-// Canvas movement undo/redo state
-let canvasMoveHistory = [];
-let canvasMoveHistoryIndex = -1;
-const MAX_CANVAS_HISTORY = 20;
-
 // Structure view bumper state - NEW SYSTEM
 let showTopBumper = false;
 let showBottomBumper = false;
@@ -4182,11 +4169,6 @@ let selectedBumpers = new Set(); // Selected bumpers (by id) in structure view
 let structureIsDragging = false;
 let structureDragStartX = 0;
 let structureDragStartY = 0;
-
-// Structure view undo/redo
-let structureHistory = [];
-let structureHistoryIndex = -1;
-const MAX_STRUCTURE_HISTORY = 30;
 
 // Legacy bumper variables (for backward compatibility during migration)
 let topBumper1wColumn = -1;
@@ -4230,7 +4212,7 @@ let contextMenuY = 0;
 let contextMenuBumper = null;
 
 
-// Undo/Redo system
+// Undo/Redo system (core/undo.js): one history for the whole project
 let undoHistory = [];
 let redoHistory = [];
 const MAX_HISTORY = 50;

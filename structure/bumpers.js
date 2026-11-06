@@ -1,7 +1,7 @@
 // ==================== BUMPER MANAGEMENT ====================
 // Structure type handling, bumper initialization, CRUD, context menus.
 // Depends on globals: bumpers, nextBumperId, showTopBumper, showBottomBumper,
-// useBumpers, manualBumperMode, selectedBumpers, structureHistory, etc.
+// useBumpers, manualBumperMode, selectedBumpers, etc.
 
 // Structure type and legacy bumper functions
 // Structure functions
@@ -444,7 +444,6 @@ function toggleManualBumperMode() {
   const toggleBtn = document.getElementById('manualBumperToggle');
   const hintSpan = document.getElementById('structureModeHint');
   const selectionInfo = document.getElementById('structureSelectionInfo');
-  const undoRedoDiv = document.getElementById('structureUndoRedo');
   
   const selectModeRow = document.getElementById('structureSelectModeRow');
 
@@ -453,22 +452,17 @@ function toggleManualBumperMode() {
     toggleBtn.textContent = '✓ Manual Mode Active';
     hintSpan.textContent = 'Click bumpers to select';
     selectionInfo.classList.add('visible');
-    undoRedoDiv.style.display = 'flex';
 
     // Show the bumper Select Mode toggle on touch devices only — desktop drags
     // bumpers with the mouse and never scrolls the page.
     const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
     if(selectModeRow && isTouchDevice) selectModeRow.style.display = 'flex';
 
-    // Save initial state when entering manual mode
-    saveStructureState();
-    updateStructureUndoRedoButtons();
   } else {
     toggleBtn.classList.remove('active');
     toggleBtn.textContent = 'Manually Distribute Bumpers';
     hintSpan.textContent = 'Auto-distribution active';
     selectionInfo.classList.remove('visible');
-    undoRedoDiv.style.display = 'none';
 
     // Hide and reset the bumper Select Mode toggle when leaving manual mode
     if(selectModeRow) selectModeRow.style.display = 'none';
@@ -489,15 +483,12 @@ function toggleManualBumperMode() {
   generateStructureLayout();
 }
 
-// Clear the structure editing globals when moving to another screen. manualBumperMode and
-// structureHistory are app-global with no screen id on the entries, so without this an Undo
-// pressed after a screen switch or duplicate restores the PREVIOUS screen's bumper array
-// onto the current one. Mirrors the "off" branch of toggleManualBumperMode() but skips the
-// redraw - loadScreenData() renders on its own.
+// Clear the structure editing globals when moving to another screen: manualBumperMode is
+// app-global, so it would otherwise carry the previous screen's manual mode over. Mirrors
+// the "off" branch of toggleManualBumperMode() but skips the redraw - loadScreenData()
+// renders on its own.
 function resetStructureEditingState() {
   manualBumperMode = false;
-  structureHistory = [];
-  structureHistoryIndex = -1;
   selectedBumpers.clear();
   selectedBumper = null;
   hoveredBumper = null;
@@ -508,8 +499,6 @@ function resetStructureEditingState() {
   if(hintSpan) hintSpan.textContent = 'Auto-distribution active';
   const selectionInfo = document.getElementById('structureSelectionInfo');
   if(selectionInfo) selectionInfo.classList.remove('visible');
-  const undoRedoDiv = document.getElementById('structureUndoRedo');
-  if(undoRedoDiv) undoRedoDiv.style.display = 'none';
   const selectModeRow = document.getElementById('structureSelectModeRow');
   if(selectModeRow) selectModeRow.style.display = 'none';
 
@@ -520,8 +509,6 @@ function resetStructureEditingState() {
     const selBtn = document.getElementById('structureBumperSelectModeBtn');
     if(selBtn) { selBtn.textContent = 'Off'; selBtn.classList.remove('active'); }
   }
-
-  updateStructureUndoRedoButtons();
 }
 
 // Toggle mobile bumper Select Mode: blocks page scroll on the structure canvas
@@ -697,93 +684,12 @@ function updateStructureSelectionInfo() {
   infoDiv.classList.add('visible');
 }
 
-// Structure undo/redo functions
-function saveStructureState() {
-  // Don't save if not in manual mode
-  if(!manualBumperMode) return;
-  
-  // Create a deep copy of the bumpers array
-  const state = {
-    bumpers: bumpers.map(b => ({...b})),
-    nextBumperId: nextBumperId
-  };
-  
-  // Remove any states after current index (when we make a new change after undoing)
-  if(structureHistoryIndex < structureHistory.length - 1) {
-    structureHistory = structureHistory.slice(0, structureHistoryIndex + 1);
-  }
-  
-  // Add new state
-  structureHistory.push(state);
-  
-  // Limit history size
-  if(structureHistory.length > MAX_STRUCTURE_HISTORY) {
-    structureHistory.shift();
-  } else {
-    structureHistoryIndex++;
-  }
-  
-  updateStructureUndoRedoButtons();
-}
-
-function structureUndo() {
-  // A drawn screen's bumper edits are on the app's undo (interact/free-bumpers.js)
-  if(isFreeCurrentScreen()) { undo(); updateStructureUndoRedoButtons(); return; }
-  if(structureHistoryIndex <= 0) return;
-  
-  structureHistoryIndex--;
-  restoreStructureState(structureHistory[structureHistoryIndex]);
-}
-
-function structureRedo() {
-  if(isFreeCurrentScreen()) { redo(); updateStructureUndoRedoButtons(); return; }
-  if(structureHistoryIndex >= structureHistory.length - 1) return;
-  
-  structureHistoryIndex++;
-  restoreStructureState(structureHistory[structureHistoryIndex]);
-}
-
-function restoreStructureState(state) {
-  if(!state) return;
-  
-  // Restore bumpers
-  bumpers = state.bumpers.map(b => ({...b}));
-  nextBumperId = state.nextBumperId;
-  
-  // Clear selections
-  selectedBumpers.clear();
-  selectedBumper = null;
-  
-  // Redraw
-  generateStructureLayout();
-  updateWeightDisplay();
-  updateStructureUndoRedoButtons();
-  updateStructureSelectionInfo();
-}
-
-function updateStructureUndoRedoButtons() {
-  const undoBtn = document.getElementById('structureUndoBtn');
-  const redoBtn = document.getElementById('structureRedoBtn');
-  if(isFreeCurrentScreen()) {
-    if(undoBtn) undoBtn.disabled = undoHistory.length === 0;
-    if(redoBtn) redoBtn.disabled = redoHistory.length === 0;
-    return;
-  }
-  
-  if(undoBtn) {
-    undoBtn.disabled = structureHistoryIndex <= 0;
-  }
-  if(redoBtn) {
-    redoBtn.disabled = structureHistoryIndex >= structureHistory.length - 1;
-  }
-}
-
 // Bumper manipulation functions
 function replaceBumperType(bumperId, newType) {
   const bumper = bumpers.find(b => b.id === bumperId);
   if(!bumper) return;
   
-  saveStructureState(); // Save before change
+  saveState(); // Save before change
   bumper.type = newType;
   // Keep endCol in step with the type. drawAllBumpers() sizes a bumper from its type while
   // the weight and reconcile paths size it from endCol; letting the two drift draws a 2W
@@ -795,7 +701,7 @@ function replaceBumperType(bumperId, newType) {
 }
 
 function deleteBumper(bumperId) {
-  saveStructureState(); // Save before change
+  saveState(); // Save before change
   bumpers = bumpers.filter(b => b.id !== bumperId);
   selectedBumpers.delete(bumperId);
   generateStructureLayout();
@@ -833,7 +739,7 @@ function addBumperAtColumn(position, type, column) {
   );
   
   if(!exists) {
-    saveStructureState(); // Save before change
+    saveState(); // Save before change
     bumpers.push({
       id: nextBumperId++,
       type: type,

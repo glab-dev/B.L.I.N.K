@@ -1864,17 +1864,6 @@ function setupCanvasViewInteractivity() {
   const canvas = document.getElementById('canvasView');
   if(!canvas) return;
 
-  // Initialize history with current position if history is empty
-  if(canvasMoveHistory.length === 0) {
-    const initialState = {
-      x: parseInt(document.getElementById('canvasX').value) || 0,
-      y: parseInt(document.getElementById('canvasY').value) || 0
-    };
-    canvasMoveHistory.push(initialState);
-    canvasMoveHistoryIndex = 0;
-    updateCanvasUndoRedoButtons();
-  }
-
   // Prevent duplicate event listeners - only setup once
   if(canvasInteractivityInitialized) return;
   canvasInteractivityInitialized = true;
@@ -1992,7 +1981,7 @@ function setupCanvasViewInteractivity() {
     }
     
     // Save state after moving
-    saveCanvasMoveState();
+    saveState();
     
     // Redraw the canvas to show updated position
     showCanvasView();
@@ -2622,7 +2611,7 @@ function setupCanvasViewInteractivity() {
       }
 
       // Save state after drag completes
-      saveCanvasMoveState();
+      saveState();
 
       // Sync the screen table in raster mode and on the canvas view
       if((currentAppMode === 'raster' || currentMobileView === 'canvas') && typeof renderRasterScreenTable === 'function') {
@@ -2663,7 +2652,7 @@ function setupCanvasViewInteractivity() {
       if(typeof syncRasterToolbarPosition === 'function') syncRasterToolbarPosition();
       
       // Save state after drag completes
-      saveCanvasMoveState();
+      saveState();
     }
   });
 
@@ -2947,7 +2936,7 @@ function setupCanvasViewInteractivity() {
         drawSelectionHighlight();
         updateCanvasInfoDisplay();
       }
-      saveCanvasMoveState();
+      saveState();
 
       // Sync the screen table in raster mode and on the canvas view
       if((currentAppMode === 'raster' || currentMobileView === 'canvas') && typeof renderRasterScreenTable === 'function') {
@@ -2969,7 +2958,7 @@ function setupCanvasViewInteractivity() {
         drawSelectionHighlight();
         updateCanvasInfoDisplay();
       }
-      saveCanvasMoveState();
+      saveState();
 
       // Sync the screen table in raster mode and on the canvas view
       if((currentAppMode === 'raster' || currentMobileView === 'canvas') && typeof renderRasterScreenTable === 'function') {
@@ -3214,178 +3203,4 @@ function initCanvasTouchPanZoom() {
     initialPinchDistance = 0;
   });
 }
-
-
-// ==================== CANVAS MOVEMENT UNDO/REDO ====================
-function saveCanvasMoveState() {
-  // Save positions of ALL screens
-  const state = {
-    screenPositions: {}
-  };
-  
-  // Store each screen's position, plus each split part's
-  state.splitPositions = {};
-  Object.keys(screens).forEach(screenId => {
-    const screen = screens[screenId];
-    state.screenPositions[screenId] = {
-      x: screen.data.canvasX || 0,
-      y: screen.data.canvasY || 0
-    };
-    if(screen.data.split) state.splitPositions[screenId] = screen.data.split.parts.map(p => ({ x: p.x, y: p.y }));
-  });
-  
-  // Also store which screen is selected
-  state.selectedScreenId = selectedCanvasScreenId;
-  
-  // Remove any states after current index (user made a new move after undoing)
-  canvasMoveHistory = canvasMoveHistory.slice(0, canvasMoveHistoryIndex + 1);
-  
-  // Add new state
-  canvasMoveHistory.push(state);
-  
-  // Limit history size
-  if(canvasMoveHistory.length > MAX_CANVAS_HISTORY) {
-    canvasMoveHistory.shift();
-  } else {
-    canvasMoveHistoryIndex++;
-  }
-  
-  updateCanvasUndoRedoButtons();
-}
-
-function undoCanvasMove() {
-  // Need at least 2 states to undo (current + previous)
-  if(canvasMoveHistoryIndex <= 0) return;
-  
-  // Move back one step
-  canvasMoveHistoryIndex--;
-  
-  // Restore the state at this index
-  const previousState = canvasMoveHistory[canvasMoveHistoryIndex];
-  
-  // Restore all screen positions
-  if(previousState.screenPositions) {
-    Object.keys(previousState.screenPositions).forEach(screenId => {
-      if(screens[screenId]) {
-        screens[screenId].data.canvasX = previousState.screenPositions[screenId].x;
-        screens[screenId].data.canvasY = previousState.screenPositions[screenId].y;
-      }
-    });
-    // Split parts, when the split still has the same parts it was saved with
-    Object.keys(previousState.splitPositions || {}).forEach(screenId => {
-      const split = screens[screenId] && screens[screenId].data.split;
-      const saved = previousState.splitPositions[screenId];
-      if(!split || split.parts.length !== saved.length) return;
-      split.parts.forEach((p, k) => { p.x = saved[k].x; p.y = saved[k].y; });
-    });
-  } else {
-    // Legacy format - single x/y (for backwards compatibility)
-    if(selectedCanvasScreenId && screens[selectedCanvasScreenId]) {
-      screens[selectedCanvasScreenId].data.canvasX = previousState.x;
-      screens[selectedCanvasScreenId].data.canvasY = previousState.y;
-    } else if(screens[currentScreenId]) {
-      screens[currentScreenId].data.canvasX = previousState.x;
-      screens[currentScreenId].data.canvasY = previousState.y;
-    }
-  }
-  
-  // Update X/Y inputs to show selected or current screen position
-  const displayScreenId = selectedCanvasScreenId || currentScreenId;
-  const displayItem = canvasItem(displayScreenId);
-  if(displayItem) {
-    document.getElementById('canvasX').value = displayItem.data.canvasX || 0;
-    document.getElementById('canvasY').value = displayItem.data.canvasY || 0;
-    
-    // Update global variables if it's the current screen
-    if(displayScreenId === currentScreenId) {
-      canvasOffsetX = displayItem.data.canvasX || 0;
-      canvasOffsetY = displayItem.data.canvasY || 0;
-    }
-  }
-  
-  // Redraw canvas
-  showCanvasView();
-  
-  // Re-draw selection highlight if there's a selected screen
-  if(selectedCanvasScreenId) {
-    drawSelectionHighlight();
-  }
-  
-  updateCanvasUndoRedoButtons();
-}
-
-function redoCanvasMove() {
-  // Check if we can redo
-  if(canvasMoveHistoryIndex >= canvasMoveHistory.length - 1) return;
-  
-  // Move forward one step
-  canvasMoveHistoryIndex++;
-  
-  // Restore the state at this index
-  const nextState = canvasMoveHistory[canvasMoveHistoryIndex];
-  
-  // Restore all screen positions
-  if(nextState.screenPositions) {
-    Object.keys(nextState.screenPositions).forEach(screenId => {
-      if(screens[screenId]) {
-        screens[screenId].data.canvasX = nextState.screenPositions[screenId].x;
-        screens[screenId].data.canvasY = nextState.screenPositions[screenId].y;
-      }
-    });
-    // Split parts, when the split still has the same parts it was saved with
-    Object.keys(nextState.splitPositions || {}).forEach(screenId => {
-      const split = screens[screenId] && screens[screenId].data.split;
-      const saved = nextState.splitPositions[screenId];
-      if(!split || split.parts.length !== saved.length) return;
-      split.parts.forEach((p, k) => { p.x = saved[k].x; p.y = saved[k].y; });
-    });
-  } else {
-    // Legacy format - single x/y (for backwards compatibility)
-    if(selectedCanvasScreenId && screens[selectedCanvasScreenId]) {
-      screens[selectedCanvasScreenId].data.canvasX = nextState.x;
-      screens[selectedCanvasScreenId].data.canvasY = nextState.y;
-    } else if(screens[currentScreenId]) {
-      screens[currentScreenId].data.canvasX = nextState.x;
-      screens[currentScreenId].data.canvasY = nextState.y;
-    }
-  }
-  
-  // Update X/Y inputs to show selected or current screen position
-  const displayScreenId = selectedCanvasScreenId || currentScreenId;
-  const displayItem = canvasItem(displayScreenId);
-  if(displayItem) {
-    document.getElementById('canvasX').value = displayItem.data.canvasX || 0;
-    document.getElementById('canvasY').value = displayItem.data.canvasY || 0;
-    
-    // Update global variables if it's the current screen
-    if(displayScreenId === currentScreenId) {
-      canvasOffsetX = displayItem.data.canvasX || 0;
-      canvasOffsetY = displayItem.data.canvasY || 0;
-    }
-  }
-  
-  // Redraw canvas
-  showCanvasView();
-  
-  // Re-draw selection highlight if there's a selected screen
-  if(selectedCanvasScreenId) {
-    drawSelectionHighlight();
-  }
-  
-  updateCanvasUndoRedoButtons();
-}
-
-function updateCanvasUndoRedoButtons() {
-  const undoBtn = document.getElementById('canvasUndoBtn');
-  const redoBtn = document.getElementById('canvasRedoBtn');
-  
-  if(undoBtn) {
-    undoBtn.disabled = canvasMoveHistoryIndex <= 0;
-  }
-  if(redoBtn) {
-    redoBtn.disabled = canvasMoveHistoryIndex >= canvasMoveHistory.length - 1;
-  }
-}
-
-
 

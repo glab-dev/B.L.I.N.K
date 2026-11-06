@@ -50,9 +50,9 @@ test.describe('Navigation Buttons', () => {
   });
 
   test('should navigate home to welcome page @critical', async ({ page }) => {
-    // Find and click the home button
-    const homeBtn = page.locator('.mobile-header-btn').first();
-    await homeBtn.click();
+    // Home is in the ☰ menu (Welcome)
+    await page.locator('.mobile-header-btn').last().click();
+    await page.locator('.mobile-menu-btn', { hasText: 'Welcome' }).click();
     await page.waitForTimeout(500);
 
     await expect(page.locator('#welcomePage')).toBeVisible();
@@ -60,9 +60,9 @@ test.describe('Navigation Buttons', () => {
   });
 
   test('should re-enter app from welcome page', async ({ page }) => {
-    // Go home
-    const homeBtn = page.locator('.mobile-header-btn').first();
-    await homeBtn.click();
+    // Go home (☰ menu → Welcome)
+    await page.locator('.mobile-header-btn').last().click();
+    await page.locator('.mobile-menu-btn', { hasText: 'Welcome' }).click();
     await page.waitForTimeout(500);
 
     // Re-enter via Complex mode

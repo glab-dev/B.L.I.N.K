@@ -351,8 +351,9 @@ test.describe('Modals @comprehensive @mobile', () => {
   // -- Terms Modal --
 
   test('should open terms modal from welcome page', async ({ page }) => {
-    // Go back to welcome page
-    await page.locator('.mobile-header-btn').first().click();
+    // Go back to welcome page (☰ menu → Welcome)
+    await page.locator('.mobile-header-btn').last().click();
+    await page.locator('.mobile-menu-btn', { hasText: 'Welcome' }).click();
     await page.waitForTimeout(500);
 
     // Click Terms of Use

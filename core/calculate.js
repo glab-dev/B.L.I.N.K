@@ -495,22 +495,16 @@ function resetCalculator() {
   structureIsDragging = false;
   structureDraggingBumper = null;
   
-  // Reset structure view undo/redo
-  structureHistory = [];
-  structureHistoryIndex = -1;
-  
   // Update manual mode UI
   const toggleBtn = document.getElementById('manualBumperToggle');
   const hintSpan = document.getElementById('structureModeHint');
   const selectionInfo = document.getElementById('structureSelectionInfo');
-  const undoRedoDiv = document.getElementById('structureUndoRedo');
   if(toggleBtn) {
     toggleBtn.classList.remove('active');
     toggleBtn.textContent = 'Manually Distribute Bumpers';
   }
   if(hintSpan) hintSpan.textContent = 'Auto-distribution active';
   if(selectionInfo) selectionInfo.classList.remove('visible');
-  if(undoRedoDiv) undoRedoDiv.style.display = 'none';
   
   // Reset canvas event listener flag so it can be re-attached
   const structCanvas = document.getElementById('structureCanvas');
@@ -521,14 +515,6 @@ function resetCalculator() {
   bottomBumper1wColumn = -1;
   manualTopBumpers = [];
   manualBottomBumpers = [];
-  
-  // Clear undo/redo stacks
-  undoStack = [];
-  redoStack = [];
-  canvasUndoStack = [];
-  canvasRedoStack = [];
-  undoHistory = [];
-  redoHistory = [];
   
   // Reset canvas view state (preserve offsets — they're independent of panel config)
   canvasZoomLevel = 1.0;

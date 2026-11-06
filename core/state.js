@@ -734,17 +734,15 @@ function rebaseCB5RowKeys(coll, from, to) {
   return out;
 }
 
-// Re-key a state object's row-keyed fields: a screen's data, or an undo snapshot.
+// Re-key a screen data object's row-keyed fields.
 function rebaseCB5StateKeys(state, from, to) {
   if(!state) return;
   CB5_ROW_KEYED_FIELDS.forEach(f => { if(state[f]) state[f] = rebaseCB5RowKeys(state[f], from, to); });
-  (state.undoHistory || []).forEach(st => rebaseCB5StateKeys(st, from, to));
-  (state.redoHistory || []).forEach(st => rebaseCB5StateKeys(st, from, to));
 }
 
 // Changing the top half rows moves every full panel down or up the grid, and changing
 // the full rows moves the half rows below them, so the current screen's deletions,
-// selection and custom assignments (and its undo history) move with their panels.
+// selection and custom assignments move with their panels.
 // Call after anything that can change the current screen's row layout: the half row
 // toggle, position or counts, the panel type, or the panels high.
 function syncCB5RowKeys() {
@@ -759,8 +757,6 @@ function syncCB5RowKeys() {
   customSocaAssignments = rebaseCB5RowKeys(customSocaAssignments, from, to);
   customDataLineAssignments = rebaseCB5RowKeys(customDataLineAssignments, from, to);
   customDataDestinations = rebaseCB5RowKeys(customDataDestinations, from, to);
-  undoHistory.forEach(st => rebaseCB5StateKeys(st, from, to));
-  redoHistory.forEach(st => rebaseCB5StateKeys(st, from, to));
   if(typeof screens !== 'undefined' && screens[currentScreenId]) {
     const data = screens[currentScreenId].data;
     data.deletedPanels = new Set(deletedPanels);

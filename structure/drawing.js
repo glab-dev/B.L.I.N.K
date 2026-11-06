@@ -818,7 +818,7 @@ function setupStructureCanvasInteractivity() {
     if(structureDraggingBumper && manualBumperMode) {
       // Check if bumper was actually moved
       if(bumperDragStartCol !== -1 && bumperDragStartCol !== structureDraggingBumper.startCol) {
-        saveStructureState(); // Save state after move
+        saveState(); // Save state after move
       }
       
       structureDraggingBumper = null;
@@ -828,7 +828,6 @@ function setupStructureCanvasInteractivity() {
       // Update weight and calculations
       updateWeightDisplay();
       calculate();
-      updateStructureUndoRedoButtons();
     }
     structureIsDragging = false;
   });

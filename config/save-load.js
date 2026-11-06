@@ -412,11 +412,8 @@ function newProject() {
       document.getElementById('unitImperial')?.classList.toggle('active', true);
       document.getElementById('unitMetric')?.classList.toggle('active', false);
 
-      // Clear histories
-      undoHistory = [];
-      redoHistory = [];
-      canvasMoveHistory = [];
-      canvasMoveHistoryIndex = -1;
+      // A new project starts its own history
+      resetHistory();
 
       // Clear the Combined arrangement (resetCombinedPositions also clears the
       // ledcalc_combined_positions localStorage key)
@@ -431,7 +428,10 @@ function newProject() {
     });
 }
 
-function applyConfiguration(config, fileNameOverride) {
+// opts.quiet: putting back an Undo / Redo step (core/undo.js) — no message, no Recents entry,
+// and the history stays as it is
+function applyConfiguration(config, fileNameOverride, opts) {
+  const quiet = !!(opts && opts.quiet);
   // Verify version
   if(!config.version) {
     throw new Error('Invalid configuration file');
@@ -777,11 +777,8 @@ function applyConfiguration(config, fileNameOverride) {
     // Load current screen data into form
     loadScreenData(currentScreenId);
 
-    // Clear histories
-    undoHistory = [];
-    redoHistory = [];
-    canvasMoveHistory = [];
-    canvasMoveHistoryIndex = -1;
+    // A loaded project starts its own history
+    if(!quiet) resetHistory();
     selectedPanels.clear();
 
     // Recalculate current screen
@@ -845,13 +842,13 @@ function applyConfiguration(config, fileNameOverride) {
     }, 100);
 
     const loadSummary = `Configuration "${displayName}" loaded successfully! (${Object.keys(screens).length} screens, ${Object.keys(canvases).length} canvases)`;
-    if(missingPanelKeys.size > 0 || missingProcessorKeys.size > 0) {
+    if(!quiet && (missingPanelKeys.size > 0 || missingProcessorKeys.size > 0)) {
       let warn = loadSummary + '\n\nWarning: some specs in this project could not be loaded and were replaced with defaults:';
       if(missingPanelKeys.size > 0) warn += '\n• Custom panel(s): ' + Array.from(missingPanelKeys).join(', ');
       if(missingProcessorKeys.size > 0) warn += '\n• Custom processor(s): ' + Array.from(missingProcessorKeys).join(', ');
       warn += '\n\nThese specs were not saved in the file and are not on this device. Re-add the custom item(s) before relying on the results.';
       showAlert(warn, 'Loaded — Missing Specs');
-    } else {
+    } else if(!quiet) {
       showAlert(loadSummary);
     }
   } else {
@@ -930,11 +927,8 @@ function applyConfiguration(config, fileNameOverride) {
       canvasSizeSelect.dispatchEvent(new Event('change'));
     }
 
-    // Clear histories
-    undoHistory = [];
-    redoHistory = [];
-    canvasMoveHistory = [];
-    canvasMoveHistoryIndex = -1;
+    // A loaded project starts its own history
+    resetHistory();
     selectedPanels.clear();
 
     // Recalculate everything
@@ -946,7 +940,7 @@ function applyConfiguration(config, fileNameOverride) {
   }
 
   // Add to recent projects
-  addToRecentProjects(config);
+  if(!quiet) addToRecentProjects(config);
 }
 
 // Show/hide connection mode toggle based on processor selection

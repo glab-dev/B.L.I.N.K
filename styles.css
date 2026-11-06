@@ -234,6 +234,26 @@ body::after {
   color: #fff;
 }
 
+/* Undo / Redo, centred between the title and the other header buttons */
+.header-history {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+.mobile-header-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.mobile-header-btn:disabled:hover,
+.mobile-header-btn:disabled:active {
+  background: transparent;
+  color: var(--primary);
+  text-shadow: none;
+}
+
 /* Update Available Banner */
 .update-banner {
   position: fixed;
@@ -1363,41 +1383,6 @@ canvas:focus {
   z-index: 20;
 }
 
-.undo-redo-buttons {
-  display: flex;
-  gap: 8px;
-  margin-left: 0;
-  margin-top: 0;
-}
-
-.undo-redo-btn {
-  padding: 6px 12px;
-  font-size: 11px;
-  font-family: 'Roboto Condensed', sans-serif;
-  background: #2a2a2a;
-  color: #e0e0e0;
-  border: 2px solid #000;
-  border-radius: 0;
-  cursor: pointer;
-  transition: all 0.1s;
-  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
-  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
-}
-
-.undo-redo-btn:hover:not(:disabled) {
-  background: #383838;
-  color: var(--primary);
-}
-
-.undo-redo-btn:active:not(:disabled) {
-  box-shadow: none;
-  transform: translate(2px, 2px);
-}
-
-.undo-redo-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 
 /* Quick per-view PDF export button — tucked inside the container's top-right
    corner. Unlike the comic title tag it does not straddle the border. Absolutely
@@ -5324,13 +5309,6 @@ body.tab-reordering {
     min-height: 28px !important;
     padding: 2px 8px !important;
   }
-  .undo-redo-btn {
-    height: 39px !important;
-    min-height: 39px !important;
-    padding: 4px 12px !important;
-    margin-bottom: 0 !important;
-    width: auto !important;
-  }
   /* Structure mode toggle: compact inline layout */
   .structure-mode-toggle {
     flex-wrap: wrap;
@@ -5351,16 +5329,6 @@ body.tab-reordering {
     line-height: 1.2 !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
-  }
-  .undo-redo-buttons {
-    margin-top: 8px;
-    margin-left: 8px;
-  }
-  .structure-mode-toggle .undo-redo-buttons {
-    margin-left: 0 !important;
-    margin-top: 0 !important;
-    gap: 6px !important;
-    align-items: center !important;
   }
   .welcome-page button {
     min-height: 48px !important;

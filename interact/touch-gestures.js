@@ -334,13 +334,12 @@ function setupBumperTouchDrag() {
       if(isTouchDragging && touchDragBumper) {
         // Bumper was dragged - save state if moved
         if(touchDragStartCol !== -1 && touchDragStartCol !== touchDragBumper.startCol) {
-          saveStructureState();
+          saveState();
           vibrate(30);
         }
         // Update weight and calculations
         updateWeightDisplay();
         calculate();
-        updateStructureUndoRedoButtons();
       } else if(!isDragEnabled && touchedBumper) {
         // Quick tap (no drag) - check if bumper was already selected
         if(wasAlreadySelected) {

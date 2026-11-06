@@ -7,8 +7,8 @@
 // that takes them, a 4W in the band over two touching 2Ws). On touch: tap to
 // select, tap a selected bumper for its options, hold (or turn on Select Mode) and drag to
 // move, long-press an empty spot to add one. Once edited, the wall keeps its own bumpers
-// (data.freeBumpers, for the edge data.freeBumpersPosition) until its panels change, and
-// the structure Undo / Redo step through them with the app's undo.
+// (data.freeBumpers, for the edge data.freeBumpersPosition) until its panels change; the
+// top bar's Undo / Redo step through the edits like any other change.
 
 let freeBumperHoverId = null;
 let freeBumperDrag = null;      // {id, grab, saved} while a bumper is dragged
@@ -25,7 +25,6 @@ function editFreeBumpers(change) {
   saveState();
   change(screens[currentScreenId].data.freeBumpers);
   calculate();
-  updateStructureUndoRedoButtons();
 }
 
 // The edge panel under cell x on a bumper row, and the panel right beside it on that row
@@ -274,10 +273,7 @@ function startFreeBumperDrag(id, clientX) {
 function endFreeBumperDrag() {
   const drag = freeBumperDrag;
   freeBumperDrag = null;
-  if(drag && drag.saved) {
-    calculate();
-    updateStructureUndoRedoButtons();
-  }
+  if(drag && drag.saved) calculate();
 }
 
 function selectFreeBumper(id, additive) {

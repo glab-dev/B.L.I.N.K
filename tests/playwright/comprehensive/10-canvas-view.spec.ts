@@ -107,9 +107,9 @@ test.describe('Canvas View @comprehensive @desktop', () => {
 
 
 
-  test('should show canvas undo/redo buttons', async ({ page }) => {
-    const undoBtn = page.locator('#canvasUndoBtn');
-    const redoBtn = page.locator('#canvasRedoBtn');
+  test('should show the top bar undo/redo on the canvas view', async ({ page }) => {
+    const undoBtn = page.locator('#undoBtn');
+    const redoBtn = page.locator('#redoBtn');
     await expect(undoBtn).toBeVisible();
     await expect(redoBtn).toBeVisible();
   });

@@ -281,40 +281,6 @@ function isValidFreeLayout(cellMm, list, allPanels) {
   });
 }
 
-// The free layout fields of the current screen, for an undo/redo snapshot
-function freeLayoutSnapshot() {
-  const data = screens[currentScreenId] ? screens[currentScreenId].data : null;
-  if(!isFreeScreen(data)) return null;
-  return {freeCell_mm: data.freeCell_mm, freePanels: data.freePanels.map(fp => ({type: fp.type, gx: fp.gx, gy: fp.gy})),
-    freeDataPaths: (data.freeDataPaths || []).map(p => ({line: p.line, panels: p.panels.slice()})),
-    freeDataMode: data.freeDataMode,
-    freeBumpers: Array.isArray(data.freeBumpers) ? data.freeBumpers.map(b => Object.assign({}, b)) : null,
-    freeBumpersPosition: data.freeBumpersPosition};
-}
-
-// Puts a snapshot back. True when the screen was or becomes a free screen, so the
-// caller recalculates instead of only redrawing.
-function restoreFreeLayout(snap) {
-  const data = screens[currentScreenId] ? screens[currentScreenId].data : null;
-  if(!data) return false;
-  const wasFree = isFreeScreen(data);
-  if(snap) {
-    data.layoutMode = 'free';
-    data.freeCell_mm = snap.freeCell_mm;
-    data.freePanels = snap.freePanels.map(fp => ({type: fp.type, gx: fp.gx, gy: fp.gy}));
-    data.freeDataPaths = (snap.freeDataPaths || []).map(p => ({line: p.line, panels: p.panels.slice()}));
-    data.freeDataMode = snap.freeDataMode;
-    data.freeBumpers = snap.freeBumpers ? snap.freeBumpers.map(b => Object.assign({}, b)) : null;
-    data.freeBumpersPosition = snap.freeBumpersPosition;
-  } else {
-    delete data.layoutMode;
-    delete data.freePanels;
-    delete data.freeDataPaths;
-  }
-  freeSelected.clear();
-  return wasFree || !!snap;
-}
-
 // Turns a screen's data into an empty free screen, snapped to its panel's family.
 function makeFreeScreenData(data) {
   const fam = freeFamily(data.panelType, getAllPanels());

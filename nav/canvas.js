@@ -195,6 +195,8 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
         colBottom[c] = r;
       }
     }
+    // A drawn screen joins its arrows by the data layout's rule (layouts/free-data.js)
+    const freeJoins = isFree ? freeArrowJoiner(data, getAllPanels()) : null;
     sortedLines.forEach(ln => {
       const grp = ordering[ln];
       if(!grp || grp.length < 2) return;
@@ -204,7 +206,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
       for(let i = 1; i < grp.length; i++) {
         const prev = at(grp[i - 1]), curr = at(grp[i]);
         const colDiff = Math.abs(curr.col - prev.col), rowDiff = Math.abs(curr.row - prev.row);
-        const isAdjacent = isFree ? freePanelsTouch(grp[i - 1], grp[i]) : (colDiff === 0) ||
+        const isAdjacent = isFree ? freeJoins(grp[i - 1], grp[i]) : (colDiff === 0) ||
           (colDiff === 1 && (rowDiff === 0 || prev.row === 0 || prev.row === H - 1 || curr.row === 0 || curr.row === H - 1 ||
             (prev.row === colTop[prev.col] && curr.row === colTop[curr.col]) ||
             (prev.row === colBottom[prev.col] && curr.row === colBottom[curr.col])));

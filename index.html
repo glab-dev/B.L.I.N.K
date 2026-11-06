@@ -3176,18 +3176,21 @@
         </div>
         <div class="layout-toggle-row free-draw-row" id="freeDataPathRow" style="display:none;">
           <div class="flex-noshrink">
-            <span class="toggle-label toggle-label-block">Draw Path</span>
-            <button type="button" class="toggle-btn toggle-btn-standalone" id="freeDataPathBtn" aria-pressed="false" onclick="toggleFreeDataPathMode()">Off</button>
+            <span class="toggle-label toggle-label-block">Data</span>
+            <div class="slider-toggle" role="radiogroup" aria-label="Data distribution">
+              <button type="button" class="slider-toggle-btn" id="freeDataAutoBtn" role="radio" aria-checked="false" onclick="setFreeDataMode('auto')">Automatic</button>
+              <button type="button" class="slider-toggle-btn" id="freeDataManualBtn" role="radio" aria-checked="false" onclick="setFreeDataMode('manual')">Manual</button>
+            </div>
           </div>
-          <div class="free-draw-picker">
+          <div class="free-draw-picker" id="freeDataLinePicker" style="display:none;">
             <span class="toggle-label toggle-label-block">Line</span>
             <div class="free-draw-chips" id="freeDataLineChips" role="radiogroup" aria-label="Data line to draw"></div>
           </div>
-          <div class="flex-noshrink">
-            <span class="toggle-label toggle-label-block">Drawn Paths</span>
+          <div class="flex-noshrink" id="freeDataPathClearGroup" style="display:none;">
+            <span class="toggle-label toggle-label-block">Drawn Lines</span>
             <div class="grouped-btn-shadow">
               <button type="button" class="toggle-btn toggle-btn-grouped-left" id="freeDataPathClearBtn" onclick="clearFreeDataPathLine()">Clear Line</button>
-              <button type="button" class="toggle-btn toggle-btn-grouped-right" id="freeDataPathAutoBtn" onclick="clearFreeDataPaths()">Auto</button>
+              <button type="button" class="toggle-btn toggle-btn-grouped-right" id="freeDataPathClearAllBtn" onclick="clearFreeDataPaths()">Clear All</button>
             </div>
           </div>
         </div>

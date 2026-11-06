@@ -229,7 +229,8 @@ function freeLayoutSnapshot() {
   const data = screens[currentScreenId] ? screens[currentScreenId].data : null;
   if(!isFreeScreen(data)) return null;
   return {freeCell_mm: data.freeCell_mm, freePanels: data.freePanels.map(fp => ({type: fp.type, gx: fp.gx, gy: fp.gy})),
-    freeDataPaths: (data.freeDataPaths || []).map(p => ({line: p.line, panels: p.panels.slice()}))};
+    freeDataPaths: (data.freeDataPaths || []).map(p => ({line: p.line, panels: p.panels.slice()})),
+    freeDataMode: data.freeDataMode};
 }
 
 // Puts a snapshot back. True when the screen was or becomes a free screen, so the
@@ -243,6 +244,7 @@ function restoreFreeLayout(snap) {
     data.freeCell_mm = snap.freeCell_mm;
     data.freePanels = snap.freePanels.map(fp => ({type: fp.type, gx: fp.gx, gy: fp.gy}));
     data.freeDataPaths = (snap.freeDataPaths || []).map(p => ({line: p.line, panels: p.panels.slice()}));
+    data.freeDataMode = snap.freeDataMode;
   } else {
     delete data.layoutMode;
     delete data.freePanels;

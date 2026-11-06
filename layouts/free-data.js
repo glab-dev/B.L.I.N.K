@@ -30,8 +30,8 @@ function freeScreenDataInputs(data) {
     pw: grid.cols, ph: grid.rows,
     panelsPerDataLine: userMax > 0 ? userMax : freeSuggestedPanelsPerData(data.freePanels, allPanels, capacity),
     startDir: data.dataStartDir || 'top',
-    deletedPanels: grid.deleted,
-    customDataLines: freeDataPathAssignments(toMap(data.customDataLineAssignments), data.freeDataPaths),
+    deletedPanels: freeDataDeleted(data, grid.deleted),
+    customDataLines: freeDataPathAssignments(toMap(data.customDataLineAssignments), freeActivePaths(data)),
     customDestinations: toMap(data.customDataDestinations),
     processorId: processorId,
     connectionMode: data.mx40ConnectionMode || 'direct'
@@ -39,10 +39,26 @@ function freeScreenDataInputs(data) {
 }
 
 // ==================== DRAWN DATA PATHS ====================
-// Data lines drawn by hand on the Data layout, Tessera-style (interact/free-data-path.js):
+// A drawn screen's data runs one of two ways, picked on its Data layout
+// (interact/free-data-path.js), and has no data lines until one is picked:
+//   data.freeDataMode = 'auto'    the grid's automatic lines (and any Assign Data Line numbers)
+//                     = 'manual'  only the lines drawn by hand, Tessera-style:
 //   data.freeDataPaths = [{line, panels: ["gx,gy", ...]}]   line 1-based, panels in cable order
-// A drawn line takes its panels in the order they were drawn; every other panel stays on
-// the automatic lines (and any Assign Data Line numbers), as on grid screens.
+
+// The drawn paths in force: Manual's only
+function freeActivePaths(data) {
+  return data.freeDataMode === 'manual' ? (data.freeDataPaths || []) : [];
+}
+
+// The cells the data lines skip: the cell grid's own (`deleted`), plus every panel when no
+// distribution is picked yet, or every panel on no drawn path in Manual
+function freeDataDeleted(data, deleted) {
+  if(data.freeDataMode === 'auto') return deleted;
+  const onPath = new Set(freeActivePaths(data).flatMap(p => p.panels));
+  const out = new Set(deleted);
+  data.freePanels.forEach(fp => { if(!onPath.has(`${fp.gx},${fp.gy}`)) out.add(`${fp.gx},${fp.gy}`); });
+  return out;
+}
 
 // The custom data line map with every drawn path's panels on its line (a path wins)
 function freeDataPathAssignments(custom, paths) {
@@ -108,9 +124,9 @@ function calculateFreeData(data, allPanels) {
   const {cols, rows, deleted} = freeCellGrid(data, allPanels, 'max');
   const built = applyFreeDataPaths(buildDataLineGroups({
     pw: cols, ph: rows, panelsPerDataLine, startDir,
-    deletedPanels: deleted, customDataLineAssignments: freeDataPathAssignments(customDataLineAssignments, data.freeDataPaths),
+    deletedPanels: freeDataDeleted(data, deleted), customDataLineAssignments: freeDataPathAssignments(customDataLineAssignments, freeActivePaths(data)),
     split: data.split
-  }), data.freeDataPaths);
+  }), freeActivePaths(data));
   // Named points, so the data line table lists panels the way the canvas numbers them
   const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
   built.groups.forEach(g => g.forEach(pt => { pt.label = names.get(`${pt.c},${pt.r}`); }));
@@ -130,7 +146,7 @@ function freeScreenDataGroups(data, allPanels) {
     pw: inp.pw, ph: inp.ph, panelsPerDataLine: inp.panelsPerDataLine, startDir: inp.startDir,
     deletedPanels: inp.deletedPanels, customDataLineAssignments: inp.customDataLines,
     split: data.split
-  }), data.freeDataPaths);
+  }), freeActivePaths(data));
   const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
   built.groups.forEach(g => g.forEach(pt => { pt.label = names.get(`${pt.c},${pt.r}`); }));
   return built;
@@ -151,6 +167,33 @@ function freeDataLinePanelOrdering(data, allPanels) {
     });
   });
   return out;
+}
+
+// Whether a data line's arrow runs on between two of its panels in a row ({key, cw, ch}),
+// as on grid screens: touching panels, a jump within a column, and a serpentine turn into
+// the next column at both columns' top or bottom, even where they end at different
+// heights. A hand-drawn (Manual) line joins every panel in the order it was drawn.
+function freeArrowJoiner(data, allPanels) {
+  if(data.freeDataMode === 'manual') return () => true;
+  const colTop = new Map(), colBottom = new Map();
+  data.freePanels.forEach(fp => {
+    const {cw, ch} = freeCells(allPanels[fp.type], data.freeCell_mm);
+    for(let x = fp.gx; x < fp.gx + cw; x++) {
+      colTop.set(x, Math.min(colTop.has(x) ? colTop.get(x) : Infinity, fp.gy));
+      colBottom.set(x, Math.max(colBottom.has(x) ? colBottom.get(x) : -Infinity, fp.gy + ch - 1));
+    }
+  });
+  const at = p => { const [gx, gy] = p.key.split(',').map(Number); return {gx, gy, cw: p.cw, ch: p.ch}; };
+  const allAt = (p, test) => { for(let x = p.gx; x < p.gx + p.cw; x++) if(!test(x)) return false; return true; };
+  const atTop = p => allAt(p, x => colTop.get(x) === p.gy);
+  const atBottom = p => allAt(p, x => colBottom.get(x) === p.gy + p.ch - 1);
+  return (pa, pb) => {
+    if(freePanelsTouch(pa, pb)) return true;
+    const a = at(pa), b = at(pb);
+    if(a.gx < b.gx + b.cw && b.gx < a.gx + a.cw) return true;
+    const beside = a.gx + a.cw === b.gx || b.gx + b.cw === a.gx;
+    return beside && ((atTop(a) && atTop(b)) || (atBottom(a) && atBottom(b)));
+  };
 }
 
 // Two panels from freeDataLinePanelOrdering() share an edge
@@ -219,6 +262,18 @@ function drawFreeDataPanels(ctx, data, allPanels, o) {
   }
 
   const size = new Map(data.freePanels.map(fp => [`${fp.gx},${fp.gy}`, freeCells(allPanels[fp.type], data.freeCell_mm)]));
+  const joins = freeArrowJoiner(data, allPanels);
+  // Every panel's outline first, so panels on no data line (nothing picked yet, or not yet
+  // drawn in Manual) still show the wall
+  const print = ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode;
+  data.freePanels.forEach(fp => {
+    const r = rect(fp.gx, fp.gy, size.get(`${fp.gx},${fp.gy}`));
+    ctx.fillStyle = print ? '#ffffff' : '#242424';
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = print ? '#000000' : '#666666';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+  });
   const labelDraws = [];
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -255,16 +310,17 @@ function drawFreeDataPanels(ctx, data, allPanels, o) {
         ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2);
       }
       const {cw, ch} = size.get(key);
-      pts.push({x: r.x + r.w / 2, y: r.y + r.h / 2, col: pt.c + cw / 2 - 0.5, row: pt.r + ch / 2 - 0.5, cw, ch});
+      pts.push({x: r.x + r.w / 2, y: r.y + r.h / 2, col: pt.c + cw / 2 - 0.5, row: pt.r + ch / 2 - 0.5, cw, ch, key});
     });
 
-    // Arrows run between touching panels; a jump across a gap starts a new arrow
+    // Arrows join panels the cable runs between (freeArrowJoiner); any other jump starts
+    // a new arrow
     if(o.showArrows && pts.length > 1) {
       const opts = {lineWidth: o.arrowWidth, headSize: o.headSize, hideArrowhead: o.showLabels};
       let seg = [pts[0]];
       const flush = () => { if(seg.length > 1) drawArrowPath(ctx, o.flip ? seg.slice().reverse() : seg, '#000000', opts); };
       for(let i = 1; i < pts.length; i++) {
-        if(freePanelsTouch(pts[i - 1], pts[i])) {
+        if(joins(pts[i - 1], pts[i])) {
           seg.push(pts[i]);
         } else {
           flush();
@@ -344,6 +400,7 @@ function renderFreeDataLayout() {
     numberSize: (w, h) => Math.max(10, Math.floor(Math.min(w, h) * (pdf ? 0.25 : 0.22))),
     arrowWidth: 3, headSize: 12
   });
+  if(!pdf) drawFreeDataPathCues(ctx, data, allPanels);
   // Where a split screen splits, and each part's canvas and processor (layouts/data.js)
   drawSplitPartMarkers(ctx, currentScreenId, {
     offsetX: 0, offsetY: 0, panelWidth: cellPx,

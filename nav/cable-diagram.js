@@ -32,7 +32,8 @@ function renderCableDiagram(screenId) {
   // The processor count follows calculate(), so the Source rows are refreshed with it.
   updateCableTabSourceFeeds(screenId);
   if (cableTabShowsAllFeeds(screenId)) {
-    const d = screen.data;
+    // A drawn screen in main-panel units, as the Combined view lays it out (nav/free-combined.js)
+    const d = isFreeScreen(screens[screenId].data) ? freeCombinedData(screens[screenId].data, getAllPanels()) : screen.data;
     const panelSize = 40;
     const panelType = d.panelType || 'CB5_MKII';
     const height = cb5RowGeometry(d.panelsHigh, getCB5HalfRows(d, panelType), panelSize * (d.freeCellPanel ? 1 : getPanelHeightRatio(panelType)), panelSize).height;
@@ -131,7 +132,15 @@ function renderCableDiagram(screenId) {
   const effectiveMaxSize = (!isPdf && heightRatio > 1)
     ? Math.floor(LAYOUT_MAX_SIZE / heightRatio)
     : LAYOUT_MAX_SIZE;
-  const cellSize = Math.max(LAYOUT_MIN_SIZE, Math.min(effectiveMaxSize, Math.floor(layoutMaxW / pw)));
+  // A drawn screen sizes its main panel as a grid wall of that panel would, then draws its
+  // snap cells at their share of it (freeUnitScale of a panel width)
+  const freeMain = screen.data.freeCellPanel ? getAllPanels()[screens[screenId].data.panelType] : null;
+  const freeUnit = freeMain ? screen.data.freeCell_mm / (freeMain.width_m * 1000) : 1;
+  const freeRatio = freeMain ? getPanelHeightRatio(screens[screenId].data.panelType) : 1;
+  const freeMaxSize = (!isPdf && freeRatio > 1) ? Math.floor(LAYOUT_MAX_SIZE / freeRatio) : LAYOUT_MAX_SIZE;
+  const cellSize = freeMain
+    ? Math.max(LAYOUT_MIN_SIZE, Math.min(freeMaxSize, Math.floor(layoutMaxW / (pw * freeUnit)))) * freeUnit
+    : Math.max(LAYOUT_MIN_SIZE, Math.min(effectiveMaxSize, Math.floor(layoutMaxW / pw)));
   const panelPixelW = cellSize;
   const fullPanelPixelH = cellSize * heightRatio;
   const halfPanelPixelH = fullPanelPixelH / 2;
@@ -273,7 +282,11 @@ function renderCableDiagram(screenId) {
       return {
         firstCol, lastCol, landingCol, feedRow, inboard, fromBottom,
         landingOffX, bracketOffY: bracketOff, bracketStartOffX, bracketEndOffX,
-        feedMidOff: rowMidOff(feedRow), labelText, labelW, labelFont,
+        // A drawn screen's feed panel spans several cells: the middle of the panel, where its
+        // live route starts (freeCablePath)
+        feedMidOff: screen.data.freeCellPanel
+          ? (() => { const at = freeCablePanelAt(screens[screenId].data, landingCol, feedRow); return rowFracOff(freeCablePanelCentre(at.boxes[at.i]).row, 0.5); })()
+          : rowMidOff(feedRow), labelText, labelW, labelFont,
         // An inboard bracket sits over the panel grid and the cable runs, so its label gets
         // an opaque plate. Edge-row brackets sit on empty background and stay plain text.
         plateLabel: inboard || bracketRow !== wallEdgeRow
@@ -412,6 +425,10 @@ function renderCableDiagram(screenId) {
   // pw / ph / panelType / halfRows and the cell sizes (panelPixelW, fullPanelPixelH,
   // halfPanelPixelH, totalRows) are all computed up top from the shared layout sizing.
   const screenDeletedPanels = screen.data.deletedPanels || new Set();
+  // A drawn screen routes its cables panel to panel (freeCablePath), a grid one cell to cell
+  const freeRoute = screen.data.freeCellPanel ? screens[screenId].data : null;
+  const cablePath = (c0, r0, c1, r1) => freeRoute ? freeCablePath(freeRoute, c0, r0, c1, r1)
+    : findCableGridPath(c0, r0, c1, r1, pw, totalRows, screenDeletedPanels);
   const actualWallW = wallW;
   const actualWallH = wallH;
   const panelFontSize = Math.max(6, Math.min(10, Math.floor(Math.min(panelPixelW, fullPanelPixelH) * 0.35)));
@@ -427,29 +444,34 @@ function renderCableDiagram(screenId) {
       const px = adjWallLeftX + c * panelPixelW;
       const py = wallTopY + rowGeo.y(r);
 
-      if (screenDeletedPanels.has && screenDeletedPanels.has(panelKey)) {
+      if (!freeRoute && screenDeletedPanels.has && screenDeletedPanels.has(panelKey)) {
         // Deleted panel — dashed outline, no fill
         ctx.strokeStyle = gridDeletedColor;
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.strokeRect(px, py, panelPixelW, currentH);
         ctx.setLineDash([]);
-      } else {
-        // Normal panel — transparent with light outline
+      } else if (!screen.data.freeCellPanel) {
+        // Normal panel — transparent with light outline (a drawn screen's are drawn whole below)
         ctx.strokeStyle = gridColor;
         ctx.lineWidth = 1;
         ctx.strokeRect(px, py, panelPixelW, currentH);
       }
     }
   }
-  // A drawn screen's panels span several cells: cover the cell lines inside each one
+  // A drawn screen's gaps (whole panels where they fit) and its panels, each drawn whole
   if (screen.data.freeCellPanel) {
+    freeHoleRects(freeRoute, getAllPanels()).forEach(h => {
+      ctx.strokeStyle = gridDeletedColor;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(adjWallLeftX + h.gx * panelPixelW, wallTopY + rowGeo.y(h.gy), h.cw * panelPixelW, h.ch * panelPixelW);
+      ctx.setLineDash([]);
+    });
     freePlacedPanels(screen.data, getAllPanels()).panels.forEach(pp => {
       const [gx, gy] = pp.key.split(',').map(Number);
       const cells = freeCells(getAllPanels()[pp.type], screen.data.freeCell_mm);
       const px = adjWallLeftX + gx * panelPixelW, py = wallTopY + rowGeo.y(gy);
-      ctx.fillStyle = bgColor;
-      ctx.fillRect(px, py, cells.cw * panelPixelW, cells.ch * panelPixelW);
       ctx.strokeStyle = gridColor;
       ctx.lineWidth = 1;
       ctx.strokeRect(px, py, cells.cw * panelPixelW, cells.ch * panelPixelW);
@@ -550,6 +572,11 @@ function renderCableDiagram(screenId) {
       if (!muster && typeof findNearestNonDeleted === 'function') muster = findNearestNonDeleted(dropCol, bottomRow, pw, totalRows, screenDeletedPanels);
     }
   }
+  // On a drawn screen the bundle leaves from the middle of the muster cell's panel
+  if (muster && freeRoute) {
+    const m = freeCablePanelAt(freeRoute, muster.col, muster.row);
+    muster = freeCablePanelCentre(m.boxes[m.i]);
+  }
   const liveRouteActive = !!muster;
   // Route one cable from (startCol,startRow) through live panels to the muster cell,
   // then down to the floor equipment. Draws clean right angles (the router is
@@ -559,7 +586,7 @@ function renderCableDiagram(screenId) {
   // and stay separated on BOTH vertical and horizontal segments (not just verticals).
   function drawLivePanelRoute(startCol, startRow, offX, offY, color, width, floorY, targetX, boxTopY) {
     if (!liveRouteActive || typeof findCableGridPath !== 'function') return false;
-    const path = findCableGridPath(startCol, startRow, muster.col, muster.row, pw, totalRows, screenDeletedPanels);
+    const path = cablePath(startCol, startRow, muster.col, muster.row);
     if (!path || path.length === 0) return false;
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
@@ -709,10 +736,12 @@ function renderCableDiagram(screenId) {
     ctx.stroke();
   }
 
-  // Helper: compute target Y inside the wall for an entry/exit panel
-  function getPanelTargetY(row, fromBottom) {
-    if (fromBottom) return wallTopY + rowFracOff(row, 2 / 3);
-    return wallTopY + rowFracOff(row, 1 / 3);
+  // Helper: compute target Y inside the wall for an entry/exit panel. A drawn screen's
+  // panel spans pt.ch cells (its row is its centre less half a cell), so the third is of it.
+  function getPanelTargetY(pt, fromBottom) {
+    const frac = fromBottom ? 2 / 3 : 1 / 3;
+    if (pt.ch) return wallTopY + rowFracOff(pt.row + 0.5 - pt.ch / 2, frac * pt.ch);
+    return wallTopY + rowFracOff(pt.row, frac);
   }
 
   if (distBoxOnWall) {
@@ -837,7 +866,7 @@ function renderCableDiagram(screenId) {
           var nearest = findNearestNonDeleted(dbCol, dbRow, pw, totalRows, screenDeletedPanels);
           dbCol = nearest.col; dbRow = nearest.row;
         }
-        var path = findCableGridPath(dbCol, dbRow, entry.col, entry.row, pw, totalRows, screenDeletedPanels);
+        var path = cablePath(dbCol, dbRow, entry.col, entry.row);
         if (path && path.length > 0) {
           ctx.moveTo(primaryFanStartX, fanPrimaryY);
           ctx.lineTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW, wallTopY + rowFracOff(path[0].row, 0.5));
@@ -885,7 +914,7 @@ function renderCableDiagram(screenId) {
               var nearest = findNearestNonDeleted(bCol, bRow, pw, totalRows, screenDeletedPanels);
               bCol = nearest.col; bRow = nearest.row;
             }
-            var path = findCableGridPath(bCol, bRow, exit.col, exit.row, pw, totalRows, screenDeletedPanels);
+            var path = cablePath(bCol, bRow, exit.col, exit.row);
             if (path && path.length > 0) {
               ctx.moveTo(backupFanStartX, fanBackupY);
               ctx.lineTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW, wallTopY + rowFracOff(path[0].row, 0.5));
@@ -1004,7 +1033,7 @@ function renderCableDiagram(screenId) {
 
       const landingX = adjWallLeftX + (entry.col + 0.5) * panelPixelW;
       const isBottomEntry = entry.row >= totalRows / 2;
-      const panelTargetY = getPanelTargetY(entry.row, isBottomEntry);
+      const panelTargetY = getPanelTargetY(entry, isBottomEntry);
 
       ctx.strokeStyle = DATA_COLOR;
       ctx.lineWidth = dataFanWidth;
@@ -1032,7 +1061,7 @@ function renderCableDiagram(screenId) {
             targetCol = nearest.col; targetRow = nearest.row;
           }
         }
-        var path = findCableGridPath(entry.col, entry.row, targetCol, targetRow, pw, totalRows, screenDeletedPanels);
+        var path = cablePath(entry.col, entry.row, targetCol, targetRow);
         if (path && path.length > 0) {
           ctx.moveTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW, wallTopY + rowFracOff(path[0].row, 0.5));
           for (var pi = 1; pi < path.length; pi++) {
@@ -1085,7 +1114,7 @@ function renderCableDiagram(screenId) {
 
         const landingX = adjWallLeftX + (exit.col + 0.5) * panelPixelW;
         const isBottomExit = exit.row >= totalRows / 2;
-        const panelTargetY = getPanelTargetY(exit.row, isBottomExit);
+        const panelTargetY = getPanelTargetY(exit, isBottomExit);
 
         ctx.strokeStyle = BACKUP_COLOR;
         ctx.lineWidth = dataFanWidth;
@@ -1113,7 +1142,7 @@ function renderCableDiagram(screenId) {
               targetCol = nearest.col; targetRow = nearest.row;
             }
           }
-          var path = findCableGridPath(exit.col, exit.row, targetCol, targetRow, pw, totalRows, screenDeletedPanels);
+          var path = cablePath(exit.col, exit.row, targetCol, targetRow);
           if (path && path.length > 0) {
             ctx.moveTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW, wallTopY + rowFracOff(path[0].row, 0.5));
             for (var pi = 1; pi < path.length; pi++) {

@@ -1009,11 +1009,8 @@ canvas {
   cursor: default;
 }
 
-/* Drawn screens' Structure layout: the grid's selection count, floor frame and total weight
-   boxes don't apply (its specs carry the weights) */
-#structureContainer.free-structure #structureSelectionInfo,
-#structureContainer.free-structure #structureFloorFramesBox,
-#structureContainer.free-structure #structureTotalWeightBox {
+/* Drawn screens' Structure layout: the grid's selection count doesn't apply */
+#structureContainer.free-structure #structureSelectionInfo {
   display: none !important;
 }
 

@@ -702,6 +702,8 @@ function drawSplitPartMarkers(ctx, screenId, o) {
   const split = screen && screen.data.split;
   if(!split) return;
   const {offsetX, offsetY, panelWidth, rowGeo} = o;
+  // A drawn screen places its cuts in cells but draws them as thick as on a grid of its panels
+  const unitWidth = o.unitWidth || panelWidth;
   const fontSize = Math.max(10, o.fontSize || 12);
   const isPrint = (typeof pdfWhiteBgMode !== 'undefined' && pdfWhiteBgMode) ||
     (typeof ecoPrintMode !== 'undefined' && ecoPrintMode) || (typeof greyscalePrintMode !== 'undefined' && greyscalePrintMode);
@@ -724,8 +726,8 @@ function drawSplitPartMarkers(ctx, screenId, o) {
   ctx.save();
   const totalCols = split.cols.reduce((a, b) => a + b, 0);
   ctx.strokeStyle = isPrint ? '#000000' : '#FFD700';
-  ctx.lineWidth = Math.max(2, panelWidth * 0.06);
-  ctx.setLineDash([Math.max(4, panelWidth * 0.25), Math.max(3, panelWidth * 0.15)]);
+  ctx.lineWidth = Math.max(2, unitWidth * 0.06);
+  ctx.setLineDash([Math.max(4, unitWidth * 0.25), Math.max(3, unitWidth * 0.15)]);
   let acc = 0;
   split.cols.slice(0, -1).forEach(n => {
     acc += n;

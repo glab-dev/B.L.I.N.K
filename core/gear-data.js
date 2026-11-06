@@ -313,7 +313,7 @@ function buildGearListData(screenIds) {
       const freeActive = panelLines.reduce((n, l) => n + l.count, 0);
       const freeDataJumperLen = freePanel ? (freePanel.data_jumper_ft || '') : '';
       const freeCross = freePanel
-        ? freeDataCrossJumpers(data, freePanel, freeDataLinePanelOrdering(data, allPanelsObj), freeBounds(data.freePanels, allPanelsObj, data.freeCell_mm).maxY)
+        ? freeDataCrossJumpers(data, freePanel, freeDataLinePanelOrdering(data, allPanelsObj))
         : { crossJumperCount: 0, cat5CouplerCount: 0 };
       const freeCat6ByLength = {};
       const freeCableDetail = [];
@@ -352,6 +352,12 @@ function buildGearListData(screenIds) {
         pipeLengthStr: freeGs.totalPipes > 0 ? ' (' + [...new Set(freeGs.pipeInfo.map(pi => pi.pipeLengthFt))].map(l => l + 'ft').join(', ') + ')' : '',
         hasGS: true
       } : { rearTruss: 0, baseTruss: 0, bridgeClamps: 0, rearBridgeAdapters: 0, sandbags: 0, swivelCheeseboroughs: 0, pipes: 0, pipeLengthStr: '', hasGS: false };
+      // Floor frames worked out from the drawn wall, listed as grid screens list theirs
+      const freeFf = calcData.floorFrames || { frame_1x1: 0, frame_2x1: 0, frame_2x2: 0, frame_3x2: 0 };
+      const freeFloorHardware = {
+        frame3x2: freeFf.frame_3x2 || 0, frame2x2: freeFf.frame_2x2 || 0, frame2x1: freeFf.frame_2x1 || 0, frame1x1: freeFf.frame_1x1 || 0,
+        hasFloorFrames: freeFf.frame_1x1 > 0 || freeFf.frame_2x1 > 0 || freeFf.frame_2x2 > 0 || freeFf.frame_3x2 > 0
+      };
       const freeProcessorType = data.processor || 'Brompton_SX40';
       const freeProcessorGroup = processorGroups[freeProcessorType] || null;
       const freeIsFirst = freeProcessorGroup && freeProcessorGroup.firstScreenId === screenId;
@@ -378,7 +384,7 @@ function buildGearListData(screenIds) {
         },
         rigging: freeRigging,
         groundSupport: freeGroundSupport,
-        floorHardware: { frame3x2: 0, frame2x2: 0, frame2x1: 0, frame1x1: 0, hasFloorFrames: false },
+        floorHardware: freeFloorHardware,
         dataCables: {
           dataJumperLen: freeDataJumperLen,
           jumpersBuiltin: freeJumpersBuiltin,

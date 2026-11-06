@@ -227,7 +227,7 @@ function freeTrue1Twofers(data, allPanels, panelToCircuit) {
 // Draws a drawn screen's power: every panel at its true size from (ox, oy) at cellPx a snap
 // cell, coloured by circuit (or by leg) and labelled SOCA.circuit, with the SOCA outlines
 // and labels the grid canvas draws. Shared by the Draw tab and the Combined view.
-// o: {panelToCircuit, panelToSoca, socaLabelIdx, customCircuit, circuitToPair, legColorOn,
+// o: {panelToCircuit, panelToSoca, socaLabelIdx, circuitToPair, legColorOn,
 //     ox, oy, cellPx, sel, labelSize(w), holeBlocked}
 function drawFreePowerPanels(ctx, data, allPanels, o) {
   const toX = g => o.ox + Math.round(g * o.cellPx);
@@ -258,10 +258,6 @@ function drawFreePowerPanels(ctx, data, allPanels, o) {
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, w, h);
-    if(o.customCircuit.has(key)) {
-      ctx.fillStyle = '#FFD700'; // Gold indicator for a hand-picked circuit
-      ctx.fillRect(x + w - 10, y + 2, 8, 8);
-    }
     if(o.sel && o.sel.has(key)) {
       ctx.strokeStyle = '#00FF00';
       ctx.lineWidth = 3;
@@ -311,7 +307,7 @@ function freeScreenCircuits(screenId, data, groupPlan) {
   const panelToCircuit = entry ? entry.panelToCircuit
     : ((bal && bal.useBalanced) ? bal.panelToCircuit
       : assignCircuits(inp.pw, inp.ph, inp.panelsPerCircuit, inp.deletedPanels, inp.customCircuit).panelToCircuit);
-  return {panelToCircuit, panelToSoca: assignSocas(panelToCircuit, inp.customSoca), customCircuit: inp.customCircuit};
+  return {panelToCircuit, panelToSoca: assignSocas(panelToCircuit, inp.customSoca)};
 }
 
 // Power layout for a free screen: every panel at its true size, coloured by circuit and
@@ -337,9 +333,7 @@ function renderFreePowerLayout() {
   const containerWidth = container.clientWidth - 32; // Account for padding
   const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
   const maxCanvasWidth = pdf ? Math.min(containerWidth, 4000) : Math.min(containerWidth, 800);
-  const cellM = data.freeCell_mm / 1000;
-  const pxPerM = Math.max(30, Math.min(80, Math.floor(maxCanvasWidth / (b.maxX * cellM))));
-  const cellPx = pxPerM * cellM;
+  const cellPx = freeLayoutSize(data, allPanels, b.maxX, maxCanvasWidth, pdf).cellPx;
   canvas.width = Math.round(b.maxX * cellPx);
   canvas.height = Math.round(b.maxY * cellPx);
   freeLayerView.powerCanvas = {cellPx, cols: b.maxX, mirror: false};
@@ -354,7 +348,6 @@ function renderFreePowerLayout() {
   drawFreePowerPanels(ctx, data, allPanels, {
     panelToCircuit: st.panelToCircuit, panelToSoca: st.panelToSoca,
     socaLabelIdx: idx => (labelMap && labelMap.has(idx)) ? labelMap.get(idx) : idx,
-    customCircuit: customCircuitAssignments,
     circuitToPair, legColorOn: (typeof colorByLegEnabled !== 'undefined') && colorByLegEnabled,
     ox: 0, oy: 0, cellPx, sel: pdf ? null : freeLayerSel.powerCanvas,
     labelSize: w => pdf ? Math.max(10, Math.floor(w * 0.25)) : 11

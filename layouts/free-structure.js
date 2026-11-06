@@ -16,22 +16,17 @@ function freeBumperColor(type, position) {
   return type === '2w' && position === 'bottom' ? '#FF9800' : FREE_BUMPER_COLORS[type];
 }
 
-// The width of the family's narrowest panel in cells: a 1W bumper's width
-function freeUnitCells(data, allPanels) {
-  const fam = freeFamily(data.freePanels[0].type, allPanels).types;
-  return Math.min(...fam.map(t => freeCells(allPanels[t], data.freeCell_mm).cw));
-}
-
-// The panels a bumper can sit on: those with a clear edge on `position`, by the row that
-// edge sits on (gy -> [{gx, cw, type}] left to right)
+// The panels a bumper can sit on: those with nothing beyond them on `position` in their
+// columns (the first live panel down a grid column, past any knocked-out ones), by the row
+// that edge sits on (gy -> [{gx, cw, type}] left to right)
 function freeEdgeLevels(data, allPanels, position) {
   const cellMm = data.freeCell_mm;
-  const occ = freeOccupancy(data.freePanels, allPanels, cellMm);
   const levels = new Map();
+  const spans = data.freePanels.map(fp => Object.assign({gx: fp.gx, gy: fp.gy}, freeCells(allPanels[fp.type], cellMm)));
   data.freePanels.forEach(fp => {
     const {cw, ch} = freeCells(allPanels[fp.type], cellMm);
-    const edgeY = position === 'top' ? fp.gy - 1 : fp.gy + ch;
-    for(let x = 0; x < cw; x++) if(occ.has(`${fp.gx + x},${edgeY}`)) return;
+    const beyond = spans.some(o => o.gx < fp.gx + cw && fp.gx < o.gx + o.cw && (position === 'top' ? o.gy + o.ch <= fp.gy : o.gy >= fp.gy + ch));
+    if(beyond) return;
     const gy = position === 'top' ? fp.gy : fp.gy + ch;
     if(!levels.has(gy)) levels.set(gy, []);
     levels.get(gy).push({gx: fp.gx, cw, type: fp.type});
@@ -75,6 +70,29 @@ function sanitizeFreeBumpers(list, allPanels) {
     .concat(fourWay);
 }
 
+// Floor frames for a floor-standing drawn wall of floor panels, laid as calculateFloorFrames()
+// (layouts/structure.js) lays them on a grid wall: on the lattice of the wall's main panel,
+// so every panel must be that panel on it. {frames: [{type, name, gx, gy, cw, ch}] in cells,
+// counts, totalWeightLbs, totalWeightKg}, or null when the wall takes none.
+function freeFloorFrames(data, allPanels, structureType) {
+  const main = allPanels[data.panelType];
+  if(structureType !== 'floor' || !main || !main.is_floor_panel || !main.floor_frames || !data.freePanels.length) return null;
+  const {cw, ch} = freeCells(main, data.freeCell_mm);
+  if(!data.freePanels.every(fp => fp.type === data.panelType && fp.gx % cw === 0 && fp.gy % ch === 0)) return null;
+  const b = freeBounds(data.freePanels, allPanels, data.freeCell_mm);
+  const pw = b.maxX / cw, ph = b.maxY / ch;
+  const live = new Set(data.freePanels.map(fp => `${fp.gx / cw},${fp.gy / ch}`));
+  const missing = new Set();
+  for(let c = 0; c < pw; c++) for(let r = 0; r < ph; r++) if(!live.has(`${c},${r}`)) missing.add(`${c},${r}`);
+  const frames = calculateFloorFrames(pw, ph, missing);
+  const counts = getFloorFrameCounts(frames);
+  const totalWeightLbs = Object.keys(counts).reduce((sum, t) => sum + (main.floor_frames[t] ? counts[t] * main.floor_frames[t].weight_lbs : 0), 0);
+  return {
+    frames: frames.map(f => ({type: f.type, name: f.name, gx: f.col * cw, gy: f.row * ch, cw: f.width * cw, ch: f.height * ch})),
+    counts, totalWeightLbs, totalWeightKg: totalWeightLbs / KG_TO_LBS
+  };
+}
+
 // The edge a drawn wall's bumpers go on: the top when it hangs, the bottom when it is
 // ground stacked, none on the floor or with bumpers off
 function freeBumperPosition(structureType, useBumpers) {
@@ -87,6 +105,7 @@ function calculateFreeStructure(data, allPanels) {
   const structureType = document.getElementById('structureType').value;
   const position = freeBumperPosition(structureType, showTopBumper || showBottomBumper);
   freeStructureState = freeStructurePlan(data, allPanels, position, use4WayBumpersEnabled);
+  freeStructureState.floorFrames = freeFloorFrames(data, allPanels, structureType);
   // In manual mode the wall's bumpers are its own to edit (interact/free-bumpers.js): the
   // ones drawn on this edge are copied the first time
   if(manualBumperMode && position && !(Array.isArray(data.freeBumpers) && data.freeBumpersPosition === position)) {
@@ -96,7 +115,7 @@ function calculateFreeStructure(data, allPanels) {
         ? {id: i + 1, type: b.type, gx: b.gx, cw: b.cw, gy: b.gy, panelType: b.panelType}
         : {id: i + 1, type: b.type, gx: b.gx, cw: b.cw, gy: b.gy, panelType: b.panelType, firstCw: b.firstCw});
     data.freeBumpersPosition = position;
-    freeStructureState = freeStructurePlan(data, allPanels, position, use4WayBumpersEnabled);
+    freeStructureState = Object.assign(freeStructurePlan(data, allPanels, position, use4WayBumpersEnabled), {floorFrames: freeStructureState.floorFrames});
   }
   return freeStructureState;
 }
@@ -305,7 +324,7 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
   }
 
   return {position, bumpers, counts, bumperWeightKg, warnings: [...new Set(warnings)], groundSupport, ladders, cb5Air, plates, takes4w,
-    unit: freeUnitCells(data, allPanels), mainHeightCells: main.height_m * 1000 / cellMm};
+    mainHeightCells: main.height_m * 1000 / cellMm};
 }
 
 // Draws a drawn wall's structure: white panels at their true sizes (with their names when
@@ -322,6 +341,14 @@ function drawFreeStructure(ctx, data, allPanels, st, o) {
   const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  // The gaps, dashed as the grid Structure layout outlines knocked-out panels
+  if(o.groundSupport) freeHoleRects(data, allPanels).forEach(hr => {
+    ctx.strokeStyle = '#333333';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.strokeRect(toX(hr.gx), toY(hr.gy), toX(hr.gx + hr.cw) - toX(hr.gx), toY(hr.gy + hr.ch) - toY(hr.gy));
+    ctx.setLineDash([]);
+  });
   data.freePanels.forEach(fp => {
     const {cw, ch} = freeCells(allPanels[fp.type], data.freeCell_mm);
     const x = toX(fp.gx), y = toY(fp.gy), w = toX(fp.gx + cw) - x, h = toY(fp.gy + ch) - y;
@@ -498,12 +525,9 @@ function renderFreeStructureLayout() {
   const containerWidth = container.clientWidth - 32; // Account for padding
   const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
   const maxCanvasWidth = pdf ? Math.min(containerWidth, 4000) : Math.min(containerWidth, 800);
-  const cellM = data.freeCell_mm / 1000;
-  const pxPerM = Math.max(30, Math.min(pdf ? 200 : 80, Math.floor(maxCanvasWidth / (b.maxX * cellM))));
-  const cellPx = pxPerM * cellM;
-  const unitPx = st.unit * cellPx;
-  const bumperH = Math.max(30, Math.round(unitPx * 0.8));
-  const fourWayH = Math.max(15, Math.round(unitPx * 0.4));
+  const {cellPx, unitPx} = freeLayoutSize(data, allPanels, b.maxX, maxCanvasWidth, pdf);
+  const bumperH = Math.max(30, unitPx * 0.8);
+  const fourWayH = Math.max(15, unitPx * 0.4);
   const fourWayGap = 5;
   // The 4W band also stays open to place 4Ws in by hand, as the grid layout keeps it
   const band = st.position ? bumperH + (st.counts['4w'] || (manualBumperMode && st.takes4w) ? fourWayH + fourWayGap : 0) : 0;
@@ -516,6 +540,33 @@ function renderFreeStructureLayout() {
     ox: 0, oy: top, cellPx, bumperH, gap: 0, weights: true, fourWayH, fourWayGap, groundSupport: true,
     numberSize: (w, h) => Math.max(10, Math.floor(Math.min(w, h) * (pdf ? 0.25 : 0.22)))
   });
+  // Floor frames, outlined and labelled as the grid structure layout draws them
+  if(st.floorFrames) st.floorFrames.frames.forEach(f => {
+    const frameLineWidth = 4;
+    const frameX = Math.round(f.gx * cellPx), frameY = top + Math.round(f.gy * cellPx);
+    const frameW = Math.round((f.gx + f.cw) * cellPx) - frameX, frameH = top + Math.round((f.gy + f.ch) * cellPx) - frameY;
+    const color = floorFrameColors[f.type] || '#ffffff';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = frameLineWidth;
+    ctx.strokeRect(frameX + frameLineWidth / 2, frameY + frameLineWidth / 2, frameW - frameLineWidth, frameH - frameLineWidth);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(frameX + 1, frameY + 1, frameW - 2, frameH - 2);
+    ctx.strokeRect(frameX + frameLineWidth + 1, frameY + frameLineWidth + 1, frameW - frameLineWidth * 2 - 2, frameH - frameLineWidth * 2 - 2);
+    const labelFontSize = Math.max(12, Math.floor(unitPx * 0.3));
+    ctx.font = `bold ${labelFontSize}px Arial`;
+    const bgWidth = ctx.measureText(f.name).width + 8, bgHeight = labelFontSize + 8;
+    const labelX = frameX + frameW / 2, labelY = frameY + frameH / 2;
+    ctx.fillStyle = color;
+    ctx.fillRect(labelX - bgWidth / 2, labelY - bgHeight / 2, bgWidth, bgHeight);
+    ctx.strokeStyle = '#000000';
+    ctx.strokeRect(labelX - bgWidth / 2, labelY - bgHeight / 2, bgWidth, bgHeight);
+    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(f.name, labelX, labelY);
+  });
+
   // Where the wall sits on the canvas, for editing bumpers by hand (interact/free-bumpers.js)
   freeStructureView = {cellPx, top, bumperH, fourWayH, fourWayGap};
   setupFreeBumperInteractivity();
@@ -550,7 +601,8 @@ function renderFreeStructureLayout() {
   const weightsContent = document.getElementById('structureWeightsContent');
   if(infoPanel && weightsBox && weightsContent) {
     weightsContent.textContent = '';
-    infoPanel.style.display = (st.bumpers.length || st.plates) ? 'grid' : 'none';
+    const isFloor = document.getElementById('structureType').value === 'floor';
+    infoPanel.style.display = (st.bumpers.length || st.plates || st.groundSupport || isFloor) ? 'grid' : 'none';
     weightsBox.style.display = st.bumpers.length ? 'block' : 'none';
     const wtUnit = getWeightUnitLabel();
     const shown = kg => displayWeightUnit === 'lbs' ? Math.ceil(kg * KG_TO_LBS) : Math.ceil(kg);
@@ -634,6 +686,61 @@ function renderFreeStructureLayout() {
       line('Sandbags (25lb)', gs.totalSandbags);
       const shownGs = displayWeightUnit === 'lbs' ? Math.ceil(gs.totalWeightLbs) : Math.ceil(gs.totalWeightKg);
       line('Total Weight', `${shownGs} ${getWeightUnitLabel()}`, true);
+    }
+  }
+
+  // Floor frames and the total structure weight, in the boxes the grid structure layout uses
+  const shownKg = kg => displayWeightUnit === 'lbs' ? Math.ceil(kg * KG_TO_LBS) : Math.ceil(kg);
+  const boxRow = (content, rowClass, labelClass, valueClass, label, labelColor, value, valueColor, border) => {
+    const r = document.createElement('div');
+    r.className = rowClass;
+    if(border) r.style.cssText = `border-top: 1px solid ${border}; margin-top: 6px; padding-top: 6px;`;
+    const l = document.createElement('span');
+    l.className = labelClass;
+    l.style.color = labelColor;
+    l.textContent = label;
+    const v = document.createElement('span');
+    v.className = valueClass;
+    if(valueColor) v.style.color = valueColor;
+    v.textContent = value;
+    r.appendChild(l);
+    r.appendChild(v);
+    content.appendChild(r);
+    return {l, v};
+  };
+  const ffBox = document.getElementById('structureFloorFramesBox');
+  const ffContent = document.getElementById('structureFloorFramesContent');
+  const ff = st.floorFrames;
+  if(ffBox && ffContent) {
+    ffContent.textContent = '';
+    ffBox.style.display = ff ? 'block' : 'none';
+    if(ff) {
+      [['frame_3x2', '3×2 Frame'], ['frame_2x2', '2×2 Frame'], ['frame_2x1', '2×1 Frame'], ['frame_1x1', '1×1 Frame']].forEach(([t, label]) => {
+        if(ff.counts[t] > 0) boxRow(ffContent, 'plates-row', 'plates-label', 'plates-value', label, floorFrameColors[t], ff.counts[t]);
+      });
+      boxRow(ffContent, 'plates-row plates-total', 'plates-label', 'plates-value', 'Total Weight', '#fff',
+        `${shownKg(ff.totalWeightKg)} ${getWeightUnitLabel()}`, '#4ecdc4', '#4ecdc4');
+    }
+  }
+  const twBox = document.getElementById('structureTotalWeightBox');
+  const twContent = document.getElementById('structureTotalWeightContent');
+  if(twBox && twContent) {
+    twContent.textContent = '';
+    const isFloorMode = document.getElementById('structureType').value === 'floor';
+    const parts = [
+      ['Bumpers', '#4a9eff', isFloorMode ? 0 : st.bumperWeightKg],
+      ['Connecting Plates', '#6fc276', st.plates ? st.plates.totalPlateWeight : 0],
+      ['Ground Support', '#00CED1', st.groundSupport ? st.groundSupport.totalWeightKg : 0],
+      ['Floor Frames', '#4ecdc4', ff ? ff.totalWeightKg : 0]
+    ];
+    const totalKg = parts.reduce((sum, p) => sum + p[2], 0);
+    const show = totalKg > 0 || st.bumpers.length > 0 || isFloorMode;
+    twBox.style.display = show ? 'block' : 'none';
+    if(show) {
+      parts.forEach(([label, color, kg]) => { if(kg > 0) boxRow(twContent, 'weight-row', 'weight-label', 'weight-value', label, color, `${shownKg(kg)} ${getWeightUnitLabel()}`); });
+      const total = boxRow(twContent, 'weight-row', 'weight-label', 'weight-value', 'TOTAL', '#fff', `${shownKg(totalKg)} ${getWeightUnitLabel()}`, '#FFD700', '#FFD700');
+      total.l.style.fontWeight = 'bold';
+      total.v.style.fontWeight = 'bold';
     }
   }
 }

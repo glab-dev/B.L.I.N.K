@@ -12,6 +12,8 @@
 // above or below it
 function freeCombinedData(data, allPanels) {
   const view = freeCellData(data, allPanels);
+  // Its processor split, in cells as the cell grid is, so each part runs its own lines
+  view.split = data.split;
   const main = allPanels[data.panelType] || allPanels[data.freePanels.length ? data.freePanels[0].type : ''];
   const scale = main ? data.freeCell_mm / (main.width_m * 1000) : 1;
   view.freeUnitScale = scale;
@@ -80,8 +82,8 @@ function drawFreeCombinedStandard(ctx, screen, data, sx, sy, unitPx, colors) {
     }
   });
   if(screen.name && wall.panels.length) {
-    const b = freeBounds(data.freePanels, allPanels, data.freeCell_mm);
-    const labelX = sx + b.maxX * cellPx / 2, labelY = sy + b.maxY * cellPx / 2;
+    const pt = freeNamePoint(data, allPanels);
+    const labelX = sx + pt.x * cellPx, labelY = sy + pt.y * cellPx;
     ctx.font = `bold ${Math.max(8, Math.min(14, unitPx * 0.35))}px Arial`;
     const printMode = ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode;
     ctx.fillStyle = printMode ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)';
@@ -102,7 +104,6 @@ function drawFreeCombinedPower(ctx, screen, screenId, data, sx, sy, unitPx, grou
     drawFreePowerPanels(ctx, data, allPanels, {
       panelToCircuit: plan.panelToCircuit, panelToSoca: plan.panelToSoca,
       socaLabelIdx: idx => (labelMap && labelMap.has(idx)) ? labelMap.get(idx) : idx,
-      customCircuit: plan.customCircuit,
       ox: sx, oy: sy, cellPx,
       labelSize: () => Math.max(7, Math.round(unitPx * 0.32)),
       holeBlocked
@@ -117,17 +118,29 @@ function drawFreeCombinedData(ctx, screen, screenId, data, sx, sy, unitPx, holeB
   const allPanels = getAllPanels();
   const cellPx = unitPx * data.freeUnitScale;
   const built = freeScreenDataGroups(data, allPanels);
-  drawFreeCombinedName(ctx, screen, sx + data.freeCols * cellPx / 2, sy - 10);
-  if(!built) return [];
+  if(!built) {
+    drawFreeCombinedName(ctx, screen, sx + data.freeCols * cellPx / 2, sy - 10);
+    return [];
+  }
   const flip = !!data.dataFlip;
   const endpoints = computeDataLineEndpoints(built.groups, built.sortedDataLines, flip);
+  // Panel names at the grid's size, shrunk until the widest fits a panel width
+  let numberFontSize = Math.max(7, Math.round(unitPx * 0.32));
+  const widest = built.groups.reduce((w, g) => g.reduce((ww, pt) => ww.length >= pt.label.length ? ww : pt.label, w), '');
+  ctx.save();
+  ctx.font = `${numberFontSize}px Arial`;
+  while(numberFontSize > 5 && ctx.measureText(widest).width > unitPx * 0.85) {
+    numberFontSize -= 1;
+    ctx.font = `${numberFontSize}px Arial`;
+  }
+  ctx.restore();
   drawFreeDataPanels(ctx, data, allPanels, {
     screenId, groups: built.groups, sortedDataLines: built.sortedDataLines, endpoints,
     ox: sx, oy: sy, cellPx, mirror: !!data.dataRearView, flip,
     showArrows: data.showArrows !== false,
     showLabels: !!data.dataLineLabels,
     redundancy: !!data.redundancy,
-    numberSize: () => Math.max(7, Math.round(unitPx * 0.32)),
+    numberSize: () => numberFontSize,
     arrowWidth: Math.max(1.5, unitPx * 0.075), headSize: Math.max(5, unitPx * 0.3)
   });
 
@@ -159,6 +172,13 @@ function drawFreeCombinedData(ctx, screen, screenId, data, sx, sy, unitPx, holeB
       });
     }
   }
+
+  // A split screen: where it splits, and which canvas / processor each part goes to
+  drawSplitPartMarkers(ctx, screenId, {
+    offsetX: sx, offsetY: sy, panelWidth: cellPx, unitWidth: unitPx,
+    rowGeo: cb5RowGeometry(data.freeRows, {top: 0, bottom: 0}, cellPx, cellPx), fontSize: numberFontSize
+  });
+  drawFreeCombinedName(ctx, screen, sx + data.freeCols * cellPx / 2, sy - 10);
   return endpoints;
 }
 
@@ -225,4 +245,78 @@ function freeCombinedCablingScreen(screenId, screen) {
     columnsPerCircuit: 1, socaSpans,
     deletedPanelsSet: view.deletedPanels
   };
+}
+
+// The drawn panel at a point of the cable diagrams' cell grid (cells less half a cell, the
+// convention freeDataLinePanelOrdering() uses), or the nearest one when the point is in a
+// gap: {i, boxes} with boxes every panel's {gx, gy, cw, ch}
+function freeCablePanelAt(data, c, r) {
+  const allPanels = getAllPanels();
+  const boxes = data.freePanels.map(fp => Object.assign({gx: fp.gx, gy: fp.gy}, freeCells(allPanels[fp.type], data.freeCell_mm)));
+  const x = c + 0.5, y = r + 0.5;
+  let i = -1, best = Infinity;
+  boxes.forEach((b, k) => {
+    const dx = Math.max(b.gx - x, 0, x - (b.gx + b.cw)), dy = Math.max(b.gy - y, 0, y - (b.gy + b.ch));
+    if(dx * dx + dy * dy < best) { best = dx * dx + dy * dy; i = k; }
+  });
+  return {i, boxes};
+}
+
+// A panel's centre in the cable diagrams' convention
+function freeCablePanelCentre(b) {
+  return {col: b.gx + b.cw / 2 - 0.5, row: b.gy + b.ch / 2 - 0.5};
+}
+
+// A cable's route across a drawn wall, as findCableGridPath() (nav/combined-cable-diagram.js)
+// routes one across a grid wall's live panels: from the panel at one point to the panel at
+// another through panels side by side, trying down, up, right then left as the grid does,
+// so a wall of one panel size takes the grid's route. Turns are right angles inside the
+// panels; the points are panel centres and turns in the same convention.
+function freeCablePath(data, c0, r0, c1, r1) {
+  const {i: from, boxes} = freeCablePanelAt(data, c0, r0);
+  const to = freeCablePanelAt(data, c1, r1).i;
+  if(from < 0 || to < 0) return null;
+  const occ = new Map();
+  boxes.forEach((b, k) => { for(let x = 0; x < b.cw; x++) for(let y = 0; y < b.ch; y++) occ.set(`${b.gx + x},${b.gy + y}`, k); });
+  const neighbours = b => {
+    const out = [];
+    const add = key => { const k = occ.get(key); if(k !== undefined && !out.includes(k)) out.push(k); };
+    for(let x = 0; x < b.cw; x++) add(`${b.gx + x},${b.gy + b.ch}`);
+    for(let x = 0; x < b.cw; x++) add(`${b.gx + x},${b.gy - 1}`);
+    for(let y = 0; y < b.ch; y++) add(`${b.gx + b.cw},${b.gy + y}`);
+    for(let y = 0; y < b.ch; y++) add(`${b.gx - 1},${b.gy + y}`);
+    return out;
+  };
+  const parent = new Map([[from, null]]);
+  const queue = [from];
+  while(queue.length && !parent.has(to)) {
+    const cur = queue.shift();
+    neighbours(boxes[cur]).forEach(k => { if(!parent.has(k)) { parent.set(k, cur); queue.push(k); } });
+  }
+  if(!parent.has(to)) return null;
+  const chain = [];
+  for(let k = to; k !== null; k = parent.get(k)) chain.unshift(k);
+
+  // Panel centres, with a turn inside both panels wherever two sit off-centre
+  const pts = [freeCablePanelCentre(boxes[chain[0]])];
+  for(let n = 1; n < chain.length; n++) {
+    const a = boxes[chain[n - 1]], b = boxes[chain[n]];
+    const pa = pts[pts.length - 1], pb = freeCablePanelCentre(b);
+    if(pa.col !== pb.col && pa.row !== pb.row) {
+      if(b.gy === a.gy + a.ch || b.gy + b.ch === a.gy) {
+        const col = Math.min(Math.max(pa.col, Math.max(a.gx, b.gx)), Math.min(a.gx + a.cw, b.gx + b.cw) - 1);
+        if(col !== pa.col) pts.push({col, row: pa.row});
+        pts.push({col, row: pb.row});
+      } else {
+        const row = Math.min(Math.max(pa.row, Math.max(a.gy, b.gy)), Math.min(a.gy + a.ch, b.gy + b.ch) - 1);
+        if(row !== pa.row) pts.push({col: pa.col, row});
+        pts.push({col: pb.col, row});
+      }
+    }
+    pts.push(pb);
+  }
+  // Drop repeats and the points along a straight run, as the grid route does
+  const path = pts.filter((p, n) => n === 0 || p.col !== pts[n - 1].col || p.row !== pts[n - 1].row);
+  return path.filter((p, n) => n === 0 || n === path.length - 1 ||
+    !((path[n - 1].col === p.col && p.col === path[n + 1].col) || (path[n - 1].row === p.row && p.row === path[n + 1].row)));
 }

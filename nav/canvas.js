@@ -564,6 +564,8 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     const screenData = screen.data;
     const panelType = screenData.panelType || 'CB5_MKII';
     const p = screenData.freeCellPanel || allPanels[panelType];
+    // The panel the corner labels and name are sized to: a drawn screen's main panel
+    const lp = screenData.freeCellPanel && allPanels[panelType] ? allPanels[panelType] : p;
 
     if(!p || !p.res_x || !p.res_y) return;
 
@@ -782,7 +784,7 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     }
 
     if(screen.showCoordinates !== false) {
-      const baseCoordFontSize = Math.max(11, Math.min(Math.min(wallResX, wallResY) * 0.03, Math.min(p.res_x, p.res_y) / 6));
+      const baseCoordFontSize = Math.max(11, Math.min(Math.min(wallResX, wallResY) * 0.03, Math.min(lp.res_x, lp.res_y) / 6));
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
 
@@ -796,7 +798,7 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
         // box never spills out of the strip it sits on. Never wider than one panel,
         // so a label reads as belonging to that strip's first panel instead of
         // sprawling across the ones next to it.
-        const coordWidthLimit = Math.min(rect.topW, p.res_x) - coordPadding;
+        const coordWidthLimit = Math.min(rect.topW, lp.res_x) - coordPadding;
         let coordFontSize = baseCoordFontSize;
         ctx.font = `bold ${coordFontSize}px Arial`;
         let maxTextWidth = Math.max(ctx.measureText(xText).width, ctx.measureText(yText).width);
@@ -840,7 +842,7 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
 
         // Shrink to fit, and never past one panel, so the label stays inside the
         // strip it sits on and reads as belonging to that strip's first panel
-        const resWidthLimit = Math.min(rect.botW, p.res_x) - 20;
+        const resWidthLimit = Math.min(rect.botW, lp.res_x) - 20;
         let resFontSize = baseResFontSize;
         ctx.font = `bold ${resFontSize}px Arial`;
         while(resFontSize > 10 && ctx.measureText(resText).width > resWidthLimit) {
@@ -877,7 +879,7 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     ctx.textBaseline = 'bottom';
 
     // Same one-panel cap the labels use
-    while(logoFontSize > 8 && ctx.measureText(logoText).width > p.res_x - 20) {
+    while(logoFontSize > 8 && ctx.measureText(logoText).width > lp.res_x - 20) {
       logoFontSize--;
       ctx.font = `bold ${logoFontSize}px Arial`;
     }
@@ -948,11 +950,18 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
           }
         }
 
+        // A drawn screen places it over its own panels
+        if(screenData.freeCellPanel) {
+          const pt = freeNamePoint(screenData, allPanels);
+          labelX = offsetX + pt.x * p.res_x;
+          labelY = offsetY + pt.y * p.res_y;
+        }
+
         // Sized off the panel height (not the wall) so every screen gets the
         // same label size regardless of aspect ratio — a wide 1-high strip
         // reads the same as a tall wall. Shrink to fit the wall width so long
         // names don't overflow narrow screens.
-        let baseFontSize = p.res_y * 0.5;
+        let baseFontSize = lp.res_y * 0.5;
         ctx.font = `bold ${baseFontSize}px Arial`;
         while(baseFontSize > 10 && ctx.measureText(screenName).width > wallResX * 0.9) {
           baseFontSize--;

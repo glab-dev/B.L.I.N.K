@@ -670,6 +670,32 @@ function buildStructureInfoLines(screenId) {
       if (gs.totalSandbags > 0) lines.push({ text: '  Sandbags (25lb): ' + gs.totalSandbags });
       lines.push({ text: '  Total Weight: ' + toDisplay(gs.totalWeightKg) + ' ' + wtUnit, bold: true });
     }
+    // Floor frames and the total structure weight, as grid screens list theirs
+    const freeType = data.structureType || 'hanging';
+    const ff = freeFloorFrames(data, allPanels, freeType);
+    if (ff) {
+      if (lines.length) lines.push({ text: '' });
+      lines.push({ text: 'Floor Frames', bold: true, header: true });
+      [['frame_3x2', '3x2'], ['frame_2x2', '2x2'], ['frame_2x1', '2x1'], ['frame_1x1', '1x1']].forEach(function(t) {
+        if (ff.counts[t[0]] > 0) lines.push({ text: '  ' + t[1] + ' Frame: ' + ff.counts[t[0]] });
+      });
+      lines.push({ text: '  Total Weight: ' + toDisplay(ff.totalWeightKg) + ' ' + wtUnit, bold: true });
+      lines.push({ text: '' });
+    }
+    const freeBumperKg = freeType === 'floor' ? 0 : st.bumperWeightKg;
+    const freePlatesKg = st.plates ? st.plates.totalPlateWeight : 0;
+    const freeGsKg = gs ? gs.totalWeightKg : 0;
+    const freeFfKg = ff ? ff.totalWeightKg : 0;
+    const freeStructKg = freeBumperKg + freePlatesKg + freeGsKg + freeFfKg;
+    if (freeStructKg > 0 || freeType === 'floor') {
+      if (lines.length && lines[lines.length - 1].text !== '') lines.push({ text: '' });
+      lines.push({ text: 'Total Structure Weight', bold: true, header: true });
+      if (freeBumperKg > 0) lines.push({ text: '  Bumpers: ' + toDisplay(freeBumperKg) + ' ' + wtUnit });
+      if (freePlatesKg > 0) lines.push({ text: '  Plates: ' + toDisplay(freePlatesKg) + ' ' + wtUnit });
+      if (freeGsKg > 0) lines.push({ text: '  Ground Support: ' + toDisplay(freeGsKg) + ' ' + wtUnit });
+      if (freeFfKg > 0) lines.push({ text: '  Floor Frames: ' + toDisplay(freeFfKg) + ' ' + wtUnit });
+      lines.push({ text: '  Total: ' + toDisplay(freeStructKg) + ' ' + wtUnit, bold: true });
+    }
     return lines;
   }
   if (!p || pw === 0 || ph === 0) return [];

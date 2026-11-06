@@ -89,6 +89,63 @@ function freeBounds(list, allPanels, cellMm) {
   return {minX, minY, maxX, maxY};
 }
 
+// The gaps in a drawn screen's area as the cable diagrams outline knocked-out panels:
+// [{gx, gy, cw, ch}] in cells, a whole main panel wherever one fits on the main panel's
+// lattice, single cells elsewhere
+function freeHoleRects(data, allPanels) {
+  const b = freeBounds(data.freePanels, allPanels, data.freeCell_mm);
+  if(!b) return [];
+  const occ = freeOccupancy(data.freePanels, allPanels, data.freeCell_mm);
+  const main = allPanels[data.panelType] || allPanels[data.freePanels[0].type];
+  const {cw: mw, ch: mh} = freeCells(main, data.freeCell_mm);
+  const used = new Set();
+  const rects = [];
+  for(let by = 0; by + mh <= b.maxY; by += mh) {
+    for(let bx = 0; bx + mw <= b.maxX; bx += mw) {
+      const cells = [];
+      for(let x = 0; x < mw; x++) for(let y = 0; y < mh; y++) cells.push(`${bx + x},${by + y}`);
+      if(cells.some(k => occ.has(k))) continue;
+      cells.forEach(k => used.add(k));
+      rects.push({gx: bx, gy: by, cw: mw, ch: mh});
+    }
+  }
+  for(let y = 0; y < b.maxY; y++) for(let x = 0; x < b.maxX; x++) {
+    if(!occ.has(`${x},${y}`) && !used.has(`${x},${y}`)) rects.push({gx: x, gy: y, cw: 1, ch: 1});
+  }
+  return rects;
+}
+
+// Where a drawn screen's name goes, as grid screens place theirs: over the middle of its
+// panels, or on the nearest panel's centre when that lands in a gap. {x, y} in cells.
+function freeNamePoint(data, allPanels) {
+  const centres = data.freePanels.map(fp => {
+    const {cw, ch} = freeCells(allPanels[fp.type], data.freeCell_mm);
+    return {x: fp.gx + cw / 2, y: fp.gy + ch / 2};
+  });
+  let x = centres.reduce((s, c) => s + c.x, 0) / centres.length;
+  let y = centres.reduce((s, c) => s + c.y, 0) / centres.length;
+  if(!freeOccupancy(data.freePanels, allPanels, data.freeCell_mm).has(`${Math.floor(x)},${Math.floor(y)}`)) {
+    const d = c => (c.x - x) * (c.x - x) + (c.y - y) * (c.y - y);
+    const near = centres.reduce((a, c) => d(c) < d(a) ? c : a);
+    x = near.x;
+    y = near.y;
+  }
+  return {x, y};
+}
+
+// Pixels for a Draw-tab layout `cols` snap cells wide, sized as generateLayout()
+// (core/calculate.js) sizes a grid wall of the screen's main panel: 30-80 px a panel width,
+// a tall CB5 capped so its height stays in range. unitPx is one main panel's width, cellPx
+// a snap cell's share of it.
+function freeLayoutSize(data, allPanels, cols, maxCanvasWidth, pdf) {
+  const main = allPanels[data.panelType] || allPanels[data.freePanels[0].type];
+  const unit = data.freeCell_mm / (main.width_m * 1000);
+  const ratio = getPanelHeightRatio(data.panelType);
+  const maxSize = (!pdf && ratio > 1) ? Math.floor(80 / ratio) : 80;
+  const unitPx = Math.max(30, Math.min(maxSize, Math.floor(maxCanvasWidth / (cols * unit))));
+  return {unitPx, cellPx: unitPx * unit};
+}
+
 // Every drawn panel with its place on the wall, in metres and in pixels, measured from
 // the top-left of the drawn area.
 function freePlacedPanels(data, allPanels) {
@@ -446,7 +503,7 @@ function calculateFreeScreen() {
     html += `<div class="result-row"><strong>Total pixel count:</strong> (${totalPixels.toLocaleString()} px)</div>`;
     const kgShown = kg => displayWeightUnit === 'lbs' ? Math.ceil(kg * KG_TO_LBS) : Math.ceil(kg);
     const structureKg = structure.bumperWeightKg + (structure.groundSupport ? structure.groundSupport.totalWeightKg : 0) +
-      (structure.plates ? structure.plates.totalPlateWeight : 0);
+      (structure.plates ? structure.plates.totalPlateWeight : 0) + (structure.floorFrames ? structure.floorFrames.totalWeightKg : 0);
     if(structureKg > 0) {
       html += `<div class="result-row"><strong>Total weight:</strong> ${kgShown(panelWeightKg + structureKg)} ${wtUnit}</div>`;
       html += `<div class="result-row result-indent"><strong>Panels:</strong> ${weightDisplay} ${wtUnit}</div>`;
@@ -505,6 +562,9 @@ function calculateFreeScreen() {
     plates4way: structure.plates ? structure.plates.total4way : 0,
     platesWeightKg: structure.plates ? structure.plates.totalPlateWeight : 0,
     groundSupportWeightKg: structure.groundSupport ? structure.groundSupport.totalWeightKg : 0,
+    floorFrames: structure.floorFrames
+      ? Object.assign({}, structure.floorFrames.counts, {totalWeightLbs: structure.floorFrames.totalWeightLbs, totalWeightKg: structure.floorFrames.totalWeightKg})
+      : {frame_1x1: 0, frame_2x1: 0, frame_2x2: 0, frame_3x2: 0, totalWeightLbs: 0, totalWeightKg: 0},
     totalPixels: totalPixels,
     dataLines: dataInfo.dataLines,
     dataLinesFinal: portsNeededFinal,
@@ -550,9 +610,24 @@ function calculateFreeScreen() {
   if(typeof updateCanvasFitWarning === 'function') updateCanvasFitWarning();
 }
 
-// Two-tone fill like the grid's checkerboard: each panel takes the first colour
-// unless a panel it touches already has it.
+// Two-tone fill like the grid's checkerboard: by column + row as freePanelNames numbers
+// them, so a wall of one panel size colours exactly as its grid would. Where that puts one
+// colour on two touching panels (mixed sizes), each panel takes the first colour unless a
+// panel it touches already has it.
 function freeColorIndexes(list, allPanels, cellMm) {
+  const cols = [...new Set(list.map(fp => fp.gx))].sort((a, b) => a - b);
+  const rows = [...new Set(list.map(fp => fp.gy))].sort((a, b) => a - b);
+  const checker = list.map(fp => (cols.indexOf(fp.gx) + rows.indexOf(fp.gy)) % 2);
+  const occ = freeOccupancy(list, allPanels, cellMm);
+  const at = new Map(list.map((fp, i) => [`${fp.gx},${fp.gy}`, i]));
+  const clash = list.some((fp, i) => {
+    const {cw, ch} = freeCells(allPanels[fp.type], cellMm);
+    const side = [];
+    for(let x = 0; x < cw; x++) side.push(`${fp.gx + x},${fp.gy + ch}`);
+    for(let y = 0; y < ch; y++) side.push(`${fp.gx + cw},${fp.gy + y}`);
+    return side.some(k => occ.has(k) && checker[at.get(occ.get(k))] === checker[i]);
+  });
+  if(!clash) return checker;
   const order = list.map((fp, i) => i).sort((a, b) => list[a].gy - list[b].gy || list[a].gx - list[b].gx);
   const colorAt = new Map();
   const idx = new Array(list.length);
@@ -623,9 +698,8 @@ function renderFreeStandardLayout() {
     gx0 = b.minX; gy0 = b.minY; cols = b.maxX - b.minX; rows = b.maxY - b.minY;
   }
   const cellM = cellMm / 1000;
-  // Same 30–80 px range as grid screens, applied per metre
-  const pxPerM = Math.max(30, Math.min(80, Math.floor(maxCanvasWidth / (cols * cellM))));
-  const cellPx = pxPerM * cellM;
+  const cellPx = freeLayoutSize(data, allPanels, cols, maxCanvasWidth, typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode).cellPx;
+  const pxPerM = cellPx / cellM;
   canvas.width = Math.round(cols * cellPx);
   canvas.height = Math.round(rows * cellPx);
   freeView = {gx0, gy0, cellPx};

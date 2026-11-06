@@ -1004,23 +1004,26 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
 
     var panelType = sp.data.panelType || 'CB5_MKII';
     var heightRatio = sp.data.freeCellPanel ? 1 : (typeof getPanelHeightRatio === 'function' ? getPanelHeightRatio(panelType) : 1);
+    // A drawn screen is drawn on its cell grid, a cell freeUnitScale of a panel width
+    var unit = sp.data.freeUnitScale || 1;
+    var cols = sp.data.freeCellPanel ? sp.calc.pw : sp.pw;
     // sp.ph is the full rows only; CB5 half rows sit above and/or below them
-    var rowGeo = cb5RowGeometry(sp.ph, getCB5HalfRows(sp.data, panelType),
-      panelSize * heightRatio * pxToCanvas, panelSize * pxToCanvas);
+    var rowGeo = cb5RowGeometry(sp.data.freeCellPanel ? sp.calc.ph : sp.ph, getCB5HalfRows(sp.data, panelType),
+      panelSize * unit * heightRatio * pxToCanvas, panelSize * unit * pxToCanvas);
 
-    var pxW = panelSize * pxToCanvas;
-    var pxH = panelSize * heightRatio * pxToCanvas;
+    var pxW = panelSize * unit * pxToCanvas;
+    var pxH = panelSize * unit * heightRatio * pxToCanvas;
     var halfPxH = rowGeo.halfH;
 
     var deletedPanels = sp.calc.deletedPanelsSet || new Set();
 
     // Draw full panels
-    for (var c = 0; c < sp.pw; c++) {
+    for (var c = 0; c < cols; c++) {
       for (var r = rowGeo.top; r < rowGeo.top + sp.ph; r++) {
         var x = screenLeft + c * pxW;
         var y = screenTop + rowGeo.y(r);
         var key = c + ',' + r;
-        var isDeleted = deletedPanels.has(key);
+        var isDeleted = !sp.data.freeCellPanel && deletedPanels.has(key);
 
         if (isDeleted) {
           ctx.strokeStyle = CC_DELETED_COLOR;
@@ -1028,7 +1031,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
           ctx.setLineDash([2, 2]);
           ctx.strokeRect(x, y, pxW, pxH);
           ctx.setLineDash([]);
-        } else {
+        } else if (!sp.data.freeCellPanel) {
           ctx.fillStyle = CC_PANEL_FILL;
           ctx.fillRect(x, y, pxW, pxH);
           ctx.strokeStyle = CC_PANEL_COLOR;
@@ -1041,7 +1044,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
     // CB5 half rows
     for (var hr = 0; hr < rowGeo.rows; hr++) {
       if (!rowGeo.isHalf(hr)) continue;
-      for (var c2 = 0; c2 < sp.pw; c2++) {
+      for (var c2 = 0; c2 < cols; c2++) {
         var hx = screenLeft + c2 * pxW;
         var hy = screenTop + rowGeo.y(hr);
         ctx.fillStyle = CC_PANEL_FILL;
@@ -1052,8 +1055,15 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
       }
     }
 
-    // A drawn screen's panels span several cells: cover the cell lines inside each one
+    // A drawn screen's gaps (whole panels where they fit) and its panels, each drawn whole
     if (sp.data.freeCellPanel) {
+      freeHoleRects(screens[sp.screenId].data, allPanels).forEach(function(h) {
+        ctx.strokeStyle = CC_DELETED_COLOR;
+        ctx.lineWidth = 0.5;
+        ctx.setLineDash([2, 2]);
+        ctx.strokeRect(screenLeft + h.gx * pxW, screenTop + rowGeo.y(h.gy), h.cw * pxW, h.ch * pxW);
+        ctx.setLineDash([]);
+      });
       freePlacedPanels(sp.data, allPanels).panels.forEach(function(pp) {
         var at = pp.key.split(',').map(Number);
         var cells = freeCells(allPanels[pp.type], sp.data.freeCell_mm);
@@ -1313,10 +1323,10 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
     var screenLeft = toX(sp.x);
     var screenTop = toY(sp.y);
     var screenBottom = toY(sp.y + sp.height);
-    var pxW = panelSize * pxToCanvas;
+    var pxW = panelSize * (sp.data.freeUnitScale || 1) * pxToCanvas;
     var powerHeightRatio = sp.data.freeCellPanel ? 1 : (typeof getPanelHeightRatio === 'function'
       ? getPanelHeightRatio(sp.data.panelType || 'CB5_MKII') : 1);
-    var pxRowH = panelSize * powerHeightRatio * pxToCanvas;
+    var pxRowH = panelSize * (sp.data.freeUnitScale || 1) * powerHeightRatio * pxToCanvas;
 
     // One cable per SOCA. Spans come from the screen's as-assigned grouping when available
     // (calc.socaSpans), falling back to the geometric soca s = circuits s*6..s*6+5.
@@ -1464,10 +1474,10 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
     var place = sp.cab.xdPlacement;
     var panelType = sp.data.panelType || 'CB5_MKII';
     var heightRatio = sp.data.freeCellPanel ? 1 : (typeof getPanelHeightRatio === 'function' ? getPanelHeightRatio(panelType) : 1);
-    var pxW = panelSize * pxToCanvas;
-    var pxH = panelSize * heightRatio * pxToCanvas;
+    var pxW = panelSize * (sp.data.freeUnitScale || 1) * pxToCanvas;
+    var pxH = panelSize * (sp.data.freeUnitScale || 1) * heightRatio * pxToCanvas;
     var dp = calc.deletedPanelsSet || new Set();
-    var rowGeo = cb5RowGeometry(calc.ph, getCB5HalfRows(sp.data, panelType), pxH, panelSize * pxToCanvas);
+    var rowGeo = cb5RowGeometry(calc.ph, getCB5HalfRows(sp.data, panelType), pxH, panelSize * (sp.data.freeUnitScale || 1) * pxToCanvas);
     var rowMidY = function(r) { return sp.top + cableRowFracOff(rowGeo, r, 0.5); };
 
     var dataFlip = sp.data.dataFlip || false;
@@ -1618,13 +1628,16 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
           }
         }
         if (dp.size > 0 && typeof findCableGridPath === 'function') {
-          var path = findCableGridPath(ep.col, ep.row, targetCol, targetRow, calc.pw, calc.effectivePh, dp);
+          // A drawn screen routes panel to panel (freeCablePath), a grid one cell to cell
+          var path = sp.data.freeCellPanel
+            ? freeCablePath(screens[sp.screenId].data, ep.col, ep.row, targetCol, targetRow)
+            : findCableGridPath(ep.col, ep.row, targetCol, targetRow, calc.pw, calc.effectivePh, dp);
           if (path && path.length) {
             ctx.moveTo(ep.cx + offsetX * 0.2, ep.cy);
             path.forEach(function(node) {
               ctx.lineTo(sp.left + (node.col + 0.5) * pxW + offsetX * 0.2, rowMidY(node.row));
             });
-            ctx.lineTo(sp.left + (targetCol + 0.5) * pxW + offsetX * 0.2, wallEdgeY);
+            ctx.lineTo(sp.left + (path[path.length - 1].col + 0.5) * pxW + offsetX * 0.2, wallEdgeY);
           } else {
             ctx.moveTo(ep.cx + offsetX * 0.2, ep.cy);
             ctx.lineTo(ep.cx + offsetX * 0.2, wallEdgeY);

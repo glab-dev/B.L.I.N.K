@@ -95,13 +95,9 @@ function sanitizeFreeDataPaths(paths) {
 // and its row the top edges of the panels above and below it, so a row of small panels
 // under big ones numbers 1, 2, 3… instead of skipping.
 function freePanelNames(list, allPanels, cellMm) {
-  const boxes = list.map(fp => Object.assign({key: `${fp.gx},${fp.gy}`, gx: fp.gx, gy: fp.gy}, freeCells(allPanels[fp.type], cellMm)));
-  const rank = (values, own) => new Set(values.filter(v => v <= own)).size;
-  return new Map(boxes.map(a => {
-    const beside = boxes.filter(b => b.gy < a.gy + a.ch && a.gy < b.gy + b.ch).map(b => b.gx);
-    const aboveBelow = boxes.filter(b => b.gx < a.gx + a.cw && a.gx < b.gx + b.cw).map(b => b.gy);
-    return [a.key, `${rank(beside, a.gx)}.${rank(aboveBelow, a.gy)}`];
-  }));
+  const cols = [...new Set(list.map(fp => fp.gx))].sort((a, b) => a - b);
+  const rows = [...new Set(list.map(fp => fp.gy))].sort((a, b) => a - b);
+  return new Map(list.map(fp => [`${fp.gx},${fp.gy}`, `${cols.indexOf(fp.gx) + 1}.${rows.indexOf(fp.gy) + 1}`]));
 }
 
 // Data lines for the current free screen from the live data settings and the custom
@@ -203,24 +199,42 @@ function freePanelsTouch(a, b) {
   return (Math.abs(dx - w) < 0.01 && dy < h - 0.01) || (Math.abs(dy - h) < 0.01 && dx < w - 0.01);
 }
 
-// Data cross jumpers and Cat5 couplers for a drawn wall: calcDataCrossJumpers() for
-// panels of any size. Every step along a line to a touching panel in another column is a
-// crossing. Panels with their cables attached join a crossing in the top half of the wall
-// with a coupler, and take one where a main line starts or a backup line ends up there.
-function freeDataCrossJumpers(data, p, ordering, rows) {
+// Data cross jumpers and Cat5 couplers for a drawn wall, by calcDataCrossJumpers()'s rule
+// (core/gear-data.js) for panels of any size: every step along a line into another column
+// is a crossing, at the top when the column it leaves runs up. Panels with their cables
+// attached join a top crossing with a coupler, and take one where a main line enters a
+// column running down or a backup leaves one running up.
+function freeDataCrossJumpers(data, p, ordering) {
   const redundancy = data.redundancy !== false;
-  const inTopHalf = pt => pt.row + 0.5 < rows / 2;
+  const lines = Object.values(ordering);
+  const startDir = data.dataStartDir || 'top';
+  if(startDir === 'all_top' || startDir === 'all_bottom') {
+    // Every column runs from the same end, as on grid screens
+    const feeds = (startDir === 'all_top' || redundancy) ? lines.length : 0;
+    return {crossJumperCount: 0, cat5CouplerCount: p.jumpers_builtin ? feeds : 0};
+  }
+  const sameColumn = (a, b) => Math.abs(a.col - b.col) < (a.cw + b.cw) / 2 - 0.01;
+  // Which way the cable runs through each panel, from its neighbour in the same column along
+  // the wall's whole walk; a panel alone in its column runs against the one before it, as
+  // the grid's serpentine does
+  const walk = [].concat(...lines);
+  const runsDown = new Map();
+  walk.forEach((pt, i) => {
+    const next = walk[i + 1], prev = walk[i - 1];
+    runsDown.set(pt, next && sameColumn(pt, next) ? next.row > pt.row
+      : prev && sameColumn(prev, pt) ? pt.row > prev.row
+      : prev ? !runsDown.get(prev) : !(startDir === 'bottom' || startDir === 'lr_bottom' || startDir === 'rl_bottom'));
+  });
   let crossings = 0, topCrossings = 0, feedCouplers = 0;
-  Object.values(ordering).forEach(pts => {
+  lines.forEach(pts => {
+    if(!pts.length) return;
     for(let i = 1; i < pts.length; i++) {
-      const a = pts[i - 1], b = pts[i];
-      const sameColumn = Math.abs(a.col - b.col) < (a.cw + b.cw) / 2 - 0.01;
-      if(sameColumn || !freePanelsTouch(a, b)) continue;
+      if(sameColumn(pts[i - 1], pts[i])) continue;
       crossings++;
-      if(inTopHalf(a)) topCrossings++;
+      if(!runsDown.get(pts[i - 1])) topCrossings++;
     }
-    if(inTopHalf(pts[0])) feedCouplers++;
-    if(redundancy && inTopHalf(pts[pts.length - 1])) feedCouplers++;
+    if(runsDown.get(pts[0])) feedCouplers++;
+    if(redundancy && !runsDown.get(pts[pts.length - 1])) feedCouplers++;
   });
   return {
     crossJumperCount: p.jumpers_builtin ? (crossings - topCrossings) : crossings,
@@ -229,10 +243,12 @@ function freeDataCrossJumpers(data, p, ordering, rows) {
 }
 
 // Draws a drawn screen's data lines: every panel at its true size from (ox, oy) at cellPx
-// a snap cell, coloured by the port its line lands on, with flow arrows between touching
-// panels and the line's start label. Shared by the Draw tab and the Combined view.
+// a snap cell, coloured by the port its line lands on and named "column.row" as grid panels
+// are, with flow arrows between touching panels and the line's start label. Shared by the
+// Draw tab and the Combined view.
 // o: {screenId, groups, sortedDataLines, endpoints, ox, oy, cellPx, mirror, flip, showArrows,
-//     showLabels, redundancy, sel, numberSize(w, h), arrowWidth, headSize}
+//     showLabels, redundancy, sel, numberSize(w, h), arrowWidth, headSize, holes}
+// o.holes outlines the gaps as the grid Data tab outlines knocked-out panels.
 function drawFreeDataPanels(ctx, data, allPanels, o) {
   const b = freeBounds(data.freePanels, allPanels, data.freeCell_mm);
   const rect = (gx, gy, cells) => {
@@ -266,6 +282,17 @@ function drawFreeDataPanels(ctx, data, allPanels, o) {
   // Every panel's outline first, so panels on no data line (nothing picked yet, or not yet
   // drawn in Manual) still show the wall
   const print = ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode;
+  if(o.holes) freeHoleRects(data, allPanels).forEach(h => {
+    const r = rect(h.gx, h.gy, h);
+    const light = ecoPrintMode || greyscalePrintMode;
+    ctx.fillStyle = light ? '#ffffff' : '#1a1a1a';
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = light ? '#cccccc' : '#333333';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.setLineDash([]);
+  });
   data.freePanels.forEach(fp => {
     const r = rect(fp.gx, fp.gy, size.get(`${fp.gx},${fp.gy}`));
     ctx.fillStyle = print ? '#ffffff' : '#242424';
@@ -302,7 +329,7 @@ function drawFreeDataPanels(ctx, data, allPanels, o) {
       if(big) {
         labelDraws.push({label: big.text, color: big.color, cx: r.x + r.w / 2, cy: r.y + r.h / 2, h: r.h, w: r.w});
       } else {
-        const label = `${shown(line)}`;
+        const label = pt.label;
         let fs = o.numberSize(r.w, r.h);
         ctx.font = `${fs}px Arial`;
         while(fs > 6 && ctx.measureText(label).width > r.w - 4) { fs--; ctx.font = `${fs}px Arial`; }
@@ -376,9 +403,7 @@ function renderFreeDataLayout() {
   const containerWidth = container.clientWidth - 32; // Account for padding
   const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
   const maxCanvasWidth = pdf ? Math.min(containerWidth, 4000) : Math.min(containerWidth, 800);
-  const cellM = data.freeCell_mm / 1000;
-  const pxPerM = Math.max(30, Math.min(80, Math.floor(maxCanvasWidth / (b.maxX * cellM))));
-  const cellPx = pxPerM * cellM;
+  const {cellPx, unitPx} = freeLayoutSize(data, allPanels, b.maxX, maxCanvasWidth, pdf);
   canvas.width = Math.round(b.maxX * cellPx);
   canvas.height = Math.round(b.maxY * cellPx);
   const rearView = (typeof dataRearViewEnabled !== 'undefined') && dataRearViewEnabled;
@@ -398,13 +423,13 @@ function renderFreeDataLayout() {
     redundancy: !!data.redundancy,
     sel: pdf ? null : freeLayerSel.dataCanvas,
     numberSize: (w, h) => Math.max(10, Math.floor(Math.min(w, h) * (pdf ? 0.25 : 0.22))),
-    arrowWidth: 3, headSize: 12
+    arrowWidth: 3, headSize: 12, holes: true
   });
   if(!pdf) drawFreeDataPathCues(ctx, data, allPanels);
   // Where a split screen splits, and each part's canvas and processor (layouts/data.js)
   drawSplitPartMarkers(ctx, currentScreenId, {
-    offsetX: 0, offsetY: 0, panelWidth: cellPx,
-    rowGeo: cb5RowGeometry(b.maxY, {top: 0, bottom: 0}, cellPx, cellPx), fontSize: 12
+    offsetX: 0, offsetY: 0, panelWidth: cellPx, unitWidth: unitPx,
+    rowGeo: cb5RowGeometry(b.maxY, {top: 0, bottom: 0}, cellPx, cellPx), fontSize: Math.max(10, Math.floor(unitPx * (pdf ? 0.25 : 0.22)))
   });
 
   drawFreeLayerBox(ctx, 'dataCanvas');

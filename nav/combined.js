@@ -4045,7 +4045,9 @@ function renderCombinedSpecs(selectedScreenIds) {
       totalAmpsPerPhase += combinedPhase === 3 ? freeAmps / Math.sqrt(3) : freeAmps;
       socaByScreen.push({ name: screen.name || screenId, count: calcData.socaCount || 0 });
       totalSocas += calcData.socaCount || 0;
-      totalWeight += (calcData.panelWeightOnlyKg || 0) + (calcData.bumperWeightKg || 0);
+      // Panels + bumpers + plates + ground support + floor frames, as a grid screen's breakdown
+      totalWeight += (calcData.panelWeightOnlyKg || 0) + (calcData.bumperWeightKg || 0) + (calcData.platesWeightKg || 0) +
+        (calcData.groundSupportWeightKg || 0) + ((calcData.floorFrames && calcData.floorFrames.totalWeightKg) || 0);
       const freeLines = calcData.dataLinesFinal || ((calcData.dataLines || 0) * (data.redundancy !== false ? 2 : 1));
       dataLinesByScreen.push({ name: screen.name || screenId, count: freeLines });
       totalDataLines += freeLines;
@@ -4320,9 +4322,31 @@ function renderCombinedGearList(selectedScreenIds) {
         bumpersByPanel[mainLabel].b2w += rig.bumper2w;
         bumpersByPanel[mainLabel].b4w += rig.bumper4w;
       }
+      totalPlates2way += rig.plates2way;
+      totalPlates4way += rig.plates4way;
       totalShackles += rig.shackles;
       totalCheeseye += rig.cheeseye;
       if(rig.shackles > 0) needsShacklesAndCheeseye = true;
+      // Ground support and floor frames from calculated data, as for grid screens
+      if(calculatedData.groundSupport) {
+        const gs = calculatedData.groundSupport;
+        totalRearTruss += gs.totalRearTruss || 0;
+        totalBaseTruss += gs.totalBaseTruss || 0;
+        totalBridgeClamps += gs.totalBridgeClamps || 0;
+        totalRearBridgeAdapters += gs.totalRearBridgeClampAdapters || 0;
+        totalSandbags += gs.totalSandbags || 0;
+        totalSwivelCheeseboroughs += gs.totalSwivelCheeseboroughs || 0;
+        totalPipes += gs.totalPipes || 0;
+      }
+      if(calculatedData.floorFrames) {
+        const ff = calculatedData.floorFrames;
+        totalFrame1x1 += ff.frame_1x1 || 0;
+        totalFrame2x1 += ff.frame_2x1 || 0;
+        totalFrame2x2 += ff.frame_2x2 || 0;
+        totalFrame3x2 += ff.frame_3x2 || 0;
+        totalFloorWeightLbs += ff.totalWeightLbs || 0;
+        totalFloorWeightKg += ff.totalWeightKg || 0;
+      }
       if((data.structureType || 'hanging') === 'hanging') hasHangingScreen = true;
       if(data.structureType === 'floor') hasFloorScreen = true;
       const dc = g.dataCables, pc = g.powerCables;

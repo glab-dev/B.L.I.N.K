@@ -645,10 +645,18 @@ function buildStructureInfoLines(screenId) {
   if (typeof isFreeScreen === 'function' && isFreeScreen(data)) {
     const st = freeStructurePlan(data, allPanels, freeBumperPosition(data.structureType || 'hanging', data.useBumpers !== false), data.use4WayBumpers);
     const pickups = st.bumpers.filter(function(b) { return !b.under4w; });
-    if (!pickups.length) return [];
-    lines.push({ text: 'Pickup Weights', bold: true, header: true });
-    pickups.forEach(function(b) { lines.push({ text: '  ' + b.label + ': ' + toDisplay(b.loadKg) + ' ' + wtUnit }); });
-    lines.push({ text: '  Total: ' + toDisplay(pickups.reduce(function(sum, b) { return sum + b.loadKg; }, 0)) + ' ' + wtUnit, bold: true });
+    if (pickups.length) {
+      lines.push({ text: 'Pickup Weights', bold: true, header: true });
+      pickups.forEach(function(b) { lines.push({ text: '  ' + b.label + ': ' + toDisplay(b.loadKg) + ' ' + wtUnit }); });
+      lines.push({ text: '  Total: ' + toDisplay(pickups.reduce(function(sum, b) { return sum + b.loadKg; }, 0)) + ' ' + wtUnit, bold: true });
+    }
+    if (st.plates && (st.plates.total2way > 0 || st.plates.total4way > 0)) {
+      if (lines.length) lines.push({ text: '' });
+      lines.push({ text: 'Connecting Plates', bold: true, header: true });
+      if (st.plates.total2way > 0) lines.push({ text: '  2-Way: ' + st.plates.total2way });
+      if (st.plates.total4way > 0) lines.push({ text: '  4-Way: ' + st.plates.total4way });
+      lines.push({ text: '  Total Weight: ' + toDisplay(st.plates.totalPlateWeight) + ' ' + wtUnit, bold: true });
+    }
     const gs = st.groundSupport;
     if (gs) {
       lines.push({ text: '' });

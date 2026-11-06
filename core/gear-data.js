@@ -336,7 +336,8 @@ function buildGearListData(screenIds) {
       const freeHung = (data.structureType || 'hanging') === 'hanging' && data.useBumpers !== false;
       const freeNeedsSC = freePanel && (['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3', 'V4ST', 'V4ST_H', 'V4ST_V', 'V4ST_Q'].includes(data.freePanels[0].type) || (freePanel.custom && freePanel.needs_shackles));
       const freeSC = (freeNeedsSC && freeHung) ? freeB1 + freeB2 : 0;
-      const freeRigging = { bumper1w: freeB1, bumper2w: freeB2, bumper4w: freeB4, plates2way: 0, plates4way: 0, shackles: freeSC, cheeseye: freeSC, hasRigging: freeB1 + freeB2 + freeB4 > 0 };
+      const freeP2 = calcData.plates2way || 0, freeP4 = calcData.plates4way || 0;
+      const freeRigging = { bumper1w: freeB1, bumper2w: freeB2, bumper4w: freeB4, plates2way: freeP2, plates4way: freeP4, shackles: freeSC, cheeseye: freeSC, hasRigging: freeB1 + freeB2 + freeB4 + freeP2 + freeP4 > 0 };
       // Ground support worked out from the drawn wall (layouts/free-structure.js), listed as
       // grid screens list theirs
       const freeGs = calcData.groundSupport;

@@ -76,7 +76,7 @@ function calculateFreeStructure(data, allPanels) {
 // warnings and, on a ground-stacked wall, the ground support for a drawn wall with its
 // bumpers on `position`. use4Way adds the 4-way layer on panels that take it.
 function freeStructurePlan(data, allPanels, position, use4Way) {
-  if(!data.freePanels.length) return {position: null, bumpers: [], counts: {'1w': 0, '2w': 0, '4w': 0}, bumperWeightKg: 0, warnings: [], groundSupport: null, ladders: []};
+  if(!data.freePanels.length) return {position: null, bumpers: [], counts: {'1w': 0, '2w': 0, '4w': 0}, bumperWeightKg: 0, warnings: [], groundSupport: null, ladders: [], plates: null};
 
   const cellMm = data.freeCell_mm;
   const mainType = allPanels[data.panelType] ? data.panelType : data.freePanels[0].type;
@@ -204,7 +204,50 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
     groundSupport.totalWeightKg = groundSupport.totalWeightLbs / KG_TO_LBS;
   }
 
-  return {position, bumpers, counts, bumperWeightKg, warnings: [...new Set(warnings)], groundSupport, ladders, cb5Air,
+  // Connecting plates, by the rule enumerateConnectingPlates() (structure/plates.js) uses on
+  // grid screens, applied at every drawn panel corner: 3 or 4 occupied cells round a corner
+  // take a 4-way; two side by side a 2-way (a 4-way where a bumper rests on them); two
+  // stacked a 2-way on the open side; a lone corner a 2-way only where a bumper ends
+  let plates = null;
+  if(shouldUseConnectingPlates(mainType)) {
+    const edge = new Set();
+    if(position) data.freePanels.forEach(fp => {
+      const {cw, ch} = freeCells(allPanels[fp.type], cellMm);
+      const edgeY = position === 'top' ? fp.gy - 1 : fp.gy + ch;
+      for(let x = 0; x < cw; x++) if(occ.has(`${fp.gx + x},${edgeY}`)) return;
+      edge.add(`${fp.gx},${fp.gy}`);
+    });
+    const byKey = new Map(data.freePanels.map(fp => [`${fp.gx},${fp.gy}`, Object.assign({}, fp, freeCells(allPanels[fp.type], cellMm))]));
+    const restsTop = (key, vr) => position === 'top' && edge.has(key) && byKey.get(key).gy === vr;
+    const restsBottom = (key, vr) => position === 'bottom' && edge.has(key) && byKey.get(key).gy + byKey.get(key).ch === vr;
+    const corners = new Set();
+    byKey.forEach(p => [[0, 0], [p.cw, 0], [0, p.ch], [p.cw, p.ch]].forEach(([dx, dy]) => corners.add(`${p.gx + dx},${p.gy + dy}`)));
+    const marks = [];
+    corners.forEach(v => {
+      const [vc, vr] = v.split(',').map(Number);
+      const TL = occ.get(`${vc - 1},${vr - 1}`), TR = occ.get(`${vc},${vr - 1}`);
+      const BL = occ.get(`${vc - 1},${vr}`), BR = occ.get(`${vc},${vr}`);
+      const n = [TL, TR, BL, BR].filter(Boolean).length;
+      if(n >= 3) {
+        marks.push({kind: '4way', vc, vr});
+      } else if(n === 2) {
+        if(TR && BR) marks.push({kind: '2way', vc, vr, place: 'vLeft'});
+        else if(TL && BL) marks.push({kind: '2way', vc, vr, place: 'vRight'});
+        else if(BL && BR) marks.push(restsTop(BL, vr) || restsTop(BR, vr) ? {kind: '4way', vc, vr} : {kind: '2way', vc, vr, place: 'hTop'});
+        else if(TL && TR) marks.push(restsBottom(TL, vr) || restsBottom(TR, vr) ? {kind: '4way', vc, vr} : {kind: '2way', vc, vr, place: 'hBottom'});
+      } else if(n === 1) {
+        if(BR && restsTop(BR, vr)) marks.push({kind: '2way', vc, vr, place: 'endTopLeft'});
+        else if(BL && restsTop(BL, vr)) marks.push({kind: '2way', vc, vr, place: 'endTopRight'});
+        else if(TR && restsBottom(TR, vr)) marks.push({kind: '2way', vc, vr, place: 'endBottomLeft'});
+        else if(TL && restsBottom(TL, vr)) marks.push({kind: '2way', vc, vr, place: 'endBottomRight'});
+      }
+    });
+    const total4way = marks.filter(m => m.kind === '4way').length;
+    const total2way = marks.length - total4way;
+    plates = {marks, total2way, total4way, totalPlateWeight: total2way * PLATE_WEIGHTS.plate2wayKg + total4way * PLATE_WEIGHTS.plate4wayKg};
+  }
+
+  return {position, bumpers, counts, bumperWeightKg, warnings: [...new Set(warnings)], groundSupport, ladders, cb5Air, plates,
     unit: freeUnitCells(data, allPanels), mainHeightCells: main.height_m * 1000 / cellMm};
 }
 
@@ -213,9 +256,9 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
 // tall, o.gap off the panel edge) on the edge it carries. o.weights labels each bumper with
 // its type and pickup weight as the grid Structure layout does; without it, the type alone
 // as the Combined view does. 4Ws are drawn (o.fourWayH tall, o.fourWayGap beyond their 2Ws)
-// when o.fourWayH is given, and the ground support (ladders, bridge clamps and the ladder
-// bases in the bumpers) when o.groundSupport is set. Shared by the Draw tab and the
-// Combined view.
+// when o.fourWayH is given, and the connecting plates and ground support (ladders, bridge
+// clamps and the ladder bases in the bumpers) when o.groundSupport is set. Shared by the
+// Draw tab and the Combined view.
 function drawFreeStructure(ctx, data, allPanels, st, o) {
   const toX = g => o.ox + Math.round(g * o.cellPx);
   const toY = g => o.oy + Math.round(g * o.cellPx);
@@ -239,6 +282,34 @@ function drawFreeStructure(ctx, data, allPanels, st, o) {
       ctx.fillStyle = '#000000';
       ctx.fillText(label, x + w / 2, y + h / 2);
     }
+  });
+
+  // Connecting plates, drawn as the grid structure layout draws them: red 4-way squares on
+  // the corner, gold 2-ways inset along the seam they join
+  if(o.groundSupport && st.plates) st.plates.marks.forEach(m => {
+    const vx = toX(m.vc), vy = toY(m.vr);
+    let x, y, w, h;
+    if(m.kind === '4way') {
+      ctx.fillStyle = '#FF4444';
+      ctx.fillRect(vx - 4, vy - 4, 8, 8);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(vx - 4, vy - 4, 8, 8);
+      return;
+    }
+    if(m.place === 'vLeft') { x = vx + 2; y = vy - 6; w = 4; h = 12; }
+    else if(m.place === 'vRight') { x = vx - 6; y = vy - 6; w = 4; h = 12; }
+    else if(m.place === 'hTop') { x = vx - 6; y = vy + 2; w = 12; h = 4; }
+    else if(m.place === 'hBottom') { x = vx - 6; y = vy - 6; w = 12; h = 4; }
+    else {
+      const onLeft = m.place === 'endTopLeft' || m.place === 'endBottomLeft';
+      x = onLeft ? vx + 2 : vx - 6; y = vy - 6; w = 4; h = 12;
+    }
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, w, h);
   });
 
   // Ground support up each ladder column, as on grid screens: cyan rear-truss ladders from
@@ -401,7 +472,7 @@ function renderFreeStructureLayout() {
   const weightsContent = document.getElementById('structureWeightsContent');
   if(infoPanel && weightsBox && weightsContent) {
     weightsContent.textContent = '';
-    infoPanel.style.display = st.bumpers.length ? 'grid' : 'none';
+    infoPanel.style.display = (st.bumpers.length || st.plates) ? 'grid' : 'none';
     weightsBox.style.display = st.bumpers.length ? 'block' : 'none';
     const wtUnit = getWeightUnitLabel();
     const shown = kg => displayWeightUnit === 'lbs' ? Math.ceil(kg * KG_TO_LBS) : Math.ceil(kg);
@@ -424,6 +495,32 @@ function renderFreeStructureLayout() {
     const pickups = st.bumpers.filter(bp => !bp.under4w);
     pickups.forEach(bp => row(bp.label, shown(bp.loadKg), freeBumperColor(bp.type, st.position), false));
     if(pickups.length) row('Total', shown(pickups.reduce((s, bp) => s + bp.loadKg, 0)), '#fff', true);
+  }
+
+  // Connecting plates, in the box the grid structure layout uses
+  const platesBox = document.getElementById('structurePlatesBox');
+  const platesContent = document.getElementById('structurePlatesContent');
+  if(platesBox && platesContent) {
+    platesContent.textContent = '';
+    platesBox.style.display = st.plates ? 'block' : 'none';
+    if(st.plates) {
+      const kgShown = displayWeightUnit === 'lbs' ? Math.ceil(st.plates.totalPlateWeight * KG_TO_LBS) : Math.ceil(st.plates.totalPlateWeight);
+      [['2-Way (yellow)', st.plates.total2way], ['4-Way (red)', st.plates.total4way], ['Total Weight', `${kgShown} ${getWeightUnitLabel()}`]].forEach(([label, value], i) => {
+        const r = document.createElement('div');
+        r.className = i === 2 ? 'plates-row plates-total' : 'plates-row';
+        const l = document.createElement('span');
+        l.className = 'plates-label';
+        if(i === 2) l.style.color = '#fff';
+        l.textContent = label;
+        const v = document.createElement('span');
+        v.className = 'plates-value';
+        if(i === 2) v.style.color = '#6fc276';
+        v.textContent = value;
+        r.appendChild(l);
+        r.appendChild(v);
+        platesContent.appendChild(r);
+      });
+    }
   }
 
   // Ground support hardware, in the box the grid structure layout uses

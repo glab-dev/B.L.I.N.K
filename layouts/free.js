@@ -435,7 +435,8 @@ function calculateFreeScreen() {
     html += `<div class="result-row"><strong>Resolution:</strong> ${wall.resX} × ${wall.resY}</div>`;
     html += `<div class="result-row"><strong>Total pixel count:</strong> (${totalPixels.toLocaleString()} px)</div>`;
     const kgShown = kg => displayWeightUnit === 'lbs' ? Math.ceil(kg * KG_TO_LBS) : Math.ceil(kg);
-    const structureKg = structure.bumperWeightKg + (structure.groundSupport ? structure.groundSupport.totalWeightKg : 0);
+    const structureKg = structure.bumperWeightKg + (structure.groundSupport ? structure.groundSupport.totalWeightKg : 0) +
+      (structure.plates ? structure.plates.totalPlateWeight : 0);
     if(structureKg > 0) {
       html += `<div class="result-row"><strong>Total weight:</strong> ${kgShown(panelWeightKg + structureKg)} ${wtUnit}</div>`;
       html += `<div class="result-row result-indent"><strong>Panels:</strong> ${weightDisplay} ${wtUnit}</div>`;
@@ -490,6 +491,9 @@ function calculateFreeScreen() {
     bumper2wCount: structure.counts['2w'],
     bumper4wCount: structure.counts['4w'],
     groundSupport: structure.groundSupport,
+    plates2way: structure.plates ? structure.plates.total2way : 0,
+    plates4way: structure.plates ? structure.plates.total4way : 0,
+    platesWeightKg: structure.plates ? structure.plates.totalPlateWeight : 0,
     groundSupportWeightKg: structure.groundSupport ? structure.groundSupport.totalWeightKg : 0,
     totalPixels: totalPixels,
     dataLines: dataInfo.dataLines,

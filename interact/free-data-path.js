@@ -147,15 +147,24 @@ async function newFreeDataPathLine() {
 // Manual an outline on the panel under the pointer. Not drawn into PDFs.
 function drawFreeDataPathCues(ctx, data, allPanels) {
   if(!data.freeDataMode) {
+    // One line when it fits the wall, else two, shrunk until each fits
+    const W = ctx.canvas.width - 12;
+    const one = ['Pick Automatic or Manual data above'], two = ['Pick Automatic', 'or Manual data above'];
     ctx.save();
-    ctx.font = 'bold 16px Arial';
+    let fs = 16;
+    ctx.font = `bold ${fs}px Arial`;
+    const lines = ctx.measureText(one[0]).width <= W ? one : two;
+    while(fs > 8 && Math.max(...lines.map(l => ctx.measureText(l).width)) > W) { fs--; ctx.font = `bold ${fs}px Arial`; }
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineWidth = 4;
-    ctx.strokeStyle = '#000000';
-    ctx.strokeText('Pick Automatic or Manual data above', ctx.canvas.width / 2, ctx.canvas.height / 2);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText('Pick Automatic or Manual data above', ctx.canvas.width / 2, ctx.canvas.height / 2);
+    lines.forEach((text, i) => {
+      const y = ctx.canvas.height / 2 + (i - (lines.length - 1) / 2) * fs * 1.3;
+      ctx.strokeStyle = '#000000';
+      ctx.strokeText(text, ctx.canvas.width / 2, y);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(text, ctx.canvas.width / 2, y);
+    });
     ctx.restore();
     return;
   }

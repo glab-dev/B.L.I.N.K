@@ -2,8 +2,7 @@
 // Bumpers for drawn (free) screens, worked out from the drawn panels. A hung wall takes
 // bumpers on top of every panel with nothing above it; a ground-stacked wall under every
 // panel with nothing below it. Side-by-side edge panels are paired from the left as grid
-// columns are, a 2W per two widths of the family's narrowest panel and a 1W for an odd one
-// left over (V4ST: two 0.5 m panels share a 2W, a 1 m panel takes a 2W). A bumper picks up
+// columns are: a 2W carries two panels and a 1W the odd one left over. A bumper picks up
 // its own weight plus the panels hanging from it (or stacked on it): every panel whose
 // middle sits over it, nearest bumper first.
 
@@ -22,12 +21,12 @@ function freeUnitCells(data, allPanels) {
   return Math.min(...fam.map(t => freeCells(allPanels[t], data.freeCell_mm).cw));
 }
 
-// Bumpers along one edge of a drawn wall: [{type, gx, cw, gy, panelType}], gx/cw in cells
-// and gy the row the panel it carries starts (top) or ends (bottom) on
+// Bumpers along one edge of a drawn wall: [{type, gx, cw, gy, panelType, firstCw}], gx/cw
+// in cells, gy the row the panels it carries start (top) or end (bottom) on, and firstCw
+// the width of its first panel (where a ground stack's ladder goes)
 function freeBumpers(data, allPanels, position) {
   const cellMm = data.freeCell_mm;
   const occ = freeOccupancy(data.freePanels, allPanels, cellMm);
-  const unit = freeUnitCells(data, allPanels);
   // Panels with a clear edge, by the row that edge sits on
   const levels = new Map();
   data.freePanels.forEach(fp => {
@@ -39,19 +38,17 @@ function freeBumpers(data, allPanels, position) {
     levels.get(gy).push({gx: fp.gx, cw, type: fp.type});
   });
 
-  // Each run of edge panels side by side is paired from its left end
+  // Each run of edge panels side by side is paired from its left end: two panels to a 2W
   const bumpers = [];
   levels.forEach((edge, gy) => {
     edge.sort((a, b) => a.gx - b.gx);
     for(let i = 0; i < edge.length; i++) {
       const run = [edge[i]];
       while(i + 1 < edge.length && edge[i + 1].gx === run[run.length - 1].gx + run[run.length - 1].cw) run.push(edge[++i]);
-      const end = run[run.length - 1].gx + run[run.length - 1].cw;
-      for(let x = run[0].gx; x < end;) {
-        const cw = x + 2 * unit <= end ? 2 * unit : end - x;
-        const panelType = run.find(p => x < p.gx + p.cw).type;
-        bumpers.push({type: cw === 2 * unit ? '2w' : '1w', gx: x, cw, gy, panelType});
-        x += cw;
+      for(let j = 0; j < run.length; j += 2) {
+        const pair = run[j + 1];
+        bumpers.push({type: pair ? '2w' : '1w', gx: run[j].gx, cw: run[j].cw + (pair ? pair.cw : 0), gy,
+          panelType: run[j].type, firstCw: run[j].cw});
       }
     }
   });
@@ -180,7 +177,7 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
     bumpers.forEach(b => {
       groundSupport.totalSandbags += Math.ceil((b.loadKg * KG_TO_LBS / 25) * 1.25);
       const panels = stackPanels(b.gx, b.gy);
-      ladders.push({gx: b.gx, gy: b.gy, panels});
+      ladders.push({gx: b.gx, gy: b.gy, panels, cw: b.firstCw});
       const numTruss = Math.floor(panels / 2 + 0.001);
       if(!cb5Air) {
         groundSupport.totalRearTruss += numTruss;
@@ -318,7 +315,7 @@ function drawFreeStructure(ctx, data, allPanels, st, o) {
   const mainH = st.mainHeightCells * o.cellPx;
   const ladderSpan = st.cb5Air ? 1 : 2;
   if(o.groundSupport) st.ladders.forEach(l => {
-    const cx = (toX(l.gx) + toX(l.gx + st.unit)) / 2;
+    const cx = (toX(l.gx) + toX(l.gx + l.cw)) / 2;
     const bottom = toY(l.gy);
     for(let i = 0; i < Math.floor(l.panels / ladderSpan + 0.001); i++) {
       const ladderX = cx - 4;
@@ -365,7 +362,7 @@ function drawFreeStructure(ctx, data, allPanels, st, o) {
     ctx.fillRect(x, y, w, h);
     // Dark blue ladder base inside each bottom bumper, under its ladder column
     if(o.groundSupport && st.position === 'bottom' && bp.type !== '4w') {
-      const unitW = toX(bp.gx + st.unit) - x;
+      const unitW = toX(bp.gx + bp.firstCw) - x;
       ctx.fillStyle = '#00008B';
       ctx.beginPath();
       ctx.roundRect(x + unitW * 0.075, y + (h - 10) / 2, unitW * 0.85, 10, 3);

@@ -838,6 +838,8 @@ function setupStructureCanvasInteractivity() {
     e.preventDefault();
     
     if(!manualBumperMode) return;
+    // A drawn screen's menus come from interact/free-bumpers.js
+    if(isFreeCurrentScreen()) return;
     
     const bumper = getBumperAtMouse(canvas, e.clientX, e.clientY);
     

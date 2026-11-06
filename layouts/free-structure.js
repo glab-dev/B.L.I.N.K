@@ -7,6 +7,7 @@
 // middle sits over it, nearest bumper first.
 
 let freeStructureState = null;     // last calculateFreeStructure() result, read by the canvas
+let freeStructureView = null;      // {cellPx, top, bumperH} of the last Structure layout drawn
 
 const FREE_BUMPER_COLORS = { '1w': '#2196F3', '2w': '#4CAF50', '4w': '#FF6B35' };
 
@@ -21,13 +22,11 @@ function freeUnitCells(data, allPanels) {
   return Math.min(...fam.map(t => freeCells(allPanels[t], data.freeCell_mm).cw));
 }
 
-// Bumpers along one edge of a drawn wall: [{type, gx, cw, gy, panelType, firstCw}], gx/cw
-// in cells, gy the row the panels it carries start (top) or end (bottom) on, and firstCw
-// the width of its first panel (where a ground stack's ladder goes)
-function freeBumpers(data, allPanels, position) {
+// The panels a bumper can sit on: those with a clear edge on `position`, by the row that
+// edge sits on (gy -> [{gx, cw, type}] left to right)
+function freeEdgeLevels(data, allPanels, position) {
   const cellMm = data.freeCell_mm;
   const occ = freeOccupancy(data.freePanels, allPanels, cellMm);
-  // Panels with a clear edge, by the row that edge sits on
   const levels = new Map();
   data.freePanels.forEach(fp => {
     const {cw, ch} = freeCells(allPanels[fp.type], cellMm);
@@ -37,11 +36,17 @@ function freeBumpers(data, allPanels, position) {
     if(!levels.has(gy)) levels.set(gy, []);
     levels.get(gy).push({gx: fp.gx, cw, type: fp.type});
   });
+  levels.forEach(edge => edge.sort((a, b) => a.gx - b.gx));
+  return levels;
+}
 
+// Bumpers along one edge of a drawn wall: [{type, gx, cw, gy, panelType, firstCw}], gx/cw
+// in cells, gy the row the panels it carries start (top) or end (bottom) on, and firstCw
+// the width of its first panel (where a ground stack's ladder goes)
+function freeBumpers(data, allPanels, position) {
   // Each run of edge panels side by side is paired from its left end: two panels to a 2W
   const bumpers = [];
-  levels.forEach((edge, gy) => {
-    edge.sort((a, b) => a.gx - b.gx);
+  freeEdgeLevels(data, allPanels, position).forEach((edge, gy) => {
     for(let i = 0; i < edge.length; i++) {
       const run = [edge[i]];
       while(i + 1 < edge.length && edge[i + 1].gx === run[run.length - 1].gx + run[run.length - 1].cw) run.push(edge[++i]);
@@ -55,6 +60,15 @@ function freeBumpers(data, allPanels, position) {
   return bumpers.sort((a, b) => a.gx - b.gx || a.gy - b.gy);
 }
 
+// Hand-edited bumpers from a file: 1W / 2W on whole cells, each with its own id
+function sanitizeFreeBumpers(list, allPanels) {
+  if(!Array.isArray(list)) return null;
+  const n = v => Number.isInteger(v) && v >= 0;
+  return list.filter(b => b && n(b.id) && (b.type === '1w' || b.type === '2w') && n(b.gx) && n(b.gy) &&
+      n(b.cw) && b.cw > 0 && n(b.firstCw) && b.firstCw > 0 && allPanels[b.panelType])
+    .map(b => ({id: b.id, type: b.type, gx: b.gx, cw: b.cw, gy: b.gy, panelType: b.panelType, firstCw: b.firstCw, ladderRight: b.ladderRight === true}));
+}
+
 // The edge a drawn wall's bumpers go on: the top when it hangs, the bottom when it is
 // ground stacked, none on the floor or with bumpers off
 function freeBumperPosition(structureType, useBumpers) {
@@ -65,7 +79,17 @@ function freeBumperPosition(structureType, useBumpers) {
 // Bumpers for the current free screen, from the live structure settings
 function calculateFreeStructure(data, allPanels) {
   const structureType = document.getElementById('structureType').value;
-  freeStructureState = freeStructurePlan(data, allPanels, freeBumperPosition(structureType, showTopBumper || showBottomBumper), use4WayBumpersEnabled);
+  const position = freeBumperPosition(structureType, showTopBumper || showBottomBumper);
+  freeStructureState = freeStructurePlan(data, allPanels, position, use4WayBumpersEnabled);
+  // In manual mode the wall's bumpers are its own to edit (interact/free-bumpers.js): the
+  // ones drawn on this edge are copied the first time
+  if(manualBumperMode && position && !(Array.isArray(data.freeBumpers) && data.freeBumpersPosition === position)) {
+    data.freeBumpers = freeStructureState.bumpers.filter(b => b.type !== '4w')
+      .sort((a, b) => a.gy - b.gy || a.gx - b.gx)
+      .map((b, i) => ({id: i + 1, type: b.type, gx: b.gx, cw: b.cw, gy: b.gy, panelType: b.panelType, firstCw: b.firstCw}));
+    data.freeBumpersPosition = position;
+    freeStructureState = freeStructurePlan(data, allPanels, position, use4WayBumpersEnabled);
+  }
   return freeStructureState;
 }
 
@@ -79,7 +103,12 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
   const mainType = allPanels[data.panelType] ? data.panelType : data.freePanels[0].type;
   const main = allPanels[mainType];
   const isCB5 = mainType === 'CB5_MKII' || mainType === 'CB5_MKII_HALF';
-  const bumpers = position ? freeBumpers(data, allPanels, position) : [];
+  // Bumpers edited by hand (interact/free-bumpers.js) stand in for the automatic ones on
+  // the edge they were edited on
+  const custom = position && Array.isArray(data.freeBumpers) && data.freeBumpersPosition === position;
+  const bumpers = !position ? [] : custom
+    ? data.freeBumpers.map(b => ({id: b.id, type: b.type, gx: b.gx, cw: b.cw, gy: b.gy, panelType: b.panelType, firstCw: b.firstCw, ladderRight: !!b.ladderRight}))
+    : freeBumpers(data, allPanels, position);
   bumpers.forEach(b => {
     b.ownKg = (allPanels[b.panelType]['bumper_' + b.type + '_lbs'] || 0) * LBS_TO_KG;
     b.loadKg = b.ownKg;
@@ -90,8 +119,15 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
     const p = allPanels[fp.type];
     const {cw, ch} = freeCells(p, cellMm);
     const mid = fp.gx + cw / 2;
-    const reach = bumpers.filter(b => b.gx < mid + cw / 2 && mid - cw / 2 < b.gx + b.cw &&
-      (position === 'top' ? b.gy <= fp.gy : b.gy >= fp.gy + ch));
+    const side = bumpers.filter(b => position === 'top' ? b.gy <= fp.gy : b.gy >= fp.gy + ch);
+    let reach = side.filter(b => b.gx < mid + cw / 2 && mid - cw / 2 < b.gx + b.cw);
+    // A panel with no bumper over it (one taken off by hand) hangs off the nearest one, as
+    // a grid column left without a bumper does
+    if(!reach.length && side.length) {
+      const dist = b => Math.abs(b.gx + b.cw / 2 - mid);
+      const near = Math.min(...side.map(dist));
+      reach = side.filter(b => dist(b) === near).slice(0, 1);
+    }
     if(!reach.length) return;
     const nearest = position === 'top' ? Math.max(...reach.map(b => b.gy)) : Math.min(...reach.map(b => b.gy));
     const level = reach.filter(b => b.gy === nearest);
@@ -176,8 +212,11 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
       totalWeightLbs: 0, totalWeightKg: 0, pipeInfo: []};
     bumpers.forEach(b => {
       groundSupport.totalSandbags += Math.ceil((b.loadKg * KG_TO_LBS / 25) * 1.25);
-      const panels = stackPanels(b.gx, b.gy);
-      ladders.push({gx: b.gx, gy: b.gy, panels, cw: b.firstCw});
+      // The ladder goes up the bumper's first panel, or its second when moved there
+      const lx = b.ladderRight && b.cw > b.firstCw ? b.gx + b.firstCw : b.gx;
+      const lcw = b.ladderRight && b.cw > b.firstCw ? b.cw - b.firstCw : b.firstCw;
+      const panels = stackPanels(lx, b.gy);
+      ladders.push({gx: lx, gy: b.gy, panels, cw: lcw});
       const numTruss = Math.floor(panels / 2 + 0.001);
       if(!cb5Air) {
         groundSupport.totalRearTruss += numTruss;
@@ -187,7 +226,7 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
         groundSupport.totalBaseTruss++;
         groundSupport.totalPipes++;
         groundSupport.totalSwivelCheeseboroughs += 2;
-        groundSupport.pipeInfo.push({column: gx, rearTrussCount: numTruss, pipeLengthFt: Math.floor(Math.sqrt(6.56 * 6.56 + Math.pow(numTruss * 3.28, 2)))});
+        groundSupport.pipeInfo.push({column: lx, rearTrussCount: numTruss, pipeLengthFt: Math.floor(Math.sqrt(6.56 * 6.56 + Math.pow(numTruss * 3.28, 2)))});
       }
     });
     groundSupport.totalBaseTruss += ladders.length;
@@ -212,7 +251,9 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
       const {cw, ch} = freeCells(allPanels[fp.type], cellMm);
       const edgeY = position === 'top' ? fp.gy - 1 : fp.gy + ch;
       for(let x = 0; x < cw; x++) if(occ.has(`${fp.gx + x},${edgeY}`)) return;
-      edge.add(`${fp.gx},${fp.gy}`);
+      // Only where a bumper actually rests on it (one taken off by hand leaves none)
+      const level = position === 'top' ? fp.gy : fp.gy + ch;
+      if(bumpers.some(b => b.type !== '4w' && b.gy === level && b.gx < fp.gx + cw && fp.gx < b.gx + b.cw)) edge.add(`${fp.gx},${fp.gy}`);
     });
     const byKey = new Map(data.freePanels.map(fp => [`${fp.gx},${fp.gy}`, Object.assign({}, fp, freeCells(allPanels[fp.type], cellMm))]));
     const restsTop = (key, vr) => position === 'top' && edge.has(key) && byKey.get(key).gy === vr;
@@ -362,14 +403,31 @@ function drawFreeStructure(ctx, data, allPanels, st, o) {
     ctx.fillRect(x, y, w, h);
     // Dark blue ladder base inside each bottom bumper, under its ladder column
     if(o.groundSupport && st.position === 'bottom' && bp.type !== '4w') {
-      const unitW = toX(bp.gx + bp.firstCw) - x;
+      const right = bp.ladderRight && bp.cw > bp.firstCw;
+      const lx = right ? toX(bp.gx + bp.firstCw) : x;
+      const unitW = (right ? toX(bp.gx + bp.cw) : toX(bp.gx + bp.firstCw)) - lx;
       ctx.fillStyle = '#00008B';
       ctx.beginPath();
-      ctx.roundRect(x + unitW * 0.075, y + (h - 10) / 2, unitW * 0.85, 10, 3);
+      ctx.roundRect(lx + unitW * 0.075, y + (h - 10) / 2, unitW * 0.85, 10, 3);
       ctx.fill();
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 1;
       ctx.stroke();
+    }
+    // Where it is drawn, for picking it in manual mode, and its selection / hover outline
+    bp.rect = {x, y, w, h};
+    if(o.groundSupport && !pdf && manualBumperMode && bp.id) {
+      if(selectedBumpers.has(bp.id)) {
+        ctx.strokeStyle = '#00FF00';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+      } else if(freeBumperHoverId === bp.id) {
+        ctx.strokeStyle = '#FFFF00';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+        ctx.setLineDash([]);
+      }
     }
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
@@ -438,6 +496,9 @@ function renderFreeStructureLayout() {
     ox: 0, oy: top, cellPx, bumperH, gap: 0, weights: true, fourWayH, fourWayGap, groundSupport: true,
     numberSize: (w, h) => Math.max(10, Math.floor(Math.min(w, h) * (pdf ? 0.25 : 0.22)))
   });
+  // Where the wall sits on the canvas, for editing bumpers by hand (interact/free-bumpers.js)
+  freeStructureView = {cellPx, top, bumperH};
+  setupFreeBumperInteractivity();
 
   // Center-of-wall mark: thin red vertical line over the bumper band, as on grid screens
   const centerX = Math.round(canvas.width / 2);

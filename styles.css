@@ -1009,10 +1009,8 @@ canvas {
   cursor: default;
 }
 
-/* Drawn screens' Structure layout: bumpers are placed automatically, so the grid's manual
-   bumper tools and its plates / ground support / floor frame boxes don't apply */
-#structureContainer.free-structure .structure-mode-toggle,
-#structureContainer.free-structure #structureSelectModeRow,
+/* Drawn screens' Structure layout: the grid's selection count, floor frame and total weight
+   boxes don't apply (its specs carry the weights) */
 #structureContainer.free-structure #structureSelectionInfo,
 #structureContainer.free-structure #structureFloorFramesBox,
 #structureContainer.free-structure #structureTotalWeightBox {

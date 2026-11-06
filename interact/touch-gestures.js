@@ -128,6 +128,8 @@ function setupMobileLongPress() {
   if(structureCanvas) {
     structureCanvas.addEventListener('touchstart', function(e) {
       if(e.touches.length !== 1) return;
+      // A drawn screen's long press is handled by interact/free-bumpers.js
+      if(isFreeCurrentScreen()) return;
 
       longPressTriggered = false;
       longPressTouchStart.x = e.touches[0].clientX;

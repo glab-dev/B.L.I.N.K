@@ -292,6 +292,8 @@ function reconcileBumpersToWidth(pw) {
 
 // Get bumper at mouse position
 function getBumperAtMouse(canvas, clientX, clientY) {
+  // A drawn screen's bumpers are picked by interact/free-bumpers.js
+  if(isFreeCurrentScreen()) return null;
   const rect = canvas.getBoundingClientRect();
   const x = (clientX - rect.left) * (canvas.width / rect.width);
   const y = (clientY - rect.top) * (canvas.height / rect.height);
@@ -436,6 +438,8 @@ function hideContextMenu() {
 // Toggle manual bumper distribution mode
 function toggleManualBumperMode() {
   manualBumperMode = !manualBumperMode;
+  // A drawn wall's bumpers become its own to edit (interact/free-bumpers.js)
+  if(manualBumperMode && isFreeCurrentScreen()) ensureFreeBumpersCustom();
   
   const toggleBtn = document.getElementById('manualBumperToggle');
   const hintSpan = document.getElementById('structureModeHint');
@@ -723,6 +727,8 @@ function saveStructureState() {
 }
 
 function structureUndo() {
+  // A drawn screen's bumper edits are on the app's undo (interact/free-bumpers.js)
+  if(isFreeCurrentScreen()) { undo(); updateStructureUndoRedoButtons(); return; }
   if(structureHistoryIndex <= 0) return;
   
   structureHistoryIndex--;
@@ -730,6 +736,7 @@ function structureUndo() {
 }
 
 function structureRedo() {
+  if(isFreeCurrentScreen()) { redo(); updateStructureUndoRedoButtons(); return; }
   if(structureHistoryIndex >= structureHistory.length - 1) return;
   
   structureHistoryIndex++;
@@ -757,6 +764,11 @@ function restoreStructureState(state) {
 function updateStructureUndoRedoButtons() {
   const undoBtn = document.getElementById('structureUndoBtn');
   const redoBtn = document.getElementById('structureRedoBtn');
+  if(isFreeCurrentScreen()) {
+    if(undoBtn) undoBtn.disabled = undoHistory.length === 0;
+    if(redoBtn) redoBtn.disabled = redoHistory.length === 0;
+    return;
+  }
   
   if(undoBtn) {
     undoBtn.disabled = structureHistoryIndex <= 0;

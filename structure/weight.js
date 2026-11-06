@@ -352,19 +352,10 @@ function calculateTotalBumperWeight(W, H) {
       }
     }
     
-    // Add 4W bumpers for bottom (includes 2x 2W bumpers + 1x 4W bumper per pickup)
+    // Bottom bumpers never take 4Ws on a ground-stacked wall: 2Ws plus a 1W on an odd width
     if(showBottomBumper) {
-      totalBumperWeight += fourWayCount * bumper4wKg;           // 4W bumper weight
-      totalBumperWeight += fourWayCount * 2 * bumper2wKg;        // 2x 2W bumpers per 4W
-      
-      // Add bumpers for remaining columns (not covered by 4W)
-      if(remainingCols >= 2) {
-        // Add 2W bumper(s) for pairs
-        const extra2W = Math.floor(remainingCols / 2);
-        totalBumperWeight += extra2W * bumper2wKg;
-      }
-      if(remainingCols % 2 === 1) {
-        // Add 1W bumper for the last odd column
+      totalBumperWeight += Math.floor(W / 2) * bumper2wKg;
+      if(W % 2 === 1) {
         totalBumperWeight += bumper1wKg;
       }
     }

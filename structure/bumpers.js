@@ -183,67 +183,30 @@ function initializeBumpers() {
     }
   }
   
-  // Initialize bottom bumpers
+  // Initialize bottom bumpers - a ground-stacked wall never takes 4W bumpers
   if(showBottomBumper) {
     console.log('Adding bottom bumpers...');
-    if(use4Way && supports4w) {
-      // Add 2W bumpers - one per pair of columns
-      const num2WBumpers = Math.floor(pw / 2);
-      for(let i = 0; i < num2WBumpers; i++) {
-        bumpers.push({
-          id: nextBumperId++,
-          type: '2w',
-          position: 'bottom',
-          startCol: i * 2,
-          endCol: i * 2 + 1
-        });
-      }
-      
-      // Add 1W bumper for odd last column
-      if(pw % 2 === 1) {
-        bumpers.push({
-          id: nextBumperId++,
-          type: '1w',
-          position: 'bottom',
-          startCol: pw - 1,
-          endCol: pw - 1
-        });
-      }
-      
-      // Add 4W bumpers - each spans from center of one 2W to center of next 2W
-      const fourWayCount = Math.floor(pw / 4);
-      for(let i = 0; i < fourWayCount; i++) {
-        bumpers.push({
-          id: nextBumperId++,
-          type: '4w',
-          position: 'bottom',
-          startCol: i * 4 + 1,      // Center of first 2W: 1, 5, 9...
-          endCol: i * 4 + 3         // Center of second 2W: 3, 7, 11...
-        });
-      }
-    } else {
-      // Just 2W bumpers - one per pair of columns
-      const num2WBumpers = Math.floor(pw / 2);
-      for(let i = 0; i < num2WBumpers; i++) {
-        bumpers.push({
-          id: nextBumperId++,
-          type: '2w',
-          position: 'bottom',
-          startCol: i * 2,
-          endCol: i * 2 + 1
-        });
-      }
-      
-      // Add 1W bumper for odd last column
-      if(pw % 2 === 1) {
-        bumpers.push({
-          id: nextBumperId++,
-          type: '1w',
-          position: 'bottom',
-          startCol: pw - 1,
-          endCol: pw - 1
-        });
-      }
+    // Just 2W bumpers - one per pair of columns
+    const num2WBumpers = Math.floor(pw / 2);
+    for(let i = 0; i < num2WBumpers; i++) {
+      bumpers.push({
+        id: nextBumperId++,
+        type: '2w',
+        position: 'bottom',
+        startCol: i * 2,
+        endCol: i * 2 + 1
+      });
+    }
+
+    // Add 1W bumper for odd last column
+    if(pw % 2 === 1) {
+      bumpers.push({
+        id: nextBumperId++,
+        type: '1w',
+        position: 'bottom',
+        startCol: pw - 1,
+        endCol: pw - 1
+      });
     }
   }
   
@@ -265,6 +228,9 @@ function reconcileBumpersToWidth(pw) {
   bumpers.forEach(bumper => {
     // Starts past the last column - nothing of it is on the wall
     if(bumper.startCol < 0 || bumper.startCol >= pw) { changed = true; return; }
+
+    // A ground-stacked wall never takes 4W bumpers (projects saved before this was enforced)
+    if(bumper.type === '4w' && bumper.position === 'bottom') { changed = true; return; }
 
     // Measure a 1W/2W from its type, not its stored endCol - drawAllBumpers() sizes by type,
     // so a bumper whose endCol disagrees would otherwise be drawn overhanging unnoticed
@@ -909,8 +875,8 @@ function showEmptyAreaContextMenu(position, column, x, y) {
     }
   ];
   
-  // Add 4W option for CB5 and custom panels with 4W support
-  if(supports4wCtx && column + 1 < pw) {
+  // Add 4W option for CB5 and custom panels with 4W support, on a hung wall only
+  if(supports4wCtx && position === 'top' && column + 1 < pw) {
     options.push({
       label: `Add 4W Bumper at Columns ${column + 1}-${column + 2}`,
       action: () => addBumperAtColumn(position, '4w', column)

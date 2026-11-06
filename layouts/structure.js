@@ -162,7 +162,6 @@ function generateStructureLayout(){
   }
   if(showBottomBumper) {
     canvasHeight += bumperHeight;
-    if(has4WayBumpers) canvasHeight += fourWayHeight + fourWayGap;
   }
 
   canvas.width = pw * panelWidth;

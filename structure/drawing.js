@@ -891,7 +891,7 @@ function setupStructureCanvasInteractivity() {
     // Check if in bottom bumper area
     if(showBottomBumper) {
       const bottomBumperStart = panelYOffset + (ph * size);
-      const bottomBumperEnd = bottomBumperStart + bumperHeight + (use4Way && isCB5 ? fourWayHeight + fourWayGap : 0);
+      const bottomBumperEnd = bottomBumperStart + bumperHeight;
       if(y >= bottomBumperStart && y < bottomBumperEnd && column >= 0 && column < pw) {
         showEmptyAreaContextMenu('bottom', column, e.clientX, e.clientY);
         return;

@@ -1165,6 +1165,12 @@ function updateBumpersBasedOnStructureType() {
     showBottomBumper = false;
   }
 
+  // 4-way bumpers are offered on hung CB5 walls only
+  const fourWayOption = document.getElementById('fourWayBumperOption');
+  const panelType = document.getElementById('panelType').value;
+  const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
+  if(fourWayOption) fourWayOption.style.display = (useBumpers && isCB5 && structureType === 'hanging') ? 'block' : 'none';
+
   // Reinitialize bumpers when structure type changes
   initializeBumpers();
 

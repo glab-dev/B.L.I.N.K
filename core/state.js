@@ -435,10 +435,10 @@ function toggleUseBumpers() {
       showBottomBumper = true;
     }
     
-    // Show 4-way option if CB5 panel
+    // Show 4-way option if CB5 panel on a hung wall (ground stacks never take 4Ws)
     const panelType = document.getElementById('panelType').value;
     const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
-    if(fourWayOption && isCB5) {
+    if(fourWayOption && isCB5 && structureType === 'hanging') {
       fourWayOption.style.display = 'block';
     }
 

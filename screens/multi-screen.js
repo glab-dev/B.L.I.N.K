@@ -518,7 +518,9 @@ function loadScreenData(screenId) {
   const bumperControls = document.getElementById('bumperControls');
   const fourWayOption = document.getElementById('fourWayBumperOption');
   if(bumperControls) bumperControls.style.display = useBumpers ? '' : 'none';
-  if(!useBumpers && fourWayOption) fourWayOption.style.display = 'none';
+  // 4-way bumpers are offered on hung CB5 walls only
+  const isCB5Screen = data.panelType === 'CB5_MKII' || data.panelType === 'CB5_MKII_HALF';
+  if(fourWayOption) fourWayOption.style.display = (useBumpers && isCB5Screen && (data.structureType || 'hanging') === 'hanging') ? 'block' : 'none';
   
   // Restore 4-way bumpers state
   use4WayBumpersEnabled = data.use4WayBumpers || false;

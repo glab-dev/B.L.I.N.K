@@ -266,7 +266,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const fourWayOption = document.getElementById('fourWayBumperOption');
         const isCB5 = this.value === 'CB5_MKII' || this.value === 'CB5_MKII_HALF';
         if(fourWayOption) {
-          fourWayOption.style.display = isCB5 && useBumpers ? 'block' : 'none';
+          fourWayOption.style.display = isCB5 && useBumpers && document.getElementById('structureType').value === 'hanging' ? 'block' : 'none';
           if(!isCB5) {
             // Reset 4-way bumpers state when switching away from CB5
             use4WayBumpersEnabled = false;

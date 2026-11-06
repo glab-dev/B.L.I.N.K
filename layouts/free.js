@@ -228,7 +228,8 @@ function isValidFreeLayout(cellMm, list, allPanels) {
 function freeLayoutSnapshot() {
   const data = screens[currentScreenId] ? screens[currentScreenId].data : null;
   if(!isFreeScreen(data)) return null;
-  return {freeCell_mm: data.freeCell_mm, freePanels: data.freePanels.map(fp => ({type: fp.type, gx: fp.gx, gy: fp.gy}))};
+  return {freeCell_mm: data.freeCell_mm, freePanels: data.freePanels.map(fp => ({type: fp.type, gx: fp.gx, gy: fp.gy})),
+    freeDataPaths: (data.freeDataPaths || []).map(p => ({line: p.line, panels: p.panels.slice()}))};
 }
 
 // Puts a snapshot back. True when the screen was or becomes a free screen, so the
@@ -241,9 +242,11 @@ function restoreFreeLayout(snap) {
     data.layoutMode = 'free';
     data.freeCell_mm = snap.freeCell_mm;
     data.freePanels = snap.freePanels.map(fp => ({type: fp.type, gx: fp.gx, gy: fp.gy}));
+    data.freeDataPaths = (snap.freeDataPaths || []).map(p => ({line: p.line, panels: p.panels.slice()}));
   } else {
     delete data.layoutMode;
     delete data.freePanels;
+    delete data.freeDataPaths;
   }
   freeSelected.clear();
   return wasFree || !!snap;
@@ -291,6 +294,7 @@ function updateFreeDrawRow() {
     if(modeRow) modeRow.style.display = on ? '' : 'none';
     if(!on && freeLayerSelectMode[canvasId]) setFreeSelectMode(canvasId, false);
   });
+  updateFreeDataPathRow(on);
   if(!on) return;
 
   [['draw', 'freeToolDrawBtn'], ['select', 'freeToolSelectBtn']].forEach(([tool, id]) => {
@@ -752,6 +756,13 @@ function rekeyFreeAssignments(newKey) {
   customSocaAssignments = rekey(customSocaAssignments);
   customDataLineAssignments = rekey(customDataLineAssignments);
   customDataDestinations = rekey(customDataDestinations);
+  // Drawn data paths follow their panels too
+  const data = screens[currentScreenId] && screens[currentScreenId].data;
+  if(data && data.freeDataPaths) {
+    data.freeDataPaths = data.freeDataPaths
+      .map(p => ({line: p.line, panels: p.panels.map(newKey).filter(k => k !== null)}))
+      .filter(p => p.panels.length);
+  }
 }
 
 // Shift the drawn panels so the top-left one sits at cell 0,0, keeping the selection

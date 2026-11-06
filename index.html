@@ -3174,6 +3174,24 @@
             <button type="button" class="toggle-btn toggle-btn-standalone" id="dataLineLabelsBtn" onclick="toggleDataLineLabels()">Off</button>
           </div>
         </div>
+        <div class="layout-toggle-row free-draw-row" id="freeDataPathRow" style="display:none;">
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Draw Path</span>
+            <button type="button" class="toggle-btn toggle-btn-standalone" id="freeDataPathBtn" aria-pressed="false" onclick="toggleFreeDataPathMode()">Off</button>
+          </div>
+          <div class="free-draw-picker">
+            <span class="toggle-label toggle-label-block">Line</span>
+            <div class="free-draw-chips" id="freeDataLineChips" role="radiogroup" aria-label="Data line to draw"></div>
+          </div>
+          <div class="flex-noshrink">
+            <span class="toggle-label toggle-label-block">Drawn Paths</span>
+            <div class="grouped-btn-shadow">
+              <button type="button" class="toggle-btn toggle-btn-grouped-left" id="freeDataPathClearBtn" onclick="clearFreeDataPathLine()">Clear Line</button>
+              <button type="button" class="toggle-btn toggle-btn-grouped-right" id="freeDataPathAutoBtn" onclick="clearFreeDataPaths()">Auto</button>
+            </div>
+          </div>
+        </div>
+        <div id="freeDataPathWarning" class="warn" style="display:none;"></div>
         <canvas id="dataCanvas"></canvas>
         <div id="dataLineMap" class="data-line-map"></div>
       </div>
@@ -4028,6 +4046,7 @@
 <script defer src="layouts/free-data.js"></script>
 <script defer src="layouts/free-structure.js"></script>
 <script defer src="interact/free-select.js"></script>
+<script defer src="interact/free-data-path.js"></script>
 <script defer src="nav/free-combined.js"></script>
 <script defer src="layouts/power.js"></script>
 <script defer src="layouts/data.js"></script>

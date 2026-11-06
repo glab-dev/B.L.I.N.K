@@ -87,6 +87,8 @@ function applyFreeLayerBox() {
 // Select Mode for one drawn layout. It also blocks native touch scroll on its canvas so a
 // drag draws a selection box instead of scrolling. Leaving it drops that layout's selection.
 function setFreeSelectMode(canvasId, on) {
+  // The Data layout has one tool at a time: Select Mode or Draw Path
+  if(on && canvasId === 'dataCanvas' && freeDataPathMode) setFreeDataPathMode(false);
   freeLayerSelectMode[canvasId] = on;
   const canvas = document.getElementById(canvasId);
   if(canvas) canvas.classList.toggle('select-mode-active', on);

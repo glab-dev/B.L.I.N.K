@@ -4360,7 +4360,8 @@ body.tab-reordering {
   /* Combined power toggles gained Select Mode — wrap instead of overflowing on mobile */
   #combinedPowerContent .layout-toggle-row { flex-wrap: wrap; row-gap: 10px; }
   /* Draw row: toggle, panel chips and Delete wrap instead of overflowing on mobile */
-  #standardContent .free-draw-row { flex-wrap: wrap; row-gap: 10px; }
+  #standardContent .free-draw-row,
+  #dataContent .free-draw-row { flex-wrap: wrap; row-gap: 10px; }
   /* One screen per row on phones — two cards side by side already fills the width */
   #combinedDataLineMap { grid-template-columns: 1fr; }
 }

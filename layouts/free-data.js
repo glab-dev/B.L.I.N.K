@@ -31,11 +31,47 @@ function freeScreenDataInputs(data) {
     panelsPerDataLine: userMax > 0 ? userMax : freeSuggestedPanelsPerData(data.freePanels, allPanels, capacity),
     startDir: data.dataStartDir || 'top',
     deletedPanels: grid.deleted,
-    customDataLines: toMap(data.customDataLineAssignments),
+    customDataLines: freeDataPathAssignments(toMap(data.customDataLineAssignments), data.freeDataPaths),
     customDestinations: toMap(data.customDataDestinations),
     processorId: processorId,
     connectionMode: data.mx40ConnectionMode || 'direct'
   };
+}
+
+// ==================== DRAWN DATA PATHS ====================
+// Data lines drawn by hand on the Data layout, Tessera-style (interact/free-data-path.js):
+//   data.freeDataPaths = [{line, panels: ["gx,gy", ...]}]   line 1-based, panels in cable order
+// A drawn line takes its panels in the order they were drawn; every other panel stays on
+// the automatic lines (and any Assign Data Line numbers), as on grid screens.
+
+// The custom data line map with every drawn path's panels on its line (a path wins)
+function freeDataPathAssignments(custom, paths) {
+  const out = new Map(custom instanceof Map ? custom : (Array.isArray(custom) ? custom : []));
+  (paths || []).forEach(path => path.panels.forEach(key => out.set(key, path.line)));
+  return out;
+}
+
+// Puts each drawn path's panels at the front of its line, in the order they were drawn.
+// The line is the group holding the path's first panel, so it works on a split screen too.
+function applyFreeDataPaths(built, paths) {
+  (paths || []).forEach(path => {
+    const order = new Map(path.panels.map((key, i) => [key, i]));
+    const gi = built.groups.findIndex(g => g.some(pt => order.has(`${pt.c},${pt.r}`)));
+    if(gi < 0) return;
+    const g = built.groups[gi];
+    const drawn = g.filter(pt => order.has(`${pt.c},${pt.r}`)).sort((a, b) => order.get(`${a.c},${a.r}`) - order.get(`${b.c},${b.r}`));
+    built.groups[gi] = drawn.concat(g.filter(pt => !order.has(`${pt.c},${pt.r}`)));
+  });
+  return built;
+}
+
+// Drawn paths from a file: lines 1-based, panel keys "gx,gy", each panel on one path only
+function sanitizeFreeDataPaths(paths) {
+  if(!Array.isArray(paths)) return [];
+  const seen = new Set();
+  return paths.filter(p => p && Number.isInteger(p.line) && p.line >= 1 && Array.isArray(p.panels))
+    .map(p => ({line: p.line, panels: p.panels.filter(k => typeof k === 'string' && /^\d+,\d+$/.test(k) && !seen.has(k) && seen.add(k))}))
+    .filter(p => p.panels.length);
 }
 
 // "column.row" name for each drawn panel, like the grid's panel numbers. Its column counts
@@ -70,11 +106,11 @@ function calculateFreeData(data, allPanels) {
 
   // A split screen runs each part's lines on that part alone (layouts/data.js)
   const {cols, rows, deleted} = freeCellGrid(data, allPanels, 'max');
-  const built = buildDataLineGroups({
+  const built = applyFreeDataPaths(buildDataLineGroups({
     pw: cols, ph: rows, panelsPerDataLine, startDir,
-    deletedPanels: deleted, customDataLineAssignments,
+    deletedPanels: deleted, customDataLineAssignments: freeDataPathAssignments(customDataLineAssignments, data.freeDataPaths),
     split: data.split
-  });
+  }), data.freeDataPaths);
   // Named points, so the data line table lists panels the way the canvas numbers them
   const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
   built.groups.forEach(g => g.forEach(pt => { pt.label = names.get(`${pt.c},${pt.r}`); }));
@@ -90,11 +126,11 @@ function calculateFreeData(data, allPanels) {
 function freeScreenDataGroups(data, allPanels) {
   const inp = freeScreenDataInputs(data);
   if(!inp) return null;
-  const built = buildDataLineGroups({
+  const built = applyFreeDataPaths(buildDataLineGroups({
     pw: inp.pw, ph: inp.ph, panelsPerDataLine: inp.panelsPerDataLine, startDir: inp.startDir,
     deletedPanels: inp.deletedPanels, customDataLineAssignments: inp.customDataLines,
     split: data.split
-  });
+  }), data.freeDataPaths);
   const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
   built.groups.forEach(g => g.forEach(pt => { pt.label = names.get(`${pt.c},${pt.r}`); }));
   return built;

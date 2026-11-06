@@ -104,6 +104,7 @@ function buildCurrentConfig() {
         layoutMode: data.layoutMode,
         freeCell_mm: data.freeCell_mm,
         freePanels: data.freePanels,
+        freeDataPaths: data.freeDataPaths,
         connectionMethod: data.connectionMethod,
         wallToFloor: data.wallToFloor,
         distroToWall: data.distroToWall,
@@ -538,10 +539,12 @@ function applyConfiguration(config, fileNameOverride) {
       if(safeData.layoutMode === 'free') {
         if(isValidFreeLayout(safeData.freeCell_mm, safeData.freePanels, getAllPanels())) {
           safeData.freePanels = safeData.freePanels.map(fp => ({ type: fp.type, gx: fp.gx, gy: fp.gy }));
+          safeData.freeDataPaths = sanitizeFreeDataPaths(safeData.freeDataPaths);
         } else {
           delete safeData.layoutMode;
           delete safeData.freeCell_mm;
           delete safeData.freePanels;
+          delete safeData.freeDataPaths;
         }
       }
 

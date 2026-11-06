@@ -1550,6 +1550,9 @@ function splitPartView(screenId, k) {
   if(isDrawn) {
     data.freePanels = base.freePanels.filter(fp => fp.gx >= c0 && fp.gx < c1 && fp.gy >= r0 && fp.gy < r1)
       .map(fp => ({type: fp.type, gx: fp.gx - c0, gy: fp.gy - r0}));
+    data.freeDataPaths = (base.freeDataPaths || [])
+      .map(p => ({line: p.line, panels: p.panels.map(rekey).filter(Boolean)}))
+      .filter(p => p.panels.length);
   }
   data.split = null;
   data.splitColOffset = c0;

@@ -13,8 +13,9 @@ let freeBrushType = null;     // panel type a click or drag places
 let freeTool = 'draw';        // 'draw': a drag on empty grid paints; 'select': it draws a selection box
 let freeSelected = new Set(); // "gx,gy" keys of selected panels
 let freeSelectedScreenId = null;
-let freeView = null;          // last render: {gx0, gy0, cellPx}
+let freeView = null;          // last render: {gx0, gy0, cellPx, cols, rows}
 let freeAction = null;        // pointer gesture in progress
+let freeEdgeScroll = null;    // {dx, dy, x, y, timer} while a drag holds the pointer at an edge
 let freeHover = null;         // cell under the mouse (ghost of the brush panel)
 let freeRafId = 0;
 let freeListenersSetup = false;
@@ -360,11 +361,11 @@ function updateFreeDrawRow() {
   });
 }
 
-// Standard layout tool: Draw paints panels where a drag starts on empty grid, Select
-// draws a selection box there instead
+// Standard layout tool: Draw only places panels; Select picks, moves and deletes them
 function setFreeTool(tool) {
   freeTool = tool;
   freeHover = null;
+  if(tool === 'draw') freeSelected.clear();
   updateFreeDrawRow();
   freeRedraw();
 }
@@ -654,8 +655,12 @@ function renderFreeStandardLayout() {
   const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
   const editing = freeDrawMode && !pdf;
   const showGrid = editing || !b;
+  // A drag keeps the grid it started on, scrolled along when held at an edge
+  const held = editing && freeAction && freeAction.view;
   let gx0, gy0, cols, rows;
-  if(!b) {
+  if(held) {
+    ({gx0, gy0, cols, rows} = held);
+  } else if(!b) {
     gx0 = 0; gy0 = 0; cols = 16; rows = 8;
   } else if(showGrid) {
     gx0 = b.minX - 2; gy0 = b.minY - 2;
@@ -664,11 +669,11 @@ function renderFreeStandardLayout() {
     gx0 = b.minX; gy0 = b.minY; cols = b.maxX - b.minX; rows = b.maxY - b.minY;
   }
   const cellM = cellMm / 1000;
-  const cellPx = freeLayoutSize(data, allPanels, cols, maxCanvasWidth, typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode).cellPx;
+  const cellPx = held ? held.cellPx : freeLayoutSize(data, allPanels, cols, maxCanvasWidth, typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode).cellPx;
   const pxPerM = cellPx / cellM;
   canvas.width = Math.round(cols * cellPx);
   canvas.height = Math.round(rows * cellPx);
-  freeView = {gx0, gy0, cellPx};
+  freeView = {gx0, gy0, cellPx, cols, rows};
 
   // The grid click/drag handlers stay attached to this canvas; a zero-size grid
   // makes their hit-tests find nothing
@@ -692,6 +697,7 @@ function renderFreeStandardLayout() {
   }
 
   const colors = freeColorIndexes(list, allPanels, cellMm);
+  const names = freePanelNames(list, allPanels, cellMm);
   const smallest = list.length ? Math.min(...list.map(fp => Math.min(allPanels[fp.type].width_m, allPanels[fp.type].height_m))) : cellM;
   const fontSize = Math.max(10, Math.floor(smallest * pxPerM * 0.22));
   ctx.font = `${fontSize}px Arial`;
@@ -717,13 +723,15 @@ function renderFreeStandardLayout() {
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, w, h);
-    // Shrink the name to fit narrow panels; leave it off when it would be unreadable
-    const textW = ctx.measureText(p.name).width;
+    // "column.row", as the grid numbers its panels; shrunk to fit narrow panels and left
+    // off when it would be unreadable
+    const label = names.get(`${fp.gx},${fp.gy}`);
+    const textW = ctx.measureText(label).width;
     const fitSize = textW > w - 6 ? Math.floor(fontSize * (w - 6) / textW) : fontSize;
     if(fitSize >= 7) {
       ctx.font = `${fitSize}px Arial`;
       ctx.fillStyle = '#000000';
-      ctx.fillText(p.name, x+w/2, y+h/2);
+      ctx.fillText(label, x+w/2, y+h/2);
       ctx.font = `${fontSize}px Arial`;
     }
   });
@@ -782,6 +790,37 @@ function drawFreeGhost(ctx, data, allPanels, toX, toY) {
     ctx.strokeStyle = bx.ok ? 'rgba(255,255,255,0.5)' : 'rgba(239,68,68,0.9)';
     ctx.strokeRect(x+1, y+1, w-2, h-2);
   });
+  ctx.restore();
+  if(freeAction && freeAction.kind === 'paint' && freeAction.moved) drawFreePaintCount(ctx, boxes, toX, toY);
+}
+
+// "columns × rows · N panels" for a paint drag, beside the corner of the block under the
+// pointer, at the same on-screen size however much the canvas is scaled down
+function drawFreePaintCount(ctx, boxes, toX, toY) {
+  const nx = new Set(boxes.map(bx => bx.gx)).size;
+  const ny = new Set(boxes.map(bx => bx.gy)).size;
+  const n = boxes.filter(bx => bx.ok).length;
+  const text = `${nx} × ${ny} · ${n} panel${n === 1 ? '' : 's'}`;
+  const canvas = ctx.canvas;
+  const scale = canvas.width / (canvas.getBoundingClientRect().width || canvas.width);
+  const fs = Math.round(13 * scale), pad = Math.round(6 * scale);
+  ctx.save();
+  ctx.font = `bold ${fs}px Arial`;
+  const w = ctx.measureText(text).width + pad * 2, h = fs + pad * 2;
+  const right = freeAction.cur.gx >= freeAction.start.gx, down = freeAction.cur.gy >= freeAction.start.gy;
+  const edgeX = right ? Math.max(...boxes.map(bx => toX(bx.gx + bx.cw))) : Math.min(...boxes.map(bx => toX(bx.gx)));
+  const edgeY = down ? Math.max(...boxes.map(bx => toY(bx.gy + bx.ch))) : Math.min(...boxes.map(bx => toY(bx.gy)));
+  const x = Math.max(0, Math.min(canvas.width - w, right ? edgeX + pad : edgeX - pad - w));
+  const y = Math.max(0, Math.min(canvas.height - h, down ? edgeY + pad : edgeY - pad - h));
+  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = '#10b981';
+  ctx.lineWidth = Math.max(1, scale);
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + pad, y + h / 2);
   ctx.restore();
 }
 
@@ -858,6 +897,44 @@ function freeCellAt(clientX, clientY) {
   return {gx: freeView.gx0 + Math.floor(x / freeView.cellPx), gy: freeView.gy0 + Math.floor(y / freeView.cellPx)};
 }
 
+// The cell under a dragging pointer, kept to the grid on show: past an edge it is the edge
+// cell, and the grid scrolls on to meet the pointer (freeEdgeScrollAt)
+function freeDragCellAt(clientX, clientY) {
+  const rect = document.getElementById('standardCanvas').getBoundingClientRect();
+  return freeCellAt(Math.min(Math.max(clientX, rect.left), rect.right - 1), Math.min(Math.max(clientY, rect.top), rect.bottom - 1));
+}
+
+// A drag held at or past an edge of the Standard layout scrolls the grid that way, a brush
+// panel at a time (a cell when moving or selecting), so a wall can be drawn bigger than the
+// box shows
+function freeEdgeScrollAt(clientX, clientY) {
+  const rect = document.getElementById('standardCanvas').getBoundingClientRect();
+  const zone = 8;
+  const dx = clientX > rect.right - zone ? 1 : (clientX < rect.left + zone ? -1 : 0);
+  const dy = clientY > rect.bottom - zone ? 1 : (clientY < rect.top + zone ? -1 : 0);
+  const timer = freeEdgeScroll ? freeEdgeScroll.timer : 0;
+  freeEdgeScroll = {dx, dy, x: clientX, y: clientY, timer};
+  if((dx || dy) && !timer) freeEdgeScroll.timer = setInterval(freeEdgeScrollTick, 100);
+}
+
+function freeEdgeScrollTick() {
+  const s = freeEdgeScroll;
+  if(!freeAction || !freeAction.view || !(s.dx || s.dy)) {
+    clearInterval(s.timer);
+    s.timer = 0;
+    return;
+  }
+  const data = screens[currentScreenId].data;
+  const allPanels = getAllPanels();
+  const step = freeAction.kind === 'paint' && freeBrushType && allPanels[freeBrushType]
+    ? freeCells(allPanels[freeBrushType], data.freeCell_mm) : {cw: 1, ch: 1};
+  freeAction.view.gx0 += s.dx * step.cw;
+  freeAction.view.gy0 += s.dy * step.ch;
+  freeView = Object.assign({}, freeAction.view);
+  freeAction.cur = freeDragCellAt(s.x, s.y);
+  freeRedraw();
+}
+
 function freeRedraw() {
   if(freeRafId) return;
   freeRafId = requestAnimationFrame(() => {
@@ -866,15 +943,18 @@ function freeRedraw() {
   });
 }
 
-// `additive`: Shift/Ctrl/⌘ held — a click toggles a panel, a drag on empty space draws a
-// selection box. `touch`: a tap adds a panel to the selection and a tap on a selected
-// panel opens the options menu, like Select Mode on the grid.
+// The Draw tool only places panels: a click or drag paints wherever it starts. With the
+// Select tool, `additive` (Shift/Ctrl/⌘ held) makes a click toggle a panel and a drag on
+// empty space add a selection box; `touch`: a tap adds a panel to the selection and a tap
+// on a selected panel opens the options menu, like Select Mode on the grid.
 function freePointerDown(clientX, clientY, additive, touch) {
   const data = screens[currentScreenId].data;
   const allPanels = getAllPanels();
   const cell = freeCellAt(clientX, clientY);
   const hit = freeOccupancy(data.freePanels, allPanels, data.freeCell_mm).get(`${cell.gx},${cell.gy}`);
-  if(hit) {
+  if(freeTool === 'draw') {
+    freeAction = {kind: 'paint', start: cell, cur: cell, moved: false, x: clientX, y: clientY};
+  } else if(hit) {
     if(additive) {
       if(freeSelected.has(hit)) freeSelected.delete(hit); else freeSelected.add(hit);
       freeAction = {kind: 'select', start: cell, cur: cell, moved: false, x: clientX, y: clientY};
@@ -886,14 +966,12 @@ function freePointerDown(clientX, clientY, additive, touch) {
       }
       freeAction = {kind: 'move', start: cell, cur: cell, moved: false, x: clientX, y: clientY, hit, touch, menuOnTap: touch && wasSelected};
     }
-  } else if(additive || freeTool === 'select') {
-    // Select tool: a plain drag on empty grid starts a fresh selection box
+  } else {
+    // A plain drag on empty grid starts a fresh selection box
     if(!additive) freeSelected.clear();
     freeAction = {kind: 'box', start: cell, cur: cell, moved: false, x: clientX, y: clientY};
-  } else {
-    freeSelected.clear();
-    freeAction = {kind: 'paint', start: cell, cur: cell, moved: false, x: clientX, y: clientY};
   }
+  freeAction.view = Object.assign({}, freeView);
   freeHover = null;
   updateFreeDrawRow();
   freeRedraw();
@@ -903,7 +981,8 @@ function freePointerMove(clientX, clientY) {
   if(!freeAction) return;
   if(!freeAction.moved && Math.abs(clientX - freeAction.x) <= 4 && Math.abs(clientY - freeAction.y) <= 4) return;
   freeAction.moved = true;
-  const cell = freeCellAt(clientX, clientY);
+  freeEdgeScrollAt(clientX, clientY);
+  const cell = freeDragCellAt(clientX, clientY);
   if(cell.gx === freeAction.cur.gx && cell.gy === freeAction.cur.gy) return;
   freeAction.cur = cell;
   freeRedraw();
@@ -912,6 +991,10 @@ function freePointerMove(clientX, clientY) {
 function freePointerUp() {
   const action = freeAction;
   freeAction = null;
+  if(freeEdgeScroll) {
+    clearInterval(freeEdgeScroll.timer);
+    freeEdgeScroll = null;
+  }
   if(!action) return;
   const data = screens[currentScreenId].data;
   const allPanels = getAllPanels();
@@ -1110,10 +1193,12 @@ function setupFreeCanvasInteractivity() {
     freeHover = null;
     freeRedraw();
   });
-  // Right-click a panel: select it if it isn't already, then show the options menu
+  // Right-click a panel with the Select tool: select it if it isn't already, then show the
+  // options menu
   canvas.addEventListener('contextmenu', function(e) {
     if(!active()) return;
     e.preventDefault();
+    if(freeTool === 'draw') return;
     const cell = freeCellAt(e.clientX, e.clientY);
     const data = screens[currentScreenId].data;
     const hit = freeOccupancy(data.freePanels, getAllPanels(), data.freeCell_mm).get(`${cell.gx},${cell.gy}`);

@@ -56,8 +56,8 @@ function standardLayoutHintText() {
   }
   if(isFreeCurrentScreen()) {
     return (!isTouchDevice && !isMobile)
-      ? 'Click to place • Drag to paint • Shift-drag to select • Right-click for options'
-      : 'Tap to place • Drag to paint • Tap panels to select • Tap a selected panel for options';
+      ? 'Click to place • Drag to paint • Use Select to pick, move or delete panels'
+      : 'Tap to place • Drag to paint • Use Select to pick, move or delete panels';
   }
   if(!isTouchDevice && !isMobile) {
     return 'Click to select • Right-click for options • Drag a box to multi-select';

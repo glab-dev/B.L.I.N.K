@@ -874,7 +874,12 @@ function commitFreePanels(list) {
   delete data.freeBumpersPosition;
   data.freePanels = list;
   normalizeFreePanels(data, getAllPanels());
+  // The specs above the Standard layout grow and shrink with the panels; keep the layout
+  // where it sits on screen
+  const canvas = document.getElementById('standardCanvas');
+  const top = canvas.getBoundingClientRect().top;
   calculate();
+  window.scrollBy(0, canvas.getBoundingClientRect().top - top);
 }
 
 function deleteFreeSelected() {

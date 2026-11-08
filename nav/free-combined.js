@@ -192,7 +192,7 @@ function drawFreeCombinedStructure(ctx, screen, data, sx, top, unitPx, bumperH, 
   const st = freeStructurePlan(data, allPanels, position, data.use4WayBumpers);
   const panelTop = top + (st.position === 'top' && st.bumpers.length ? bumperH + 5 : 0) +
     (st.position === 'top' && st.counts['4w'] ? fourWayH + fourWayGap : 0);
-  drawFreeStructure(ctx, data, allPanels, st, {ox: sx, oy: panelTop, cellPx, bumperH, gap: 5, fourWayH, fourWayGap});
+  drawFreeStructure(ctx, data, allPanels, st, {ox: sx, oy: panelTop, cellPx, bumperH, gap: 5, fourWayH, fourWayGap, flat: true});
   drawFreeCombinedName(ctx, screen, sx + data.freeCols * cellPx / 2, (st.position === 'top' && st.bumpers.length ? top : panelTop) - 15);
 }
 

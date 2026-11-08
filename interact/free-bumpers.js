@@ -27,34 +27,36 @@ function editFreeBumpers(change) {
   calculate();
 }
 
-// The edge panel under cell x on a bumper row, and the panel right beside it on that row
-function freeEdgeSlotAt(level, cellX) {
+// The edge panel (its column's top or bottom panel, on whatever row) under cell x, and the
+// edge panel right beside it
+function freeEdgeSlotAt(cellX) {
   const data = screens[currentScreenId].data;
-  const edge = freeEdgeLevels(data, getAllPanels(), freeStructureState.position).get(level) || [];
+  const edge = freeEdgePanels(data, getAllPanels(), freeStructureState.position);
   const i = edge.findIndex(p => cellX >= p.gx && cellX < p.gx + p.cw);
   if(i < 0) return null;
   const next = edge[i + 1] && edge[i + 1].gx === edge[i].gx + edge[i].cw ? edge[i + 1] : null;
   return {slot: edge[i], next};
 }
 
-// A 1W on a slot's panel, or a 2W on it and the panel beside it
-function freeBumperOnSlot(type, level, at) {
-  return {type, gx: at.slot.gx, cw: at.slot.cw + (type === '2w' ? at.next.cw : 0), gy: level,
-    panelType: at.slot.type, firstCw: at.slot.cw};
+// A 1W on a slot's panel, or a 2W on it and the panel beside it, on the deeper of the two
+// when a notch puts them on two rows (layouts/free-structure.js freePairLevel)
+function freeBumperOnSlot(type, at) {
+  return {type, gx: at.slot.gx, cw: at.slot.cw + (type === '2w' ? at.next.cw : 0),
+    gy: type === '2w' ? freePairLevel(at.slot, at.next) : at.slot.gy, panelType: at.slot.type, firstCw: at.slot.cw};
 }
 
-// 4Ws only clash with 4Ws: they sit in their own band over the 2Ws
+// Bumpers clash on the columns they cover; 4Ws only with 4Ws, in their own band over the 2Ws
 function freeBumperOverlaps(list, cand, exceptId) {
-  return list.some(b => b.id !== exceptId && b.gy === cand.gy && (b.type === '4w') === (cand.type === '4w') &&
+  return list.some(b => b.id !== exceptId && (b.type === '4w') === (cand.type === '4w') &&
     b.gx < cand.gx + cand.cw && cand.gx < b.gx + b.cw);
 }
 
-// The two touching 2Ws a 4W at cell x on a bumper row would join: the 2W there and the one
-// to its right (or its left at the end of a run), neither already under another 4W
-function freeFourWayPair(level, cellX, exceptId) {
+// The two touching 2Ws a 4W at cell x would join: the 2W there and the one to its right (or
+// its left at the end of a run), neither already under another 4W
+function freeFourWayPair(cellX, exceptId) {
   const list = screens[currentScreenId].data.freeBumpers;
-  const twos = list.filter(b => b.type === '2w' && b.gy === level).sort((a, b) => a.gx - b.gx);
-  const taken = mid => list.some(f => f.type === '4w' && f.id !== exceptId && f.gy === level && mid >= f.gx - 0.001 && mid <= f.gx + f.cw + 0.001);
+  const twos = list.filter(b => b.type === '2w').sort((a, b) => a.gx - b.gx);
+  const taken = mid => list.some(f => f.type === '4w' && f.id !== exceptId && mid >= f.gx - 0.001 && mid <= f.gx + f.cw + 0.001);
   const i = twos.findIndex(t => cellX >= t.gx && cellX < t.gx + t.cw);
   if(i < 0) return null;
   for(const [a, b] of [[twos[i], twos[i + 1]], [twos[i - 1], twos[i]]]) {
@@ -63,10 +65,10 @@ function freeFourWayPair(level, cellX, exceptId) {
   return null;
 }
 
-// A 4W from the middle of one 2W to the middle of the other
+// A 4W from the middle of one 2W to the middle of the other, over the higher of the two
 function freeFourWayOn(pair) {
   const from = pair.a.gx + pair.a.cw / 2;
-  return {type: '4w', gx: from, cw: pair.b.gx + pair.b.cw / 2 - from, gy: pair.a.gy, panelType: pair.a.panelType};
+  return {type: '4w', gx: from, cw: pair.b.gx + pair.b.cw / 2 - from, gy: Math.min(pair.a.gy, pair.b.gy), panelType: pair.a.panelType};
 }
 
 function freeStructurePoint(clientX, clientY) {
@@ -93,25 +95,25 @@ function freeBumperSpotAt(clientX, clientY) {
   for(const level of freeEdgeLevels(data, getAllPanels(), st.position).keys()) {
     const edgeY = v.top + Math.round(level * v.cellPx);
     if(st.takes4w && p.y >= edgeY - v.bumperH - v.fourWayGap - v.fourWayH && p.y < edgeY - v.bumperH) {
-      const pair = freeFourWayPair(level, cellX, null);
-      if(pair) return {level, pair};
+      const pair = freeFourWayPair(cellX, null);
+      if(pair && Math.min(pair.a.gy, pair.b.gy) === level) return {level, pair};
       continue;
     }
     const inBand = st.position === 'top' ? (p.y >= edgeY - v.bumperH && p.y < edgeY) : (p.y >= edgeY && p.y < edgeY + v.bumperH);
     if(!inBand) continue;
-    const at = freeEdgeSlotAt(level, cellX);
-    if(at) return {level, at};
+    const at = freeEdgeSlotAt(cellX);
+    if(at && at.slot.gy === level) return {level, at};
   }
   return null;
 }
 
 // "column.row" of the edge panel a slot is, for the menus
-function freeSlotName(level, slot) {
+function freeSlotName(slot) {
   const data = screens[currentScreenId].data;
   const allPanels = getAllPanels();
   const names = freePanelNames(data.freePanels, allPanels, data.freeCell_mm);
   const fp = data.freePanels.find(f => f.gx === slot.gx &&
-    (freeStructureState.position === 'top' ? f.gy === level : f.gy + freeCells(allPanels[f.type], data.freeCell_mm).ch === level));
+    (freeStructureState.position === 'top' ? f.gy === slot.gy : f.gy + freeCells(allPanels[f.type], data.freeCell_mm).ch === slot.gy));
   return fp ? names.get(`${fp.gx},${fp.gy}`) : '';
 }
 
@@ -174,8 +176,11 @@ function showFreeBumperOptions(id, x, y) {
   if(b.type === '2w') {
     options.push({label: 'Replace with 1W Bumper', action: () => editFreeBumpers(list => {
       const t = list.find(bb => bb.id === id);
+      const at = freeEdgeSlotAt(t.gx);
       t.type = '1w';
       t.cw = t.firstCw;
+      // Back up onto its own panel's row if the 2W had dropped to its pair's
+      if(at) t.gy = at.slot.gy;
       delete t.ladderRight;
     })});
     if(freeStructureState.position === 'bottom') {
@@ -185,9 +190,9 @@ function showFreeBumperOptions(id, x, y) {
       })});
     }
   } else if(b.type === '1w') {
-    const at = freeEdgeSlotAt(b.gy, b.gx);
+    const at = freeEdgeSlotAt(b.gx);
     if(at && at.next) {
-      const cand = freeBumperOnSlot('2w', b.gy, at);
+      const cand = freeBumperOnSlot('2w', at);
       if(!freeBumperOverlaps(data.freeBumpers, cand, id)) {
         options.push({label: 'Replace with 2W Bumper', action: () => editFreeBumpers(list => {
           Object.assign(list.find(bb => bb.id === id), cand);
@@ -211,20 +216,20 @@ function showFreeBumperAddOptions(spot, x, y) {
   if(spot.pair) {
     const cand = freeFourWayOn(spot.pair);
     if(freeBumperOverlaps(data.freeBumpers, cand, null)) return;
-    const first = freeEdgeSlotAt(spot.level, spot.pair.a.gx).slot;
-    const last = freeEdgeSlotAt(spot.level, spot.pair.b.gx + spot.pair.b.cw - 1).slot;
-    showFreeBumperMenu(x, y, [{label: `Add 4W Bumper at ${freeSlotName(spot.level, first)}–${freeSlotName(spot.level, last)}`,
+    const first = freeEdgeSlotAt(spot.pair.a.gx).slot;
+    const last = freeEdgeSlotAt(spot.pair.b.gx + spot.pair.b.cw - 1).slot;
+    showFreeBumperMenu(x, y, [{label: `Add 4W Bumper at ${freeSlotName(first)}–${freeSlotName(last)}`,
       action: () => editFreeBumpers(list => {
         list.push(Object.assign({id: Math.max(0, ...list.map(bb => bb.id)) + 1}, cand));
       })}]);
     return;
   }
   const add = type => {
-    const cand = freeBumperOnSlot(type, spot.level, spot.at);
+    const cand = freeBumperOnSlot(type, spot.at);
     if(freeBumperOverlaps(data.freeBumpers, cand, null)) return;
     const label = type === '2w'
-      ? `Add 2W Bumper at ${freeSlotName(spot.level, spot.at.slot)}–${freeSlotName(spot.level, spot.at.next)}`
-      : `Add 1W Bumper at ${freeSlotName(spot.level, spot.at.slot)}`;
+      ? `Add 2W Bumper at ${freeSlotName(spot.at.slot)}–${freeSlotName(spot.at.next)}`
+      : `Add 1W Bumper at ${freeSlotName(spot.at.slot)}`;
     options.push({label, action: () => editFreeBumpers(list => {
       list.push(Object.assign({id: Math.max(0, ...list.map(bb => bb.id)) + 1}, cand));
     })});
@@ -245,14 +250,14 @@ function moveFreeBumperTo(clientX) {
   const cellX = freeStructurePoint(clientX, 0).x / freeStructureView.cellPx - drag.grab;
   let cand;
   if(b.type === '4w') {
-    const pair = freeFourWayPair(b.gy, cellX + 0.01, b.id);
+    const pair = freeFourWayPair(cellX + 0.01, b.id);
     if(!pair) return;
     cand = freeFourWayOn(pair);
     if(cand.gx === b.gx) return;
   } else {
-    const at = freeEdgeSlotAt(b.gy, cellX + 0.01);
+    const at = freeEdgeSlotAt(cellX + 0.01);
     if(!at || at.slot.gx === b.gx || (b.type === '2w' && !at.next)) return;
-    cand = freeBumperOnSlot(b.type, b.gy, at);
+    cand = freeBumperOnSlot(b.type, at);
   }
   if(freeBumperOverlaps(data.freeBumpers, cand, b.id)) return;
   if(!drag.saved) {

@@ -35,23 +35,37 @@ function freeEdgeLevels(data, allPanels, position) {
   return levels;
 }
 
+// A drawn wall's edge panels left to right, whatever row each edge sits on: one per column,
+// as a grid wall has one column top (or bottom) per column. [{gx, cw, type, gy}]
+function freeEdgePanels(data, allPanels, position) {
+  const edge = [];
+  freeEdgeLevels(data, allPanels, position).forEach((list, gy) => list.forEach(p => edge.push(Object.assign({gy}, p))));
+  return edge.sort((a, b) => a.gx - b.gx);
+}
+
+// The row a 2W on two edge panels sits on: the deeper of their two tops, as a grid wall's
+// 2W drops to the deeper of its two columns, or the lower of their two bottoms
+function freePairLevel(a, b) {
+  return Math.max(a.gy, b.gy);
+}
+
 // Bumpers along one edge of a drawn wall: [{type, gx, cw, gy, panelType, firstCw}], gx/cw
 // in cells, gy the row the panels it carries start (top) or end (bottom) on, and firstCw
 // the width of its first panel (where a ground stack's ladder goes)
 function freeBumpers(data, allPanels, position) {
-  // Each run of edge panels side by side is paired from its left end: two panels to a 2W
+  // Each run of edge panels side by side is paired from its left end, as grid columns are
+  // across the whole wall: two panels to a 2W, even where a notch puts them on two rows
+  const edge = freeEdgePanels(data, allPanels, position);
   const bumpers = [];
-  freeEdgeLevels(data, allPanels, position).forEach((edge, gy) => {
-    for(let i = 0; i < edge.length; i++) {
-      const run = [edge[i]];
-      while(i + 1 < edge.length && edge[i + 1].gx === run[run.length - 1].gx + run[run.length - 1].cw) run.push(edge[++i]);
-      for(let j = 0; j < run.length; j += 2) {
-        const pair = run[j + 1];
-        bumpers.push({type: pair ? '2w' : '1w', gx: run[j].gx, cw: run[j].cw + (pair ? pair.cw : 0), gy,
-          panelType: run[j].type, firstCw: run[j].cw});
-      }
+  for(let i = 0; i < edge.length; i++) {
+    const run = [edge[i]];
+    while(i + 1 < edge.length && edge[i + 1].gx === run[run.length - 1].gx + run[run.length - 1].cw) run.push(edge[++i]);
+    for(let j = 0; j < run.length; j += 2) {
+      const pair = run[j + 1];
+      bumpers.push({type: pair ? '2w' : '1w', gx: run[j].gx, cw: run[j].cw + (pair ? pair.cw : 0),
+        gy: pair ? freePairLevel(run[j], pair) : run[j].gy, panelType: run[j].type, firstCw: run[j].cw});
     }
-  });
+  }
   return bumpers.sort((a, b) => a.gx - b.gx || a.gy - b.gy);
 }
 
@@ -147,7 +161,11 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
     const {cw, ch} = freeCells(p, cellMm);
     const mid = fp.gx + cw / 2;
     const side = bumpers.filter(b => position === 'top' ? b.gy <= fp.gy : b.gy >= fp.gy + ch);
-    let reach = side.filter(b => b.gx < mid + cw / 2 && mid - cw / 2 < b.gx + b.cw);
+    const over = b => b.gx < mid + cw / 2 && mid - cw / 2 < b.gx + b.cw;
+    let reach = side.filter(over);
+    // A panel above the 2W of its column (dropped to the deeper column it pairs with) is
+    // carried by that 2W
+    if(!reach.length) reach = bumpers.filter(over).slice(0, 1);
     // A panel with no bumper over it (one taken off by hand) hangs off the nearest one, as
     // a grid column left without a bumper does
     if(!reach.length && side.length) {
@@ -164,16 +182,17 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
     level.forEach(b => { b.loadKg += total > 0 ? kg * Math.max(0, overlap(b)) / total : kg / level.length; });
   });
 
-  // 4-way bumpers (CB5, or custom panels that take them) join each two touching 2Ws on one
-  // level of a hung wall, paired from the left as grid columns are, centre to centre. The
-  // 4W is then the pickup: it carries both 2Ws with their panels, and the 2Ws are no longer
-  // pickups. A ground-stacked wall takes none. Hand-placed 4Ws carry the 2Ws whose middles
-  // they span, as a grid 4W carries the 2Ws within its columns.
+  // 4-way bumpers (CB5, or custom panels that take them) join each two touching 2Ws of a
+  // hung wall, paired from the left as grid columns are, centre to centre, over the higher
+  // of the two when a notch drops one. The 4W is then the pickup: it carries both 2Ws with
+  // their panels, and the 2Ws are no longer pickups. A ground-stacked wall takes none.
+  // Hand-placed 4Ws carry the 2Ws whose middles they span, as a grid 4W carries the 2Ws
+  // within its columns.
   const joined = bumpers.slice();
   const takes4w = position === 'top' && (isCB5 || (main.custom && main.supports_4w_bumpers));
   if(custom && takes4w) {
     data.freeBumpers.filter(f => f.type === '4w').forEach(f => {
-      const under = joined.filter(b => b.type === '2w' && b.gy === f.gy && !b.under4w &&
+      const under = joined.filter(b => b.type === '2w' && !b.under4w &&
         b.gx + b.cw / 2 >= f.gx - 0.001 && b.gx + b.cw / 2 <= f.gx + f.cw + 0.001);
       const ownKg = (allPanels[f.panelType].bumper_4w_lbs || 0) * LBS_TO_KG;
       bumpers.push({id: f.id, type: '4w', gx: f.gx, cw: f.cw, gy: f.gy, panelType: f.panelType, ownKg,
@@ -181,12 +200,12 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
       under.forEach(b => { b.under4w = true; });
     });
   } else if(!custom && use4Way && takes4w) {
-    const twos = joined.filter(b => b.type === '2w').sort((a, b) => a.gy - b.gy || a.gx - b.gx);
+    const twos = joined.filter(b => b.type === '2w').sort((a, b) => a.gx - b.gx);
     for(let i = 0; i + 1 < twos.length; i++) {
       const a = twos[i], b = twos[i + 1];
-      if(a.gy !== b.gy || a.gx + a.cw !== b.gx) continue;
+      if(a.gx + a.cw !== b.gx) continue;
       const ownKg = (allPanels[a.panelType].bumper_4w_lbs || 0) * LBS_TO_KG;
-      bumpers.push({type: '4w', gx: a.gx + a.cw / 2, cw: (b.gx + b.cw / 2) - (a.gx + a.cw / 2), gy: a.gy,
+      bumpers.push({type: '4w', gx: a.gx + a.cw / 2, cw: (b.gx + b.cw / 2) - (a.gx + a.cw / 2), gy: Math.min(a.gy, b.gy),
         panelType: a.panelType, ownKg, loadKg: ownKg + a.loadKg + b.loadKg});
       a.under4w = b.under4w = true;
       i++;
@@ -206,6 +225,13 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
   });
 
   const occ = freeOccupancy(data.freePanels, allPanels, cellMm);
+  // The row a column's own edge is on, at cell x: a 2W dropped to its pair's row sits below
+  // the top of its shallower column (or past the bottom of its shorter one)
+  const edgePanels = position ? freeEdgePanels(data, allPanels, position) : [];
+  const edgeAt = (x, fallback) => {
+    const own = edgePanels.find(p => x >= p.gx && x < p.gx + p.cw);
+    return own ? own.gy : fallback;
+  };
   // A column's height in main-panel heights, from a bottom bumper's level up
   const stackPanels = (x, gy) => {
     let run = 0;
@@ -223,7 +249,8 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
       for(let x = b.gx; x < b.gx + b.cw; x++) {
         let run = 0;
         const step = position === 'top' ? 1 : -1;
-        for(let y = position === 'top' ? b.gy : b.gy - 1; occ.has(`${x},${y}`); y += step) run++;
+        const from = edgeAt(x, b.gy);
+        for(let y = position === 'top' ? from : from - 1; occ.has(`${x},${y}`); y += step) run++;
         tallest = Math.max(tallest, run);
       }
       const high = tallest * cellMm / 1000 / main.height_m;
@@ -253,8 +280,8 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
       // The ladder goes up the bumper's first panel, or its second when moved there
       const lx = b.ladderRight && b.cw > b.firstCw ? b.gx + b.firstCw : b.gx;
       const lcw = b.ladderRight && b.cw > b.firstCw ? b.cw - b.firstCw : b.firstCw;
-      const panels = stackPanels(lx, b.gy);
-      ladders.push({gx: lx, gy: b.gy, panels, cw: lcw});
+      const panels = stackPanels(lx, edgeAt(lx, b.gy));
+      ladders.push({gx: lx, gy: edgeAt(lx, b.gy), panels, cw: lcw});
       const numTruss = Math.floor(panels / 2 + 0.001);
       if(!cb5Air) {
         groundSupport.totalRearTruss += numTruss;
@@ -289,9 +316,11 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
       const {cw, ch} = freeCells(allPanels[fp.type], cellMm);
       const edgeY = position === 'top' ? fp.gy - 1 : fp.gy + ch;
       for(let x = 0; x < cw; x++) if(occ.has(`${fp.gx + x},${edgeY}`)) return;
-      // Only where a bumper actually rests on it (one taken off by hand leaves none)
+      // Only its column's top (bottom) panel, where the column has a bumper (one taken off by
+      // hand leaves none), as on a grid wall, also when a notch drops the column's 2W below it
       const level = position === 'top' ? fp.gy : fp.gy + ch;
-      if(bumpers.some(b => b.type !== '4w' && b.gy === level && b.gx < fp.gx + cw && fp.gx < b.gx + b.cw)) edge.add(`${fp.gx},${fp.gy}`);
+      if(edgePanels.some(p => p.gx === fp.gx && p.gy === level) &&
+        bumpers.some(b => b.type !== '4w' && b.gx < fp.gx + cw && fp.gx < b.gx + b.cw)) edge.add(`${fp.gx},${fp.gy}`);
     });
     const byKey = new Map(data.freePanels.map(fp => [`${fp.gx},${fp.gy}`, Object.assign({}, fp, freeCells(allPanels[fp.type], cellMm))]));
     const restsTop = (key, vr) => position === 'top' && edge.has(key) && byKey.get(key).gy === vr;
@@ -333,8 +362,9 @@ function freeStructurePlan(data, allPanels, position, use4Way) {
 // its type and pickup weight as the grid Structure layout does; without it, the type alone
 // as the Combined view does. 4Ws are drawn (o.fourWayH tall, o.fourWayGap beyond their 2Ws)
 // when o.fourWayH is given, and the connecting plates and ground support (ladders, bridge
-// clamps and the ladder bases in the bumpers) when o.groundSupport is set. Shared by the
-// Draw tab and the Combined view.
+// clamps and the ladder bases in the bumpers) when o.groundSupport is set. o.flat lines every
+// bumper up along the wall's top (bottom) edge, as the Combined view draws a grid wall's
+// even where a notch drops them. Shared by the Draw tab and the Combined view.
 function drawFreeStructure(ctx, data, allPanels, st, o) {
   const toX = g => o.ox + Math.round(g * o.cellPx);
   const toY = g => o.oy + Math.round(g * o.cellPx);
@@ -438,12 +468,14 @@ function drawFreeStructure(ctx, data, allPanels, st, o) {
 
   // Bumpers sit on the panel edge they carry, 4Ws beyond their 2Ws
   const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  const wall = freeBounds(data.freePanels, allPanels, data.freeCell_mm);
   st.bumpers.forEach(bp => {
     if(bp.type === '4w' && !o.fourWayH) return;
     const h = bp.type === '4w' ? o.fourWayH : o.bumperH;
     const out = bp.type === '4w' ? o.bumperH + o.fourWayGap : 0;
     const x = toX(bp.gx), w = toX(bp.gx + bp.cw) - x;
-    const y = st.position === 'top' ? toY(bp.gy) - o.gap - out - h : toY(bp.gy) + o.gap + out;
+    const row = o.flat && wall ? (st.position === 'top' ? wall.minY : wall.maxY) : bp.gy;
+    const y = st.position === 'top' ? toY(row) - o.gap - out - h : toY(row) + o.gap + out;
     const color = freeBumperColor(bp.type, st.position);
     ctx.fillStyle = greyscalePrintMode ? toGreyscale(color) : (ecoPrintMode ? toPastelColor(color) : color);
     ctx.fillRect(x, y, w, h);

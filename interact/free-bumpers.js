@@ -52,11 +52,12 @@ function freeBumperOverlaps(list, cand, exceptId) {
 }
 
 // The two touching 2Ws a 4W at cell x would join: the 2W there and the one to its right (or
-// its left at the end of a run), neither already under another 4W
-function freeFourWayPair(cellX, exceptId) {
+// its left at the end of a run), neither already under another 4W unless `overlap` (a drag,
+// which passes over other bumpers as the grid's does)
+function freeFourWayPair(cellX, overlap) {
   const list = screens[currentScreenId].data.freeBumpers;
   const twos = list.filter(b => b.type === '2w').sort((a, b) => a.gx - b.gx);
-  const taken = mid => list.some(f => f.type === '4w' && f.id !== exceptId && mid >= f.gx - 0.001 && mid <= f.gx + f.cw + 0.001);
+  const taken = mid => !overlap && list.some(f => f.type === '4w' && mid >= f.gx - 0.001 && mid <= f.gx + f.cw + 0.001);
   const i = twos.findIndex(t => cellX >= t.gx && cellX < t.gx + t.cw);
   if(i < 0) return null;
   for(const [a, b] of [[twos[i], twos[i + 1]], [twos[i - 1], twos[i]]]) {
@@ -95,7 +96,7 @@ function freeBumperSpotAt(clientX, clientY) {
   for(const level of freeEdgeLevels(data, getAllPanels(), st.position).keys()) {
     const edgeY = v.top + Math.round(level * v.cellPx);
     if(st.takes4w && p.y >= edgeY - v.bumperH - v.fourWayGap - v.fourWayH && p.y < edgeY - v.bumperH) {
-      const pair = freeFourWayPair(cellX, null);
+      const pair = freeFourWayPair(cellX, false);
       if(pair && Math.min(pair.a.gy, pair.b.gy) === level) return {level, pair};
       continue;
     }
@@ -240,8 +241,8 @@ function showFreeBumperAddOptions(spot, x, y) {
 }
 
 // Dragging a bumper: it moves to the edge panel under the pointer on its own row, when it
-// fits there (a 2W needs the panel beside it too) without landing on another bumper; a 4W
-// moves onto the touching 2Ws under the pointer
+// fits there (a 2W needs the panel beside it too), over other bumpers as the grid's does;
+// a 4W moves onto the touching 2Ws under the pointer
 function moveFreeBumperTo(clientX) {
   const drag = freeBumperDrag;
   const data = screens[currentScreenId].data;
@@ -250,7 +251,7 @@ function moveFreeBumperTo(clientX) {
   const cellX = freeStructurePoint(clientX, 0).x / freeStructureView.cellPx - drag.grab;
   let cand;
   if(b.type === '4w') {
-    const pair = freeFourWayPair(cellX + 0.01, b.id);
+    const pair = freeFourWayPair(cellX + 0.01, true);
     if(!pair) return;
     cand = freeFourWayOn(pair);
     if(cand.gx === b.gx) return;
@@ -259,7 +260,6 @@ function moveFreeBumperTo(clientX) {
     if(!at || at.slot.gx === b.gx || (b.type === '2w' && !at.next)) return;
     cand = freeBumperOnSlot(b.type, at);
   }
-  if(freeBumperOverlaps(data.freeBumpers, cand, b.id)) return;
   if(!drag.saved) {
     saveState();
     drag.saved = true;

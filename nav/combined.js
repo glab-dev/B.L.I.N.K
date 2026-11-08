@@ -2636,6 +2636,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
         const cCol = Math.floor((labelX - screenX) / drawPanelWidth);
         const cRow = screenRowGeo.rowAt(labelY - screenY);
         if(screenDeletedPanels.has(`${cCol},${cRow}`)) {
+          const cx = labelX, cy = labelY;
           let bestDist = Infinity;
           for(let c = 0; c < pw; c++) {
             for(let r = 0; r < screenEffectivePh; r++) {
@@ -2644,7 +2645,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
               const cellY = screenY + screenRowGeo.y(r);
               const pcx = screenX + c * drawPanelWidth + drawPanelWidth / 2;
               const pcy = cellY + cellH / 2;
-              const d = (pcx - labelX) * (pcx - labelX) + (pcy - labelY) * (pcy - labelY);
+              const d = (pcx - cx) * (pcx - cx) + (pcy - cy) * (pcy - cy);
               if(d < bestDist) { bestDist = d; labelX = pcx; labelY = pcy; }
             }
           }

@@ -4404,11 +4404,9 @@ function renderCombinedGearList(selectedScreenIds) {
       bumpersByPanel[panelLabel].b4w += screenBumper4w;
     }
 
-    // Estimate plates (only for panels that use connecting plates)
-    if (shouldUseConnectingPlates(panelType)) {
-      totalPlates2way += Math.max(0, (pw - 2));
-      totalPlates4way += data.use4WayBumpers ? Math.floor(pw / 2) : 0;
-    }
+    // Plates as the screen's Structure layout counts them (its own gear list reads the same)
+    totalPlates2way += calculatedData.plates2way || 0;
+    totalPlates4way += calculatedData.plates4way || 0;
 
     // Shackles and Cheeseye
     const needsShackles = ['CB5_MKII', 'CB5_MKII_HALF', 'MC7H', 'INFILED_AMT8_3', 'V4ST', 'V4ST_H', 'V4ST_V', 'V4ST_Q'].includes(panelType) || (panel.custom && panel.needs_shackles);

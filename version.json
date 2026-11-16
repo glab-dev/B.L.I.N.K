@@ -1,5 +1,5 @@
 {
-  "version": "2.11.239",
+  "version": "2.11.240",
   "updated": "2026-11-16",
-  "changelog": "Draw small data unit labels in Combined as plain text on a dark plate"
+  "changelog": "Add 1px corner squares to each screen in the Canvas and Raster views"
 }

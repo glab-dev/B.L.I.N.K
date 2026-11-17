@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.249', date: '2026-11-16', notes: 'Draw canvas corner squares in off-white, underneath the screen text' },
   { version: '2.11.248', date: '2026-11-16', notes: 'Label each screen\'s own cable distances under its drop in the Combined cable diagram' },
   { version: '2.11.247', date: '2026-11-16', notes: 'Widen the Complex page, move Specs beside the form on cards, and put layout toggles in the options boxes' },
   { version: '2.11.246', date: '2026-11-16', notes: 'Keep the panel right-click menu inside the window near its edges' },

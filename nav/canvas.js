@@ -741,6 +741,24 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
       ctx.setLineDash([]); // Reset to solid line
     }
 
+    // Corner squares: a 1px outline square sitting exactly on each corner of the screen,
+    // so the wall's true corner pixels are easy to find, in the same off-white as the panel
+    // lines. A knocked-out corner panel gets none. Drawn before the corner labels, so the
+    // text sits on top.
+    {
+      ctx.fillStyle = '#e0e0e0';
+      const side = Math.max(8, Math.round(Math.min(p.res_x, p.res_y) / 4));
+      [[0, 0], [pw - 1, 0], [0, totalRows - 1], [pw - 1, totalRows - 1]].forEach(function(cr, i) {
+        if(deletedPanelsForScreen.has(`${cr[0]},${cr[1]}`)) return;
+        const sx = offsetX + (i % 2 ? wallResX - side : 0);
+        const sy = offsetY + (i < 2 ? 0 : wallResY - side);
+        ctx.fillRect(sx, sy, side, 1);
+        ctx.fillRect(sx, sy + side - 1, side, 1);
+        ctx.fillRect(sx, sy, 1, side);
+        ctx.fillRect(sx + side - 1, sy, 1, side);
+      });
+    }
+
     // Add X/Y coordinates in the top-left corner of every visible block (if enabled
     // for this screen). Label text is the canvas-space coordinate; the draw position
     // is relative to offsetX/offsetY, which is 0,0 in the native-resolution PNG
@@ -889,26 +907,6 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     // White text for logo
     ctx.fillStyle = '#ffffff';
     ctx.fillText(logoText, logoTextX, logoTextY);
-
-    // Corner squares: a 1px outline square sitting exactly on each corner of the screen,
-    // so the wall's true corner pixels are easy to find. Red reads against the off-white
-    // panel lines; a red screen gets cyan. A knocked-out corner panel gets none.
-    // Drawn after the corner labels so the X/Y box doesn't hide one.
-    {
-      const rgb = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(primaryColor);
-      const reddish = rgb && parseInt(rgb[1], 16) > 160 && parseInt(rgb[2], 16) < 110 && parseInt(rgb[3], 16) < 110;
-      ctx.fillStyle = reddish ? '#00ffff' : '#ff0000';
-      const side = Math.max(8, Math.round(Math.min(p.res_x, p.res_y) / 4));
-      [[0, 0], [pw - 1, 0], [0, totalRows - 1], [pw - 1, totalRows - 1]].forEach(function(cr, i) {
-        if(deletedPanelsForScreen.has(`${cr[0]},${cr[1]}`)) return;
-        const sx = offsetX + (i % 2 ? wallResX - side : 0);
-        const sy = offsetY + (i < 2 ? 0 : wallResY - side);
-        ctx.fillRect(sx, sy, side, 1);
-        ctx.fillRect(sx, sy + side - 1, side, 1);
-        ctx.fillRect(sx, sy, 1, side);
-        ctx.fillRect(sx + side - 1, sy, 1, side);
-      });
-    }
 
     // Data line/label overlay — drawn last so labels sit over the X/Y coordinate
     // and other annotations (front view; canvas only).

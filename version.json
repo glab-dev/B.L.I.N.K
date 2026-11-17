@@ -1,5 +1,5 @@
 {
-  "version": "2.11.248",
+  "version": "2.11.249",
   "updated": "2026-11-16",
-  "changelog": "Label each screen's own cable distances under its drop in the Combined cable diagram"
+  "changelog": "Draw canvas corner squares in off-white, underneath the screen text"
 }

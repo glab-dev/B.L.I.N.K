@@ -359,6 +359,11 @@ function resetCalculator() {
       cb5HalfRowPosition: 'below',
       cb5HalfRowsAbove: 1,
       cb5HalfRowsBelow: 1,
+      addHalfCols: false,
+      halfColPosition: 'right',
+      halfColsLeft: 1,
+      halfColsRight: 1,
+      quarterCorners: false,
       wallToFloor: 5,
       distroToWall: 10,
       processorToWall: 15,
@@ -394,6 +399,7 @@ function resetCalculator() {
   
   // Reset toggle states
   loadCB5HalfRowState({}, '');
+  loadHalfColState({}, '');
   
   use4WayBumpersEnabled = false;
   document.getElementById('use4WayBumpersBtn')?.classList.remove('active');
@@ -689,9 +695,15 @@ function calculate(){
   // Check if CB5 half panel rows are enabled (above and/or below the full rows).
   // A panel-type change can add or remove the top half rows, so re-key first.
   syncCB5RowKeys();
+  syncHalfColKeys();
+  syncQuarterCorners();
   const halfRows = getCurrentCB5HalfRows();
   const halfRowCount = halfRows.top + halfRows.bottom;
   const hasCB5HalfRow = halfRowCount > 0;
+  // Half columns (V4ST-V) beside the full columns, with quarter panels where they cross a half row
+  const halfCols = getCurrentHalfCols();
+  const halfColCount = halfCols.left + halfCols.right;
+  const hasHalfCols = halfColCount > 0;
   
   const powerType = document.getElementById('powerType').value;
   const voltage = parseFloat(document.getElementById('voltage').value)||220;
@@ -712,7 +724,7 @@ function calculate(){
   deletedPanels.forEach(key => {
     const parts = key.split(',');
     const c = parseInt(parts[0]), r = parseInt(parts[1]);
-    if(c >= 0 && c < pw && r >= 0 && r < ph + halfRowCount) prunedDeleted.add(key);
+    if(c >= 0 && c < pw + halfColCount && r >= 0 && r < ph + halfRowCount) prunedDeleted.add(key);
   });
   if(prunedDeleted.size !== deletedPanels.size) {
     deletedPanels = prunedDeleted;
@@ -720,31 +732,28 @@ function calculate(){
       screens[currentScreenId].data.deletedPanels = new Set(deletedPanels);
     }
   }
-  const livePanels = countCB5LivePanels(pw, ph, halfRows, deletedPanels);
+  const livePanels = countCB5LivePanels(pw, ph, halfRows, deletedPanels, null, halfCols);
   const activePanelsCount = livePanels.full;
+  const liveParts = gridLiveParts(panelType, livePanels);
   
   // Calculate mixed panel counts if CB5 half row is enabled
   let totalPanels, totalPixels, totalWeight, totalPowerW, resX, resY, adjustedWallHM, adjustedWallHF;
+  let adjustedWallWM = wallWM, adjustedWallWF = wallWF;
   
-  if(hasCB5HalfRow) {
+  if(hasCB5HalfRow || hasHalfCols) {
     // Get half panel specs
     const halfPanel = allPanels[halfPanelTypeOf(panelType)];
+    const halfColPanel = allPanels[halfColPanelTypeOf(panelType)];
 
-    // Main panels are all full CB5 panels (pw * ph)
-    const mainPanelCount = activePanelsCount; // All live full panels
-    const halfPanelCount = livePanels.half; // Live panels in the half rows
-
-    // Calculate totals combining both panel types
-    totalPanels = mainPanelCount + halfPanelCount;
-    totalPixels = (mainPanelCount * (p.res_x * p.res_y)) + (halfPanelCount * (halfPanel.res_x * halfPanel.res_y));
+    // Calculate totals combining every panel type on the wall
+    totalPanels = liveParts.reduce((sum, [t, n]) => sum + n, 0);
+    totalPixels = liveParts.reduce((sum, [t, n]) => sum + n * (allPanels[t].res_x * allPanels[t].res_y), 0);
     
     // Calculate panel weight and add bumper weight
     // Get correct panel weights based on connection method
     const useConnectingPlates = shouldUseConnectingPlates(panelType);
-    const mainPanelWeightKg = getPanelWeight(panelType, useConnectingPlates);
-    const halfPanelWeightKg = getPanelWeight(halfPanelTypeOf(panelType), useConnectingPlates);
     
-    const panelWeight = (mainPanelCount * mainPanelWeightKg) + (halfPanelCount * halfPanelWeightKg);
+    const panelWeight = liveParts.reduce((sum, [t, n]) => sum + n * getPanelWeight(t, useConnectingPlates), 0);
     const bumperWeight = calculateTotalBumperWeight(pw, ph);
     
     // Calculate connecting plates weight if applicable
@@ -760,17 +769,18 @@ function calculate(){
 
     totalWeight = panelWeight + bumperWeight + plateWeight;
 
-    const perPanelW = powerType==='max' ? p.power_max_w : (p.power_avg_w||p.power_max_w*0.5);
-    const perHalfPanelW = powerType==='max' ? halfPanel.power_max_w : (halfPanel.power_avg_w||halfPanel.power_max_w*0.5);
-    totalPowerW = (mainPanelCount * perPanelW) + (halfPanelCount * perHalfPanelW);
+    const wattsOf = t => powerType==='max' ? allPanels[t].power_max_w : (allPanels[t].power_avg_w||allPanels[t].power_max_w*0.5);
+    totalPowerW = liveParts.reduce((sum, [t, n]) => sum + n * wattsOf(t), 0);
     
-    // Resolution includes both types
-    resX = pw * p.res_x; // Width stays same
-    resY = (ph * p.res_y) + (halfRowCount * halfPanel.res_y); // All full rows + half rows
+    // Resolution includes the half rows and half columns
+    resX = (pw * p.res_x) + (hasHalfCols ? halfColCount * halfColPanel.res_x : 0);
+    resY = (ph * p.res_y) + (hasCB5HalfRow ? halfRowCount * halfPanel.res_y : 0); // All full rows + half rows
 
-    // Adjust wall height to include half panel rows
-    adjustedWallHM = wallHM + (halfRowCount * halfPanel.height_m);
+    // Adjust wall height to include half panel rows, and width the half columns
+    adjustedWallHM = wallHM + (hasCB5HalfRow ? halfRowCount * halfPanel.height_m : 0);
     adjustedWallHF = adjustedWallHM / 0.3048;
+    adjustedWallWM = wallWM + (hasHalfCols ? halfColCount * halfColPanel.width_m : 0);
+    adjustedWallWF = adjustedWallWM / 0.3048;
   } else {
     // Standard calculation (no half panels)
     totalPanels = activePanelsCount;
@@ -1001,14 +1011,10 @@ function calculate(){
   
   // Calculate suggested panels per data line accounting for mixed panel types
   let capacityBasedPanelsPerData;
-  if(hasCB5HalfRow) {
+  if(hasCB5HalfRow || hasHalfCols) {
     // With half panels, we need to calculate based on average pixels per panel
-    const halfPanel = allPanels[halfPanelTypeOf(panelType)];
-    const halfPanelPixels = halfPanel.res_x * halfPanel.res_y;
-    const mainPanelCount = activePanelsCount; // All live full panels
-    const halfPanelCount = livePanels.half; // Live panels in the half rows
-    const totalMixedPanels = mainPanelCount + halfPanelCount;
-    const totalMixedPixels = (mainPanelCount * pixelsPerPanel) + (halfPanelCount * halfPanelPixels);
+    const totalMixedPanels = liveParts.reduce((sum, [t, n]) => sum + n, 0);
+    const totalMixedPixels = liveParts.reduce((sum, [t, n]) => sum + n * (allPanels[t].res_x * allPanels[t].res_y), 0);
     const avgPixelsPerPanel = totalMixedPixels / totalMixedPanels;
     capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / avgPixelsPerPanel));
   } else {
@@ -1032,7 +1038,7 @@ function calculate(){
   // Calculate actual data lines used (including custom assignments)
   // Use adjusted ph if CB5 half rows are enabled
   const adjustedPh = ph + halfRowCount;
-  const actualDataLines = calculateActualDataLines(pw, adjustedPh, panelsPerDataLine, startDir, undefined, undefined, screens[currentScreenId] && screens[currentScreenId].data.split);
+  const actualDataLines = calculateActualDataLines(pw + halfColCount, adjustedPh, panelsPerDataLine, startDir, undefined, undefined, screens[currentScreenId] && screens[currentScreenId].data.split);
   const dataLines = actualDataLines;
   const portsNeeded = dataLines; // Each data line needs one port
   
@@ -1048,12 +1054,8 @@ function calculate(){
   // Calculate actual panel weight (not derived from totalWeight which includes plates)
   const useConnectingPlatesForWeight = shouldUseConnectingPlates(panelType);
   let panelWeightOnly = 0;
-  if(hasCB5HalfRow) {
-    const mainPanelWeightKg = getPanelWeight(panelType, useConnectingPlatesForWeight);
-    const halfPanelWeightKg = getPanelWeight(halfPanelTypeOf(panelType), useConnectingPlatesForWeight);
-    const mainPanelCount = activePanelsCount;
-    const halfPanelCount = livePanels.half;
-    panelWeightOnly = (mainPanelCount * mainPanelWeightKg) + (halfPanelCount * halfPanelWeightKg);
+  if(hasCB5HalfRow || hasHalfCols) {
+    panelWeightOnly = liveParts.reduce((sum, [t, n]) => sum + n * getPanelWeight(t, useConnectingPlatesForWeight), 0);
   } else {
     const panelWeightKg = getPanelWeight(panelType, useConnectingPlatesForWeight);
     panelWeightOnly = totalPanels * panelWeightKg;
@@ -1103,7 +1105,7 @@ function calculate(){
   // Convert values based on selected units
   const panelWidthDisplay = displayLengthUnit === 'ft' ? (p.width_m * M_TO_FT).toFixed(3) : p.width_m.toFixed(3);
   const panelHeightDisplay = displayLengthUnit === 'ft' ? (p.height_m * M_TO_FT).toFixed(3) : p.height_m.toFixed(3);
-  const wallWidthDisplay = displayLengthUnit === 'ft' ? wallWF.toFixed(2) : wallWM.toFixed(2);
+  const wallWidthDisplay = displayLengthUnit === 'ft' ? adjustedWallWF.toFixed(2) : adjustedWallWM.toFixed(2);
   const wallHeightDisplay = displayLengthUnit === 'ft' ? adjustedWallHF.toFixed(2) : adjustedWallHM.toFixed(2);
   const perPanelWeightKg = getPanelWeight(panelType, useConnectingPlatesForWeight);
   const panelWeightDisplay = displayWeightUnit === 'lbs' ? Math.ceil(perPanelWeightKg * KG_TO_LBS) : Math.ceil(perPanelWeightKg);
@@ -1129,7 +1131,7 @@ function calculate(){
     html += `</div><div class="spec-group">`;
     html += `<br>`;
     html += `<div class="result-section-title">WALL</div>`;
-    html += `<div class="result-row"><strong>Dimensions:</strong> ${wallWidthDisplay} ${lenUnit} × ${wallHeightDisplay} ${lenUnit} (${pw} × ${ph} panels${cb5HalfRowLabel(halfRows)})</div>`;
+    html += `<div class="result-row"><strong>Dimensions:</strong> ${wallWidthDisplay} ${lenUnit} × ${wallHeightDisplay} ${lenUnit} (${pw} × ${ph} panels${cb5HalfRowLabel(halfRows)}${halfColLabel(halfCols)})</div>`;
     html += `<div class="result-row"><strong>Panel count:</strong> ${totalPanels}</div>`;
     html += `<div class="result-row"><strong>Aspect ratio:</strong> ${ar.label}</div>`;
     html += `<div class="result-row"><strong>Wall weight:</strong> ${panelOnlyWeightDisplay} ${wtUnit}</div>`;
@@ -1203,7 +1205,7 @@ function calculate(){
     html += `</div><div class="spec-group">`;
     html += `<br><br>`;
     html += `<div class="result-section-title">WALL</div>`;
-    html += `<div class="result-row"><strong>Dimensions:</strong> ${wallWidthDisplay} ${lenUnit} × ${wallHeightDisplay} ${lenUnit} (${pw} × ${ph} panels${cb5HalfRowLabel(halfRows)})</div>`;
+    html += `<div class="result-row"><strong>Dimensions:</strong> ${wallWidthDisplay} ${lenUnit} × ${wallHeightDisplay} ${lenUnit} (${pw} × ${ph} panels${cb5HalfRowLabel(halfRows)}${halfColLabel(halfCols)})</div>`;
     html += `<div class="result-row"><strong>Total panel count:</strong> ${totalPanels}</div>`;
     html += `<div class="result-row"><strong>Resolution:</strong> ${resX} × ${resY}</div>`;
     html += `<div class="result-row"><strong>Total pixel count:</strong> (${totalPixels.toLocaleString()} px)</div>`;
@@ -1986,11 +1988,12 @@ function getStandardColorForPanel(c, r){
 function getEffectivePanelCountsForLayout(){ 
   const {pw, ph} = getEffectivePanelCounts(); 
   
-  // Add the CB5 half panel rows (above and below) when enabled
+  // Add the CB5 half panel rows (above and below) when enabled, and the half columns
   const half = getCurrentCB5HalfRows();
   const adjustedPh = ph + half.top + half.bottom;
+  const halfCols = getCurrentHalfCols();
   
-  return {pw, ph: adjustedPh}; 
+  return {pw: pw + halfCols.left + halfCols.right, ph: adjustedPh}; 
 }
 
 function generateLayout(mode){
@@ -2082,11 +2085,14 @@ function generateLayout(mode){
     : Math.min(containerWidth, 800); // Cap at 800px max in normal mode
   const minSize = 30; // Minimum panel size
   const maxSize = 80; // Maximum panel size
-  const calculatedSize = Math.floor(maxCanvasWidth / pw);
-
   // Get panel type and calculate height ratio for CB5_MKII full panels
   const panelType = document.getElementById('panelType').value;
   const heightRatio = getPanelHeightRatio(panelType);
+  // Half columns (V4ST-V) are narrower, so the wall is that many fewer full widths across
+  const halfCols = getCurrentHalfCols();
+  const halfColCount = halfCols.left + halfCols.right;
+  const colWidthRatio = halfColWidthRatio(panelType);
+  const calculatedSize = Math.floor(maxCanvasWidth / (pw - halfColCount + halfColCount * colWidthRatio));
 
   // Cap cell width for tall panels so cell height (width*ratio) never exceeds maxSize,
   // preventing huge/scroll-off previews on narrow walls. Skip during PDF capture.
@@ -2101,11 +2107,13 @@ function generateLayout(mode){
 
   // Calculate dimensions accounting for the half panel rows
   const originalPh = ph - halfRowCount; // ph includes the half rows, originalPh is just full panels
-  const halfPanelHeight = size; // Half panels are square
+  const halfPanelHeight = size * halfRowHeightRatio(panelType); // CB5 MKII Half: square
   const rowGeo = cb5RowGeometry(originalPh, halfRows, panelHeight, halfPanelHeight);
+  // pw includes the half columns, as ph includes the half rows
+  const colGeo = gridColGeometry(pw - halfColCount, halfCols, panelWidth, size * colWidthRatio);
 
   // Canvas height: full panel rows + half panel rows if enabled
-  canvas.width = pw * panelWidth;
+  canvas.width = colGeo.width;
   canvas.height = rowGeo.height;
 
   // Update global panelSize for all modes
@@ -2113,6 +2121,7 @@ function generateLayout(mode){
   currentPanelWidth = panelWidth;
   currentPanelHeight = panelHeight;
   currentRowGeo = rowGeo;
+  currentColGeo = colGeo;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const _pdfFont = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
@@ -2122,17 +2131,17 @@ function generateLayout(mode){
   ctx.textBaseline = 'middle';
 
   if(mode==='standard'){
-    renderStandardLayout({pw, ph, panelWidth, rowGeo, canvas, ctx, fontSize});
+    renderStandardLayout({pw, ph, panelWidth, rowGeo, colGeo, canvas, ctx, fontSize});
     return;
   }
 
   if(mode==='power'){
-    renderPowerLayout({pw, ph, panelWidth, rowGeo, canvas, ctx, panelsPerCircuit});
+    renderPowerLayout({pw, ph, panelWidth, rowGeo, colGeo, canvas, ctx, panelsPerCircuit});
     return;
   }
 
   if(mode==='data'){
-    renderDataLayout({pw, ph, panelWidth, rowGeo, canvas, ctx, panelsPerDataLine, startDir, showArrows, fontSize});
+    renderDataLayout({pw, ph, panelWidth, rowGeo, colGeo, canvas, ctx, panelsPerDataLine, startDir, showArrows, fontSize});
     if(typeof renderDataLineMap === 'function') renderDataLineMap();
     return;
   }

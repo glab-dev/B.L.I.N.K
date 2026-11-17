@@ -205,6 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if(panelTypeSelect && cb5HalfPanelToggle) {
         if(halfPanelTypeOf(panelTypeSelect.value)) {
           cb5HalfPanelToggle.style.display = 'block';
+          updateGridAddButtons();
         } else {
           cb5HalfPanelToggle.style.display = 'none';
           // Reset checkbox when hidden

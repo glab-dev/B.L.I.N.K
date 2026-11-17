@@ -12,7 +12,7 @@ function getPanelAtPosition(canvas, x, y) {
   const canvasX = (x - rect.left) * scaleX;
   const canvasY = (y - rect.top) * scaleY;
   
-  const col = Math.floor(canvasX / currentPanelWidth);
+  const col = currentColGeo.colAt(canvasX); // half columns are narrower than full ones
   const row = currentRowGeo.rowAt(canvasY); // CB5 half rows are shorter than full rows
   
   if(col >= 0 && col < currentPw && row >= 0 && row < currentPh) {
@@ -37,9 +37,15 @@ function getPanelsInRect(x1, y1, x2, y2) {
     const r = currentRowGeo.rowAt(y);
     return r === -1 ? currentRowGeo.rows : r;
   };
-  const col1 = Math.max(0, Math.floor(canvasX1 / currentPanelWidth));
+  // Column under an x position, the same way (half columns are narrower)
+  const colIdx = x => {
+    if(x < 0) return -1;
+    const c = currentColGeo.colAt(x);
+    return c === -1 ? currentColGeo.cols : c;
+  };
+  const col1 = Math.max(0, colIdx(canvasX1));
   const row1 = Math.max(0, rowIdx(canvasY1));
-  const col2 = Math.min(currentPw - 1, Math.floor(canvasX2 / currentPanelWidth));
+  const col2 = Math.min(currentPw - 1, colIdx(canvasX2));
   const row2 = Math.min(currentPh - 1, rowIdx(canvasY2));
   
   const panels = [];

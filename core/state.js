@@ -528,6 +528,8 @@ let cb5HalfRowsBelow = 1;
 let cb5RowKeyLayout = {top: 0, full: 1, hasHalf: false};
 // Row geometry of the last-drawn standard/power/data canvas (cb5RowGeometry), for hit-testing.
 let currentRowGeo = null;
+// Column geometry of the same canvas (gridColGeometry): half columns are narrower.
+let currentColGeo = null;
 function toggleCB5HalfRow() {
   cb5HalfRowEnabled = !cb5HalfRowEnabled;
   document.getElementById('addCB5HalfRowBtn').classList.toggle('active', cb5HalfRowEnabled);
@@ -570,6 +572,31 @@ function refreshCB5HalfRows() {
   updateWeightDisplay(); // Update bumper pickup weights for half panel rows
 }
 
+// The add buttons for the current panel type, each named for what it adds: CB5 MKII gets
+// "+ CB5 1/2 Row"; a panel with half-width and quarter partners (V4ST) gets one button per
+// partner, "+ V4ST-H", "+ V4ST-V" and "+ V4ST-Q"
+function updateGridAddButtons() {
+  const typeEl = document.getElementById('panelType');
+  if(!typeEl) return;
+  const type = typeEl.value, all = getAllPanels();
+  const rowType = halfPanelTypeOf(type), colType = halfColPanelTypeOf(type), qType = quarterPanelTypeOf(type);
+  const rowBtn = document.getElementById('addCB5HalfRowBtn');
+  if(rowBtn && rowType) rowBtn.textContent = colType ? '+ ' + all[rowType].name : '+ ' + all[type].name.split(' ')[0] + ' 1/2 Row';
+  const colBtn = document.getElementById('addHalfColBtn');
+  if(colBtn) {
+    colBtn.style.display = colType ? '' : 'none';
+    if(colType) colBtn.textContent = '+ ' + all[colType].name;
+  }
+  const qBtn = document.getElementById('addQuarterBtn');
+  if(qBtn) {
+    qBtn.style.display = qType ? '' : 'none';
+    if(qType) qBtn.textContent = '+ ' + all[qType].name;
+  }
+  const colOptions = document.getElementById('halfColOptions');
+  if(colOptions && !colType) colOptions.style.display = 'none';
+  if(colType) updateHalfColControls();
+}
+
 // Show the half row toggle, position picker and counts as the live state has them.
 function updateCB5HalfRowControls() {
   const btn = document.getElementById('addCB5HalfRowBtn');
@@ -588,6 +615,92 @@ function updateCB5HalfRowControls() {
   if(aboveInput && document.activeElement !== aboveInput) aboveInput.value = cb5HalfRowsAbove;
   const belowInput = document.getElementById('cb5HalfRowsBelow');
   if(belowInput && document.activeElement !== belowInput) belowInput.value = cb5HalfRowsBelow;
+  updateGridAddButtons();
+}
+
+// ---- Half columns (V4ST-V) and quarter corners (V4ST-Q) ----
+// The column twin of the half rows: half-width panels in columns left and/or right of the
+// full columns. Where a half column crosses a half row sits a quarter panel, there only
+// while the quarter corners are on; otherwise that corner stays empty (kept as a
+// knocked-out panel). Mirrors the current screen's data.addHalfCols / halfColPosition /
+// halfColsLeft / halfColsRight / quarterCorners.
+let halfColEnabled = false;
+let halfColPosition = 'right';
+let halfColsLeft = 1;
+let halfColsRight = 1;
+let quarterCornersEnabled = false;
+// The column layout the current screen's panel keys ("c,r") are written in (gridColLayout).
+let halfColKeyLayout = {left: 0, full: 1, hasHalf: false};
+
+function toggleHalfCols() {
+  halfColEnabled = !halfColEnabled;
+  if(typeof screens !== 'undefined' && screens[currentScreenId]) screens[currentScreenId].data.addHalfCols = halfColEnabled;
+  updateHalfColControls();
+  refreshCB5HalfRows();
+}
+
+function setHalfColPosition(position) {
+  halfColPosition = position;
+  if(typeof screens !== 'undefined' && screens[currentScreenId]) screens[currentScreenId].data.halfColPosition = position;
+  updateHalfColControls();
+  refreshCB5HalfRows();
+}
+
+// Column count for one side ('left' | 'right'); at least 1
+function setHalfColCount(side, value) {
+  const count = Math.max(1, parseInt(value) || 1);
+  if(side === 'left') halfColsLeft = count;
+  else halfColsRight = count;
+  if(typeof screens !== 'undefined' && screens[currentScreenId]) {
+    screens[currentScreenId].data[side === 'left' ? 'halfColsLeft' : 'halfColsRight'] = count;
+  }
+  refreshCB5HalfRows();
+}
+
+function toggleQuarterCorners() {
+  quarterCornersEnabled = !quarterCornersEnabled;
+  if(typeof screens !== 'undefined' && screens[currentScreenId]) screens[currentScreenId].data.quarterCorners = quarterCornersEnabled;
+  // Corners come back as live panels; knocked out again when turned off (syncQuarterCorners)
+  if(quarterCornersEnabled) gridCornerKeys().forEach(k => deletedPanels.delete(k));
+  updateHalfColControls();
+  refreshCB5HalfRows();
+}
+
+// The half column buttons, position picker and counts as the live state has them. The
+// quarter button only works where a half column meets a half row.
+function updateHalfColControls() {
+  const btn = document.getElementById('addHalfColBtn');
+  if(btn) btn.classList.toggle('active', halfColEnabled);
+  const options = document.getElementById('halfColOptions');
+  if(options) options.style.display = halfColEnabled ? '' : 'none';
+  ['left', 'right', 'both'].forEach(pos => {
+    const b = document.getElementById('halfCol' + pos.charAt(0).toUpperCase() + pos.slice(1) + 'Btn');
+    if(b) b.classList.toggle('active', halfColPosition === pos);
+  });
+  const leftField = document.getElementById('halfColsLeftField');
+  if(leftField) leftField.style.display = halfColPosition === 'right' ? 'none' : '';
+  const rightField = document.getElementById('halfColsRightField');
+  if(rightField) rightField.style.display = halfColPosition === 'left' ? 'none' : '';
+  const leftInput = document.getElementById('halfColsLeft');
+  if(leftInput && document.activeElement !== leftInput) leftInput.value = halfColsLeft;
+  const rightInput = document.getElementById('halfColsRight');
+  if(rightInput && document.activeElement !== rightInput) rightInput.value = halfColsRight;
+  const qBtn = document.getElementById('addQuarterBtn');
+  if(qBtn) {
+    qBtn.classList.toggle('active', quarterCornersEnabled);
+    qBtn.disabled = !(halfColEnabled && cb5HalfRowEnabled);
+  }
+}
+
+function loadHalfColState(data, panelType) {
+  halfColEnabled = !!(data && data.addHalfCols);
+  const pos = data && data.halfColPosition;
+  halfColPosition = (pos === 'left' || pos === 'both') ? pos : 'right';
+  halfColsLeft = Math.max(1, parseInt(data && data.halfColsLeft) || 1);
+  halfColsRight = Math.max(1, parseInt(data && data.halfColsRight) || 1);
+  quarterCornersEnabled = !!(data && data.quarterCorners);
+  halfColKeyLayout = gridColLayout(getHalfCols(data, panelType), Math.max(1, parseInt(data && data.panelsWide) || 1));
+  updateHalfColControls();
 }
 
 // Load the half row state from a screen's data into the live globals and controls.
@@ -613,6 +726,129 @@ function halfPanelTypeOf(panelType) {
   const all = (typeof getAllPanels === 'function') ? getAllPanels() : panels;
   const p = all[panelType];
   return (p && p.half_panel && all[p.half_panel]) ? p.half_panel : null;
+}
+
+// The half-width (V4ST: V4ST-V) and quarter (V4ST: V4ST-Q) panels a panel type can add, or null
+function halfColPanelTypeOf(panelType) {
+  const all = (typeof getAllPanels === 'function') ? getAllPanels() : panels;
+  const p = all[panelType];
+  return (p && p.half_col_panel && all[p.half_col_panel]) ? p.half_col_panel : null;
+}
+
+function quarterPanelTypeOf(panelType) {
+  const all = (typeof getAllPanels === 'function') ? getAllPanels() : panels;
+  const p = all[panelType];
+  return (p && p.quarter_panel && all[p.quarter_panel]) ? p.quarter_panel : null;
+}
+
+// Half columns for one screen: how many sit left and right of the full columns. Grid
+// columns run left to right — left half columns, full columns, right half columns — so a
+// full panel's column index is offset by `left`, as the half rows offset rows by `top`.
+function getHalfCols(data, panelType) {
+  if(!data || !data.addHalfCols || !halfColPanelTypeOf(panelType)) return {left: 0, right: 0};
+  const pos = (data.halfColPosition === 'left' || data.halfColPosition === 'both') ? data.halfColPosition : 'right';
+  const count = v => Math.max(1, parseInt(v) || 1);
+  return {
+    left: pos === 'right' ? 0 : count(data.halfColsLeft),
+    right: pos === 'left' ? 0 : count(data.halfColsRight)
+  };
+}
+
+function getCurrentHalfCols() {
+  return getHalfCols({
+    addHalfCols: halfColEnabled,
+    halfColPosition: halfColPosition,
+    halfColsLeft: halfColsLeft,
+    halfColsRight: halfColsRight
+  }, document.getElementById('panelType').value);
+}
+
+// Column positions for a grid of `fullCols` full-width columns with half.left / half.right
+// half-width columns beside it, the twin of cb5RowGeometry. With no half columns, x(c) is
+// c * fullW, exactly the uniform grid every renderer drew before.
+function gridColGeometry(fullCols, half, fullW, halfW) {
+  const left = half.left, right = half.right;
+  const cols = left + fullCols + right;
+  const isHalf = c => c < left || c >= left + fullCols;
+  const x = c => {
+    if(c <= left) return c * halfW;
+    if(c <= left + fullCols) return left * halfW + (c - left) * fullW;
+    return left * halfW + fullCols * fullW + (c - left - fullCols) * halfW;
+  };
+  const w = c => isHalf(c) ? halfW : fullW;
+  const colAt = px => {
+    if(px < 0) return -1;
+    for(let c = 0; c < cols; c++) if(px < x(c + 1)) return c;
+    return -1;
+  };
+  return {left, right, fullCols, cols, fullW, halfW, isHalf, x, w, colAt, width: x(cols)};
+}
+
+// The panel type at grid cell (c, r): the main panel, its half-height panel in a half row,
+// its half-width panel in a half column, its quarter panel where the two cross
+function gridPanelTypeAt(panelType, c, r, halfRows, fullRows, halfCols, fullCols) {
+  const inHalfRow = r < halfRows.top || r >= halfRows.top + fullRows;
+  const inHalfCol = c < halfCols.left || c >= halfCols.left + fullCols;
+  if(inHalfRow && inHalfCol) return quarterPanelTypeOf(panelType);
+  if(inHalfCol) return halfColPanelTypeOf(panelType);
+  if(inHalfRow) return halfPanelTypeOf(panelType);
+  return panelType;
+}
+
+// A half-row panel's height and a half-column panel's width as a fraction of the main
+// panel's width, the unit the layouts draw cells in: CB5 MKII Half is 1 (the square it has
+// always been drawn as), V4ST-H's height and V4ST-V's width are 0.5
+function halfRowHeightRatio(panelType) {
+  const all = (typeof getAllPanels === 'function') ? getAllPanels() : panels;
+  const p = all[panelType], h = all[halfPanelTypeOf(panelType)];
+  return (p && h) ? h.height_m / p.width_m : 1;
+}
+
+function halfColWidthRatio(panelType) {
+  const all = (typeof getAllPanels === 'function') ? getAllPanels() : panels;
+  const p = all[panelType], v = all[halfColPanelTypeOf(panelType)];
+  return (p && v) ? v.width_m / p.width_m : 1;
+}
+
+// The current screen's corner cells, where a half column crosses a half row
+function gridCornerKeys() {
+  const hr = getCurrentCB5HalfRows(), hc = getCurrentHalfCols();
+  const {pw, ph} = getEffectivePanelCounts();
+  const keys = [];
+  const rows = [], cols = [];
+  for(let r = 0; r < hr.top; r++) rows.push(r);
+  for(let r = hr.top + ph; r < hr.top + ph + hr.bottom; r++) rows.push(r);
+  for(let c = 0; c < hc.left; c++) cols.push(c);
+  for(let c = hc.left + pw; c < hc.left + pw + hc.right; c++) cols.push(c);
+  cols.forEach(c => rows.forEach(r => keys.push(`${c},${r}`)));
+  return keys;
+}
+
+// With the quarter corners off, the corners are knocked out so nothing counts or draws them
+function syncQuarterCorners() {
+  if(quarterCornersEnabled) return;
+  const before = deletedPanels.size;
+  gridCornerKeys().forEach(k => deletedPanels.add(k));
+  if(deletedPanels.size !== before && typeof screens !== 'undefined' && screens[currentScreenId]) {
+    screens[currentScreenId].data.deletedPanels = new Set(deletedPanels);
+  }
+}
+
+// Live panels of each kind as [type, count] pairs: the main panel, then its half-row,
+// half-column and quarter partners. `live` is a countCB5LivePanels result.
+function gridLiveParts(panelType, live) {
+  return [[panelType, live.full], [halfPanelTypeOf(panelType), live.half],
+    [halfColPanelTypeOf(panelType), live.vert || 0], [quarterPanelTypeOf(panelType), live.quarter || 0]]
+    .filter(([t, n]) => t && n > 0);
+}
+
+// Spec-text suffix for a wall's half columns, the twin of cb5HalfRowLabel
+function halfColLabel(half) {
+  const l = half.left, r = half.right;
+  if(!l && !r) return '';
+  if(!l) return r === 1 ? ' + half column' : ` + ${r} half columns`;
+  if(!r) return l === 1 ? ' + half column left' : ` + ${l} half columns left`;
+  return ` + ${l + r} half columns (${l} left, ${r} right)`;
 }
 
 function getCB5HalfRows(data, panelType) {
@@ -670,19 +906,25 @@ function cb5RowGeometry(fullRows, half, fullH, halfH) {
 // Live (non-deleted) panels in a grid of `fullRows` full rows with half.top / half.bottom
 // CB5 half rows around it, split into full and half panels. `deleted` holds "c,r" keys
 // (a Set, or an array after a JSON round-trip). `cols` limits the count to those columns.
-function countCB5LivePanels(pw, fullRows, half, deleted, cols) {
+function countCB5LivePanels(pw, fullRows, half, deleted, cols, halfCols) {
   const del = deleted instanceof Set ? deleted : new Set(Array.isArray(deleted) ? deleted : []);
-  const columns = cols || Array.from({length: pw}, (_, c) => c);
+  const hc = halfCols || {left: 0, right: 0};
+  const columns = cols || Array.from({length: hc.left + pw + hc.right}, (_, c) => c);
   const rows = half.top + fullRows + half.bottom;
-  let full = 0, halfCount = 0;
+  // `vert`: half-column panels in full rows (V4ST-V); `quarter`: where they cross a half row
+  let full = 0, halfCount = 0, vert = 0, quarter = 0;
   for(let r = 0; r < rows; r++) {
     const isHalf = r < half.top || r >= half.top + fullRows;
     columns.forEach(c => {
       if(del.has(`${c},${r}`)) return;
-      if(isHalf) halfCount++; else full++;
+      const inHalfCol = c < hc.left || c >= hc.left + pw;
+      if(isHalf && inHalfCol) quarter++;
+      else if(inHalfCol) vert++;
+      else if(isHalf) halfCount++;
+      else full++;
     });
   }
-  return {full, half: halfCount};
+  return {full, half: halfCount, vert, quarter};
 }
 
 // cb5RowGeometry for the current screen's wall: the full rows from the dimension inputs
@@ -766,6 +1008,60 @@ function syncCB5RowKeys() {
   customSocaAssignments = rebaseCB5RowKeys(customSocaAssignments, from, to);
   customDataLineAssignments = rebaseCB5RowKeys(customDataLineAssignments, from, to);
   customDataDestinations = rebaseCB5RowKeys(customDataDestinations, from, to);
+  if(typeof screens !== 'undefined' && screens[currentScreenId]) {
+    const data = screens[currentScreenId].data;
+    data.deletedPanels = new Set(deletedPanels);
+    data.selectedPanels = new Set(selectedPanels);
+    data.customCircuitAssignments = new Map(customCircuitAssignments);
+    data.customSocaAssignments = new Map(customSocaAssignments);
+    data.customDataLineAssignments = new Map(customDataLineAssignments);
+    data.customDataDestinations = new Map(customDataDestinations);
+  }
+}
+
+// A screen's column layout as its panel keys see it, the twin of cb5RowLayout
+function gridColLayout(half, fullCols) {
+  return {left: half.left, full: fullCols, hasHalf: half.left + half.right > 0};
+}
+
+// Re-key column-keyed panel entries ("c,r") from one column layout to another, as
+// rebaseCB5RowKeys does for rows
+function rebaseGridColKeys(coll, from, to) {
+  if(!from.hasHalf && !to.hasHalf) return coll;
+  const moveCol = c => {
+    if(c < from.left) return c - from.left + to.left;
+    if(c < from.left + from.full) return (c - from.left < to.full) ? to.left + (c - from.left) : -1;
+    return to.left + to.full + (c - from.left - from.full);
+  };
+  const moveKey = k => {
+    const [c, r] = String(k).split(',').map(Number);
+    const nc = moveCol(c);
+    return nc >= 0 ? `${nc},${r}` : null;
+  };
+  if(coll instanceof Map) {
+    const out = new Map();
+    coll.forEach((v, k) => { const nk = moveKey(k); if(nk !== null) out.set(nk, v); });
+    return out;
+  }
+  const out = new Set();
+  (coll || []).forEach(k => { const nk = moveKey(k); if(nk !== null) out.add(nk); });
+  return out;
+}
+
+// syncCB5RowKeys for columns: adding left half columns moves every panel right, and
+// changing the full columns moves the right half columns
+function syncHalfColKeys() {
+  const from = halfColKeyLayout;
+  const to = gridColLayout(getCurrentHalfCols(), getEffectivePanelCounts().pw);
+  halfColKeyLayout = to;
+  if(from.left === to.left && from.full === to.full) return;
+  if(!from.hasHalf && !to.hasHalf) return;
+  deletedPanels = rebaseGridColKeys(deletedPanels, from, to);
+  selectedPanels = rebaseGridColKeys(selectedPanels, from, to);
+  customCircuitAssignments = rebaseGridColKeys(customCircuitAssignments, from, to);
+  customSocaAssignments = rebaseGridColKeys(customSocaAssignments, from, to);
+  customDataLineAssignments = rebaseGridColKeys(customDataLineAssignments, from, to);
+  customDataDestinations = rebaseGridColKeys(customDataDestinations, from, to);
   if(typeof screens !== 'undefined' && screens[currentScreenId]) {
     const data = screens[currentScreenId].data;
     data.deletedPanels = new Set(deletedPanels);

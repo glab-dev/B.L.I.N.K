@@ -48,6 +48,11 @@ function getDefaultScreenData() {
     panelType: 'BP2_V2',
     addCB5HalfRow: false,
     cb5HalfRowPosition: 'below', // 'below' | 'above' | 'both'
+    addHalfCols: false,
+    halfColPosition: 'right', // 'left' | 'right' | 'both'
+    halfColsLeft: 1,
+    halfColsRight: 1,
+    quarterCorners: false,
     cb5HalfRowsAbove: 1,
     cb5HalfRowsBelow: 1,
     connectionMethod: 'airframe', // 'airframe' or 'plates'
@@ -306,6 +311,11 @@ function saveCurrentScreenData() {
   // CB5-specific options - use the global toggle state
   data.addCB5HalfRow = cb5HalfRowEnabled;
   data.cb5HalfRowPosition = cb5HalfRowPosition;
+  data.addHalfCols = halfColEnabled;
+  data.halfColPosition = halfColPosition;
+  data.halfColsLeft = halfColsLeft;
+  data.halfColsRight = halfColsRight;
+  data.quarterCorners = quarterCornersEnabled;
   data.cb5HalfRowsAbove = cb5HalfRowsAbove;
   data.cb5HalfRowsBelow = cb5HalfRowsBelow;
 
@@ -629,8 +639,9 @@ function loadScreenData(screenId) {
   // Update connecting plates visibility
   updateConnectingPlatesVisibility(panelType);
   
-  // Restore per-screen CB5 half row toggle, position and counts
+  // Restore per-screen CB5 half row toggle, position and counts, and the half columns
   loadCB5HalfRowState(data, panelType);
+  loadHalfColState(data, panelType);
 
   // Restore per-screen Share Distro toggle
   if(typeof shareDistroEnabled !== 'undefined') {

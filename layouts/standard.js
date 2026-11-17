@@ -3,7 +3,7 @@
 // Called by generateLayout() dispatcher in index.html.
 
 function renderStandardLayout(params) {
-  const {pw, ph, panelWidth, rowGeo, canvas, ctx, fontSize} = params;
+  const {pw, ph, rowGeo, colGeo, canvas, ctx, fontSize} = params;
 
   currentCanvas = canvas;
   currentPw = pw;
@@ -13,10 +13,12 @@ function renderStandardLayout(params) {
     for(let r=0;r<ph;r++){
       const panelKey = `${c},${r}`;
 
-      // Row height and Y position: CB5 half panel rows (above/below the full rows) are shorter
+      // Row height and Y position: CB5 half panel rows (above/below the full rows) are shorter,
+      // and half columns (V4ST-V) narrower
       const currentPanelHeight = rowGeo.h(r);
       const y = rowGeo.y(r);
-      const x = c * panelWidth;
+      const x = colGeo.x(c);
+      const panelWidth = colGeo.w(c);
 
       // Skip deleted panels
       if(deletedPanels.has(panelKey)) {

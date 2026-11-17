@@ -2668,10 +2668,13 @@
               <option value="V4ST_Q">ROE V4ST-Q</option>
             </select>
           </label>
-          <!-- CB5 Half Panel Row Toggle (only visible when CB5 MKII is selected) -->
+          <!-- Add-panel toggles for panels with smaller partners (core/state.js updateGridAddButtons):
+               CB5 MKII its 1/2 row; V4ST its -H rows, -V columns and -Q corners -->
           <div id="cb5HalfPanelToggle" class="mt-8" style="display: none;">
-            <div class="toggle-group">
-              <button type="button" class="toggle-btn" id="addCB5HalfRowBtn" onclick="toggleCB5HalfRow()">+ Half Panel Row</button>
+            <div class="toggle-group grid-add-group">
+              <button type="button" class="toggle-btn" id="addCB5HalfRowBtn" onclick="toggleCB5HalfRow()">+ CB5 1/2 Row</button>
+              <button type="button" class="toggle-btn" id="addHalfColBtn" onclick="toggleHalfCols()" style="display: none;">+ V4ST-V</button>
+              <button type="button" class="toggle-btn" id="addQuarterBtn" onclick="toggleQuarterCorners()" style="display: none;" title="Fills the corners where a half column meets a half row">+ V4ST-Q</button>
             </div>
             <!-- Half row position + count (only visible while the half row toggle is on) -->
             <div id="cb5HalfRowOptions" class="mt-8" style="display: none;">
@@ -2709,6 +2712,49 @@
                         <span class="material-symbols-outlined icon-14">keyboard_arrow_up</span>
                       </button>
                       <button type="button" onclick="adjustNumberInput('cb5HalfRowsBelow', -1)">
+                        <span class="material-symbols-outlined icon-14">keyboard_arrow_down</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Half column position + count (only visible while the half column toggle is on) -->
+            <div id="halfColOptions" class="mt-8" style="display: none;">
+              <div class="compact-row">
+                <div class="flex-noshrink">
+                  <span class="toggle-label toggle-label-block">Column Position</span>
+                  <div class="slider-toggle">
+                    <button type="button" class="slider-toggle-btn" id="halfColLeftBtn" onclick="setHalfColPosition('left')">Left</button>
+                    <button type="button" class="slider-toggle-btn active" id="halfColRightBtn" onclick="setHalfColPosition('right')">Right</button>
+                    <button type="button" class="slider-toggle-btn" id="halfColBothBtn" onclick="setHalfColPosition('both')">Both</button>
+                  </div>
+                </div>
+              </div>
+              <div class="compact-row mt-8">
+                <div class="flex-noshrink" id="halfColsLeftField" style="display: none;">
+                  <span class="toggle-label toggle-label-block">Columns Left</span>
+                  <div class="number-input-with-arrows">
+                    <input type="number" id="halfColsLeft" value="1" min="1" oninput="setHalfColCount('left', this.value)">
+                    <div class="number-input-arrows">
+                      <button type="button" onclick="adjustNumberInput('halfColsLeft', 1)">
+                        <span class="material-symbols-outlined icon-14">keyboard_arrow_up</span>
+                      </button>
+                      <button type="button" onclick="adjustNumberInput('halfColsLeft', -1)">
+                        <span class="material-symbols-outlined icon-14">keyboard_arrow_down</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex-noshrink" id="halfColsRightField">
+                  <span class="toggle-label toggle-label-block">Columns Right</span>
+                  <div class="number-input-with-arrows">
+                    <input type="number" id="halfColsRight" value="1" min="1" oninput="setHalfColCount('right', this.value)">
+                    <div class="number-input-arrows">
+                      <button type="button" onclick="adjustNumberInput('halfColsRight', 1)">
+                        <span class="material-symbols-outlined icon-14">keyboard_arrow_up</span>
+                      </button>
+                      <button type="button" onclick="adjustNumberInput('halfColsRight', -1)">
                         <span class="material-symbols-outlined icon-14">keyboard_arrow_down</span>
                       </button>
                     </div>

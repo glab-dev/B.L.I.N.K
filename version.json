@@ -1,5 +1,5 @@
 {
-  "version": "2.11.249",
-  "updated": "2026-11-16",
-  "changelog": "Draw canvas corner squares in off-white, underneath the screen text"
+  "version": "2.11.250",
+  "updated": "2026-11-17",
+  "changelog": "Count panels above a dropped 2W in its pickup weight on notched walls"
 }

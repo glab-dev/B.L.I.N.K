@@ -292,17 +292,11 @@ function calculateBumperPickupWeight(bumper) {
     
     directColumns.push(colStart, colEnd);
     
-    // For hanging bumpers, we need to calculate from the row the bumper is sitting on
-    // (which accounts for dropped position due to deleted top panels)
-    let startRow = firstFullRow;
-    if(bumper.position === 'top') {
-      // Find the first non-deleted row for both columns - bumper sits on the deeper one
-      const row1 = getFirstNonDeletedRow(colStart, endFullRow, firstFullRow);
-      const row2 = getFirstNonDeletedRow(colEnd, endFullRow, firstFullRow);
-      startRow = Math.max(row1, row2);
-    }
-    
+    // For hanging bumpers, each column counts from its own first live panel down: the bumper
+    // drops to the deeper of its two columns, and still carries the panels of the other
+    // column that sit above it
     for(let c = colStart; c <= colEnd; c++) {
+      const startRow = bumper.position === 'top' ? getFirstNonDeletedRow(c, endFullRow, firstFullRow) : firstFullRow;
       for(let r = startRow; r < endFullRow; r++) {
         const panelKey = `${c},${r}`;
         if(!deletedPanels.has(panelKey)) {

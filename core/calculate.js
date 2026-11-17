@@ -1346,6 +1346,11 @@ function calculate(){
       portsNeededFinal: portsNeededFinal,
       panelsPerDataLine: panelsPerDataLine,
       totalPixels: totalPixels,
+      // Wall size and resolution with the half rows included, as the Specs show them
+      resX: resX,
+      resY: resY,
+      wallWidthM: wallWM,
+      wallHeightM: adjustedWallHM,
 
       // Power
       circuitsNeeded: circuitsByColumns,

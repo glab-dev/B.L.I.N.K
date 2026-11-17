@@ -1,5 +1,5 @@
 {
-  "version": "2.11.253",
+  "version": "2.11.254",
   "updated": "2026-11-17",
-  "changelog": "Bring back Home and Quick Save on desktop and shrink the panel dropdown's series headings"
+  "changelog": "Show half rows in the PDF summary bar's size, resolution, pixels and panel weight"
 }

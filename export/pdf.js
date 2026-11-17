@@ -1037,16 +1037,18 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
 
   const panelWidthM  = p.width_m  || 0;
   const panelHeightM = p.height_m || 0;
-  const wallWidthFt  = pw * panelWidthM * 3.28084;
-  const wallHeightFt = ph * panelHeightM * 3.28084;
-  const wallWidthM   = pw * panelWidthM;
-  const wallHeightM  = ph * panelHeightM;
+  // The wall as calculated: half rows included, live panels only, as the Specs show it.
+  // A screen calculated before these were stored falls back to its full panels.
+  const wallWidthM   = cd.wallWidthM || pw * panelWidthM;
+  const wallHeightM  = cd.wallHeightM || ph * panelHeightM;
+  const wallWidthFt  = wallWidthM * 3.28084;
+  const wallHeightFt = wallHeightM * 3.28084;
 
   const activePanels  = cd.activePanels || (pw * ph);
-  const totalPixels   = pw * (p.res_x || 0) * ph * (p.res_y || 0);
+  const totalPixels   = cd.totalPixels || pw * (p.res_x || 0) * ph * (p.res_y || 0);
   const panelWtKg     = p.weight_kg || 0;
   const panelWtLbs    = panelWtKg * 2.20462;
-  const panelsTotalWtLbs = Math.ceil(activePanels * panelWtLbs);
+  const panelsTotalWtLbs = Math.ceil(('panelWeightOnlyKg' in cd) ? cd.panelWeightOnlyKg * 2.20462 : activePanels * panelWtLbs);
 
   // Structure weight — read pre-computed fields from calculatedData (mirrors pdf-preview.js)
   const structureType = data.structureType || 'hanging';
@@ -1110,7 +1112,7 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
     ['Dimensions',    (wallWidthFt > 0 && wallHeightFt > 0) ? `${wallWidthFt.toFixed(1)}' × ${wallHeightFt.toFixed(1)}'` : null],
     ['',              (wallWidthM > 0 && wallHeightM > 0) ? `(${wallWidthM.toFixed(2)} × ${wallHeightM.toFixed(2)} m)` : null],
     [`${pw}×${ph} panels`, activePanels ? `${activePanels} active` : null],
-    ['Resolution',    (pw > 0 && ph > 0 && p.res_x) ? `${pw * p.res_x} × ${ph * p.res_y} px` : null],
+    ['Resolution',    (cd.resX && cd.resY) ? `${cd.resX} × ${cd.resY} px` : ((pw > 0 && ph > 0 && p.res_x) ? `${pw * p.res_x} × ${ph * p.res_y} px` : null)],
     ['Total Pixels',  totalPixels > 0 ? totalPixels.toLocaleString() + ' px' : null],
     ['Panels Weight', panelsTotalWtLbs > 0 ? `${panelsTotalWtLbs} lbs` : null],
     ['Structure Wt',  structWtLbs > 0 ? `${Math.ceil(structWtLbs)} lbs` : null],

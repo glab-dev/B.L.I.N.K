@@ -266,7 +266,7 @@ function buildRasterPanelOptions(selectedValue) {
     builtInByBrand[brand].slice().sort(function(x, y) { return (x.panel.series || '').localeCompare(y.panel.series || ''); }).forEach(function(item) {
       if(item.panel.series && item.panel.series !== series) {
         series = item.panel.series;
-        html += '<option disabled>— ' + escapeHtml(series) + ' —</option>';
+        html += '<option disabled class="panel-series-heading">' + escapeHtml(series) + '</option>';
       }
       html += '<option value="' + item.key + '"' + (item.key === selectedValue ? ' selected' : '') + '>' +
               escapeHtml(item.panel.name) + '</option>';

@@ -234,6 +234,27 @@ body::after {
   color: #fff;
 }
 
+/* Home and Quick Save sit in the header on desktop only; a phone's header has no room */
+@media (max-width: 767px) {
+  .mobile-header-btn.header-desktop-only {
+    display: none;
+  }
+}
+
+/* Panel dropdowns: a little smaller, with the model series headings smaller still.
+   Browsers that draw the list natively (macOS) keep their own sizes. */
+#panelType option,
+.raster-select option {
+  font-size: 13px;
+}
+
+#panelType option.panel-series-heading,
+.raster-select option.panel-series-heading {
+  font-size: 10px;
+  font-weight: 700;
+  color: #888;
+}
+
 /* Undo / Redo, centred between the title and the other header buttons */
 .header-history {
   flex: 1;

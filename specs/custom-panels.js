@@ -148,7 +148,8 @@ function updatePanelDropdowns() {
         series = panel.series;
         const heading = document.createElement('option');
         heading.disabled = true;
-        heading.textContent = `— ${series} —`;
+        heading.className = 'panel-series-heading';
+        heading.textContent = series;
         brandGroup.appendChild(heading);
       }
       const option = document.createElement('option');

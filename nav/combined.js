@@ -3694,10 +3694,13 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
   const canvas = document.getElementById('combinedStructureCanvas');
   if(!canvas) return;
 
+  // Bumper bar height for a screen: CB5 MKII's proportion to its panels on every wall, as
+  // the Structure layout draws them (layouts/structure.js structureBumperHeights)
+  const bumperHeightOf = data => Math.max(25, panelSize * 0.7 * getPanelHeightRatio(data.panelType || 'CB5_MKII') / 2);
   // Add extra height for bumpers at top and bottom
-  const bumperHeight = Math.max(25, panelSize * 0.7);
+  const bumperHeight = screenDimensions.length ? Math.max(...screenDimensions.map(dim => bumperHeightOf(dim.data))) : Math.max(25, panelSize * 0.7);
   // 4W bumpers get their own band beyond the 2Ws they join, as in the Structure layout
-  const fourWayHeight = Math.max(12, Math.round(bumperHeight * 0.5));
+  const fourWayHeightOf = data => Math.max(12, Math.round(bumperHeightOf(data) * 0.5));
   const fourWayGap = 5;
   ({ width: canvasWidth, height: canvasHeight } = combinedArrangedCanvasSize(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding));
 
@@ -3715,10 +3718,10 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
       screenId: dim.screenId,
       y: origin.y,
       bottom: origin.y + totalH,
-      below: (bumpers.some(b => b.position === 'top') ? bumperHeight + 5 : 0) + totalH +
-             (bumpers.some(b => b.position === 'bottom') ? bumperHeight + 5 : 0) +
-             (bumpers.some(b => b.type === '4w' && b.position === 'top') ? fourWayHeight + fourWayGap : 0) +
-             (bumpers.some(b => b.type === '4w' && b.position === 'bottom') ? fourWayHeight + fourWayGap : 0),
+      below: (bumpers.some(b => b.position === 'top') ? bumperHeightOf(dim.data) + 5 : 0) + totalH +
+             (bumpers.some(b => b.position === 'bottom') ? bumperHeightOf(dim.data) + 5 : 0) +
+             (bumpers.some(b => b.type === '4w' && b.position === 'top') ? fourWayHeightOf(dim.data) + fourWayGap : 0) +
+             (bumpers.some(b => b.type === '4w' && b.position === 'bottom') ? fourWayHeightOf(dim.data) + fourWayGap : 0),
       shift: 0
     };
   }).sort((a, b) => a.y - b.y);
@@ -3755,7 +3758,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     const structureType = data.structureType || 'hanging';
 
     if(data.freeCellPanel) {
-      drawFreeCombinedStructure(ctx, screen, data, screenX, screenTop, panelSize, bumperHeight, fourWayHeight, fourWayGap);
+      drawFreeCombinedStructure(ctx, screen, data, screenX, screenTop, panelSize, bumperHeightOf(data), fourWayHeightOf(data), fourWayGap);
       return;
     }
 
@@ -3776,6 +3779,8 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     // Calculate panel dimensions for CB5_MKII (rectangular) vs other panels (square)
     const screenPanelType = data.panelType || 'CB5_MKII';
     const screenHeightRatio = getPanelHeightRatio(screenPanelType);
+    const screenBumperHeight = bumperHeightOf(data);
+    const screenFourWayHeight = fourWayHeightOf(data);
     const drawPanelWidth = panelSize;
     const drawPanelHeight = panelSize * screenHeightRatio;
 
@@ -3802,10 +3807,10 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     // Calculate panel Y position based on bumper placement
     let panelYOffset = screenTop;
     if(hasTopBumpers) {
-      panelYOffset += bumperHeight + 5;
+      panelYOffset += screenBumperHeight + 5;
     }
     if(hasTop4w) {
-      panelYOffset += fourWayHeight + fourWayGap;
+      panelYOffset += screenFourWayHeight + fourWayGap;
     }
 
     // Draw panels first (white background with black outline, same as original)
@@ -3852,12 +3857,12 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 
         if(bumper.position === 'top') {
           // Top bumpers, under the 4W band when there is one
-          bumperY = (bumper.type === '4w' || !hasTop4w) ? screenTop : screenTop + fourWayHeight + fourWayGap;
+          bumperY = (bumper.type === '4w' || !hasTop4w) ? screenTop : screenTop + screenFourWayHeight + fourWayGap;
         } else {
           // Bottom bumpers - use total screen height which accounts for half panel row
-          bumperY = panelYOffset + screenTotalHeight + 5 + (bumper.type === '4w' ? bumperHeight + fourWayGap : 0);
+          bumperY = panelYOffset + screenTotalHeight + 5 + (bumper.type === '4w' ? screenBumperHeight + fourWayGap : 0);
         }
-        const bumperH = bumper.type === '4w' ? fourWayHeight : bumperHeight;
+        const bumperH = bumper.type === '4w' ? screenFourWayHeight : screenBumperHeight;
 
         // Use colors matching original: green for top 2W, orange for bottom, blue for 1W, orange for 4W
         let fillColor = '#4CAF50'; // Default green

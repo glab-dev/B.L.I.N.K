@@ -92,6 +92,17 @@ function getFloorFrameCounts(frames) {
 }
 
 // Structure View generation
+// The Structure layout's bumper bar heights for panels drawn `size` px wide: every wall's
+// bars sit in the proportion CB5 MKII's tall panels have always had (a bar 40% of a full
+// panel's height, a 4W bar 20%), never under 30 / 15 px. The hit tests use the same.
+function structureBumperHeights(size) {
+  const heightRatio = getPanelHeightRatio(document.getElementById('panelType').value);
+  return {
+    bumperHeight: Math.max(30, size * 0.8 * heightRatio / 2),
+    fourWayHeight: Math.max(15, size * 0.4 * heightRatio / 2)
+  };
+}
+
 function generateStructureLayout(){
   // Drawn screens work their bumpers out from the drawn panels (layouts/free-structure.js)
   if(isFreeCurrentScreen()) {
@@ -149,8 +160,7 @@ function generateStructureLayout(){
   const colGeo = gridColGeometry(pw - halfColCount, halfCols, panelWidth, size * colWidthRatio);
   structureColGeo = colGeo;
 
-  const bumperHeight = Math.max(30, size * 0.8); // Scale bumper height with panel size
-  const fourWayHeight = Math.max(15, size * 0.4); // Scale 4-way height with panel size
+  const { bumperHeight, fourWayHeight } = structureBumperHeights(size);
   const fourWayGap = 5; // Gap between 2W and 4W bumpers
 
   // Check if 4-way bumpers are enabled

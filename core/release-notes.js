@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.255', date: '2026-11-17', notes: 'Draw every wall\'s Structure bumpers in CB5 MKII\'s proportion to its panels' },
   { version: '2.11.254', date: '2026-11-17', notes: 'Show half rows in the PDF summary bar\'s size, resolution, pixels and panel weight' },
   { version: '2.11.253', date: '2026-11-17', notes: 'Bring back Home and Quick Save on desktop and shrink the panel dropdown\'s series headings' },
   { version: '2.11.252', date: '2026-11-17', notes: 'Centre the Combined screen name on the nearest panel to the wall\'s middle' },

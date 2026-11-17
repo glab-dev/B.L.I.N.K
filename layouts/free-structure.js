@@ -558,8 +558,10 @@ function renderFreeStructureLayout() {
   const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
   const maxCanvasWidth = pdf ? Math.min(containerWidth, 4000) : Math.min(containerWidth, 800);
   const {cellPx, unitPx} = freeLayoutSize(data, allPanels, b.maxX, maxCanvasWidth, pdf);
-  const bumperH = Math.max(30, unitPx * 0.8);
-  const fourWayH = Math.max(15, unitPx * 0.4);
+  // In CB5 MKII's proportion to the main panel, as the grid Structure layout draws them
+  const mainRatio = getPanelHeightRatio(data.panelType);
+  const bumperH = Math.max(30, unitPx * 0.8 * mainRatio / 2);
+  const fourWayH = Math.max(15, unitPx * 0.4 * mainRatio / 2);
   const fourWayGap = 5;
   // The 4W band also stays open to place 4Ws in by hand, as the grid layout keeps it
   const band = st.position ? bumperH + (st.counts['4w'] || (manualBumperMode && st.takes4w) ? fourWayH + fourWayGap : 0) : 0;

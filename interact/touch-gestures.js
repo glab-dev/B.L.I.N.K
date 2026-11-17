@@ -159,7 +159,7 @@ function setupMobileLongPress() {
         const pw = parseInt(document.getElementById('panelsWide').value) || 0;
         const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
         const size = panelSize; // Use global panelSize for consistent sizing
-        const bumperHeight = Math.max(30, size * 0.8);
+        const { bumperHeight } = structureBumperHeights(size);
 
         const column = Math.floor(x / size);
 

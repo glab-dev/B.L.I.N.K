@@ -559,8 +559,7 @@ function getStructurePanelAtMouse(canvas, clientX, clientY) {
   const {pw, ph} = getEffectivePanelCountsForLayout();
 
   // Calculate panel Y offset (accounting for top bumpers)
-  const bumperHeight = Math.max(30, size * 0.8);
-  const fourWayHeight = Math.max(15, size * 0.4);
+  const { bumperHeight, fourWayHeight } = structureBumperHeights(size);
   const fourWayGap = Math.max(3, size * 0.1);
   const use4Way = use4WayBumpersEnabled;
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
@@ -615,8 +614,7 @@ function getStructurePanelsInRect(startX, startY, endX, endY) {
   const {pw, ph} = getEffectivePanelCountsForLayout();
 
   // Calculate panel Y offset
-  const bumperHeight = Math.max(30, size * 0.8);
-  const fourWayHeight = Math.max(15, size * 0.4);
+  const { bumperHeight, fourWayHeight } = structureBumperHeights(size);
   const fourWayGap = Math.max(3, size * 0.1);
   const use4Way = use4WayBumpersEnabled;
   const panelType = document.getElementById('panelType').value;

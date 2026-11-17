@@ -58,7 +58,9 @@ function freeEditData() {
     panelsHigh: parseInt(document.getElementById('panelsHigh').value) || 0,
     deletedPanels: deletedPanels,
     addCB5HalfRow: cb5HalfRowEnabled, cb5HalfRowPosition: cb5HalfRowPosition,
-    cb5HalfRowsAbove: cb5HalfRowsAbove, cb5HalfRowsBelow: cb5HalfRowsBelow
+    cb5HalfRowsAbove: cb5HalfRowsAbove, cb5HalfRowsBelow: cb5HalfRowsBelow,
+    addHalfCols: halfColEnabled, halfColPosition: halfColPosition,
+    halfColsLeft: halfColsLeft, halfColsRight: halfColsRight
   };
   const drawn = gridToFreePanels(live, getAllPanels());
   return {panelType: live.panelType, layoutMode: 'free', freeCell_mm: drawn.cellMm, freePanels: drawn.list, moved: drawn.moved};
@@ -339,18 +341,26 @@ function gridToFreePanels(data, allPanels) {
   const list = [], moved = new Map();
   if(!fam.cellMm || !main) return {list, moved, cellMm: fam.cellMm};
   const half = getCB5HalfRows(data, data.panelType);
+  const halfCols = getHalfCols(data, data.panelType);
   const deleted = data.deletedPanels instanceof Set ? data.deletedPanels : new Set(data.deletedPanels || []);
   const pw = parseInt(data.panelsWide) || 0, ph = parseInt(data.panelsHigh) || 0;
-  const {cw, ch} = freeCells(main, fam.cellMm);
-  let gy = 0;
+  // Each column's width and each row's height in cells: half columns (V4ST-V) are narrower,
+  // half rows (CB5 MKII Half, V4ST-H) shorter
+  const cellsOf = type => freeCells(allPanels[type], fam.cellMm);
+  const colX = [0], rowY = [0];
+  for(let c = 0; c < halfCols.left + pw + halfCols.right; c++) {
+    colX.push(colX[c] + cellsOf(gridPanelTypeAt(data.panelType, c, half.top, half, ph, halfCols, pw)).cw);
+  }
   for(let r = 0; r < half.top + ph + half.bottom; r++) {
-    const type = (r < half.top || r >= half.top + ph) ? halfPanelTypeOf(data.panelType) : data.panelType;
-    for(let c = 0; c < pw; c++) {
-      if(deleted.has(`${c},${r}`)) continue;
-      list.push({type, gx: c * cw, gy});
-      moved.set(`${c},${r}`, `${c * cw},${gy}`);
+    rowY.push(rowY[r] + cellsOf(gridPanelTypeAt(data.panelType, halfCols.left, r, half, ph, halfCols, pw)).ch);
+  }
+  for(let r = 0; r < rowY.length - 1; r++) {
+    for(let c = 0; c < colX.length - 1; c++) {
+      const type = gridPanelTypeAt(data.panelType, c, r, half, ph, halfCols, pw);
+      if(!type || deleted.has(`${c},${r}`)) continue;
+      list.push({type, gx: colX[c], gy: rowY[r]});
+      moved.set(`${c},${r}`, `${colX[c]},${rowY[r]}`);
     }
-    gy += type === data.panelType ? ch : freeCells(allPanels[type], fam.cellMm).ch;
   }
   return {list, moved, cellMm: fam.cellMm};
 }
@@ -362,39 +372,58 @@ function freeToGrid(data, allPanels) {
   const main = allPanels[data.panelType];
   if(!main || !data.freePanels.length) return null;
   const cellMm = data.freeCell_mm;
-  const {cw, ch} = freeCells(main, cellMm);
-  const b = freeBounds(data.freePanels, allPanels, cellMm);
-  const rowsByY = new Map();
+  // Each panel's place in the grid: main (full row and column), half-row (V4ST-H, CB5 MKII
+  // Half), half-column (V4ST-V) or quarter (V4ST-Q, where the two cross)
+  const kinds = {};
+  kinds[data.panelType] = {halfRow: false, halfCol: false};
+  if(halfPanelTypeOf(data.panelType)) kinds[halfPanelTypeOf(data.panelType)] = {halfRow: true, halfCol: false};
+  if(halfColPanelTypeOf(data.panelType)) kinds[halfColPanelTypeOf(data.panelType)] = {halfRow: false, halfCol: true};
+  if(quarterPanelTypeOf(data.panelType)) kinds[quarterPanelTypeOf(data.panelType)] = {halfRow: true, halfCol: true};
+  const rowsByY = new Map(), colsByX = new Map();
   for(const fp of data.freePanels) {
-    const half = fp.type !== data.panelType;
-    if(half && fp.type !== halfPanelTypeOf(data.panelType)) return null;
-    if((fp.gx - b.minX) % cw) return null;
-    if(!rowsByY.has(fp.gy)) rowsByY.set(fp.gy, half);
-    else if(rowsByY.get(fp.gy) !== half) return null;
+    const k = kinds[fp.type];
+    if(!k) return null;
+    if(!rowsByY.has(fp.gy)) rowsByY.set(fp.gy, k.halfRow);
+    else if(rowsByY.get(fp.gy) !== k.halfRow) return null;
+    if(!colsByX.has(fp.gx)) colsByX.set(fp.gx, k.halfCol);
+    else if(colsByX.get(fp.gx) !== k.halfCol) return null;
   }
-  // Rows must stack with no gaps: knocked-out panels are holes in a row, never a missing row
-  const ys = [...rowsByY.keys()].sort((x, y) => x - y);
-  const halfType = halfPanelTypeOf(data.panelType);
-  const halfCh = halfType ? freeCells(allPanels[halfType], cellMm).ch : ch;
-  let y = b.minY, top = 0, full = 0, bottom = 0;
-  for(const gy of ys) {
-    if(gy !== y) return null;
-    const half = rowsByY.get(gy);
-    if(half) { if(full) bottom++; else top++; }
-    else { if(bottom) return null; full++; }
-    y += half ? halfCh : ch;
-  }
-  if(!full) return null;
-  const pw = (b.maxX - b.minX) / cw;
-  const deleted = new Set(), moved = new Map();
-  ys.forEach((gy, r) => {
-    for(let c = 0; c < pw; c++) {
-      const gx = b.minX + c * cw;
-      if(data.freePanels.some(fp => fp.gx === gx && fp.gy === gy)) moved.set(`${gx},${gy}`, `${c},${r}`);
-      else deleted.add(`${c},${r}`);
+  const sizeOf = (halfRow, halfCol) => {
+    const t = Object.keys(kinds).find(t => kinds[t].halfRow === halfRow && kinds[t].halfCol === halfCol);
+    return t ? freeCells(allPanels[t], cellMm) : null;
+  };
+  // Rows and columns must butt up with no gaps (knocked-out panels are holes, never a missing
+  // row or column), the half ones only before or after the full ones
+  const lineUp = (byPos, step) => {
+    const ps = [...byPos.keys()].sort((a, b) => a - b);
+    let at = ps[0], before = 0, full = 0, after = 0;
+    for(const pos of ps) {
+      if(pos !== at) return null;
+      const half = byPos.get(pos);
+      const size = step(half);
+      if(!size) return null;
+      if(half) { if(full) after++; else before++; }
+      else { if(after) return null; full++; }
+      at += size;
     }
-  });
-  return {pw, ph: full, top, bottom, deleted, moved};
+    return full ? {ps, before, full, after} : null;
+  };
+  const rows = lineUp(rowsByY, half => (sizeOf(half, false) || sizeOf(half, true) || {}).ch);
+  const cols = lineUp(colsByX, half => (sizeOf(false, half) || sizeOf(true, half) || {}).cw);
+  if(!rows || !cols) return null;
+  const halfRows = {top: rows.before, bottom: rows.after}, halfCols = {left: cols.before, right: cols.after};
+  const at = new Set(data.freePanels.map(fp => `${fp.gx},${fp.gy}`));
+  const quarters = data.freePanels.some(fp => kinds[fp.type].halfRow && kinds[fp.type].halfCol);
+  const deleted = new Set(), moved = new Map();
+  rows.ps.forEach((gy, r) => cols.ps.forEach((gx, c) => {
+    if(at.has(`${gx},${gy}`)) moved.set(`${gx},${gy}`, `${c},${r}`);
+    else deleted.add(`${c},${r}`);
+  }));
+  // A corner only exists as a cell where a half column crosses a half row
+  const isCorner = (c, r) => rowsByY.get(rows.ps[r]) && colsByX.get(cols.ps[c]);
+  rows.ps.forEach((gy, r) => cols.ps.forEach((gx, c) => { if(isCorner(c, r) && !quarters) deleted.add(`${c},${r}`); }));
+  return {pw: cols.full, ph: rows.full, top: halfRows.top, bottom: halfRows.bottom,
+    left: halfCols.left, right: halfCols.right, quarters, deleted, moved};
 }
 
 // Rewrites a screen's custom circuit / SOCA / data assignments onto new panel keys
@@ -420,6 +449,13 @@ function storeScreenAsGrid(data, grid, drawBuild) {
     data.cb5HalfRowsAbove = grid.top || 1;
     data.cb5HalfRowsBelow = grid.bottom || 1;
   }
+  data.addHalfCols = !!grid && grid.left + grid.right > 0;
+  if(data.addHalfCols) {
+    data.halfColPosition = grid.left && grid.right ? 'both' : (grid.left ? 'left' : 'right');
+    data.halfColsLeft = grid.left || 1;
+    data.halfColsRight = grid.right || 1;
+  }
+  data.quarterCorners = !!grid && grid.quarters;
 }
 
 // Stores the current screen as a free screen holding `list` (already starting at cell 0,0)

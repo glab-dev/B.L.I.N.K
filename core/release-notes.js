@@ -5,6 +5,11 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.254', date: '2026-11-17', notes: 'Show half rows in the PDF summary bar\'s size, resolution, pixels and panel weight' },
+  { version: '2.11.253', date: '2026-11-17', notes: 'Bring back Home and Quick Save on desktop and shrink the panel dropdown\'s series headings' },
+  { version: '2.11.252', date: '2026-11-17', notes: 'Centre the Combined screen name on the nearest panel to the wall\'s middle' },
+  { version: '2.11.251', date: '2026-11-17', notes: 'Count Combined gear plates from each wall\'s Structure layout instead of guessing' },
+  { version: '2.11.250', date: '2026-11-17', notes: 'Count panels above a dropped 2W in its pickup weight on notched walls' },
   { version: '2.11.249', date: '2026-11-16', notes: 'Draw canvas corner squares in off-white, underneath the screen text' },
   { version: '2.11.248', date: '2026-11-16', notes: 'Label each screen\'s own cable distances under its drop in the Combined cable diagram' },
   { version: '2.11.247', date: '2026-11-16', notes: 'Widen the Complex page, move Specs beside the form on cards, and put layout toggles in the options boxes' },

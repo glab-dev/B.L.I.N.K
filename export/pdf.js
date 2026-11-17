@@ -1044,16 +1044,19 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
   // A drawn screen mixes panel sizes: its totals come from the drawn panels themselves
   const drawn = (typeof isFreeScreen === 'function' && isFreeScreen(data))
     ? freeWallTotals(data, getAllPanels(), data.powerType || 'max') : null;
-  const wallWidthM   = drawn ? drawn.widthM : pw * panelWidthM;
-  const wallHeightM  = drawn ? drawn.heightM : ph * panelHeightM;
+  // Otherwise the wall as calculated: half rows and columns included, live panels only, as
+  // the Specs show it. A screen calculated before these were stored falls back to its full panels.
+  const wallWidthM   = drawn ? drawn.widthM : (cd.wallWidthM || pw * panelWidthM);
+  const wallHeightM  = drawn ? drawn.heightM : (cd.wallHeightM || ph * panelHeightM);
   const wallWidthFt  = wallWidthM * 3.28084;
   const wallHeightFt = wallHeightM * 3.28084;
 
   const activePanels  = cd.activePanels || (pw * ph);
-  const totalPixels   = drawn ? (cd.totalPixels || 0) : pw * (p.res_x || 0) * ph * (p.res_y || 0);
+  const totalPixels   = drawn ? (cd.totalPixels || 0) : (cd.totalPixels || pw * (p.res_x || 0) * ph * (p.res_y || 0));
   const panelWtKg     = p.weight_kg || 0;
   const panelWtLbs    = panelWtKg * 2.20462;
-  const panelsTotalWtLbs = Math.ceil(drawn ? drawn.weightKg * 2.20462 : activePanels * panelWtLbs);
+  const panelsTotalWtLbs = Math.ceil(drawn ? drawn.weightKg * 2.20462
+    : (('panelWeightOnlyKg' in cd) ? cd.panelWeightOnlyKg * 2.20462 : activePanels * panelWtLbs));
 
   // Structure weight — read pre-computed fields from calculatedData (mirrors pdf-preview.js)
   const structureType = data.structureType || 'hanging';
@@ -1117,7 +1120,7 @@ function buildComplexSummaryBar(screenData, calcData, panelSpec, gearScreenData)
     ['Dimensions',    (wallWidthFt > 0 && wallHeightFt > 0) ? `${wallWidthFt.toFixed(1)}' × ${wallHeightFt.toFixed(1)}'` : null],
     ['',              (wallWidthM > 0 && wallHeightM > 0) ? `(${wallWidthM.toFixed(2)} × ${wallHeightM.toFixed(2)} m)` : null],
     [drawn ? 'Drawn wall' : `${pw}×${ph} panels`, activePanels ? `${activePanels} active` : null],
-    ['Resolution',    (pw > 0 && ph > 0 && p.res_x) ? `${pw * p.res_x} × ${ph * p.res_y} px` : null],
+    ['Resolution',    (cd.resX && cd.resY) ? `${cd.resX} × ${cd.resY} px` : ((pw > 0 && ph > 0 && p.res_x) ? `${pw * p.res_x} × ${ph * p.res_y} px` : null)],
     ['Total Pixels',  totalPixels > 0 ? totalPixels.toLocaleString() + ' px' : null],
     ['Panels Weight', panelsTotalWtLbs > 0 ? `${panelsTotalWtLbs} lbs` : null],
     ['Structure Wt',  structWtLbs > 0 ? `${Math.ceil(structWtLbs)} lbs` : null],

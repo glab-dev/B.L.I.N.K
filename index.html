@@ -2492,8 +2492,14 @@
     </button>
   </div>
   <div class="mobile-header-actions">
+    <button class="mobile-header-btn header-desktop-only" onclick="showWelcomePage()" title="Home" aria-label="Home">
+      <span class="material-symbols-outlined">home</span>
+    </button>
     <button class="mobile-header-btn" onclick="showRecentProjects()" title="Recents">
       <span class="material-symbols-outlined">history</span>
+    </button>
+    <button class="mobile-header-btn header-desktop-only" onclick="quickSaveToApp()" title="Quick Save" aria-label="Quick Save">
+      <span class="material-symbols-outlined">cloud_upload</span>
     </button>
     <button class="mobile-header-btn" onclick="openExportModal()" title="Export">
       <span class="material-symbols-outlined">ios_share</span>
@@ -4136,8 +4142,8 @@
 
 <script>
 // ==================== APP VERSION & UPDATE CHECK ====================
-const APP_VERSION = '2.11.249';
-const APP_CHANGELOG = 'Draw canvas corner squares in off-white, underneath the screen text';
+const APP_VERSION = '2.11.254';
+const APP_CHANGELOG = 'Show half rows in the PDF summary bar\'s size, resolution, pixels and panel weight';
 console.log('JavaScript loaded - v' + APP_VERSION);
 
 // Global unit settings

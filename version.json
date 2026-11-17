@@ -1,5 +1,5 @@
 {
-  "version": "2.11.249",
-  "updated": "2026-11-16",
-  "changelog": "Draw canvas corner squares in off-white, underneath the screen text"
+  "version": "2.11.254",
+  "updated": "2026-11-17",
+  "changelog": "Show half rows in the PDF summary bar's size, resolution, pixels and panel weight"
 }

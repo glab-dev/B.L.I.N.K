@@ -728,7 +728,7 @@ function calculate(){
   
   if(hasCB5HalfRow) {
     // Get half panel specs
-    const halfPanel = panels['CB5_MKII_HALF'];
+    const halfPanel = allPanels[halfPanelTypeOf(panelType)];
 
     // Main panels are all full CB5 panels (pw * ph)
     const mainPanelCount = activePanelsCount; // All live full panels
@@ -741,8 +741,8 @@ function calculate(){
     // Calculate panel weight and add bumper weight
     // Get correct panel weights based on connection method
     const useConnectingPlates = shouldUseConnectingPlates(panelType);
-    const mainPanelWeightKg = getPanelWeight('CB5_MKII', useConnectingPlates);
-    const halfPanelWeightKg = getPanelWeight('CB5_MKII_HALF', useConnectingPlates);
+    const mainPanelWeightKg = getPanelWeight(panelType, useConnectingPlates);
+    const halfPanelWeightKg = getPanelWeight(halfPanelTypeOf(panelType), useConnectingPlates);
     
     const panelWeight = (mainPanelCount * mainPanelWeightKg) + (halfPanelCount * halfPanelWeightKg);
     const bumperWeight = calculateTotalBumperWeight(pw, ph);
@@ -936,7 +936,7 @@ function calculate(){
             // A drawn screen's own panel watts are summed in its inputs
             let _screenW = inp.isFree ? inp.totalW : _live.full * inp.perPanelW;
             if(_live.half > 0) {
-              const _halfP = (typeof getAllPanels === 'function') ? getAllPanels()['CB5_MKII_HALF'] : null;
+              const _halfP = (typeof getAllPanels === 'function') ? getAllPanels()[halfPanelTypeOf(sd.panelType || 'CB5_MKII')] : null;
               if(_halfP) {
                 _screenW += _live.half * ((sd.powerType || 'max') === 'max'
                   ? (_halfP.power_max_w || 0)
@@ -1003,7 +1003,7 @@ function calculate(){
   let capacityBasedPanelsPerData;
   if(hasCB5HalfRow) {
     // With half panels, we need to calculate based on average pixels per panel
-    const halfPanel = panels['CB5_MKII_HALF'];
+    const halfPanel = allPanels[halfPanelTypeOf(panelType)];
     const halfPanelPixels = halfPanel.res_x * halfPanel.res_y;
     const mainPanelCount = activePanelsCount; // All live full panels
     const halfPanelCount = livePanels.half; // Live panels in the half rows
@@ -1049,8 +1049,8 @@ function calculate(){
   const useConnectingPlatesForWeight = shouldUseConnectingPlates(panelType);
   let panelWeightOnly = 0;
   if(hasCB5HalfRow) {
-    const mainPanelWeightKg = getPanelWeight('CB5_MKII', useConnectingPlatesForWeight);
-    const halfPanelWeightKg = getPanelWeight('CB5_MKII_HALF', useConnectingPlatesForWeight);
+    const mainPanelWeightKg = getPanelWeight(panelType, useConnectingPlatesForWeight);
+    const halfPanelWeightKg = getPanelWeight(halfPanelTypeOf(panelType), useConnectingPlatesForWeight);
     const mainPanelCount = activePanelsCount;
     const halfPanelCount = livePanels.half;
     panelWeightOnly = (mainPanelCount * mainPanelWeightKg) + (halfPanelCount * halfPanelWeightKg);
@@ -1486,12 +1486,12 @@ function getCanvasDescription() {
   
   // Check if CB5 half panel row is enabled
   // Using cb5HalfRowEnabled toggle state
-  const hasCB5HalfRow = cb5HalfRowEnabled && document.getElementById('panelType').value === 'CB5_MKII';
+  const hasCB5HalfRow = cb5HalfRowEnabled && !!halfPanelTypeOf(document.getElementById('panelType').value);
   
   // Calculate wall resolution accounting for CB5 half panels
   let wallResX, wallResY;
   if(hasCB5HalfRow) {
-    const halfPanel = panels['CB5_MKII_HALF'];
+    const halfPanel = allPanels[halfPanelTypeOf(document.getElementById('panelType').value)];
     wallResX = pw * p.res_x;
     wallResY = (ph * p.res_y) + halfPanel.res_y; // All full rows + half row
   } else {
@@ -2036,7 +2036,7 @@ function generateLayout(mode){
     : {full: 0, half: 0};
   const panelsPerDataLine = (mode==='data') ? resolvePanelsPerDataLine({
     panel: p,
-    halfPanel: panels['CB5_MKII_HALF'],
+    halfPanel: allPanels[halfPanelTypeOf(document.getElementById('panelType').value)],
     processor: proc,
     frameRate: parseInt(document.getElementById('frameRate').value) || 60,
     bitDepth: parseInt(document.getElementById('bitDepth').value) || 8,

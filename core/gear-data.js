@@ -433,7 +433,7 @@ function buildGearListData(screenIds) {
     const activePanels = calcData.activePanels || calcData.panelCount || 0;
     const activeHalfPanels = countCB5LivePanels(W, H, halfRows, data.deletedPanels).half;
     const activeFullPanels = activePanels - activeHalfPanels;
-    const halfPanelObj = allPanelsObj['CB5_MKII_HALF'];
+    const halfPanelObj = allPanelsObj[halfPanelTypeOf(panelType)];
 
     const equipment = {
       processorType: processorType,

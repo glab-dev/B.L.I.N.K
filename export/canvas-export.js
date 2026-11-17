@@ -160,7 +160,7 @@ function _getScreenDataResolution(sd) {
   var wallH = ph * p.res_y;
   var halfRows = getCB5HalfRows(sd, sd.panelType);
   if(halfRows.top + halfRows.bottom > 0) {
-    var half = getAllPanels()['CB5_MKII_HALF'];
+    var half = getAllPanels()[halfPanelTypeOf(sd.panelType)];
     if(half) wallH += (halfRows.top + halfRows.bottom) * half.res_y;
   }
   return { w: wallW, h: wallH };
@@ -421,7 +421,7 @@ function _drawScreenOutline(ctx, sd, allPanels, ox, oy, bw, scale) {
   var ph = sd.panelsHigh || 0;
   if(pw === 0 || ph === 0) return false;
 
-  var halfPanel = allPanels['CB5_MKII_HALF'];
+  var halfPanel = allPanels[halfPanelTypeOf(panelType)];
   var rowGeo = cb5RowGeometry(ph, getCB5HalfRows(sd, panelType), p.res_y, halfPanel ? halfPanel.res_y : p.res_y);
   var totalRows = rowGeo.rows;
 

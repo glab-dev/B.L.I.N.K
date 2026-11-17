@@ -3304,7 +3304,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     const allProcessorsData = getAllProcessors();
     const panelsPerDataLine = resolvePanelsPerDataLine({
       panel: allPanelsData[screenPanelType],
-      halfPanel: allPanelsData['CB5_MKII_HALF'],
+      halfPanel: allPanelsData[halfPanelTypeOf(screenPanelType)],
       processor: allProcessorsData[data.processor],
       frameRate: parseInt(data.frameRate) || 60,
       bitDepth: parseInt(data.bitDepth) || 8,
@@ -4080,7 +4080,7 @@ function renderCombinedSpecs(selectedScreenIds) {
 
     // Add half panel row to panel count
     if(hasCB5HalfRow) {
-      const halfPanel = allPanels['CB5_MKII_HALF'];
+      const halfPanel = allPanels[halfPanelTypeOf(panelType)];
       if(halfPanel) {
         const halfDisplayName = `${halfPanel.brand} ${halfPanel.name}`;
         if(!panelsByType[halfDisplayName]) panelsByType[halfDisplayName] = 0;
@@ -4093,7 +4093,7 @@ function renderCombinedSpecs(selectedScreenIds) {
     // pixels and then adding the row a second time.
     totalPixels += calcData.totalPixels
       || (fullPanelCount * panel.res_x * panel.res_y)
-         + (halfPanelCount ? halfPanelCount * ((allPanels['CB5_MKII_HALF'] || {}).res_x || 0) * ((allPanels['CB5_MKII_HALF'] || {}).res_y || 0) : 0);
+         + (halfPanelCount ? halfPanelCount * ((allPanels[halfPanelTypeOf(panelType)] || {}).res_x || 0) * ((allPanels[halfPanelTypeOf(panelType)] || {}).res_y || 0) : 0);
 
     // Power - use combined toggle state. Same split: the half-panel row is inside
     // activePanels, so it is billed at the half panel's watts once, not at the full
@@ -4101,7 +4101,7 @@ function renderCombinedSpecs(selectedScreenIds) {
     const powerPerPanel = combinedPowerType === 'max' ? (panel.power_max_w || 0) : (panel.power_avg_w || 0);
     let screenPowerW = fullPanelCount * powerPerPanel;
     if(hasCB5HalfRow) {
-      const halfPanel = allPanels['CB5_MKII_HALF'];
+      const halfPanel = allPanels[halfPanelTypeOf(panelType)];
       if(halfPanel) {
         screenPowerW += halfPanelCount * (combinedPowerType === 'max' ? (halfPanel.power_max_w || 0) : (halfPanel.power_avg_w || 0));
       }
@@ -4133,7 +4133,7 @@ function renderCombinedSpecs(selectedScreenIds) {
       const screenUseConnectingPlates = (panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF') && data.connectionMethod === 'plates';
       totalWeight += fullPanelCount * getPanelWeight(panelType, screenUseConnectingPlates);
       if(hasCB5HalfRow) {
-        totalWeight += halfPanelCount * getPanelWeight('CB5_MKII_HALF', screenUseConnectingPlates);
+        totalWeight += halfPanelCount * getPanelWeight(halfPanelTypeOf(panelType), screenUseConnectingPlates);
       }
     }
 
@@ -4149,7 +4149,7 @@ function renderCombinedSpecs(selectedScreenIds) {
     totalWidth += pw * (panel.width_m || 0.5);
     let screenHeight = ph * (panel.height_m || 0.5);
     if(hasCB5HalfRow) {
-      const halfPanel = allPanels['CB5_MKII_HALF'];
+      const halfPanel = allPanels[halfPanelTypeOf(panelType)];
       if(halfPanel) screenHeight += halfRowCount * (halfPanel.height_m || 0);
     }
     maxHeight = Math.max(maxHeight, screenHeight);
@@ -4376,7 +4376,7 @@ function renderCombinedGearList(selectedScreenIds) {
     const panelLabel = `${panel.brand} ${panel.name}`;
     panelsByType[panelLabel] = (panelsByType[panelLabel] || 0) + fullPanelCount;
     if(halfPanelCount > 0) {
-      const halfPanel = allPanels['CB5_MKII_HALF'];
+      const halfPanel = allPanels[halfPanelTypeOf(panelType)];
       const halfLabel = halfPanel ? `${halfPanel.brand} ${halfPanel.name}` : `${panel.brand} CB5 MKII Half Panel`;
       panelsByType[halfLabel] = (panelsByType[halfLabel] || 0) + halfPanelCount;
     }

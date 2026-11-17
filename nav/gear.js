@@ -467,7 +467,7 @@ function calculateCabling(screenId) {
   const halfRows = isFree ? {top: 0, bottom: 0} : getCB5HalfRows(data, panelType);
   const halfRowCount = halfRows.top + halfRows.bottom;
   if(halfRowCount > 0) {
-    const halfP = allPanels['CB5_MKII_HALF'];
+    const halfP = allPanels[halfPanelTypeOf(panelType)];
     if(halfP) {
       wallHeightFt += halfRowCount * halfP.height_m * M_TO_FT;
     }

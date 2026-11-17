@@ -79,7 +79,7 @@ function resolveScreenDataInputs(data) {
   const panelsPerDataLine = (typeof resolvePanelsPerDataLine === 'function')
     ? resolvePanelsPerDataLine({
         panel: panel,
-        halfPanel: allPanels['CB5_MKII_HALF'],
+        halfPanel: allPanels[halfPanelTypeOf(panelType)],
         processor: allProcs[processorId],
         frameRate: data.frameRate || 60,
         bitDepth: data.bitDepth || 8,

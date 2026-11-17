@@ -610,7 +610,7 @@ function calculateCombinedCabling(selectedScreenIds, config) {
     const halfRowCount = halfRows.top + halfRows.bottom;
     const hasCB5HalfRow = halfRowCount > 0;
     if (hasCB5HalfRow) {
-      const halfP = allPanels['CB5_MKII_HALF'];
+      const halfP = allPanels[halfPanelTypeOf(panelType)];
       if (halfP) wallHeightFt += halfRowCount * halfP.height_m * M_TO_FT;
     }
 
@@ -632,7 +632,7 @@ function calculateCombinedCabling(selectedScreenIds, config) {
     // lines actually drawn on the canvas.
     const panelsPerDataLine = resolvePanelsPerDataLine({
       panel: p,
-      halfPanel: allPanels['CB5_MKII_HALF'],
+      halfPanel: allPanels[halfPanelTypeOf(panelType)],
       processor: allProcessors[data.processor],
       frameRate: parseInt(data.frameRate) || 60,
       bitDepth: parseInt(data.bitDepth) || 8,

@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateCB5HalfPanelVisibility() {
       if(panelTypeSelect && cb5HalfPanelToggle) {
-        if(panelTypeSelect.value === 'CB5_MKII') {
+        if(halfPanelTypeOf(panelTypeSelect.value)) {
           cb5HalfPanelToggle.style.display = 'block';
         } else {
           cb5HalfPanelToggle.style.display = 'none';

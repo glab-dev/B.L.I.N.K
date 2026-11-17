@@ -623,7 +623,7 @@ function loadScreenData(screenId) {
   // Update CB5 half panel toggle visibility (panelType and isCB5 already declared above)
   const cb5HalfPanelToggle = document.getElementById('cb5HalfPanelToggle');
   if(cb5HalfPanelToggle) {
-    cb5HalfPanelToggle.style.display = (panelType === 'CB5_MKII') ? 'block' : 'none';
+    cb5HalfPanelToggle.style.display = halfPanelTypeOf(panelType) ? 'block' : 'none';
   }
   
   // Update connecting plates visibility

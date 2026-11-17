@@ -606,8 +606,17 @@ function loadCB5HalfRowState(data, panelType) {
 // the full rows. Grid rows run top to bottom — top half rows, full rows, bottom half
 // rows — so a full panel's row index is offset by `top`. Projects saved before the
 // position/count options existed only have addCB5HalfRow, which reads as one row below.
+// The half-height panel a panel type can add rows of above / below its full rows (CB5 MKII:
+// CB5 MKII Half, V4ST: V4ST-H), from its spec's half_panel, or null. The "CB5" in the half-row
+// names below is historical: they work for any panel that has one.
+function halfPanelTypeOf(panelType) {
+  const all = (typeof getAllPanels === 'function') ? getAllPanels() : panels;
+  const p = all[panelType];
+  return (p && p.half_panel && all[p.half_panel]) ? p.half_panel : null;
+}
+
 function getCB5HalfRows(data, panelType) {
-  if(!data || !data.addCB5HalfRow || panelType !== 'CB5_MKII') return {top: 0, bottom: 0};
+  if(!data || !data.addCB5HalfRow || !halfPanelTypeOf(panelType)) return {top: 0, bottom: 0};
   const pos = (data.cb5HalfRowPosition === 'above' || data.cb5HalfRowPosition === 'both') ? data.cb5HalfRowPosition : 'below';
   const count = v => Math.max(1, parseInt(v) || 1);
   return {

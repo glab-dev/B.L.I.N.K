@@ -54,7 +54,7 @@ function updateWeightDisplay() {
   const halfRows = getCurrentCB5HalfRows();
   const halfRowCount = halfRows.top + halfRows.bottom;
   const hasCB5HalfRow = halfRowCount > 0;
-  const halfPanelWeightKg = hasCB5HalfRow ? getPanelWeight('CB5_MKII_HALF', useConnectingPlates) : 0;
+  const halfPanelWeightKg = hasCB5HalfRow ? getPanelWeight(halfPanelTypeOf(panelType), useConnectingPlates) : 0;
 
   let html = '';
 
@@ -245,7 +245,7 @@ function getColumnHeightStatus() {
 
   const {pw, ph} = getEffectivePanelCounts();
   const halfRows = getCurrentCB5HalfRows();
-  const halfP = allPanels['CB5_MKII_HALF'];
+  const halfP = allPanels[halfPanelTypeOf(panelType)];
   const halfWorth = (halfP && halfP[limitKey] > 0) ? p[limitKey] / halfP[limitKey] : 0.5;
 
   let tallest = 0;

@@ -103,7 +103,7 @@ function renderRasterScreenTable() {
       html += '<td data-label="Panel"><select class="raster-select" disabled title="Drawn screen — edit it in Draw">' +
               buildRasterPanelOptions(panelType) +
               '</select></td>';
-    } else if(panelType === 'CB5_MKII') {
+    } else if(halfPanelTypeOf(panelType)) {
       var halfActive = !!data.addCB5HalfRow;
       // Rows and position are set in the Panel Type section; the tooltip shows them
       var halfRows = getCB5HalfRows(data, panelType);
@@ -425,7 +425,7 @@ function updateRasterScreenPanel(screenId, panelType) {
     // Dimensions UI, so mirror the dependent state loadScreenData() keeps in sync:
     // CB5 half-panel toggle visibility + button state, and connecting-plates visibility.
     var cb5Toggle = document.getElementById('cb5HalfPanelToggle');
-    if(cb5Toggle) cb5Toggle.style.display = (panelType === 'CB5_MKII') ? 'block' : 'none';
+    if(cb5Toggle) cb5Toggle.style.display = halfPanelTypeOf(panelType) ? 'block' : 'none';
     if(typeof updateConnectingPlatesVisibility === 'function') updateConnectingPlatesVisibility(panelType);
     if(typeof loadCB5HalfRowState === 'function') loadCB5HalfRowState(screens[screenId].data, panelType);
   }

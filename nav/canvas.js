@@ -131,7 +131,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
   if(sortedLines.length === 0) return;
 
   const allP = getAllPanels();
-  const halfPanel = allP['CB5_MKII_HALF'];
+  const halfPanel = allP[halfPanelTypeOf(data.panelType)];
   const halfResY = halfPanel ? halfPanel.res_y : panelResY;
   const rowGeo = cb5RowGeometry(ph, halfRows, panelResY, halfResY);
   const cX = (c) => offsetX + c * panelResX + panelResX / 2;
@@ -578,7 +578,7 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     // Check if CB5 half panel rows (above/below the full rows) are enabled for this screen
     const halfRows = getCB5HalfRows(screenData, panelType);
     const hasCB5HalfRow = halfRows.top + halfRows.bottom > 0;
-    const halfPanel = allPanels['CB5_MKII_HALF'];
+    const halfPanel = allPanels[halfPanelTypeOf(panelType)];
     const rowGeo = cb5RowGeometry(ph, halfRows, p.res_y, hasCB5HalfRow ? halfPanel.res_y : p.res_y);
 
     // Calculate wall resolution accounting for CB5 half panels
@@ -1358,7 +1358,7 @@ function screenCanvasFit(screenId) {
   if(!p || !p.res_x || !p.res_y || !pw || !ph) return null;
 
   const halfRows = getCB5HalfRows(data, data.panelType);
-  const halfP = allPanels['CB5_MKII_HALF'];
+  const halfP = allPanels[halfPanelTypeOf(data.panelType)];
   const rowGeo = cb5RowGeometry(ph, halfRows, p.res_y, halfP ? halfP.res_y : p.res_y);
   const width = pw * p.res_x;
   const height = rowGeo.height;
@@ -1459,7 +1459,7 @@ function canvasFitWarningText(screenId) {
   const split = screens[screenId].data.split;
   if(split) {
     const allPanels = getAllPanels();
-    const halfP = allPanels['CB5_MKII_HALF'];
+    const halfP = allPanels[halfPanelTypeOf(screens[screenId].data.panelType)];
     const names = split.parts.map(p => (canvases[p.canvasId] && canvases[p.canvasId].name) || '?');
     text += ' Split across ' + names.join(', ') + '.';
     const oversized = split.parts.map((p, k) => {
@@ -1685,7 +1685,7 @@ function layoutSplitParts(screenId) {
     // A drawn screen's part measures on its cell grid (see freeCellData)
     const view = freeCanvasItem(splitPartView(screenId, k));
     const pp = view.data.freeCellPanel || p;
-    const halfP = allPanels['CB5_MKII_HALF'];
+    const halfP = allPanels[halfPanelTypeOf(screen.data.panelType)];
     const partW = view.data.panelsWide * pp.res_x;
     const partH = cb5RowGeometry(view.data.panelsHigh, getCB5HalfRows(view.data, view.data.panelType),
       pp.res_y, halfP ? halfP.res_y : pp.res_y).height;
@@ -1806,7 +1806,7 @@ function drawSelectionHighlight() {
   // Calculate wall resolution accounting for CB5 half panels
   let wallResX, wallResY;
   if(hasCB5HalfRow) {
-    const halfPanel = allPanels['CB5_MKII_HALF'];
+    const halfPanel = allPanels[halfPanelTypeOf(panelType)];
     wallResX = screenData.panelsWide * p.res_x;
     wallResY = screenData.panelsHigh * p.res_y + (_halfRows.top + _halfRows.bottom) * halfPanel.res_y;
   } else {
@@ -1853,7 +1853,7 @@ function getScreenAtPosition(mouseX, mouseY) {
     // Calculate wall resolution accounting for CB5 half panels
     let wallResX, wallResY;
     if(hasCB5HalfRow) {
-      const halfPanel = allPanels['CB5_MKII_HALF'];
+      const halfPanel = allPanels[halfPanelTypeOf(panelType)];
       wallResX = pw * p.res_x;
       wallResY = ph * p.res_y + (_halfRows.top + _halfRows.bottom) * halfPanel.res_y;
     } else {
@@ -2030,7 +2030,7 @@ function setupCanvasViewInteractivity() {
     // Calculate wall resolution accounting for CB5 half panels
     let wallResX, wallResY;
     if(hasCB5HalfRow) {
-      const halfPanel = allPanels['CB5_MKII_HALF'];
+      const halfPanel = allPanels[halfPanelTypeOf(panelType)];
       wallResX = pw * p.res_x;
       wallResY = ph * p.res_y + (_halfRows.top + _halfRows.bottom) * halfPanel.res_y;
     } else {
@@ -2239,7 +2239,7 @@ function setupCanvasViewInteractivity() {
     // Calculate wall resolution accounting for CB5 half panels
     let wallResX, wallResY;
     if(hasCB5HalfRow) {
-      const halfPanel = allPanels['CB5_MKII_HALF'];
+      const halfPanel = allPanels[halfPanelTypeOf(panelType)];
       wallResX = pw * p.res_x;
       wallResY = ph * p.res_y + (_halfRows.top + _halfRows.bottom) * halfPanel.res_y;
     } else {
@@ -2481,7 +2481,7 @@ function setupCanvasViewInteractivity() {
         
         let otherWallResX, otherWallResY;
         if(otherHasCB5HalfRow) {
-          const halfPanel = panels['CB5_MKII_HALF'];
+          const halfPanel = getAllPanels()[halfPanelTypeOf(otherPanelType)];
           otherWallResX = otherPw * otherPanel.res_x;
           otherWallResY = otherPh * otherPanel.res_y + (otherHalfRows.top + otherHalfRows.bottom) * halfPanel.res_y;
         } else {

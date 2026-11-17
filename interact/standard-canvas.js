@@ -882,7 +882,7 @@ function updateSuggestedDataLimit(){
   let capacityBasedLimit;
   if(hasCB5HalfRow) {
     // With half panels, calculate based on actual panel counts (same as calculate() function)
-    const halfPanel = panels['CB5_MKII_HALF'];
+    const halfPanel = allPanels[halfPanelTypeOf(document.getElementById('panelType').value)];
     const halfPanelPixels = halfPanel.res_x * halfPanel.res_y;
     const mainPanelCount = activePanelsCount; // All full panels
     const halfPanelCount = countCB5LivePanels(pw, ph, halfRows, deletedPanels).half; // Live half panels

@@ -344,7 +344,7 @@ function gridToFreePanels(data, allPanels) {
   const {cw, ch} = freeCells(main, fam.cellMm);
   let gy = 0;
   for(let r = 0; r < half.top + ph + half.bottom; r++) {
-    const type = (r < half.top || r >= half.top + ph) ? 'CB5_MKII_HALF' : data.panelType;
+    const type = (r < half.top || r >= half.top + ph) ? halfPanelTypeOf(data.panelType) : data.panelType;
     for(let c = 0; c < pw; c++) {
       if(deleted.has(`${c},${r}`)) continue;
       list.push({type, gx: c * cw, gy});
@@ -356,7 +356,8 @@ function gridToFreePanels(data, allPanels) {
 }
 
 // A drawn wall as a grid, when it is one: every panel on the main type's columns, in rows
-// of one type each, CB5 half rows only above and below the full rows. Null otherwise.
+// of one type each, half-panel rows (CB5 MKII Half, V4ST-H) only above and below the full
+// rows. Null otherwise.
 function freeToGrid(data, allPanels) {
   const main = allPanels[data.panelType];
   if(!main || !data.freePanels.length) return null;
@@ -366,14 +367,15 @@ function freeToGrid(data, allPanels) {
   const rowsByY = new Map();
   for(const fp of data.freePanels) {
     const half = fp.type !== data.panelType;
-    if(half && !(data.panelType === 'CB5_MKII' && fp.type === 'CB5_MKII_HALF')) return null;
+    if(half && fp.type !== halfPanelTypeOf(data.panelType)) return null;
     if((fp.gx - b.minX) % cw) return null;
     if(!rowsByY.has(fp.gy)) rowsByY.set(fp.gy, half);
     else if(rowsByY.get(fp.gy) !== half) return null;
   }
   // Rows must stack with no gaps: knocked-out panels are holes in a row, never a missing row
   const ys = [...rowsByY.keys()].sort((x, y) => x - y);
-  const halfCh = data.panelType === 'CB5_MKII' ? freeCells(allPanels.CB5_MKII_HALF, cellMm).ch : ch;
+  const halfType = halfPanelTypeOf(data.panelType);
+  const halfCh = halfType ? freeCells(allPanels[halfType], cellMm).ch : ch;
   let y = b.minY, top = 0, full = 0, bottom = 0;
   for(const gy of ys) {
     if(gy !== y) return null;

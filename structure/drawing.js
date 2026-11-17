@@ -231,7 +231,7 @@ function calculateBumperPickupWeight(bumper) {
   const halfRows = getCurrentCB5HalfRows();
   const halfRowCount = halfRows.top + halfRows.bottom;
   const hasCB5HalfRow = halfRowCount > 0;
-  const halfPanelWeightKg = hasCB5HalfRow ? getPanelWeight('CB5_MKII_HALF', useConnectingPlates) : 0;
+  const halfPanelWeightKg = hasCB5HalfRow ? getPanelWeight(halfPanelTypeOf(panelType), useConnectingPlates) : 0;
   const firstFullRow = halfRows.top;
   const endFullRow = halfRows.top + ph;
 
@@ -457,7 +457,7 @@ function getOrphanedColumnWeightForBumper(bumper, pw, ph, panelWeightKg) {
   const halfRowCount = halfRows.top + halfRows.bottom;
   const hasCB5HalfRow = halfRowCount > 0;
   const useConnectingPlates = shouldUseConnectingPlates(panelType);
-  const halfPanelWeightKg = hasCB5HalfRow ? getPanelWeight('CB5_MKII_HALF', useConnectingPlates) : 0;
+  const halfPanelWeightKg = hasCB5HalfRow ? getPanelWeight(halfPanelTypeOf(panelType), useConnectingPlates) : 0;
 
   const orphanedCols = getOrphanedColumns(pw, bumper.position);
   let additionalWeightKg = 0;

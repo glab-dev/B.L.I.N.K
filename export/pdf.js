@@ -564,7 +564,8 @@ function buildGearInventoryContent(gearData) {
       if(eq.distBoxCount > 0) addToGroup(equipGroup, gc('dist.' + eq.processorType, eq.distBoxName + ' Distribution Box'), eq.distBoxCount);
     }
     if(eq.activeFullPanels > 0) addToGroup(equipGroup, gc('panel.' + pt, eq.panelBrand + ' ' + eq.panelName), eq.activeFullPanels);
-    if(eq.activeHalfPanels > 0) addToGroup(equipGroup, gc('panel.CB5_MKII_HALF', 'ROE CB5 MKII 600 x 600 Panel'), eq.activeHalfPanels);
+    var halfPt = halfPanelTypeOf(pt) || 'CB5_MKII_HALF';
+    if(eq.activeHalfPanels > 0) addToGroup(equipGroup, gc('panel.' + halfPt, halfPt === 'CB5_MKII_HALF' ? 'ROE CB5 MKII 600 x 600 Panel' : eq.panelBrand + ' ' + eq.halfPanelName), eq.activeHalfPanels);
     if(equipGroup.size > 0) categories.push(equipGroup);
 
     // Rigging

@@ -530,6 +530,8 @@ let cb5RowKeyLayout = {top: 0, full: 1, hasHalf: false};
 let currentRowGeo = null;
 // Column geometry of the same canvas (gridColGeometry): half columns are narrower.
 let currentColGeo = null;
+// Column geometry of the last-drawn structure canvas, for dragging bumpers.
+let structureColGeo = null;
 function toggleCB5HalfRow() {
   cb5HalfRowEnabled = !cb5HalfRowEnabled;
   document.getElementById('addCB5HalfRowBtn').classList.toggle('active', cb5HalfRowEnabled);
@@ -636,6 +638,13 @@ function toggleHalfCols() {
   halfColEnabled = !halfColEnabled;
   if(typeof screens !== 'undefined' && screens[currentScreenId]) screens[currentScreenId].data.addHalfCols = halfColEnabled;
   updateHalfColControls();
+  refreshHalfCols();
+}
+
+// Half columns change how many columns there are, so the bumpers are laid out afresh, as
+// a change of Panels Wide does
+function refreshHalfCols() {
+  initializeBumpers();
   refreshCB5HalfRows();
 }
 
@@ -643,7 +652,7 @@ function setHalfColPosition(position) {
   halfColPosition = position;
   if(typeof screens !== 'undefined' && screens[currentScreenId]) screens[currentScreenId].data.halfColPosition = position;
   updateHalfColControls();
-  refreshCB5HalfRows();
+  refreshHalfCols();
 }
 
 // Column count for one side ('left' | 'right'); at least 1
@@ -654,7 +663,7 @@ function setHalfColCount(side, value) {
   if(typeof screens !== 'undefined' && screens[currentScreenId]) {
     screens[currentScreenId].data[side === 'left' ? 'halfColsLeft' : 'halfColsRight'] = count;
   }
-  refreshCB5HalfRows();
+  refreshHalfCols();
 }
 
 function toggleQuarterCorners() {
@@ -810,6 +819,25 @@ function halfColWidthRatio(panelType) {
   return (p && v) ? v.width_m / p.width_m : 1;
 }
 
+// Panel weights by column for the current screen: a full column's main and half-row
+// panels, a half column's half-width (V4ST-V) and quarter (V4ST-Q) panels. `full(c)` /
+// `half(c)` give the kg of a panel in column c on a full / half row.
+function currentColumnPanelWeights(panelType, useConnectingPlates) {
+  const hc = getCurrentHalfCols();
+  const {pw} = getEffectivePanelCounts();
+  const inHalfCol = c => c < hc.left || c >= hc.left + pw;
+  const mainKg = getPanelWeight(panelType, useConnectingPlates);
+  const hType = halfPanelTypeOf(panelType), vType = halfColPanelTypeOf(panelType), qType = quarterPanelTypeOf(panelType);
+  const hKg = hType ? getPanelWeight(hType, useConnectingPlates) : 0;
+  const vKg = vType ? getPanelWeight(vType, useConnectingPlates) : mainKg;
+  const qKg = qType ? getPanelWeight(qType, useConnectingPlates) : hKg;
+  return {
+    hasHalfCols: hc.left + hc.right > 0,
+    full: c => inHalfCol(c) ? vKg : mainKg,
+    half: c => inHalfCol(c) ? qKg : hKg
+  };
+}
+
 // The current screen's corner cells, where a half column crosses a half row
 function gridCornerKeys() {
   const hr = getCurrentCB5HalfRows(), hc = getCurrentHalfCols();
@@ -925,7 +953,9 @@ function countCB5LivePanels(pw, fullRows, half, deleted, cols, halfCols) {
     const isHalf = r < half.top || r >= half.top + fullRows;
     columns.forEach(c => {
       if(del.has(`${c},${r}`)) return;
-      const inHalfCol = c < hc.left || c >= hc.left + pw;
+      // Only a caller that passes the half columns has any: without them every column counts
+      // as a full one, as callers that pick their own `cols` always have
+      const inHalfCol = !!halfCols && (c < hc.left || c >= hc.left + pw);
       if(isHalf && inHalfCol) quarter++;
       else if(inHalfCol) vert++;
       else if(isHalf) halfCount++;

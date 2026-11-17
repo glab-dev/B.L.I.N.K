@@ -5,7 +5,9 @@
 
 // Draw all bumpers from the bumpers array
 // rowGeo: cb5RowGeometry of the drawn wall, so CB5 half rows above/below sit at their real height.
-function drawAllBumpers(ctx, pw, ph, panelWidth, rowGeo, bumperHeight, fourWayHeight, fourWayGap, panelYOffset, bumpersWithLadders = new Set()) {
+function drawAllBumpers(ctx, pw, ph, panelWidth, rowGeo, bumperHeight, fourWayHeight, fourWayGap, panelYOffset, bumpersWithLadders = new Set(), colGeo = null) {
+  // Column positions: the column map when half columns (V4ST-V) make the columns uneven
+  const colX = c => colGeo ? colGeo.x(c) : c * panelWidth;
   const use4Way = use4WayBumpersEnabled;
   const panelType = document.getElementById('panelType').value;
   const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
@@ -26,8 +28,8 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, rowGeo, bumperHeight, fourWayHe
       const col1 = bumper.startCol;
       const col2 = bumper.endCol;
 
-      x = col1 * panelWidth;  // Start at column 1, 5, 9... (centers of 2W bumpers)
-      width = (col2 - col1) * panelWidth;  // Width of 2 columns
+      x = colX(col1);  // Start at column 1, 5, 9... (centers of 2W bumpers)
+      width = colX(col2) - colX(col1);  // Width of 2 columns
       height = fourWayHeight;
 
       if(bumper.position === 'top') {
@@ -43,8 +45,8 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, rowGeo, bumperHeight, fourWayHe
     } else if(bumper.type === '2w') {
       // 2-way bumper - spans 2 columns
       const col = bumper.startCol;
-      x = col * panelWidth;
-      width = panelWidth * 2; // Span 2 columns
+      x = colX(col);
+      width = colX(col + 2) - colX(col); // Span 2 columns
       height = bumperHeight;
 
       if(bumper.position === 'top') {
@@ -69,8 +71,8 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, rowGeo, bumperHeight, fourWayHe
     } else if(bumper.type === '1w') {
       // 1-way bumper - spans 1 column
       const col = bumper.startCol;
-      x = col * panelWidth;
-      width = panelWidth; // Span 1 column
+      x = colX(col);
+      width = colX(col + 1) - colX(col); // Span 1 column
       height = bumperHeight;
 
       if(bumper.position === 'top') {
@@ -107,7 +109,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, rowGeo, bumperHeight, fourWayHe
       // Determine which column the ladder is in
       let ladderColOffset = 0; // Default: first column (left)
       if(bumper.type === '2w' && bumper.ladderColumn === 'right') {
-        ladderColOffset = panelWidth; // Move to second column (right)
+        ladderColOffset = colX(bumper.startCol + 1) - colX(bumper.startCol); // Move to second column (right)
       }
 
       // Position under the correct column
@@ -187,7 +189,7 @@ function drawAllBumpers(ctx, pw, ph, panelWidth, rowGeo, bumperHeight, fourWayHe
   });
 
   // Center-of-wall mark: thin red vertical line over the bumper band(s)
-  const centerX = Math.round((pw * panelWidth) / 2);
+  const centerX = Math.round(colX(pw) / 2);
   ctx.strokeStyle = '#FF0000';
   ctx.lineWidth = 2;
   if(showTopBumper) {
@@ -234,6 +236,11 @@ function calculateBumperPickupWeight(bumper) {
   const halfPanelWeightKg = hasCB5HalfRow ? getPanelWeight(halfPanelTypeOf(panelType), useConnectingPlates) : 0;
   const firstFullRow = halfRows.top;
   const endFullRow = halfRows.top + ph;
+  // A half column (V4ST-V) weighs its own panels, and its quarters on the half rows
+  const colKg = currentColumnPanelWeights(panelType, useConnectingPlates);
+  const halfRowKg = cols => colKg.hasHalfCols
+    ? cols.reduce((sum, c) => sum + countCB5LivePanels(pw, ph, halfRows, deletedPanels, [c]).half * colKg.half(c), 0)
+    : countCB5LivePanels(pw, ph, halfRows, deletedPanels, cols).half * halfPanelWeightKg;
 
   let totalPanelWeightKg = 0;
   let bumperWeightLbs = 0;
@@ -267,7 +274,7 @@ function calculateBumperPickupWeight(bumper) {
         for(let r = firstFullRow; r < endFullRow; r++) {
           const panelKey = `${c},${r}`;
           if(!deletedPanels.has(panelKey)) {
-            totalPanelWeightKg += panelWeightKg;
+            totalPanelWeightKg += colKg.full(c);
             panelCount++;
           }
         }
@@ -278,7 +285,7 @@ function calculateBumperPickupWeight(bumper) {
 
     // Add the live half panels in these columns if half rows are enabled
     if(hasCB5HalfRow) {
-      totalPanelWeightKg += countCB5LivePanels(pw, ph, halfRows, deletedPanels, directColumns).half * halfPanelWeightKg;
+      totalPanelWeightKg += halfRowKg(directColumns);
     }
 
     // Add 4W hanging bar weight + 2x 2W bumpers (structural, part of the pickup assembly)
@@ -300,14 +307,14 @@ function calculateBumperPickupWeight(bumper) {
       for(let r = startRow; r < endFullRow; r++) {
         const panelKey = `${c},${r}`;
         if(!deletedPanels.has(panelKey)) {
-          totalPanelWeightKg += panelWeightKg;
+          totalPanelWeightKg += colKg.full(c);
         }
       }
     }
 
     // Add the live half panels in both columns if half rows are enabled
     if(hasCB5HalfRow) {
-      totalPanelWeightKg += countCB5LivePanels(pw, ph, halfRows, deletedPanels, [colStart, colEnd]).half * halfPanelWeightKg;
+      totalPanelWeightKg += halfRowKg([colStart, colEnd]);
     }
 
     bumperWeightLbs = bumper2wLbs;
@@ -327,20 +334,22 @@ function calculateBumperPickupWeight(bumper) {
     for(let r = startRow; r < endFullRow; r++) {
       const panelKey = `${col},${r}`;
       if(!deletedPanels.has(panelKey)) {
-        totalPanelWeightKg += panelWeightKg;
+        totalPanelWeightKg += colKg.full(col);
       }
     }
 
     // Add the live half panels in this column if half rows are enabled
     if(hasCB5HalfRow) {
-      totalPanelWeightKg += countCB5LivePanels(pw, ph, halfRows, deletedPanels, [col]).half * halfPanelWeightKg;
+      totalPanelWeightKg += halfRowKg([col]);
     }
 
     bumperWeightLbs = bumper1wLbs;
   }
 
   // Now add weight from any orphaned columns that should transfer to this bumper
-  const orphanedWeight = getOrphanedColumnWeightForBumper(bumper, pw, ph, panelWeightKg);
+  // Columns without a bumper include the half columns (V4ST-V), which sit beyond the full ones
+  const _halfColsAll = getCurrentHalfCols();
+  const orphanedWeight = getOrphanedColumnWeightForBumper(bumper, pw + _halfColsAll.left + _halfColsAll.right, ph, panelWeightKg);
   totalPanelWeightKg += orphanedWeight;
   
   const panelWeightLbs = totalPanelWeightKg * 2.20462;
@@ -458,6 +467,8 @@ function getOrphanedColumnWeightForBumper(bumper, pw, ph, panelWeightKg) {
   const hasCB5HalfRow = halfRowCount > 0;
   const useConnectingPlates = shouldUseConnectingPlates(panelType);
   const halfPanelWeightKg = hasCB5HalfRow ? getPanelWeight(halfPanelTypeOf(panelType), useConnectingPlates) : 0;
+  // A half column (V4ST-V) weighs its own panels, and its quarters on the half rows
+  const colKg = currentColumnPanelWeights(panelType, useConnectingPlates);
 
   const orphanedCols = getOrphanedColumns(pw, bumper.position);
   let additionalWeightKg = 0;
@@ -477,13 +488,13 @@ function getOrphanedColumnWeightForBumper(bumper, pw, ph, panelWeightKg) {
       for(let r = startRow; r < halfRows.top + ph; r++) {
         const panelKey = `${col},${r}`;
         if(!deletedPanels.has(panelKey)) {
-          additionalWeightKg += panelWeightKg;
+          additionalWeightKg += colKg.hasHalfCols ? colKg.full(col) : panelWeightKg;
         }
       }
 
       // Add the live half panel weight for this orphaned column if enabled
       if(hasCB5HalfRow) {
-        additionalWeightKg += countCB5LivePanels(pw, ph, halfRows, deletedPanels, [col]).half * halfPanelWeightKg;
+        additionalWeightKg += countCB5LivePanels(pw, ph, halfRows, deletedPanels, [col]).half * (colKg.hasHalfCols ? colKg.half(col) : halfPanelWeightKg);
       }
 
       console.log(`Orphaned column ${col} weight (${additionalWeightKg.toFixed(2)}kg) transferred to ${bumper.type} bumper #${bumper.id}`);
@@ -765,8 +776,9 @@ function setupStructureCanvasInteractivity() {
       const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
 
       const size = panelSize; // Use global panelSize for consistent sizing
-      const newCol = Math.floor((mouseX - dragOffsetX) / size);
-      const pw = parseInt(document.getElementById('panelsWide').value) || 0;
+      const newCol = structureColGeo ? structureColGeo.colAt(mouseX - dragOffsetX) : Math.floor((mouseX - dragOffsetX) / size);
+      const _dragHalfCols = getCurrentHalfCols();
+      const pw = (parseInt(document.getElementById('panelsWide').value) || 0) + _dragHalfCols.left + _dragHalfCols.right;
       
       // Constrain to valid columns
       if(newCol >= 0 && newCol < pw) {

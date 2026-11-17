@@ -89,7 +89,9 @@ function initializeBumpers() {
   // drifts from the grid whenever the wall fields drive the count (panel type change,
   // aspect-ratio lock, dimension mode) and leaves bumpers overhanging the wall.
   const hasDimensions = !!(document.getElementById('panelsWide').value || document.getElementById('wallWidth').value);
-  const pw = hasDimensions ? getEffectivePanelCounts().pw : 0;
+  // Half columns (V4ST-V) are columns of panels too: a 2W carries two panels whatever their width
+  const _halfCols = getCurrentHalfCols();
+  const pw = hasDimensions ? getEffectivePanelCounts().pw + _halfCols.left + _halfCols.right : 0;
   const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
   const use4Way = use4WayBumpersEnabled;
   const panelType = document.getElementById('panelType').value;

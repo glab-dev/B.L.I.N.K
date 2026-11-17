@@ -838,7 +838,9 @@ function buildStructureInfoLines(screenId) {
   }
 
   // Total Structure Weight
-  var bumperHwKg = (typeof calculateTotalBumperWeight === 'function') ? calculateTotalBumperWeight(pw, ph) : 0;
+  // Half columns (V4ST-V) are columns of panels, each under a bumper like any other
+  var _halfCols = getHalfCols(data, data.panelType);
+  var bumperHwKg = (typeof calculateTotalBumperWeight === 'function') ? calculateTotalBumperWeight(pw + _halfCols.left + _halfCols.right, ph) : 0;
   var totalStructKg = bumperHwKg + platesWeightKg + groundSupportWeightKg + floorFramesWeightKg;
   if (totalStructKg > 0 || structureType === 'floor') {
     lines.push({ text: 'Total Structure Weight', bold: true, header: true });

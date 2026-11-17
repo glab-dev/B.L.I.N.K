@@ -304,8 +304,9 @@ function setupBumperTouchDrag() {
     const rect = canvas.getBoundingClientRect();
     const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
 
-    const newCol = Math.floor((touchX - touchDragOffsetX) / currentPanelWidth);
-    const pw = parseInt(document.getElementById('panelsWide').value) || 0;
+    const newCol = structureColGeo ? structureColGeo.colAt(touchX - touchDragOffsetX) : Math.floor((touchX - touchDragOffsetX) / currentPanelWidth);
+    const _dragHalfCols = getCurrentHalfCols();
+    const pw = (parseInt(document.getElementById('panelsWide').value) || 0) + _dragHalfCols.left + _dragHalfCols.right;
 
     // Constrain to valid columns
     if(newCol >= 0 && newCol < pw) {

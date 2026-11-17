@@ -757,7 +757,7 @@ function calculate(){
     const useConnectingPlates = shouldUseConnectingPlates(panelType);
     
     const panelWeight = liveParts.reduce((sum, [t, n]) => sum + n * getPanelWeight(t, useConnectingPlates), 0);
-    const bumperWeight = calculateTotalBumperWeight(pw, ph);
+    const bumperWeight = calculateTotalBumperWeight(pw + halfColCount, ph);
     
     // Calculate connecting plates weight if applicable
     let plateWeight = 0;
@@ -796,7 +796,7 @@ function calculate(){
     const panelWeightKg = getPanelWeight(panelType, useConnectingPlates);
     
     const panelWeight = totalPanels * panelWeightKg;
-    const bumperWeight = calculateTotalBumperWeight(pw, ph);
+    const bumperWeight = calculateTotalBumperWeight(pw + halfColCount, ph);
     
     // Calculate connecting plates weight if applicable
     let plateWeight = 0;
@@ -1054,7 +1054,7 @@ function calculate(){
   const ar = (wallWM&&wallHM) ? approxAspectRatio(wallWM, wallHM) : {label:"N/A", value:0};
 
   // Calculate weight breakdown
-  const bumperWeight = calculateTotalBumperWeight(pw, ph);
+  const bumperWeight = calculateTotalBumperWeight(pw + halfColCount, ph);
 
   // Calculate actual panel weight (not derived from totalWeight which includes plates)
   const useConnectingPlatesForWeight = shouldUseConnectingPlates(panelType);

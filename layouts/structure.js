@@ -124,11 +124,14 @@ function generateStructureLayout(){
   const minStructSize = 30; // Minimum panel size
   const _pdfCapture = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
   const maxStructSize = _pdfCapture ? 200 : 80; // Higher cap in PDF mode for sharp text
-  const calculatedStructSize = Math.floor(maxStructCanvasWidth / pw);
-
   // Get panel type and calculate height ratio for CB5_MKII full panels
   const panelType = document.getElementById('panelType').value;
   const heightRatio = getPanelHeightRatio(panelType);
+  // Half columns (V4ST-V) are narrower, so the wall is that many fewer full widths across
+  const halfCols = getCurrentHalfCols();
+  const halfColCount = halfCols.left + halfCols.right;
+  const colWidthRatio = halfColWidthRatio(panelType);
+  const calculatedStructSize = Math.floor(maxStructCanvasWidth / (pw - halfColCount + halfColCount * colWidthRatio));
 
   // Cap cell width for tall panels so cell height (width*ratio) never exceeds maxStructSize,
   // matching the standard/power/data views (core/calculate.js). Skip during PDF capture.
@@ -140,9 +143,11 @@ function generateStructureLayout(){
   const panelWidth = size;
   const panelHeight = size * heightRatio;
 
-  // CB5 half panel rows (above/below the full rows) are square
-  const halfPanelHeight = size; // Half panels are square
+  // Half panel rows above/below the full rows (CB5 MKII Half: square), and half columns
+  const halfPanelHeight = size * halfRowHeightRatio(panelType);
   const rowGeo = getCurrentRowGeometry(panelHeight, halfPanelHeight);
+  const colGeo = gridColGeometry(pw - halfColCount, halfCols, panelWidth, size * colWidthRatio);
+  structureColGeo = colGeo;
 
   const bumperHeight = Math.max(30, size * 0.8); // Scale bumper height with panel size
   const fourWayHeight = Math.max(15, size * 0.4); // Scale 4-way height with panel size
@@ -164,7 +169,7 @@ function generateStructureLayout(){
     canvasHeight += bumperHeight;
   }
 
-  canvas.width = pw * panelWidth;
+  canvas.width = colGeo.width;
   canvas.height = canvasHeight;
 
   // Update global panelSize for consistent sizing across all functions
@@ -195,8 +200,9 @@ function generateStructureLayout(){
       const panelKey = `${c},${r}`;
 
       const currentPanelHeight = rowGeo.h(r);
-      const x = c * panelWidth;
+      const x = colGeo.x(c);
       const y = panelYOffset + rowGeo.y(r);
+      const panelWidth = colGeo.w(c);
 
       // Skip deleted panels - they'll show the dark background
       if(deletedPanels.has(panelKey)) {
@@ -232,7 +238,7 @@ function generateStructureLayout(){
 
     // Draw each frame's outline
     frames.forEach(frame => {
-      const frameX = frame.col * panelWidth;
+      const frameX = colGeo.x(frame.col);
       const frameY = panelYOffset + frame.row * panelHeight;
       const frameW = frame.width * panelWidth;
       const frameH = frame.height * panelHeight;
@@ -299,7 +305,7 @@ function generateStructureLayout(){
     for(const m of marks) {
       if(m.kind === '4way') {
         // Every 4-way sits centered on its grid vertex (vc, vr).
-        const x = m.vc * panelWidth - plate4WaySize/2;
+        const x = colGeo.x(m.vc) - plate4WaySize/2;
         const y = panelYOffset + rowGeo.y(m.vr) - plate4WaySize/2;
         ctx.fillStyle = '#FF4444'; // Red for 4-way
         ctx.fillRect(x, y, plate4WaySize, plate4WaySize);
@@ -312,19 +318,19 @@ function generateStructureLayout(){
       // 2-way plate (gold). Resolve pixel position + orientation from the mark's placement.
       let x, y, w, h;
       if(m.place === 'vLeft') {
-        x = m.vc * panelWidth + 2;
+        x = colGeo.x(m.vc) + 2;
         y = panelYOffset + rowGeo.y(m.vr) - plateLength/2;
         w = plateThickness; h = plateLength;
       } else if(m.place === 'vRight') {
-        x = m.vc * panelWidth - plateThickness - 2;
+        x = colGeo.x(m.vc) - plateThickness - 2;
         y = panelYOffset + rowGeo.y(m.vr) - plateLength/2;
         w = plateThickness; h = plateLength;
       } else if(m.place === 'hTop') {
-        x = m.vc * panelWidth - plateLength/2;
+        x = colGeo.x(m.vc) - plateLength/2;
         y = panelYOffset + rowGeo.y(m.vr) + 2;
         w = plateLength; h = plateThickness;
       } else if(m.place === 'hBottom') {
-        x = m.vc * panelWidth - plateLength/2;
+        x = colGeo.x(m.vc) - plateLength/2;
         y = panelYOffset + rowGeo.y(m.vr) - plateThickness - 2;
         w = plateLength; h = plateThickness;
       } else {
@@ -333,7 +339,7 @@ function generateStructureLayout(){
         // bumper) or above (bottom bumper) the bumper - same trick the 4-ways use.
         const yBase = panelYOffset + rowGeo.y(m.vr); // the interface line at this vertex
         const onLeft = (m.place === 'endTopLeft' || m.place === 'endBottomLeft');
-        x = onLeft ? m.vc * panelWidth + 2 : m.vc * panelWidth - plateThickness - 2;
+        x = onLeft ? colGeo.x(m.vc) + 2 : colGeo.x(m.vc) - plateThickness - 2;
         y = yBase - plateLength/2;
         w = plateThickness; h = plateLength;
       }
@@ -423,7 +429,7 @@ function generateStructureLayout(){
           // Skip if ladder would be above the topmost panel
           if(ladderTopRow < topRow) continue;
 
-          const ladderX = c * panelWidth + panelWidth/2 - ladderWidth/2; // Centered in column
+          const ladderX = colGeo.x(c) + colGeo.w(c)/2 - ladderWidth/2; // Centered in column
           const ladderTopY = panelYOffset + rowGeo.y(ladderTopRow) + 4;
           const ladderHeight = rowGeo.y(ladderBottomRow + 1) - rowGeo.y(ladderTopRow) - 8;
 
@@ -464,7 +470,7 @@ function generateStructureLayout(){
           if(!deletedPanels.has(panelKey)) {
             // Draw bridge clamp as a filled circle at center of panel
             ctx.beginPath();
-            ctx.arc(c * panelWidth + panelWidth/2, panelYOffset + rowGeo.y(r) + rowGeo.h(r)/2, bridgeClampSize/2, 0, Math.PI * 2);
+            ctx.arc(colGeo.x(c) + colGeo.w(c)/2, panelYOffset + rowGeo.y(r) + rowGeo.h(r)/2, bridgeClampSize/2, 0, Math.PI * 2);
             ctx.fill();
 
             // Black outline
@@ -479,7 +485,7 @@ function generateStructureLayout(){
 
   // Draw all bumpers and store their positions for interaction
   // Pass bumpersWithLadders so we can draw ladder bases inside bumpers
-  drawAllBumpers(ctx, pw, ph, panelWidth, rowGeo, bumperHeight, fourWayHeight, fourWayGap, panelYOffset, bumpersWithLadders);
+  drawAllBumpers(ctx, pw, ph, panelWidth, rowGeo, bumperHeight, fourWayHeight, fourWayGap, panelYOffset, bumpersWithLadders, colGeo);
 
   // Update pickup weight summary
   updatePickupWeightSummary();

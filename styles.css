@@ -7438,6 +7438,64 @@ input[type="number"].spare-qty-input::placeholder {
   margin: 0 0 0 6px;
   color: var(--primary);
 }
+/* Combined cabling: one row of cable distances per screen. As with the feed rows, the list
+   is the grid, so the columns line up; only the first row shows the column labels. */
+.screen-cable-list {
+  display: grid;
+  grid-template-columns: minmax(70px, auto) repeat(7, minmax(0, 110px));
+  justify-content: start;
+  gap: 8px 12px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+.screen-cable-row {
+  display: contents;
+}
+.screen-cable-row label {
+  margin-bottom: 0;
+  min-width: 0;
+}
+.screen-cable-row label > span {
+  white-space: nowrap;
+}
+.screen-cable-row:not(:first-child) label > span {
+  display: none;
+}
+.screen-cable-name {
+  font-weight: 700;
+  color: var(--primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+  line-height: 40px;
+}
+.screen-cable-row input:disabled,
+.screen-cable-row select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+/* Mobile: each screen is its own block, name on top, fields two to a line with labels */
+@media (max-width: 768px) {
+  .screen-cable-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .screen-cable-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    align-items: end;
+  }
+  .screen-cable-row:not(:first-child) label > span {
+    display: block;
+  }
+  .screen-cable-name {
+    grid-column: 1 / -1;
+    max-width: none;
+    line-height: 1.2;
+  }
+}
 /* Cable tab Source inputs, locked when a multi-screen project sets feeds in Combined */
 #sourceFeedName:disabled,
 #serverToProcessor:disabled {

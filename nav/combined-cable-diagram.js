@@ -3,9 +3,9 @@
 // Shows multiple LED walls sharing processors, distribution boxes, and power.
 // Renders into #combinedCableDiagramCanvas inside the combined tab.
 
-// ---- Combined Cabling Configuration (DERIVED, not user-editable) ----
-// The combined view is read-only: every cabling value comes from the screens themselves,
-// edited in each screen's own Cable tab. This object is rebuilt from the selection on each
+// ---- Combined Cabling Configuration (DERIVED) ----
+// Every cabling value comes from the screens themselves, edited in each screen's own Cable
+// tab or in the combined panel's per-screen rows (renderScreenCableRows). This object is rebuilt from the selection on each
 // render purely so the existing consumers (calculateCombinedCabling, the combined gear
 // list) keep a single place to read the few genuinely rig-wide values from.
 let combinedCablingConfig = {
@@ -380,6 +380,88 @@ function onSourceFeedRowInput(e) {
   if(typeof generateGearList === 'function') generateGearList();
 }
 
+// ---- Screen Cabling Rows ----
+// One row per selected screen in the combined Cabling panel, editing the same distances as
+// that screen's own Cable tab (screens[id].data), so a rig's runs can be set in one place.
+// Rebuilt only when the set of screens changes, so typing never loses focus to a re-render.
+const SCREEN_CABLE_FIELDS = [
+  ['wallToFloor', 'Wall to Floor'], ['cablePick', 'Cable Pick'], ['distroToWall', 'Distro to Drop'],
+  ['processorToWall', 'Proc to Drop'], ['xdPlacement', 'Dist Box'], ['xdToProcessor', 'Proc to XD'], ['xdToWall', 'XD to Drop']
+];
+
+function renderScreenCableRows(selectedScreenIds) {
+  const list = document.getElementById('combinedScreenCabling');
+  if(!list) return;
+  const ids = (selectedScreenIds || []).filter(id => screens[id] && screens[id].data);
+  const sig = JSON.stringify(ids);
+  if(list.dataset.sig !== sig) {
+    list.dataset.sig = sig;
+    list.replaceChildren();
+    ids.forEach(id => list.appendChild(buildScreenCableRow(id)));
+  }
+  list.querySelectorAll('.screen-cable-name').forEach(el => { el.textContent = screens[el.dataset.screen].name; });
+  list.querySelectorAll('[data-field]').forEach(el => {
+    const id = el.dataset.screen, field = el.dataset.field, data = screens[id].data;
+    const remote = resolveXdPlacement(data) === 'remote';
+    if(field === 'xdPlacement') {
+      el.disabled = !screenUsesDistBox(id);
+      if(el !== document.activeElement) el.value = resolveXdPlacement(data);
+      return;
+    }
+    if(field === 'xdToProcessor' || field === 'xdToWall') el.disabled = !remote;
+    el.placeholder = cableDefaultDisplay(CABLE_INPUT_DEFAULTS[field]);
+    if(el !== document.activeElement) el.value = cableInputValue(data[field], CABLE_INPUT_DEFAULTS[field]);
+  });
+}
+
+function buildScreenCableRow(screenId) {
+  const row = document.createElement('div');
+  row.className = 'screen-cable-row';
+  const name = document.createElement('div');
+  name.className = 'screen-cable-name';
+  name.dataset.screen = screenId;
+  row.appendChild(name);
+  SCREEN_CABLE_FIELDS.forEach(([field, labelText]) => {
+    let control;
+    if(field === 'xdPlacement') {
+      control = document.createElement('select');
+      control.add(new Option('At Proc', 'proc'));
+      control.add(new Option('On Wall', 'wall'));
+      control.add(new Option('Remote', 'remote'));
+    } else {
+      control = document.createElement('input');
+      control.type = 'number';
+      control.min = '0';
+      control.step = '0.1';
+    }
+    control.dataset.screen = screenId;
+    control.dataset.field = field;
+    control.addEventListener('input', onScreenCableRowInput);
+    const label = document.createElement('label');
+    const span = document.createElement('span');
+    span.textContent = labelText;
+    label.append(span, control);
+    row.appendChild(label);
+  });
+  return row;
+}
+
+function onScreenCableRowInput(e) {
+  const el = e.target;
+  const screenId = el.dataset.screen, field = el.dataset.field;
+  const data = screens[screenId].data;
+  if(field === 'xdPlacement') data.xdPlacement = el.value;
+  else data[field] = readCableInput(el, CABLE_INPUT_DEFAULTS[field], data[field]);
+  // The Cable tab's own inputs show one screen, which may be the one just edited
+  if(screenId === sourceFeedCableTabScreenId()) loadGearCablingInputs(screenId);
+  // As with a feed: only the cable diagram and the gear lists change, and redrawing the
+  // whole combined view would throw the page's scroll position
+  const selectedScreenIds = combinedSelectedScreenIdsInOrder();
+  renderCombinedCableDiagram(selectedScreenIds, combinedScreenDimensions);
+  renderCombinedGearList(selectedScreenIds);
+  if(typeof generateGearList === 'function') generateGearList();
+}
+
 // ---- Processor Dist Box Support Check ----
 function processorSupportsDistBox(processorId, mx40Mode) {
   // resolveProcessorTopology() reads getAllProcessors(), so custom processors are
@@ -670,6 +752,7 @@ function calculateCombinedCabling(selectedScreenIds, config) {
 // Source rows, so the Combined panel's are left alone.
 function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target) {
   if (!target) renderSourceFeedRows(selectedScreenIds);
+  if (!target) renderScreenCableRows(selectedScreenIds);
 
   // Eco/greyscale print mode support — reassign module-level colors
   var isPrintMode = ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode;

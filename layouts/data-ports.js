@@ -73,8 +73,9 @@ function resolveScreenDataInputs(data) {
   const processorId = data.processor || 'Brompton_SX40';
   const halfRows = getCB5HalfRows(data, panelType);
   const halfRowCount = halfRows.top + halfRows.bottom;
+  const halfCols = getHalfCols(data, panelType);
   const deletedPanels = toSet(data.deletedPanels);
-  const _live = countCB5LivePanels(pw, ph, halfRows, deletedPanels);
+  const _live = countCB5LivePanels(pw, ph, halfRows, deletedPanels, null, halfCols);
 
   const panelsPerDataLine = (typeof resolvePanelsPerDataLine === 'function')
     ? resolvePanelsPerDataLine({
@@ -85,12 +86,13 @@ function resolveScreenDataInputs(data) {
         bitDepth: data.bitDepth || 8,
         fullPanels: _live.full,
         halfPanels: _live.half,
+        extraParts: gridExtraParts(panelType, _live),
         userMax: parseInt(data.maxPanelsPerData) || 0
       })
     : 48;
 
   return {
-    pw: pw,
+    pw: pw + halfCols.left + halfCols.right,
     ph: ph + halfRowCount,
     panelsPerDataLine: panelsPerDataLine,
     startDir: data.dataStartDir || 'top',

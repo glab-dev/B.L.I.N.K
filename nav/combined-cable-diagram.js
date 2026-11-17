@@ -615,12 +615,20 @@ function calculateCombinedCabling(selectedScreenIds, config) {
     }
 
     const effectivePh = ph + halfRowCount;
+    // Half columns (V4ST-V) are extra columns beside the full ones, as the half rows are rows
+    const halfCols = getHalfCols(data, panelType);
+    const halfColCount = halfCols.left + halfCols.right;
+    const effectivePw = pw + halfColCount;
+    if (halfColCount > 0) {
+      const halfColP = allPanels[halfColPanelTypeOf(panelType)];
+      if (halfColP) wallWidthFt += halfColCount * halfColP.width_m * M_TO_FT;
+    }
     const pixelsPerPanel = p.res_x * p.res_y;
     const deletedPanelsSet = data.deletedPanels || new Set();
 
-    // Count active panels (full and half)
-    const _live = countCB5LivePanels(pw, ph, halfRows, deletedPanelsSet);
-    const activePanelCount = _live.full + _live.half;
+    // Count active panels (full, half rows, half columns and quarters)
+    const _live = countCB5LivePanels(pw, ph, halfRows, deletedPanelsSet, null, halfCols);
+    const activePanelCount = _live.full + _live.half + _live.vert + _live.quarter;
 
     const screenPixels = activePanelCount * pixelsPerPanel;
     totalPixels += screenPixels;
@@ -638,23 +646,24 @@ function calculateCombinedCabling(selectedScreenIds, config) {
       bitDepth: parseInt(data.bitDepth) || 8,
       fullPanels: _live.full,
       halfPanels: _live.half,
+      extraParts: gridExtraParts(panelType, _live),
       userMax: parseInt(data.maxPanelsPerData)
     });
     const dataLines = typeof calculateActualDataLines === 'function'
-      ? calculateActualDataLines(pw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split)
-      : Math.ceil((pw * effectivePh) / panelsPerDataLine);
+      ? calculateActualDataLines(effectivePw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split)
+      : Math.ceil((effectivePw * effectivePh) / panelsPerDataLine);
 
     totalDataLines += dataLines;
 
     // Entry/exit points
     const entryPoints = typeof getDataLineEntryPoints === 'function'
-      ? getDataLineEntryPoints(pw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split)
+      ? getDataLineEntryPoints(effectivePw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split)
       : {};
 
     // Exit points (last panel per data line — for backup/redundancy cables)
     let exitPoints = {};
     if (typeof getDataLinePanelOrdering === 'function') {
-      const ordering = getDataLinePanelOrdering(pw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split);
+      const ordering = getDataLinePanelOrdering(effectivePw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split);
       for (const dlIndex of Object.keys(ordering)) {
         const panelList = ordering[dlIndex];
         if (panelList.length > 0) exitPoints[dlIndex] = panelList[panelList.length - 1];
@@ -699,7 +708,7 @@ function calculateCombinedCabling(selectedScreenIds, config) {
       screenId,
       screenName: screen.name || screenId,
       screenColor: screen.color || '#888',
-      panelType, pw, ph, effectivePh, hasCB5HalfRow,
+      panelType, pw: effectivePw, ph, effectivePh, hasCB5HalfRow,
       panelWidthFt, panelHeightFt,
       wallWidthFt: Math.round(wallWidthFt * 10) / 10,
       wallHeightFt: Math.round(wallHeightFt * 10) / 10,

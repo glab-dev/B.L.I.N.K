@@ -449,7 +449,10 @@ function calculateCabling(screenId) {
   // and rows in cells, and every cell is the same size whatever panel covers it
   const isFree = isFreeScreen(data);
   const freeB = isFree ? freeBounds(data.freePanels, allPanels, data.freeCell_mm) : null;
-  const pw = isFree ? (freeB ? freeB.maxX : 0) : data.panelsWide;
+  // A grid's half columns (V4ST-V) are extra columns, counted in pw as the layouts count them
+  const halfCols = isFree ? {left: 0, right: 0} : getHalfCols(data, panelType);
+  const halfColCount = halfCols.left + halfCols.right;
+  const pw = isFree ? (freeB ? freeB.maxX : 0) : (data.panelsWide ? data.panelsWide + halfColCount : 0);
   const ph = isFree ? (freeB ? freeB.maxY : 0) : data.panelsHigh;
   if(pw === 0 || ph === 0) return null;
 
@@ -470,6 +473,14 @@ function calculateCabling(screenId) {
     const halfP = allPanels[halfPanelTypeOf(panelType)];
     if(halfP) {
       wallHeightFt += halfRowCount * halfP.height_m * M_TO_FT;
+    }
+  }
+  // ...and the half columns, at their own width. Positions along the wall treat them as
+  // full columns, as the half rows are treated as full rows.
+  if(halfColCount > 0) {
+    const halfColP = allPanels[halfColPanelTypeOf(panelType)];
+    if(halfColP) {
+      wallWidthFt = (pw - halfColCount) * panelWidthFt + halfColCount * halfColP.width_m * M_TO_FT;
     }
   }
 
@@ -1058,6 +1069,9 @@ function generateGearList() {
       colEquipment += `<div style="margin-left: 12px; color: #fff;">Half Panels:</div>`;
       colEquipment += `<div style="margin-left: 24px; color: #fff;">${eq.activeHalfPanels} x ${escapeHtml(eq.panelBrand)} ${escapeHtml(eq.halfPanelName)}</div>`;
     }
+    (eq.extraPanelLines || []).forEach(line => {
+      colEquipment += `<div style="margin-left: 24px; color: #fff;">${line.count} x ${escapeHtml(eq.panelBrand)} ${escapeHtml(line.name)}</div>`;
+    });
 
     // === RIGGING HARDWARE ===
     let colRigging = '';

@@ -431,8 +431,12 @@ function buildGearListData(screenIds) {
     // --- EQUIPMENT ---
     const halfRows = getCB5HalfRows(data, panelType);
     const activePanels = calcData.activePanels || calcData.panelCount || 0;
-    const activeHalfPanels = countCB5LivePanels(W, H, halfRows, data.deletedPanels).half;
-    const activeFullPanels = activePanels - activeHalfPanels;
+    const liveByKind = countCB5LivePanels(W, H, halfRows, data.deletedPanels, null, getHalfCols(data, panelType));
+    const activeHalfPanels = liveByKind.half;
+    // Half-column (V4ST-V) and quarter (V4ST-Q) panels, each on its own gear line
+    const extraPanelLines = gridExtraParts(panelType, liveByKind).map(x => ({name: x.panel.name, count: x.count,
+      panelType: Object.keys(allPanelsObj).find(k => allPanelsObj[k] === x.panel)}));
+    const activeFullPanels = activePanels - activeHalfPanels - extraPanelLines.reduce((n, l) => n + l.count, 0);
     const halfPanelObj = allPanelsObj[halfPanelTypeOf(panelType)];
 
     const equipment = {
@@ -449,7 +453,8 @@ function buildGearListData(screenIds) {
       activeHalfPanels: activeHalfPanels,
       panelBrand: p.brand || '',
       panelName: p.name || '',
-      halfPanelName: halfPanelObj ? halfPanelObj.name : 'CB5 MKII Half'
+      halfPanelName: halfPanelObj ? halfPanelObj.name : 'CB5 MKII Half',
+      extraPanelLines: extraPanelLines
     };
 
     // --- RIGGING ---
@@ -734,6 +739,10 @@ function buildGearListData(screenIds) {
         const halfName = (eq.panelBrand + ' ' + eq.halfPanelName).trim();
         panelsByType[halfName] = (panelsByType[halfName] || 0) + eq.activeHalfPanels;
       }
+      (eq.extraPanelLines || []).forEach(line => {
+        const lineName = (eq.panelBrand + ' ' + line.name).trim();
+        panelsByType[lineName] = (panelsByType[lineName] || 0) + line.count;
+      });
       (eq.panelLines || []).forEach(line => {
         const lineName = (line.brand + ' ' + line.name).trim();
         panelsByType[lineName] = (panelsByType[lineName] || 0) + line.count;

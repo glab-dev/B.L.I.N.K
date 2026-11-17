@@ -192,18 +192,21 @@ function getEffectivePanelCounts(){
 // be 0 otherwise.
 function resolvePanelsPerDataLine(o) {
   const {panel, halfPanel, processor, frameRate, bitDepth, fullPanels, halfPanels, userMax} = o;
+  // Half-column and quarter panels (gridExtraParts), averaged in the same way
+  const extraParts = (o.extraParts || []).filter(x => x.panel && x.count > 0);
 
   const pixelsPerPanel = (panel && panel.res_x && panel.res_y) ? panel.res_x * panel.res_y : (176*176);
   const adjustedCapacity = calculateAdjustedPixelCapacity(processor, frameRate, bitDepth);
 
   let capacityBasedPanelsPerData;
-  if(halfPanels > 0) {
+  if(halfPanels > 0 || extraParts.length) {
     // With half panels, calculate based on average pixels per panel
-    const halfPanelPixels = halfPanel.res_x * halfPanel.res_y;
+    const halfPanelPixels = halfPanels > 0 ? halfPanel.res_x * halfPanel.res_y : 0;
     const mainPanelCount = fullPanels; // All live full panels
     const halfPanelCount = halfPanels; // Live half panels
-    const totalMixedPanels = mainPanelCount + halfPanelCount;
-    const totalPixels = (mainPanelCount * pixelsPerPanel) + (halfPanelCount * halfPanelPixels);
+    let totalMixedPanels = mainPanelCount + halfPanelCount;
+    let totalPixels = (mainPanelCount * pixelsPerPanel) + (halfPanelCount * halfPanelPixels);
+    extraParts.forEach(x => { totalMixedPanels += x.count; totalPixels += x.count * (x.panel.res_x * x.panel.res_y); });
     const avgPixelsPerPanel = totalPixels / totalMixedPanels;
     capacityBasedPanelsPerData = Math.max(1, Math.floor(adjustedCapacity / avgPixelsPerPanel));
   } else {
@@ -2036,8 +2039,9 @@ function generateLayout(mode){
   const halfRows = getCurrentCB5HalfRows();
   const halfRowCount = halfRows.top + halfRows.bottom;
 
-  const _live = halfRowCount > 0
-    ? countCB5LivePanels(getEffectivePanelCounts().pw, getEffectivePanelCounts().ph, halfRows, deletedPanels)
+  const _halfCols = getCurrentHalfCols();
+  const _live = (halfRowCount > 0 || _halfCols.left + _halfCols.right > 0)
+    ? countCB5LivePanels(getEffectivePanelCounts().pw, getEffectivePanelCounts().ph, halfRows, deletedPanels, null, _halfCols)
     : {full: 0, half: 0};
   const panelsPerDataLine = (mode==='data') ? resolvePanelsPerDataLine({
     panel: p,
@@ -2047,6 +2051,7 @@ function generateLayout(mode){
     bitDepth: parseInt(document.getElementById('bitDepth').value) || 8,
     fullPanels: _live.full,
     halfPanels: _live.half,
+    extraParts: gridExtraParts(document.getElementById('panelType').value, _live),
     userMax: parseInt(document.getElementById('maxPanelsPerData').value)
   }) : null;
   const startDirEl = document.getElementById('dataStartDir');

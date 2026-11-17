@@ -153,6 +153,7 @@ function buildGearListText(gearData) {
     text += ' - Panels:' + nl;
     text += '     ' + eq.activeFullPanels + ' x ' + eq.panelBrand + ' ' + eq.panelName + nl;
     if(eq.activeHalfPanels > 0) text += '     ' + eq.activeHalfPanels + ' x ' + eq.panelBrand + ' ' + eq.halfPanelName + nl;
+    (eq.extraPanelLines || []).forEach(function(line) { text += '     ' + line.count + ' x ' + eq.panelBrand + ' ' + line.name + nl; });
 
     if(rig.hasRigging) {
       text += hdr('Rigging Hardware');
@@ -331,6 +332,7 @@ function sendGearListToJared(includeRP) {
     text += ` - Panels:${nl}`;
     text += `     ${eq.activeFullPanels} x ${eq.panelBrand} ${eq.panelName}${nl}`;
     if(eq.activeHalfPanels > 0) text += `     ${eq.activeHalfPanels} x ${eq.panelBrand} ${eq.halfPanelName}${nl}`;
+    (eq.extraPanelLines || []).forEach(line => { text += `     ${line.count} x ${eq.panelBrand} ${line.name}${nl}`; });
 
     // Rigging Hardware
     if(rig.hasRigging) {
@@ -566,6 +568,7 @@ function buildGearInventoryContent(gearData) {
     if(eq.activeFullPanels > 0) addToGroup(equipGroup, gc('panel.' + pt, eq.panelBrand + ' ' + eq.panelName), eq.activeFullPanels);
     var halfPt = halfPanelTypeOf(pt) || 'CB5_MKII_HALF';
     if(eq.activeHalfPanels > 0) addToGroup(equipGroup, gc('panel.' + halfPt, halfPt === 'CB5_MKII_HALF' ? 'ROE CB5 MKII 600 x 600 Panel' : eq.panelBrand + ' ' + eq.halfPanelName), eq.activeHalfPanels);
+    (eq.extraPanelLines || []).forEach(function(line) { addToGroup(equipGroup, gc('panel.' + line.panelType, eq.panelBrand + ' ' + line.name), line.count); });
     if(equipGroup.size > 0) categories.push(equipGroup);
 
     // Rigging
@@ -1984,6 +1987,7 @@ function buildComplexPdf(opts, canvasCache) {
         }
         if (eq.activeFullPanels > 0) eqItems.push({ qty: eq.activeFullPanels, item: ((eq.panelBrand || '') + ' ' + (eq.panelName || '')).trim() });
         if (eq.activeHalfPanels > 0) eqItems.push({ qty: eq.activeHalfPanels, item: ((eq.panelBrand || '') + ' ' + (eq.halfPanelName || '')).trim() });
+        (eq.extraPanelLines || []).forEach(line => eqItems.push({ qty: line.count, item: ((eq.panelBrand || '') + ' ' + line.name).trim() }));
 
         const rigItems = [];
         if (rig.hasRigging) {
@@ -2367,6 +2371,7 @@ function pdfBuildGearRows(sd) {
     }
     addRow(eq.activeFullPanels, `${eq.panelBrand} ${eq.panelName}`);
     if (eq.activeHalfPanels > 0) addRow(eq.activeHalfPanels, `${eq.panelBrand} ${eq.halfPanelName}`);
+    (eq.extraPanelLines || []).forEach(line => addRow(line.count, `${eq.panelBrand} ${line.name}`));
   }
 
   if (rig && rig.hasRigging) {

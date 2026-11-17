@@ -842,6 +842,14 @@ function gridLiveParts(panelType, live) {
     .filter(([t, n]) => t && n > 0);
 }
 
+// The half-column and quarter panels of a countCB5LivePanels result, as {panel, count}, for
+// the mixed-pixel averages that so far only knew the main and half-row panels
+function gridExtraParts(panelType, live) {
+  const all = getAllPanels();
+  return [[halfColPanelTypeOf(panelType), live.vert || 0], [quarterPanelTypeOf(panelType), live.quarter || 0]]
+    .filter(([t, n]) => t && n > 0).map(([t, n]) => ({panel: all[t], count: n}));
+}
+
 // Spec-text suffix for a wall's half columns, the twin of cb5HalfRowLabel
 function halfColLabel(half) {
   const l = half.left, r = half.right;

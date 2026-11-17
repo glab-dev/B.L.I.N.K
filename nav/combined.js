@@ -4070,8 +4070,12 @@ function renderCombinedSpecs(selectedScreenIds) {
     const _half = getCB5HalfRows(data, panelType);
     const halfRowCount = _half.top + _half.bottom;
     const hasCB5HalfRow = halfRowCount > 0;
-    const halfPanelCount = countCB5LivePanels(pw, ph, _half, data.deletedPanels).half;
-    const fullPanelCount = activePanels - halfPanelCount;
+    const _halfCols = getHalfCols(data, panelType);
+    const _liveKinds = countCB5LivePanels(pw, ph, _half, data.deletedPanels, null, _halfCols);
+    const halfPanelCount = _liveKinds.half;
+    // Half-column (V4ST-V) and quarter (V4ST-Q) panels
+    const extraParts = gridExtraParts(panelType, _liveKinds);
+    const fullPanelCount = activePanels - halfPanelCount - extraParts.reduce((n, x) => n + x.count, 0);
 
     // Track panels by type
     const panelDisplayName = `${panel.brand} ${panel.name}`;
@@ -4089,13 +4093,18 @@ function renderCombinedSpecs(selectedScreenIds) {
         panelsByType[halfDisplayName] += halfPanelCount;
       }
     }
+    extraParts.forEach(x => {
+      const name = `${x.panel.brand} ${x.panel.name}`;
+      panelsByType[name] = (panelsByType[name] || 0) + x.count;
+    });
 
     // Pixels - use stored value or calculate. activePanels already counts the half-panel row,
     // so the fallback splits it back out rather than charging half panels a full panel's
     // pixels and then adding the row a second time.
     totalPixels += calcData.totalPixels
       || (fullPanelCount * panel.res_x * panel.res_y)
-         + (halfPanelCount ? halfPanelCount * ((allPanels[halfPanelTypeOf(panelType)] || {}).res_x || 0) * ((allPanels[halfPanelTypeOf(panelType)] || {}).res_y || 0) : 0);
+         + (halfPanelCount ? halfPanelCount * ((allPanels[halfPanelTypeOf(panelType)] || {}).res_x || 0) * ((allPanels[halfPanelTypeOf(panelType)] || {}).res_y || 0) : 0)
+         + extraParts.reduce((n, x) => n + x.count * x.panel.res_x * x.panel.res_y, 0);
 
     // Power - use combined toggle state. Same split: the half-panel row is inside
     // activePanels, so it is billed at the half panel's watts once, not at the full
@@ -4108,6 +4117,7 @@ function renderCombinedSpecs(selectedScreenIds) {
         screenPowerW += halfPanelCount * (combinedPowerType === 'max' ? (halfPanel.power_max_w || 0) : (halfPanel.power_avg_w || 0));
       }
     }
+    extraParts.forEach(x => { screenPowerW += x.count * (combinedPowerType === 'max' ? (x.panel.power_max_w || 0) : (x.panel.power_avg_w || 0)); });
     totalPowerW += screenPowerW;
 
     // Amps - use per-screen voltage with combined phase toggle
@@ -4137,6 +4147,9 @@ function renderCombinedSpecs(selectedScreenIds) {
       if(hasCB5HalfRow) {
         totalWeight += halfPanelCount * getPanelWeight(halfPanelTypeOf(panelType), screenUseConnectingPlates);
       }
+      extraParts.forEach(x => {
+        totalWeight += x.count * getPanelWeight(Object.keys(allPanels).find(k => allPanels[k] === x.panel), screenUseConnectingPlates);
+      });
     }
 
     // Data lines - use stored calculated value. dataLinesFinal is the needed count
@@ -4149,6 +4162,9 @@ function renderCombinedSpecs(selectedScreenIds) {
 
     // Dimensions
     totalWidth += pw * (panel.width_m || 0.5);
+    if(_halfCols.left + _halfCols.right > 0) {
+      totalWidth += (_halfCols.left + _halfCols.right) * ((allPanels[halfColPanelTypeOf(panelType)] || {}).width_m || 0);
+    }
     let screenHeight = ph * (panel.height_m || 0.5);
     if(hasCB5HalfRow) {
       const halfPanel = allPanels[halfPanelTypeOf(panelType)];
@@ -4372,8 +4388,11 @@ function renderCombinedGearList(selectedScreenIds) {
     // Use calcData.activePanels directly (same as PDF export) — already accounts for deletions
     const _half = getCB5HalfRows(data, panelType);
     const activePanels = calculatedData.activePanels || calculatedData.panelCount || 0;
-    const halfPanelCount = countCB5LivePanels(pw, ph, _half, data.deletedPanels).half;
-    const fullPanelCount = activePanels - halfPanelCount;
+    const _liveKinds = countCB5LivePanels(pw, ph, _half, data.deletedPanels, null, getHalfCols(data, panelType));
+    const halfPanelCount = _liveKinds.half;
+    // Half-column (V4ST-V) and quarter (V4ST-Q) panels
+    const extraParts = gridExtraParts(panelType, _liveKinds);
+    const fullPanelCount = activePanels - halfPanelCount - extraParts.reduce((n, x) => n + x.count, 0);
 
     const panelLabel = `${panel.brand} ${panel.name}`;
     panelsByType[panelLabel] = (panelsByType[panelLabel] || 0) + fullPanelCount;
@@ -4382,6 +4401,10 @@ function renderCombinedGearList(selectedScreenIds) {
       const halfLabel = halfPanel ? `${halfPanel.brand} ${halfPanel.name}` : `${panel.brand} CB5 MKII Half Panel`;
       panelsByType[halfLabel] = (panelsByType[halfLabel] || 0) + halfPanelCount;
     }
+    extraParts.forEach(x => {
+      const label = `${x.panel.brand} ${x.panel.name}`;
+      panelsByType[label] = (panelsByType[label] || 0) + x.count;
+    });
 
     // Use calculated data if available
     if(calculatedData.circuits) totalCircuits += calculatedData.circuits;

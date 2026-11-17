@@ -438,9 +438,14 @@ function drawDataOverlay(ctx, o) {
   // Rear view = mirror the draw x-coordinate horizontally (visual only; data
   // assignments are unchanged). Labels stay upright and arrows mirror because
   // their points inherit the mirrored x.
-  const drawX = (c) => (rearView ? (pw - 1 - c) : c) * panelWidth + offsetX;
+  // Optional column map (gridColGeometry) when half columns make the columns uneven
+  const _colGeo = o.colGeo || null;
+  const drawX = (c) => _colGeo
+    ? (rearView ? _colGeo.width - _colGeo.x(c + 1) : _colGeo.x(c)) + offsetX
+    : (rearView ? (pw - 1 - c) : c) * panelWidth + offsetX;
   const drawY = (r) => offsetY + rowGeo.y(r);
   const rowHeight = (r) => rowGeo.h(r);
+  const colWidth = (c) => _colGeo ? _colGeo.w(c) : panelWidth;
 
   ctx.font = `${panelFontSize}px Arial`;
   ctx.textAlign = 'center';
@@ -477,11 +482,11 @@ function drawDataOverlay(ctx, o) {
         const x = drawX(c);
         const y = drawY(r);
         ctx.fillStyle = lightDeletedPanels ? '#ffffff' : '#1a1a1a';
-        ctx.fillRect(x,y,panelWidth,rowHeight(r));
+        ctx.fillRect(x,y,colWidth(c),rowHeight(r));
         ctx.strokeStyle = lightDeletedPanels ? '#cccccc' : '#333333';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
-        ctx.strokeRect(x,y,panelWidth,rowHeight(r));
+        ctx.strokeRect(x,y,colWidth(c),rowHeight(r));
         ctx.setLineDash([]);
       }
     }
@@ -503,6 +508,7 @@ function drawDataOverlay(ctx, o) {
       const currentPanelHeight = rowHeight(pnt.r);
       const x = drawX(pnt.c);
       const y = drawY(pnt.r);
+      const panelWidth = colWidth(pnt.c);
 
       ctx.fillStyle=colors.fill;
       ctx.fillRect(x,y,panelWidth,currentPanelHeight);
@@ -516,7 +522,7 @@ function drawDataOverlay(ctx, o) {
       if (_bigLabel) {
         // Defer the big start-label so all labels can share one uniform font size,
         // drawn below (under the arrows, so the lines/arrows stay visible)
-        bigLabelDraws.push({ label: _bigLabel.text, color: _bigLabel.color, cx: x + panelWidth/2, cy: y + currentPanelHeight/2, h: currentPanelHeight });
+        bigLabelDraws.push({ label: _bigLabel.text, color: _bigLabel.color, cx: x + panelWidth/2, cy: y + currentPanelHeight/2, h: currentPanelHeight, w: panelWidth });
       } else {
         // Use white text only for data line 9 (black resistor color), black text for all others
         ctx.fillStyle = noPort ? colors.text : ((dataLineNum % 10 === 9) ? '#FFFFFF' : '#000000');
@@ -636,7 +642,8 @@ function drawDataOverlay(ctx, o) {
     bigLabelDraws.forEach(function(b){
       if (ctx.measureText(b.label).width > ctx.measureText(_widest).width) _widest = b.label;
     });
-    while (_fs > 8 && ctx.measureText(_widest).width > panelWidth * 0.85) {
+    const _minLabelW = Math.min.apply(null, bigLabelDraws.map(function(b){ return b.w; }));
+    while (_fs > 8 && ctx.measureText(_widest).width > _minLabelW * 0.85) {
       _fs -= 1;
       ctx.font = `bold ${_fs}px Arial`;
     }
@@ -653,7 +660,7 @@ function drawDataOverlay(ctx, o) {
 }
 
 function renderDataLayout(params) {
-  const {pw, ph, panelWidth, rowGeo, canvas, ctx, panelsPerDataLine, startDir, showArrows, fontSize} = params;
+  const {pw, ph, panelWidth, rowGeo, colGeo, canvas, ctx, panelsPerDataLine, startDir, showArrows, fontSize} = params;
 
   const {groups, sortedDataLines} = buildDataLineGroups({
     pw, ph, panelsPerDataLine, startDir,
@@ -676,7 +683,7 @@ function renderDataLayout(params) {
     linePorts: (typeof dataPortLinePortMap === 'function') ? dataPortLinePortMap(currentScreenId) : null,
     unassignedLines: (typeof dataPortUnassignedLines === 'function') ? dataPortUnassignedLines(currentScreenId) : null,
     deletedPanels,
-    pw, ph, panelWidth, rowGeo,
+    pw, ph, panelWidth, rowGeo, colGeo,
     offsetX: 0, offsetY: 0,
     startDir,
     rearView: (typeof dataRearViewEnabled !== 'undefined') && dataRearViewEnabled,
@@ -690,7 +697,7 @@ function renderDataLayout(params) {
     lightDeletedPanels: (ecoPrintMode || greyscalePrintMode)
   });
 
-  drawSplitPartMarkers(ctx, currentScreenId, { offsetX: 0, offsetY: 0, panelWidth, rowGeo, fontSize });
+  drawSplitPartMarkers(ctx, currentScreenId, { offsetX: 0, offsetY: 0, panelWidth, rowGeo, colGeo, fontSize });
 }
 
 // ==================== SPLIT PART MARKERS ====================
@@ -702,6 +709,8 @@ function drawSplitPartMarkers(ctx, screenId, o) {
   const split = screen && screen.data.split;
   if(!split) return;
   const {offsetX, offsetY, panelWidth, rowGeo} = o;
+  // Column positions: the column map when half columns make them uneven
+  const colX = c => o.colGeo ? o.colGeo.x(c) : c * panelWidth;
   // A drawn screen places its cuts in cells but draws them as thick as on a grid of its panels
   const unitWidth = o.unitWidth || panelWidth;
   const fontSize = Math.max(10, o.fontSize || 12);
@@ -731,14 +740,14 @@ function drawSplitPartMarkers(ctx, screenId, o) {
   let acc = 0;
   split.cols.slice(0, -1).forEach(n => {
     acc += n;
-    const x = offsetX + acc * panelWidth;
+    const x = offsetX + colX(acc);
     ctx.beginPath(); ctx.moveTo(x, offsetY); ctx.lineTo(x, offsetY + rowGeo.height); ctx.stroke();
   });
   acc = 0;
   split.rows.slice(0, -1).forEach(n => {
     acc += n;
     const y = offsetY + rowGeo.y(acc);
-    ctx.beginPath(); ctx.moveTo(offsetX, y); ctx.lineTo(offsetX + totalCols * panelWidth, y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(offsetX, y); ctx.lineTo(offsetX + colX(totalCols), y); ctx.stroke();
   });
   ctx.setLineDash([]);
 
@@ -750,7 +759,7 @@ function drawSplitPartMarkers(ctx, screenId, o) {
     const text = [canvas ? canvas.name : '', procLabels[part.k] || ''].filter(Boolean).join(' · ');
     if(!text) return;
     const pad = 3;
-    const x = offsetX + part.c0 * panelWidth + pad;
+    const x = offsetX + colX(part.c0) + pad;
     const y = offsetY + rowGeo.y(part.r0) + pad;
     const w = ctx.measureText(text).width + pad * 2;
     ctx.fillStyle = isPrint ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)';

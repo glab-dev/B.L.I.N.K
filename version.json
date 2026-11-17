@@ -1,5 +1,5 @@
 {
-  "version": "2.11.246",
+  "version": "2.11.247",
   "updated": "2026-11-16",
-  "changelog": "Keep the panel right-click menu inside the window near its edges"
+  "changelog": "Widen the Complex page, move Specs beside the form on cards, and put layout toggles in the options boxes"
 }

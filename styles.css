@@ -841,7 +841,7 @@ button:active {
 /* Desktop layout adjustments */
 @media (min-width: 768px) {
   .main-container {
-    max-width: 1200px;
+    max-width: 1600px;
     margin: 0; /* Align to left instead of centered */
     margin-left: 20px; /* Small left margin */
   }
@@ -850,6 +850,12 @@ button:active {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
+    max-width: 1168px; /* the form keeps its size inside the wider box */
+  }
+
+  /* Layouts use the full width of the box, for the options column beside each canvas */
+  .main-container .layout-container {
+    max-width: none;
   }
 
   .section-box {
@@ -873,7 +879,7 @@ button:active {
 
   /* Screen tabs alignment with main content */
   #screenTabsContainer {
-    max-width: 1200px;
+    max-width: 1600px;
     margin-left: 20px; /* Align to left */
     margin-right: 0;
     box-sizing: border-box;
@@ -941,6 +947,55 @@ button:active {
     min-width: 0;
   }
 
+  /* Hidden until its layout shows */
+  .section-box.layout-options-waiting {
+    display: none !important;
+  }
+
+  /* The layout's own toggles, moved into the options box under its settings */
+  .has-layout-options > .section-box .layout-toggle-row {
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 12px;
+    padding: 12px 0 0;
+    margin-top: 12px;
+    border-top: 2px solid #000;
+  }
+
+  .has-layout-options > .section-box .structure-mode-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+    margin: 12px 0 0;
+    padding: 12px 0 0;
+    background: none;
+    border-top: 2px solid #000;
+    border-radius: 0;
+  }
+
+  .has-layout-options > .section-box .structure-mode-hint {
+    margin-left: 0;
+  }
+
+  /* Specs moved up beside the form (nav/navigation.js placeLayoutOptions): the form keeps
+     its width, Specs takes the rest of the box, two cards to a row */
+  .two-column-layout.has-specs-beside {
+    grid-template-columns: minmax(0, 574px) minmax(0, 1fr);
+    max-width: none;
+  }
+
+  #results.specs-beside {
+    margin-top: 12px;
+  }
+
+  #results.specs-beside .specs-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  #results.specs-beside .specs-row-bottom {
+    margin-top: 12px;
+  }
+
 }
 
 .button-row {
@@ -990,6 +1045,30 @@ button:active {
 
 .result-indent {
   margin-left: 20px;
+}
+
+/* Each Specs section (PANEL, WALL, POWER, DATA...) sits on its own card */
+#results .spec-group {
+  background: #1a1a1a;
+  border: 2px solid #000;
+  border-radius: 2px;
+  padding: 10px 12px;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+}
+
+#results .spec-group .result-section-title {
+  margin-top: 0;
+}
+
+/* The cards space themselves; the <br> spacers were for the old plain stacked list */
+#results .specs-columns br {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  #results .spec-group {
+    margin-bottom: 12px;
+  }
 }
 
 /* Desktop specs columns — PANEL | WALL on the top row, POWER | SHARED DISTRO | DATA

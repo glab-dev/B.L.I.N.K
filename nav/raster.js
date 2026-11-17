@@ -103,7 +103,8 @@ function renderRasterScreenTable() {
       html += '<td data-label="Panel"><select class="raster-select" disabled title="Drawn screen — edit it in Draw">' +
               buildRasterPanelOptions(panelType) +
               '</select></td>';
-    } else if(halfPanelTypeOf(panelType)) {
+    } else if(halfPanelTypeOf(panelType) && !halfColPanelTypeOf(panelType)) {
+      // The half-row chip is CB5 MKII's; V4ST's -H rows, -V columns and -Q corners are set in Complex
       var halfActive = !!data.addCB5HalfRow;
       // Rows and position are set in the Panel Type section; the tooltip shows them
       var halfRows = getCB5HalfRows(data, panelType);

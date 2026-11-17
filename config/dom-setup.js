@@ -320,9 +320,6 @@ document.addEventListener('DOMContentLoaded', function() {
         customSocaAssignments.clear();
         customDataLineAssignments.clear();
         customDataDestinations.clear();
-        undoHistory = [];
-        redoHistory = [];
-        updateUndoRedoButtons();
 
         // Typed limits belong to the old panel - fall back to the new panel's suggestions.
         document.getElementById('maxPanelsPerCircuit').value = '';

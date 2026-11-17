@@ -85,12 +85,14 @@ function configureBottomNavForMode(mode) {
   }
 }
 
+// Entering a mode from the welcome page starts a new Undo history (core/undo.js)
 function enterSimpleMode() {
   // Push history state so back button returns to welcome page
   history.pushState({ view: 'app', mode: 'simple' }, '', '');
   hideWelcomePage();
   configureBottomNavForMode('simple');
   switchAppMode('simple');
+  resetHistory();
 }
 
 function enterComplexMode() {
@@ -99,6 +101,7 @@ function enterComplexMode() {
   hideWelcomePage();
   configureBottomNavForMode('complex');
   switchAppMode('complex');
+  resetHistory();
 }
 
 function enterRasterMode() {
@@ -107,6 +110,7 @@ function enterRasterMode() {
   hideWelcomePage();
   configureBottomNavForMode('raster');
   switchAppMode('raster');
+  resetHistory();
 }
 
 function openHelpModal() {

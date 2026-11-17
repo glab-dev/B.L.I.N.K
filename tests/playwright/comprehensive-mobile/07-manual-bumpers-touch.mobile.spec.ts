@@ -44,11 +44,11 @@ test.describe('Manual Bumper Mode @comprehensive @mobile', () => {
     expect(hasContent).toBe(true);
   });
 
-  test('should show structure undo/redo buttons in manual mode', async ({ page, structure }) => {
+  test('should show the top bar undo/redo in manual mode', async ({ page, structure }) => {
     await structure.manualBumperModeBtn.scrollIntoViewIfNeeded();
     await structure.toggleManualBumperMode(true);
-    await expect(page.locator('#structureUndoBtn')).toBeVisible();
-    await expect(page.locator('#structureRedoBtn')).toBeVisible();
+    await expect(page.locator('#undoBtn')).toBeVisible();
+    await expect(page.locator('#redoBtn')).toBeVisible();
   });
 
   test('should select bumper and show context menu via touch', async ({ page, structure }) => {
@@ -132,7 +132,7 @@ test.describe('Manual Bumper Mode @comprehensive @mobile', () => {
 
     // Delete first bumper
     await page.evaluate(`
-      saveStructureState();
+      saveState();
       bumpers.splice(0, 1);
       generateStructureLayout();
     `);
@@ -151,14 +151,14 @@ test.describe('Manual Bumper Mode @comprehensive @mobile', () => {
 
     // Delete bumper
     await page.evaluate(`
-      saveStructureState();
+      saveState();
       bumpers.splice(0, 1);
       generateStructureLayout();
     `);
     await page.waitForTimeout(300);
 
     // Undo
-    const undoBtn = page.locator('#structureUndoBtn');
+    const undoBtn = page.locator('#undoBtn');
     await undoBtn.scrollIntoViewIfNeeded();
     await undoBtn.click();
     await page.waitForTimeout(500);
@@ -179,7 +179,7 @@ test.describe('Manual Bumper Mode @comprehensive @mobile', () => {
 
     // Delete a bumper
     await page.evaluate(`
-      saveStructureState();
+      saveState();
       bumpers.splice(0, 1);
       generateStructureLayout();
     `);

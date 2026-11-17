@@ -112,9 +112,7 @@ function getDefaultScreenData() {
     customCircuitAssignments: new Map(),
     customSocaAssignments: new Map(),
     customDataLineAssignments: new Map(),
-    customDataDestinations: new Map(),
-    undoHistory: [],
-    redoHistory: []
+    customDataDestinations: new Map()
   };
 }
 
@@ -329,23 +327,6 @@ function saveCurrentScreenData() {
   data.customDataLineAssignments = new Map(customDataLineAssignments); // Copy Map
   data.customDataDestinations = new Map(customDataDestinations); // Copy Map
 
-  // Deep copy undo/redo history
-  data.undoHistory = undoHistory.map(state => ({
-    deletedPanels: new Set(state.deletedPanels),
-    selectedPanels: new Set(state.selectedPanels),
-    customCircuitAssignments: new Map(state.customCircuitAssignments),
-    customSocaAssignments: new Map(state.customSocaAssignments || []),
-    customDataLineAssignments: new Map(state.customDataLineAssignments),
-    customDataDestinations: new Map(state.customDataDestinations || [])
-  }));
-  data.redoHistory = redoHistory.map(state => ({
-    deletedPanels: new Set(state.deletedPanels),
-    selectedPanels: new Set(state.selectedPanels),
-    customCircuitAssignments: new Map(state.customCircuitAssignments),
-    customSocaAssignments: new Map(state.customSocaAssignments || []),
-    customDataLineAssignments: new Map(state.customDataLineAssignments),
-    customDataDestinations: new Map(state.customDataDestinations || [])
-  }));
 }
 
 function loadScreenData(screenId) {
@@ -582,27 +563,6 @@ function loadScreenData(screenId) {
   customDataLineAssignments = data.customDataLineAssignments ? new Map(data.customDataLineAssignments) : new Map();
   customDataDestinations = data.customDataDestinations ? new Map(data.customDataDestinations) : new Map();
 
-  // Restore undo/redo history
-  undoHistory = data.undoHistory ? data.undoHistory.map(state => ({
-    deletedPanels: new Set(state.deletedPanels),
-    selectedPanels: new Set(state.selectedPanels),
-    customCircuitAssignments: new Map(state.customCircuitAssignments),
-    customSocaAssignments: new Map(state.customSocaAssignments || []),
-    customDataLineAssignments: new Map(state.customDataLineAssignments),
-    customDataDestinations: new Map(state.customDataDestinations || [])
-  })) : [];
-  redoHistory = data.redoHistory ? data.redoHistory.map(state => ({
-    deletedPanels: new Set(state.deletedPanels),
-    selectedPanels: new Set(state.selectedPanels),
-    customCircuitAssignments: new Map(state.customCircuitAssignments),
-    customSocaAssignments: new Map(state.customSocaAssignments || []),
-    customDataLineAssignments: new Map(state.customDataLineAssignments),
-    customDataDestinations: new Map(state.customDataDestinations || [])
-  })) : [];
-  
-  // Update undo/redo button states
-  updateUndoRedoButtons();
-  
   // Clear all canvases when switching screens. Skipped when this screen's state is only
   // being borrowed (isBorrowingScreenData) - nothing calls calculate() to repaint after
   // that, so clearing would leave the open screen's layouts and specs blank.
@@ -929,10 +889,6 @@ function duplicateScreen() {
       clonedData[key] = val;
     }
   });
-  // Start the duplicate with a fresh undo/redo stack (those arrays hold nested
-  // Sets/Maps that don't survive a plain JSON clone).
-  clonedData.undoHistory = [];
-  clonedData.redoHistory = [];
   // A split belongs to its screen's own canvases; the copy gets its own when it is drawn
   delete clonedData.split;
 

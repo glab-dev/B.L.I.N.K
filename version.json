@@ -1,5 +1,5 @@
 {
-  "version": "2.11.240",
+  "version": "2.11.241",
   "updated": "2026-11-16",
-  "changelog": "Add 1px corner squares to each screen in the Canvas and Raster views"
+  "changelog": "Add one app-wide Undo/Redo in the top bar covering every project change"
 }

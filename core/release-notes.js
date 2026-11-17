@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.241', date: '2026-11-16', notes: 'Add one app-wide Undo/Redo in the top bar covering every project change' },
   { version: '2.11.240', date: '2026-11-16', notes: 'Add 1px corner squares to each screen in the Canvas and Raster views' },
   { version: '2.11.239', date: '2026-11-16', notes: 'Draw small data unit labels in Combined as plain text on a dark plate' },
   { version: '2.11.238', date: '2026-11-04', notes: 'Add ROE Vanish ST V4ST, V4ST-H, V4ST-V and V4ST-Q panels' },

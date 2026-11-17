@@ -950,6 +950,24 @@ function shiftCB5RowKeys(coll, delta) {
   return out;
 }
 
+// shiftCB5RowKeys for columns: move every "c,r" key right by `delta` columns (left when
+// negative), dropping any pushed off the left edge
+function shiftGridColKeys(coll, delta) {
+  if(!delta) return coll;
+  const moveKey = k => {
+    const [c, r] = String(k).split(',').map(Number);
+    return (c + delta >= 0) ? `${c + delta},${r}` : null;
+  };
+  if(coll instanceof Map) {
+    const out = new Map();
+    coll.forEach((v, k) => { const nk = moveKey(k); if(nk !== null) out.set(nk, v); });
+    return out;
+  }
+  const out = new Set();
+  (coll || []).forEach(k => { const nk = moveKey(k); if(nk !== null) out.add(nk); });
+  return out;
+}
+
 const CB5_ROW_KEYED_FIELDS = ['deletedPanels', 'selectedPanels', 'customCircuitAssignments',
   'customSocaAssignments', 'customDataLineAssignments', 'customDataDestinations'];
 

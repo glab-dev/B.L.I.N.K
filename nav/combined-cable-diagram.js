@@ -686,8 +686,9 @@ function calculateCombinedCabling(selectedScreenIds, config) {
       // Circuits over the full rows only; they start below any half rows on top, so the
       // keys go in relative to the first full row and come back out in grid rows.
       const _top = halfRows.top;
-      const panelToCircuit = shiftCB5RowKeys(assignCircuits(pw, ph, panelsPerCircuit,
-        shiftCB5RowKeys(deletedPanelsSet, -_top), shiftCB5RowKeys(toMap(data.customCircuitAssignments), -_top)).panelToCircuit, _top);
+      const _left = getHalfCols(data, panelType).left;
+      const panelToCircuit = shiftGridColKeys(shiftCB5RowKeys(assignCircuits(pw, ph, panelsPerCircuit,
+        shiftGridColKeys(shiftCB5RowKeys(deletedPanelsSet, -_top), -_left), shiftGridColKeys(shiftCB5RowKeys(toMap(data.customCircuitAssignments), -_top), -_left)).panelToCircuit, _top), _left);
       const panelToSoca = assignSocas(panelToCircuit, toMap(data.customSocaAssignments));
       socaSpans = computeSocaSpans(panelToCircuit, panelToSoca);
       const labelMap = (typeof sharedDistroSocaLabelMap === 'function') ? sharedDistroSocaLabelMap(screenId) : null;

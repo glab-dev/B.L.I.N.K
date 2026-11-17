@@ -12,6 +12,8 @@ function drawSocaOverlay(ctx, o) {
   const { panelToCircuit, panelToSoca, deletedPanels,
           panelWidth, rowGeo,
           offsetX, offsetY, outlineLineWidth, socaLabelIdx } = o;
+  // Optional column map (gridColGeometry) when half columns make the columns uneven
+  const _colGeo = o.colGeo || null;
   // labelFor/labelColor let another view reuse this grouping + diagonal-label
   // geometry with its own text — the combined data layout labels distribution
   // boxes with it. Omitted everywhere else, so SOCA behaviour is unchanged.
@@ -99,7 +101,8 @@ function drawSocaOverlay(ctx, o) {
       cellSet.forEach(k => {
         const [c, r] = k.split(',').map(Number);
         const ph_ = rowGeo.h(r);
-        const x = c * panelWidth + offsetX;
+        const x = (_colGeo ? _colGeo.x(c) : c * o.panelWidth) + offsetX;
+        const panelWidth = _colGeo ? _colGeo.w(c) : o.panelWidth;
         const y = rowGeo.y(r) + offsetY;
         const hasTop   = cellSet.has(`${c},${r-1}`);
         const hasBot   = cellSet.has(`${c},${r+1}`);
@@ -198,9 +201,9 @@ function drawSocaOverlay(ctx, o) {
       }
 
       // Pixel bounds of the chosen rectangle (honour the CB5 half rows).
-      const rx = best.c0 * panelWidth + offsetX;
+      const rx = (_colGeo ? _colGeo.x(best.c0) : best.c0 * panelWidth) + offsetX;
       const ry = rowGeo.y(best.r0) + offsetY;
-      const rw = (best.c1 - best.c0 + 1) * panelWidth;
+      const rw = _colGeo ? _colGeo.x(best.c1 + 1) - _colGeo.x(best.c0) : (best.c1 - best.c0 + 1) * panelWidth;
       const yBot = rowGeo.y(best.r1 + 1) + offsetY;
       const rh = yBot - ry;
 
@@ -259,7 +262,7 @@ function drawSocaOverlay(ctx, o) {
 }
 
 function renderPowerLayout(params) {
-  const {pw, ph, panelWidth, rowGeo, canvas, ctx, panelsPerCircuit} = params;
+  const {pw, ph, rowGeo, colGeo, canvas, ctx, panelsPerCircuit} = params;
 
   const _pdfMode = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
   const _isMultiScreen = typeof pdfMultiScreenCapture !== 'undefined' && pdfMultiScreenCapture;
@@ -436,9 +439,10 @@ function renderPowerLayout(params) {
     for(let r=0; r<ph; r++){
       const panelKey = `${c},${r}`;
 
-      // Determine if this row is the half panel row
+      // Determine if this row is the half panel row, and this column a half column
       const currentPanelHeight = rowGeo.h(r);
-      const x = c * panelWidth + rowMarkerW;
+      const x = colGeo.x(c) + rowMarkerW;
+      const panelWidth = colGeo.w(c);
       const y = rowGeo.y(r) + topBandH;
 
       // Check if panel is deleted
@@ -497,7 +501,7 @@ function renderPowerLayout(params) {
   // power canvas (nav/combined.js) draws them identically.
   drawSocaOverlay(ctx, {
     panelToCircuit, panelToSoca, deletedPanels,
-    panelWidth, rowGeo,
+    panelWidth: colGeo.fullW, rowGeo, colGeo,
     offsetX: rowMarkerW, offsetY: topBandH,
     outlineLineWidth: _pdfMode ? Math.max(1.5, 1.5 * _markerScale) : 1.5,
     socaLabelIdx: _socaLabelIdx,
@@ -515,7 +519,7 @@ function renderPowerLayout(params) {
   ctx.font = `${markerFont}px Arial`;
 
   for(let c = 0; c < pw; c++) {
-    const cx = c * panelWidth + rowMarkerW + panelWidth / 2;
+    const cx = colGeo.x(c) + rowMarkerW + colGeo.w(c) / 2;
     ctx.fillText(`${c+1}`, cx, bracketBarH + colMarkerH / 2);
   }
 

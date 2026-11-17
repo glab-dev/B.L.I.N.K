@@ -2840,6 +2840,8 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     // core/calculate.js, which adds them for the Complex canvas.
     const screenHalfRows = getCB5HalfRows(data, panelType);
     const screenEffectivePh = ph + screenHalfRows.top + screenHalfRows.bottom;  // incl. the half rows
+    const screenHalfCols = getHalfCols(data, panelType);
+    const screenEffectivePw = pw + screenHalfCols.left + screenHalfCols.right;  // incl. the half columns
 
     // Circuit + SOCA assignment via the shared helpers in core/phase-balance.js — the
     // same ones renderPowerLayout() uses — so the grouping matches the Complex canvas.
@@ -2850,11 +2852,11 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     const _groupEntry = (_groupPlan && _groupPlan.useBalanced && data.sharedDistro)
       ? _groupPlan.byScreen.get(screenId) : null;
     const _bal = (!_groupEntry && data.phaseBalance && typeof resolveBalancedCircuits === 'function')
-      ? resolveBalancedCircuits(pw, screenEffectivePh, panelsPerCircuit, screenDeletedPanels, _wiring, screenCustomCircuits, screenCustomSocas, perPanelW, voltage)
+      ? resolveBalancedCircuits(screenEffectivePw, screenEffectivePh, panelsPerCircuit, screenDeletedPanels, _wiring, screenCustomCircuits, screenCustomSocas, perPanelW, voltage)
       : null;
     const panelToCircuit = _groupEntry ? _groupEntry.panelToCircuit
       : (_bal ? _bal.panelToCircuit
-              : assignCircuits(pw, screenEffectivePh, panelsPerCircuit, screenDeletedPanels, screenCustomCircuits).panelToCircuit);
+              : assignCircuits(screenEffectivePw, screenEffectivePh, panelsPerCircuit, screenDeletedPanels, screenCustomCircuits).panelToCircuit);
     // Balancing PRESERVES SOCA membership — balanceCircuitsByLeg() re-numbers circuits as
     // soca*6 + slot using the same assignSocas() grouping, so only the slot within a SOCA
     // moves. Custom SOCAs and the shared-distro numbering therefore stay valid and MUST be

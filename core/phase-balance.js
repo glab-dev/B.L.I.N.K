@@ -536,9 +536,10 @@ function sharedDistroBalancedPlan() {
     // none; their deleted cells come from the drawn panels, not the grid's live Set.
     const _half = inp.isFree ? { top: 0, bottom: 0 } : getCB5HalfRows(data, data.panelType || 'CB5_MKII');
     const effectivePh = inp.ph + _half.top + _half.bottom;
+    const _halfCols = inp.isFree ? { left: 0, right: 0 } : getHalfCols(data, data.panelType || 'CB5_MKII');
     members.push({
       screenId: id,
-      pw: inp.pw,
+      pw: inp.pw + _halfCols.left + _halfCols.right,
       ph: effectivePh,
       panelsPerCircuit: inp.panelsPerCircuit,
       deletedPanels: (id === liveCur && !inp.isFree) ? liveDeleted : inp.deletedPanels,

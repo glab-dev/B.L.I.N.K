@@ -926,33 +926,35 @@ function calculate(){
           if(sid === currentScreenId) {
             // current screen: live values (its saved data can lag the DOM)
             const _pc = _planned(sid, perPanelW, voltage, wiring)
-              || screenCircuitContributions(pw, ph, panelsPerCircuit, shiftCB5RowKeys(deletedPanels, -halfRows.top),
-                   shiftCB5RowKeys(customCircuitAssignments, -halfRows.top), shiftCB5RowKeys(customSocaAssignments, -halfRows.top), perPanelW, voltage, wiring).perCircuit;
+              || screenCircuitContributions(pw, ph, panelsPerCircuit, shiftGridColKeys(shiftCB5RowKeys(deletedPanels, -halfRows.top), -halfCols.left),
+                   shiftGridColKeys(shiftCB5RowKeys(customCircuitAssignments, -halfRows.top), -halfCols.left), shiftGridColKeys(shiftCB5RowKeys(customSocaAssignments, -halfRows.top), -halfCols.left), perPanelW, voltage, wiring).perCircuit;
             _pc.forEach(addCircuit);
             comboWatts += totalPowerW; comboScreens++;
           } else {
             const inp = resolveScreenPowerInputs(sd);
             if(!inp || inp.phase !== 3) return;
-            // Circuits over the full rows only, keyed from the first full row (below any half rows on top)
+            // Circuits over the full rows and columns only, keyed from the first full row
+            // and column (below any half rows on top, right of any half columns on the left)
             const _half = inp.isFree ? { top: 0, bottom: 0 } : getCB5HalfRows(sd, sd.panelType || 'CB5_MKII');
+            const _halfCols = inp.isFree ? { left: 0, right: 0 } : getHalfCols(sd, sd.panelType || 'CB5_MKII');
+            const _toFull = coll => shiftGridColKeys(shiftCB5RowKeys(coll, -_half.top), -_halfCols.left);
             const _pc = _planned(sid, inp.perPanelW, inp.voltage, inp.wiring)
-              || screenCircuitContributions(inp.pw, inp.ph, inp.panelsPerCircuit, shiftCB5RowKeys(inp.deletedPanels, -_half.top),
-                   shiftCB5RowKeys(inp.customCircuit, -_half.top), shiftCB5RowKeys(inp.customSoca, -_half.top), inp.perPanelW, inp.voltage, inp.wiring, inp.wattsByKey).perCircuit;
+              || screenCircuitContributions(inp.pw, inp.ph, inp.panelsPerCircuit, _toFull(inp.deletedPanels),
+                   _toFull(inp.customCircuit), _toFull(inp.customSoca), inp.perPanelW, inp.voltage, inp.wiring, inp.wattsByKey).perCircuit;
             _pc.forEach(addCircuit);
             // The current screen's totalPowerW above already counts its CB5 half-panel row,
             // so the other screens have to count theirs too or the distro total under-reports
             // every half-row wall that isn't the open one.
-            const _live = countCB5LivePanels(inp.pw, inp.ph, _half, inp.deletedPanels);
+            const _live = countCB5LivePanels(inp.pw, inp.ph, _half, inp.deletedPanels, null, _halfCols);
             // A drawn screen's own panel watts are summed in its inputs
             let _screenW = inp.isFree ? inp.totalW : _live.full * inp.perPanelW;
-            if(_live.half > 0) {
-              const _halfP = (typeof getAllPanels === 'function') ? getAllPanels()[halfPanelTypeOf(sd.panelType || 'CB5_MKII')] : null;
-              if(_halfP) {
-                _screenW += _live.half * ((sd.powerType || 'max') === 'max'
-                  ? (_halfP.power_max_w || 0)
-                  : (_halfP.power_avg_w || _halfP.power_max_w * 0.5 || 0));
-              }
-            }
+            // ...plus its half-row, half-column and quarter panels at their own watts
+            gridLiveParts(sd.panelType || 'CB5_MKII', _live).filter(([t]) => t !== (sd.panelType || 'CB5_MKII')).forEach(([t, n]) => {
+              const _pp = getAllPanels()[t];
+              _screenW += n * ((sd.powerType || 'max') === 'max'
+                ? (_pp.power_max_w || 0)
+                : (_pp.power_avg_w || _pp.power_max_w * 0.5 || 0));
+            });
             comboWatts += _screenW; comboScreens++;
           }
         });

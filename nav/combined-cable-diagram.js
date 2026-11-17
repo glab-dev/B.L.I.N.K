@@ -849,7 +849,9 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
 
   // ---- Recover panelSize and compute feet-to-pixel conversion ----
   const firstDim = screenDimensions[0];
-  const panelSize = firstDim.width / firstDim.pw;
+  // The screen's width covers its half columns (V4ST-V) too, each a fraction of a panel wide
+  const _firstHalfCols = getHalfCols(firstDim.data, firstDim.data.panelType);
+  const panelSize = firstDim.width / (firstDim.pw + (_firstHalfCols.left + _firstHalfCols.right) * halfColWidthRatio(firstDim.data.panelType));
   const firstPanel = allPanels[firstDim.data.panelType || 'CB5_MKII'];
   const panelWidthFt = firstPanel ? firstPanel.width_m * M_TO_FT : 1.64;
   const ftToPx = panelSize / panelWidthFt; // pixels per foot (in panelSize units)
@@ -1103,11 +1105,17 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
     // A drawn screen is drawn on its cell grid, a cell freeUnitScale of a panel width
     var unit = sp.data.freeUnitScale || 1;
     var cols = sp.data.freeCellPanel ? sp.calc.pw : sp.pw;
-    // sp.ph is the full rows only; CB5 half rows sit above and/or below them
+    // sp.ph is the full rows only; CB5 half rows sit above and/or below them (V4ST-H: half height)
     var rowGeo = cb5RowGeometry(sp.data.freeCellPanel ? sp.calc.ph : sp.ph, getCB5HalfRows(sp.data, panelType),
-      panelSize * unit * heightRatio * pxToCanvas, panelSize * unit * pxToCanvas);
+      panelSize * unit * heightRatio * pxToCanvas, panelSize * unit * pxToCanvas * (sp.data.freeCellPanel ? 1 : halfRowHeightRatio(panelType)));
 
     var pxW = panelSize * unit * pxToCanvas;
+    // Half columns (V4ST-V) beside the full ones, narrower; a wall without any is drawn as before
+    var spColGeo = sp.data.freeCellPanel ? null : combinedColGeometry(sp.data, pxW);
+    if (spColGeo && !spColGeo.hasHalf) spColGeo = null;
+    if (spColGeo) cols = spColGeo.cols;
+    var colOff = function(c) { return spColGeo ? spColGeo.x(c) : c * pxW; };
+    var colW = function(c) { return spColGeo ? spColGeo.w(c) : pxW; };
     var pxH = panelSize * unit * heightRatio * pxToCanvas;
     var halfPxH = rowGeo.halfH;
 
@@ -1116,7 +1124,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
     // Draw full panels
     for (var c = 0; c < cols; c++) {
       for (var r = rowGeo.top; r < rowGeo.top + sp.ph; r++) {
-        var x = screenLeft + c * pxW;
+        var x = screenLeft + colOff(c);
         var y = screenTop + rowGeo.y(r);
         var key = c + ',' + r;
         var isDeleted = !sp.data.freeCellPanel && deletedPanels.has(key);
@@ -1125,14 +1133,14 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
           ctx.strokeStyle = CC_DELETED_COLOR;
           ctx.lineWidth = 0.5;
           ctx.setLineDash([2, 2]);
-          ctx.strokeRect(x, y, pxW, pxH);
+          ctx.strokeRect(x, y, colW(c), pxH);
           ctx.setLineDash([]);
         } else if (!sp.data.freeCellPanel) {
           ctx.fillStyle = CC_PANEL_FILL;
-          ctx.fillRect(x, y, pxW, pxH);
+          ctx.fillRect(x, y, colW(c), pxH);
           ctx.strokeStyle = CC_PANEL_COLOR;
           ctx.lineWidth = 0.5;
-          ctx.strokeRect(x, y, pxW, pxH);
+          ctx.strokeRect(x, y, colW(c), pxH);
         }
       }
     }
@@ -1141,13 +1149,13 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
     for (var hr = 0; hr < rowGeo.rows; hr++) {
       if (!rowGeo.isHalf(hr)) continue;
       for (var c2 = 0; c2 < cols; c2++) {
-        var hx = screenLeft + c2 * pxW;
+        var hx = screenLeft + colOff(c2);
         var hy = screenTop + rowGeo.y(hr);
         ctx.fillStyle = CC_PANEL_FILL;
-        ctx.fillRect(hx, hy, pxW, halfPxH);
+        ctx.fillRect(hx, hy, colW(c2), halfPxH);
         ctx.strokeStyle = CC_PANEL_COLOR;
         ctx.lineWidth = 0.5;
-        ctx.strokeRect(hx, hy, pxW, halfPxH);
+        ctx.strokeRect(hx, hy, colW(c2), halfPxH);
       }
     }
 
@@ -1427,6 +1435,9 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
     var screenTop = toY(sp.y);
     var screenBottom = toY(sp.y + sp.height);
     var pxW = panelSize * (sp.data.freeUnitScale || 1) * pxToCanvas;
+    var spColGeoP = sp.data.freeCellPanel ? null : combinedColGeometry(sp.data, pxW);
+    if (spColGeoP && !spColGeoP.hasHalf) spColGeoP = null;
+    var colMidP = function(c) { return spColGeoP ? spColGeoP.x(c) + spColGeoP.w(c) / 2 : (c + 0.5) * pxW; };
     var powerHeightRatio = sp.data.freeCellPanel ? 1 : (typeof getPanelHeightRatio === 'function'
       ? getPanelHeightRatio(sp.data.panelType || 'CB5_MKII') : 1);
     var pxRowH = panelSize * (sp.data.freeUnitScale || 1) * powerHeightRatio * pxToCanvas;
@@ -1459,7 +1470,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
       var run = socaRuns[si];
       var firstCol = run.firstCol;
       var lastCol = run.lastCol;
-      var landingCenterX = screenLeft + ((firstCol + lastCol + 1) / 2) * pxW;
+      var landingCenterX = screenLeft + (spColGeoP ? (spColGeoP.x(firstCol) + spColGeoP.x(lastCol + 1)) / 2 : ((firstCol + lastCol + 1) / 2) * pxW);
 
       // Snap the feed point off any deleted panel it lands on, staying within
       // this SOCA's own column span (mirrors the data-cable edge-row search)
@@ -1489,23 +1500,23 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
         for (var pdist = 1; pdist <= lastCol - firstCol; pdist++) {
           if (colUnder - pdist >= firstCol && !dp.has((colUnder - pdist) + ',' + socaRowInCol(colUnder - pdist))) {
             landingCol = colUnder - pdist; edgeRow = socaRowInCol(landingCol);
-            landingCenterX = screenLeft + (landingCol + 0.5) * pxW; foundInSpan = true; break;
+            landingCenterX = screenLeft + colMidP(landingCol); foundInSpan = true; break;
           }
           if (colUnder + pdist <= lastCol && !dp.has((colUnder + pdist) + ',' + socaRowInCol(colUnder + pdist))) {
             landingCol = colUnder + pdist; edgeRow = socaRowInCol(landingCol);
-            landingCenterX = screenLeft + (landingCol + 0.5) * pxW; foundInSpan = true; break;
+            landingCenterX = screenLeft + colMidP(landingCol); foundInSpan = true; break;
           }
         }
         if (!foundInSpan && typeof findNearestNonDeleted === 'function') {
           var nn = findNearestNonDeleted(colUnder, edgeRow, calc.pw, calc.effectivePh, dp);
           landingCol = nn.col; edgeRow = nn.row;
-          landingCenterX = screenLeft + (landingCol + 0.5) * pxW;
+          landingCenterX = screenLeft + colMidP(landingCol);
         }
       }
       // A SOCA on the screen's own edge row leaves straight off that edge as before; one
       // that starts inboard picks up at its own row and climbs its column to the edge.
       var powerInboard = edgeRow !== wallEdgeRow;
-      if (powerInboard) landingCenterX = screenLeft + (landingCol + 0.5) * pxW;
+      if (powerInboard) landingCenterX = screenLeft + colMidP(landingCol);
 
       // Each screen's SOCAs come down THAT screen's own drop, then run along the floor
       // to the distro. A small per-screen lane offset keeps converging runs readable.
@@ -1580,7 +1591,11 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
     var pxW = panelSize * (sp.data.freeUnitScale || 1) * pxToCanvas;
     var pxH = panelSize * (sp.data.freeUnitScale || 1) * heightRatio * pxToCanvas;
     var dp = calc.deletedPanelsSet || new Set();
-    var rowGeo = cb5RowGeometry(calc.ph, getCB5HalfRows(sp.data, panelType), pxH, panelSize * (sp.data.freeUnitScale || 1) * pxToCanvas);
+    var rowGeo = cb5RowGeometry(calc.ph, getCB5HalfRows(sp.data, panelType), pxH, panelSize * (sp.data.freeUnitScale || 1) * pxToCanvas * (sp.data.freeCellPanel ? 1 : halfRowHeightRatio(panelType)));
+    var spColGeoD = sp.data.freeCellPanel ? null : combinedColGeometry(sp.data, pxW);
+    if (spColGeoD && !spColGeoD.hasHalf) spColGeoD = null;
+    var colOffD = function(c) { return spColGeoD ? spColGeoD.x(c) : c * pxW; };
+    var colMidD = function(c) { return spColGeoD ? spColGeoD.x(c) + spColGeoD.w(c) / 2 : (c + 0.5) * pxW; };
     var rowMidY = function(r) { return sp.top + cableRowFracOff(rowGeo, r, 0.5); };
 
     var dataFlip = sp.data.dataFlip || false;
@@ -1597,10 +1612,10 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
     for (var dl of dataLineIndexes(entryPts)) {
       var e = entryPts[dl];
       if (e) mains.push({ col: e.col, row: e.row, targetX: lineTargetX(sp.screenId, dl + 1, place, false),
-                          cx: sp.left + (e.col + 0.5) * pxW, cy: rowMidY(e.row) });
+                          cx: sp.left + colMidD(e.col), cy: rowMidY(e.row) });
       var x = exitPts[dl];
       if (x) backups.push({ col: x.col, row: x.row, targetX: lineTargetX(sp.screenId, dl + 1, place, true),
-                            cx: sp.left + (x.col + 0.5) * pxW, cy: rowMidY(x.row) });
+                            cx: sp.left + colMidD(x.col), cy: rowMidY(x.row) });
     }
     if (!mains.length) return;
 
@@ -1634,8 +1649,8 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
         var procTag = (wallGroups.length > 1 && procUnit) ? procUnit.label : null;
         var boxW = twoBoxes || procTag ? 48 : 40;
         var boxH = procTag ? 26 : 18;
-        var regionL = sp.left + g.minCol * pxW;
-        var regionR = sp.left + (g.maxCol + 1) * pxW;
+        var regionL = sp.left + colOffD(g.minCol);
+        var regionR = sp.left + colOffD(g.maxCol + 1);
         // Panel-quantised, matching the per-screen diagram and the gear-list length math
         var boxCenterX = function(horiz) {
           var x = (horiz === 'sr') ? regionL + 2 * pxW
@@ -1738,9 +1753,9 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
           if (path && path.length) {
             ctx.moveTo(ep.cx + offsetX * 0.2, ep.cy);
             path.forEach(function(node) {
-              ctx.lineTo(sp.left + (node.col + 0.5) * pxW + offsetX * 0.2, rowMidY(node.row));
+              ctx.lineTo(sp.left + colMidD(node.col) + offsetX * 0.2, rowMidY(node.row));
             });
-            ctx.lineTo(sp.left + (path[path.length - 1].col + 0.5) * pxW + offsetX * 0.2, wallEdgeY);
+            ctx.lineTo(sp.left + colMidD(path[path.length - 1].col) + offsetX * 0.2, wallEdgeY);
           } else {
             ctx.moveTo(ep.cx + offsetX * 0.2, ep.cy);
             ctx.lineTo(ep.cx + offsetX * 0.2, wallEdgeY);

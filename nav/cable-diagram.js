@@ -36,8 +36,8 @@ function renderCableDiagram(screenId) {
     const d = isFreeScreen(screens[screenId].data) ? freeCombinedData(screens[screenId].data, getAllPanels()) : screen.data;
     const panelSize = 40;
     const panelType = d.panelType || 'CB5_MKII';
-    const height = cb5RowGeometry(d.panelsHigh, getCB5HalfRows(d, panelType), panelSize * (d.freeCellPanel ? 1 : getPanelHeightRatio(panelType)), panelSize).height;
-    const dims = [{ screenId, screen, data: d, pw: d.panelsWide, ph: d.panelsHigh, width: d.panelsWide * panelSize, height, x: 0 }];
+    const height = cb5RowGeometry(d.panelsHigh, getCB5HalfRows(d, panelType), panelSize * (d.freeCellPanel ? 1 : getPanelHeightRatio(panelType)), panelSize * (d.freeCellPanel ? 1 : halfRowHeightRatio(panelType))).height;
+    const dims = [{ screenId, screen, data: d, pw: d.panelsWide, ph: d.panelsHigh, width: combinedColGeometry(d, panelSize).width, height, x: 0 }];
     const savedWhiteBg = pdfWhiteBgMode;
     pdfWhiteBgMode = savedWhiteBg || cableDiagramPdfMode;
     try {
@@ -121,9 +121,13 @@ function renderCableDiagram(screenId) {
   // === Panel cell sizing — IDENTICAL to generateLayout() in core/calculate.js ===
   // The standard, power, data and structure views all size their panels this way, so the
   // wall is drawn at exactly the same dimensions here as it is in those tabs.
-  const pw = screen.data.panelsWide || 1;
-  const ph = screen.data.panelsHigh || 1;
   const panelType = screen.data.panelType || '';
+  // Half columns (V4ST-V) are extra, narrower columns beside the full ones, counted in pw
+  // as the layouts count them; a wall without any is drawn exactly as before
+  const halfCols = screen.data.freeCellPanel ? {left: 0, right: 0} : getHalfCols(screen.data, panelType);
+  const hasHalfCols = halfCols.left + halfCols.right > 0;
+  const pw = (screen.data.panelsWide || 1) + halfCols.left + halfCols.right;
+  const ph = screen.data.panelsHigh || 1;
   const halfRows = getCB5HalfRows(screen.data, panelType);
   const heightRatio = screen.data.freeCellPanel ? 1 : ((typeof getPanelHeightRatio === 'function') ? getPanelHeightRatio(panelType) : 1);
   const LAYOUT_MIN_SIZE = 30;
@@ -142,15 +146,20 @@ function renderCableDiagram(screenId) {
     ? Math.max(LAYOUT_MIN_SIZE, Math.min(freeMaxSize, Math.floor(layoutMaxW / (pw * freeUnit)))) * freeUnit
     : Math.max(LAYOUT_MIN_SIZE, Math.min(effectiveMaxSize, Math.floor(layoutMaxW / pw)));
   const panelPixelW = cellSize;
+  const colGeoPx = hasHalfCols ? gridColGeometry(pw - halfCols.left - halfCols.right, halfCols, panelPixelW, panelPixelW * halfColWidthRatio(panelType)) : null;
+  const colOffX = c => colGeoPx ? colGeoPx.x(c) : c * panelPixelW;
+  const colMidX = c => colGeoPx ? colGeoPx.x(c) + colGeoPx.w(c) / 2 : (c + 0.5) * panelPixelW;
+  const colWpx = c => colGeoPx ? colGeoPx.w(c) : panelPixelW;
+  const colAtPx = x => colGeoPx ? colGeoPx.colAt(Math.min(Math.max(x, 0), colGeoPx.width - 0.001)) : Math.floor(x / panelPixelW);
   const fullPanelPixelH = cellSize * heightRatio;
   const halfPanelPixelH = fullPanelPixelH / 2;
   const rowGeo = cb5RowGeometry(ph, halfRows, fullPanelPixelH, halfPanelPixelH);
   const totalRows = rowGeo.rows;
-  const wallWpx = pw * panelPixelW;
+  const wallWpx = colGeoPx ? colGeoPx.width : pw * panelPixelW;
   const wallHpx = rowGeo.height;
   const rowFracOff = (r, frac) => cableRowFracOff(rowGeo, r, frac);
   // Feet-to-pixels implied by the panel cell — used for the floor distances below
-  const scale = panelPixelW / (wallWidthFt / pw);
+  const scale = colGeoPx ? panelPixelW / (getAllPanels()[panelType].width_m * 3.28084) : panelPixelW / (wallWidthFt / pw);
 
   // === SOCA runs and bracket placement ===
   // Resolved BEFORE the canvas is sized, because the top margin has to reserve however much
@@ -215,7 +224,7 @@ function renderCableDiagram(screenId) {
       };
 
       // Landing X = centre of the columns this SOCA covers
-      let landingOffX = ((firstCol + lastCol + 1) / 2) * panelPixelW;
+      let landingOffX = colGeoPx ? (colOffX(firstCol) + colOffX(lastCol + 1)) / 2 : ((firstCol + lastCol + 1) / 2) * panelPixelW;
       let colUnder = Math.min(lastCol, Math.floor((firstCol + lastCol + 1) / 2));
       if (colUnder < firstCol) colUnder = firstCol;
       let landingCol = colUnder;
@@ -235,11 +244,11 @@ function renderCableDiagram(screenId) {
         }
         if (foundInSpan) {
           feedRow = socaRowInCol(landingCol);
-          landingOffX = (landingCol + 0.5) * panelPixelW;
+          landingOffX = colMidX(landingCol);
         } else if (typeof findNearestNonDeleted === 'function') {
           const nn = findNearestNonDeleted(colUnder, feedRow, pw, totalRows, socaDeleted);
           landingCol = nn.col; feedRow = nn.row;
-          landingOffX = (landingCol + 0.5) * panelPixelW;
+          landingOffX = colMidX(landingCol);
         }
       }
 
@@ -247,7 +256,7 @@ function renderCableDiagram(screenId) {
       // exactly as before. One that starts inboard breaks out at its own row, so pin the
       // landing to that column's centre — the feed has to sit on a real panel.
       const inboard = feedRow !== wallEdgeRow;
-      if (inboard) landingOffX = (landingCol + 0.5) * panelPixelW;
+      if (inboard) landingOffX = colMidX(landingCol);
 
       // The bracket hugs THIS SOCA's own boundary row rather than the wall edge, so a SOCA
       // that breaks off half way down the wall is bracketed where it actually is. A SOCA on
@@ -259,8 +268,8 @@ function renderCableDiagram(screenId) {
 
       const labelText = 'SOCA ' + formatSocaLabel(run.labelIdx);
       const labelW = mctx.measureText(labelText).width + 6;
-      const bracketStartOffX = firstCol * panelPixelW;
-      const bracketEndOffX = (lastCol + 1) * panelPixelW;
+      const bracketStartOffX = colOffX(firstCol);
+      const bracketEndOffX = colOffX(lastCol + 1);
       const boxL = Math.min(bracketStartOffX, landingOffX - labelW / 2);
       const boxR = Math.max(bracketEndOffX, landingOffX + labelW / 2);
 
@@ -441,7 +450,7 @@ function renderCableDiagram(screenId) {
     for (let r = 0; r < totalRows; r++) {
       const panelKey = c + ',' + r;
       const currentH = rowGeo.h(r);
-      const px = adjWallLeftX + c * panelPixelW;
+      const px = adjWallLeftX + colOffX(c);
       const py = wallTopY + rowGeo.y(r);
 
       if (!freeRoute && screenDeletedPanels.has && screenDeletedPanels.has(panelKey)) {
@@ -449,13 +458,13 @@ function renderCableDiagram(screenId) {
         ctx.strokeStyle = gridDeletedColor;
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
-        ctx.strokeRect(px, py, panelPixelW, currentH);
+        ctx.strokeRect(px, py, colWpx(c), currentH);
         ctx.setLineDash([]);
       } else if (!screen.data.freeCellPanel) {
         // Normal panel — transparent with light outline (a drawn screen's are drawn whole below)
         ctx.strokeStyle = gridColor;
         ctx.lineWidth = 1;
-        ctx.strokeRect(px, py, panelPixelW, currentH);
+        ctx.strokeRect(px, py, colWpx(c), currentH);
       }
     }
   }
@@ -558,7 +567,7 @@ function renderCableDiagram(screenId) {
   // routes from its target through the live-panel grid to a "muster" cell where the
   // bundle leaves the wall for the floor — never floating across a dead region.
   // When nothing is deleted this is inactive and the original straight routing runs.
-  const dropCol = Math.max(0, Math.min(pw - 1, Math.floor((dropX - adjWallLeftX) / panelPixelW)));
+  const dropCol = Math.max(0, Math.min(pw - 1, colAtPx(dropX - adjWallLeftX)));
   let muster = null;
   if (dropPos === 'behind' && screenDeletedPanels.size > 0 && !distBoxOnWall) {
     const bottomRow = totalRows - 1;
@@ -591,11 +600,11 @@ function renderCableDiagram(screenId) {
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
     ctx.beginPath();
-    ctx.moveTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW + offX, wallTopY + rowFracOff(path[0].row, 0.5) + offY);
+    ctx.moveTo(adjWallLeftX + colMidX(path[0].col) + offX, wallTopY + rowFracOff(path[0].row, 0.5) + offY);
     for (let i = 1; i < path.length; i++) {
-      ctx.lineTo(adjWallLeftX + (path[i].col + 0.5) * panelPixelW + offX, wallTopY + rowFracOff(path[i].row, 0.5) + offY);
+      ctx.lineTo(adjWallLeftX + colMidX(path[i].col) + offX, wallTopY + rowFracOff(path[i].row, 0.5) + offY);
     }
-    const mx = adjWallLeftX + (muster.col + 0.5) * panelPixelW + offX;
+    const mx = adjWallLeftX + colMidX(muster.col) + offX;
     ctx.lineTo(mx, floorY);
     ctx.lineTo(targetX, floorY);
     ctx.lineTo(targetX, boxTopY);
@@ -846,7 +855,7 @@ function renderCableDiagram(screenId) {
       const entry = entryPoints[dl];
       if (!entry) continue;
 
-      const entryPxX = adjWallLeftX + (entry.col + 0.5) * panelPixelW;
+      const entryPxX = adjWallLeftX + colMidX(entry.col);
       const entryPxY = wallTopY + rowFracOff(entry.row, 0.5);
 
       // Primary fan-out — from main dist box to entry panel
@@ -857,7 +866,7 @@ function renderCableDiagram(screenId) {
       ctx.beginPath();
 
       if (screenDeletedPanels.size > 0 && typeof findCableGridPath === 'function') {
-        var dbCol = Math.floor((mainDistBoxCenterX - adjWallLeftX) / panelPixelW);
+        var dbCol = colAtPx(mainDistBoxCenterX - adjWallLeftX);
         var dbRow = rowGeo.rowAt(fanPrimaryY - wallTopY);
         if (dbRow < 0) dbRow = (fanPrimaryY < wallTopY) ? 0 : totalRows - 1;
         dbCol = Math.max(0, Math.min(dbCol, pw - 1));
@@ -869,9 +878,9 @@ function renderCableDiagram(screenId) {
         var path = cablePath(dbCol, dbRow, entry.col, entry.row);
         if (path && path.length > 0) {
           ctx.moveTo(primaryFanStartX, fanPrimaryY);
-          ctx.lineTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW, wallTopY + rowFracOff(path[0].row, 0.5));
+          ctx.lineTo(adjWallLeftX + colMidX(path[0].col), wallTopY + rowFracOff(path[0].row, 0.5));
           for (var pi = 1; pi < path.length; pi++) {
-            ctx.lineTo(adjWallLeftX + (path[pi].col + 0.5) * panelPixelW, wallTopY + rowFracOff(path[pi].row, 0.5));
+            ctx.lineTo(adjWallLeftX + colMidX(path[pi].col), wallTopY + rowFracOff(path[pi].row, 0.5));
           }
         } else {
           ctx.moveTo(primaryFanStartX, fanPrimaryY);
@@ -895,7 +904,7 @@ function renderCableDiagram(screenId) {
       if (dataRedundancy) {
         const exit = exitPoints[dl];
         if (exit) {
-          const exitPxX = adjWallLeftX + (exit.col + 0.5) * panelPixelW;
+          const exitPxX = adjWallLeftX + colMidX(exit.col);
           const exitPxY = wallTopY + rowFracOff(exit.row, 0.5);
 
           const backupFanStartX = exitPxX < backupDistBoxCenterX ? backupDistBoxLeftX : backupDistBoxRightX;
@@ -905,7 +914,7 @@ function renderCableDiagram(screenId) {
           ctx.beginPath();
 
           if (screenDeletedPanels.size > 0 && typeof findCableGridPath === 'function') {
-            var bCol = Math.floor((backupDistBoxCenterX - adjWallLeftX) / panelPixelW);
+            var bCol = colAtPx(backupDistBoxCenterX - adjWallLeftX);
             var bRow = rowGeo.rowAt(fanBackupY - wallTopY);
             if (bRow < 0) bRow = (fanBackupY < wallTopY) ? 0 : totalRows - 1;
             bCol = Math.max(0, Math.min(bCol, pw - 1));
@@ -917,9 +926,9 @@ function renderCableDiagram(screenId) {
             var path = cablePath(bCol, bRow, exit.col, exit.row);
             if (path && path.length > 0) {
               ctx.moveTo(backupFanStartX, fanBackupY);
-              ctx.lineTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW, wallTopY + rowFracOff(path[0].row, 0.5));
+              ctx.lineTo(adjWallLeftX + colMidX(path[0].col), wallTopY + rowFracOff(path[0].row, 0.5));
               for (var pi = 1; pi < path.length; pi++) {
-                ctx.lineTo(adjWallLeftX + (path[pi].col + 0.5) * panelPixelW, wallTopY + rowFracOff(path[pi].row, 0.5));
+                ctx.lineTo(adjWallLeftX + colMidX(path[pi].col), wallTopY + rowFracOff(path[pi].row, 0.5));
               }
             } else {
               ctx.moveTo(backupFanStartX, fanBackupY);
@@ -1031,7 +1040,7 @@ function renderCableDiagram(screenId) {
       const entry = entryPoints[dl];
       if (!entry) continue;
 
-      const landingX = adjWallLeftX + (entry.col + 0.5) * panelPixelW;
+      const landingX = adjWallLeftX + colMidX(entry.col);
       const isBottomEntry = entry.row >= totalRows / 2;
       const panelTargetY = getPanelTargetY(entry, isBottomEntry);
 
@@ -1063,12 +1072,12 @@ function renderCableDiagram(screenId) {
         }
         var path = cablePath(entry.col, entry.row, targetCol, targetRow);
         if (path && path.length > 0) {
-          ctx.moveTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW, wallTopY + rowFracOff(path[0].row, 0.5));
+          ctx.moveTo(adjWallLeftX + colMidX(path[0].col), wallTopY + rowFracOff(path[0].row, 0.5));
           for (var pi = 1; pi < path.length; pi++) {
-            ctx.lineTo(adjWallLeftX + (path[pi].col + 0.5) * panelPixelW, wallTopY + rowFracOff(path[pi].row, 0.5));
+            ctx.lineTo(adjWallLeftX + colMidX(path[pi].col), wallTopY + rowFracOff(path[pi].row, 0.5));
           }
           var lastCell = path[path.length - 1];
-          var lastCX = adjWallLeftX + (lastCell.col + 0.5) * panelPixelW;
+          var lastCX = adjWallLeftX + colMidX(lastCell.col);
           if (isBottomEntry) {
             ctx.lineTo(lastCX, DATA_WALL_BOTTOM_Y);
             ctx.lineTo(dropX + DATA_OFFSET, DATA_WALL_BOTTOM_Y);
@@ -1112,7 +1121,7 @@ function renderCableDiagram(screenId) {
         const exit = exitPoints[dl];
         if (!exit) continue;
 
-        const landingX = adjWallLeftX + (exit.col + 0.5) * panelPixelW;
+        const landingX = adjWallLeftX + colMidX(exit.col);
         const isBottomExit = exit.row >= totalRows / 2;
         const panelTargetY = getPanelTargetY(exit, isBottomExit);
 
@@ -1144,12 +1153,12 @@ function renderCableDiagram(screenId) {
           }
           var path = cablePath(exit.col, exit.row, targetCol, targetRow);
           if (path && path.length > 0) {
-            ctx.moveTo(adjWallLeftX + (path[0].col + 0.5) * panelPixelW, wallTopY + rowFracOff(path[0].row, 0.5));
+            ctx.moveTo(adjWallLeftX + colMidX(path[0].col), wallTopY + rowFracOff(path[0].row, 0.5));
             for (var pi = 1; pi < path.length; pi++) {
-              ctx.lineTo(adjWallLeftX + (path[pi].col + 0.5) * panelPixelW, wallTopY + rowFracOff(path[pi].row, 0.5));
+              ctx.lineTo(adjWallLeftX + colMidX(path[pi].col), wallTopY + rowFracOff(path[pi].row, 0.5));
             }
             var lastCell = path[path.length - 1];
-            var lastCX = adjWallLeftX + (lastCell.col + 0.5) * panelPixelW;
+            var lastCX = adjWallLeftX + colMidX(lastCell.col);
             if (isBottomExit) {
               ctx.lineTo(lastCX, DATA_WALL_BOTTOM_Y);
               ctx.lineTo(dropX + BACKUP_OFFSET, DATA_WALL_BOTTOM_Y);

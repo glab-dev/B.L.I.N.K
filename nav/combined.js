@@ -246,10 +246,10 @@ function drawCombinedSelectionOverlay(ctx, canvasId) {
     }
     if(!e || isCombinedPanelDeleted(e.data, panelKey)) return;
     const [col, row] = panelKey.split(',').map(Number);
-    if(!(col >= 0 && col < e.pw && row >= 0 && row < e.geo.effectivePh)) return;
-    const px = e.screenX + col * e.panelWidth;
+    if(!(col >= 0 && col < e.geo.effectivePw && row >= 0 && row < e.geo.effectivePh)) return;
+    const px = e.screenX + e.geo.colX(col);
     const py = e.screenY + e.geo.rowY(row);
-    ctx.strokeRect(px + inset, py + inset, e.panelWidth - inset * 2, e.geo.rowH(row) - inset * 2);
+    ctx.strokeRect(px + inset, py + inset, e.geo.colW(col) - inset * 2, e.geo.rowH(row) - inset * 2);
   };
 
   ctx.save();
@@ -653,8 +653,7 @@ function getCombinedScreenAtPosition(canvas, clientX, clientY) {
     }
 
     const geo = combinedRowGeometry(dim.data, drawPanelSize);
-    const actualPanelWidth = drawPanelSize;
-    const screenWidth = dim.pw * actualPanelWidth;
+    const screenWidth = geo.totalW;
     const screenHeight = geo.totalH;
 
     const withinX = canvasX >= screenX && canvasX < screenX + screenWidth;
@@ -667,7 +666,7 @@ function getCombinedScreenAtPosition(canvas, clientX, clientY) {
     // Inside the panel grid: only grab if over a LIVE (non-deleted) panel,
     // so clicks over blank/dead cells fall through to the screen behind.
     if(withinX && canvasY >= screenY && canvasY < screenY + screenHeight) {
-      const col = Math.floor((canvasX - screenX) / actualPanelWidth);
+      const col = geo.colAt(canvasX - screenX);
       const row = geo.rowAt(canvasY - screenY);
       if(row < 0) continue;
 
@@ -934,15 +933,15 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
       }
       continue;
     }
-    const screenWidth = e.pw * e.panelWidth;
+    const screenWidth = e.geo.totalW;
     const screenHeight = e.geo.totalH;
 
     if(canvasX >= e.screenX && canvasX < e.screenX + screenWidth &&
        canvasY >= e.screenY && canvasY < e.screenY + screenHeight) {
-      const col = Math.floor((canvasX - e.screenX) / e.panelWidth);
+      const col = e.geo.colAt(canvasX - e.screenX);
       const row = e.geo.rowAt(canvasY - e.screenY);
 
-      if(col >= 0 && col < e.pw && row >= 0 && row < e.geo.effectivePh) {
+      if(col >= 0 && col < e.geo.effectivePw && row >= 0 && row < e.geo.effectivePh) {
         return {
           screenId: e.screenId,
           screen: e.screen,
@@ -957,6 +956,18 @@ function getCombinedPanelAtPosition(canvas, clientX, clientY) {
   return null;
 }
 
+// Column geometry for one combined-view screen at a given drawn panel size, the twin of
+// combinedRowGeometry: half columns (V4ST-V) are extra, narrower columns beside the full
+// ones. `hasHalf` says whether there are any, since without them the renderers keep their
+// own uniform-column arithmetic.
+function combinedColGeometry(data, panelSize) {
+  const panelType = (data && data.panelType) || 'CB5_MKII';
+  const half = (data && !data.freeCellPanel) ? getHalfCols(data, panelType) : {left: 0, right: 0};
+  const g = gridColGeometry((data && data.panelsWide) || 0, half, panelSize, panelSize * halfColWidthRatio(panelType));
+  g.hasHalf = half.left + half.right > 0;
+  return g;
+}
+
 // Row geometry for one combined-view screen at a given drawn panel size, honouring
 // the CB5 half rows: they are EXTRA rows above and/or below the full ones
 // (data.panelsHigh excludes them) and are half their height. Mirrors what the renderers
@@ -965,10 +976,18 @@ function combinedRowGeometry(data, panelSize) {
   const panelType = (data && data.panelType) || 'CB5_MKII';
   // A drawn screen's rows are its square snap cells
   const fullH = panelSize * ((data && data.freeCellPanel) ? 1 : getPanelHeightRatio(panelType));
-  const halfH = panelSize; // half panels are square
+  // Half rows: CB5 MKII Half is square, V4ST-H half the height
+  const halfH = panelSize * ((data && data.freeCellPanel) ? 1 : halfRowHeightRatio(panelType));
   const ph = (data && data.panelsHigh) || 0;
   const g = cb5RowGeometry(ph, getCB5HalfRows(data, panelType), fullH, halfH);
+  // ...and the columns, for screens with half columns
+  const cg = combinedColGeometry(data, panelSize);
   return {
+    effectivePw: cg.cols,
+    totalW: cg.width,
+    colX: cg.x,
+    colW: cg.w,
+    colAt: cg.colAt,
     hasHalf: g.top + g.bottom > 0,
     effectivePh: g.rows,
     totalH: g.height,
@@ -2345,14 +2364,15 @@ function renderCombinedView() {
     const ph = data.panelsHigh || 0;
 
     if(pw > 0 && ph > 0) {
-      const width = pw * panelSize;
+      // Half columns (V4ST-V) make the screen wider, at their own width
+      const width = combinedColGeometry(data, panelSize).width;
 
       // Calculate actual height accounting for CB5 panel type (2:1 ratio) and half panel rows
       const screenPanelType = data.panelType || 'CB5_MKII';
       const heightRatio = data.freeCellPanel ? 1 : getPanelHeightRatio(screenPanelType);
       // The half rows are EXTRA rows above/below the full ones — data.panelsHigh excludes them.
       const fullPanelHeight = panelSize * heightRatio;
-      const halfPanelHeight = panelSize; // Half panels are square
+      const halfPanelHeight = panelSize * (data.freeCellPanel ? 1 : halfRowHeightRatio(screenPanelType)); // CB5 MKII Half: square
       const height = cb5RowGeometry(ph, getCB5HalfRows(data, screenPanelType), fullPanelHeight, halfPanelHeight).height;
 
       screenDimensions.push({
@@ -2444,7 +2464,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       const pixelWidth = panelInfo ? panelInfo.res_x : 176;
       scaledX = (canvasX / pixelWidth) * zoomedPanelSize;
       scaledY = (canvasY / pixelWidth) * zoomedPanelSize;
-      screenWidth = dim.pw * zoomedPanelSize;
+      screenWidth = combinedColGeometry(dim.data, zoomedPanelSize).width;
       screenHeight = dim.ph * zoomedPanelSize;
     } else {
       // Use custom positions or default horizontal layout
@@ -2452,7 +2472,7 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
       const customPos = combinedScreenPositions[dim.screenId] || { x: 0, y: 0 };
       scaledX = (dim.x + customPos.x) * zoomFactor;
       scaledY = customPos.y * zoomFactor;
-      screenWidth = dim.pw * zoomedPanelSize;
+      screenWidth = combinedColGeometry(dim.data, zoomedPanelSize).width;
       screenHeight = dim.ph * zoomedPanelSize;
     }
 
@@ -2570,16 +2590,19 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
 
     // Half panel rows are EXTRA rows above/below the full ones, so the grid is taller
     // than data.panelsHigh.
-    const halfPanelDrawHeight = drawPanelSize; // Half panels are square
+    const halfPanelDrawHeight = drawPanelSize * halfRowHeightRatio(screenPanelType); // CB5 MKII Half: square
     const screenRowGeo = cb5RowGeometry(ph, getCB5HalfRows(data, screenPanelType), drawPanelHeight, halfPanelDrawHeight);
     const screenEffectivePh = screenRowGeo.rows;  // incl. the half rows
+    // Half columns (V4ST-V): extra, narrower columns beside the full ones
+    const screenColGeo = combinedColGeometry(data, drawPanelWidth);
 
-    for(let c = 0; c < pw; c++) {
+    for(let c = 0; c < screenColGeo.cols; c++) {
       for(let r = 0; r < screenEffectivePh; r++) {
         const panelKey = `${c},${r}`;
 
         const currentDrawHeight = screenRowGeo.h(r);
-        const px = screenX + c * drawPanelWidth;
+        const px = screenX + screenColGeo.x(c);
+        const drawPanelWidth = screenColGeo.w(c);
         const py = screenY + screenRowGeo.y(r);
 
         const hasDeleted = screenDeletedPanels.has(panelKey);
@@ -2617,12 +2640,12 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
     // like the Canvas view) so it stays with the screen when screens overlap.
     if(screen.name) {
       let sumX = 0, sumY = 0, liveCount = 0;
-      for(let c = 0; c < pw; c++) {
+      for(let c = 0; c < screenColGeo.cols; c++) {
         for(let r = 0; r < screenEffectivePh; r++) {
           if(screenDeletedPanels.has(`${c},${r}`)) continue;
           const cellH = screenRowGeo.h(r);
           const cellY = screenY + screenRowGeo.y(r);
-          sumX += screenX + c * drawPanelWidth + drawPanelWidth / 2;
+          sumX += screenX + screenColGeo.x(c) + screenColGeo.w(c) / 2;
           sumY += cellY + cellH / 2;
           liveCount++;
         }
@@ -2633,17 +2656,17 @@ function renderCombinedStandardLayout(screenDimensions, canvasWidth, canvasHeigh
 
         // If the centroid lands on a deleted (blank) cell, snap to the nearest
         // live panel center so the label never floats in an empty gap.
-        const cCol = Math.floor((labelX - screenX) / drawPanelWidth);
+        const cCol = screenColGeo.hasHalf ? screenColGeo.colAt(labelX - screenX) : Math.floor((labelX - screenX) / drawPanelWidth);
         const cRow = screenRowGeo.rowAt(labelY - screenY);
         if(screenDeletedPanels.has(`${cCol},${cRow}`)) {
           const cx = labelX, cy = labelY;
           let bestDist = Infinity;
-          for(let c = 0; c < pw; c++) {
+          for(let c = 0; c < screenColGeo.cols; c++) {
             for(let r = 0; r < screenEffectivePh; r++) {
               if(screenDeletedPanels.has(`${c},${r}`)) continue;
               const cellH = screenRowGeo.h(r);
               const cellY = screenY + screenRowGeo.y(r);
-              const pcx = screenX + c * drawPanelWidth + drawPanelWidth / 2;
+              const pcx = screenX + screenColGeo.x(c) + screenColGeo.w(c) / 2;
               const pcy = cellY + cellH / 2;
               const d = (pcx - cx) * (pcx - cx) + (pcy - cy) * (pcy - cy);
               if(d < bestDist) { bestDist = d; labelX = pcx; labelY = pcy; }
@@ -2699,7 +2722,7 @@ function combinedArrangedCanvasSize(screenDimensions, canvasWidth, canvasHeight,
   let height = canvasHeight;
   screenDimensions.forEach(dim => {
     const origin = combinedScreenOrigin(dim, panelSize, topPadding);
-    width = Math.max(width, origin.x + dim.pw * panelSize + 20);
+    width = Math.max(width, origin.x + combinedColGeometry(dim.data, panelSize).width + 20);
     height = Math.max(height, origin.y + combinedRowGeometry(dim.data, panelSize).totalH + topPadding);
   });
   return { width, height };
@@ -2872,16 +2895,19 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     const screenHeightRatio = getPanelHeightRatio(panelType);
     const drawPanelWidth = panelSize;
     const drawPanelHeight = panelSize * screenHeightRatio;
-    const halfPanelDrawHeight = panelSize; // Half panels are square
+    const halfPanelDrawHeight = panelSize * halfRowHeightRatio(panelType); // CB5 MKII Half: square
     const screenRowGeo = cb5RowGeometry(ph, screenHalfRows, drawPanelHeight, halfPanelDrawHeight);
+    // Half columns (V4ST-V): extra, narrower columns beside the full ones
+    const screenColGeo = combinedColGeometry(data, drawPanelWidth);
 
     // Draw all panels using resistor colors (same as original)
-    for(let c=0; c<pw; c++){
+    for(let c=0; c<screenColGeo.cols; c++){
       for(let r=0; r<screenEffectivePh; r++){
         const panelKey = `${c},${r}`;
 
         const currentDrawHeight = screenRowGeo.h(r);
-        const px = screenX + c * drawPanelWidth;
+        const px = screenX + screenColGeo.x(c);
+        const drawPanelWidth = screenColGeo.w(c);
         const py = screenY + screenRowGeo.y(r);
 
         const hasDeleted = screenDeletedPanels.has ? screenDeletedPanels.has(panelKey) : false;
@@ -2923,6 +2949,7 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
       panelToCircuit, panelToSoca,
       deletedPanels: screenDeletedPanels,
       panelWidth: drawPanelWidth,
+      colGeo: screenColGeo.hasHalf ? screenColGeo : null,
       rowGeo: screenRowGeo,
       offsetX: screenX, offsetY: screenY,
       outlineLineWidth: 1.5,
@@ -2936,7 +2963,7 @@ function renderCombinedPowerLayout(screenDimensions, canvasWidth, canvasHeight, 
     ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000' : '#fff';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(screen.name, screenX + (pw * panelSize) / 2, screenY - 10);
+    ctx.fillText(screen.name, screenX + screenColGeo.width / 2, screenY - 10);
   });
 
   recordCombinedHitGeometry('combinedPowerCanvas', hitEntries);
@@ -3294,10 +3321,14 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
 
     // This screen's half panel rows (above/below the full rows)
     const screenHalfRows = getCB5HalfRows(data, screenPanelType);
-    const halfPanelDrawHeight = panelSize; // Half panels are square
+    const halfPanelDrawHeight = panelSize * halfRowHeightRatio(screenPanelType); // CB5 MKII Half: square
     const screenRowGeo = cb5RowGeometry(ph, screenHalfRows, drawPanelHeight, halfPanelDrawHeight);
+    // Half columns (V4ST-V): extra, narrower columns beside the full ones
+    const screenColGeo = combinedColGeometry(data, drawPanelWidth);
+    const screenHalfCols = getHalfCols(data, screenPanelType);
     const screenEffectivePh = screenRowGeo.rows;  // incl. the half rows
-    const _live = countCB5LivePanels(pw, ph, screenHalfRows, screenDeletedPanels);
+    const screenEffectivePw = screenColGeo.cols;  // incl. the half columns
+    const _live = countCB5LivePanels(pw, ph, screenHalfRows, screenDeletedPanels, null, screenHalfCols);
 
     // Panels per data line from THIS screen's own processor capacity, via the shared
     // helper generateLayout() uses (core/calculate.js) — the combined view used to
@@ -3312,6 +3343,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       bitDepth: parseInt(data.bitDepth) || 8,
       fullPanels: _live.full,
       halfPanels: _live.half,
+      extraParts: gridExtraParts(screenPanelType, _live),
       userMax: parseInt(data.maxPanelsPerData)
     });
 
@@ -3319,7 +3351,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     // renderDataLayout() uses — so the grouping and colours match the Complex canvas
     // for deleted columns, custom assignments and all_top/all_bottom start directions.
     const {groups, sortedDataLines} = buildDataLineGroups({
-      pw, ph: screenEffectivePh, panelsPerDataLine, startDir,
+      pw: screenEffectivePw, ph: screenEffectivePh, panelsPerDataLine, startDir,
       deletedPanels: screenDeletedPanels,
       customDataLineAssignments: screenCustomDataLines,
       split: data.split
@@ -3346,9 +3378,10 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       groups, sortedDataLines, endpoints,
       deletedPanels: screenDeletedPanels,
       startDir,
-      pw, ph: screenEffectivePh,
+      pw: screenEffectivePw, ph: screenEffectivePh,
       panelWidth: drawPanelWidth,
       rowGeo: screenRowGeo,
+      colGeo: screenColGeo.hasHalf ? screenColGeo : null,
       offsetX: screenX, offsetY: screenY,
       rearView: !!data.dataRearView,
       flip: screenFlip,
@@ -3377,6 +3410,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
           deletedPanels: screenDeletedPanels,
           panelWidth: drawPanelWidth,
           rowGeo: screenRowGeo,
+          colGeo: screenColGeo.hasHalf ? screenColGeo : null,
           offsetX: screenX, offsetY: screenY,
           outlineLineWidth: 1.5,
           socaLabelIdx: (i) => i,
@@ -3394,14 +3428,14 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
     // A split screen: where it splits, and which canvas / processor each part goes to
     if(typeof drawSplitPartMarkers === 'function') {
       drawSplitPartMarkers(ctx, screenId, { offsetX: screenX, offsetY: screenY,
-        panelWidth: drawPanelWidth, rowGeo: screenRowGeo, fontSize: numberFontSize });
+        panelWidth: drawPanelWidth, rowGeo: screenRowGeo, colGeo: screenColGeo.hasHalf ? screenColGeo : null, fontSize: numberFontSize });
     }
 
     // Draw screen label
     ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000' : '#fff';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(screen.name, screenX + (pw * drawPanelWidth) / 2, screenY - 10);
+    ctx.fillText(screen.name, screenX + screenColGeo.width / 2, screenY - 10);
   });
 
   recordCombinedHitGeometry('combinedDataCanvas', hitEntries);
@@ -3747,8 +3781,10 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 
     // Half panel rows are EXTRA rows above/below the full ones, so the grid is taller
     // than data.panelsHigh.
-    const halfPanelDrawHeight = panelSize; // Half panels are square
+    const halfPanelDrawHeight = panelSize * halfRowHeightRatio(screenPanelType); // CB5 MKII Half: square
     const screenRowGeo = cb5RowGeometry(ph, getCB5HalfRows(data, screenPanelType), drawPanelHeight, halfPanelDrawHeight);
+    // Half columns (V4ST-V): extra, narrower columns beside the full ones
+    const screenColGeo = combinedColGeometry(data, drawPanelWidth);
     const screenEffectivePh = screenRowGeo.rows;  // incl. the half rows
 
     // Calculate total screen height (accounting for half panel rows if present)
@@ -3773,12 +3809,13 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     }
 
     // Draw panels first (white background with black outline, same as original)
-    for(let c=0; c<pw; c++){
+    for(let c=0; c<screenColGeo.cols; c++){
       for(let r=0; r<screenEffectivePh; r++){
         const panelKey = `${c},${r}`;
 
         const currentDrawHeight = screenRowGeo.h(r);
-        const px = screenX + c * drawPanelWidth;
+        const px = screenX + screenColGeo.x(c);
+        const drawPanelWidth = screenColGeo.w(c);
         const py = panelYOffset + screenRowGeo.y(r);
 
         const hasDeleted = screenDeletedPanels.has(panelKey);
@@ -3809,8 +3846,8 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
           bumperWidthCols = (bumper.endCol - bumper.startCol) || 2;
         }
 
-        const bumperX = screenX + bumper.startCol * drawPanelWidth;
-        const bumperWidthPx = bumperWidthCols * drawPanelWidth;
+        const bumperX = screenX + screenColGeo.x(bumper.startCol);
+        const bumperWidthPx = screenColGeo.hasHalf ? screenColGeo.x(bumper.startCol + bumperWidthCols) - screenColGeo.x(bumper.startCol) : bumperWidthCols * drawPanelWidth;
         let bumperY;
 
         if(bumper.position === 'top') {
@@ -3868,7 +3905,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     } else {
       labelY = panelYOffset - 15;
     }
-    ctx.fillText(screen.name, screenX + (pw * drawPanelWidth) / 2, labelY);
+    ctx.fillText(screen.name, screenX + screenColGeo.width / 2, labelY);
   });
 }
 

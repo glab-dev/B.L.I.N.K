@@ -156,7 +156,7 @@ function _getScreenDataResolution(sd) {
   if(!p || !p.res_x || !p.res_y) return { w: 0, h: 0 };
   var pw = sd.panelsWide || 0;
   var ph = sd.panelsHigh || 0;
-  var wallW = pw * p.res_x;
+  var wallW = pw ? screenPixelColGeo(sd, p).width : 0;
   var wallH = ph * p.res_y;
   var halfRows = getCB5HalfRows(sd, sd.panelType);
   if(halfRows.top + halfRows.bottom > 0) {
@@ -424,6 +424,9 @@ function _drawScreenOutline(ctx, sd, allPanels, ox, oy, bw, scale) {
   var halfPanel = allPanels[halfPanelTypeOf(panelType)];
   var rowGeo = cb5RowGeometry(ph, getCB5HalfRows(sd, panelType), p.res_y, halfPanel ? halfPanel.res_y : p.res_y);
   var totalRows = rowGeo.rows;
+  // Half columns (V4ST-V) are extra, narrower columns beside the full ones
+  var colGeo = sd.freeCellPanel ? gridColGeometry(pw, {left: 0, right: 0}, p.res_x, p.res_x) : screenPixelColGeo(sd, p);
+  pw = colGeo.cols;
 
   // Ensure deletedPanels is a Set
   var deleted = sd.deletedPanels;
@@ -437,11 +440,10 @@ function _drawScreenOutline(ctx, sd, allPanels, ox, oy, bw, scale) {
       var key = c + ',' + r;
       if(deleted.has(key)) continue;
 
-      var isHalfRow = rowGeo.isHalf(r);
-      var panelW = (isHalfRow && halfPanel) ? halfPanel.res_x : p.res_x;
+      var panelW = colGeo.w(c);
       var panelH = rowGeo.h(r);
 
-      var px = ox + Math.round(c * p.res_x * s);
+      var px = ox + Math.round(colGeo.x(c) * s);
       var py = oy + Math.round(rowGeo.y(r) * s);
       var pw2 = Math.round(panelW * s);
       var ph2 = Math.round(panelH * s);

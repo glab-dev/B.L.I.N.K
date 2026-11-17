@@ -27,7 +27,6 @@ function buildScreenSliceRects(screenData, panel) {
   const panelsHigh = parseInt(screenData.panelsHigh) || 0;
   if(panelsWide <= 0 || panelsHigh <= 0) return [];
 
-  const resX = panel.res_x || 1;
   const resY = panel.res_y || 1;
   const originX = screenData.canvasX || 0;
   const originY = screenData.canvasY || 0;
@@ -41,12 +40,14 @@ function buildScreenSliceRects(screenData, panel) {
   // (rows above come first), and have their own deleted panels. Honours addCB5HalfRow for
   // any panel type — callers pass the flag they actually drew.
   const rowGeo = cb5RowGeometry(panelsHigh, getCB5HalfRows(screenData, 'CB5_MKII'), resY, Math.round(resY / 2));
+  // Half columns (V4ST-V) beside the full columns, narrower, in the same grid of panel keys
+  const colGeo = screenPixelColGeo(screenData, panel);
 
   // Signature per row so identical neighbouring rows of the same height can merge into one band
   const rowRuns = [];
   const rowKeys = [];
   for(let row = 0; row < rowGeo.rows; row++) {
-    const runs = getLivePanelRuns(deletedPanels, row, panelsWide);
+    const runs = getLivePanelRuns(deletedPanels, row, colGeo.cols);
     rowRuns.push(runs);
     rowKeys.push((rowGeo.isHalf(row) ? 'half:' : 'full:') + JSON.stringify(runs));
   }
@@ -59,9 +60,9 @@ function buildScreenSliceRects(screenData, panel) {
     const bandHeight = rowGeo.y(bandEnd + 1) - rowGeo.y(row);
     rowRuns[row].forEach(function(run) {
       rects.push({
-        x: originX + run[0] * resX,
+        x: originX + colGeo.x(run[0]),
         y: originY + rowGeo.y(row),
-        w: (run[1] - run[0] + 1) * resX,
+        w: colGeo.x(run[1] + 1) - colGeo.x(run[0]),
         h: bandHeight
       });
     });

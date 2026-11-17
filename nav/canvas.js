@@ -112,8 +112,10 @@ function lightenHexCanvas(hex, amt) {
 function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelResY, ph, halfRows, opts) {
   if(typeof getDataLinePanelOrdering !== 'function') return;
   const data = screen.data || {};
-  const pw = data.panelsWide || 0;
-  if(pw === 0 || ph === 0) return;
+  if(!(data.panelsWide > 0) || ph === 0) return;
+  // Half columns (V4ST-V) are extra, narrower columns beside the full ones
+  const colGeo = isFreeScreen(data) ? null : screenPixelColGeo(data, {res_x: panelResX});
+  const pw = colGeo ? colGeo.cols : data.panelsWide;
 
   const effectivePh = ph + halfRows.top + halfRows.bottom;
   const panelsPerDataLine = (screen.calculatedData && screen.calculatedData.panelsPerDataLine) || 16;
@@ -134,7 +136,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
   const halfPanel = allP[halfPanelTypeOf(data.panelType)];
   const halfResY = halfPanel ? halfPanel.res_y : panelResY;
   const rowGeo = cb5RowGeometry(ph, halfRows, panelResY, halfResY);
-  const cX = (c) => offsetX + c * panelResX + panelResX / 2;
+  const cX = colGeo ? (c) => offsetX + colGeo.x(c) + colGeo.w(c) / 2 : (c) => offsetX + c * panelResX + panelResX / 2;
   const cY = isFree ? (r) => offsetY + r * panelResY + panelResY / 2 : (r) => offsetY + rowGeo.y(r) + rowGeo.h(r) / 2;
   // The panel key the data port lookups know a point by
   const keyOf = (p) => {
@@ -580,9 +582,12 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     const hasCB5HalfRow = halfRows.top + halfRows.bottom > 0;
     const halfPanel = allPanels[halfPanelTypeOf(panelType)];
     const rowGeo = cb5RowGeometry(ph, halfRows, p.res_y, hasCB5HalfRow ? halfPanel.res_y : p.res_y);
+    // Half columns (V4ST-V) are extra, narrower columns beside the full ones
+    const colGeo = screenData.freeCellPanel ? gridColGeometry(pw, {left: 0, right: 0}, p.res_x, p.res_x) : screenPixelColGeo(screenData, p);
+    const totalCols = colGeo.cols;
 
-    // Calculate wall resolution accounting for CB5 half panels
-    const wallResX = pw * p.res_x;
+    // Calculate wall resolution accounting for CB5 half panels and half columns
+    const wallResX = colGeo.width;
     const wallResY = rowGeo.height;
 
     const totalRows = rowGeo.rows;
@@ -609,14 +614,13 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     // stay readable across knocked-out panels.
     ctx.save();
     ctx.beginPath();
-    for(let c = 0; c < pw; c++) {
+    for(let c = 0; c < totalCols; c++) {
       for(let r = 0; r < totalRows; r++) {
         if(deletedPanelsForScreen.has(`${c},${r}`)) continue;
-        const isHalfRow = rowGeo.isHalf(r);
         ctx.rect(
-          offsetX + (c * p.res_x),
+          offsetX + colGeo.x(c),
           offsetY + rowGeo.y(r),
-          isHalfRow ? halfPanel.res_x : p.res_x,
+          colGeo.w(c),
           rowGeo.h(r)
         );
       }
@@ -627,8 +631,8 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     if(screenData.freeCellPanel) drawFreePanelsToContext(ctx, screenData, allPanels, offsetX, offsetY, [primaryColor, secondaryColor], dataOverlay);
 
     // Draw panels for this screen - optimized loop
-    for(let c = 0; c < (screenData.freeCellPanel ? 0 : pw); c++){
-      const xBase = offsetX + (c * p.res_x);
+    for(let c = 0; c < (screenData.freeCellPanel ? 0 : totalCols); c++){
+      const xBase = offsetX + colGeo.x(c);
 
       for(let r = 0; r < totalRows; r++){
         const panelKey = `${c},${r}`;
@@ -639,8 +643,8 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
         // Determine if this is a half panel row
         const isHalfPanelRow = rowGeo.isHalf(r);
 
-        // Calculate panel pixel dimensions
-        const panelResX = isHalfPanelRow ? halfPanel.res_x : p.res_x;
+        // Calculate panel pixel dimensions (a half column is narrower)
+        const panelResX = colGeo.w(c);
         const panelResY = rowGeo.h(r);
 
         // Calculate Y position
@@ -764,7 +768,7 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     {
       ctx.fillStyle = '#e0e0e0';
       const side = Math.max(8, Math.round(Math.min(p.res_x, p.res_y) / 4));
-      [[0, 0], [pw - 1, 0], [0, totalRows - 1], [pw - 1, totalRows - 1]].forEach(function(cr, i) {
+      [[0, 0], [totalCols - 1, 0], [0, totalRows - 1], [totalCols - 1, totalRows - 1]].forEach(function(cr, i) {
         if(deletedPanelsForScreen.has(`${cr[0]},${cr[1]}`)) return;
         const sx = offsetX + (i % 2 ? wallResX - side : 0);
         const sy = offsetY + (i < 2 ? 0 : wallResY - side);
@@ -937,10 +941,10 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
     const screenName = screen.name;
     if(screen.showName !== false && screenName) {
       let sumX = 0, sumY = 0, liveCount = 0;
-      for(let c = 0; c < pw; c++) {
+      for(let c = 0; c < totalCols; c++) {
         for(let r = 0; r < totalRows; r++) {
           if(deletedPanelsForScreen.has(`${c},${r}`)) continue;
-          sumX += offsetX + c * p.res_x + p.res_x / 2;
+          sumX += offsetX + colGeo.x(c) + colGeo.w(c) / 2;
           sumY += offsetY + rowGeo.y(r) + rowGeo.h(r) / 2;
           liveCount++;
         }
@@ -952,15 +956,15 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
 
         // Donut/ring layouts: if the centroid lands on a deleted panel, snap to
         // the nearest live panel center.
-        const centroidCol = Math.floor((labelX - offsetX) / p.res_x);
+        const centroidCol = colGeo.colAt(labelX - offsetX);
         const centroidRow = rowGeo.rowAt(labelY - offsetY);
         if(deletedPanelsForScreen.has(`${centroidCol},${centroidRow}`)) {
           const cx = labelX, cy = labelY;
           let bestDist = Infinity;
-          for(let c = 0; c < pw; c++) {
+          for(let c = 0; c < totalCols; c++) {
             for(let r = 0; r < totalRows; r++) {
               if(deletedPanelsForScreen.has(`${c},${r}`)) continue;
-              const pcx = offsetX + c * p.res_x + p.res_x / 2;
+              const pcx = offsetX + colGeo.x(c) + colGeo.w(c) / 2;
               const pcy = offsetY + rowGeo.y(r) + rowGeo.h(r) / 2;
               const d = (pcx - cx) * (pcx - cx) + (pcy - cy) * (pcy - cy);
               if(d < bestDist) { bestDist = d; labelX = pcx; labelY = pcy; }
@@ -1360,7 +1364,7 @@ function screenCanvasFit(screenId) {
   const halfRows = getCB5HalfRows(data, data.panelType);
   const halfP = allPanels[halfPanelTypeOf(data.panelType)];
   const rowGeo = cb5RowGeometry(ph, halfRows, p.res_y, halfP ? halfP.res_y : p.res_y);
-  const width = pw * p.res_x;
+  const width = screenPixelColGeo(data, p).width;
   const height = rowGeo.height;
 
   const topology = resolveProcessorTopology(data.processor || 'Brompton_SX40', data.mx40ConnectionMode || 'direct');
@@ -1807,10 +1811,10 @@ function drawSelectionHighlight() {
   let wallResX, wallResY;
   if(hasCB5HalfRow) {
     const halfPanel = allPanels[halfPanelTypeOf(panelType)];
-    wallResX = screenData.panelsWide * p.res_x;
+    wallResX = screenPixelColGeo(screenData, p).width;
     wallResY = screenData.panelsHigh * p.res_y + (_halfRows.top + _halfRows.bottom) * halfPanel.res_y;
   } else {
-    wallResX = screenData.panelsWide * p.res_x;
+    wallResX = screenPixelColGeo(screenData, p).width;
     wallResY = screenData.panelsHigh * p.res_y;
   }
   
@@ -1854,10 +1858,10 @@ function getScreenAtPosition(mouseX, mouseY) {
     let wallResX, wallResY;
     if(hasCB5HalfRow) {
       const halfPanel = allPanels[halfPanelTypeOf(panelType)];
-      wallResX = pw * p.res_x;
+      wallResX = screenPixelColGeo(screenData, p).width;
       wallResY = ph * p.res_y + (_halfRows.top + _halfRows.bottom) * halfPanel.res_y;
     } else {
-      wallResX = pw * p.res_x;
+      wallResX = screenPixelColGeo(screenData, p).width;
       wallResY = ph * p.res_y;
     }
     
@@ -2031,10 +2035,10 @@ function setupCanvasViewInteractivity() {
     let wallResX, wallResY;
     if(hasCB5HalfRow) {
       const halfPanel = allPanels[halfPanelTypeOf(panelType)];
-      wallResX = pw * p.res_x;
+      wallResX = screenPixelColGeo(screenData, p).width;
       wallResY = ph * p.res_y + (_halfRows.top + _halfRows.bottom) * halfPanel.res_y;
     } else {
-      wallResX = pw * p.res_x;
+      wallResX = screenPixelColGeo(screenData, p).width;
       wallResY = ph * p.res_y;
     }
     
@@ -2240,10 +2244,10 @@ function setupCanvasViewInteractivity() {
     let wallResX, wallResY;
     if(hasCB5HalfRow) {
       const halfPanel = allPanels[halfPanelTypeOf(panelType)];
-      wallResX = pw * p.res_x;
+      wallResX = screenPixelColGeo(screenData, p).width;
       wallResY = ph * p.res_y + (_halfRows.top + _halfRows.bottom) * halfPanel.res_y;
     } else {
-      wallResX = pw * p.res_x;
+      wallResX = screenPixelColGeo(screenData, p).width;
       wallResY = ph * p.res_y;
     }
     
@@ -2482,10 +2486,10 @@ function setupCanvasViewInteractivity() {
         let otherWallResX, otherWallResY;
         if(otherHasCB5HalfRow) {
           const halfPanel = getAllPanels()[halfPanelTypeOf(otherPanelType)];
-          otherWallResX = otherPw * otherPanel.res_x;
+          otherWallResX = screenPixelColGeo(otherData, otherPanel).width;
           otherWallResY = otherPh * otherPanel.res_y + (otherHalfRows.top + otherHalfRows.bottom) * halfPanel.res_y;
         } else {
-          otherWallResX = otherPw * otherPanel.res_x;
+          otherWallResX = screenPixelColGeo(otherData, otherPanel).width;
           otherWallResY = otherPh * otherPanel.res_y;
         }
         
@@ -2780,7 +2784,7 @@ function setupCanvasViewInteractivity() {
           if(p && p.res_x && p.res_y) {
             const pw = screenData.panelsWide || 0;
             const ph = screenData.panelsHigh || 0;
-            const wallResX = pw * p.res_x;
+            const wallResX = screenPixelColGeo(screenData, p).width;
             const wallResY = ph * p.res_y;
             // Touch is always mobile, use larger threshold for firm snapping
             const snapThreshold = 80;
@@ -2811,7 +2815,7 @@ function setupCanvasViewInteractivity() {
               const op = od.freeCellPanel || allPanelsTouch[opt];
               if(!op) return;
 
-              const oResX = (od.panelsWide || 0) * op.res_x;
+              const oResX = screenPixelColGeo(od, op).width;
               const oResY = (od.panelsHigh || 0) * op.res_y;
               const oX = od.canvasX || 0;
               const oY = od.canvasY || 0;
@@ -2862,7 +2866,7 @@ function setupCanvasViewInteractivity() {
           const ph = d.panelsHigh || 0;
           if(pw <= 0 || ph <= 0) return;
 
-          const resX = pw * panel.res_x;
+          const resX = screenPixelColGeo(d, panel).width;
           const resY = ph * panel.res_y;
           const x = d.canvasX || 0;
           const y = d.canvasY || 0;
@@ -2893,7 +2897,7 @@ function setupCanvasViewInteractivity() {
           if(sp) {
             const sx = sd.canvasX || 0;
             const sy = sd.canvasY || 0;
-            const sw = (sd.panelsWide || 0) * sp.res_x;
+            const sw = screenPixelColGeo(sd, sp).width;
             const sh = (sd.panelsHigh || 0) * sp.res_y;
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 3;

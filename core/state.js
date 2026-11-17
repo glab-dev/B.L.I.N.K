@@ -838,6 +838,14 @@ function currentColumnPanelWeights(panelType, useConnectingPlates) {
   };
 }
 
+// A grid screen's columns in its own pixels: its full columns at `p`'s res_x and its half
+// columns (V4ST-V) at theirs. With no half columns, x(c) is exactly c * p.res_x.
+function screenPixelColGeo(data, p) {
+  const type = data.panelType || 'CB5_MKII';
+  const v = getAllPanels()[halfColPanelTypeOf(type)];
+  return gridColGeometry(parseInt(data.panelsWide) || 0, getHalfCols(data, type), p.res_x, v ? v.res_x : p.res_x);
+}
+
 // The current screen's corner cells, where a half column crosses a half row
 function gridCornerKeys() {
   const hr = getCurrentCB5HalfRows(), hc = getCurrentHalfCols();

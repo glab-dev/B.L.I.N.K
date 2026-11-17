@@ -1,5 +1,5 @@
 {
-  "version": "2.11.250",
+  "version": "2.11.251",
   "updated": "2026-11-17",
-  "changelog": "Count panels above a dropped 2W in its pickup weight on notched walls"
+  "changelog": "Count Combined gear plates from each wall's Structure layout instead of guessing"
 }

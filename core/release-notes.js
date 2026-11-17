@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.251', date: '2026-11-17', notes: 'Count Combined gear plates from each wall\'s Structure layout instead of guessing' },
   { version: '2.11.250', date: '2026-11-17', notes: 'Count panels above a dropped 2W in its pickup weight on notched walls' },
   { version: '2.11.249', date: '2026-11-16', notes: 'Draw canvas corner squares in off-white, underneath the screen text' },
   { version: '2.11.248', date: '2026-11-16', notes: 'Label each screen\'s own cable distances under its drop in the Combined cable diagram' },

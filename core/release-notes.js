@@ -5,6 +5,7 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.244', date: '2026-11-16', notes: 'Draw small Combined data unit labels as black-edged letters instead of on a plate' },
   { version: '2.11.243', date: '2026-11-16', notes: 'Add per-screen cable distances to the Combined cabling panel' },
   { version: '2.11.242', date: '2026-11-16', notes: 'Move Power, Data and Structure options beside their layouts on desktop' },
   { version: '2.11.241', date: '2026-11-16', notes: 'Add one app-wide Undo/Redo in the top bar covering every project change' },

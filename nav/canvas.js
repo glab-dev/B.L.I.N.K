@@ -1364,7 +1364,8 @@ function screenCanvasFit(screenId) {
   const halfRows = getCB5HalfRows(data, data.panelType);
   const halfP = allPanels[halfPanelTypeOf(data.panelType)];
   const rowGeo = cb5RowGeometry(ph, halfRows, p.res_y, halfP ? halfP.res_y : p.res_y);
-  const width = screenPixelColGeo(data, p).width;
+  const colGeo = screenPixelColGeo(data, p);
+  const width = colGeo.width;
   const height = rowGeo.height;
 
   const topology = resolveProcessorTopology(data.processor || 'Brompton_SX40', data.mx40ConnectionMode || 'direct');
@@ -1406,11 +1407,20 @@ function screenCanvasFit(screenId) {
   const colSizes = [];
   if(width > limitW && freeCellsOf) {
     colSizes.push(...freeCuts(pw, Math.max(1, Math.floor(limitW / p.res_x)), x => freeCellsOf.some(c => c.gx < x && x < c.gx + c.cw)));
+  } else if(width > limitW && colGeo.cols > pw) {
+    // Half columns (V4ST-V) are narrower: fill each part greedily, as the rows below are
+    let count = 0, used = 0;
+    for(let c = 0; c < colGeo.cols; c++) {
+      if(count > 0 && used + colGeo.w(c) > limitW) { colSizes.push(count); count = 0; used = 0; }
+      count++;
+      used += colGeo.w(c);
+    }
+    colSizes.push(count);
   } else if(width > limitW) {
     const colsPerPart = Math.max(1, Math.floor(limitW / p.res_x));
     for(let left = pw; left > 0; left -= colsPerPart) colSizes.push(Math.min(colsPerPart, left));
   } else {
-    colSizes.push(pw);
+    colSizes.push(colGeo.cols);
   }
   // Grid rows per part down (CB5 half rows included, at their own height), filled greedily
   const rowSizes = [];
@@ -1470,7 +1480,7 @@ function canvasFitWarningText(screenId) {
       // A drawn screen's part measures on its cell grid (see freeCellData)
       const view = freeCanvasItem(splitPartView(screenId, k));
       const panel = view.data.freeCellPanel || allPanels[view.data.panelType];
-      const w = view.data.panelsWide * panel.res_x;
+      const w = screenPixelColGeo(view.data, panel).width;
       const h = cb5RowGeometry(view.data.panelsHigh, getCB5HalfRows(view.data, view.data.panelType),
         panel.res_y, halfP ? halfP.res_y : panel.res_y).height;
       return (w > fit.limitW || h > fit.limitH) ? (k + 1) + '/' + split.parts.length : null;
@@ -1548,6 +1558,11 @@ function splitPartView(screenId, k) {
   const bottomStart = half.top + (base.panelsHigh || 0);
   const top = Math.max(0, Math.min(r1, half.top) - r0);
   const bottom = Math.max(0, r1 - Math.max(r0, bottomStart));
+  // ...and the half columns (V4ST-V) this part holds, on its left and right
+  const halfCols = isDrawn ? {left: 0, right: 0} : getHalfCols(base, base.panelType);
+  const rightStart = halfCols.left + (base.panelsWide || 0);
+  const leftCols = Math.max(0, Math.min(c1, halfCols.left) - c0);
+  const rightCols = Math.max(0, c1 - Math.max(c0, rightStart));
 
   // Panel keys are "col,row" in grid rows; keep this part's and shift them to its origin
   const rekey = key => {
@@ -1573,8 +1588,12 @@ function splitPartView(screenId, k) {
       data[field] = out;
     }
   });
-  data.panelsWide = c1 - c0;
+  data.panelsWide = (c1 - c0) - leftCols - rightCols;
   data.panelsHigh = (r1 - r0) - top - bottom;
+  data.addHalfCols = leftCols + rightCols > 0;
+  data.halfColPosition = (leftCols && rightCols) ? 'both' : (leftCols ? 'left' : 'right');
+  data.halfColsLeft = leftCols || 1;
+  data.halfColsRight = rightCols || 1;
   data.addCB5HalfRow = top + bottom > 0;
   data.cb5HalfRowPosition = (top && bottom) ? 'both' : (top ? 'above' : 'below');
   data.cb5HalfRowsAbove = top || 1;
@@ -1690,7 +1709,7 @@ function layoutSplitParts(screenId) {
     const view = freeCanvasItem(splitPartView(screenId, k));
     const pp = view.data.freeCellPanel || p;
     const halfP = allPanels[halfPanelTypeOf(screen.data.panelType)];
-    const partW = view.data.panelsWide * pp.res_x;
+    const partW = screenPixelColGeo(view.data, pp).width;
     const partH = cb5RowGeometry(view.data.panelsHigh, getCB5HalfRows(view.data, view.data.panelType),
       pp.res_y, halfP ? halfP.res_y : pp.res_y).height;
     const size = canvasPixelSize(part.canvasId);

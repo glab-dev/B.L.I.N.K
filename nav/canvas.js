@@ -757,6 +757,24 @@ function drawScreenToContext(ctx, screen, allPanels, offsetX, offsetY, cullW, cu
       ctx.setLineDash([]); // Reset to solid line
     }
 
+    // Corner squares: a 1px outline square sitting exactly on each corner of the screen,
+    // so the wall's true corner pixels are easy to find, in the same off-white as the panel
+    // lines. A knocked-out corner panel gets none. Drawn before the corner labels, so the
+    // text sits on top.
+    {
+      ctx.fillStyle = '#e0e0e0';
+      const side = Math.max(8, Math.round(Math.min(p.res_x, p.res_y) / 4));
+      [[0, 0], [pw - 1, 0], [0, totalRows - 1], [pw - 1, totalRows - 1]].forEach(function(cr, i) {
+        if(deletedPanelsForScreen.has(`${cr[0]},${cr[1]}`)) return;
+        const sx = offsetX + (i % 2 ? wallResX - side : 0);
+        const sy = offsetY + (i < 2 ? 0 : wallResY - side);
+        ctx.fillRect(sx, sy, side, 1);
+        ctx.fillRect(sx, sy + side - 1, side, 1);
+        ctx.fillRect(sx, sy, 1, side);
+        ctx.fillRect(sx + side - 1, sy, 1, side);
+      });
+    }
+
     // Add X/Y coordinates in the top-left corner of every visible block (if enabled
     // for this screen). Label text is the canvas-space coordinate; the draw position
     // is relative to offsetX/offsetY, which is 0,0 in the native-resolution PNG

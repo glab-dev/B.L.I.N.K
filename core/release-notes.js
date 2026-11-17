@@ -5,6 +5,17 @@
 // Newest first. Depends on: APP_VERSION (declared inline in index.html).
 
 const RELEASE_NOTES = [
+  { version: '2.11.249', date: '2026-11-16', notes: 'Draw canvas corner squares in off-white, underneath the screen text' },
+  { version: '2.11.248', date: '2026-11-16', notes: 'Label each screen\'s own cable distances under its drop in the Combined cable diagram' },
+  { version: '2.11.247', date: '2026-11-16', notes: 'Widen the Complex page, move Specs beside the form on cards, and put layout toggles in the options boxes' },
+  { version: '2.11.246', date: '2026-11-16', notes: 'Keep the panel right-click menu inside the window near its edges' },
+  { version: '2.11.245', date: '2026-11-16', notes: 'Group ROE panels under their series names in the panel dropdowns' },
+  { version: '2.11.244', date: '2026-11-16', notes: 'Draw small Combined data unit labels as black-edged letters instead of on a plate' },
+  { version: '2.11.243', date: '2026-11-16', notes: 'Add per-screen cable distances to the Combined cabling panel' },
+  { version: '2.11.242', date: '2026-11-16', notes: 'Move Power, Data and Structure options beside their layouts on desktop' },
+  { version: '2.11.241', date: '2026-11-16', notes: 'Add one app-wide Undo/Redo in the top bar covering every project change' },
+  { version: '2.11.240', date: '2026-11-16', notes: 'Add 1px corner squares to each screen in the Canvas and Raster views' },
+  { version: '2.11.239', date: '2026-11-16', notes: 'Draw small data unit labels in Combined as plain text on a dark plate' },
   { version: '2.11.238', date: '2026-11-04', notes: 'Add ROE Vanish ST V4ST, V4ST-H, V4ST-V and V4ST-Q panels' },
   { version: '2.11.237', date: '2026-10-20', notes: 'Recalculate every reset screen so combined-view resets update the gear list' },
   { version: '2.11.236', date: '2026-10-20', notes: 'Match Cable tab gear layout to combined view and measure backup data cables correctly' },

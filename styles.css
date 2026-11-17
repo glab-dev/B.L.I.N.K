@@ -841,7 +841,7 @@ button:active {
 /* Desktop layout adjustments */
 @media (min-width: 768px) {
   .main-container {
-    max-width: 1200px;
+    max-width: 1600px;
     margin: 0; /* Align to left instead of centered */
     margin-left: 20px; /* Small left margin */
   }
@@ -850,6 +850,12 @@ button:active {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
+    max-width: 1168px; /* the form keeps its size inside the wider box */
+  }
+
+  /* Layouts use the full width of the box, for the options column beside each canvas */
+  .main-container .layout-container {
+    max-width: none;
   }
 
   .section-box {
@@ -873,7 +879,7 @@ button:active {
 
   /* Screen tabs alignment with main content */
   #screenTabsContainer {
-    max-width: 1200px;
+    max-width: 1600px;
     margin-left: 20px; /* Align to left */
     margin-right: 0;
     box-sizing: border-box;
@@ -918,6 +924,76 @@ button:active {
   /* Layout container - no overflow scroll on desktop */
   .layout-container {
     overflow-x: visible;
+  }
+
+  /* An options box moved in beside its layout's canvas (nav/navigation.js
+     placeLayoutOptions): the box takes a left column, everything else stacks on the right */
+  .layout-content.has-layout-options:not(.collapsed) {
+    display: grid;
+    grid-template-columns: 380px minmax(0, 1fr);
+    column-gap: 20px;
+    align-items: start;
+  }
+
+  .layout-content.has-layout-options > .section-box {
+    grid-column: 1;
+    grid-row: 1 / span 12;
+    margin: 14px 0 0;
+    max-width: none;
+  }
+
+  .layout-content.has-layout-options > :not(.section-box) {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  /* Hidden until its layout shows */
+  .section-box.layout-options-waiting {
+    display: none !important;
+  }
+
+  /* The layout's own toggles, moved into the options box under its settings */
+  .has-layout-options > .section-box .layout-toggle-row {
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 12px;
+    padding: 12px 0 0;
+    margin-top: 12px;
+    border-top: 2px solid #000;
+  }
+
+  .has-layout-options > .section-box .structure-mode-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+    margin: 12px 0 0;
+    padding: 12px 0 0;
+    background: none;
+    border-top: 2px solid #000;
+    border-radius: 0;
+  }
+
+  .has-layout-options > .section-box .structure-mode-hint {
+    margin-left: 0;
+  }
+
+  /* Specs moved up beside the form (nav/navigation.js placeLayoutOptions): the form keeps
+     its width, Specs takes the rest of the box, two cards to a row */
+  .two-column-layout.has-specs-beside {
+    grid-template-columns: minmax(0, 574px) minmax(0, 1fr);
+    max-width: none;
+  }
+
+  #results.specs-beside {
+    margin-top: 12px;
+  }
+
+  #results.specs-beside .specs-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  #results.specs-beside .specs-row-bottom {
+    margin-top: 12px;
   }
 
 }
@@ -969,6 +1045,30 @@ button:active {
 
 .result-indent {
   margin-left: 20px;
+}
+
+/* Each Specs section (PANEL, WALL, POWER, DATA...) sits on its own card */
+#results .spec-group {
+  background: #1a1a1a;
+  border: 2px solid #000;
+  border-radius: 2px;
+  padding: 10px 12px;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+}
+
+#results .spec-group .result-section-title {
+  margin-top: 0;
+}
+
+/* The cards space themselves; the <br> spacers were for the old plain stacked list */
+#results .specs-columns br {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  #results .spec-group {
+    margin-bottom: 12px;
+  }
 }
 
 /* Desktop specs columns — PANEL | WALL on the top row, POWER | SHARED DISTRO | DATA
@@ -7454,6 +7554,64 @@ input[type="number"].spare-qty-input::placeholder {
   display: inline;
   margin: 0 0 0 6px;
   color: var(--primary);
+}
+/* Combined cabling: one row of cable distances per screen. As with the feed rows, the list
+   is the grid, so the columns line up; only the first row shows the column labels. */
+.screen-cable-list {
+  display: grid;
+  grid-template-columns: minmax(70px, auto) repeat(7, minmax(0, 110px));
+  justify-content: start;
+  gap: 8px 12px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+.screen-cable-row {
+  display: contents;
+}
+.screen-cable-row label {
+  margin-bottom: 0;
+  min-width: 0;
+}
+.screen-cable-row label > span {
+  white-space: nowrap;
+}
+.screen-cable-row:not(:first-child) label > span {
+  display: none;
+}
+.screen-cable-name {
+  font-weight: 700;
+  color: var(--primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+  line-height: 40px;
+}
+.screen-cable-row input:disabled,
+.screen-cable-row select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+/* Mobile: each screen is its own block, name on top, fields two to a line with labels */
+@media (max-width: 768px) {
+  .screen-cable-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .screen-cable-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    align-items: end;
+  }
+  .screen-cable-row:not(:first-child) label > span {
+    display: block;
+  }
+  .screen-cable-name {
+    grid-column: 1 / -1;
+    max-width: none;
+    line-height: 1.2;
+  }
 }
 /* Cable tab Source inputs, locked when a multi-screen project sets feeds in Combined */
 #sourceFeedName:disabled,

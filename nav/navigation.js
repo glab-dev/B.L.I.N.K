@@ -320,11 +320,78 @@ function switchMobileView(view) {
   if((view === 'complex' || view === 'simple' || view === 'draw') && typeof ensureScreenForMode === 'function') {
     ensureScreenForMode(false);
   }
+  placeLayoutOptions();
 
   // Trigger recalculation to ensure canvases render
   if(typeof calculate === 'function') {
     calculate();
   }
+}
+
+// ==================== LAYOUT OPTIONS (DESKTOP) ====================
+// On desktop in Complex, the Power / Data / Structure option boxes sit inside their own
+// layout, beside its canvas, and take that layout's own toggles (the row above the canvas)
+// in with them. Until the layout shows (a screen with no size yet) the box is hidden.
+// The Specs box moves up beside the form (in Simple too), into the form's right-hand column.
+// On mobile and in Simple everything stays where the page puts it. Elements are moved, not
+// copied, so every control keeps its id and handlers.
+const LAYOUT_OPTIONS = [
+  {section: 'powerSection', content: 'powerContent', toggles: ['#powerContent > .layout-toggle-row']},
+  {section: 'dataSection', content: 'dataContent', toggles: ['#dataContent > .layout-toggle-row']},
+  {section: 'structureSection', content: 'structureContent', toggles: ['#structureContent > .structure-mode-toggle', '#structureSelectModeRow']}
+];
+
+// Puts el in `home` (at its start, or its end), or back after the marker left where it began
+function moveLayoutOption(el, home, atStart) {
+  if(!el.layoutOptionAnchor) {
+    el.layoutOptionAnchor = document.createComment('layout option');
+    el.parentNode.insertBefore(el.layoutOptionAnchor, el);
+  }
+  if(!home) home = el.layoutOptionAnchor.parentNode;
+  else if(el.parentNode === home) return;
+  if(home === el.layoutOptionAnchor.parentNode) home.insertBefore(el, el.layoutOptionAnchor.nextSibling);
+  else if(atStart) home.insertBefore(el, home.firstChild);
+  else home.appendChild(el);
+}
+
+function placeLayoutOptions() {
+  const desktop = window.matchMedia('(min-width: 768px)').matches;
+  const beside = desktop && currentMobileView === 'complex';
+  const specsBeside = desktop && (currentMobileView === 'complex' || currentMobileView === 'simple');
+  // The Specs box takes the form's empty right-hand column
+  const results = document.getElementById('results');
+  const columns = document.querySelector('.two-column-layout');
+  if(results && columns) {
+    moveLayoutOption(results, specsBeside ? columns.lastElementChild : null, false);
+    results.classList.toggle('specs-beside', specsBeside);
+    columns.classList.toggle('has-specs-beside', specsBeside);
+  }
+  LAYOUT_OPTIONS.forEach(o => {
+    const section = document.getElementById(o.section);
+    const content = document.getElementById(o.content);
+    if(!section || !content) return;
+    if(!o.toggleEls) o.toggleEls = o.toggles.map(sel => document.querySelector(sel)).filter(Boolean);
+    const showing = content.parentNode.style.display !== 'none';
+    const inside = beside && showing;
+    section.classList.toggle('layout-options-waiting', beside && !showing);
+    if(inside === (section.parentNode === content)) return;
+    moveLayoutOption(section, inside ? content : null, true);
+    const box = section.querySelector('.section-content') || section;
+    o.toggleEls.forEach(el => moveLayoutOption(el, inside ? box : null, false));
+    content.classList.toggle('has-layout-options', inside);
+  });
+}
+
+// Follows the layouts as calculate() shows and hides them, and the window crossing the
+// desktop width
+function setupLayoutOptions() {
+  const observer = new MutationObserver(placeLayoutOptions);
+  LAYOUT_OPTIONS.forEach(o => {
+    const content = document.getElementById(o.content);
+    if(content) observer.observe(content.parentNode, {attributes: true, attributeFilter: ['style']});
+  });
+  window.matchMedia('(min-width: 768px)').addEventListener('change', placeLayoutOptions);
+  placeLayoutOptions();
 }
 
 // Track collapsed state of layout containers
@@ -501,6 +568,8 @@ function initMobileUI() {
       });
     }
   });
+
+  setupLayoutOptions();
 
   // Show welcome page on load, or fall back to simple view
   if(typeof isWelcomePageVisible !== 'undefined' && isWelcomePageVisible) {

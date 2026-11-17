@@ -3,9 +3,9 @@
 // Shows multiple LED walls sharing processors, distribution boxes, and power.
 // Renders into #combinedCableDiagramCanvas inside the combined tab.
 
-// ---- Combined Cabling Configuration (DERIVED, not user-editable) ----
-// The combined view is read-only: every cabling value comes from the screens themselves,
-// edited in each screen's own Cable tab. This object is rebuilt from the selection on each
+// ---- Combined Cabling Configuration (DERIVED) ----
+// Every cabling value comes from the screens themselves, edited in each screen's own Cable
+// tab or in the combined panel's per-screen rows (renderScreenCableRows). This object is rebuilt from the selection on each
 // render purely so the existing consumers (calculateCombinedCabling, the combined gear
 // list) keep a single place to read the few genuinely rig-wide values from.
 let combinedCablingConfig = {
@@ -380,6 +380,88 @@ function onSourceFeedRowInput(e) {
   if(typeof generateGearList === 'function') generateGearList();
 }
 
+// ---- Screen Cabling Rows ----
+// One row per selected screen in the combined Cabling panel, editing the same distances as
+// that screen's own Cable tab (screens[id].data), so a rig's runs can be set in one place.
+// Rebuilt only when the set of screens changes, so typing never loses focus to a re-render.
+const SCREEN_CABLE_FIELDS = [
+  ['wallToFloor', 'Wall to Floor'], ['cablePick', 'Cable Pick'], ['distroToWall', 'Distro to Drop'],
+  ['processorToWall', 'Proc to Drop'], ['xdPlacement', 'Dist Box'], ['xdToProcessor', 'Proc to XD'], ['xdToWall', 'XD to Drop']
+];
+
+function renderScreenCableRows(selectedScreenIds) {
+  const list = document.getElementById('combinedScreenCabling');
+  if(!list) return;
+  const ids = (selectedScreenIds || []).filter(id => screens[id] && screens[id].data);
+  const sig = JSON.stringify(ids);
+  if(list.dataset.sig !== sig) {
+    list.dataset.sig = sig;
+    list.replaceChildren();
+    ids.forEach(id => list.appendChild(buildScreenCableRow(id)));
+  }
+  list.querySelectorAll('.screen-cable-name').forEach(el => { el.textContent = screens[el.dataset.screen].name; });
+  list.querySelectorAll('[data-field]').forEach(el => {
+    const id = el.dataset.screen, field = el.dataset.field, data = screens[id].data;
+    const remote = resolveXdPlacement(data) === 'remote';
+    if(field === 'xdPlacement') {
+      el.disabled = !screenUsesDistBox(id);
+      if(el !== document.activeElement) el.value = resolveXdPlacement(data);
+      return;
+    }
+    if(field === 'xdToProcessor' || field === 'xdToWall') el.disabled = !remote;
+    el.placeholder = cableDefaultDisplay(CABLE_INPUT_DEFAULTS[field]);
+    if(el !== document.activeElement) el.value = cableInputValue(data[field], CABLE_INPUT_DEFAULTS[field]);
+  });
+}
+
+function buildScreenCableRow(screenId) {
+  const row = document.createElement('div');
+  row.className = 'screen-cable-row';
+  const name = document.createElement('div');
+  name.className = 'screen-cable-name';
+  name.dataset.screen = screenId;
+  row.appendChild(name);
+  SCREEN_CABLE_FIELDS.forEach(([field, labelText]) => {
+    let control;
+    if(field === 'xdPlacement') {
+      control = document.createElement('select');
+      control.add(new Option('At Proc', 'proc'));
+      control.add(new Option('On Wall', 'wall'));
+      control.add(new Option('Remote', 'remote'));
+    } else {
+      control = document.createElement('input');
+      control.type = 'number';
+      control.min = '0';
+      control.step = '0.1';
+    }
+    control.dataset.screen = screenId;
+    control.dataset.field = field;
+    control.addEventListener('input', onScreenCableRowInput);
+    const label = document.createElement('label');
+    const span = document.createElement('span');
+    span.textContent = labelText;
+    label.append(span, control);
+    row.appendChild(label);
+  });
+  return row;
+}
+
+function onScreenCableRowInput(e) {
+  const el = e.target;
+  const screenId = el.dataset.screen, field = el.dataset.field;
+  const data = screens[screenId].data;
+  if(field === 'xdPlacement') data.xdPlacement = el.value;
+  else data[field] = readCableInput(el, CABLE_INPUT_DEFAULTS[field], data[field]);
+  // The Cable tab's own inputs show one screen, which may be the one just edited
+  if(screenId === sourceFeedCableTabScreenId()) loadGearCablingInputs(screenId);
+  // As with a feed: only the cable diagram and the gear lists change, and redrawing the
+  // whole combined view would throw the page's scroll position
+  const selectedScreenIds = combinedSelectedScreenIdsInOrder();
+  renderCombinedCableDiagram(selectedScreenIds, combinedScreenDimensions);
+  renderCombinedGearList(selectedScreenIds);
+  if(typeof generateGearList === 'function') generateGearList();
+}
+
 // ---- Processor Dist Box Support Check ----
 function processorSupportsDistBox(processorId, mx40Mode) {
   // resolveProcessorTopology() reads getAllProcessors(), so custom processors are
@@ -681,6 +763,7 @@ function calculateCombinedCabling(selectedScreenIds, config) {
 // Source rows, so the Combined panel's are left alone.
 function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target) {
   if (!target) renderSourceFeedRows(selectedScreenIds);
+  if (!target) renderScreenCableRows(selectedScreenIds);
 
   // Eco/greyscale print mode support — reassign module-level colors
   var isPrintMode = ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode;
@@ -906,7 +989,10 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
   var FLOOR_ROW_STEP = isSmall ? 11 : 16;
   var FLOOR_BAND_TOP = 10;
   var floorBandPx = FLOOR_BAND_TOP + selectedScreenIds.length * FLOOR_ROW_STEP;
-  var dimRowsPx = ((floorBoxes.length ? 3 : 2) * 15) + 12;
+  // Two staggered rows of per-screen distance labels (three lines each)
+  var runLabelFont = isPdf ? 18 : (isSmall ? 8 : 10);
+  var runLabelLineH = runLabelFont + 3;
+  var dimRowsPx = 2 * (3 * runLabelLineH + 4) + 12;
   var belowFloorPx = floorBandPx + dimRowsPx;
   var dpr = window.devicePixelRatio || 1;
   var legendExtra = isSmall ? 20 : 0;
@@ -1187,6 +1273,7 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
   // Runs from one processor to several boxes would sit on top of each other, so each
   // trunk is lifted onto its own line above the boxes and drops into its target.
   var trunkSeq = {};
+  var trunkLabels = [];
   floorBoxes.forEach(function(u) {
     var boxX = unitX[u.unitId];
     var srcX = (unitX[u.procUnitId] !== undefined) ? unitX[u.procUnitId] : procCanvasX;
@@ -1221,15 +1308,21 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
     // Every trunk off a processor is the same length, so label the first one only —
     // repeating it under each box just produced a pile of overlapping numbers.
     if (seq > 1) return;
+    trunkLabels.push({ procUnitId: u.procUnitId, x: boxX, y: trunkMidY - (redundancy ? 2 : 0) });
+  });
+  // Labels go on once every trunk is drawn. On a single row the trunks stack upward over
+  // the boxes, so the label sits clear above the top one instead of under the later lines.
+  trunkLabels.forEach(function(tl) {
     var trunkLabelText = cableLabel(cfg.xdToProcessor);
-    var trunkLabelX = boxX;
-    var trunkLabelY = trunkMidY - (redundancy ? 2 : 0);
+    var trunkLabelY = useShelf ? tl.y : (equipY - 6 - trunkSeq[tl.procUnitId] * (isSmall ? 5 : 7) - (isPdf ? 16 : 10));
     var trunkFontSize = isPdf ? 18 : (isSmall ? 8 : 10);
     ctx.font = 'bold ' + trunkFontSize + 'px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     var trunkTw = ctx.measureText(trunkLabelText).width + 6;
     var trunkTh = trunkFontSize + 6;
+    // Under a shelf the box's own data runs come straight down its middle: sit beside them
+    var trunkLabelX = useShelf ? tl.x - trunkTw / 2 - 12 : tl.x;
     ctx.fillStyle = CC_BG_COLOR;
     ctx.fillRect(trunkLabelX - trunkTw / 2, trunkLabelY - trunkTh / 2, trunkTw, trunkTh);
     ctx.fillStyle = isPrintMode ? ccFgColor : CC_TRUNK_COLOR;
@@ -1773,37 +1866,34 @@ function renderCombinedCableDiagram(selectedScreenIds, screenDimensions, target)
         cableLabel(totalHeightFt), ccDimColor, CC_BG_COLOR);
     }
 
-    // Wall-to-floor — SL: left side; otherwise right side
-    if (cfg.wallToFloor > 0) {
-      if (dropPos === 'sl') {
-        var dimOffL2 = isSmall ? 18 : 35;
-        drawCableDimensionLine(ctx, bbCanvasL - dimOffL2, bbCanvasB, bbCanvasL - dimOffL2, floorY,
-          cableLabel(cfg.wallToFloor), ccDimColor, CC_BG_COLOR);
-      } else {
-        var dimOffR2 = isSmall ? 18 : 35;
-        drawCableDimensionLine(ctx, bbCanvasR + dimOffR2, bbCanvasB, bbCanvasR + dimOffR2, floorY,
-          cableLabel(cfg.wallToFloor), ccDimColor, CC_BG_COLOR);
-      }
-    }
-
-    // Distances to the drop — below floor, nested so the box nearest the wall reads
-    // first. The lane is fixed, so these only ever change their label, never their
-    // extent. Proc-to-XD is labelled on the run itself rather than measured here.
-    // Measured from the nearest screen edge, since each screen now has its own drop.
-    var dimAnchorX = bbCanvasL;
-    // Sit under the per-screen floor rows rather than on top of them
-    var dimRowY = floorY + floorBandPx + 10;
-    if (floorBoxes.length) {
-      drawCableDimensionLine(ctx, unitX[floorBoxes[0].unitId], dimRowY, dimAnchorX, dimRowY,
-        cableLabel(minXdToWall), ccDimColor, CC_BG_COLOR);
-      dimRowY += 15;
-    }
-    drawCableDimensionLine(ctx, procCanvasX, dimRowY, dimAnchorX, dimRowY,
-      cableLabel(cfg.processorToWall), ccDimColor, CC_BG_COLOR);
-    dimRowY += 15;
-    drawCableDimensionLine(ctx, distroCanvasX, dimRowY, dimAnchorX, dimRowY,
-      cableLabel(cfg.distroToWall), ccDimColor, CC_BG_COLOR);
   }
+
+  // Each screen's own distances, under its drop: distro to drop (power colour), processor
+  // or remote box to drop (data colour) and wall to floor. Screens no longer share one
+  // figure, so these replace the rig-wide dimension lines. A label that would run into
+  // its neighbour steps down a row.
+  ctx.font = 'bold ' + runLabelFont + 'px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  var runLabelTop = floorY + floorBandPx + 8;
+  var runLabelRight = [-Infinity, -Infinity];
+  screenPos.slice().sort(function(a, b) { return a.dropX - b.dropX; }).forEach(function(sp) {
+    if (!sp.calc) return;
+    var runLines = [
+      { text: cableLabel(sp.cab.distroToWall), color: CC_POWER_COLOR },
+      { text: cableLabel(sp.cab.xdPlacement === 'remote' ? sp.cab.xdToWall : sp.cab.processorToWall), color: CC_DATA_COLOR },
+      { text: '\u2195 ' + cableLabel(sp.cab.wallToFloor), color: ccDimColor }
+    ];
+    var runW = Math.max.apply(null, runLines.map(function(l) { return ctx.measureText(l.text).width; }));
+    var level = (sp.dropX - runW / 2 < runLabelRight[0] + 6) ? 1 : 0;
+    runLabelRight[level] = sp.dropX + runW / 2;
+    var runY = runLabelTop + level * (3 * runLabelLineH + 4);
+    runLines.forEach(function(l, li) {
+      ctx.fillStyle = isPrintMode ? ccFgColor : l.color;
+      ctx.fillText(l.text, sp.dropX, runY + li * runLabelLineH);
+    });
+  });
+  ctx.textBaseline = 'alphabetic';
 
   // ---- Legend (wraps to multiple rows on small screens) ----
   var legendItems = [

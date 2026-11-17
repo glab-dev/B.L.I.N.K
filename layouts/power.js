@@ -21,6 +21,9 @@ function drawSocaOverlay(ctx, o) {
   // Tall narrow groups (a single screen on the data canvas) rotate almost
   // vertical, so callers can ask for a horizontal label instead.
   const _labelDiagonal = (o.labelDiagonal !== false);
+  // Below this font size the outlined grey letters blur together, so the label is drawn
+  // as coloured letters with a black edge instead. Off (0) unless a caller asks.
+  const _plateBelow = o.labelPlateBelow || 0;
   // Optional (panelKey) -> true when an empty/deleted hole is NOT free for the label —
   // on the combined canvas another screen placed over the hole is drawn there.
   const _holeBlocked = (typeof o.holeBlocked === 'function') ? o.holeBlocked : null;
@@ -234,6 +237,16 @@ function drawSocaOverlay(ctx, o) {
       const y0 = -step * (lines.length - 1) / 2;
       // Solid dark grey fill, outlined in the label colour — one flat pair that stays
       // legible over every panel colour and over the black canvas behind them.
+      if (fontSize < _plateBelow) {
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = Math.max(3, fontSize * 0.2);
+        ctx.strokeStyle = '#000000';
+        lines.forEach((t, i) => ctx.strokeText(t, 0, y0 + i * step));
+        ctx.fillStyle = _labelColor;
+        lines.forEach((t, i) => ctx.fillText(t, 0, y0 + i * step));
+        ctx.restore();
+        return;
+      }
       ctx.fillStyle = '#404040';
       lines.forEach((t, i) => ctx.fillText(t, 0, y0 + i * step));
       ctx.lineJoin = 'round';

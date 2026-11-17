@@ -141,7 +141,16 @@ function updatePanelDropdowns() {
   Object.keys(builtInByBrand).sort().forEach(brand => {
     const brandGroup = document.createElement('optgroup');
     brandGroup.label = brand;
-    builtInByBrand[brand].forEach(({key, panel}) => {
+    // A brand's panels are listed by model series, each under its name
+    let series = null;
+    builtInByBrand[brand].slice().sort((x, y) => (x.panel.series || '').localeCompare(y.panel.series || '')).forEach(({key, panel}) => {
+      if(panel.series && panel.series !== series) {
+        series = panel.series;
+        const heading = document.createElement('option');
+        heading.disabled = true;
+        heading.textContent = `— ${series} —`;
+        brandGroup.appendChild(heading);
+      }
       const option = document.createElement('option');
       option.value = key;
       option.textContent = panel.name;

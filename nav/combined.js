@@ -3383,6 +3383,7 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
           labelFor: (idx) => unitGroups.labels.get(idx) || '',
           labelColor: '#10b981',
           labelDiagonal: false,
+          labelPlateBelow: 40,
           holeBlocked: combinedCellCoveredByOtherScreen(screenDimensions, dim, panelSize, topPadding)
         });
       }

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.244",
+  "version": "2.11.245",
   "updated": "2026-11-16",
-  "changelog": "Draw small Combined data unit labels as black-edged letters instead of on a plate"
+  "changelog": "Group ROE panels under their series names in the panel dropdowns"
 }

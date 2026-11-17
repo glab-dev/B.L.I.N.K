@@ -262,7 +262,12 @@ function buildRasterPanelOptions(selectedValue) {
 
   Object.keys(builtInByBrand).sort().forEach(function(brand) {
     html += '<optgroup label="' + escapeHtml(brand) + '">';
-    builtInByBrand[brand].forEach(function(item) {
+    var series = null;
+    builtInByBrand[brand].slice().sort(function(x, y) { return (x.panel.series || '').localeCompare(y.panel.series || ''); }).forEach(function(item) {
+      if(item.panel.series && item.panel.series !== series) {
+        series = item.panel.series;
+        html += '<option disabled>— ' + escapeHtml(series) + ' —</option>';
+      }
       html += '<option value="' + item.key + '"' + (item.key === selectedValue ? ' selected' : '') + '>' +
               escapeHtml(item.panel.name) + '</option>';
     });

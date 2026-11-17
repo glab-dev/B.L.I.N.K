@@ -3592,8 +3592,11 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
   const canvas = document.getElementById('combinedStructureCanvas');
   if(!canvas) return;
 
+  // Bumper bar height for a screen: CB5 MKII's proportion to its panels on every wall, as
+  // the Structure layout draws them (layouts/structure.js structureBumperHeights)
+  const bumperHeightOf = data => Math.max(25, panelSize * 0.7 * getPanelHeightRatio(data.panelType || 'CB5_MKII') / 2);
   // Add extra height for bumpers at top and bottom
-  const bumperHeight = Math.max(25, panelSize * 0.7);
+  const bumperHeight = screenDimensions.length ? Math.max(...screenDimensions.map(dim => bumperHeightOf(dim.data))) : Math.max(25, panelSize * 0.7);
   ({ width: canvasWidth, height: canvasHeight } = combinedArrangedCanvasSize(screenDimensions, canvasWidth, canvasHeight, panelSize, topPadding));
 
   // Each screen here is drawn taller than in the standard layout — name label above, top
@@ -3610,8 +3613,8 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
       screenId: dim.screenId,
       y: origin.y,
       bottom: origin.y + totalH,
-      below: (bumpers.some(b => b.position === 'top') ? bumperHeight + 5 : 0) + totalH +
-             (bumpers.some(b => b.position === 'bottom') ? bumperHeight + 5 : 0),
+      below: (bumpers.some(b => b.position === 'top') ? bumperHeightOf(dim.data) + 5 : 0) + totalH +
+             (bumpers.some(b => b.position === 'bottom') ? bumperHeightOf(dim.data) + 5 : 0),
       shift: 0
     };
   }).sort((a, b) => a.y - b.y);
@@ -3664,6 +3667,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     // Calculate panel dimensions for CB5_MKII (rectangular) vs other panels (square)
     const screenPanelType = data.panelType || 'CB5_MKII';
     const screenHeightRatio = getPanelHeightRatio(screenPanelType);
+    const screenBumperHeight = bumperHeightOf(data);
     const drawPanelWidth = panelSize;
     const drawPanelHeight = panelSize * screenHeightRatio;
 
@@ -3687,7 +3691,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
     // Calculate panel Y position based on bumper placement
     let panelYOffset = screenTop;
     if(hasTopBumpers) {
-      panelYOffset += bumperHeight + 5;
+      panelYOffset += screenBumperHeight + 5;
     }
 
     // Draw panels first (white background with black outline, same as original)
@@ -3758,12 +3762,12 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
 
         // Draw bumper
         ctx.fillStyle = fillColor;
-        ctx.fillRect(bumperX, bumperY, bumperWidthPx, bumperHeight);
+        ctx.fillRect(bumperX, bumperY, bumperWidthPx, screenBumperHeight);
 
         // Black outline
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(bumperX, bumperY, bumperWidthPx, bumperHeight);
+        ctx.strokeRect(bumperX, bumperY, bumperWidthPx, screenBumperHeight);
 
         // Bumper label (black for eco print, white otherwise)
         ctx.fillStyle = (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode) ? '#000000' : '#FFFFFF';
@@ -3771,7 +3775,7 @@ function renderCombinedStructureLayout(screenDimensions, canvasWidth, canvasHeig
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const label = bumper.type ? bumper.type.toUpperCase() : '2W';
-        ctx.fillText(label, bumperX + bumperWidthPx/2, bumperY + bumperHeight/2);
+        ctx.fillText(label, bumperX + bumperWidthPx/2, bumperY + screenBumperHeight/2);
       });
     }
 

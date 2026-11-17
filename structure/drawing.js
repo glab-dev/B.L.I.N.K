@@ -856,8 +856,7 @@ function setupStructureCanvasInteractivity() {
     const pw = parseInt(document.getElementById('panelsWide').value) || 0;
     const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
     const size = panelSize; // Use global panelSize for consistent sizing
-    const bumperHeight = Math.max(30, size * 0.8);
-    const fourWayHeight = Math.max(15, size * 0.4);
+    const { bumperHeight, fourWayHeight } = structureBumperHeights(size);
     const fourWayGap = Math.max(3, size * 0.1);
     
     const use4Way = use4WayBumpersEnabled;
@@ -923,7 +922,7 @@ function drawBumperDragHighlight(canvas, clientX, clientY) {
   ctx.putImageData(structureOriginalImageData, 0, 0);
 
   const size = panelSize; // Use global panelSize for consistent sizing
-  const bumperHeight = Math.max(30, size * 0.8);
+  const { bumperHeight } = structureBumperHeights(size);
   const panelYOffset = showTopBumper ? bumperHeight : 0;
   const type = structureDraggingBumper.type;
   const draggedColumn = structureDraggingBumper.column;
@@ -1034,7 +1033,7 @@ function getBumperAtPosition(canvas, clientX, clientY) {
   const canvasY = (clientY - rect.top) * scaleY;
 
   const size = panelSize; // Use global panelSize for consistent sizing
-  const bumperHeight = Math.max(30, size * 0.8);
+  const { bumperHeight } = structureBumperHeights(size);
   const panelYOffset = showTopBumper ? bumperHeight : 0;
   const column = Math.floor(canvasX / size);
   

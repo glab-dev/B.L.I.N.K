@@ -8247,3 +8247,22 @@ input[type="number"].spare-qty-input::placeholder {
      button's centreline. */
   margin-bottom: 0;
 }
+
+/* Dimensions box, Grid | Draw switch (layouts/free.js setWallBuild). A drawn wall takes its
+   size from the panels placed on it, so everything but the switch hides */
+#dimensionsSection.wall-drawn > :not(.section-title):not(.section-content):not(#wallBuildRow),
+#dimensionsSection.wall-drawn > .section-content > :not(#wallBuildRow) {
+  display: none;
+}
+#dimensionsSection.wall-drawn #wallBuildRow {
+  margin-bottom: 0;
+}
+.wall-build-hint {
+  display: none;
+  margin-left: 12px;
+  font-size: 12px;
+  color: var(--muted-color);
+}
+#dimensionsSection.wall-drawn .wall-build-hint {
+  display: inline;
+}

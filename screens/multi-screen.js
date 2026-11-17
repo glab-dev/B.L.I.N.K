@@ -184,15 +184,15 @@ function renderScreenTabs() {
   tabsWrapper.innerHTML = html;
 }
 
-// A drawn (free) screen belongs to Draw mode; every other screen to Simple/Complex.
+// Complex shows every screen; Simple only grid screens (a drawn wall has no Simple view).
 function screenFitsMode(screenId) {
-  return isFreeScreen(screens[screenId].data) === freeDrawMode;
+  return freeDrawMode || !isFreeScreen(screens[screenId].data);
 }
 
-// Keeps the current screen in step with the mode. Lands on the first screen that fits;
-// with none, an untouched empty screen is converted in place, otherwise a blank one is
-// added. After a file load (followProject) a project with no screens of this kind
-// switches to the mode that shows them instead of growing an extra blank screen.
+// Keeps the current screen in step with the mode. Simple lands on the first grid screen;
+// with none, an untouched drawn screen goes back to a blank grid, otherwise a blank screen
+// is added. After a file load (followProject) a project of only drawn screens opens in
+// Complex instead of growing an extra blank screen.
 function ensureScreenForMode(followProject) {
   if(screens[currentScreenId] && screenFitsMode(currentScreenId)) {
     renderScreenTabs();
@@ -204,28 +204,19 @@ function ensureScreenForMode(followProject) {
     return;
   }
   if(followProject) {
-    const mode = freeDrawMode ? 'complex' : 'draw';
-    configureBottomNavForMode(mode);
-    switchAppMode(mode);
+    configureBottomNavForMode('complex');
+    switchAppMode('complex');
     return;
   }
   saveCurrentScreenData();
   const data = screens[currentScreenId].data;
-  const untouched = isFreeScreen(data)
-    ? data.freePanels.length === 0
-    : (!data.panelsWide && !data.panelsHigh && !data.wallWidth && !data.wallHeight);
-  if(!untouched) {
+  if(data.freePanels.length) {
     addNewScreen();
     return;
   }
-  if(freeDrawMode) {
-    makeFreeScreenData(data);
-    deletedPanels.clear();
-  } else {
-    delete data.layoutMode;
-    delete data.freeCell_mm;
-    delete data.freePanels;
-  }
+  delete data.layoutMode;
+  delete data.freeCell_mm;
+  delete data.freePanels;
   renderScreenTabs();
 }
 
@@ -738,7 +729,6 @@ function addNewScreen() {
     visible: true,
     data: getDefaultScreenData()
   };
-  if(freeDrawMode) makeFreeScreenData(screens[newScreenId].data);
 
   // Canvas size is a system-wide setting (see dom-setup.js) — inherit the
   // current value instead of resetting the new screen to the 4K_UHD default

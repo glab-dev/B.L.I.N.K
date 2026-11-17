@@ -198,15 +198,6 @@ function activateSimpleView() {
   // No layouts in simple mode (standardContainer, powerContainer, dataContainer, structureContainer already hidden)
 }
 
-// ==================== DRAW VIEW ACTIVATION ====================
-// Shows the Draw mode: the Complex page without the Dimensions card, since a drawn
-// screen's size comes from the panels placed on the Standard canvas.
-function activateDrawView() {
-  activateComplexView();
-  const dimensionsSection = document.getElementById('dimensionsSection');
-  if(dimensionsSection) dimensionsSection.style.display = 'none';
-}
-
 // Switch between Complex, Simple, and Combined app modes
 function switchAppMode(mode) {
   currentAppMode = mode;
@@ -227,8 +218,6 @@ function switchAppMode(mode) {
     switchMobileView('complex');
   } else if(mode === 'simple') {
     switchMobileView('simple');
-  } else if(mode === 'draw') {
-    switchMobileView('draw');
   } else if(mode === 'combined') {
     switchMobileView('combined');
   } else if(mode === 'gear') {
@@ -295,10 +284,6 @@ function switchMobileView(view) {
       activateSimpleView();
       break;
 
-    case 'draw':
-      activateDrawView();
-      break;
-
     case 'combined':
       activateCombinedView();
       break;
@@ -316,8 +301,8 @@ function switchMobileView(view) {
       break;
   }
 
-  // Simple and Complex show normal screens, Draw shows drawn ones: land on one that fits
-  if((view === 'complex' || view === 'simple' || view === 'draw') && typeof ensureScreenForMode === 'function') {
+  // Simple shows grid screens only: land on one that fits
+  if((view === 'complex' || view === 'simple') && typeof ensureScreenForMode === 'function') {
     ensureScreenForMode(false);
   }
   placeLayoutOptions();

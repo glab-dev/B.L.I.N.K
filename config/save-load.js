@@ -423,7 +423,7 @@ function newProject() {
       if(typeof initGearView === 'function') initGearView();
 
       // Land on a blank calculator in an input-capable mode
-      switchAppMode(currentAppMode === 'simple' ? 'simple' : (freeDrawMode ? 'draw' : 'complex'));
+      switchAppMode(currentAppMode === 'simple' ? 'simple' : 'complex');
       if(typeof renderRasterScreenTable === 'function') renderRasterScreenTable();
     });
 }
@@ -801,8 +801,8 @@ function applyConfiguration(config, fileNameOverride, opts) {
     loadScreenData(originalScreenId);
     calculate();
 
-    // Draw mode shows drawn screens, Simple/Complex normal ones: land on one that fits
-    if(currentAppMode === 'complex' || currentAppMode === 'simple' || currentAppMode === 'draw') {
+    // Simple shows grid screens only: land on one that fits
+    if(currentAppMode === 'complex' || currentAppMode === 'simple') {
       ensureScreenForMode(true);
     }
 

@@ -2005,6 +2005,11 @@ function generateLayout(mode){
     }
     return;
   }
+  // A grid built in Draw, with the Draw tool picked: its Standard layout is the draw editor
+  if(mode === 'standard' && freePainterActive()) {
+    renderFreeStandardLayout();
+    return;
+  }
   const allPanels = getAllPanels();
   const allProcessors = getAllProcessors();
   const p=allPanels[document.getElementById('panelType').value];

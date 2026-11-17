@@ -8,7 +8,7 @@
 // raster stays one clean pixel map. A panel's key is "gx,gy", the same "c,r" string
 // format the custom circuit/SOCA/data Maps use.
 
-let freeDrawMode = false;     // Draw app mode is active: screen tabs show free screens, canvas edits them
+let freeDrawMode = false;     // Complex is the app mode: drawn screens show in the tabs and can be edited
 let freeBrushType = null;     // panel type a click or drag places
 let freeTool = 'draw';        // 'draw': a drag on empty grid paints; 'select': it draws a selection box
 let freeSelected = new Set(); // "gx,gy" keys of selected panels
@@ -26,6 +26,42 @@ function isFreeScreen(data) {
 
 function isFreeCurrentScreen() {
   return !!(screens[currentScreenId] && isFreeScreen(screens[currentScreenId].data));
+}
+
+// A grid screen built in Draw. Complex stores and calculates it as any grid screen (panels
+// wide x high, knocked-out panels, CB5 half rows); only the Standard layout's Draw tool
+// treats it as hand-placed panels. A drawn wall is kept this way whenever it is a plain
+// grid, and becomes a free screen only when its panels cannot be described as one.
+function isDrawnGridScreen(data) {
+  return !!data && data.wallBuild === 'draw' && !isFreeScreen(data);
+}
+
+function isDrawnGridCurrent() {
+  return !!(screens[currentScreenId] && isDrawnGridScreen(screens[currentScreenId].data));
+}
+
+// The Standard canvas belongs to the draw editor: always on a free screen, and on a drawn
+// grid while the Draw tool is picked (its Select tool, and a PDF, get the grid's own canvas)
+function freePainterActive() {
+  const pdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  return isFreeCurrentScreen() || (freeDrawMode && !pdf && isDrawnGridCurrent() && freeTool === 'draw');
+}
+
+// What the draw editor works on: a free screen's own data, or for a drawn grid a stand-in
+// holding its live panels as a drawn list (`moved`: where each grid key went)
+function freeEditData() {
+  const data = screens[currentScreenId].data;
+  if(isFreeScreen(data)) return data;
+  const live = {
+    panelType: document.getElementById('panelType').value,
+    panelsWide: parseInt(document.getElementById('panelsWide').value) || 0,
+    panelsHigh: parseInt(document.getElementById('panelsHigh').value) || 0,
+    deletedPanels: deletedPanels,
+    addCB5HalfRow: cb5HalfRowEnabled, cb5HalfRowPosition: cb5HalfRowPosition,
+    cb5HalfRowsAbove: cb5HalfRowsAbove, cb5HalfRowsBelow: cb5HalfRowsBelow
+  };
+  const drawn = gridToFreePanels(live, getAllPanels());
+  return {panelType: live.panelType, layoutMode: 'free', freeCell_mm: drawn.cellMm, freePanels: drawn.list, moved: drawn.moved};
 }
 
 function freePanelFamily(p) {
@@ -292,24 +328,174 @@ function makeFreeScreenData(data) {
   data.deletedPanels = new Set();
 }
 
+// ==================== GRID <-> DRAW ====================
+// In Complex every screen is built one of two ways, switched in the Dimensions box: Grid
+// (panels wide x high) or Draw (hand-placed). Switching carries the wall across.
+
+// A grid screen's panels as a drawn list, plus where each grid key ("c,r") went
+function gridToFreePanels(data, allPanels) {
+  const fam = freeFamily(data.panelType, allPanels);
+  const main = allPanels[data.panelType];
+  const list = [], moved = new Map();
+  if(!fam.cellMm || !main) return {list, moved, cellMm: fam.cellMm};
+  const half = getCB5HalfRows(data, data.panelType);
+  const deleted = data.deletedPanels instanceof Set ? data.deletedPanels : new Set(data.deletedPanels || []);
+  const pw = parseInt(data.panelsWide) || 0, ph = parseInt(data.panelsHigh) || 0;
+  const {cw, ch} = freeCells(main, fam.cellMm);
+  let gy = 0;
+  for(let r = 0; r < half.top + ph + half.bottom; r++) {
+    const type = (r < half.top || r >= half.top + ph) ? 'CB5_MKII_HALF' : data.panelType;
+    for(let c = 0; c < pw; c++) {
+      if(deleted.has(`${c},${r}`)) continue;
+      list.push({type, gx: c * cw, gy});
+      moved.set(`${c},${r}`, `${c * cw},${gy}`);
+    }
+    gy += type === data.panelType ? ch : freeCells(allPanels[type], fam.cellMm).ch;
+  }
+  return {list, moved, cellMm: fam.cellMm};
+}
+
+// A drawn wall as a grid, when it is one: every panel on the main type's columns, in rows
+// of one type each, CB5 half rows only above and below the full rows. Null otherwise.
+function freeToGrid(data, allPanels) {
+  const main = allPanels[data.panelType];
+  if(!main || !data.freePanels.length) return null;
+  const cellMm = data.freeCell_mm;
+  const {cw, ch} = freeCells(main, cellMm);
+  const b = freeBounds(data.freePanels, allPanels, cellMm);
+  const rowsByY = new Map();
+  for(const fp of data.freePanels) {
+    const half = fp.type !== data.panelType;
+    if(half && !(data.panelType === 'CB5_MKII' && fp.type === 'CB5_MKII_HALF')) return null;
+    if((fp.gx - b.minX) % cw) return null;
+    if(!rowsByY.has(fp.gy)) rowsByY.set(fp.gy, half);
+    else if(rowsByY.get(fp.gy) !== half) return null;
+  }
+  // Rows must stack with no gaps: knocked-out panels are holes in a row, never a missing row
+  const ys = [...rowsByY.keys()].sort((x, y) => x - y);
+  const halfCh = data.panelType === 'CB5_MKII' ? freeCells(allPanels.CB5_MKII_HALF, cellMm).ch : ch;
+  let y = b.minY, top = 0, full = 0, bottom = 0;
+  for(const gy of ys) {
+    if(gy !== y) return null;
+    const half = rowsByY.get(gy);
+    if(half) { if(full) bottom++; else top++; }
+    else { if(bottom) return null; full++; }
+    y += half ? halfCh : ch;
+  }
+  if(!full) return null;
+  const pw = (b.maxX - b.minX) / cw;
+  const deleted = new Set(), moved = new Map();
+  ys.forEach((gy, r) => {
+    for(let c = 0; c < pw; c++) {
+      const gx = b.minX + c * cw;
+      if(data.freePanels.some(fp => fp.gx === gx && fp.gy === gy)) moved.set(`${gx},${gy}`, `${c},${r}`);
+      else deleted.add(`${c},${r}`);
+    }
+  });
+  return {pw, ph: full, top, bottom, deleted, moved};
+}
+
+// Rewrites a screen's custom circuit / SOCA / data assignments onto new panel keys
+// (`moved`: old key -> new key); an assignment whose panel is gone is dropped
+function rekeyScreenAssignments(data, moved) {
+  ['customCircuitAssignments', 'customSocaAssignments', 'customDataLineAssignments', 'customDataDestinations'].forEach(f => {
+    data[f] = new Map([...(data[f] || [])].filter(([k]) => moved.has(k)).map(([k, v]) => [moved.get(k), v]));
+  });
+}
+
+// Stores the current screen as a grid (from freeToGrid) built in Draw or not
+function storeScreenAsGrid(data, grid, drawBuild) {
+  ['layoutMode', 'freeCell_mm', 'freePanels', 'freeBumpers', 'freeBumpersPosition', 'freeDataPaths', 'freeDataMode'].forEach(f => { delete data[f]; });
+  if(drawBuild) data.wallBuild = 'draw'; else delete data.wallBuild;
+  data.panelsWide = grid ? grid.pw : 0;
+  data.panelsHigh = grid ? grid.ph : 0;
+  data.wallWidth = '';
+  data.wallHeight = '';
+  data.deletedPanels = grid ? grid.deleted : new Set();
+  data.addCB5HalfRow = !!grid && grid.top + grid.bottom > 0;
+  if(data.addCB5HalfRow) {
+    data.cb5HalfRowPosition = grid.top && grid.bottom ? 'both' : (grid.top ? 'above' : 'below');
+    data.cb5HalfRowsAbove = grid.top || 1;
+    data.cb5HalfRowsBelow = grid.bottom || 1;
+  }
+}
+
+// Stores the current screen as a free screen holding `list` (already starting at cell 0,0)
+function storeScreenAsFree(data, list) {
+  makeFreeScreenData(data);
+  data.wallBuild = 'draw';
+  data.freePanels = list;
+  data.panelsWide = 0;
+  data.panelsHigh = 0;
+  data.wallWidth = '';
+  data.wallHeight = '';
+  data.addCB5HalfRow = false;
+}
+
+// The Dimensions box's Grid | Draw switch for the current screen
+async function setWallBuild(mode) {
+  const data = screens[currentScreenId].data;
+  const allPanels = getAllPanels();
+  const drawBuild = isFreeScreen(data) || isDrawnGridScreen(data);
+  if((mode === 'draw') === drawBuild) return;
+  saveCurrentScreenData();
+  if(mode === 'draw') {
+    saveState();
+    // A sized grid stays a grid, now edited by drawing; an empty one starts a blank drawing
+    if((parseInt(data.panelsWide) || 0) > 0 && (parseInt(data.panelsHigh) || 0) > 0) data.wallBuild = 'draw';
+    else storeScreenAsFree(data, []);
+    freeTool = 'draw';
+  } else if(isDrawnGridScreen(data)) {
+    saveState();
+    delete data.wallBuild;
+  } else {
+    const grid = data.freePanels.length ? freeToGrid(data, allPanels) : null;
+    if(!grid && data.freePanels.length &&
+       !(await showConfirm('This drawn wall is not a plain grid, so switching to Grid starts the screen over with an empty wall. Undo brings the drawing back.', 'Switch to Grid'))) return;
+    saveState();
+    rekeyScreenAssignments(data, grid ? grid.moved : new Map());
+    storeScreenAsGrid(data, grid, false);
+  }
+  freeSelected.clear();
+  loadScreenData(currentScreenId);
+  calculate();
+}
+
 // Draw row state for the current screen: panel chips, Delete button, and the Select
 // Mode row (grid selection does not apply to a free screen).
 function updateFreeDrawRow() {
   const data = screens[currentScreenId] ? screens[currentScreenId].data : null;
   const isFree = isFreeScreen(data);
   const on = isFree && freeDrawMode;
+  // Built in Draw, as a free screen or a drawn grid: the Tool row and panel picker show
+  const drawBuild = freeDrawMode && (isFree || isDrawnGridScreen(data));
+  const painter = drawBuild && freePainterActive();
   const row = document.getElementById('standardDrawRow');
-  if(row) row.style.display = on ? '' : 'none';
+  if(row) row.style.display = drawBuild ? '' : 'none';
+  // The Grid | Draw switch, and a drawn screen's Dimensions box down to just that switch
+  const buildRow = document.getElementById('wallBuildRow');
+  if(buildRow) buildRow.style.display = freeDrawMode ? '' : 'none';
+  const dims = document.getElementById('dimensionsSection');
+  if(dims) dims.classList.toggle('wall-drawn', drawBuild);
+  [['wallBuildGridBtn', !drawBuild], ['wallBuildDrawBtn', drawBuild]].forEach(([id, active]) => {
+    const btn = document.getElementById(id);
+    if(btn) { btn.classList.toggle('active', active); btn.setAttribute('aria-checked', String(active)); }
+  });
+  // Deleting a selection is the free editor's; a drawn grid's Select tool is the grid's own
+  // canvas, where panels are knocked out from its right-click menu
   const delBtn = document.getElementById('freeDrawDeleteBtn');
-  if(delBtn) delBtn.disabled = freeSelected.size === 0;
+  if(delBtn) {
+    delBtn.disabled = freeSelected.size === 0;
+    delBtn.parentNode.style.display = on ? '' : 'none';
+  }
   const selectRow = document.getElementById('standardSelectModeRow');
   if(selectRow) {
     const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-    selectRow.style.display = (!isFree && isTouchDevice && canvasListenersSetup) ? 'flex' : 'none';
+    selectRow.style.display = (!isFree && !painter && isTouchDevice && canvasListenersSetup) ? 'flex' : 'none';
   }
   const canvas = document.getElementById('standardCanvas');
   if(canvas) {
-    canvas.classList.toggle('draw-mode-active', on);
+    canvas.classList.toggle('draw-mode-active', on || painter);
     canvas.classList.toggle('free-select-tool', on && freeTool === 'select');
   }
   const hint = document.getElementById('standardLayoutHint');
@@ -325,7 +511,12 @@ function updateFreeDrawRow() {
     if(!on && freeLayerSelectMode[canvasId]) setFreeSelectMode(canvasId, false);
   });
   updateFreeDataPathRow(on);
-  if(!on) return;
+  if(!drawBuild) return;
+  // A drawn grid has no brush until one is picked: start on its own panel type
+  if(!isFree && (!freeBrushType || !getAllPanels()[freeBrushType] ||
+     freePanelFamily(getAllPanels()[freeBrushType]) !== freePanelFamily(getAllPanels()[data.panelType] || {}))) {
+    freeBrushType = data.panelType;
+  }
 
   [['draw', 'freeToolDrawBtn'], ['select', 'freeToolSelectBtn']].forEach(([tool, id]) => {
     const btn = document.getElementById(id);
@@ -338,9 +529,11 @@ function updateFreeDrawRow() {
   if(!chips) return;
   const allPanels = getAllPanels();
   const fam = freeFamily(freeBrushType, allPanels);
+  // A drawn grid has no stored cell size: it is its family's
+  const cellMm = isFree ? data.freeCell_mm : fam.cellMm;
   const types = fam.types.filter(t => {
-    const {cw, ch} = freeCells(allPanels[t], data.freeCell_mm);
-    return Math.abs(cw * data.freeCell_mm - allPanels[t].width_m * 1000) <= 1 && Math.abs(ch * data.freeCell_mm - allPanels[t].height_m * 1000) <= 1;
+    const {cw, ch} = freeCells(allPanels[t], cellMm);
+    return Math.abs(cw * cellMm - allPanels[t].width_m * 1000) <= 1 && Math.abs(ch * cellMm - allPanels[t].height_m * 1000) <= 1;
   });
   chips.textContent = '';
   types.forEach(t => {
@@ -367,7 +560,9 @@ function setFreeTool(tool) {
   freeHover = null;
   if(tool === 'draw') freeSelected.clear();
   updateFreeDrawRow();
-  freeRedraw();
+  // A drawn grid swaps between the painter and the grid's own Standard layout
+  if(isDrawnGridCurrent()) generateLayout('standard');
+  else freeRedraw();
 }
 
 // Specs, stored totals and the Standard, Power, Data and Structure layouts for the
@@ -633,7 +828,7 @@ function freePaintTiles(start, end, cw, ch) {
 // margin around the drawn panels, the selection and a ghost of what a click or drag
 // will do. With Draw off the canvas crops to the panels.
 function renderFreeStandardLayout() {
-  const data = screens[currentScreenId].data;
+  const data = freeEditData();
   const allPanels = getAllPanels();
   const cellMm = data.freeCell_mm;
   const list = data.freePanels;
@@ -864,21 +1059,57 @@ function normalizeFreePanels(data, allPanels) {
   rekeyFreeAssignments(shift);
 }
 
-// Store an edited panel list and recalculate totals, gear and canvas. The Power and Data
-// selections are dropped: their panels may have moved or gone.
+// Store an edited panel list and recalculate totals, gear and canvas. A wall that is a
+// plain grid is stored as a grid screen, so Complex calculates it exactly as it would one
+// typed in; any other wall is stored as a free screen. A free screen with hand-drawn data
+// paths stays one, since a grid has nowhere to keep them. The Power and Data selections
+// are dropped: their panels may have moved or gone.
 function commitFreePanels(list) {
   const data = screens[currentScreenId].data;
+  const allPanels = getAllPanels();
+  const edit = freeEditData();
+  const wasFree = isFreeScreen(data);
+  const handPaths = wasFree && data.freeDataMode === 'manual' && (data.freeDataPaths || []).length > 0;
+  const grid = (list.length && !handPaths)
+    ? freeToGrid({panelType: edit.panelType, freeCell_mm: edit.freeCell_mm, freePanels: list}, allPanels) : null;
   Object.values(freeLayerSel).forEach(s => s.clear());
-  // New panels put the automatic bumpers back, as a grid screen's new size does
-  delete data.freeBumpers;
-  delete data.freeBumpersPosition;
-  data.freePanels = list;
-  normalizeFreePanels(data, getAllPanels());
   // The specs above the Standard layout grow and shrink with the panels; keep the layout
   // where it sits on screen
   const canvas = document.getElementById('standardCanvas');
   const top = canvas.getBoundingClientRect().top;
-  calculate();
+
+  if(wasFree && !grid) {
+    // New panels put the automatic bumpers back, as a grid screen's new size does
+    delete data.freeBumpers;
+    delete data.freeBumpersPosition;
+    data.freePanels = list;
+    normalizeFreePanels(data, allPanels);
+    calculate();
+  } else {
+    // The live assignments are keyed by the old panels: carry them to the new keys
+    saveCurrentScreenData();
+    const toCell = k => wasFree ? k : edit.moved.get(k);
+    const b = freeBounds(list, allPanels, edit.freeCell_mm);
+    const shifted = k => {
+      const [x, y] = k.split(',').map(Number);
+      return `${x - b.minX},${y - b.minY}`;
+    };
+    const moved = new Map();
+    const keys = new Set();
+    ['customCircuitAssignments', 'customSocaAssignments', 'customDataLineAssignments', 'customDataDestinations']
+      .forEach(f => (data[f] || new Map()).forEach((v, k) => keys.add(k)));
+    keys.forEach(k => {
+      const cell = toCell(k);
+      if(cell === undefined || !list.some(fp => `${fp.gx},${fp.gy}` === cell)) return;
+      moved.set(k, grid ? grid.moved.get(cell) : shifted(cell));
+    });
+    rekeyScreenAssignments(data, moved);
+    freeSelected.clear();
+    if(grid) storeScreenAsGrid(data, grid, true);
+    else storeScreenAsFree(data, list.map(fp => ({type: fp.type, gx: fp.gx - b.minX, gy: fp.gy - b.minY})));
+    loadScreenData(currentScreenId);
+    calculate();
+  }
   window.scrollBy(0, canvas.getBoundingClientRect().top - top);
 }
 
@@ -929,7 +1160,7 @@ function freeEdgeScrollTick() {
     s.timer = 0;
     return;
   }
-  const data = screens[currentScreenId].data;
+  const data = freeEditData();
   const allPanels = getAllPanels();
   const step = freeAction.kind === 'paint' && freeBrushType && allPanels[freeBrushType]
     ? freeCells(allPanels[freeBrushType], data.freeCell_mm) : {cw: 1, ch: 1};
@@ -944,7 +1175,7 @@ function freeRedraw() {
   if(freeRafId) return;
   freeRafId = requestAnimationFrame(() => {
     freeRafId = 0;
-    if(isFreeCurrentScreen()) generateLayout('standard');
+    if(freePainterActive()) generateLayout('standard');
   });
 }
 
@@ -953,7 +1184,7 @@ function freeRedraw() {
 // empty space add a selection box; `touch`: a tap adds a panel to the selection and a tap
 // on a selected panel opens the options menu, like Select Mode on the grid.
 function freePointerDown(clientX, clientY, additive, touch) {
-  const data = screens[currentScreenId].data;
+  const data = freeEditData();
   const allPanels = getAllPanels();
   const cell = freeCellAt(clientX, clientY);
   const hit = freeOccupancy(data.freePanels, allPanels, data.freeCell_mm).get(`${cell.gx},${cell.gy}`);
@@ -1001,7 +1232,7 @@ function freePointerUp() {
     freeEdgeScroll = null;
   }
   if(!action) return;
-  const data = screens[currentScreenId].data;
+  const data = freeEditData();
   const allPanels = getAllPanels();
   const cellMm = data.freeCell_mm;
 
@@ -1171,7 +1402,7 @@ function setupFreeCanvasInteractivity() {
   if(freeListenersSetup) return;
   freeListenersSetup = true;
   const canvas = document.getElementById('standardCanvas');
-  const active = () => freeDrawMode && isFreeCurrentScreen() && freeView;
+  const active = () => freeDrawMode && freePainterActive() && freeView;
 
   canvas.addEventListener('mousedown', function(e) {
     if(e.button !== 0 || !active()) return;
@@ -1184,7 +1415,7 @@ function setupFreeCanvasInteractivity() {
     if(freeAction) { freePointerMove(e.clientX, e.clientY); return; }
     if(!active() || e.target !== canvas) return;
     const cell = freeCellAt(e.clientX, e.clientY);
-    const data = screens[currentScreenId].data;
+    const data = freeEditData();
     const hit = freeOccupancy(data.freePanels, getAllPanels(), data.freeCell_mm).has(`${cell.gx},${cell.gy}`);
     if(freeHover && freeHover.gx === cell.gx && freeHover.gy === cell.gy) return;
     freeHover = {gx: cell.gx, gy: cell.gy, hit};

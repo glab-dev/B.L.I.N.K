@@ -1283,7 +1283,7 @@ function showCombinedPanelContextMenu(x, y, panelInfo, layoutKind) {
       function() {
         menu.remove();
         switchToScreen(screenId);
-        switchMobileView(data.freeCellPanel ? 'draw' : 'complex');
+        switchMobileView('complex');
       }
     );
     goToOption.style.borderTop = '1px solid #383838';

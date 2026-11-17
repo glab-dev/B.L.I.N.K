@@ -54,7 +54,7 @@ function standardLayoutHintText() {
       ? 'Click to select • Drag a box to select • Drag selected panels to move • Right-click for options'
       : 'Drag a box to select • Tap to add • Drag selected panels to move • Tap a selected panel for options';
   }
-  if(isFreeCurrentScreen()) {
+  if(freePainterActive()) {
     return (!isTouchDevice && !isMobile)
       ? 'Click to place • Drag to paint • Use Select to pick, move or delete panels'
       : 'Tap to place • Drag to paint • Use Select to pick, move or delete panels';

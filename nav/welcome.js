@@ -68,19 +68,15 @@ function configureBottomNavForMode(mode) {
   var complexGroups = document.querySelectorAll('.nav-complex-group');
   var simpleGroups = document.querySelectorAll('.nav-simple-group');
   var bottomNav = document.querySelector('.bottom-nav');
-  var complexBtn = document.querySelector('.nav-toggle-btn[data-mode="complex"]');
-  var drawBtn = document.querySelector('.nav-toggle-btn[data-mode="draw"]');
 
-  // Draw mode shares the Complex nav, with Draw in place of the Complex button
-  freeDrawMode = (mode === 'draw');
-  if(complexBtn) complexBtn.style.display = freeDrawMode ? 'none' : '';
-  if(drawBtn) drawBtn.style.display = freeDrawMode ? '' : 'none';
+  // Drawn screens are built and shown in Complex only
+  freeDrawMode = (mode === 'complex');
 
   if(mode === 'simple') {
     complexGroups.forEach(function(g) { g.style.display = 'none'; });
     simpleGroups.forEach(function(g) { g.style.display = 'flex'; });
     if(bottomNav) bottomNav.classList.add('simple-mode-nav');
-  } else if(mode === 'complex' || mode === 'draw') {
+  } else if(mode === 'complex') {
     complexGroups.forEach(function(g) { g.style.display = 'flex'; });
     simpleGroups.forEach(function(g) { g.style.display = 'none'; });
     if(bottomNav) bottomNav.classList.remove('simple-mode-nav');
@@ -108,15 +104,6 @@ function enterComplexMode() {
   hideWelcomePage();
   configureBottomNavForMode('complex');
   switchAppMode('complex');
-  resetHistory();
-}
-
-function enterDrawMode() {
-  // Push history state so back button returns to welcome page
-  history.pushState({ view: 'app', mode: 'draw' }, '', '');
-  hideWelcomePage();
-  configureBottomNavForMode('draw');
-  switchAppMode('draw');
   resetHistory();
 }
 

@@ -1,5 +1,5 @@
 {
-  "version": "2.11.251",
+  "version": "2.11.252",
   "updated": "2026-11-17",
-  "changelog": "Count Combined gear plates from each wall's Structure layout instead of guessing"
+  "changelog": "Centre the Combined screen name on the nearest panel to the wall's middle"
 }

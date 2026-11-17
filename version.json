@@ -1,5 +1,5 @@
 {
-  "version": "2.11.245",
+  "version": "2.11.246",
   "updated": "2026-11-16",
-  "changelog": "Group ROE panels under their series names in the panel dropdowns"
+  "changelog": "Keep the panel right-click menu inside the window near its edges"
 }

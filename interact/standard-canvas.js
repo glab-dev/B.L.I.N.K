@@ -639,7 +639,12 @@ function showContextMenu(x, y) {
   if (resetAllOption) menu.appendChild(resetAllOption);
   menu.appendChild(deleteOption);
   document.body.appendChild(menu);
-  
+
+  // Keep the whole menu inside the window when the click is near its bottom or right edge
+  const menuRect = menu.getBoundingClientRect();
+  if(menuRect.bottom > window.innerHeight) menu.style.top = Math.max(0, window.innerHeight - menuRect.height) + 'px';
+  if(menuRect.right > window.innerWidth) menu.style.left = Math.max(0, window.innerWidth - menuRect.width) + 'px';
+
   // Close menu when clicking elsewhere
   setTimeout(() => {
     document.addEventListener('click', function closeMenu(e) {

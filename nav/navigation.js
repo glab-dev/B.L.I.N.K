@@ -303,6 +303,44 @@ function switchMobileView(view) {
   }
 }
 
+// ==================== LAYOUT OPTIONS (DESKTOP) ====================
+// On desktop in Complex, the Power / Data / Structure option boxes sit inside their own
+// layout, beside its canvas, while that layout is showing. Everywhere else (mobile, Simple,
+// a screen with no layouts yet) they stay in the form at the top. The boxes are moved, not
+// copied, so every control keeps its id and handlers.
+const LAYOUT_OPTION_HOMES = {powerSection: 'powerContent', dataSection: 'dataContent', structureSection: 'structureContent'};
+const layoutOptionAnchors = {};
+
+function placeLayoutOptions() {
+  const desktop = window.matchMedia('(min-width: 768px)').matches;
+  Object.keys(LAYOUT_OPTION_HOMES).forEach(id => {
+    const section = document.getElementById(id);
+    const content = document.getElementById(LAYOUT_OPTION_HOMES[id]);
+    if(!section || !content) return;
+    if(!layoutOptionAnchors[id]) {
+      layoutOptionAnchors[id] = document.createComment(id);
+      section.parentNode.insertBefore(layoutOptionAnchors[id], section);
+    }
+    const inside = desktop && currentMobileView === 'complex' && content.parentNode.style.display !== 'none';
+    if(inside === (section.parentNode === content)) return;
+    if(inside) content.insertBefore(section, content.firstChild);
+    else layoutOptionAnchors[id].parentNode.insertBefore(section, layoutOptionAnchors[id].nextSibling);
+    content.classList.toggle('has-layout-options', inside);
+  });
+}
+
+// Follows the layouts as calculate() shows and hides them, and the window crossing the
+// desktop width
+function setupLayoutOptions() {
+  const observer = new MutationObserver(placeLayoutOptions);
+  Object.values(LAYOUT_OPTION_HOMES).forEach(contentId => {
+    const content = document.getElementById(contentId);
+    if(content) observer.observe(content.parentNode, {attributes: true, attributeFilter: ['style']});
+  });
+  window.matchMedia('(min-width: 768px)').addEventListener('change', placeLayoutOptions);
+  placeLayoutOptions();
+}
+
 // Track collapsed state of layout containers
 const collapsedLayouts = new Set();
 
@@ -477,6 +515,8 @@ function initMobileUI() {
       });
     }
   });
+
+  setupLayoutOptions();
 
   // Show welcome page on load, or fall back to simple view
   if(typeof isWelcomePageVisible !== 'undefined' && isWelcomePageVisible) {

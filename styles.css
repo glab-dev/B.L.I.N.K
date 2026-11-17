@@ -920,6 +920,27 @@ button:active {
     overflow-x: visible;
   }
 
+  /* An options box moved in beside its layout's canvas (nav/navigation.js
+     placeLayoutOptions): the box takes a left column, everything else stacks on the right */
+  .layout-content.has-layout-options:not(.collapsed) {
+    display: grid;
+    grid-template-columns: 380px minmax(0, 1fr);
+    column-gap: 20px;
+    align-items: start;
+  }
+
+  .layout-content.has-layout-options > .section-box {
+    grid-column: 1;
+    grid-row: 1 / span 12;
+    margin: 14px 0 0;
+    max-width: none;
+  }
+
+  .layout-content.has-layout-options > :not(.section-box) {
+    grid-column: 2;
+    min-width: 0;
+  }
+
 }
 
 .button-row {

@@ -138,6 +138,7 @@ function buildCurrentConfig() {
         bumpersInitialized: data.bumpersInitialized || false,
         nextBumperId: data.nextBumperId || 1,
         bumpersWidth: data.bumpersWidth || 0,
+        bumperAutoSig: typeof data.bumperAutoSig === 'string' ? data.bumperAutoSig : undefined,
         deletedPanels: deletedPanelsArray,
         customCircuitAssignments: circuitAssignmentsArray,
         customSocaAssignments: socaAssignmentsArray,

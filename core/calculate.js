@@ -1316,6 +1316,9 @@ function calculate(){
 
   document.getElementById('results').innerHTML = html;
   
+  // Automatic bumpers follow knocked-out panels before the gear list counts them
+  reconcileBumpersToKnockouts();
+
   // Store calculated values for gear list to use
   if(screens[currentScreenId]) {
     screens[currentScreenId].calculatedData = {

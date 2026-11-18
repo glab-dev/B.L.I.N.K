@@ -70,6 +70,18 @@ function loadProjectSpareOverrides(overrides) {
 // tail at the top of the wall: a main line entering at the top, or a backup line
 // feeding from a panel whose chain ends at the top. At the bottom it plugs straight in.
 function calcDataCrossJumpers(data, p, W, H, dataLinesCount) {
+  // Hand-drawn lines (layouts/data.js) cross wherever the drawing steps into another
+  // column, by the drawn wall's rule
+  const dataPaths = gridDrawnDataPaths(data);
+  if(dataPaths) {
+    const inp = resolveScreenDataInputs(data);
+    const ordering = inp ? getDataLinePanelOrdering(inp.pw, inp.ph, inp.panelsPerDataLine, inp.startDir,
+      inp.deletedPanels, inp.customDataLines, data.split, dataPaths) : {};
+    Object.keys(ordering).forEach(ln => { ordering[ln] = ordering[ln].map(pt => ({col: pt.col, row: pt.row, cw: 1, ch: 1})); });
+    // A drawn line goes where it was drawn, so "every column from the same end" has no say
+    const dir = data.dataStartDir === 'all_bottom' ? 'bottom' : (data.dataStartDir === 'all_top' ? 'top' : data.dataStartDir);
+    return freeDataCrossJumpers(Object.assign({}, data, {dataStartDir: dir}), p, ordering);
+  }
   let crossings = 0;
   let topCrossings = 0;
   const redundancy = data.redundancy !== false;

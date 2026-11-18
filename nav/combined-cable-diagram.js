@@ -650,20 +650,20 @@ function calculateCombinedCabling(selectedScreenIds, config) {
       userMax: parseInt(data.maxPanelsPerData)
     });
     const dataLines = typeof calculateActualDataLines === 'function'
-      ? calculateActualDataLines(effectivePw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split)
+      ? calculateActualDataLines(effectivePw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split, gridDrawnDataPaths(data))
       : Math.ceil((effectivePw * effectivePh) / panelsPerDataLine);
 
     totalDataLines += dataLines;
 
     // Entry/exit points
     const entryPoints = typeof getDataLineEntryPoints === 'function'
-      ? getDataLineEntryPoints(effectivePw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split)
+      ? getDataLineEntryPoints(effectivePw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split, gridDrawnDataPaths(data))
       : {};
 
     // Exit points (last panel per data line — for backup/redundancy cables)
     let exitPoints = {};
     if (typeof getDataLinePanelOrdering === 'function') {
-      const ordering = getDataLinePanelOrdering(effectivePw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split);
+      const ordering = getDataLinePanelOrdering(effectivePw, effectivePh, panelsPerDataLine, data.dataStartDir || 'top', deletedPanelsSet, data.customDataLineAssignments, data.split, gridDrawnDataPaths(data));
       for (const dlIndex of Object.keys(ordering)) {
         const panelList = ordering[dlIndex];
         if (panelList.length > 0) exitPoints[dlIndex] = panelList[panelList.length - 1];

@@ -3354,7 +3354,8 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       pw: screenEffectivePw, ph: screenEffectivePh, panelsPerDataLine, startDir,
       deletedPanels: screenDeletedPanels,
       customDataLineAssignments: screenCustomDataLines,
-      split: data.split
+      split: data.split,
+      dataPaths: gridDrawnDataPaths(data)
     });
 
     // Per-screen view toggles: each wall draws with its OWN saved settings so it
@@ -3395,7 +3396,9 @@ function renderCombinedDataLayout(screenDimensions, canvasWidth, canvasHeight, p
       arrowLineWidth: Math.max(1.5, panelSize * 0.075),
       arrowHeadSize: Math.max(5, panelSize * 0.3),
       lightDeletedPanels: (ecoPrintMode || greyscalePrintMode || pdfWhiteBgMode),
-      skipDeletedPanels: true
+      skipDeletedPanels: true,
+      undrawnPanels: gridDrawnDataPaths(data) ? drawnDataPathUndrawn(screenEffectivePw, screenEffectivePh, screenDeletedPanels, gridDrawnDataPaths(data)) : null,
+      joinAll: !!gridDrawnDataPaths(data)
     });
 
     // Distribution box / processor label across each screen, drawn by the same

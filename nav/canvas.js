@@ -128,7 +128,7 @@ function drawScreenDataOverlay(ctx, screen, offsetX, offsetY, panelResX, panelRe
   // A drawn screen (see freeCellData) walks its own panels, each placed at its centre
   const isFree = !!data.freeCellPanel;
   const ordering = isFree ? freeDataLinePanelOrdering(data, getAllPanels())
-    : getDataLinePanelOrdering(pw, effectivePh, panelsPerDataLine, startDir, deletedSet, data.customDataLineAssignments);
+    : getDataLinePanelOrdering(pw, effectivePh, panelsPerDataLine, startDir, deletedSet, data.customDataLineAssignments, undefined, gridDrawnDataPaths(data));
   const sortedLines = Object.keys(ordering).map(Number).sort((a, b) => a - b);
   if(sortedLines.length === 0) return;
 

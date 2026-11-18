@@ -210,11 +210,11 @@ function refreshCableUnitDisplay() {
 }
 
 // Returns array mapping data line index to its entry panel {col, row}
-function getDataLineEntryPoints(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap, split) {
+function getDataLineEntryPoints(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap, split, dataPaths) {
   // Entry point = first panel in each line's canonical flow order, derived from
   // getDataLinePanelOrdering so the two never diverge. Auto lines are unchanged
   // (ordering preserves walk order); custom lines use the re-ordered serpentine.
-  const ordering = getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap, split);
+  const ordering = getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap, split, dataPaths);
   const entryPoints = {};
   Object.keys(ordering).forEach(dl => {
     const first = ordering[dl] && ordering[dl][0];
@@ -233,7 +233,19 @@ function dataLineIndexes(points) {
 // Get ALL panels per data line in serpentine order (for inter-panel cable calculations).
 // A split screen (split = data.split) orders each part on its own and numbers its lines on
 // from the part before, so no line crosses the split (see splitDataParts in layouts/data.js).
-function getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap, split) {
+// Hand-drawn lines (dataPaths, from gridDrawnDataPaths) run in the order they were drawn.
+function getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, deletedPanelsSet, customDataLineAssignmentsMap, split, dataPaths) {
+  if(dataPaths) {
+    const inp = drawnDataPathInputs(pw, ph, deletedPanelsSet, dataPaths);
+    const out = getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, inp.deletedPanels, inp.customDataLineAssignments, split);
+    dataPaths.forEach(path => {
+      const order = new Map(path.panels.map((key, i) => [key, i]));
+      const at = pt => order.has(`${pt.col},${pt.row}`) ? order.get(`${pt.col},${pt.row}`) : Infinity;
+      const ln = Object.keys(out).find(l => out[l].some(pt => at(pt) !== Infinity));
+      if(ln !== undefined) out[ln] = out[ln].slice().sort((a, b) => at(a) - at(b));
+    });
+    return out;
+  }
   if(split) {
     const merged = {};
     let offset = 0;
@@ -586,7 +598,8 @@ function calculateCabling(screenId) {
         data.dataStartDir || 'top',
         deletedPanelsSet,
         data.customDataLineAssignments,
-        data.split
+        data.split,
+        gridDrawnDataPaths(data)
       );
 
   // Get entry points for each data line
@@ -597,7 +610,8 @@ function calculateCabling(screenId) {
     data.dataStartDir || 'top',
     deletedPanelsSet,
     data.customDataLineAssignments,
-    data.split
+    data.split,
+    gridDrawnDataPaths(data)
   );
 
   // Exit points (last panel per data line — for backup/redundancy cables)

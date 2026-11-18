@@ -426,17 +426,27 @@ function freeToGrid(data, allPanels) {
     left: halfCols.left, right: halfCols.right, quarters, deleted, moved};
 }
 
-// Rewrites a screen's custom circuit / SOCA / data assignments onto new panel keys
-// (`moved`: old key -> new key); an assignment whose panel is gone is dropped
+// Rewrites a screen's custom circuit / SOCA / data assignments and hand-drawn data lines
+// onto new panel keys (`moved`: old key -> new key); a panel that is gone is dropped
 function rekeyScreenAssignments(data, moved) {
   ['customCircuitAssignments', 'customSocaAssignments', 'customDataLineAssignments', 'customDataDestinations'].forEach(f => {
     data[f] = new Map([...(data[f] || [])].filter(([k]) => moved.has(k)).map(([k, v]) => [moved.get(k), v]));
   });
+  if(data.freeDataPaths) {
+    data.freeDataPaths = data.freeDataPaths
+      .map(p => ({line: p.line, panels: p.panels.filter(k => moved.has(k)).map(k => moved.get(k))}))
+      .filter(p => p.panels.length);
+  }
 }
 
 // Stores the current screen as a grid (from freeToGrid) built in Draw or not
 function storeScreenAsGrid(data, grid, drawBuild) {
-  ['layoutMode', 'freeCell_mm', 'freePanels', 'freeBumpers', 'freeBumpersPosition', 'freeDataPaths', 'freeDataMode'].forEach(f => { delete data[f]; });
+  ['layoutMode', 'freeCell_mm', 'freePanels', 'freeBumpers', 'freeBumpersPosition'].forEach(f => { delete data[f]; });
+  // A grid drawn by hand keeps its hand-drawn data lines; one built by size has none
+  if(!drawBuild) {
+    delete data.freeDataPaths;
+    delete data.freeDataMode;
+  }
   if(drawBuild) data.wallBuild = 'draw'; else delete data.wallBuild;
   data.panelsWide = grid ? grid.pw : 0;
   data.panelsHigh = grid ? grid.ph : 0;
@@ -486,6 +496,8 @@ async function setWallBuild(mode) {
   } else if(isDrawnGridScreen(data)) {
     saveState();
     delete data.wallBuild;
+    delete data.freeDataPaths;
+    delete data.freeDataMode;
   } else {
     const grid = data.freePanels.length ? freeToGrid(data, allPanels) : null;
     if(!grid && data.freePanels.length &&
@@ -548,7 +560,7 @@ function updateFreeDrawRow() {
     if(modeRow) modeRow.style.display = on ? '' : 'none';
     if(!on && freeLayerSelectMode[canvasId]) setFreeSelectMode(canvasId, false);
   });
-  updateFreeDataPathRow(on);
+  updateFreeDataPathRow(drawBuild);
   if(!drawBuild) return;
   // A drawn grid has no brush until one is picked: start on its own panel type
   if(!isFree && (!freeBrushType || !getAllPanels()[freeBrushType] ||
@@ -1099,16 +1111,16 @@ function normalizeFreePanels(data, allPanels) {
 
 // Store an edited panel list and recalculate totals, gear and canvas. A wall that is a
 // plain grid is stored as a grid screen, so Complex calculates it exactly as it would one
-// typed in; any other wall is stored as a free screen. A free screen with hand-drawn data
-// paths stays one, since a grid has nowhere to keep them. The Power and Data selections
-// are dropped: their panels may have moved or gone.
-function commitFreePanels(list) {
+// typed in, hand-drawn data lines and all; any other wall is stored as a free screen. The
+// Power and Data selections are dropped: their panels may have moved or gone. `newKey`
+// (optional) moves each panel's drawn cell, as a move does, so the assignments and drawn
+// lines go with it.
+function commitFreePanels(list, newKey) {
   const data = screens[currentScreenId].data;
   const allPanels = getAllPanels();
   const edit = freeEditData();
   const wasFree = isFreeScreen(data);
-  const handPaths = wasFree && data.freeDataMode === 'manual' && (data.freeDataPaths || []).length > 0;
-  const grid = (list.length && !handPaths)
+  const grid = list.length
     ? freeToGrid({panelType: edit.panelType, freeCell_mm: edit.freeCell_mm, freePanels: list}, allPanels) : null;
   Object.values(freeLayerSel).forEach(s => s.clear());
   // The specs above the Standard layout grow and shrink with the panels; keep the layout
@@ -1117,6 +1129,7 @@ function commitFreePanels(list) {
   const top = canvas.getBoundingClientRect().top;
 
   if(wasFree && !grid) {
+    if(newKey) rekeyFreeAssignments(newKey);
     // New panels put the automatic bumpers back, as a grid screen's new size does
     delete data.freeBumpers;
     delete data.freeBumpersPosition;
@@ -1126,7 +1139,10 @@ function commitFreePanels(list) {
   } else {
     // The live assignments are keyed by the old panels: carry them to the new keys
     saveCurrentScreenData();
-    const toCell = k => wasFree ? k : edit.moved.get(k);
+    const toCell = k => {
+      const cell = wasFree ? k : edit.moved.get(k);
+      return (cell !== undefined && newKey) ? newKey(cell) : cell;
+    };
     const b = freeBounds(list, allPanels, edit.freeCell_mm);
     const shifted = k => {
       const [x, y] = k.split(',').map(Number);
@@ -1136,15 +1152,18 @@ function commitFreePanels(list) {
     const keys = new Set();
     ['customCircuitAssignments', 'customSocaAssignments', 'customDataLineAssignments', 'customDataDestinations']
       .forEach(f => (data[f] || new Map()).forEach((v, k) => keys.add(k)));
+    (data.freeDataPaths || []).forEach(p => p.panels.forEach(k => keys.add(k)));
     keys.forEach(k => {
       const cell = toCell(k);
-      if(cell === undefined || !list.some(fp => `${fp.gx},${fp.gy}` === cell)) return;
+      if(cell === undefined || cell === null || !list.some(fp => `${fp.gx},${fp.gy}` === cell)) return;
       moved.set(k, grid ? grid.moved.get(cell) : shifted(cell));
     });
     rekeyScreenAssignments(data, moved);
     freeSelected.clear();
     if(grid) storeScreenAsGrid(data, grid, true);
     else storeScreenAsFree(data, list.map(fp => ({type: fp.type, gx: fp.gx - b.minX, gy: fp.gy - b.minY})));
+    // A drawn grid ran its automatic lines; it keeps them as it becomes a free screen
+    if(!grid && !wasFree && !data.freeDataMode) data.freeDataMode = 'auto';
     loadScreenData(currentScreenId);
     calculate();
   }
@@ -1301,8 +1320,7 @@ function freePointerUp() {
         return `${x + ox},${y + oy}`;
       };
       freeSelected = new Set([...freeSelected].map(shift));
-      rekeyFreeAssignments(shift);
-      commitFreePanels(list);
+      commitFreePanels(list, shift);
       return;
     }
     if(!action.moved && action.menuOnTap) {

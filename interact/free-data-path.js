@@ -6,16 +6,62 @@
 // the line in the order it is reached, leaving any other line it was on; clicking the
 // line's last panel takes it off again. The panel under the pointer is outlined. Select
 // Mode pauses drawing. The lines live on the screen (data.freeDataPaths, layouts/free-data.js).
+// A grid built in Draw draws its lines the same way on its own Data layout, where they run
+// through Complex's data walk (gridDrawnDataPaths, layouts/data.js); it starts on Automatic.
 
 let freeDataPathLine = null;       // the line being drawn, 1-based like Assign Data Line
 let freeDataPathStroke = null;     // {saved, last} while a click or drag is drawing
 let freeDataPathHover = null;      // the panel under the pointer while drawing
 let freeDataPathListenersSetup = false;
+let gridDataLayoutView = null;     // a grid's Data canvas as last drawn: {pw, ph, rowGeo, colGeo, rearView}
 
-// Clicks and drags on the Data canvas draw lines: Manual data on a drawn screen in Draw
-// mode, with Select Mode off
+// The screen whose lines can be drawn: the current one when it is drawn (free or a drawn grid)
+function freeDataPathScreenData() {
+  const data = screens[currentScreenId] ? screens[currentScreenId].data : null;
+  return (isFreeScreen(data) || isDrawnGridScreen(data)) ? data : null;
+}
+
+// The panel key under a point on the Data canvas, or null
+function freeDataPathPanelAt(clientX, clientY) {
+  if(isFreeCurrentScreen()) return freeLayerPanelAt('dataCanvas', clientX, clientY);
+  const v = gridDataLayoutView;
+  if(!v) return null;
+  const p = freeLayerCanvasPoint(document.getElementById('dataCanvas'), clientX, clientY);
+  const c = v.colGeo.colAt(v.rearView ? v.colGeo.width - p.x : p.x);
+  const r = v.rowGeo.rowAt(p.y);
+  if(c < 0 || c >= v.pw || r < 0 || r >= v.ph || deletedPanels.has(`${c},${r}`)) return null;
+  return `${c},${r}`;
+}
+
+// Draws the Data layout again, for the hover outline or a line that just grew
+function freeDataPathRedraw() {
+  if(isFreeCurrentScreen()) freeLayerRedraw('dataCanvas');
+  else generateLayout('data');
+}
+
+// The outline on the grid panel under the pointer while drawing (layouts/data.js draws it)
+function drawGridDataPathHover(ctx) {
+  const v = gridDataLayoutView;
+  if(!v || !freeDataPathHover || !freeDataPathDrawing()) return;
+  const [c, r] = freeDataPathHover.split(',').map(Number);
+  const w = v.colGeo.w(c), h = v.rowGeo.h(r);
+  const x = v.rearView ? v.colGeo.width - v.colGeo.x(c + 1) : v.colGeo.x(c);
+  const y = v.rowGeo.y(r);
+  ctx.save();
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 4]);
+  ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+  ctx.restore();
+}
+
+// Clicks and drags on the Data canvas draw lines: Manual data on a drawn screen or grid in
+// Draw mode, with Select Mode off
 function freeDataPathDrawing() {
-  const data = isFreeCurrentScreen() ? screens[currentScreenId].data : null;
+  const data = freeDataPathScreenData();
   return !!data && data.freeDataMode === 'manual' && freeDrawMode && !freeLayerSelectMode.dataCanvas;
 }
 
@@ -48,7 +94,8 @@ function updateFreeDataPathRow(on) {
     return;
   }
   const data = screens[currentScreenId].data;
-  const mode = data.freeDataMode;
+  // A drawn grid runs Complex's automatic lines until Manual is picked
+  const mode = data.freeDataMode || (isFreeScreen(data) ? undefined : 'auto');
   [['auto', 'freeDataAutoBtn'], ['manual', 'freeDataManualBtn']].forEach(([m, id]) => {
     const btn = document.getElementById(id);
     if(!btn) return;
@@ -102,11 +149,11 @@ function updateFreeDataPathRow(on) {
 
   // A drawn line can take more than a port carries; say so, as the grid's limits would
   if(warn) {
-    const st = freeDataState;
+    const st = isFreeScreen(data) ? freeDataState : gridDataPathState();
     const msgs = [];
     if(st && paths.length) {
       const allPanels = getAllPanels();
-      const typeOf = new Map(data.freePanels.map(fp => [`${fp.gx},${fp.gy}`, fp.type]));
+      const typeOf = isFreeScreen(data) ? new Map(data.freePanels.map(fp => [`${fp.gx},${fp.gy}`, fp.type])) : st.typeOf;
       paths.forEach(path => {
         const g = st.groups.find(gr => gr.some(pt => pt.c + ',' + pt.r === path.panels[0]));
         if(!g) return;
@@ -124,6 +171,31 @@ function updateFreeDataPathRow(on) {
     warn.textContent = msgs.length ? '⚠️ ' + msgs.join(' ') : '';
     warn.style.display = msgs.length ? 'block' : 'none';
   }
+}
+
+// A drawn grid's lines as they run now, with what a port carries and each panel's type,
+// for the warning above
+function gridDataPathState() {
+  const live = liveScreenData(currentScreenId);
+  const inp = resolveScreenDataInputs(live);
+  if(!inp) return null;
+  const built = buildDataLineGroups({
+    pw: inp.pw, ph: inp.ph, panelsPerDataLine: inp.panelsPerDataLine, startDir: inp.startDir,
+    deletedPanels: inp.deletedPanels, customDataLineAssignments: inp.customDataLines,
+    split: live.split, dataPaths: inp.dataPaths
+  });
+  const proc = getAllProcessors()[inp.processorId];
+  const halfRows = getCB5HalfRows(live, live.panelType), halfCols = getHalfCols(live, live.panelType);
+  const fullRows = inp.ph - halfRows.top - halfRows.bottom, fullCols = inp.pw - halfCols.left - halfCols.right;
+  return {
+    groups: built.groups,
+    capacity: proc ? calculateAdjustedPixelCapacity(proc, live.frameRate || 60, live.bitDepth || 8) : 0,
+    panelsPerDataLine: inp.panelsPerDataLine,
+    typeOf: {get: key => {
+      const [c, r] = key.split(',').map(Number);
+      return gridPanelTypeAt(live.panelType, c, r, halfRows, fullRows, halfCols, fullCols);
+    }}
+  };
 }
 
 // New asks which line to draw, offering the lowest number not drawn yet
@@ -186,7 +258,7 @@ function drawFreeDataPathCues(ctx, data, allPanels) {
 function setFreeDataPathHover(key) {
   if(key === freeDataPathHover) return;
   freeDataPathHover = key;
-  freeLayerRedraw('dataCanvas');
+  freeDataPathRedraw();
 }
 
 // A panel reached while drawing: it joins the picked line at the end, leaving any other
@@ -214,7 +286,7 @@ function freeDataPathReach(key, isClick) {
   }
   stroke.last = key;
   data.freeDataPaths = paths.filter(p => p.panels.length);
-  calculateFreeData(data, getAllPanels());
+  if(isFreeScreen(data)) calculateFreeData(data, getAllPanels());
   generateLayout('data');
   vibrate(5);
 }
@@ -260,19 +332,19 @@ function setupFreeDataPathInteractivity() {
   if(freeDataPathListenersSetup) return;
   freeDataPathListenersSetup = true;
   const canvas = document.getElementById('dataCanvas');
-  const active = () => freeDataPathDrawing() && !!freeLayerView.dataCanvas;
+  const active = () => freeDataPathDrawing() && !!(isFreeCurrentScreen() ? freeLayerView.dataCanvas : gridDataLayoutView);
 
   canvas.addEventListener('mousedown', function(e) {
     if(e.button !== 0 || !active()) return;
     // Ignore the mousedown a touch device synthesizes after a tap
     if(Date.now() - lastTouchInteraction < 700) return;
     e.preventDefault();
-    startFreeDataPathStroke(freeLayerPanelAt('dataCanvas', e.clientX, e.clientY));
+    startFreeDataPathStroke(freeDataPathPanelAt(e.clientX, e.clientY));
   });
 
   canvas.addEventListener('mousemove', function(e) {
     if(!active() || freeDataPathStroke) return;
-    setFreeDataPathHover(freeLayerPanelAt('dataCanvas', e.clientX, e.clientY));
+    setFreeDataPathHover(freeDataPathPanelAt(e.clientX, e.clientY));
   });
 
   canvas.addEventListener('mouseleave', function() {
@@ -281,10 +353,10 @@ function setupFreeDataPathInteractivity() {
 
   document.addEventListener('mousemove', function(e) {
     if(!freeDataPathStroke) return;
-    const hit = freeLayerPanelAt('dataCanvas', e.clientX, e.clientY);
+    const hit = freeDataPathPanelAt(e.clientX, e.clientY);
     freeDataPathHover = hit;
     if(hit && hit !== freeDataPathStroke.last) freeDataPathReach(hit, false);
-    else freeLayerRedraw('dataCanvas');
+    else freeDataPathRedraw();
   });
 
   document.addEventListener('mouseup', function() {
@@ -296,7 +368,7 @@ function setupFreeDataPathInteractivity() {
     e.preventDefault();
     lastTouchInteraction = Date.now();
     const t = e.touches[0];
-    const hit = freeLayerPanelAt('dataCanvas', t.clientX, t.clientY);
+    const hit = freeDataPathPanelAt(t.clientX, t.clientY);
     freeDataPathHover = hit;
     startFreeDataPathStroke(hit);
   }, {passive: false});
@@ -305,17 +377,17 @@ function setupFreeDataPathInteractivity() {
     if(!freeDataPathStroke || e.touches.length !== 1) return;
     e.preventDefault();
     const t = e.touches[0];
-    const hit = freeLayerPanelAt('dataCanvas', t.clientX, t.clientY);
+    const hit = freeDataPathPanelAt(t.clientX, t.clientY);
     freeDataPathHover = hit;
     if(hit && hit !== freeDataPathStroke.last) freeDataPathReach(hit, false);
-    else freeLayerRedraw('dataCanvas');
+    else freeDataPathRedraw();
   }, {passive: false});
 
   canvas.addEventListener('touchend', function() {
     lastTouchInteraction = Date.now();
     freeDataPathHover = null;
     if(freeDataPathStroke) endFreeDataPathStroke();
-    else freeLayerRedraw('dataCanvas');
+    else freeDataPathRedraw();
   });
 
   canvas.addEventListener('touchcancel', function() {

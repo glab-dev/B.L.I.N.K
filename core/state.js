@@ -1053,6 +1053,15 @@ function rebaseCB5RowKeys(coll, from, to) {
 function rebaseCB5StateKeys(state, from, to) {
   if(!state) return;
   CB5_ROW_KEYED_FIELDS.forEach(f => { if(state[f]) state[f] = rebaseCB5RowKeys(state[f], from, to); });
+  if(state.freeDataPaths && !isFreeScreen(state)) state.freeDataPaths = rebaseDataPathKeys(state.freeDataPaths, coll => rebaseCB5RowKeys(coll, from, to));
+}
+
+// A grid's hand-drawn data lines (layouts/data.js) re-keyed panel by panel with `rebase`
+// (a Set re-keyer such as rebaseCB5RowKeys), in their drawn order; a panel that is gone drops
+function rebaseDataPathKeys(paths, rebase) {
+  return paths
+    .map(p => ({line: p.line, panels: p.panels.map(k => [...rebase(new Set([k]))][0]).filter(Boolean)}))
+    .filter(p => p.panels.length);
 }
 
 // Changing the top half rows moves every full panel down or up the grid, and changing
@@ -1074,6 +1083,7 @@ function syncCB5RowKeys() {
   customDataDestinations = rebaseCB5RowKeys(customDataDestinations, from, to);
   if(typeof screens !== 'undefined' && screens[currentScreenId]) {
     const data = screens[currentScreenId].data;
+    if(data.freeDataPaths && !isFreeScreen(data)) data.freeDataPaths = rebaseDataPathKeys(data.freeDataPaths, coll => rebaseCB5RowKeys(coll, from, to));
     data.deletedPanels = new Set(deletedPanels);
     data.selectedPanels = new Set(selectedPanels);
     data.customCircuitAssignments = new Map(customCircuitAssignments);
@@ -1128,6 +1138,7 @@ function syncHalfColKeys() {
   customDataDestinations = rebaseGridColKeys(customDataDestinations, from, to);
   if(typeof screens !== 'undefined' && screens[currentScreenId]) {
     const data = screens[currentScreenId].data;
+    if(data.freeDataPaths && !isFreeScreen(data)) data.freeDataPaths = rebaseDataPathKeys(data.freeDataPaths, coll => rebaseGridColKeys(coll, from, to));
     data.deletedPanels = new Set(deletedPanels);
     data.selectedPanels = new Set(selectedPanels);
     data.customCircuitAssignments = new Map(customCircuitAssignments);

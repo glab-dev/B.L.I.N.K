@@ -562,6 +562,16 @@ function applyConfiguration(config, fileNameOverride, opts) {
           delete safeData.freeDataPaths;
         }
       }
+      // A grid drawn by hand keeps its hand-drawn data lines, checked as a drawn screen's are
+      if(safeData.layoutMode !== 'free') {
+        if(safeData.wallBuild === 'draw') {
+          safeData.freeDataPaths = sanitizeFreeDataPaths(safeData.freeDataPaths);
+          if(safeData.freeDataMode !== 'auto' && safeData.freeDataMode !== 'manual') delete safeData.freeDataMode;
+        } else {
+          delete safeData.freeDataPaths;
+          delete safeData.freeDataMode;
+        }
+      }
 
       screens[screenId] = {
         id: screenId,

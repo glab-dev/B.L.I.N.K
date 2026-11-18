@@ -100,7 +100,8 @@ function resolveScreenDataInputs(data) {
     customDataLines: toMap(data.customDataLineAssignments),
     customDestinations: toMap(data.customDataDestinations),
     processorId: processorId,
-    connectionMode: data.mx40ConnectionMode || 'direct'
+    connectionMode: data.mx40ConnectionMode || 'direct',
+    dataPaths: gridDrawnDataPaths(data)
   };
 }
 
@@ -118,7 +119,8 @@ function screenDataLineDestinations(data) {
     startDir: inp.startDir,
     deletedPanels: inp.deletedPanels,
     customDataLineAssignments: inp.customDataLines,
-    split: data.split
+    split: data.split,
+    dataPaths: inp.dataPaths
   });
 
   const lines = (built.sortedDataLines || []).map(ln => ln + 1);
@@ -686,7 +688,8 @@ function dataLinesForPanels(data, panelKeys) {
     startDir: inp.startDir,
     deletedPanels: inp.deletedPanels,
     customDataLineAssignments: inp.customDataLines,
-    split: data.split
+    split: data.split,
+    dataPaths: inp.dataPaths
   });
   const wanted = new Set(panelKeys || []);
   (built.sortedDataLines || []).forEach((ln, gi) => {
@@ -907,11 +910,12 @@ function screenLineLabels(screenId) {
         startDir: inp.startDir,
         deletedPanels: inp.deletedPanels,
         customDataLineAssignments: inp.customDataLines,
-        split: data.split
+        split: data.split,
+        dataPaths: inp.dataPaths
       });
       // A drawn screen's hand-drawn lines run in the order they were drawn and, in Manual,
       // are named by the number picked for them (layouts/free-data.js)
-      const manual = isFreeScreen(data) && data.freeDataMode === 'manual';
+      const manual = (isFreeScreen(data) && data.freeDataMode === 'manual') || !!inp.dataPaths;
       if(isFreeScreen(data)) applyFreeDataPaths(built, freeActivePaths(data));
       (built.lineOrder || []).forEach((ln, i) => out.labels.set(ln + 1, manual ? ln + 1 : i + 1));
       (built.panelToDataLine || new Map()).forEach((ln, key) => out.panelLine.set(key, ln + 1));

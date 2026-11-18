@@ -66,11 +66,52 @@ function buildSplitDataLineGroups(o) {
   return {groups, sortedDataLines, usedCustomDataLines, panelToDataLine, lineOrder};
 }
 
+// ==================== HAND-DRAWN DATA LINES ====================
+// A grid built in Draw (data.wallBuild = 'draw') can have its data lines drawn by hand on
+// the Data layout, Tessera-style (interact/free-data-path.js), kept as on a drawn screen:
+//   data.freeDataMode = 'manual', data.freeDataPaths = [{line, panels: ["c,r", ...]}]
+// line 1-based, panels in cable order. In Manual only the drawn lines carry data; a panel on
+// no line is left off the data, as a knocked-out panel is, until it is drawn onto one.
+
+// The hand-drawn lines in force on a screen: an array (maybe empty) in Manual on a drawn
+// grid, otherwise null
+function gridDrawnDataPaths(data) {
+  return (data && typeof isDrawnGridScreen === 'function' && isDrawnGridScreen(data) && data.freeDataMode === 'manual')
+    ? (data.freeDataPaths || []) : null;
+}
+
+// The walk's inputs for hand-drawn lines: each drawn panel on its line, every other panel
+// off the data
+function drawnDataPathInputs(pw, ph, deleted, paths) {
+  const custom = new Map();
+  paths.forEach(path => path.panels.forEach(key => {
+    const [c, r] = key.split(',').map(Number);
+    if(c < pw && r < ph && !deleted.has(key)) custom.set(key, path.line);
+  }));
+  const off = new Set(deleted);
+  for(let c = 0; c < pw; c++) for(let r = 0; r < ph; r++) {
+    if(!custom.has(`${c},${r}`)) off.add(`${c},${r}`);
+  }
+  return {deletedPanels: off, customDataLineAssignments: custom};
+}
+
+// The live panels on no hand-drawn line
+function drawnDataPathUndrawn(pw, ph, deleted, paths) {
+  const inp = drawnDataPathInputs(pw, ph, deleted, paths);
+  return new Set([...inp.deletedPanels].filter(key => !deleted.has(key)));
+}
+
 // ==================== DATA LINE GROUPING ====================
 // Walks the wall in serpentine order and groups panels into data lines.
 // Pure: takes the per-screen deletedPanels Set / customDataLineAssignments Map as
-// params rather than reading the current-screen globals. Pass o.split for a split screen.
+// params rather than reading the current-screen globals. Pass o.split for a split screen,
+// and o.dataPaths for hand-drawn lines (gridDrawnDataPaths), which run in drawn order.
 function buildDataLineGroups(o) {
+  if(o.dataPaths) {
+    const built = buildDataLineGroups(Object.assign({}, o,
+      drawnDataPathInputs(o.pw, o.ph, o.deletedPanels, o.dataPaths), {dataPaths: null}));
+    return applyFreeDataPaths(built, o.dataPaths);
+  }
   if(o.split) return buildSplitDataLineGroups(o);
   const {pw, ph, panelsPerDataLine, startDir, deletedPanels, customDataLineAssignments} = o;
 
@@ -472,10 +513,24 @@ function drawDataOverlay(ctx, o) {
     });
   }
 
+  // Panels on no hand-drawn line yet: the wall's outline, as a drawn screen shows them
+  const _undrawn = (o.undrawnPanels instanceof Set) ? o.undrawnPanels : null;
+  const _print = (typeof ecoPrintMode !== 'undefined' && ecoPrintMode) || (typeof greyscalePrintMode !== 'undefined' && greyscalePrintMode) ||
+    (typeof pdfWhiteBgMode !== 'undefined' && pdfWhiteBgMode);
+
   // Draw all panels first (including deleted)
   for(let c=0;c<pw;c++){
     for(let r=0;r<ph;r++){
       const panelKey = `${c},${r}`;
+
+      if(_undrawn && _undrawn.has(panelKey)) {
+        ctx.fillStyle = _print ? '#ffffff' : '#242424';
+        ctx.fillRect(drawX(c), drawY(r), colWidth(c), rowHeight(r));
+        ctx.strokeStyle = _print ? '#000000' : '#666666';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(drawX(c), drawY(r), colWidth(c), rowHeight(r));
+        continue;
+      }
 
       // Check if panel is deleted
       if(deletedPanels.has(panelKey) && !skipDeletedPanels) {
@@ -535,7 +590,12 @@ function drawDataOverlay(ctx, o) {
 
   if(showArrows){
     const arrowOpts = { lineWidth: arrowLineWidth, headSize: arrowHeadSize, hideArrowhead: showLabels };
-    if(startDir === 'all_top' || startDir === 'all_bottom') {
+    if(o.joinAll) {
+      // Hand-drawn lines: one arrow through every panel, in the order they were drawn
+      groupPoints.forEach(pts => {
+        if(pts.length >= 2) drawArrowPath(ctx, flip ? [...pts].reverse() : pts, '#000000', arrowOpts);
+      });
+    } else if(startDir === 'all_top' || startDir === 'all_bottom') {
       // For all_top and all_bottom, draw one arrow per column
       // Group points by column
       for(let gi=0; gi<groupPoints.length; gi++){
@@ -662,11 +722,17 @@ function drawDataOverlay(ctx, o) {
 function renderDataLayout(params) {
   const {pw, ph, panelWidth, rowGeo, colGeo, canvas, ctx, panelsPerDataLine, startDir, showArrows, fontSize} = params;
 
+  const _screenData = (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].data : null;
+  const dataPaths = gridDrawnDataPaths(_screenData);
   const {groups, sortedDataLines} = buildDataLineGroups({
     pw, ph, panelsPerDataLine, startDir,
     deletedPanels, customDataLineAssignments,
-    split: (typeof screens !== 'undefined' && screens[currentScreenId]) ? screens[currentScreenId].data.split : null
+    split: _screenData ? _screenData.split : null,
+    dataPaths
   });
+  const _isPdf = typeof pdfLayoutCaptureMode !== 'undefined' && pdfLayoutCaptureMode;
+  // Where the Data canvas's panels sit, for drawing lines on it by hand
+  gridDataLayoutView = {pw, ph, rowGeo, colGeo, rearView: (typeof dataRearViewEnabled !== 'undefined') && dataRearViewEnabled};
 
   const _flip = (typeof dataFlipEnabled !== 'undefined') && dataFlipEnabled;
   const dataLineEndpoints = computeDataLineEndpoints(groups, sortedDataLines, _flip);
@@ -694,10 +760,13 @@ function renderDataLayout(params) {
     panelFontSize: fontSize,
     arrowLineWidth: 3,
     arrowHeadSize: 12,
-    lightDeletedPanels: (ecoPrintMode || greyscalePrintMode)
+    lightDeletedPanels: (ecoPrintMode || greyscalePrintMode),
+    undrawnPanels: dataPaths ? drawnDataPathUndrawn(pw, ph, deletedPanels, dataPaths) : null,
+    joinAll: !!dataPaths
   });
 
   drawSplitPartMarkers(ctx, currentScreenId, { offsetX: 0, offsetY: 0, panelWidth, rowGeo, colGeo, fontSize });
+  if(dataPaths && !_isPdf && typeof drawGridDataPathHover === 'function') drawGridDataPathHover(ctx);
 }
 
 // ==================== SPLIT PART MARKERS ====================

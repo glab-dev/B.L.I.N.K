@@ -221,7 +221,7 @@ function resolvePanelsPerDataLine(o) {
   return userMax > 0 ? userMax : capacityBasedPanelsPerData;
 }
 
-function calculateActualDataLines(pw, ph, panelsPerDataLine, startDir, deletedPanelsParam, customAssignmentsParam, split) {
+function calculateActualDataLines(pw, ph, panelsPerDataLine, startDir, deletedPanelsParam, customAssignmentsParam, split, dataPaths) {
   // Use per-screen params if provided, otherwise fall back to globals
   const dp = deletedPanelsParam || deletedPanels;
   const cdla = customAssignmentsParam || customDataLineAssignments;
@@ -232,7 +232,7 @@ function calculateActualDataLines(pw, ph, panelsPerDataLine, startDir, deletedPa
   // this in step with the layout: a custom assignment can skip ahead (line 9 on a
   // 3-line wall) without adding six lines to the rig.
   // Main lines only; callers reporting a needed count apply the redundancy doubling.
-  const ordering = getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, dp, cdla, split);
+  const ordering = getDataLinePanelOrdering(pw, ph, panelsPerDataLine, startDir, dp, cdla, split, dataPaths);
   return Object.keys(ordering).length;
 }
 
@@ -1043,7 +1043,7 @@ function calculate(){
   // Calculate actual data lines used (including custom assignments)
   // Use adjusted ph if CB5 half rows are enabled
   const adjustedPh = ph + halfRowCount;
-  const actualDataLines = calculateActualDataLines(pw + halfColCount, adjustedPh, panelsPerDataLine, startDir, undefined, undefined, screens[currentScreenId] && screens[currentScreenId].data.split);
+  const actualDataLines = calculateActualDataLines(pw + halfColCount, adjustedPh, panelsPerDataLine, startDir, undefined, undefined, screens[currentScreenId] && screens[currentScreenId].data.split, gridDrawnDataPaths(screens[currentScreenId] && screens[currentScreenId].data));
   const dataLines = actualDataLines;
   const portsNeeded = dataLines; // Each data line needs one port
   

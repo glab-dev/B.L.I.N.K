@@ -74,6 +74,87 @@ function updateStructureVisualization() {
   }
 }
 
+// The bumper column count: the same column count the structure canvas draws. Reading
+// panelsWide directly drifts from the grid whenever the wall fields drive the count (panel
+// type change, aspect-ratio lock, dimension mode) and leaves bumpers overhanging the wall.
+function bumperColumnCount() {
+  const hasDimensions = !!(document.getElementById('panelsWide').value || document.getElementById('wallWidth').value);
+  // Half columns (V4ST-V) are columns of panels too: a 2W carries two panels whatever their width
+  const halfCols = getCurrentHalfCols();
+  return hasDimensions ? getEffectivePanelCounts().pw + halfCols.left + halfCols.right : 0;
+}
+
+// The automatic bumpers along one edge of a wall pw columns wide, left to right: two columns
+// to a 2W when their edge panels (the first live panel down each column from the top, or up
+// from the bottom) are on the same row, else a 1W on the first - a 2W can't sit on two rows -
+// and pairing goes on from the next. With 4Ws, each two touching 2Ws are joined by one, from
+// the centre of one to the centre of the other. `plain` ignores knocked-out panels (the
+// pairing used before knock-outs were followed). 4Ws first: [{type, startCol, endCol}]
+function autoBumperLayout(pw, position, with4w, plain) {
+  const ph = getEffectivePanelCountsForLayout().ph;
+  const edgeRow = c => plain ? 0 : (position === 'top' ? getFirstNonDeletedRow(c, ph) : getLastNonDeletedRow(c, ph));
+  const pieces = [];
+  for(let c = 0; c < pw; c++) {
+    if(c + 1 < pw && edgeRow(c) === edgeRow(c + 1)) {
+      pieces.push({type: '2w', startCol: c, endCol: c + 1});
+      c++;
+    } else {
+      pieces.push({type: '1w', startCol: c, endCol: c});
+    }
+  }
+  const fours = [];
+  if(with4w) {
+    for(let i = 0; i + 1 < pieces.length; i++) {
+      if(pieces[i].type !== '2w' || pieces[i + 1].type !== '2w') continue;
+      fours.push({type: '4w', startCol: pieces[i].startCol + 1, endCol: pieces[i + 1].startCol + 1});
+      i++;
+    }
+  }
+  return fours.concat(pieces);
+}
+
+// The current screen's automatic bumpers, without ids: the top edge's (4Ws first) on a hung
+// wall, the bottom edge's on a ground stack, which never takes 4W bumpers
+function autoBumpers(pw, plain) {
+  const panelType = document.getElementById('panelType').value;
+  const isCB5 = panelType === 'CB5_MKII' || panelType === 'CB5_MKII_HALF';
+  const pSpec = getAllPanels()[panelType];
+  const with4w = use4WayBumpersEnabled && (isCB5 || !!(pSpec && pSpec.custom && pSpec.supports_4w_bumpers));
+  const list = [];
+  const add = (position, layout) => layout.forEach(b => {
+    list.push({type: b.type, position: position, startCol: b.startCol, endCol: b.endCol});
+  });
+  if(showTopBumper) add('top', autoBumperLayout(pw, 'top', with4w, plain));
+  if(showBottomBumper) add('bottom', autoBumperLayout(pw, 'bottom', false, plain));
+  return list;
+}
+
+// A bumper layout as one string, to tell whether it is still the one auto-distribution made
+function bumperLayoutSig(list) {
+  return list.map(b => `${b.position}:${b.type}:${b.startCol}-${b.endCol}:${b.ladderColumn || ''}`).sort().join('|');
+}
+
+// Automatic bumpers follow the panels they sit on: while the current screen's bumpers are
+// still the ones auto-distribution made (none added, moved, changed or deleted by hand since),
+// they are laid out again whenever panels are knocked out or put back. Screens saved before
+// this was tracked count as automatic when theirs are the plain left-to-right pairing.
+function reconcileBumpersToKnockouts() {
+  if(!useBumpers || !screens[currentScreenId] || !screens[currentScreenId].data) return false;
+  const pw = bumperColumnCount();
+  if(pw <= 0) return false;
+  const data = screens[currentScreenId].data;
+  const sig = bumperLayoutSig(bumpers);
+  const untouched = typeof data.bumperAutoSig === 'string'
+    ? sig === data.bumperAutoSig
+    : sig === bumperLayoutSig(autoBumpers(pw, true));
+  if(!untouched) return false;
+  const fresh = autoBumpers(pw, false);
+  data.bumperAutoSig = bumperLayoutSig(fresh);
+  if(data.bumperAutoSig === sig) return false;
+  bumpers = fresh.map(b => Object.assign({id: nextBumperId++}, b));
+  return true;
+}
+
 // ==================== COMPREHENSIVE BUMPER MANAGEMENT SYSTEM v23 ====================
 // Initialize bumpers based on structure configuration
 function initializeBumpers() {
@@ -85,13 +166,7 @@ function initializeBumpers() {
     return;
   }
   
-  // Use the same column count the structure canvas draws. Reading panelsWide directly
-  // drifts from the grid whenever the wall fields drive the count (panel type change,
-  // aspect-ratio lock, dimension mode) and leaves bumpers overhanging the wall.
-  const hasDimensions = !!(document.getElementById('panelsWide').value || document.getElementById('wallWidth').value);
-  // Half columns (V4ST-V) are columns of panels too: a 2W carries two panels whatever their width
-  const _halfCols = getCurrentHalfCols();
-  const pw = hasDimensions ? getEffectivePanelCounts().pw + _halfCols.left + _halfCols.right : 0;
+  const pw = bumperColumnCount();
   const ph = parseInt(document.getElementById('panelsHigh').value) || 0;
   const use4Way = use4WayBumpersEnabled;
   const panelType = document.getElementById('panelType').value;
@@ -117,99 +192,11 @@ function initializeBumpers() {
     return;
   }
   
-  // Initialize top bumpers
-  if(showTopBumper) {
-    console.log('Adding top bumpers...');
-    if(use4Way && supports4w) {
-      // Add 4W bumpers first - each spans from center of one 2W to center of next 2W
-      // This covers 2 columns (2 panel widths) per 4W bumper
-      const fourWayCount = Math.floor(pw / 4);
-      for(let i = 0; i < fourWayCount; i++) {
-        // Each 4W spans from center of 2W at (i*4, i*4+1) to center of 2W at (i*4+2, i*4+3)
-        // First 2W center: (i*4 + 0.5 + i*4 + 1.5)/2 = i*4 + 1
-        // Second 2W center: (i*4 + 2.5 + i*4 + 3.5)/2 = i*4 + 3
-        bumpers.push({
-          id: nextBumperId++,
-          type: '4w',
-          position: 'top',
-          startCol: i * 4 + 1,      // Center of first 2W: 1, 5, 9...
-          endCol: i * 4 + 3         // Center of second 2W: 3, 7, 11...
-        });
-      }
-      
-      // Add 2W bumpers - one per pair of columns
-      const num2WBumpers = Math.floor(pw / 2);
-      for(let i = 0; i < num2WBumpers; i++) {
-        bumpers.push({
-          id: nextBumperId++,
-          type: '2w',
-          position: 'top',
-          startCol: i * 2,
-          endCol: i * 2 + 1
-        });
-      }
-      
-      // Add 1W bumper for odd last column
-      if(pw % 2 === 1) {
-        bumpers.push({
-          id: nextBumperId++,
-          type: '1w',
-          position: 'top',
-          startCol: pw - 1,
-          endCol: pw - 1
-        });
-      }
-    } else {
-      // Just 2W bumpers - one per pair of columns
-      const num2WBumpers = Math.floor(pw / 2);
-      for(let i = 0; i < num2WBumpers; i++) {
-        bumpers.push({
-          id: nextBumperId++,
-          type: '2w',
-          position: 'top',
-          startCol: i * 2,
-          endCol: i * 2 + 1
-        });
-      }
-      
-      // Add 1W bumper for odd last column
-      if(pw % 2 === 1) {
-        bumpers.push({
-          id: nextBumperId++,
-          type: '1w',
-          position: 'top',
-          startCol: pw - 1,
-          endCol: pw - 1
-        });
-      }
-    }
-  }
-  
-  // Initialize bottom bumpers - a ground-stacked wall never takes 4W bumpers
-  if(showBottomBumper) {
-    console.log('Adding bottom bumpers...');
-    // Just 2W bumpers - one per pair of columns
-    const num2WBumpers = Math.floor(pw / 2);
-    for(let i = 0; i < num2WBumpers; i++) {
-      bumpers.push({
-        id: nextBumperId++,
-        type: '2w',
-        position: 'bottom',
-        startCol: i * 2,
-        endCol: i * 2 + 1
-      });
-    }
-
-    // Add 1W bumper for odd last column
-    if(pw % 2 === 1) {
-      bumpers.push({
-        id: nextBumperId++,
-        type: '1w',
-        position: 'bottom',
-        startCol: pw - 1,
-        endCol: pw - 1
-      });
-    }
+  autoBumpers(pw, false).forEach(b => {
+    bumpers.push(Object.assign({id: nextBumperId++}, b));
+  });
+  if(screens[currentScreenId] && screens[currentScreenId].data) {
+    screens[currentScreenId].data.bumperAutoSig = bumperLayoutSig(bumpers);
   }
   
   console.log(`Initialized ${bumpers.length} bumpers:`, bumpers);

@@ -330,60 +330,13 @@ function calculateTotalBumperWeight(W, H) {
     return 0;
   }
 
-  // When 4-way bumpers are enabled, use different calculation
-  if(use4Way && supports4wCalc && (showTopBumper || showBottomBumper) && bumper4wKg > 0) {
-    const fourWayCount = Math.floor(W / 4);  // Each 4W covers 4 columns
-    const remainingCols = W % 4;              // Leftover columns after 4W bumpers
-    
-    // Add 4W bumpers for top (includes 2x 2W bumpers + 1x 4W bumper per pickup)
-    if(showTopBumper) {
-      totalBumperWeight += fourWayCount * bumper4wKg;           // 4W bumper weight
-      totalBumperWeight += fourWayCount * 2 * bumper2wKg;        // 2x 2W bumpers per 4W
-      
-      // Add bumpers for remaining columns (not covered by 4W)
-      if(remainingCols >= 2) {
-        // Add 2W bumper(s) for pairs
-        const extra2W = Math.floor(remainingCols / 2);
-        totalBumperWeight += extra2W * bumper2wKg;
-      }
-      if(remainingCols % 2 === 1) {
-        // Add 1W bumper for the last odd column
-        totalBumperWeight += bumper1wKg;
-      }
-    }
-    
-    // Bottom bumpers never take 4Ws on a ground-stacked wall: 2Ws plus a 1W on an odd width
-    if(showBottomBumper) {
-      totalBumperWeight += Math.floor(W / 2) * bumper2wKg;
-      if(W % 2 === 1) {
-        totalBumperWeight += bumper1wKg;
-      }
-    }
-  } else {
-    // Standard 2W bumper calculation (when NOT using 4-way bumpers)
-    const needsOneW = W % 2 === 1;
-    const num2WBumpers = Math.floor(W / 2);
-    
-    // Calculate top bumper weight
-    if(showTopBumper) {
-      // Add 2W bumpers (each covers 2 columns)
-      totalBumperWeight += num2WBumpers * bumper2wKg;
-      // Add 1W bumper for the remaining column if odd width
-      if(needsOneW) {
-        totalBumperWeight += bumper1wKg;
-      }
-    }
-    
-    // Calculate bottom bumper weight
-    if(showBottomBumper) {
-      // Add 2W bumpers (each covers 2 columns)
-      totalBumperWeight += num2WBumpers * bumper2wKg;
-      // Add 1W bumper for the remaining column if odd width
-      if(needsOneW) {
-        totalBumperWeight += bumper1wKg;
-      }
-    }
-  }
+  // The automatic bumpers' hardware, laid out as auto-distribution lays them
+  // (structure/bumpers.js autoBumperLayout): 4Ws with the 2Ws under them, 2Ws, and 1Ws
+  // wherever a column can't share a 2W. A ground-stacked wall never takes 4Ws.
+  const with4w = use4Way && supports4wCalc && bumper4wKg > 0;
+  const kgOf = {'1w': bumper1wKg, '2w': bumper2wKg, '4w': bumper4wKg};
+  if(showTopBumper) autoBumperLayout(W, 'top', with4w).forEach(b => { totalBumperWeight += kgOf[b.type]; });
+  if(showBottomBumper) autoBumperLayout(W, 'bottom', false).forEach(b => { totalBumperWeight += kgOf[b.type]; });
   
   return totalBumperWeight;
 }

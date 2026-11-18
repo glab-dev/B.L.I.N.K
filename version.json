@@ -1,5 +1,5 @@
 {
-  "version": "2.11.255",
-  "updated": "2026-11-17",
-  "changelog": "Draw every wall's Structure bumpers in CB5 MKII's proportion to its panels"
+  "version": "2.11.256",
+  "updated": "2026-11-18",
+  "changelog": "Give columns whose top panels sit on different rows their own 1W bumpers"
 }

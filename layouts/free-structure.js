@@ -54,16 +54,18 @@ function freePairLevel(a, b) {
 // the width of its first panel (where a ground stack's ladder goes)
 function freeBumpers(data, allPanels, position) {
   // Each run of edge panels side by side is paired from its left end, as grid columns are
-  // across the whole wall: two panels to a 2W, even where a notch puts them on two rows
+  // across the whole wall: two panels to a 2W when their edges are on the same row, else a
+  // 1W on the first (a 2W can't sit on two rows), and pairing goes on from the next
   const edge = freeEdgePanels(data, allPanels, position);
   const bumpers = [];
   for(let i = 0; i < edge.length; i++) {
     const run = [edge[i]];
     while(i + 1 < edge.length && edge[i + 1].gx === run[run.length - 1].gx + run[run.length - 1].cw) run.push(edge[++i]);
-    for(let j = 0; j < run.length; j += 2) {
-      const pair = run[j + 1];
+    for(let j = 0; j < run.length; j++) {
+      const pair = run[j + 1] && run[j + 1].gy === run[j].gy ? run[j + 1] : null;
       bumpers.push({type: pair ? '2w' : '1w', gx: run[j].gx, cw: run[j].cw + (pair ? pair.cw : 0),
-        gy: pair ? freePairLevel(run[j], pair) : run[j].gy, panelType: run[j].type, firstCw: run[j].cw});
+        gy: run[j].gy, panelType: run[j].type, firstCw: run[j].cw});
+      if(pair) j++;
     }
   }
   return bumpers.sort((a, b) => a.gx - b.gx || a.gy - b.gy);

@@ -45,23 +45,25 @@ function freeBumperOnSlot(type, at) {
     gy: type === '2w' ? freePairLevel(at.slot, at.next) : at.slot.gy, panelType: at.slot.type, firstCw: at.slot.cw};
 }
 
-// Bumpers clash on the columns they cover; 4Ws only with 4Ws, in their own band over the 2Ws
-function freeBumperOverlaps(list, cand, exceptId) {
-  return list.some(b => b.id !== exceptId && (b.type === '4w') === (cand.type === '4w') &&
-    b.gx < cand.gx + cand.cw && cand.gx < b.gx + b.cw);
+// Add a bumper, unless the same type already sits on the same spot (the grid's
+// addBumperAtColumn rule); like the grid's, it may overlap other bumpers
+function addFreeBumper(cand) {
+  const list = screens[currentScreenId].data.freeBumpers;
+  if(list.some(b => b.type === cand.type && b.gx === cand.gx && b.gy === cand.gy)) return;
+  editFreeBumpers(l => {
+    l.push(Object.assign({id: Math.max(0, ...l.map(bb => bb.id)) + 1}, cand));
+  });
 }
 
 // The two touching 2Ws a 4W at cell x would join: the 2W there and the one to its right (or
-// its left at the end of a run), neither already under another 4W unless `overlap` (a drag,
-// which passes over other bumpers as the grid's does)
-function freeFourWayPair(cellX, overlap) {
+// its left at the end of a run), whether or not another 4W already covers them, as the grid's
+function freeFourWayPair(cellX) {
   const list = screens[currentScreenId].data.freeBumpers;
   const twos = list.filter(b => b.type === '2w').sort((a, b) => a.gx - b.gx);
-  const taken = mid => !overlap && list.some(f => f.type === '4w' && mid >= f.gx - 0.001 && mid <= f.gx + f.cw + 0.001);
   const i = twos.findIndex(t => cellX >= t.gx && cellX < t.gx + t.cw);
   if(i < 0) return null;
   for(const [a, b] of [[twos[i], twos[i + 1]], [twos[i - 1], twos[i]]]) {
-    if(a && b && a.gx + a.cw === b.gx && !taken(a.gx + a.cw / 2) && !taken(b.gx + b.cw / 2)) return {a, b};
+    if(a && b && a.gx + a.cw === b.gx) return {a, b};
   }
   return null;
 }
@@ -86,7 +88,7 @@ function freeBumperAt(clientX, clientY) {
 }
 
 // The empty spot for a bumper under a point: a bumper row's band over an edge panel, or on
-// a hung wall that takes 4Ws the band over its 2Ws, where two touching 2Ws are free to join
+// a hung wall that takes 4Ws the band over its 2Ws, where two touching 2Ws can be joined
 function freeBumperSpotAt(clientX, clientY) {
   const st = freeStructureState, v = freeStructureView;
   if(!st || !st.position || !v) return null;
@@ -96,7 +98,7 @@ function freeBumperSpotAt(clientX, clientY) {
   for(const level of freeEdgeLevels(data, getAllPanels(), st.position).keys()) {
     const edgeY = v.top + Math.round(level * v.cellPx);
     if(st.takes4w && p.y >= edgeY - v.bumperH - v.fourWayGap - v.fourWayH && p.y < edgeY - v.bumperH) {
-      const pair = freeFourWayPair(cellX, false);
+      const pair = freeFourWayPair(cellX);
       if(pair && Math.min(pair.a.gy, pair.b.gy) === level) return {level, pair};
       continue;
     }
@@ -194,11 +196,9 @@ function showFreeBumperOptions(id, x, y) {
     const at = freeEdgeSlotAt(b.gx);
     if(at && at.next) {
       const cand = freeBumperOnSlot('2w', at);
-      if(!freeBumperOverlaps(data.freeBumpers, cand, id)) {
-        options.push({label: 'Replace with 2W Bumper', action: () => editFreeBumpers(list => {
-          Object.assign(list.find(bb => bb.id === id), cand);
-        })});
-      }
+      options.push({label: 'Replace with 2W Bumper', action: () => editFreeBumpers(list => {
+        Object.assign(list.find(bb => bb.id === id), cand);
+      })});
     }
   }
   options.push({separator: true});
@@ -212,32 +212,25 @@ function showFreeBumperOptions(id, x, y) {
 // An empty spot's options: a 2W on its panel and the next, or a 1W on its panel; in the 4W
 // band, a 4W joining the two 2Ws there
 function showFreeBumperAddOptions(spot, x, y) {
-  const data = screens[currentScreenId].data;
   const options = [];
   if(spot.pair) {
     const cand = freeFourWayOn(spot.pair);
-    if(freeBumperOverlaps(data.freeBumpers, cand, null)) return;
     const first = freeEdgeSlotAt(spot.pair.a.gx).slot;
     const last = freeEdgeSlotAt(spot.pair.b.gx + spot.pair.b.cw - 1).slot;
     showFreeBumperMenu(x, y, [{label: `Add 4W Bumper at ${freeSlotName(first)}–${freeSlotName(last)}`,
-      action: () => editFreeBumpers(list => {
-        list.push(Object.assign({id: Math.max(0, ...list.map(bb => bb.id)) + 1}, cand));
-      })}]);
+      action: () => addFreeBumper(cand)}]);
     return;
   }
   const add = type => {
     const cand = freeBumperOnSlot(type, spot.at);
-    if(freeBumperOverlaps(data.freeBumpers, cand, null)) return;
     const label = type === '2w'
       ? `Add 2W Bumper at ${freeSlotName(spot.at.slot)}–${freeSlotName(spot.at.next)}`
       : `Add 1W Bumper at ${freeSlotName(spot.at.slot)}`;
-    options.push({label, action: () => editFreeBumpers(list => {
-      list.push(Object.assign({id: Math.max(0, ...list.map(bb => bb.id)) + 1}, cand));
-    })});
+    options.push({label, action: () => addFreeBumper(cand)});
   };
   if(spot.at.next) add('2w');
   add('1w');
-  if(options.length) showFreeBumperMenu(x, y, options);
+  showFreeBumperMenu(x, y, options);
 }
 
 // Dragging a bumper: it moves to the edge panel under the pointer on its own row, when it
@@ -251,7 +244,7 @@ function moveFreeBumperTo(clientX) {
   const cellX = freeStructurePoint(clientX, 0).x / freeStructureView.cellPx - drag.grab;
   let cand;
   if(b.type === '4w') {
-    const pair = freeFourWayPair(cellX + 0.01, true);
+    const pair = freeFourWayPair(cellX + 0.01);
     if(!pair) return;
     cand = freeFourWayOn(pair);
     if(cand.gx === b.gx) return;
